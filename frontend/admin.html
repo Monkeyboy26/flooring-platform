@@ -1,0 +1,3212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Atelier Surfaces</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --stone-50: #fafaf9;
+      --stone-100: #f5f5f4;
+      --stone-200: #e7e5e4;
+      --stone-300: #d6d3d1;
+      --stone-400: #a8a29e;
+      --stone-500: #78716c;
+      --stone-600: #57534e;
+      --stone-700: #44403c;
+      --stone-800: #292524;
+      --stone-900: #1c1917;
+      --gold: #c9a668;
+      --gold-light: #d4b87a;
+      --green: #16a34a;
+      --green-light: #dcfce7;
+      --red: #dc2626;
+      --red-light: #fee2e2;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--stone-50);
+      color: var(--stone-800);
+    }
+
+    /* Auth Gate */
+    .auth-gate {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--stone-100) 0%, var(--stone-200) 100%);
+    }
+    .auth-box {
+      background: white;
+      padding: 3rem;
+      width: 400px;
+      max-width: 90vw;
+      border: 1px solid var(--stone-200);
+    }
+    .auth-box h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+      font-weight: 300;
+      margin-bottom: 0.5rem;
+    }
+    .auth-box p {
+      color: var(--stone-600);
+      font-size: 0.875rem;
+      margin-bottom: 2rem;
+    }
+    .auth-box input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border: 2px solid var(--stone-200);
+      font-size: 0.875rem;
+      font-family: 'Inter', sans-serif;
+      margin-bottom: 1rem;
+    }
+    .auth-box input:focus { outline: none; border-color: var(--gold); }
+    .auth-error {
+      color: var(--red);
+      font-size: 0.8125rem;
+      margin-bottom: 1rem;
+    }
+
+    /* Layout */
+    .admin-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .admin-sidebar {
+      background: var(--stone-900);
+      color: white;
+      padding: 2rem 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem;
+      font-weight: 300;
+      padding: 0 1.5rem;
+      margin-bottom: 0.25rem;
+    }
+    .sidebar-subtitle {
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--stone-500);
+      padding: 0 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .sidebar-nav { flex: 1; }
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.875rem;
+      color: var(--stone-400);
+      cursor: pointer;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+    }
+    .sidebar-item:hover {
+      color: white;
+      background: rgba(255,255,255,0.05);
+    }
+    .sidebar-item.active {
+      color: white;
+      background: rgba(255,255,255,0.08);
+      border-left-color: var(--gold);
+    }
+    .sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .sidebar-logout {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--stone-700);
+    }
+
+    /* Content area */
+    .admin-content {
+      padding: 2rem 2.5rem;
+      min-height: 100vh;
+    }
+    .content-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+    .content-header h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+      font-weight: 300;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.8125rem;
+      font-family: 'Inter', sans-serif;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .btn-primary { background: var(--stone-900); color: white; }
+    .btn-primary:hover { background: var(--gold); }
+    .btn-secondary { background: white; color: var(--stone-800); border: 1px solid var(--stone-300); }
+    .btn-secondary:hover { background: var(--stone-100); }
+    .btn-danger { background: var(--red); color: white; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.75rem; }
+
+    /* Stat cards */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .stat-card {
+      background: white;
+      border: 1px solid var(--stone-200);
+      padding: 1.5rem;
+    }
+    .stat-card-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--stone-500);
+      margin-bottom: 0.5rem;
+    }
+    .stat-card-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.5rem;
+      font-weight: 400;
+      color: var(--stone-900);
+    }
+
+    /* Tables */
+    .admin-table {
+      width: 100%;
+      background: white;
+      border: 1px solid var(--stone-200);
+      border-collapse: collapse;
+    }
+    .admin-table th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--stone-500);
+      border-bottom: 2px solid var(--stone-200);
+      background: var(--stone-50);
+    }
+    .admin-table td {
+      padding: 0.875rem 1rem;
+      font-size: 0.875rem;
+      border-bottom: 1px solid var(--stone-100);
+      vertical-align: middle;
+    }
+    .admin-table tr:hover td { background: var(--stone-50); }
+    .admin-table .actions { white-space: nowrap; }
+    .admin-table .actions button { margin-right: 0.5rem; }
+
+    /* Status badges */
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      border-radius: 2px;
+    }
+    .badge-active { background: var(--green-light); color: var(--green); }
+    .badge-draft { background: var(--stone-100); color: var(--stone-500); }
+    .badge-inactive { background: var(--red-light); color: var(--red); }
+    .badge-pending { background: #fef3c7; color: #d97706; }
+    .badge-confirmed { background: var(--green-light); color: var(--green); }
+    .badge-shipped { background: #dbeafe; color: #2563eb; }
+    .badge-delivered { background: var(--green-light); color: #15803d; }
+    .badge-cancelled { background: var(--red-light); color: var(--red); }
+    .badge-running { background: #fef3c7; color: #d97706; }
+    .badge-completed { background: var(--green-light); color: var(--green); }
+    .badge-failed { background: var(--red-light); color: var(--red); }
+    .badge-sent { background: #dbeafe; color: #2563eb; }
+    .badge-acknowledged { background: #fef3c7; color: #d97706; }
+    .badge-fulfilled { background: var(--green-light); color: #15803d; }
+
+    .order-info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .order-info-item label {
+      display: block;
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--stone-500);
+      margin-bottom: 0.25rem;
+    }
+    .order-info-item span {
+      font-size: 0.875rem;
+      color: var(--stone-800);
+    }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      background: var(--stone-300);
+      border-radius: 11px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle.on { background: var(--green); }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle.on::after { transform: translateX(18px); }
+
+    /* Forms */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--stone-600);
+      margin-bottom: 0.4rem;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--stone-300);
+      font-size: 0.875rem;
+      font-family: 'Inter', sans-serif;
+      background: white;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-card {
+      background: white;
+      border: 1px solid var(--stone-200);
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .form-card h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.25rem;
+      font-weight: 400;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--stone-200);
+    }
+    .form-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .form-card-header h3 {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+    .form-card-header .toggle-icon {
+      font-size: 1.25rem;
+      color: var(--stone-400);
+      transition: transform 0.2s ease;
+      line-height: 1;
+    }
+    .form-card-header .toggle-icon.collapsed { transform: rotate(-90deg); }
+    .form-card.collapsed { padding-bottom: 0; }
+    .form-card.collapsed .form-card-body { display: none; }
+    .form-card .form-card-body {
+      padding-top: 1rem;
+      border-top: 1px solid var(--stone-200);
+      margin-top: 0.75rem;
+    }
+
+    /* SKU cards */
+    .sku-card {
+      background: var(--stone-50);
+      border: 1px solid var(--stone-200);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .sku-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .sku-card-header h4 {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    /* Category tree */
+    .cat-tree-item {
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--stone-100);
+      background: white;
+    }
+    .cat-tree-item:hover { background: var(--stone-50); }
+    .cat-tree-child {
+      padding-left: 2.5rem;
+      font-size: 0.875rem;
+    }
+    .cat-tree-parent { font-weight: 600; }
+    .cat-tree-slug {
+      font-size: 0.75rem;
+      color: var(--stone-400);
+      margin-left: 0.75rem;
+    }
+    .cat-tree-count {
+      font-size: 0.75rem;
+      color: var(--stone-500);
+      background: var(--stone-100);
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      margin-left: 0.5rem;
+    }
+
+    /* Delete confirm modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-box {
+      background: white;
+      padding: 2rem;
+      width: 420px;
+      max-width: 90vw;
+    }
+    .modal-box h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem;
+      font-weight: 400;
+      margin-bottom: 1rem;
+    }
+    .modal-box p {
+      color: var(--stone-600);
+      font-size: 0.875rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--stone-400);
+      font-size: 0.875rem;
+    }
+
+    /* Import file zone */
+    .import-file-zone {
+      border: 2px dashed var(--stone-300);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .import-file-zone:hover { border-color: var(--gold); background: var(--stone-50); }
+    .import-file-zone.has-file { border-color: var(--green); border-style: solid; }
+
+    /* Bulk actions toolbar */
+    .bulk-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 1rem;
+      background: var(--stone-900);
+      color: white;
+      margin-bottom: 1rem;
+      font-size: 0.8125rem;
+    }
+    .bulk-toolbar .bulk-count {
+      font-weight: 600;
+      margin-right: auto;
+    }
+    .bulk-toolbar select {
+      padding: 0.4rem 0.75rem;
+      font-size: 0.75rem;
+      font-family: 'Inter', sans-serif;
+      border: 1px solid var(--stone-600);
+      background: var(--stone-800);
+      color: white;
+      cursor: pointer;
+    }
+    .bulk-toolbar select:focus { outline: none; border-color: var(--gold); }
+    .admin-table input[type="checkbox"] {
+      width: 1rem;
+      height: 1rem;
+      cursor: pointer;
+      accent-color: var(--gold);
+    }
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .filter-bar input,
+    .filter-bar select {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8125rem;
+      font-family: 'Inter', sans-serif;
+      border: 1px solid var(--stone-300);
+      background: white;
+      color: var(--stone-800);
+    }
+    .filter-bar input:focus,
+    .filter-bar select:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+    .filter-bar input[type="text"] { min-width: 220px; }
+    .filter-bar .filter-count {
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: var(--stone-400);
+    }
+    .admin-table th.sortable {
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .admin-table th.sortable:hover { color: var(--gold); }
+    .admin-table th .sort-arrow {
+      display: inline-block;
+      margin-left: 0.25rem;
+      font-size: 0.625rem;
+      vertical-align: middle;
+      color: var(--stone-400);
+    }
+    .admin-table th.sorted .sort-arrow { color: var(--gold); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    const API = 'http://localhost:3001';
+
+    // ========== Admin Fetch Helper ==========
+    function adminFetch(path, options = {}) {
+      const key = sessionStorage.getItem('admin_api_key');
+      return fetch(API + path, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Key': key || '',
+          ...(options.headers || {})
+        }
+      }).then(r => {
+        if (r.status === 401) {
+          sessionStorage.removeItem('admin_api_key');
+          window.location.reload();
+          throw new Error('Unauthorized');
+        }
+        const ct = r.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+          throw new Error('Server returned non-JSON (status ' + r.status + '). Is the API running?');
+        }
+        return r.json();
+      });
+    }
+
+    function adminUpload(path, file) {
+      const key = sessionStorage.getItem('admin_api_key');
+      const formData = new FormData();
+      formData.append('file', file);
+      return fetch(API + path, {
+        method: 'POST',
+        headers: { 'X-Admin-Key': key || '' },
+        body: formData
+      }).then(r => {
+        if (r.status === 401) {
+          sessionStorage.removeItem('admin_api_key');
+          window.location.reload();
+          throw new Error('Unauthorized');
+        }
+        return r.json();
+      });
+    }
+
+    function autoMapHeaders(headers, pimFields) {
+      const mapping = {};
+      const aliases = {
+        'code': 'vendor_sku', 'product code': 'vendor_sku', 'item#': 'vendor_sku', 'item #': 'vendor_sku',
+        'item': 'vendor_sku', 'sku': 'vendor_sku', 'product sku': 'vendor_sku', 'item name': 'name',
+        'stock name': 'name', 'product name': 'name', 'product': 'name', 'title': 'name', 'description': 'name',
+        'collection': 'collection', 'series': 'collection',
+        'price per sq.ft': 'cost', 'price per sqft': 'cost', 'price sqft/piece/sheet': 'cost',
+        'price': 'cost', 'standard cost': 'cost', 'preferred': 'cost',
+        'msrp': 'retail_price', 'retail': 'retail_price', 'retail price': 'retail_price',
+        'price per box/slab': 'retail_price', 'price per box': 'retail_price',
+        'sq.ft per box': 'sqft_per_box', 'sqft per box': 'sqft_per_box', 'sqftper box': 'sqft_per_box',
+        'sf/ctn': 'sqft_per_box', 'sf/ct': 'sqft_per_box', 'sqft/box': 'sqft_per_box',
+        'pieces per box': 'pieces_per_box', 'pcs per box': 'pieces_per_box', 'pcs/box': 'pieces_per_box',
+        'weight per box': 'weight_per_box_lbs', 'lbs/ctn': 'weight_per_box_lbs', 'box weight': 'weight_per_box_lbs',
+        'weight per box(lb)': 'weight_per_box_lbs',
+        'finish': 'finish', 'color': 'color', 'color family': 'color', 'material': 'material',
+        'size': 'size', 'size (inch)': 'size', 'thickness': 'thickness',
+        'short description': 'description_short', 'long description': 'description_long',
+        'variant': 'variant_name', 'variant name': 'variant_name',
+      };
+      const fieldValues = new Set(pimFields.map(f => f.value).filter(Boolean));
+      const usedFields = new Set();
+      headers.forEach((header, i) => {
+        const norm = String(header).toLowerCase().trim();
+        if (aliases[norm] && !usedFields.has(aliases[norm])) {
+          mapping[String(i)] = aliases[norm];
+          usedFields.add(aliases[norm]);
+        } else if (fieldValues.has(norm) && !usedFields.has(norm)) {
+          mapping[String(i)] = norm;
+          usedFields.add(norm);
+        }
+      });
+      return mapping;
+    }
+
+    // ========== AdminApp ==========
+    function AdminApp() {
+      const [authed, setAuthed] = useState(false);
+      const [checking, setChecking] = useState(true);
+
+      useEffect(() => {
+        const key = sessionStorage.getItem('admin_api_key');
+        if (!key) { setChecking(false); return; }
+        fetch(API + '/api/admin/stats', { headers: { 'X-Admin-Key': key } })
+          .then(r => {
+            if (r.ok) { setAuthed(true); }
+            else { sessionStorage.removeItem('admin_api_key'); }
+            setChecking(false);
+          })
+          .catch(() => { setChecking(false); });
+      }, []);
+
+      if (checking) return React.createElement('div', { className: 'loading' }, 'Loading...');
+      if (!authed) return React.createElement(AuthGate, { onAuth: () => setAuthed(true) });
+      return React.createElement(AdminLayout, { onLogout: () => { sessionStorage.removeItem('admin_api_key'); setAuthed(false); } });
+    }
+
+    // ========== AuthGate ==========
+    function AuthGate({ onAuth }) {
+      const [key, setKey] = useState('');
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!key.trim()) return;
+        setLoading(true);
+        setError('');
+        fetch(API + '/api/admin/stats', { headers: { 'X-Admin-Key': key.trim() } })
+          .then(r => {
+            if (r.ok) {
+              sessionStorage.setItem('admin_api_key', key.trim());
+              onAuth();
+            } else {
+              setError('Invalid API key');
+            }
+            setLoading(false);
+          })
+          .catch(() => { setError('Cannot reach API'); setLoading(false); });
+      };
+
+      return (
+        <div className="auth-gate">
+          <form className="auth-box" onSubmit={handleSubmit}>
+            <h1>Admin Dashboard</h1>
+            <p>Enter your API key to continue</p>
+            {error && <div className="auth-error">{error}</div>}
+            <input
+              type="password"
+              placeholder="API Key"
+              value={key}
+              onChange={e => setKey(e.target.value)}
+              autoFocus
+            />
+            <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+              {loading ? 'Verifying...' : 'Sign In'}
+            </button>
+          </form>
+        </div>
+      );
+    }
+
+    // ========== AdminLayout ==========
+    function AdminLayout({ onLogout }) {
+      const [view, setView] = useState('dashboard');
+      const [editId, setEditId] = useState(null);
+      const scrollPositions = React.useRef({});
+      const pendingScroll = React.useRef(null);
+
+      const navigate = (v, id) => {
+        scrollPositions.current[view] = window.scrollY;
+        setView(v);
+        setEditId(id || null);
+        if (scrollPositions.current[v] != null) {
+          pendingScroll.current = scrollPositions.current[v];
+        } else {
+          window.scrollTo(0, 0);
+        }
+      };
+
+      const consumePendingScroll = () => {
+        if (pendingScroll.current != null) {
+          const y = pendingScroll.current;
+          pendingScroll.current = null;
+          requestAnimationFrame(() => window.scrollTo(0, y));
+        }
+      };
+
+      const navItems = [
+        { key: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4' },
+        { key: 'orders', label: 'Orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
+        { key: 'products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
+        { key: 'vendors', label: 'Vendors', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
+        { key: 'categories', label: 'Categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
+        { key: 'import', label: 'Import', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' },
+        { key: 'scrapers', label: 'Scrapers', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
+        { key: 'reps', label: 'Sales Reps', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+      ];
+
+      const activeBase = view.split('-')[0] === 'product' ? 'products' :
+                          view.split('-')[0] === 'vendor' ? 'vendors' :
+                          view.split('-')[0] === 'category' ? 'categories' :
+                          view.split('-')[0] === 'order' ? 'orders' :
+                          view.split('-')[0] === 'import' ? 'import' :
+                          view.split('-')[0] === 'scraper' || view === 'scrapers' ? 'scrapers' :
+                          view.split('-')[0] === 'rep' || view === 'reps' ? 'reps' : view;
+
+      return (
+        <div className="admin-layout">
+          <div className="admin-sidebar">
+            <div className="sidebar-logo">Atelier Surfaces</div>
+            <div className="sidebar-subtitle">Admin Panel</div>
+            <div className="sidebar-nav">
+              {navItems.map(item => (
+                <div
+                  key={item.key}
+                  className={'sidebar-item' + (activeBase === item.key ? ' active' : '')}
+                  onClick={() => navigate(item.key)}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={item.icon} />
+                  </svg>
+                  {item.label}
+                </div>
+              ))}
+            </div>
+            <div className="sidebar-logout">
+              <div className="sidebar-item" onClick={onLogout}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+              </div>
+            </div>
+          </div>
+          <div className="admin-content">
+            {view === 'dashboard' && <DashboardView navigate={navigate} />}
+            {view === 'orders' && <OrdersListView navigate={navigate} />}
+            {view === 'order-detail' && <OrderDetailView navigate={navigate} editId={editId} />}
+            {view === 'products' && <ProductsListView navigate={navigate} onReady={consumePendingScroll} />}
+            {view === 'product-create' && <ProductFormView navigate={navigate} />}
+            {view === 'product-edit' && <ProductFormView navigate={navigate} editId={editId} />}
+            {view === 'vendors' && <VendorsListView navigate={navigate} />}
+            {view === 'vendor-create' && <VendorFormView navigate={navigate} />}
+            {view === 'vendor-edit' && <VendorFormView navigate={navigate} editId={editId} />}
+            {view === 'categories' && <CategoriesListView navigate={navigate} />}
+            {view === 'category-create' && <CategoryFormView navigate={navigate} />}
+            {view === 'category-edit' && <CategoryFormView navigate={navigate} editId={editId} />}
+            {view === 'import' && <ImportView navigate={navigate} />}
+            {view === 'scrapers' && <ScrapersView navigate={navigate} />}
+            {view === 'scraper-source-create' && <ScraperSourceFormView navigate={navigate} />}
+            {view === 'scraper-source-edit' && <ScraperSourceFormView navigate={navigate} editId={editId} />}
+            {view === 'scraper-jobs' && <ScraperJobsView navigate={navigate} editId={editId} />}
+            {view === 'scraper-job-detail' && <ScraperJobDetailView navigate={navigate} editId={editId} />}
+            {view === 'reps' && <RepsListView navigate={navigate} />}
+            {view === 'rep-create' && <RepFormView navigate={navigate} />}
+            {view === 'rep-edit' && <RepFormView navigate={navigate} editId={editId} />}
+          </div>
+        </div>
+      );
+    }
+
+    // ========== DashboardView ==========
+    function DashboardView({ navigate }) {
+      const [stats, setStats] = useState(null);
+
+      useEffect(() => {
+        adminFetch('/api/admin/stats').then(setStats).catch(() => {});
+      }, []);
+
+      if (!stats) return <div className="loading">Loading dashboard...</div>;
+
+      const cards = [
+        { label: 'Orders', value: stats.counts.orders },
+        { label: 'Products', value: stats.counts.products },
+        { label: 'Vendors', value: stats.counts.vendors },
+        { label: 'Categories', value: stats.counts.categories },
+        { label: 'SKUs', value: stats.counts.skus },
+      ];
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Dashboard</h1>
+          </div>
+          <div className="stat-grid">
+            {cards.map(c => (
+              <div key={c.label} className="stat-card">
+                <div className="stat-card-label">{c.label}</div>
+                <div className="stat-card-value">{c.value}</div>
+              </div>
+            ))}
+          </div>
+          <div className="form-card">
+            <h3>Recent Orders</h3>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Customer</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(stats.recent_orders || []).map(o => (
+                  <tr key={o.id}>
+                    <td><a style={{ cursor: 'pointer', color: 'var(--stone-800)', textDecoration: 'underline' }} onClick={() => navigate('order-detail', o.id)}>{o.order_number}</a></td>
+                    <td>{o.customer_name}</td>
+                    <td>${parseFloat(o.total).toFixed(2)}</td>
+                    <td><span className={'badge badge-' + o.status}>{o.status}</span></td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(o.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+                {(stats.recent_orders || []).length === 0 && (
+                  <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No orders yet</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="form-card">
+            <h3>Recent Products</h3>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Vendor</th>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(stats.recent_products || []).map(p => (
+                  <tr key={p.id}>
+                    <td>{p.vendor_name || '—'}</td>
+                    <td><a style={{ cursor: 'pointer', color: 'var(--stone-800)', textDecoration: 'underline' }} onClick={() => navigate('product-edit', p.id)}>{p.name}</a></td>
+                    <td><span className={'badge badge-' + (p.status || 'draft')}>{p.status || 'draft'}</span></td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(p.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== ProductsListView ==========
+    function ProductsListView({ navigate, onReady }) {
+      const [products, setProducts] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [deleteTarget, setDeleteTarget] = useState(null);
+      const [selected, setSelected] = useState(new Set());
+      const [categories, setCategories] = useState([]);
+      const [bulkCategory, setBulkCategory] = useState('');
+      const [searchTerm, setSearchTerm] = useState('');
+      const [filterVendor, setFilterVendor] = useState('');
+      const [filterCategory, setFilterCategory] = useState('');
+      const [filterStatus, setFilterStatus] = useState('');
+      const [vendors, setVendors] = useState([]);
+      const [sortCol, setSortCol] = useState('vendor');
+      const [sortDir, setSortDir] = useState('asc');
+
+      const clearSelection = () => { setSelected(new Set()); setBulkCategory(''); };
+
+      const load = () => {
+        setLoading(true);
+        clearSelection();
+        adminFetch('/api/admin/products')
+          .then(data => { setProducts(data.products || []); setLoading(false); if (onReady) requestAnimationFrame(onReady); })
+          .catch(() => setLoading(false));
+      };
+      useEffect(() => {
+        load();
+        adminFetch('/api/admin/categories').then(d => setCategories(d.flat || [])).catch(() => {});
+        adminFetch('/api/admin/vendors').then(d => setVendors(d.vendors || [])).catch(() => {});
+      }, []);
+
+      const handleDelete = () => {
+        if (!deleteTarget) return;
+        adminFetch('/api/admin/products/' + deleteTarget.id, { method: 'DELETE' })
+          .then(() => { setDeleteTarget(null); load(); })
+          .catch(() => {});
+      };
+
+      const toggleSelect = (id) => {
+        setSelected(prev => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id); else next.add(id);
+          return next;
+        });
+      };
+      const filteredProducts = products.filter(p => {
+        if (searchTerm && !p.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+        if (filterVendor && String(p.vendor_id) !== filterVendor) return false;
+        if (filterCategory && String(p.category_id) !== filterCategory) return false;
+        if (filterStatus && (p.status || 'draft') !== filterStatus) return false;
+        return true;
+      });
+
+      const sortedProducts = [...filteredProducts].sort((a, b) => {
+        let av, bv;
+        switch (sortCol) {
+          case 'name': av = (a.name || '').toLowerCase(); bv = (b.name || '').toLowerCase(); break;
+          case 'vendor': av = (a.vendor_name || '').toLowerCase(); bv = (b.vendor_name || '').toLowerCase(); break;
+          case 'category': av = (a.category_name || '').toLowerCase(); bv = (b.category_name || '').toLowerCase(); break;
+          case 'price': av = parseFloat(a.price) || 0; bv = parseFloat(b.price) || 0; break;
+          case 'skus': av = parseInt(a.sku_count) || 0; bv = parseInt(b.sku_count) || 0; break;
+          case 'status': av = (a.status || 'draft'); bv = (b.status || 'draft'); break;
+          default: return 0;
+        }
+        if (av < bv) return sortDir === 'asc' ? -1 : 1;
+        if (av > bv) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      const toggleSort = (col) => {
+        if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        else { setSortCol(col); setSortDir('asc'); }
+      };
+
+      const SortHeader = ({ col, children }) => (
+        <th className={'sortable' + (sortCol === col ? ' sorted' : '')} onClick={() => toggleSort(col)}>
+          {children}<span className="sort-arrow">{sortCol === col ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : ' \u25B2'}</span>
+        </th>
+      );
+
+      const allSelected = selected.size === sortedProducts.length && sortedProducts.length > 0;
+      const toggleAll = () => {
+        if (allSelected) setSelected(new Set());
+        else setSelected(new Set(sortedProducts.map(p => p.id)));
+      };
+
+      const bulkSetStatus = (status) => {
+        const ids = Array.from(selected);
+        adminFetch('/api/admin/products/bulk/status', {
+          method: 'PATCH',
+          body: JSON.stringify({ ids, status })
+        }).then(() => load()).catch(() => {});
+      };
+
+      const bulkSetCategory = () => {
+        const ids = Array.from(selected);
+        adminFetch('/api/admin/products/bulk/category', {
+          method: 'PATCH',
+          body: JSON.stringify({ ids, category_id: bulkCategory || null })
+        }).then(() => load()).catch(() => {});
+      };
+
+      const bulkDelete = () => {
+        const ids = Array.from(selected);
+        if (!window.confirm(`Delete ${ids.length} product(s)? This will also delete all associated SKUs, packaging, and pricing data.`)) return;
+        adminFetch('/api/admin/products/bulk', {
+          method: 'DELETE',
+          body: JSON.stringify({ ids })
+        }).then(() => load()).catch(() => {});
+      };
+
+      if (loading) return <div className="loading">Loading products...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Products</h1>
+            <button className="btn btn-primary" onClick={() => navigate('product-create')}>+ Add Product</button>
+          </div>
+
+          <div className="filter-bar">
+            <input type="text" placeholder="Search products..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <select value={filterVendor} onChange={e => setFilterVendor(e.target.value)}>
+              <option value="">All Vendors</option>
+              {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+            <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
+              <option value="">All Categories</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+              <option value="">All Statuses</option>
+              <option value="active">active</option>
+              <option value="draft">draft</option>
+            </select>
+            <span className="filter-count">{filteredProducts.length} of {products.length} products</span>
+          </div>
+
+          {selected.size > 0 && (
+            <div className="bulk-toolbar">
+              <span className="bulk-count">{selected.size} selected</span>
+              <button className="btn btn-secondary btn-sm" onClick={() => bulkSetStatus('active')}>Set Active</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => bulkSetStatus('draft')}>Set Draft</button>
+              <select value={bulkCategory} onChange={e => setBulkCategory(e.target.value)}>
+                <option value="">— Choose Category —</option>
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <button className="btn btn-secondary btn-sm" onClick={bulkSetCategory}>Apply</button>
+              <button className="btn btn-danger btn-sm" onClick={bulkDelete}>Delete</button>
+            </div>
+          )}
+
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th style={{ width: '40px' }}><input type="checkbox" checked={allSelected} onChange={toggleAll} /></th>
+                <SortHeader col="vendor">Vendor</SortHeader>
+                <SortHeader col="name">Name</SortHeader>
+                <SortHeader col="category">Category</SortHeader>
+                <SortHeader col="price">Price</SortHeader>
+                <SortHeader col="skus">SKUs</SortHeader>
+                <SortHeader col="status">Status</SortHeader>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedProducts.map(p => (
+                <tr key={p.id}>
+                  <td><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} /></td>
+                  <td>{p.vendor_name || '—'}</td>
+                  <td style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                    {p.primary_image ? (
+                      <img src={p.primary_image} alt="" style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px', flexShrink: 0 }} />
+                    ) : (
+                      <span style={{ width: '36px', height: '36px', borderRadius: '4px', background: 'var(--stone-100)', display: 'inline-block', flexShrink: 0 }} />
+                    )}
+                    {p.name}
+                  </td>
+                  <td>{p.category_name || '—'}</td>
+                  <td>{p.price ? '$' + parseFloat(p.price).toFixed(2) : '—'}</td>
+                  <td>{p.sku_count}</td>
+                  <td><span className={'badge badge-' + (p.status || 'draft')}>{p.status || 'draft'}</span></td>
+                  <td className="actions">
+                    <button className="btn btn-secondary btn-sm" onClick={() => navigate('product-edit', p.id)}>Edit</button>
+                    <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(p)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+              {sortedProducts.length === 0 && (
+                <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No products found</td></tr>
+              )}
+            </tbody>
+          </table>
+          {deleteTarget && (
+            <DeleteConfirmModal
+              title="Delete Product"
+              message={`Are you sure you want to delete "${deleteTarget.name}"? This will also delete all associated SKUs, packaging, and pricing data.`}
+              onConfirm={handleDelete}
+              onCancel={() => setDeleteTarget(null)}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // ========== CollapsibleSection ==========
+    function CollapsibleSection({ title, defaultOpen = true, headerRight, children }) {
+      const [open, setOpen] = useState(defaultOpen);
+      return (
+        <div className={'form-card' + (open ? '' : ' collapsed')}>
+          <div className="form-card-header" onClick={() => setOpen(o => !o)}>
+            <h3>{title}</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              {headerRight}
+              <span className={'toggle-icon' + (open ? '' : ' collapsed')}>&#9660;</span>
+            </div>
+          </div>
+          {open && <div className="form-card-body">{children}</div>}
+        </div>
+      );
+    }
+
+    // ========== ProductFormView ==========
+    function ProductFormView({ navigate, editId }) {
+      const [form, setForm] = useState({ name: '', collection: '', vendor_id: '', category_id: '', status: 'draft', description_short: '', description_long: '' });
+      const [skus, setSkus] = useState([]);
+      const [media, setMedia] = useState([]);
+      const [vendors, setVendors] = useState([]);
+      const [categories, setCategories] = useState([]);
+      const [loading, setLoading] = useState(!!editId);
+      const [saving, setSaving] = useState(false);
+
+      useEffect(() => {
+        adminFetch('/api/admin/vendors').then(d => setVendors(d.vendors || [])).catch(() => {});
+        adminFetch('/api/admin/categories').then(d => setCategories(d.flat || [])).catch(() => {});
+
+        if (editId) {
+          adminFetch('/api/admin/products/' + editId)
+            .then(data => {
+              const p = data.product;
+              setForm({
+                name: p.name || '',
+                collection: p.collection || '',
+                vendor_id: p.vendor_id || '',
+                category_id: p.category_id || '',
+                status: p.status || 'draft',
+                description_short: p.description_short || '',
+                description_long: p.description_long || ''
+              });
+              setSkus((data.skus || []).map(s => ({ ...s, _existing: true })));
+              setMedia(data.media || []);
+              setLoading(false);
+            })
+            .catch(() => setLoading(false));
+        }
+      }, [editId]);
+
+      const updateForm = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+
+      const addSku = () => {
+        setSkus(prev => [...prev, {
+          _new: true, _key: Date.now(),
+          vendor_sku: '', internal_sku: '', variant_name: '', sell_by: 'sqft',
+          sqft_per_box: '', pieces_per_box: '', weight_per_box_lbs: '', freight_class: '70',
+          boxes_per_pallet: '', sqft_per_pallet: '', weight_per_pallet_lbs: '',
+          cost: '', retail_price: '', price_basis: 'per_sqft'
+        }]);
+      };
+
+      const updateSku = (index, field, value) => {
+        setSkus(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s));
+      };
+
+      const removeSku = (index) => {
+        const sku = skus[index];
+        if (sku._existing && sku.id) {
+          adminFetch('/api/admin/skus/' + sku.id, { method: 'DELETE' }).catch(() => {});
+        }
+        setSkus(prev => prev.filter((_, i) => i !== index));
+      };
+
+      const handleSave = async () => {
+        if (!form.name.trim()) { alert('Product name is required'); return; }
+        setSaving(true);
+
+        try {
+          let productId = editId;
+
+          if (editId) {
+            const data = await adminFetch('/api/admin/products/' + editId, {
+              method: 'PUT',
+              body: JSON.stringify(form)
+            });
+            productId = data.product.id;
+          } else {
+            const data = await adminFetch('/api/admin/products', {
+              method: 'POST',
+              body: JSON.stringify(form)
+            });
+            productId = data.product.id;
+          }
+
+          // Save SKUs
+          for (const sku of skus) {
+            const skuData = {
+              vendor_sku: sku.vendor_sku,
+              internal_sku: sku.internal_sku,
+              variant_name: sku.variant_name,
+              sell_by: sku.sell_by || 'sqft',
+              sqft_per_box: sku.sqft_per_box ? parseFloat(sku.sqft_per_box) : null,
+              pieces_per_box: sku.pieces_per_box ? parseInt(sku.pieces_per_box) : null,
+              weight_per_box_lbs: sku.weight_per_box_lbs ? parseFloat(sku.weight_per_box_lbs) : null,
+              freight_class: sku.freight_class ? parseInt(sku.freight_class) : 70,
+              boxes_per_pallet: sku.boxes_per_pallet ? parseInt(sku.boxes_per_pallet) : null,
+              sqft_per_pallet: sku.sqft_per_pallet ? parseFloat(sku.sqft_per_pallet) : null,
+              weight_per_pallet_lbs: sku.weight_per_pallet_lbs ? parseFloat(sku.weight_per_pallet_lbs) : null,
+              cost: sku.cost ? parseFloat(sku.cost) : null,
+              retail_price: sku.retail_price ? parseFloat(sku.retail_price) : null,
+              price_basis: sku.price_basis || 'per_sqft'
+            };
+
+            if (sku._existing && sku.id) {
+              await adminFetch('/api/admin/skus/' + sku.id, {
+                method: 'PUT',
+                body: JSON.stringify(skuData)
+              });
+            } else if (sku._new && sku.vendor_sku && sku.internal_sku) {
+              await adminFetch('/api/admin/products/' + productId + '/skus', {
+                method: 'POST',
+                body: JSON.stringify(skuData)
+              });
+            }
+          }
+
+          navigate('products');
+        } catch (err) {
+          alert('Save failed: ' + err.message);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      if (loading) return <div className="loading">Loading product...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>{editId ? 'Edit Product' : 'New Product'}</h1>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="btn btn-secondary" onClick={() => navigate('products')}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Product'}
+              </button>
+            </div>
+          </div>
+
+          <CollapsibleSection title="Product Details" defaultOpen={true}>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Product Name *</label>
+                <input value={form.name} onChange={e => updateForm('name', e.target.value)} placeholder="e.g. Calacatta Gold Marble" />
+              </div>
+              <div className="form-group">
+                <label>Collection</label>
+                <input value={form.collection} onChange={e => updateForm('collection', e.target.value)} placeholder="e.g. Natural Stone Collection" />
+              </div>
+              <div className="form-group">
+                <label>Vendor</label>
+                <select value={form.vendor_id} onChange={e => updateForm('vendor_id', e.target.value)}>
+                  <option value="">Select vendor...</option>
+                  {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Category</label>
+                <select value={form.category_id} onChange={e => updateForm('category_id', e.target.value)}>
+                  <option value="">Select category...</option>
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>{c.parent_id ? '  -- ' : ''}{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Status</label>
+                <select value={form.status} onChange={e => updateForm('status', e.target.value)}>
+                  <option value="draft">Draft</option>
+                  <option value="active">Active</option>
+                </select>
+              </div>
+              <div className="form-group full">
+                <label>Short Description</label>
+                <input value={form.description_short} onChange={e => updateForm('description_short', e.target.value)} placeholder="Brief product description" />
+              </div>
+              <div className="form-group full">
+                <label>Long Description</label>
+                <textarea value={form.description_long} onChange={e => updateForm('description_long', e.target.value)} placeholder="Detailed product description" />
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          {editId && media.length > 0 && (
+            <CollapsibleSection title={`Images (${media.length})`} defaultOpen={true}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem', padding: '0.5rem 0' }}>
+                {media.map(m => (
+                  <div key={m.id} style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
+                    <img
+                      src={m.url}
+                      alt={m.asset_type}
+                      style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
+                    />
+                    <div style={{ padding: '0.375rem 0.5rem', fontSize: '0.7rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                      {m.asset_type}{m.sort_order > 0 ? ` #${m.sort_order}` : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleSection>
+          )}
+
+          <CollapsibleSection title="SKUs" defaultOpen={true} headerRight={<button className="btn btn-secondary btn-sm" onClick={e => { e.stopPropagation(); addSku(); }}>+ Add SKU</button>}>
+            {skus.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-400)', fontSize: '0.875rem' }}>
+                No SKUs yet. Click "Add SKU" to create one.
+              </div>
+            )}
+            {skus.map((sku, i) => (
+              <SkuCard key={sku.id || sku._key} sku={sku} index={i} updateSku={updateSku} removeSku={removeSku} />
+            ))}
+          </CollapsibleSection>
+        </div>
+      );
+    }
+
+    // ========== SkuCard ==========
+    function SkuCard({ sku, index, updateSku, removeSku }) {
+      const u = (field, value) => updateSku(index, field, value);
+      return (
+        <div className="sku-card">
+          <div className="sku-card-header">
+            <h4>SKU #{index + 1}{sku.variant_name ? ': ' + sku.variant_name : ''}</h4>
+            <button className="btn btn-danger btn-sm" onClick={() => removeSku(index)}>Remove</button>
+          </div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Vendor SKU *</label>
+              <input value={sku.vendor_sku} onChange={e => u('vendor_sku', e.target.value)} placeholder="MSI-CALG-1212-POL" />
+            </div>
+            <div className="form-group">
+              <label>Internal SKU *</label>
+              <input value={sku.internal_sku} onChange={e => u('internal_sku', e.target.value)} placeholder="CAL-GOLD-12X12-P" />
+            </div>
+            <div className="form-group">
+              <label>Variant Name</label>
+              <input value={sku.variant_name || ''} onChange={e => u('variant_name', e.target.value)} placeholder="12x12 Polished" />
+            </div>
+            <div className="form-group">
+              <label>Sell By</label>
+              <select value={sku.sell_by || 'sqft'} onChange={e => u('sell_by', e.target.value)}>
+                <option value="sqft">Per SqFt</option>
+                <option value="unit">Per Unit</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>SqFt Per Box</label>
+              <input type="number" step="0.01" value={sku.sqft_per_box || ''} onChange={e => u('sqft_per_box', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Pieces Per Box</label>
+              <input type="number" value={sku.pieces_per_box || ''} onChange={e => u('pieces_per_box', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Weight Per Box (lbs)</label>
+              <input type="number" step="0.01" value={sku.weight_per_box_lbs || ''} onChange={e => u('weight_per_box_lbs', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Freight Class</label>
+              <select value={sku.freight_class || '70'} onChange={e => u('freight_class', e.target.value)}>
+                <option value="50">50</option>
+                <option value="55">55</option>
+                <option value="60">60 — Hardwood</option>
+                <option value="65">65</option>
+                <option value="70">70 — Tile / Stone</option>
+                <option value="77.5">77.5</option>
+                <option value="85">85</option>
+                <option value="92.5">92.5</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Boxes Per Pallet</label>
+              <input type="number" value={sku.boxes_per_pallet || ''} onChange={e => u('boxes_per_pallet', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>SqFt Per Pallet</label>
+              <input type="number" step="0.01" value={sku.sqft_per_pallet || ''} onChange={e => u('sqft_per_pallet', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Weight Per Pallet (lbs)</label>
+              <input type="number" step="0.01" value={sku.weight_per_pallet_lbs || ''} onChange={e => u('weight_per_pallet_lbs', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Cost</label>
+              <input type="number" step="0.01" value={sku.cost || ''} onChange={e => u('cost', e.target.value)} placeholder="0.00" />
+            </div>
+            <div className="form-group">
+              <label>Retail Price</label>
+              <input type="number" step="0.01" value={sku.retail_price || ''} onChange={e => u('retail_price', e.target.value)} placeholder="0.00" />
+            </div>
+            <div className="form-group">
+              <label>Price Basis</label>
+              <select value={sku.price_basis || 'per_sqft'} onChange={e => u('price_basis', e.target.value)}>
+                <option value="per_sqft">Per SqFt</option>
+                <option value="per_unit">Per Unit</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== VendorsListView ==========
+    function VendorsListView({ navigate }) {
+      const [vendors, setVendors] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      const load = () => {
+        setLoading(true);
+        adminFetch('/api/admin/vendors')
+          .then(data => { setVendors(data.vendors || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      useEffect(load, []);
+
+      const toggleActive = (id) => {
+        adminFetch('/api/admin/vendors/' + id + '/toggle', { method: 'PATCH' })
+          .then(data => {
+            if (data.vendor) {
+              setVendors(prev => prev.map(v => v.id === id ? { ...v, is_active: data.vendor.is_active } : v));
+            }
+          })
+          .catch(() => {});
+      };
+
+      if (loading) return <div className="loading">Loading vendors...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Vendors</h1>
+            <button className="btn btn-primary" onClick={() => navigate('vendor-create')}>+ Add Vendor</button>
+          </div>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Code</th>
+                <th>Website</th>
+                <th>Products</th>
+                <th>Active</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vendors.map(v => (
+                <tr key={v.id}>
+                  <td style={{ fontWeight: 500 }}>{v.name}</td>
+                  <td><code style={{ fontSize: '0.8125rem', background: 'var(--stone-100)', padding: '0.15rem 0.4rem' }}>{v.code}</code></td>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{v.website || '—'}</td>
+                  <td>{v.product_count}</td>
+                  <td>
+                    <div className={'toggle' + (v.is_active ? ' on' : '')} onClick={() => toggleActive(v.id)} />
+                  </td>
+                  <td className="actions">
+                    <button className="btn btn-secondary btn-sm" onClick={() => navigate('vendor-edit', v.id)}>Edit</button>
+                  </td>
+                </tr>
+              ))}
+              {vendors.length === 0 && (
+                <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No vendors found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    // ========== VendorFormView ==========
+    function VendorFormView({ navigate, editId }) {
+      const [form, setForm] = useState({ name: '', code: '', website: '' });
+      const [loading, setLoading] = useState(!!editId);
+      const [saving, setSaving] = useState(false);
+
+      useEffect(() => {
+        if (editId) {
+          adminFetch('/api/admin/vendors')
+            .then(data => {
+              const v = (data.vendors || []).find(v => v.id === editId);
+              if (v) setForm({ name: v.name || '', code: v.code || '', website: v.website || '' });
+              setLoading(false);
+            })
+            .catch(() => setLoading(false));
+        }
+      }, [editId]);
+
+      const handleSave = async () => {
+        if (!form.name.trim() || !form.code.trim()) { alert('Name and code are required'); return; }
+        setSaving(true);
+        try {
+          if (editId) {
+            await adminFetch('/api/admin/vendors/' + editId, { method: 'PUT', body: JSON.stringify(form) });
+          } else {
+            await adminFetch('/api/admin/vendors', { method: 'POST', body: JSON.stringify(form) });
+          }
+          navigate('vendors');
+        } catch (err) {
+          alert('Save failed: ' + err.message);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      if (loading) return <div className="loading">Loading vendor...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>{editId ? 'Edit Vendor' : 'New Vendor'}</h1>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="btn btn-secondary" onClick={() => navigate('vendors')}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Vendor'}
+              </button>
+            </div>
+          </div>
+          <div className="form-card">
+            <h3>Vendor Details</h3>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Vendor Name *</label>
+                <input value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g. MSI Surfaces" />
+              </div>
+              <div className="form-group">
+                <label>Code *</label>
+                <input value={form.code} onChange={e => setForm(prev => ({ ...prev, code: e.target.value }))} placeholder="e.g. MSI" />
+              </div>
+              <div className="form-group full">
+                <label>Website</label>
+                <input value={form.website} onChange={e => setForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== CategoriesListView ==========
+    function CategoriesListView({ navigate }) {
+      const [tree, setTree] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [deleteTarget, setDeleteTarget] = useState(null);
+      const [deleteError, setDeleteError] = useState('');
+
+      const load = () => {
+        setLoading(true);
+        adminFetch('/api/admin/categories')
+          .then(data => { setTree(data.tree || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      useEffect(load, []);
+
+      const handleDelete = () => {
+        if (!deleteTarget) return;
+        setDeleteError('');
+        adminFetch('/api/admin/categories/' + deleteTarget.id, { method: 'DELETE' })
+          .then(data => {
+            if (data.error) { setDeleteError(data.error); return; }
+            setDeleteTarget(null);
+            load();
+          })
+          .catch(err => setDeleteError(err.message));
+      };
+
+      if (loading) return <div className="loading">Loading categories...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Categories</h1>
+            <button className="btn btn-primary" onClick={() => navigate('category-create')}>+ Add Category</button>
+          </div>
+          <div style={{ background: 'white', border: '1px solid var(--stone-200)' }}>
+            {tree.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-400)', fontSize: '0.875rem' }}>No categories found</div>
+            )}
+            {tree.map(parent => (
+              <div key={parent.id}>
+                <div className="cat-tree-item cat-tree-parent">
+                  <div>
+                    {parent.name}
+                    <span className="cat-tree-slug">/{parent.slug}</span>
+                    <span className="cat-tree-count">{parent.product_count} product{parent.product_count !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="actions">
+                    <button className="btn btn-secondary btn-sm" onClick={() => navigate('category-edit', parent.id)}>Edit</button>
+                    <button className="btn btn-danger btn-sm" onClick={() => { setDeleteError(''); setDeleteTarget(parent); }}>Delete</button>
+                  </div>
+                </div>
+                {(parent.children || []).map(child => (
+                  <div key={child.id} className="cat-tree-item cat-tree-child">
+                    <div>
+                      {child.name}
+                      <span className="cat-tree-slug">/{child.slug}</span>
+                      <span className="cat-tree-count">{child.product_count} product{child.product_count !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="actions">
+                      <button className="btn btn-secondary btn-sm" onClick={() => navigate('category-edit', child.id)}>Edit</button>
+                      <button className="btn btn-danger btn-sm" onClick={() => { setDeleteError(''); setDeleteTarget(child); }}>Delete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          {deleteTarget && (
+            <DeleteConfirmModal
+              title="Delete Category"
+              message={`Are you sure you want to delete "${deleteTarget.name}"? This will fail if the category has subcategories or products.`}
+              error={deleteError}
+              onConfirm={handleDelete}
+              onCancel={() => { setDeleteTarget(null); setDeleteError(''); }}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // ========== CategoryFormView ==========
+    function CategoryFormView({ navigate, editId }) {
+      const [form, setForm] = useState({ name: '', slug: '', parent_id: '', sort_order: 0 });
+      const [categories, setCategories] = useState([]);
+      const [loading, setLoading] = useState(!!editId);
+      const [saving, setSaving] = useState(false);
+      const [autoSlug, setAutoSlug] = useState(true);
+
+      useEffect(() => {
+        adminFetch('/api/admin/categories').then(data => {
+          setCategories(data.flat || []);
+          if (editId) {
+            const cat = (data.flat || []).find(c => c.id === editId);
+            if (cat) {
+              setForm({ name: cat.name || '', slug: cat.slug || '', parent_id: cat.parent_id || '', sort_order: cat.sort_order || 0 });
+              setAutoSlug(false);
+            }
+            setLoading(false);
+          }
+        }).catch(() => setLoading(false));
+      }, [editId]);
+
+      const updateName = (value) => {
+        setForm(prev => ({
+          ...prev,
+          name: value,
+          slug: autoSlug ? value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : prev.slug
+        }));
+      };
+
+      const handleSave = async () => {
+        if (!form.name.trim() || !form.slug.trim()) { alert('Name and slug are required'); return; }
+        setSaving(true);
+        try {
+          const payload = { ...form, parent_id: form.parent_id || null, sort_order: parseInt(form.sort_order) || 0 };
+          if (editId) {
+            await adminFetch('/api/admin/categories/' + editId, { method: 'PUT', body: JSON.stringify(payload) });
+          } else {
+            await adminFetch('/api/admin/categories', { method: 'POST', body: JSON.stringify(payload) });
+          }
+          navigate('categories');
+        } catch (err) {
+          alert('Save failed: ' + err.message);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      if (loading) return <div className="loading">Loading category...</div>;
+
+      // Only show parents (no parent_id) as parent options, exclude self
+      const parentOptions = categories.filter(c => !c.parent_id && c.id !== editId);
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>{editId ? 'Edit Category' : 'New Category'}</h1>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="btn btn-secondary" onClick={() => navigate('categories')}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Category'}
+              </button>
+            </div>
+          </div>
+          <div className="form-card">
+            <h3>Category Details</h3>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Name *</label>
+                <input value={form.name} onChange={e => updateName(e.target.value)} placeholder="e.g. Natural Stone" />
+              </div>
+              <div className="form-group">
+                <label>Slug *</label>
+                <input value={form.slug} onChange={e => { setAutoSlug(false); setForm(prev => ({ ...prev, slug: e.target.value })); }} placeholder="natural-stone" />
+              </div>
+              <div className="form-group">
+                <label>Parent Category</label>
+                <select value={form.parent_id} onChange={e => setForm(prev => ({ ...prev, parent_id: e.target.value }))}>
+                  <option value="">None (top-level)</option>
+                  {parentOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Sort Order</label>
+                <input type="number" value={form.sort_order} onChange={e => setForm(prev => ({ ...prev, sort_order: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== OrdersListView ==========
+    function OrdersListView({ navigate }) {
+      const [orders, setOrders] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      const load = () => {
+        setLoading(true);
+        adminFetch('/api/admin/orders')
+          .then(data => { setOrders(data.orders || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      useEffect(load, []);
+
+      if (loading) return <div className="loading">Loading orders...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Orders</h1>
+          </div>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Order #</th>
+                <th>Customer</th>
+                <th>Email</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Rep</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map(o => (
+                <tr key={o.id}>
+                  <td style={{ fontWeight: 500 }}>{o.order_number}</td>
+                  <td>{o.customer_name}</td>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{o.customer_email}</td>
+                  <td>{o.item_count}</td>
+                  <td>${parseFloat(o.total).toFixed(2)}</td>
+                  <td><span className={'badge badge-' + o.status}>{o.status}</span></td>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{o.rep_name || '\u2014'}</td>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(o.created_at).toLocaleDateString()}</td>
+                  <td className="actions">
+                    <button className="btn btn-secondary btn-sm" onClick={() => navigate('order-detail', o.id)}>View</button>
+                  </td>
+                </tr>
+              ))}
+              {orders.length === 0 && (
+                <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No orders found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    // ========== OrderDetailView ==========
+    function OrderDetailView({ navigate, editId }) {
+      const [order, setOrder] = useState(null);
+      const [items, setItems] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [updating, setUpdating] = useState(false);
+      const [reps, setReps] = useState([]);
+      const [purchaseOrders, setPurchaseOrders] = useState([]);
+      const [posLoading, setPosLoading] = useState(false);
+      const [poUpdating, setPoUpdating] = useState(false);
+
+      const loadPOs = () => {
+        if (!editId) return;
+        setPosLoading(true);
+        adminFetch('/api/admin/orders/' + editId + '/purchase-orders')
+          .then(data => { setPurchaseOrders(data.purchase_orders || []); setPosLoading(false); })
+          .catch(() => setPosLoading(false));
+      };
+
+      useEffect(() => {
+        if (!editId) return;
+        adminFetch('/api/admin/orders/' + editId)
+          .then(data => {
+            setOrder(data.order);
+            setItems(data.items || []);
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+        adminFetch('/api/admin/reps').then(data => setReps(data.reps || [])).catch(() => {});
+        loadPOs();
+      }, [editId]);
+
+      const updatePOStatus = async (poId, newStatus) => {
+        const labels = { sent: 'Mark as Sent', acknowledged: 'Mark as Acknowledged', fulfilled: 'Mark as Fulfilled', cancelled: 'Cancel' };
+        if (!confirm((labels[newStatus] || newStatus) + ' this PO?')) return;
+        setPoUpdating(true);
+        try {
+          await adminFetch('/api/admin/purchase-orders/' + poId + '/status', {
+            method: 'PUT', body: JSON.stringify({ status: newStatus })
+          });
+          loadPOs();
+        } catch (err) { alert(err.message); }
+        setPoUpdating(false);
+      };
+
+      const updateStatus = (newStatus) => {
+        setUpdating(true);
+        adminFetch('/api/admin/orders/' + editId + '/status', {
+          method: 'PUT',
+          body: JSON.stringify({ status: newStatus })
+        })
+          .then(data => {
+            if (data.order) setOrder(data.order);
+            setUpdating(false);
+          })
+          .catch(() => setUpdating(false));
+      };
+
+      const assignRep = (repId) => {
+        adminFetch('/api/admin/orders/' + editId + '/assign', {
+          method: 'PUT',
+          body: JSON.stringify({ sales_rep_id: repId || null })
+        }).then(data => {
+          if (data.order) setOrder(data.order);
+        }).catch(() => {});
+      };
+
+      if (loading) return <div className="loading">Loading order...</div>;
+      if (!order) return <div className="loading">Order not found</div>;
+
+      const statusFlow = { pending: 'confirmed', confirmed: 'shipped', shipped: 'delivered' };
+      const nextStatus = statusFlow[order.status];
+      const canCancel = order.status !== 'cancelled' && order.status !== 'delivered';
+
+      const productItems = items.filter(i => !i.is_sample);
+      const sampleItems = items.filter(i => i.is_sample);
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Order {order.order_number}</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('orders')}>Back to Orders</button>
+          </div>
+
+          <div className="form-card">
+            <h3>Order Status</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <span className={'badge badge-' + order.status} style={{ fontSize: '0.8125rem', padding: '0.35rem 0.85rem' }}>{order.status}</span>
+              {nextStatus && (
+                <button className="btn btn-primary btn-sm" onClick={() => updateStatus(nextStatus)} disabled={updating}>
+                  {updating ? 'Updating...' : 'Mark ' + nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}
+                </button>
+              )}
+              {canCancel && (
+                <button className="btn btn-danger btn-sm" onClick={() => updateStatus('cancelled')} disabled={updating}>
+                  Cancel Order
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="form-card">
+            <h3>Assign Sales Rep</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <select
+                value={order.sales_rep_id || ''}
+                onChange={e => assignRep(e.target.value)}
+                style={{ padding: '0.5rem 0.75rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', fontFamily: 'Inter, sans-serif' }}
+              >
+                <option value="">Unassigned</option>
+                {reps.filter(r => r.is_active).map(r => (
+                  <option key={r.id} value={r.id}>{r.first_name} {r.last_name}</option>
+                ))}
+              </select>
+              {order.rep_name && <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>Currently: {order.rep_name}</span>}
+            </div>
+          </div>
+
+          <div className="form-card">
+            <h3>Customer Information</h3>
+            <div className="order-info-grid">
+              <div className="order-info-item">
+                <label>Name</label>
+                <span>{order.customer_name}</span>
+              </div>
+              <div className="order-info-item">
+                <label>Email</label>
+                <span>{order.customer_email}</span>
+              </div>
+              <div className="order-info-item">
+                <label>Phone</label>
+                <span>{order.phone || '—'}</span>
+              </div>
+              <div className="order-info-item">
+                <label>Stripe Payment ID</label>
+                <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', wordBreak: 'break-all' }}>{order.stripe_payment_intent_id || '—'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="form-card">
+            {order.delivery_method === 'pickup' ? (
+              <>
+                <h3>Store Pickup</h3>
+                <div className="order-info-grid">
+                  <div className="order-info-item" style={{ gridColumn: '1 / -1' }}>
+                    <span>
+                      <strong>Atelier Surfaces</strong><br />
+                      1440 S. State College Blvd., Suite 6M<br />
+                      Anaheim, CA 92806
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3>Shipping Address</h3>
+                <div className="order-info-grid">
+                  <div className="order-info-item" style={{ gridColumn: '1 / -1' }}>
+                    <span>
+                      {order.shipping_address_line1}
+                      {order.shipping_address_line2 && <><br />{order.shipping_address_line2}</>}
+                      <br />{order.shipping_city}, {order.shipping_state} {order.shipping_zip}
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="form-card">
+            <h3>Order Items</h3>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Collection</th>
+                  <th>Type</th>
+                  <th>SqFt</th>
+                  <th>Boxes</th>
+                  <th>Unit Price</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(item => (
+                  <tr key={item.id}>
+                    <td style={{ fontWeight: 500 }}>{item.product_name || item.current_product_name || '—'}</td>
+                    <td>{item.collection || item.current_collection || '—'}</td>
+                    <td>
+                      <span className={'badge ' + (item.is_sample ? 'badge-draft' : 'badge-active')}>
+                        {item.is_sample ? 'Sample' : 'Product'}
+                      </span>
+                    </td>
+                    <td>{item.sqft_needed ? parseFloat(item.sqft_needed).toFixed(1) : '—'}</td>
+                    <td>{item.num_boxes}</td>
+                    <td>{item.unit_price ? '$' + parseFloat(item.unit_price).toFixed(2) : '—'}</td>
+                    <td>{item.subtotal ? '$' + parseFloat(item.subtotal).toFixed(2) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Purchase Orders */}
+          {purchaseOrders.length > 0 && (
+            <div className="form-card">
+              <h3>Purchase Orders</h3>
+              {posLoading ? <p>Loading...</p> : purchaseOrders.map(po => {
+                const statusActions = {
+                  draft: [{ label: 'Mark Sent', status: 'sent' }],
+                  sent: [{ label: 'Mark Acknowledged', status: 'acknowledged' }],
+                  acknowledged: [{ label: 'Mark Fulfilled', status: 'fulfilled' }],
+                };
+                const actions = statusActions[po.status] || [];
+                const canCancel = !['fulfilled', 'cancelled'].includes(po.status);
+                return (
+                  <div key={po.id} style={{ marginBottom: '2rem', border: '1px solid var(--stone-200)', padding: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <strong>{po.vendor_name}</strong>
+                        <code style={{ fontSize: '0.75rem', background: 'var(--stone-100)', padding: '0.2rem 0.5rem' }}>{po.po_number}</code>
+                        <span className={'badge badge-' + po.status}>{po.status}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        {actions.map(a => (
+                          <button key={a.status} className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
+                            onClick={() => updatePOStatus(po.id, a.status)} disabled={poUpdating}>
+                            {a.label}
+                          </button>
+                        ))}
+                        {canCancel && (
+                          <button className="btn" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem', background: 'var(--red-light)', color: 'var(--red)' }}
+                            onClick={() => updatePOStatus(po.id, 'cancelled')} disabled={poUpdating}>
+                            Cancel PO
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {po.approved_by_name && (
+                      <p style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>
+                        Approved by {po.approved_by_name} on {new Date(po.approved_at).toLocaleDateString()}
+                      </p>
+                    )}
+                    <table className="admin-table" style={{ fontSize: '0.8125rem' }}>
+                      <thead>
+                        <tr>
+                          <th>Product</th>
+                          <th>Vendor SKU</th>
+                          <th>Qty</th>
+                          <th>Retail</th>
+                          <th>Cost</th>
+                          <th>Margin</th>
+                          <th style={{ textAlign: 'right' }}>Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(po.items || []).map(item => {
+                          const cost = parseFloat(item.cost);
+                          const retail = parseFloat(item.retail_price || 0);
+                          const margin = retail > 0 ? ((retail - cost) / retail * 100) : 0;
+                          return (
+                            <tr key={item.id}>
+                              <td>{item.product_name || '—'}</td>
+                              <td>{item.vendor_sku || '—'}</td>
+                              <td>{item.qty}</td>
+                              <td>{item.retail_price ? '$' + retail.toFixed(2) : '—'}</td>
+                              <td>${cost.toFixed(2)}</td>
+                              <td style={{ color: margin <= 0 ? 'var(--red)' : 'inherit', fontWeight: margin <= 0 ? 600 : 400 }}>
+                                {retail > 0 ? margin.toFixed(1) + '%' : '—'}
+                              </td>
+                              <td style={{ textAlign: 'right' }}>${parseFloat(item.subtotal).toFixed(2)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    <div style={{ textAlign: 'right', marginTop: '0.75rem', fontWeight: 600, fontSize: '0.9rem' }}>
+                      PO Total: ${parseFloat(po.subtotal).toFixed(2)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="form-card">
+            <h3>Order Totals</h3>
+            <div style={{ maxWidth: '300px', marginLeft: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem' }}>
+                <span>Subtotal</span>
+                <span>${parseFloat(order.subtotal).toFixed(2)}</span>
+              </div>
+              {order.delivery_method === 'pickup' ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem' }}>
+                  <span>Shipping (Store Pickup)</span>
+                  <span style={{ color: '#16a34a', fontWeight: 500 }}>FREE</span>
+                </div>
+              ) : parseFloat(order.shipping || 0) > 0 ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem' }}>
+                  <span>Shipping {order.shipping_method ? '(' + (order.shipping_method === 'ltl_freight' ? 'LTL Freight' : 'Parcel') + ')' : ''}</span>
+                  <span>${parseFloat(order.shipping).toFixed(2)}</span>
+                </div>
+              ) : null}
+              {parseFloat(order.sample_shipping || 0) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem' }}>
+                  <span>Sample Shipping</span>
+                  <span>${parseFloat(order.sample_shipping).toFixed(2)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 0', fontSize: '1rem', fontWeight: 600, borderTop: '2px solid var(--stone-200)', marginTop: '0.5rem' }}>
+                <span>Total</span>
+                <span>${parseFloat(order.total).toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== ImportView ==========
+    function ImportView({ navigate }) {
+      const [step, setStep] = useState(1);
+
+      // Step 1 state
+      const [vendors, setVendors] = useState([]);
+      const [categories, setCategories] = useState([]);
+      const [vendorId, setVendorId] = useState('');
+      const [categoryId, setCategoryId] = useState('');
+      const [file, setFile] = useState(null);
+      const [uploading, setUploading] = useState(false);
+      const [defaultStatus, setDefaultStatus] = useState('draft');
+      const [defaultSellBy, setDefaultSellBy] = useState('sqft');
+      const [defaultPriceBasis, setDefaultPriceBasis] = useState('per_sqft');
+
+      // Step 2 state
+      const [importSessionId, setImportSessionId] = useState(null);
+      const [headers, setHeaders] = useState([]);
+      const [previewRows, setPreviewRows] = useState([]);
+      const [totalRows, setTotalRows] = useState(0);
+      const [pimFields, setPimFields] = useState([]);
+      const [mapping, setMapping] = useState({});
+      const [templates, setTemplates] = useState([]);
+
+      // Step 3 state
+      const [validationResult, setValidationResult] = useState(null);
+      const [validating, setValidating] = useState(false);
+      const [reviewFilter, setReviewFilter] = useState('all');
+      const [reviewPage, setReviewPage] = useState(0);
+
+      // Step 4 state
+      const [importResult, setImportResult] = useState(null);
+      const [importing, setImporting] = useState(false);
+
+      useEffect(() => {
+        adminFetch('/api/admin/vendors').then(d => setVendors(d.vendors || [])).catch(() => {});
+        adminFetch('/api/admin/categories').then(d => setCategories(d.flat || [])).catch(() => {});
+        adminFetch('/api/admin/import/fields').then(d => setPimFields(d.fields || [])).catch(() => {});
+      }, []);
+
+      useEffect(() => {
+        if (vendorId) {
+          adminFetch('/api/admin/import/templates?vendor_id=' + vendorId)
+            .then(d => setTemplates(d.templates || [])).catch(() => {});
+        } else {
+          setTemplates([]);
+        }
+      }, [vendorId]);
+
+      const handleUpload = async () => {
+        if (!vendorId) return alert('Please select a vendor');
+        if (!categoryId) return alert('Please select a category');
+        if (!file) return alert('Please select a file');
+        setUploading(true);
+        try {
+          const data = await adminUpload('/api/admin/import/upload', file);
+          if (data.error) { alert(data.error); return; }
+          setImportSessionId(data.import_session_id);
+          setHeaders(data.headers);
+          setPreviewRows(data.preview_rows);
+          setTotalRows(data.total_rows);
+          const initialMapping = {};
+          data.headers.forEach((_, i) => { initialMapping[String(i)] = ''; });
+          const autoMap = autoMapHeaders(data.headers, pimFields);
+          setMapping({ ...initialMapping, ...autoMap });
+          setStep(2);
+        } catch (err) {
+          alert('Upload failed: ' + err.message);
+        } finally {
+          setUploading(false);
+        }
+      };
+
+      const handleValidate = async () => {
+        setValidating(true);
+        try {
+          const data = await adminFetch('/api/admin/import/validate', {
+            method: 'POST',
+            body: JSON.stringify({
+              import_session_id: importSessionId,
+              vendor_id: vendorId,
+              category_id: categoryId,
+              mapping,
+              defaults: { status: defaultStatus, sell_by: defaultSellBy, price_basis: defaultPriceBasis }
+            })
+          });
+          if (data.error) { alert(data.error); return; }
+          setValidationResult(data);
+          setReviewFilter('all');
+          setReviewPage(0);
+          setStep(3);
+        } catch (err) {
+          alert('Validation failed: ' + err.message);
+        } finally {
+          setValidating(false);
+        }
+      };
+
+      const handleImport = async () => {
+        setImporting(true);
+        try {
+          const data = await adminFetch('/api/admin/import/execute', {
+            method: 'POST',
+            body: JSON.stringify({
+              import_session_id: importSessionId,
+              vendor_id: vendorId,
+              category_id: categoryId,
+              mapping,
+              defaults: { status: defaultStatus, sell_by: defaultSellBy, price_basis: defaultPriceBasis }
+            })
+          });
+          if (data.error && !data.results) { alert(data.error); return; }
+          setImportResult(data);
+          setStep(4);
+        } catch (err) {
+          alert('Import failed: ' + err.message);
+        } finally {
+          setImporting(false);
+        }
+      };
+
+      const handleSaveTemplate = () => {
+        const name = prompt('Template name (e.g., "MSI Porcelain 2025"):');
+        if (!name) return;
+        adminFetch('/api/admin/import/templates', {
+          method: 'POST',
+          body: JSON.stringify({ vendor_id: vendorId, name, mapping })
+        }).then(d => {
+          if (d.template) setTemplates(prev => [d.template, ...prev]);
+          alert('Template saved!');
+        }).catch(() => alert('Failed to save template'));
+      };
+
+      const handleReset = () => {
+        setStep(1); setFile(null); setImportSessionId(null);
+        setHeaders([]); setPreviewRows([]); setTotalRows(0);
+        setMapping({}); setValidationResult(null); setImportResult(null);
+      };
+
+      // Grouped options for mapping dropdowns
+      const renderFieldOptions = () => {
+        const groups = {};
+        pimFields.forEach(f => {
+          const g = f.group || 'Other';
+          if (!groups[g]) groups[g] = [];
+          groups[g].push(f);
+        });
+        return Object.entries(groups).map(([group, fields]) => {
+          if (!group) return fields.map(f => <option key={f.value} value={f.value}>{f.label}</option>);
+          return (
+            <optgroup key={group} label={group}>
+              {fields.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+            </optgroup>
+          );
+        });
+      };
+
+      // ---- STEP 1: Setup ----
+      if (step === 1) return (
+        <div>
+          <div className="content-header">
+            <h1>Import Spreadsheet</h1>
+          </div>
+          <div className="form-card">
+            <h3>Setup</h3>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Vendor *</label>
+                <select value={vendorId} onChange={e => setVendorId(e.target.value)}>
+                  <option value="">Select vendor...</option>
+                  {vendors.filter(v => v.is_active).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Category *</label>
+                <select value={categoryId} onChange={e => setCategoryId(e.target.value)}>
+                  <option value="">Select category...</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.parent_id ? '\u00A0\u00A0\u00A0' : ''}{c.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Default Status</label>
+                <select value={defaultStatus} onChange={e => setDefaultStatus(e.target.value)}>
+                  <option value="draft">Draft</option>
+                  <option value="active">Active</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Sell By</label>
+                <select value={defaultSellBy} onChange={e => setDefaultSellBy(e.target.value)}>
+                  <option value="sqft">Per SqFt</option>
+                  <option value="unit">Per Unit</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Price Basis</label>
+                <select value={defaultPriceBasis} onChange={e => setDefaultPriceBasis(e.target.value)}>
+                  <option value="per_sqft">Per SqFt</option>
+                  <option value="per_unit">Per Unit</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="form-card" style={{ marginTop: '1.5rem' }}>
+            <h3>File</h3>
+            <div
+              className={'import-file-zone' + (file ? ' has-file' : '')}
+              onClick={() => document.getElementById('import-file-input').click()}
+            >
+              <input
+                id="import-file-input"
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                style={{ display: 'none' }}
+                onChange={e => setFile(e.target.files[0] || null)}
+              />
+              {file ? (
+                <div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 500 }}>{file.name}</div>
+                  <div style={{ color: 'var(--stone-500)', marginTop: '0.25rem' }}>{(file.size / 1024).toFixed(1)} KB — Click to change</div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: '1.25rem', color: 'var(--stone-400)' }}>Click to select a file</div>
+                  <div style={{ color: 'var(--stone-400)', marginTop: '0.25rem' }}>XLSX, XLS, or CSV (max 20MB)</div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ marginTop: '1.5rem' }}>
+            <button className="btn btn-primary" onClick={handleUpload} disabled={uploading}>
+              {uploading ? 'Uploading...' : 'Upload & Parse'}
+            </button>
+          </div>
+        </div>
+      );
+
+      // ---- STEP 2: Map Columns ----
+      if (step === 2) return (
+        <div>
+          <div className="content-header">
+            <h1>Map Columns</h1>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="btn btn-secondary" onClick={() => setStep(1)}>Back</button>
+              <button className="btn btn-primary" onClick={handleValidate} disabled={validating}>
+                {validating ? 'Validating...' : 'Validate & Preview'}
+              </button>
+            </div>
+          </div>
+
+          {templates.length > 0 && (
+            <div className="form-card" style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--stone-600)', whiteSpace: 'nowrap' }}>Load Template:</label>
+                <select onChange={e => {
+                  const t = templates.find(t => t.id === e.target.value);
+                  if (t) setMapping(typeof t.mapping === 'string' ? JSON.parse(t.mapping) : t.mapping);
+                }} style={{ flex: 1 }}>
+                  <option value="">Select a saved template...</option>
+                  {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+
+          <div className="form-card">
+            <h3>Column Mapping ({totalRows} rows in file)</h3>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Spreadsheet Column</th>
+                    <th>Sample Values</th>
+                    <th>Map To</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {headers.map((header, i) => (
+                    <tr key={i} style={{ background: mapping[String(i)] ? 'rgba(201,166,104,0.06)' : undefined }}>
+                      <td style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{header || '(empty)'}</td>
+                      <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {previewRows.slice(0, 3).map(row => row[i]).filter(v => v != null && v !== '').join(' | ') || '—'}
+                      </td>
+                      <td>
+                        <select
+                          value={mapping[String(i)] || ''}
+                          onChange={e => setMapping(prev => ({ ...prev, [String(i)]: e.target.value }))}
+                          style={{ width: '100%', minWidth: '180px' }}
+                        >
+                          {renderFieldOptions()}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+            <button className="btn btn-secondary" onClick={handleSaveTemplate}>Save Mapping as Template</button>
+          </div>
+        </div>
+      );
+
+      // ---- STEP 3: Review ----
+      if (step === 3 && validationResult) {
+        const filtered = validationResult.rows.filter(r => {
+          if (reviewFilter === 'valid') return r.status === 'valid';
+          if (reviewFilter === 'error') return r.status === 'error';
+          return true;
+        });
+        const pageSize = 50;
+        const totalPages = Math.ceil(filtered.length / pageSize);
+        const paged = filtered.slice(reviewPage * pageSize, (reviewPage + 1) * pageSize);
+        const mappedFields = Object.entries(mapping)
+          .filter(([_, v]) => v)
+          .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+          .map(([_, field]) => field);
+
+        return (
+          <div>
+            <div className="content-header">
+              <h1>Review Import</h1>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button className="btn btn-secondary" onClick={() => setStep(2)}>Back</button>
+                <button className="btn btn-primary" onClick={handleImport} disabled={importing || validationResult.valid_count === 0}>
+                  {importing ? 'Importing...' : 'Import ' + validationResult.valid_count + ' Rows'}
+                </button>
+              </div>
+            </div>
+
+            <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
+              <div className="stat-card" onClick={() => { setReviewFilter('all'); setReviewPage(0); }} style={{ cursor: 'pointer', outline: reviewFilter === 'all' ? '2px solid var(--gold)' : 'none' }}>
+                <div className="stat-card-label">Total Rows</div>
+                <div className="stat-card-value">{validationResult.total_rows}</div>
+              </div>
+              <div className="stat-card" onClick={() => { setReviewFilter('valid'); setReviewPage(0); }} style={{ cursor: 'pointer', outline: reviewFilter === 'valid' ? '2px solid var(--green)' : 'none' }}>
+                <div className="stat-card-label">Valid</div>
+                <div className="stat-card-value" style={{ color: 'var(--green)' }}>{validationResult.valid_count}</div>
+              </div>
+              <div className="stat-card" onClick={() => { setReviewFilter('error'); setReviewPage(0); }} style={{ cursor: 'pointer', outline: reviewFilter === 'error' ? '2px solid var(--red)' : 'none' }}>
+                <div className="stat-card-label">Errors</div>
+                <div className="stat-card-value" style={{ color: 'var(--red)' }}>{validationResult.error_count}</div>
+              </div>
+            </div>
+
+            <div className="form-card" style={{ overflowX: 'auto' }}>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Row</th>
+                    <th>Status</th>
+                    {mappedFields.map(f => <th key={f}>{f}</th>)}
+                    <th>Errors</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paged.map(row => (
+                    <tr key={row.row_number} style={{ background: row.status === 'error' ? 'rgba(220,38,38,0.06)' : undefined }}>
+                      <td>{row.row_number}</td>
+                      <td>
+                        <span className={'badge badge-' + (row.status === 'valid' ? 'active' : 'cancelled')}>
+                          {row.status}
+                        </span>
+                      </td>
+                      {mappedFields.map(f => (
+                        <td key={f} style={{ fontSize: '0.8125rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {row.data[f] || ''}
+                        </td>
+                      ))}
+                      <td style={{ color: 'var(--red)', fontSize: '0.8125rem' }}>{row.errors.join('; ')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '1rem' }}>
+                  <button className="btn btn-secondary btn-sm" disabled={reviewPage === 0} onClick={() => setReviewPage(p => p - 1)}>Prev</button>
+                  <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>Page {reviewPage + 1} of {totalPages}</span>
+                  <button className="btn btn-secondary btn-sm" disabled={reviewPage >= totalPages - 1} onClick={() => setReviewPage(p => p + 1)}>Next</button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // ---- STEP 4: Results ----
+      if (step === 4 && importResult) return (
+        <div>
+          <div className="content-header">
+            <h1>Import Complete</h1>
+          </div>
+
+          <div className="stat-grid">
+            <div className="stat-card">
+              <div className="stat-card-label">Imported</div>
+              <div className="stat-card-value" style={{ color: 'var(--green)' }}>{importResult.results.imported}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-label">Skipped</div>
+              <div className="stat-card-value" style={{ color: 'var(--stone-500)' }}>{importResult.results.skipped}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-label">Errors</div>
+              <div className="stat-card-value" style={{ color: 'var(--red)' }}>{importResult.results.errors.length}</div>
+            </div>
+          </div>
+
+          {importResult.results.errors.length > 0 && (
+            <div className="form-card" style={{ marginTop: '1.5rem' }}>
+              <h3>Error Details</h3>
+              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                {importResult.results.errors.map((err, i) => (
+                  <div key={i} style={{ padding: '0.5rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.875rem' }}>
+                    <strong>Row {err.row}:</strong> {err.error}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+            <button className="btn btn-secondary" onClick={handleReset}>Import Another File</button>
+            <button className="btn btn-primary" onClick={() => navigate('products')}>View Products</button>
+          </div>
+        </div>
+      );
+
+      return <div className="loading">Loading...</div>;
+    }
+
+    // ========== ScrapersView ==========
+    function ScrapersView({ navigate }) {
+      const [sources, setSources] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [deleteTarget, setDeleteTarget] = useState(null);
+      const [deleteError, setDeleteError] = useState('');
+
+      const loadSources = () => {
+        adminFetch('/api/admin/vendor-sources')
+          .then(d => { setSources(d.sources || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+
+      useEffect(() => { loadSources(); }, []);
+
+      const handleScrapeNow = async (source) => {
+        if (!confirm('Start scraping "' + source.name + '" now?')) return;
+        try {
+          const d = await adminFetch('/api/admin/vendor-sources/' + source.id + '/scrape', { method: 'POST' });
+          if (d.error) { alert(d.error); return; }
+          alert('Scrape job started! Check job history for progress.');
+          loadSources();
+        } catch (err) {
+          alert('Failed to start scrape: ' + err.message);
+        }
+      };
+
+      const handleToggleActive = async (source) => {
+        try {
+          await adminFetch('/api/admin/vendor-sources/' + source.id, {
+            method: 'PUT',
+            body: JSON.stringify({ is_active: !source.is_active })
+          });
+          loadSources();
+        } catch (err) {
+          alert('Failed to toggle: ' + err.message);
+        }
+      };
+
+      const handleDelete = async () => {
+        if (!deleteTarget) return;
+        try {
+          const d = await adminFetch('/api/admin/vendor-sources/' + deleteTarget.id, { method: 'DELETE' });
+          if (d.error) { setDeleteError(d.error); return; }
+          setDeleteTarget(null);
+          loadSources();
+        } catch (err) {
+          setDeleteError(err.message);
+        }
+      };
+
+      const formatDate = (d) => {
+        if (!d) return '—';
+        return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      };
+
+      const scheduleLabel = (s) => {
+        if (!s) return 'Manual';
+        if (s === '0 0 * * 0') return 'Weekly';
+        if (s === '0 0 * * *') return 'Daily';
+        if (s === '0 0 1 * *') return 'Monthly';
+        return s;
+      };
+
+      if (loading) return <div className="loading">Loading...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Web Scrapers</h1>
+            <button className="btn btn-primary" onClick={() => navigate('scraper-source-create')}>Add Source</button>
+          </div>
+
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Vendor</th>
+                <th>Source Name</th>
+                <th>Type</th>
+                <th>Scraper</th>
+                <th>Schedule</th>
+                <th>Last Scraped</th>
+                <th>Last Status</th>
+                <th>Active</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sources.length === 0 && (
+                <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '3rem' }}>
+                  No scraper sources configured yet.
+                </td></tr>
+              )}
+              {sources.map(s => {
+                const lastJob = s.last_job;
+                return (
+                  <tr key={s.id}>
+                    <td>{s.vendor_name}</td>
+                    <td><strong>{s.name}</strong></td>
+                    <td>{s.source_type}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>{s.scraper_key || '—'}</td>
+                    <td>{scheduleLabel(s.schedule)}</td>
+                    <td style={{ fontSize: '0.8125rem' }}>{formatDate(s.last_scraped_at)}</td>
+                    <td>
+                      {lastJob ? (
+                        <span className={'badge badge-' + lastJob.status}>{lastJob.status}</span>
+                      ) : <span style={{ color: 'var(--stone-400)' }}>—</span>}
+                    </td>
+                    <td>
+                      <div className={'toggle' + (s.is_active ? ' on' : '')} onClick={() => handleToggleActive(s)} />
+                    </td>
+                    <td className="actions">
+                      <button className="btn btn-sm btn-primary" onClick={() => handleScrapeNow(s)}>Scrape Now</button>
+                      <button className="btn btn-sm btn-secondary" onClick={() => navigate('scraper-jobs', s.id)}>Jobs</button>
+                      <button className="btn btn-sm btn-secondary" onClick={() => navigate('scraper-source-edit', s.id)}>Edit</button>
+                      <button className="btn btn-sm btn-danger" onClick={() => { setDeleteError(''); setDeleteTarget(s); }}>Delete</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {deleteTarget && (
+            <DeleteConfirmModal
+              title="Delete Source"
+              message={'Delete "' + deleteTarget.name + '" and all its job history? This cannot be undone.'}
+              error={deleteError}
+              onConfirm={handleDelete}
+              onCancel={() => setDeleteTarget(null)}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // ========== ScraperSourceFormView ==========
+    function ScraperSourceFormView({ navigate, editId }) {
+      const [vendors, setVendors] = useState([]);
+      const [form, setForm] = useState({
+        vendor_id: '', name: '', source_type: 'website', base_url: '',
+        scraper_key: '', schedule: '', categories: '', is_active: true
+      });
+      const [saving, setSaving] = useState(false);
+
+      useEffect(() => {
+        adminFetch('/api/admin/vendors').then(d => setVendors(d.vendors || [])).catch(() => {});
+        if (editId) {
+          adminFetch('/api/admin/vendor-sources').then(d => {
+            const source = (d.sources || []).find(s => s.id === editId);
+            if (source) {
+              const cfg = source.config || {};
+              setForm({
+                vendor_id: source.vendor_id,
+                name: source.name,
+                source_type: source.source_type || 'website',
+                base_url: source.base_url,
+                scraper_key: source.scraper_key || '',
+                schedule: source.schedule || '',
+                categories: (cfg.categories || []).join('\n'),
+                is_active: source.is_active
+              });
+            }
+          }).catch(() => {});
+        }
+      }, [editId]);
+
+      const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+      const handleSave = async () => {
+        if (!form.vendor_id || !form.name || !form.base_url) {
+          return alert('Vendor, name, and base URL are required');
+        }
+        setSaving(true);
+        try {
+          const config = {};
+          if (form.categories.trim()) {
+            config.categories = form.categories.split('\n').map(l => l.trim()).filter(Boolean);
+          }
+          const body = {
+            vendor_id: form.vendor_id,
+            name: form.name,
+            source_type: form.source_type,
+            base_url: form.base_url,
+            scraper_key: form.scraper_key || null,
+            schedule: form.schedule || null,
+            config,
+            is_active: form.is_active
+          };
+
+          let d;
+          if (editId) {
+            d = await adminFetch('/api/admin/vendor-sources/' + editId, {
+              method: 'PUT', body: JSON.stringify(body)
+            });
+          } else {
+            d = await adminFetch('/api/admin/vendor-sources', {
+              method: 'POST', body: JSON.stringify(body)
+            });
+          }
+          if (d.error) { alert('Server error: ' + d.error); return; }
+          navigate('scrapers');
+        } catch (err) {
+          alert('Save failed: ' + err.message);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const schedulePresets = [
+        { value: '', label: 'Manual Only' },
+        { value: '0 0 * * *', label: 'Daily (midnight)' },
+        { value: '0 0 * * 0', label: 'Weekly (Sunday midnight)' },
+        { value: '0 0 1 * *', label: 'Monthly (1st of month)' },
+      ];
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>{editId ? 'Edit Source' : 'Add Scraper Source'}</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('scrapers')}>Back</button>
+          </div>
+
+          <div className="form-card">
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Vendor *</label>
+                <select value={form.vendor_id} onChange={e => set('vendor_id', e.target.value)}>
+                  <option value="">Select vendor...</option>
+                  {vendors.filter(v => v.is_active).map(v => (
+                    <option key={v.id} value={v.id}>{v.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Source Name *</label>
+                <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g., MSI Public Catalog" />
+              </div>
+              <div className="form-group">
+                <label>Source Type</label>
+                <select value={form.source_type} onChange={e => set('source_type', e.target.value)}>
+                  <option value="website">Website</option>
+                  <option value="portal">Dealer Portal</option>
+                  <option value="api">API</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Scraper Key</label>
+                <input value={form.scraper_key} onChange={e => set('scraper_key', e.target.value)} placeholder="e.g., msi" />
+                <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', marginTop: '0.25rem' }}>
+                  Maps to backend/scrapers/[key].js
+                </div>
+              </div>
+              <div className="form-group full">
+                <label>Base URL *</label>
+                <input value={form.base_url} onChange={e => set('base_url', e.target.value)} placeholder="https://www.msisurfaces.com" />
+              </div>
+              <div className="form-group">
+                <label>Schedule</label>
+                <select value={form.schedule} onChange={e => set('schedule', e.target.value)}>
+                  {schedulePresets.map(p => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Active</label>
+                <div style={{ paddingTop: '0.5rem' }}>
+                  <div className={'toggle' + (form.is_active ? ' on' : '')} onClick={() => set('is_active', !form.is_active)} />
+                </div>
+              </div>
+              <div className="form-group full">
+                <label>Category URLs (one per line)</label>
+                <textarea rows="6" value={form.categories} onChange={e => set('categories', e.target.value)}
+                  placeholder={"/porcelain-tile\n/luxury-vinyl-flooring\n/waterproof-hybrid-rigid-core"} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving...' : (editId ? 'Update Source' : 'Create Source')}
+              </button>
+              <button className="btn btn-secondary" onClick={() => navigate('scrapers')}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== ScraperJobsView ==========
+    function ScraperJobsView({ navigate, editId: sourceId }) {
+      const [jobs, setJobs] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        const url = sourceId
+          ? '/api/admin/scrape-jobs?vendor_source_id=' + sourceId + '&limit=50'
+          : '/api/admin/scrape-jobs?limit=50';
+        adminFetch(url)
+          .then(d => { setJobs(d.jobs || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, [sourceId]);
+
+      const formatDate = (d) => {
+        if (!d) return '—';
+        return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      };
+
+      const formatDuration = (started, completed) => {
+        if (!started || !completed) return '—';
+        const ms = new Date(completed) - new Date(started);
+        if (ms < 60000) return Math.round(ms / 1000) + 's';
+        return Math.round(ms / 60000) + 'm';
+      };
+
+      if (loading) return <div className="loading">Loading...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Scrape Jobs</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('scrapers')}>Back to Sources</button>
+          </div>
+
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Source</th>
+                <th>Vendor</th>
+                <th>Status</th>
+                <th>Found</th>
+                <th>Created</th>
+                <th>Updated</th>
+                <th>SKUs</th>
+                <th>Duration</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {jobs.length === 0 && (
+                <tr><td colSpan="10" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '3rem' }}>
+                  No scrape jobs found.
+                </td></tr>
+              )}
+              {jobs.map(j => (
+                <tr key={j.id}>
+                  <td style={{ fontSize: '0.8125rem' }}>{formatDate(j.started_at || j.created_at)}</td>
+                  <td>{j.source_name}</td>
+                  <td>{j.vendor_name}</td>
+                  <td><span className={'badge badge-' + j.status}>{j.status}</span></td>
+                  <td>{j.products_found}</td>
+                  <td>{j.products_created}</td>
+                  <td>{j.products_updated}</td>
+                  <td>{j.skus_created}</td>
+                  <td>{formatDuration(j.started_at, j.completed_at)}</td>
+                  <td className="actions">
+                    <button className="btn btn-sm btn-secondary" onClick={() => navigate('scraper-job-detail', j.id)}>Details</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    // ========== ScraperJobDetailView ==========
+    function ScraperJobDetailView({ navigate, editId: jobId }) {
+      const [job, setJob] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [refreshing, setRefreshing] = useState(false);
+
+      const loadJob = () => {
+        adminFetch('/api/admin/scrape-jobs/' + jobId)
+          .then(d => { setJob(d.job || null); setLoading(false); setRefreshing(false); })
+          .catch(() => { setLoading(false); setRefreshing(false); });
+      };
+
+      useEffect(() => { loadJob(); }, [jobId]);
+
+      // Auto-refresh if running
+      useEffect(() => {
+        if (!job || job.status !== 'running') return;
+        const interval = setInterval(loadJob, 5000);
+        return () => clearInterval(interval);
+      }, [job?.status]);
+
+      if (loading) return <div className="loading">Loading...</div>;
+      if (!job) return <div>Job not found.</div>;
+
+      const formatDate = (d) => {
+        if (!d) return '—';
+        return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      };
+
+      const errors = job.errors || [];
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Job Detail</h1>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="btn btn-secondary" onClick={() => { setRefreshing(true); loadJob(); }}>
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </button>
+              <button className="btn btn-secondary" onClick={() => navigate('scraper-jobs', job.vendor_source_id)}>Back</button>
+            </div>
+          </div>
+
+          <div className="form-card">
+            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+              <div>
+                <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Status</div>
+                <span className={'badge badge-' + job.status} style={{ marginTop: '0.25rem' }}>{job.status}</span>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Source</div>
+                <div style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{job.source_name} ({job.vendor_name})</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Started</div>
+                <div style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{formatDate(job.started_at)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Completed</div>
+                <div style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{formatDate(job.completed_at)}</div>
+              </div>
+            </div>
+
+            <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
+              <div className="stat-card">
+                <div className="stat-card-label">Products Found</div>
+                <div className="stat-card-value">{job.products_found}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-label">Created</div>
+                <div className="stat-card-value">{job.products_created}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-label">Updated</div>
+                <div className="stat-card-value">{job.products_updated}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-card-label">SKUs Created</div>
+                <div className="stat-card-value">{job.skus_created}</div>
+              </div>
+            </div>
+
+            {errors.length > 0 && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem' }}>Errors ({errors.length})</h3>
+                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--red-light)', background: '#fef2f2', padding: '0.75rem' }}>
+                  {errors.map((err, i) => (
+                    <div key={i} style={{ padding: '0.375rem 0', borderBottom: '1px solid var(--red-light)', fontSize: '0.8125rem', color: 'var(--red)' }}>
+                      {err.message || JSON.stringify(err)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem' }}>Log</h3>
+              <pre style={{
+                background: 'var(--stone-900)', color: '#a7f3d0', padding: '1rem',
+                fontSize: '0.75rem', lineHeight: '1.6', maxHeight: '400px',
+                overflowY: 'auto', whiteSpace: 'pre-wrap', fontFamily: 'monospace'
+              }}>
+                {job.log || 'No log output yet...'}
+              </pre>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== DeleteConfirmModal ==========
+    function DeleteConfirmModal({ title, message, error, onConfirm, onCancel }) {
+      return (
+        <div className="modal-overlay" onClick={onCancel}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <h3>{title}</h3>
+            <p>{message}</p>
+            {error && <div className="auth-error" style={{ marginBottom: '1rem' }}>{error}</div>}
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+              <button className="btn btn-danger" onClick={onConfirm}>Delete</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepsListView ==========
+    function RepsListView({ navigate }) {
+      const [reps, setReps] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      const load = () => {
+        setLoading(true);
+        adminFetch('/api/admin/reps')
+          .then(data => { setReps(data.reps || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      useEffect(load, []);
+
+      const toggleActive = async (id) => {
+        await adminFetch('/api/admin/reps/' + id + '/toggle', { method: 'PATCH' });
+        load();
+      };
+
+      if (loading) return <div className="loading">Loading sales reps...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Sales Reps</h1>
+            <button className="btn btn-primary" onClick={() => navigate('rep-create')}>Add Rep</button>
+          </div>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Assigned Orders</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reps.map(r => (
+                <tr key={r.id}>
+                  <td style={{ fontWeight: 500 }}>{r.first_name} {r.last_name}</td>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{r.email}</td>
+                  <td>{r.phone || '\u2014'}</td>
+                  <td>{r.assigned_orders}</td>
+                  <td>
+                    <span className={'badge ' + (r.is_active ? 'badge-active' : 'badge-inactive')}>
+                      {r.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="actions">
+                    <button className="btn btn-secondary btn-sm" onClick={() => navigate('rep-edit', r.id)}>Edit</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => toggleActive(r.id)}>
+                      {r.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {reps.length === 0 && (
+                <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No sales reps found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    // ========== RepFormView ==========
+    function RepFormView({ navigate, editId }) {
+      const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '', password: '' });
+      const [loading, setLoading] = useState(!!editId);
+      const [saving, setSaving] = useState(false);
+      const [error, setError] = useState('');
+      const [showResetPassword, setShowResetPassword] = useState(false);
+      const [newPassword, setNewPassword] = useState('');
+
+      useEffect(() => {
+        if (!editId) return;
+        adminFetch('/api/admin/reps')
+          .then(data => {
+            const rep = (data.reps || []).find(r => r.id === editId);
+            if (rep) {
+              setForm({ first_name: rep.first_name, last_name: rep.last_name, email: rep.email, phone: rep.phone || '', password: '' });
+            }
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      }, [editId]);
+
+      const save = async () => {
+        setSaving(true);
+        setError('');
+        try {
+          if (editId) {
+            const { password, ...updateData } = form;
+            await adminFetch('/api/admin/reps/' + editId, {
+              method: 'PUT',
+              body: JSON.stringify(updateData)
+            });
+          } else {
+            if (!form.password) { setError('Password is required for new reps'); setSaving(false); return; }
+            await adminFetch('/api/admin/reps', {
+              method: 'POST',
+              body: JSON.stringify(form)
+            });
+          }
+          navigate('reps');
+        } catch (err) {
+          setError(err.message || 'Failed to save');
+          setSaving(false);
+        }
+      };
+
+      const resetPassword = async () => {
+        if (!newPassword) return;
+        setSaving(true);
+        try {
+          await adminFetch('/api/admin/reps/' + editId + '/password', {
+            method: 'PUT',
+            body: JSON.stringify({ password: newPassword })
+          });
+          setNewPassword('');
+          setShowResetPassword(false);
+        } catch (err) {
+          setError(err.message || 'Failed to reset password');
+        }
+        setSaving(false);
+      };
+
+      if (loading) return <div className="loading">Loading rep...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>{editId ? 'Edit Sales Rep' : 'Add Sales Rep'}</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('reps')}>Back to Reps</button>
+          </div>
+          {error && <div style={{ color: 'var(--red)', fontSize: '0.875rem', marginBottom: '1rem' }}>{error}</div>}
+          <div className="form-card">
+            <h3>Rep Information</h3>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>First Name *</label>
+                <input type="text" value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label>Last Name *</label>
+                <input type="text" value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label>Email *</label>
+                <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label>Phone</label>
+                <input type="text" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+              </div>
+              {!editId && (
+                <div className="form-group full">
+                  <label>Password *</label>
+                  <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button className="btn btn-primary" onClick={save} disabled={saving || !form.first_name || !form.last_name || !form.email}>
+              {saving ? 'Saving...' : (editId ? 'Save Changes' : 'Create Rep')}
+            </button>
+            {editId && (
+              <button className="btn btn-secondary" onClick={() => setShowResetPassword(!showResetPassword)}>
+                Reset Password
+              </button>
+            )}
+          </div>
+          {showResetPassword && (
+            <div className="form-card" style={{ marginTop: '1.5rem' }}>
+              <h3>Reset Password</h3>
+              <div className="form-group">
+                <label>New Password</label>
+                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+              </div>
+              <button className="btn btn-danger" onClick={resetPassword} disabled={saving || !newPassword}>
+                {saving ? 'Resetting...' : 'Reset Password'}
+              </button>
+              <span style={{ marginLeft: '0.75rem', fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
+                This will log out the rep from all sessions.
+              </span>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.render(<AdminApp />, document.getElementById('root'));
+  </script>
+</body>
+</html>

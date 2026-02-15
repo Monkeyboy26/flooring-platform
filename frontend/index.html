@@ -1,0 +1,2633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atelier Surfaces</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --stone-50: #fafaf9;
+      --stone-100: #f5f5f4;
+      --stone-200: #e7e5e4;
+      --stone-600: #57534e;
+      --stone-800: #292524;
+      --stone-900: #1c1917;
+      --gold: #c9a668;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--stone-50);
+      color: var(--stone-800);
+    }
+
+    /* Header */
+    header {
+      padding: 2rem 3rem;
+      border-bottom: 1px solid var(--stone-200);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.75rem;
+      color: var(--stone-900);
+      cursor: pointer;
+    }
+    nav { display: flex; gap: 2rem; }
+    nav a {
+      text-decoration: none;
+      color: var(--stone-600);
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+    }
+
+    /* Header Search */
+    .header-search {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .header-search input {
+      width: 200px;
+      padding: 0.5rem 0.75rem 0.5rem 2rem;
+      border: 1px solid var(--stone-200);
+      background: var(--stone-50);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8125rem;
+      color: var(--stone-800);
+      outline: none;
+      transition: border-color 0.2s, width 0.3s;
+    }
+    .header-search input::placeholder {
+      color: var(--stone-600);
+      font-size: 0.8125rem;
+    }
+    .header-search input:focus {
+      border-color: var(--gold);
+      width: 260px;
+    }
+    .header-search-icon {
+      position: absolute;
+      left: 0.6rem;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: var(--stone-600);
+    }
+    .header-search-icon svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+
+    /* Hero */
+    .hero {
+      height: 70vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: linear-gradient(135deg, #f5f5f4 0%, #e7e5e4 100%);
+    }
+    .hero h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 4rem;
+      font-weight: 300;
+      margin-bottom: 1rem;
+    }
+    .hero p {
+      font-size: 1.125rem;
+      color: var(--stone-600);
+      margin-bottom: 2rem;
+    }
+    .btn {
+      display: inline-block;
+      padding: 1rem 3rem;
+      background: var(--stone-900);
+      color: white;
+      text-decoration: none;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      border: none;
+      transition: all 0.3s;
+    }
+    .btn:hover { background: var(--gold); }
+    .btn-secondary {
+      background: white;
+      color: var(--stone-900);
+      border: 1px solid var(--stone-300);
+    }
+    .btn-secondary:hover {
+      background: var(--stone-100);
+    }
+
+    /* Product Grid */
+    .section {
+      max-width: 1400px;
+      margin: 6rem auto;
+      padding: 0 3rem;
+    }
+    .section-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.5rem;
+      font-weight: 300;
+      margin-bottom: 3rem;
+      text-align: center;
+    }
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 2rem;
+    }
+    .product-card {
+      cursor: pointer;
+      transition: transform 0.3s;
+    }
+    .product-card:hover { transform: translateY(-8px); }
+    .product-image {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #e7e5e4;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+    .product-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .product-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .product-meta {
+      font-size: 0.875rem;
+      color: var(--stone-600);
+      margin-bottom: 0.5rem;
+    }
+    .product-price {
+      font-size: 1.125rem;
+      font-weight: 500;
+    }
+
+    /* Product Detail Page */
+    .product-detail {
+      max-width: 1400px;
+      margin: 3rem auto;
+      padding: 0 3rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+    }
+    .product-detail-image {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #e7e5e4;
+      overflow: hidden;
+    }
+    .product-detail-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .product-gallery-thumbs {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .product-gallery-thumb {
+      width: 80px;
+      height: 80px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .product-gallery-thumb.active {
+      border-color: var(--gold);
+    }
+    .product-gallery-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .product-detail-info h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 3rem;
+      font-weight: 300;
+      margin-bottom: 1rem;
+    }
+    .product-detail-meta {
+      font-size: 1rem;
+      color: var(--stone-600);
+      margin-bottom: 2rem;
+    }
+    .product-detail-price {
+      font-size: 2rem;
+      font-weight: 500;
+      margin-bottom: 3rem;
+    }
+    .product-detail-price span {
+      font-size: 1.25rem;
+      color: var(--stone-600);
+      font-weight: 400;
+    }
+
+    /* Calculator Widget - Elysium Style */
+    .calculator-widget {
+      background: white;
+      border: 1px solid var(--stone-200);
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .calculator-widget h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.75rem;
+      font-weight: 400;
+      margin-bottom: 1.5rem;
+    }
+    .calc-input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .calc-input-group {
+      margin-bottom: 1.5rem;
+    }
+    .calc-input-group label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--stone-800);
+      margin-bottom: 0.5rem;
+    }
+    .calc-input {
+      width: 100%;
+      padding: 1rem;
+      border: 2px solid var(--stone-200);
+      font-size: 1.125rem;
+      background: white;
+      font-weight: 500;
+      text-align: center;
+    }
+    .calc-input:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+    .calc-summary {
+      background: var(--stone-50);
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+      border-left: 3px solid var(--gold);
+    }
+    .calc-summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      font-size: 0.95rem;
+    }
+    .calc-summary-total {
+      display: flex;
+      justify-content: space-between;
+      padding: 1rem 0;
+      margin-top: 0.5rem;
+      padding-top: 1rem;
+      border-top: 2px solid var(--stone-300);
+      font-weight: 600;
+      font-size: 1.25rem;
+    }
+    .packaging-info {
+      background: var(--stone-50);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      font-size: 0.875rem;
+      line-height: 1.8;
+    }
+    .packaging-info h4 {
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .note {
+      background: #fef3c7;
+      border-left: 3px solid #f59e0b;
+      padding: 1rem;
+      margin: 1.5rem 0;
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+
+    /* Back Button */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--stone-600);
+      text-decoration: none;
+      font-size: 0.875rem;
+      margin-bottom: 2rem;
+      cursor: pointer;
+    }
+    .back-btn:hover { color: var(--stone-900); }
+
+    /* Shop Page */
+    .shop-page {
+      max-width: 1400px;
+      margin: 3rem auto;
+      padding: 0 3rem;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 3rem;
+    }
+    .shop-page-header {
+      grid-column: 1 / -1;
+    }
+    .shop-page-header h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.5rem;
+      font-weight: 300;
+    }
+
+    /* Category Sidebar */
+    .category-sidebar {
+      background: white;
+      border: 1px solid var(--stone-200);
+      padding: 2rem;
+      position: sticky;
+      top: 120px;
+      align-self: start;
+    }
+    .category-sidebar h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.25rem;
+      font-weight: 400;
+      margin-bottom: 1.5rem;
+    }
+    .category-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: var(--stone-600);
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+    }
+    .category-item:hover {
+      background: var(--stone-50);
+    }
+    .category-item.active {
+      border-left-color: var(--gold);
+      color: var(--stone-900);
+      font-weight: 500;
+      background: var(--stone-50);
+    }
+    .category-count {
+      background: var(--stone-100);
+      color: var(--stone-600);
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      min-width: 1.5rem;
+      text-align: center;
+    }
+    .category-item.active .category-count {
+      background: var(--gold);
+      color: white;
+    }
+    .category-parent-row {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      justify-content: space-between;
+    }
+    .category-parent-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .category-expand {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--stone-600);
+      font-size: 0.75rem;
+      padding: 0;
+      width: 1.25rem;
+      height: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .category-children {
+      margin-left: 1rem;
+    }
+    .shop-empty {
+      text-align: center;
+      padding: 4rem 0;
+      color: var(--stone-600);
+      font-size: 1rem;
+    }
+
+    /* Filter Panel */
+    .filter-panel {
+      padding-top: 1.5rem;
+      margin-top: 1.5rem;
+      border-top: 1px solid var(--stone-200);
+    }
+    .filter-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .filter-panel-header h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.25rem;
+      font-weight: 400;
+      margin: 0;
+    }
+    .filter-clear {
+      background: none;
+      border: none;
+      color: var(--stone-600);
+      font-size: 0.75rem;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0;
+    }
+    .filter-clear:hover { color: var(--stone-900); }
+    .filter-group {
+      margin-bottom: 1.25rem;
+    }
+    .filter-group-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--stone-600);
+      margin-bottom: 0.5rem;
+    }
+    .filter-option {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0;
+    }
+    .filter-option input[type="checkbox"] {
+      width: 0.875rem;
+      height: 0.875rem;
+      cursor: pointer;
+      accent-color: var(--gold);
+      flex-shrink: 0;
+    }
+    .filter-option label {
+      cursor: pointer;
+      flex-grow: 1;
+      font-size: 0.8125rem;
+      color: var(--stone-800);
+    }
+    .filter-option .filter-count {
+      font-size: 0.7rem;
+      color: var(--stone-600);
+      flex-shrink: 0;
+    }
+
+    /* Active Filter Pills */
+    .active-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .filter-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--stone-100);
+      border: 1px solid var(--stone-200);
+      padding: 0.3rem 0.6rem;
+      font-size: 0.75rem;
+      color: var(--stone-800);
+      cursor: default;
+    }
+    .filter-pill button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--stone-600);
+      font-size: 0.875rem;
+      padding: 0;
+      line-height: 1;
+    }
+    .filter-pill button:hover { color: var(--stone-900); }
+
+    footer {
+      background: var(--stone-900);
+      color: white;
+      padding: 3rem;
+      text-align: center;
+      margin-top: 6rem;
+    }
+
+    /* Cart Icon & Badge */
+    .cart-icon-wrap {
+      position: relative;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: var(--stone-600);
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .cart-icon-wrap:hover { color: var(--stone-900); }
+    .cart-icon-wrap svg { width: 20px; height: 20px; }
+    .cart-badge {
+      position: absolute;
+      top: -6px;
+      right: -10px;
+      background: var(--gold);
+      color: white;
+      font-size: 0.65rem;
+      font-weight: 600;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Cart Dropdown */
+    .cart-dropdown-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 199;
+    }
+    .cart-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 0.5rem;
+      width: 380px;
+      background: white;
+      border: 1px solid var(--stone-200);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      z-index: 200;
+      max-height: 420px;
+      display: flex;
+      flex-direction: column;
+    }
+    .cart-dropdown-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--stone-200);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.25rem;
+    }
+    .cart-dropdown-items {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+    .cart-dropdown-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--stone-100);
+    }
+    .cart-dropdown-item-info { flex: 1; }
+    .cart-dropdown-item-name {
+      font-weight: 500;
+      font-size: 0.875rem;
+      margin-bottom: 0.25rem;
+    }
+    .cart-dropdown-item-meta {
+      font-size: 0.75rem;
+      color: var(--stone-600);
+    }
+    .cart-dropdown-item-price {
+      font-weight: 500;
+      font-size: 0.875rem;
+      white-space: nowrap;
+      margin-left: 1rem;
+    }
+    .cart-dropdown-item-remove {
+      background: none;
+      border: none;
+      color: var(--stone-600);
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 0;
+      margin-left: 0.75rem;
+      text-decoration: underline;
+    }
+    .cart-dropdown-item-remove:hover { color: var(--stone-900); }
+    .cart-dropdown-footer {
+      padding: 1.25rem 1.5rem;
+      border-top: 1px solid var(--stone-200);
+    }
+    .cart-dropdown-total {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+    .cart-dropdown-empty {
+      padding: 3rem 1.5rem;
+      text-align: center;
+      color: var(--stone-600);
+      font-size: 0.875rem;
+    }
+
+    /* Cart Page */
+    .cart-page {
+      max-width: 1400px;
+      margin: 3rem auto;
+      padding: 0 3rem;
+    }
+    .cart-page h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.5rem;
+      font-weight: 300;
+      margin-bottom: 2rem;
+    }
+    .cart-page-layout {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 3rem;
+      align-items: start;
+    }
+    .cart-table { width: 100%; }
+    .cart-table-header {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr auto;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 2px solid var(--stone-200);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--stone-600);
+    }
+    .cart-table-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr auto;
+      gap: 1rem;
+      padding: 1.5rem 0;
+      border-bottom: 1px solid var(--stone-100);
+      align-items: center;
+    }
+    .cart-table-product-name {
+      font-weight: 500;
+    }
+    .cart-table-product-meta {
+      font-size: 0.8rem;
+      color: var(--stone-600);
+      margin-top: 0.25rem;
+    }
+    .cart-qty-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .cart-qty-btn {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--stone-200);
+      background: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem;
+    }
+    .cart-qty-btn:hover { background: var(--stone-100); }
+    .cart-qty-value {
+      width: 40px;
+      text-align: center;
+      font-weight: 500;
+    }
+    .cart-remove-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--stone-600);
+      padding: 0.25rem;
+    }
+    .cart-remove-btn:hover { color: var(--stone-900); }
+
+    /* Order Summary Sidebar */
+    .order-summary {
+      background: white;
+      border: 1px solid var(--stone-200);
+      padding: 2rem;
+      position: sticky;
+      top: 120px;
+    }
+    .order-summary h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem;
+      font-weight: 400;
+      margin-bottom: 1.5rem;
+    }
+    .order-summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      font-size: 0.95rem;
+    }
+    .order-summary-row.muted { color: var(--stone-600); font-size: 0.875rem; }
+    .order-summary-total {
+      display: flex;
+      justify-content: space-between;
+      padding: 1rem 0;
+      margin-top: 0.5rem;
+      border-top: 2px solid var(--stone-300);
+      font-weight: 600;
+      font-size: 1.25rem;
+    }
+
+    /* Sample Tags & Styling */
+    .sample-tag {
+      display: inline-block;
+      background: var(--gold);
+      color: white;
+      font-size: 0.625rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.15rem 0.5rem;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+    .sample-item {
+      background: var(--stone-50);
+    }
+
+    /* Cart flash animation */
+    .cart-flash { animation: cartPulse 0.6s ease; }
+    @keyframes cartPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+
+    @media (max-width: 968px) {
+      .shop-page {
+        grid-template-columns: 1fr;
+      }
+      .category-sidebar {
+        position: static;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .product-detail {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+      .calc-input-row {
+        grid-template-columns: 1fr;
+      }
+      .hero h1 { font-size: 2.5rem; }
+      .cart-dropdown { width: 100%; left: 0; right: 0; margin-top: 0; }
+      .cart-page-layout {
+        grid-template-columns: 1fr;
+      }
+      .cart-table-header { display: none; }
+      .cart-table-row {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+      }
+      .checkout-page {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+    /* Checkout Page */
+    .checkout-page {
+      max-width: 1400px;
+      margin: 3rem auto;
+      padding: 0 3rem;
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 3rem;
+      align-items: start;
+    }
+    .checkout-page h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.5rem;
+      font-weight: 300;
+      margin-bottom: 2rem;
+      grid-column: 1 / -1;
+    }
+    .checkout-form {}
+    .checkout-section {
+      margin-bottom: 2.5rem;
+    }
+    .checkout-section h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem;
+      font-weight: 400;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--stone-200);
+    }
+    .checkout-field {
+      margin-bottom: 1rem;
+    }
+    .checkout-field label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--stone-800);
+      margin-bottom: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .checkout-input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border: 2px solid var(--stone-200);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      background: white;
+      color: var(--stone-800);
+      transition: border-color 0.2s;
+    }
+    .checkout-input:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+    .checkout-input::placeholder {
+      color: var(--stone-600);
+      font-size: 0.875rem;
+    }
+    .checkout-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .checkout-row-3 {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 1rem;
+    }
+    .stripe-element {
+      padding: 0.875rem 1rem;
+      border: 2px solid var(--stone-200);
+      background: white;
+      transition: border-color 0.2s;
+    }
+    .stripe-element.StripeElement--focus {
+      border-color: var(--gold);
+    }
+    .checkout-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left: 3px solid #ef4444;
+      color: #991b1b;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.875rem;
+    }
+    .checkout-btn {
+      width: 100%;
+      padding: 1.25rem;
+      background: var(--stone-900);
+      color: white;
+      border: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .checkout-btn:hover:not(:disabled) { background: var(--gold); }
+    .checkout-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .checkout-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Confirmation Page */
+    .confirmation-page {
+      max-width: 800px;
+      margin: 4rem auto;
+      padding: 0 3rem;
+      text-align: center;
+    }
+    .confirmation-check {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #d1fae5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 2rem;
+    }
+    .confirmation-check svg {
+      width: 40px;
+      height: 40px;
+      color: #059669;
+    }
+    .confirmation-page h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 3rem;
+      font-weight: 300;
+      margin-bottom: 1rem;
+    }
+    .confirmation-order-number {
+      font-size: 1.125rem;
+      color: var(--stone-600);
+      margin-bottom: 3rem;
+    }
+    .confirmation-order-number strong {
+      color: var(--stone-900);
+      font-weight: 600;
+    }
+    .confirmation-details {
+      background: white;
+      border: 1px solid var(--stone-200);
+      padding: 2rem;
+      text-align: left;
+      margin-bottom: 2rem;
+    }
+    .confirmation-details h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.25rem;
+      font-weight: 400;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--stone-200);
+    }
+    .confirmation-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--stone-100);
+      font-size: 0.95rem;
+    }
+    .confirmation-item:last-child { border-bottom: none; }
+    .confirmation-address {
+      font-size: 0.95rem;
+      line-height: 1.8;
+      color: var(--stone-800);
+    }
+
+    /* Variant Type Tabs & SKU Selector */
+    .variant-type-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .variant-type-tab {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--stone-200);
+      background: white;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8125rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--stone-600);
+    }
+    .variant-type-tab:hover {
+      border-color: var(--stone-600);
+      color: var(--stone-800);
+    }
+    .variant-type-tab.active {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: white;
+    }
+    .sku-selector {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--stone-200);
+      background: white;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.875rem;
+      color: var(--stone-800);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2357534e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 1rem center;
+      margin-bottom: 1.5rem;
+    }
+    .sku-selector:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const API = 'http://localhost:3001';
+
+    function getSessionId() {
+      let id = localStorage.getItem('cart_session_id');
+      if (!id) {
+        id = 'sess_' + Math.random().toString(36).substr(2, 12) + Date.now().toString(36);
+        localStorage.setItem('cart_session_id', id);
+      }
+      return id;
+    }
+
+    // Determine price label suffix from product category
+    function priceLabel(product) {
+      const slug = (product && product.category_slug) || '';
+      if (slug.includes('countertop') || slug.includes('slab') || slug.includes('vanity') || slug.includes('sink') || slug.includes('faucet')) {
+        return '';
+      }
+      return '/sqft';
+    }
+
+    const stripePromise = Stripe('pk_test_51SzdrRAASarADPs5BQucZOHBLTPXAaFpGajCToKwXCjdVCasoYHDm3guDjMoEeQhhLr71AWiFPgq91BE2ggj2wNf004DucWYlf');
+
+    function App() {
+      const [view, setView] = useState('home');
+      const [selectedProduct, setSelectedProduct] = useState(null);
+      const [products, setProducts] = useState([]);
+      const [categories, setCategories] = useState([]);
+      const [selectedCategory, setSelectedCategory] = useState(null);
+      const [cart, setCart] = useState([]);
+      const [cartOpen, setCartOpen] = useState(false);
+      const [cartFlash, setCartFlash] = useState(false);
+      const [filters, setFilters] = useState({});
+      const [availableAttributes, setAvailableAttributes] = useState([]);
+      const [searchQuery, setSearchQuery] = useState('');
+      const [completedOrder, setCompletedOrder] = useState(null);
+      const [deliveryMethod, setDeliveryMethod] = useState('shipping');
+      const sessionId = useRef(getSessionId());
+
+      const fetchProducts = (categorySlug, activeFilters, searchTerm) => {
+        const f = activeFilters || {};
+        let url = API + '/api/products';
+        const params = new URLSearchParams();
+        if (categorySlug) params.set('category', categorySlug);
+        if (searchTerm) params.set('search', searchTerm);
+        Object.keys(f).forEach(slug => {
+          if (f[slug] && f[slug].length > 0) {
+            params.set(slug, f[slug].join(','));
+          }
+        });
+        const qs = params.toString();
+        if (qs) url += '?' + qs;
+        fetch(url)
+          .then(r => r.json())
+          .then(data => setProducts(data.products))
+          .catch(err => console.error(err));
+      };
+
+      const fetchAttributes = (categorySlug) => {
+        let url = API + '/api/attributes';
+        if (categorySlug) url += '?category=' + encodeURIComponent(categorySlug);
+        fetch(url)
+          .then(r => r.json())
+          .then(data => setAvailableAttributes(data.attributes || []))
+          .catch(err => console.error(err));
+      };
+
+      useEffect(() => {
+        fetchProducts();
+        fetchAttributes();
+        fetchCart();
+
+        fetch(API + '/api/categories')
+          .then(r => r.json())
+          .then(data => setCategories(data.categories || []))
+          .catch(err => console.error(err));
+      }, []);
+
+      const fetchCart = () => {
+        fetch(API + '/api/cart?session_id=' + encodeURIComponent(sessionId.current))
+          .then(r => r.json())
+          .then(data => setCart(data.cart || []))
+          .catch(err => console.error(err));
+      };
+
+      const addToCart = (item) => {
+        fetch(API + '/api/cart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...item, session_id: sessionId.current })
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) {
+              alert(data.error);
+              return;
+            }
+            if (data.item) {
+              setCart(prev => [...prev, data.item]);
+              setCartFlash(true);
+              setTimeout(() => setCartFlash(false), 600);
+              setCartOpen(true);
+              setTimeout(() => setCartOpen(false), 3000);
+            }
+          })
+          .catch(err => console.error(err));
+      };
+
+      const removeFromCart = (itemId) => {
+        fetch(API + '/api/cart/' + itemId, { method: 'DELETE' })
+          .then(r => r.json())
+          .then(() => setCart(prev => prev.filter(i => i.id !== itemId)))
+          .catch(err => console.error(err));
+      };
+
+      const updateCartItem = (itemId, updates) => {
+        fetch(API + '/api/cart/' + itemId, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates)
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.item) {
+              setCart(prev => prev.map(i => i.id === itemId ? data.item : i));
+            }
+          })
+          .catch(err => console.error(err));
+      };
+
+      const shopScrollY = useRef(0);
+
+      const viewProduct = (product) => {
+        shopScrollY.current = window.scrollY;
+        setSelectedProduct(product);
+        setView('product');
+        window.scrollTo(0, 0);
+      };
+
+      const handleSearch = (query) => {
+        setSearchQuery(query);
+        setSelectedCategory(null);
+        setFilters({});
+        setView('shop');
+        fetchProducts(null, {}, query);
+        fetchAttributes();
+        window.scrollTo(0, 0);
+      };
+
+      const goHome = () => {
+        setView('home');
+        setSelectedProduct(null);
+        setSelectedCategory(null);
+        setFilters({});
+        setSearchQuery('');
+        fetchProducts();
+        fetchAttributes();
+      };
+
+      const goShop = () => {
+        setView('shop');
+        setSelectedCategory(null);
+        setFilters({});
+        setSearchQuery('');
+        fetchProducts();
+        fetchAttributes();
+        window.scrollTo(0, 0);
+      };
+
+      const handleCategorySelect = (slug) => {
+        setSelectedCategory(slug);
+        setFilters({});
+        fetchProducts(slug);
+        fetchAttributes(slug);
+      };
+
+      const handleFilterToggle = (slug, value) => {
+        setFilters(prev => {
+          const current = prev[slug] || [];
+          const next = current.includes(value)
+            ? current.filter(v => v !== value)
+            : [...current, value];
+          const updated = { ...prev };
+          if (next.length > 0) {
+            updated[slug] = next;
+          } else {
+            delete updated[slug];
+          }
+          fetchProducts(selectedCategory, updated);
+          return updated;
+        });
+      };
+
+      const handleClearFilters = () => {
+        setFilters({});
+        fetchProducts(selectedCategory);
+      };
+
+      const goCart = () => {
+        setView('cart');
+        setCartOpen(false);
+        window.scrollTo(0, 0);
+      };
+
+      const goBack = () => {
+        if (view === 'product') {
+          setView('shop');
+          setSelectedProduct(null);
+          fetchProducts(selectedCategory, filters);
+          requestAnimationFrame(() => window.scrollTo(0, shopScrollY.current));
+        } else {
+          goHome();
+        }
+      };
+
+      const goCheckout = () => {
+        setView('checkout');
+        setCartOpen(false);
+        window.scrollTo(0, 0);
+      };
+
+      const handleOrderComplete = (order) => {
+        setCompletedOrder(order);
+        setCart([]);
+        setView('confirmation');
+        window.scrollTo(0, 0);
+      };
+
+      return (
+        <>
+          <Header goHome={goHome} goShop={goShop} cart={cart} cartOpen={cartOpen} setCartOpen={setCartOpen}
+            removeFromCart={removeFromCart} goCart={goCart} cartFlash={cartFlash}
+            searchQuery={searchQuery} onSearch={handleSearch} />
+
+          {view === 'home' && (
+            <>
+              <Hero goShop={goShop} />
+              <ProductGrid products={products.slice(0, 6)} viewProduct={viewProduct} />
+            </>
+          )}
+          {view === 'shop' && (
+            <ShopPage
+              products={products}
+              categories={categories}
+              selectedCategory={selectedCategory}
+              onCategorySelect={handleCategorySelect}
+              viewProduct={viewProduct}
+              availableAttributes={availableAttributes}
+              filters={filters}
+              onFilterToggle={handleFilterToggle}
+              onClearFilters={handleClearFilters}
+              searchQuery={searchQuery}
+            />
+          )}
+          {view === 'product' && (
+            <ProductDetail product={selectedProduct} goBack={goBack} addToCart={addToCart} cart={cart} />
+          )}
+          {view === 'cart' && (
+            <CartPage cart={cart} goHome={goHome} removeFromCart={removeFromCart}
+              updateCartItem={updateCartItem} goCheckout={goCheckout}
+              deliveryMethod={deliveryMethod} setDeliveryMethod={setDeliveryMethod} />
+          )}
+          {view === 'checkout' && (
+            <CheckoutPage cart={cart} sessionId={sessionId.current}
+              goCart={goCart} handleOrderComplete={handleOrderComplete}
+              deliveryMethod={deliveryMethod} />
+          )}
+          {view === 'confirmation' && (
+            <ConfirmationPage order={completedOrder} goHome={goHome} />
+          )}
+
+          <Footer />
+        </>
+      );
+    }
+
+    function Header({ goHome, goShop, cart, cartOpen, setCartOpen, removeFromCart, goCart, cartFlash, searchQuery, onSearch }) {
+      const [searchInput, setSearchInput] = useState('');
+      const itemCount = cart.length;
+      const productItems = cart.filter(i => !i.is_sample);
+      const sampleItems = cart.filter(i => i.is_sample);
+      const cartTotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0)
+        + (sampleItems.length > 0 ? 12 : 0);
+
+      const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        const q = searchInput.trim();
+        if (q) {
+          onSearch(q);
+        }
+      };
+
+      // Clear input when searchQuery is cleared externally (e.g. goHome/goShop)
+      useEffect(() => {
+        if (!searchQuery) setSearchInput('');
+      }, [searchQuery]);
+
+      return (
+        <header>
+          <div className="logo" onClick={goHome}>Atelier Surfaces</div>
+          <nav>
+            <a onClick={goShop}>Products</a>
+            <a>Collections</a>
+            <a>Trade</a>
+            <form className="header-search" onSubmit={handleSearchSubmit}>
+              <span className="header-search-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+              </span>
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+            </form>
+            <div style={{ position: 'relative' }}>
+              <div className={'cart-icon-wrap' + (cartFlash ? ' cart-flash' : '')} onClick={() => setCartOpen(!cartOpen)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+                  <line x1="3" y1="6" x2="21" y2="6"/>
+                  <path d="M16 10a4 4 0 01-8 0"/>
+                </svg>
+                {itemCount > 0 && <span className="cart-badge">{itemCount}</span>}
+              </div>
+              {cartOpen && (
+                <>
+                  <div className="cart-dropdown-overlay" onClick={() => setCartOpen(false)} />
+                  <div className="cart-dropdown">
+                    <div className="cart-dropdown-header">Cart ({itemCount})</div>
+                    {itemCount === 0 ? (
+                      <div className="cart-dropdown-empty">Your cart is empty</div>
+                    ) : (
+                      <>
+                        <div className="cart-dropdown-items">
+                          {cart.map(item => (
+                            <div key={item.id} className={'cart-dropdown-item' + (item.is_sample ? ' sample-item' : '')}>
+                              <div className="cart-dropdown-item-info">
+                                <div className="cart-dropdown-item-name">
+                                  {item.product_name || 'Product'}
+                                  {item.is_sample && <span className="sample-tag">Sample</span>}
+                                </div>
+                                {item.is_sample ? (
+                                  <div className="cart-dropdown-item-meta">FREE SAMPLE</div>
+                                ) : (
+                                  <div className="cart-dropdown-item-meta">
+                                    {item.num_boxes} box{item.num_boxes !== 1 ? 'es' : ''} &middot; {parseFloat(item.sqft_needed || 0).toFixed(0)} sqft
+                                  </div>
+                                )}
+                              </div>
+                              <div className="cart-dropdown-item-price">
+                                {item.is_sample ? 'FREE' : '$' + parseFloat(item.subtotal).toFixed(2)}
+                              </div>
+                              <button className="cart-dropdown-item-remove" onClick={() => removeFromCart(item.id)}>Remove</button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="cart-dropdown-footer">
+                          <div className="cart-dropdown-total">
+                            <span>Subtotal</span>
+                            <span>${cartTotal.toFixed(2)}</span>
+                          </div>
+                          <button className="btn" style={{ width: '100%' }} onClick={goCart}>View Cart</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </nav>
+        </header>
+      );
+    }
+
+    function Hero({ goShop }) {
+      return (
+        <div className="hero">
+          <div>
+            <h1>Premium Flooring Materials</h1>
+            <p>Curated surfaces from the world's finest makers</p>
+            <button className="btn" onClick={goShop}>Explore Collection</button>
+          </div>
+        </div>
+      );
+    }
+
+    function ProductGrid({ products, viewProduct }) {
+      return (
+        <div className="section">
+          <h2 className="section-title">Featured Products</h2>
+          <div className="product-grid">
+            {products.map(p => (
+              <div key={p.id} className="product-card" onClick={() => viewProduct(p)}>
+                <div className="product-image">
+                  {p.primary_image && <img src={p.primary_image} alt={p.name} loading="lazy" />}
+                </div>
+                <div className="product-name">{p.name}</div>
+                <div className="product-meta">{p.collection} • {p.vendor_name}</div>
+                <div className="product-price">{p.price ? `$${parseFloat(p.price).toFixed(2)}${priceLabel(p)}` : 'Contact for pricing'}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function CategorySidebar({ categories, selectedCategory, onCategorySelect }) {
+      const [expanded, setExpanded] = useState({});
+
+      // Auto-expand parent that contains the selected category
+      useEffect(() => {
+        if (selectedCategory) {
+          categories.forEach(parent => {
+            if (parent.children.some(ch => ch.slug === selectedCategory) || parent.slug === selectedCategory) {
+              setExpanded(prev => ({ ...prev, [parent.slug]: true }));
+            }
+          });
+        }
+      }, [selectedCategory]);
+
+      const toggleExpand = (slug, e) => {
+        e.stopPropagation();
+        setExpanded(prev => ({ ...prev, [slug]: !prev[slug] }));
+      };
+
+      const totalProducts = categories.reduce((sum, c) => sum + c.product_count, 0);
+
+      return (
+        <div className="category-sidebar">
+          <h3>Categories</h3>
+          <div
+            className={'category-item' + (selectedCategory === null ? ' active' : '')}
+            onClick={() => onCategorySelect(null)}
+          >
+            <span>All Products</span>
+            <span className="category-count">{totalProducts}</span>
+          </div>
+          {categories.map(parent => (
+            <div key={parent.slug}>
+              <div
+                className={'category-item' + (selectedCategory === parent.slug ? ' active' : '')}
+                onClick={() => onCategorySelect(parent.slug)}
+              >
+                <div className="category-parent-label">
+                  <button className="category-expand" onClick={(e) => toggleExpand(parent.slug, e)}>
+                    {expanded[parent.slug] ? '−' : '+'}
+                  </button>
+                  <span>{parent.name}</span>
+                </div>
+                <span className="category-count">{parent.product_count}</span>
+              </div>
+              {expanded[parent.slug] && (
+                <div className="category-children">
+                  {parent.children.map(child => (
+                    <div
+                      key={child.slug}
+                      className={'category-item' + (selectedCategory === child.slug ? ' active' : '')}
+                      onClick={() => onCategorySelect(child.slug)}
+                    >
+                      <span>{child.name}</span>
+                      <span className="category-count">{child.product_count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function FilterPanel({ availableAttributes, filters, onFilterToggle, onClearFilters }) {
+      const hasActiveFilters = Object.keys(filters).length > 0;
+      // Only show groups with 2+ values
+      const visibleGroups = availableAttributes.filter(g => g.values.length >= 2);
+
+      if (visibleGroups.length === 0) return null;
+
+      return (
+        <div className="filter-panel">
+          <div className="filter-panel-header">
+            <h3>Filter By</h3>
+            {hasActiveFilters && (
+              <button className="filter-clear" onClick={onClearFilters}>Clear All</button>
+            )}
+          </div>
+          {visibleGroups.map(group => (
+            <div key={group.slug} className="filter-group">
+              <div className="filter-group-title">{group.name}</div>
+              {group.values.map(v => {
+                const checked = (filters[group.slug] || []).includes(v.value);
+                return (
+                  <div key={v.value} className="filter-option">
+                    <input
+                      type="checkbox"
+                      id={'filter-' + group.slug + '-' + v.value}
+                      checked={checked}
+                      onChange={() => onFilterToggle(group.slug, v.value)}
+                    />
+                    <label htmlFor={'filter-' + group.slug + '-' + v.value}>{v.value}</label>
+                    <span className="filter-count">{v.count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function ShopPage({ products, categories, selectedCategory, onCategorySelect, viewProduct,
+      availableAttributes, filters, onFilterToggle, onClearFilters, searchQuery }) {
+      // Determine heading from selected category or search
+      let heading = 'All Products';
+      if (searchQuery) {
+        heading = `Results for "${searchQuery}"`;
+      } else if (selectedCategory) {
+        for (const parent of categories) {
+          if (parent.slug === selectedCategory) { heading = parent.name; break; }
+          for (const child of parent.children) {
+            if (child.slug === selectedCategory) { heading = child.name; break; }
+          }
+        }
+      }
+
+      // Collect active filter pills
+      const activePills = [];
+      Object.keys(filters).forEach(slug => {
+        const group = availableAttributes.find(a => a.slug === slug);
+        (filters[slug] || []).forEach(value => {
+          activePills.push({ slug, value, label: (group ? group.name + ': ' : '') + value });
+        });
+      });
+
+      return (
+        <div className="shop-page">
+          <div className="shop-page-header">
+            <h1>{heading} <span style={{ fontSize: '1.25rem', color: 'var(--stone-600)', fontWeight: 300 }}>({products.length} product{products.length !== 1 ? 's' : ''})</span></h1>
+          </div>
+          <div>
+            <CategorySidebar
+              categories={categories}
+              selectedCategory={selectedCategory}
+              onCategorySelect={onCategorySelect}
+            />
+            <FilterPanel
+              availableAttributes={availableAttributes}
+              filters={filters}
+              onFilterToggle={onFilterToggle}
+              onClearFilters={onClearFilters}
+            />
+          </div>
+          <div>
+            {activePills.length > 0 && (
+              <div className="active-filters">
+                {activePills.map(pill => (
+                  <span key={pill.slug + '-' + pill.value} className="filter-pill">
+                    {pill.label}
+                    <button onClick={() => onFilterToggle(pill.slug, pill.value)}>&times;</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {products.length === 0 ? (
+              <div className="shop-empty">No products found matching your filters.</div>
+            ) : (
+              <div className="product-grid">
+                {products.map(p => (
+                  <div key={p.id} className="product-card" onClick={() => viewProduct(p)}>
+                    <div className="product-image">
+                      {p.primary_image && <img src={p.primary_image} alt={p.name} loading="lazy" />}
+                    </div>
+                    <div className="product-name">{p.name}</div>
+                    <div className="product-meta">{p.collection} &bull; {p.vendor_name}</div>
+                    <div className="product-price">{p.price ? `$${parseFloat(p.price).toFixed(2)}${priceLabel(p)}` : 'Contact for pricing'}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function ProductDetail({ product, goBack, addToCart, cart }) {
+      // Calculator state - Elysium style where boxes and sqft sync
+      const [sqftNeeded, setSqftNeeded] = useState('');
+      const [numBoxes, setNumBoxes] = useState('');
+      const [includeOverage, setIncludeOverage] = useState(false);
+      const [fullProduct, setFullProduct] = useState(null);
+      const [skus, setSkus] = useState([]);
+      const [selectedSku, setSelectedSku] = useState(null);
+      const [activeVariantType, setActiveVariantType] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [media, setMedia] = useState([]);
+      const [selectedImage, setSelectedImage] = useState(null);
+
+      useEffect(() => {
+        if (!product) return;
+        setLoading(true);
+        fetch(API + '/api/products/' + product.id)
+          .then(r => r.json())
+          .then(data => {
+            setFullProduct(data.product);
+            const allSkus = data.skus || [];
+            setSkus(allSkus);
+            // Determine variant type groups
+            const types = [...new Set(allSkus.map(s => s.variant_type || null))];
+            const initialType = types.length > 1 ? types[0] : types[0] || null;
+            setActiveVariantType(initialType);
+            const typeSkus = types.length > 1 ? allSkus.filter(s => (s.variant_type || null) === initialType) : allSkus;
+            const defaultSku = typeSkus.find(s => s.status === 'active') || typeSkus[0] || null;
+            setSelectedSku(defaultSku);
+            const mediaList = data.media || [];
+            setMedia(mediaList);
+            const primary = mediaList.find(m => m.asset_type === 'primary');
+            setSelectedImage(primary ? primary.url : (mediaList.length > 0 ? mediaList[0].url : null));
+            setLoading(false);
+          })
+          .catch(err => {
+            console.error(err);
+            setLoading(false);
+          });
+      }, [product && product.id]);
+
+      if (!product) return null;
+      if (loading) return (
+        <div style={{ textAlign: 'center', padding: '6rem 0', color: 'var(--stone-600)' }}>Loading...</div>
+      );
+
+      const displayProduct = fullProduct || product;
+
+      // Group SKUs by variant_type
+      const variantTypes = [...new Set(skus.map(s => s.variant_type || null))];
+      const hasMultipleTypes = variantTypes.length > 1;
+      const activeSkus = hasMultipleTypes
+        ? skus.filter(s => (s.variant_type || null) === activeVariantType)
+        : skus;
+
+      const VARIANT_TYPE_LABELS = {
+        tile: 'Tile', mosaic: 'Mosaic', slab: 'Slab',
+        trim: 'Trim', accessory: 'Accessory', paver: 'Paver'
+      };
+
+      const handleVariantTypeChange = (type) => {
+        setActiveVariantType(type);
+        const typeSkus = skus.filter(s => (s.variant_type || null) === type);
+        const first = typeSkus.find(s => s.status === 'active') || typeSkus[0] || null;
+        setSelectedSku(first);
+        setSqftNeeded('');
+        setNumBoxes('');
+      };
+
+      const handleSkuChange = (skuId) => {
+        const sku = skus.find(s => s.id === skuId);
+        if (sku) {
+          setSelectedSku(sku);
+          setSqftNeeded('');
+          setNumBoxes('');
+        }
+      };
+
+      const sqftPerBox = selectedSku ? parseFloat(selectedSku.sqft_per_box) || 0 : 0;
+      const piecesPerBox = selectedSku ? parseInt(selectedSku.pieces_per_box) || 0 : 0;
+      const weightPerBox = selectedSku ? parseFloat(selectedSku.weight_per_box_lbs) || 0 : 0;
+      const pricePerSqft = selectedSku ? parseFloat(selectedSku.retail_price) || 0 : parseFloat(product.price) || 0;
+
+      const recalcBoxes = (sqft, withOverage) => {
+        if (sqft && !isNaN(sqft) && sqft > 0) {
+          const adjusted = withOverage ? parseFloat(sqft) * 1.1 : parseFloat(sqft);
+          return Math.ceil(adjusted / sqftPerBox).toString();
+        }
+        return '';
+      };
+
+      // When user changes sqft, update boxes
+      const handleSqftChange = (value) => {
+        setSqftNeeded(value);
+        setNumBoxes(recalcBoxes(value, includeOverage));
+      };
+
+      // When user changes boxes, update sqft
+      const handleBoxesChange = (value) => {
+        setNumBoxes(value);
+        if (value && !isNaN(value) && value > 0) {
+          const sqft = parseFloat(value) * sqftPerBox;
+          setSqftNeeded(sqft.toFixed(2));
+        } else {
+          setSqftNeeded('');
+        }
+      };
+
+      // When overage toggle changes, recalculate boxes from current sqft
+      const handleOverageToggle = () => {
+        const next = !includeOverage;
+        setIncludeOverage(next);
+        if (sqftNeeded) {
+          setNumBoxes(recalcBoxes(sqftNeeded, next));
+        }
+      };
+
+      // Calculate results
+      const boxes = numBoxes ? parseInt(numBoxes) : 0;
+      const actualSqft = boxes * sqftPerBox;
+      const requestedSqft = sqftNeeded ? parseFloat(sqftNeeded) : 0;
+      const totalWeight = boxes * weightPerBox;
+      const totalPrice = actualSqft * pricePerSqft;
+      const pricePerBox = sqftPerBox * pricePerSqft;
+
+      return (
+        <div>
+          <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem 3rem' }}>
+            <a className="back-btn" onClick={goBack}>
+              ← Back to Products
+            </a>
+          </div>
+
+          <div className="product-detail">
+            <div>
+              <div className="product-detail-image">
+                {selectedImage && <img src={selectedImage} alt={displayProduct.name} />}
+              </div>
+              {media.length > 1 && (
+                <div className="product-gallery-thumbs">
+                  {media.map(m => (
+                    <div
+                      key={m.id}
+                      className={'product-gallery-thumb' + (selectedImage === m.url ? ' active' : '')}
+                      onClick={() => setSelectedImage(m.url)}
+                    >
+                      <img src={m.url} alt={m.asset_type} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="product-detail-info">
+              <h1>{displayProduct.name}</h1>
+              <div className="product-detail-meta">
+                {displayProduct.collection} • {displayProduct.vendor_name}
+              </div>
+              <div className="product-detail-price">
+                ${pricePerSqft.toFixed(2)} {priceLabel(displayProduct) && <span>Per SqFt</span>}
+              </div>
+
+              {hasMultipleTypes && (
+                <div className="variant-type-tabs">
+                  {variantTypes.map(type => (
+                    <button
+                      key={type || 'other'}
+                      className={'variant-type-tab' + (activeVariantType === type ? ' active' : '')}
+                      onClick={() => handleVariantTypeChange(type)}
+                    >
+                      {type ? (VARIANT_TYPE_LABELS[type] || type) : 'Other'}
+                      {' '}({skus.filter(s => (s.variant_type || null) === type).length})
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {activeSkus.length > 1 && (
+                <select
+                  className="sku-selector"
+                  value={selectedSku ? selectedSku.id : ''}
+                  onChange={(e) => handleSkuChange(e.target.value)}
+                >
+                  {activeSkus.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.variant_name || s.vendor_sku}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <div className="packaging-info">
+                <h4>Packaging Information</h4>
+                {piecesPerBox > 0 && <div>SqFt Per Piece: {(sqftPerBox / piecesPerBox).toFixed(2)}</div>}
+                <div>Pieces Per Box: {piecesPerBox}</div>
+                <div>SqFt Per Box: {sqftPerBox}</div>
+                <div>Weight Per Box: {weightPerBox} lbs</div>
+                <div>Price Per Box: ${pricePerBox.toFixed(2)}</div>
+              </div>
+
+              <div className="calculator-widget">
+                <h3>Coverage Calculator</h3>
+
+                <div className="calc-input-row">
+                  <div className="calc-input-group">
+                    <label>SqFt Needed</label>
+                    <input
+                      className="calc-input"
+                      type="number"
+                      placeholder="0"
+                      value={sqftNeeded}
+                      onChange={(e) => handleSqftChange(e.target.value)}
+                      step="0.01"
+                    />
+                  </div>
+
+                  <div className="calc-input-group">
+                    <label>Number of Boxes</label>
+                    <input
+                      className="calc-input"
+                      type="number"
+                      placeholder="0"
+                      value={numBoxes}
+                      onChange={(e) => handleBoxesChange(e.target.value)}
+                      step="1"
+                    />
+                  </div>
+                </div>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer', marginBottom: '1rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={includeOverage}
+                    onChange={handleOverageToggle}
+                    style={{ width: '1rem', height: '1rem', cursor: 'pointer' }}
+                  />
+                  Add 10% overage for breakage &amp; cuts
+                </label>
+
+                {boxes > 0 && (
+                  <div className="calc-summary">
+                    <div className="calc-summary-row">
+                      <span>Number of Boxes:</span>
+                      <strong>{boxes} bx ({totalWeight} lbs)</strong>
+                    </div>
+                    <div className="calc-summary-row">
+                      <span>Total Coverage:</span>
+                      <strong>{actualSqft.toFixed(2)} SqFt</strong>
+                    </div>
+                    {requestedSqft > 0 && actualSqft > requestedSqft && (
+                      <div className="calc-summary-row">
+                        <span>Overage:</span>
+                        <strong>{(actualSqft - requestedSqft).toFixed(2)} SqFt</strong>
+                      </div>
+                    )}
+                    <div className="calc-summary-total">
+                      <span>Total Price</span>
+                      <strong>${totalPrice.toFixed(2)}</strong>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {selectedSku && (selectedSku.variant_type === 'slab' ||
+                ['RSL','VSL','CSL','PSL'].some(p => (selectedSku.vendor_sku || '').toUpperCase().startsWith(p)) ||
+                ['prefab-countertops','countertops'].includes((displayProduct.category_slug || '').toLowerCase())) && (
+                <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', lineHeight: 1.5 }}>
+                  <strong>Store Pickup Only</strong> — Slabs and prefab countertops are available for in-store pickup only. Ready 1 business day after purchase.
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button className="btn" style={{flex: 1}} onClick={() => {
+                  if (boxes <= 0) {
+                    alert('Please enter the square footage you need above.');
+                    return;
+                  }
+                  addToCart({
+                    product_id: product.id,
+                    sku_id: selectedSku ? selectedSku.id : null,
+                    sqft_needed: actualSqft,
+                    num_boxes: boxes,
+                    include_overage: includeOverage,
+                    unit_price: pricePerSqft,
+                    subtotal: totalPrice.toFixed(2)
+                  });
+                }}>
+                  Add to Cart
+                </button>
+                <button className="btn btn-secondary" style={{flex: 1}} onClick={() => {
+                  const sampleCount = cart.filter(i => i.is_sample).length;
+                  if (sampleCount >= 5) {
+                    alert('Sample limit reached (max 5)');
+                    return;
+                  }
+                  if (cart.some(i => i.is_sample && i.product_id === product.id)) {
+                    alert('You already have a sample of this product in your cart');
+                    return;
+                  }
+                  addToCart({
+                    product_id: product.id,
+                    sku_id: selectedSku ? selectedSku.id : null,
+                    sqft_needed: 0,
+                    num_boxes: 1,
+                    include_overage: false,
+                    unit_price: 0,
+                    subtotal: 0,
+                    is_sample: true
+                  });
+                }}>
+                  Request Sample
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function CartPage({ cart, goHome, removeFromCart, updateCartItem, goCheckout, deliveryMethod, setDeliveryMethod }) {
+      const [shippingZip, setShippingZip] = useState('');
+      const [shippingEstimate, setShippingEstimate] = useState(null);
+      const [shippingLoading, setShippingLoading] = useState(false);
+      const [shippingError, setShippingError] = useState('');
+      const sessionId = useRef(getSessionId());
+
+      const productItems = cart.filter(i => !i.is_sample);
+      const sampleItems = cart.filter(i => i.is_sample);
+      const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
+      const sampleShipping = sampleItems.length > 0 ? 12 : 0;
+      const productShipping = deliveryMethod === 'pickup' ? 0 : (shippingEstimate ? shippingEstimate.shipping : 0);
+      const cartTotal = productSubtotal + productShipping + sampleShipping;
+      const totalBoxes = productItems.reduce((sum, i) => sum + (parseInt(i.num_boxes) || 0), 0);
+
+      // Pickup-only detection: if any non-sample product item is pickup_only, force pickup
+      const hasPickupOnly = productItems.some(i => i.pickup_only);
+      useEffect(() => {
+        if (hasPickupOnly) setDeliveryMethod('pickup');
+      }, [hasPickupOnly]);
+
+      const fetchShippingEstimate = () => {
+        const zip = shippingZip.trim();
+        if (!zip || zip.length < 5) return;
+        setShippingLoading(true);
+        setShippingError('');
+        fetch(API + '/api/shipping/estimate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId.current, destination: { zip } })
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) {
+              setShippingError(data.error);
+              setShippingEstimate(null);
+            } else {
+              setShippingEstimate(data);
+              setShippingError('');
+            }
+            setShippingLoading(false);
+          })
+          .catch(() => {
+            setShippingError('Unable to estimate shipping');
+            setShippingLoading(false);
+          });
+      };
+
+      const handleQtyChange = (item, delta) => {
+        const newBoxes = Math.max(1, (parseInt(item.num_boxes) || 0) + delta);
+        const unitPrice = parseFloat(item.unit_price) || 0;
+        const sqftPerBox = item.sqft_needed && item.num_boxes
+          ? parseFloat(item.sqft_needed) / parseInt(item.num_boxes)
+          : 17.11;
+        const newSqft = (newBoxes * sqftPerBox).toFixed(2);
+        const newSubtotal = (newBoxes * sqftPerBox * unitPrice).toFixed(2);
+        updateCartItem(item.id, { num_boxes: newBoxes, sqft_needed: newSqft, subtotal: newSubtotal });
+        // Clear shipping estimate since cart changed
+        setShippingEstimate(null);
+      };
+
+      return (
+        <div className="cart-page">
+          <a className="back-btn" onClick={goHome}>← Continue Shopping</a>
+          <h1>Your Cart</h1>
+
+          {cart.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--stone-600)' }}>
+              <p style={{ fontSize: '1.125rem', marginBottom: '2rem' }}>Your cart is empty</p>
+              <button className="btn" onClick={goHome}>Browse Products</button>
+            </div>
+          ) : (
+            <div className="cart-page-layout">
+              <div>
+                <div className="cart-table">
+                  <div className="cart-table-header">
+                    <div>Product</div>
+                    <div>Quantity</div>
+                    <div>Coverage</div>
+                    <div>Total</div>
+                    <div></div>
+                  </div>
+                  {cart.map(item => {
+                    const sqft = parseFloat(item.sqft_needed || 0);
+                    return (
+                      <div key={item.id} className={'cart-table-row' + (item.is_sample ? ' sample-item' : '')}>
+                        <div>
+                          <div className="cart-table-product-name">
+                            {item.product_name || 'Product'}
+                            {item.is_sample && <span className="sample-tag">Sample</span>}
+                          </div>
+                          {item.is_sample ? (
+                            <div className="cart-table-product-meta">Free sample</div>
+                          ) : (
+                            <div className="cart-table-product-meta">
+                              {item.collection && <span>{item.collection} &middot; </span>}
+                              ${parseFloat(item.unit_price).toFixed(2)}/sqft
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          {item.is_sample ? (
+                            <span style={{ fontSize: '0.875rem' }}>1</span>
+                          ) : (
+                            <>
+                              <div className="cart-qty-controls">
+                                <button className="cart-qty-btn" onClick={() => handleQtyChange(item, -1)}>−</button>
+                                <span className="cart-qty-value">{item.num_boxes}</span>
+                                <button className="cart-qty-btn" onClick={() => handleQtyChange(item, 1)}>+</button>
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--stone-600)', marginTop: '0.25rem' }}>
+                                box{item.num_boxes !== 1 ? 'es' : ''}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        <div>{item.is_sample ? '—' : sqft.toFixed(1) + ' sqft'}</div>
+                        <div style={{ fontWeight: 500 }}>{item.is_sample ? 'FREE' : '$' + parseFloat(item.subtotal).toFixed(2)}</div>
+                        <div>
+                          <button className="cart-remove-btn" onClick={() => removeFromCart(item.id)} title="Remove">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="order-summary">
+                <h3>Order Summary</h3>
+                {productItems.length > 0 && (
+                  <div className="order-summary-row">
+                    <span>Products Subtotal ({totalBoxes} box{totalBoxes !== 1 ? 'es' : ''})</span>
+                    <span>${productSubtotal.toFixed(2)}</span>
+                  </div>
+                )}
+                {sampleItems.length > 0 && (
+                  <>
+                    <div className="order-summary-row muted">
+                      <span>Samples ({sampleItems.length})</span>
+                      <span>FREE</span>
+                    </div>
+                    <div className="order-summary-row muted">
+                      <span>Sample Shipping</span>
+                      <span>$12.00</span>
+                    </div>
+                  </>
+                )}
+                {productItems.length > 0 && (
+                  <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--stone-200)' }}>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem' }}>Delivery Method</div>
+                    {hasPickupOnly && (
+                      <div style={{ fontSize: '0.75rem', color: '#b45309', background: '#fef3c7', padding: '0.5rem 0.75rem', marginBottom: '0.5rem', borderLeft: '3px solid #f59e0b' }}>
+                        Your cart contains slabs or prefab countertops which are available for store pickup only.
+                      </div>
+                    )}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', cursor: hasPickupOnly ? 'not-allowed' : 'pointer', marginBottom: '0.4rem', opacity: hasPickupOnly ? 0.5 : 1 }}>
+                      <input type="radio" name="deliveryMethod" value="shipping" checked={deliveryMethod === 'shipping'}
+                        onChange={() => setDeliveryMethod('shipping')} disabled={hasPickupOnly}
+                        style={{ cursor: hasPickupOnly ? 'not-allowed' : 'pointer' }} />
+                      Ship to Address <span style={{ color: 'var(--stone-600)', fontSize: '0.75rem' }}>(5-10 business days)</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', cursor: 'pointer', marginBottom: '0.5rem' }}>
+                      <input type="radio" name="deliveryMethod" value="pickup" checked={deliveryMethod === 'pickup'}
+                        onChange={() => { setDeliveryMethod('pickup'); setShippingEstimate(null); }}
+                        style={{ cursor: 'pointer' }} />
+                      Store Pickup — Free <span style={{ color: 'var(--stone-600)', fontSize: '0.75rem' }}>(up to 5 business days)</span>
+                    </label>
+
+                    {deliveryMethod === 'pickup' && (
+                      <div className="order-summary-row" style={{ marginTop: '0.5rem' }}>
+                        <span>Shipping</span>
+                        <span style={{ color: '#16a34a', fontWeight: 500 }}>FREE</span>
+                      </div>
+                    )}
+
+                    {deliveryMethod === 'shipping' && (
+                      <>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem', marginTop: '0.5rem' }}>Estimate Shipping</div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <input
+                            className="checkout-input"
+                            style={{ flex: 1, padding: '0.6rem 0.75rem', fontSize: '0.875rem' }}
+                            type="text"
+                            placeholder="ZIP Code"
+                            value={shippingZip}
+                            onChange={e => setShippingZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                            onKeyDown={e => e.key === 'Enter' && fetchShippingEstimate()}
+                            maxLength={5}
+                          />
+                          <button
+                            className="btn"
+                            style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}
+                            onClick={fetchShippingEstimate}
+                            disabled={shippingLoading || shippingZip.length < 5}
+                          >
+                            {shippingLoading ? '...' : 'Get Rate'}
+                          </button>
+                        </div>
+                        {shippingError && (
+                          <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '0.4rem' }}>{shippingError}</div>
+                        )}
+                        {shippingEstimate && shippingEstimate.shipping > 0 && (
+                          <div className="order-summary-row" style={{ marginTop: '0.5rem' }}>
+                            <span>
+                              Shipping ({shippingEstimate.method === 'ltl_freight' ? 'LTL Freight' : 'Parcel'}
+                              {shippingEstimate.carrier ? ' via ' + shippingEstimate.carrier : ''})
+                            </span>
+                            <span>${shippingEstimate.shipping.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {shippingEstimate && shippingEstimate.shipping === 0 && shippingEstimate.method === null && (
+                          <div className="order-summary-row muted" style={{ marginTop: '0.5rem' }}>
+                            <span>Shipping</span>
+                            <span>$0.00</span>
+                          </div>
+                        )}
+                        {!shippingEstimate && !shippingLoading && !shippingError && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--stone-600)', marginTop: '0.4rem' }}>
+                            Enter zip for shipping estimate
+                          </div>
+                        )}
+                        {shippingEstimate && shippingEstimate.weight_lbs > 0 && (
+                          <div style={{ fontSize: '0.7rem', color: 'var(--stone-600)', marginTop: '0.25rem' }}>
+                            Est. weight: {shippingEstimate.weight_lbs} lbs ({shippingEstimate.total_boxes} box{shippingEstimate.total_boxes !== 1 ? 'es' : ''})
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                <div className="order-summary-total">
+                  <span>{shippingEstimate ? 'Estimated Total' : 'Subtotal'}</span>
+                  <span>${cartTotal.toFixed(2)}</span>
+                </div>
+                <button className="btn" style={{ width: '100%', marginTop: '1rem' }} onClick={goCheckout}>
+                  Proceed to Checkout
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function CheckoutPage({ cart, sessionId, goCart, handleOrderComplete, deliveryMethod }) {
+      const [customerName, setCustomerName] = useState('');
+      const [customerEmail, setCustomerEmail] = useState('');
+      const [phone, setPhone] = useState('');
+      const [line1, setLine1] = useState('');
+      const [line2, setLine2] = useState('');
+      const [city, setCity] = useState('');
+      const [state, setState] = useState('');
+      const [zip, setZip] = useState('');
+      const [error, setError] = useState('');
+      const [processing, setProcessing] = useState(false);
+      const [shippingEstimate, setShippingEstimate] = useState(null);
+      const [shippingLoading, setShippingLoading] = useState(false);
+      const shippingFetchedRef = useRef('');
+      const cardRef = useRef(null);
+      const cardMounted = useRef(false);
+
+      const isPickup = deliveryMethod === 'pickup';
+      const productItems = cart.filter(i => !i.is_sample);
+      const sampleItems = cart.filter(i => i.is_sample);
+      const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
+      const sampleShipping = sampleItems.length > 0 ? 12 : 0;
+      const productShipping = isPickup ? 0 : (shippingEstimate ? shippingEstimate.shipping : 0);
+      const cartTotal = productSubtotal + productShipping + sampleShipping;
+
+      // Fetch shipping estimate when zip + state are filled (only for shipping)
+      useEffect(() => {
+        if (isPickup) return;
+        if (zip.length >= 5 && state && productItems.length > 0) {
+          const key = zip + '-' + state + '-' + city;
+          if (shippingFetchedRef.current === key) return;
+          shippingFetchedRef.current = key;
+          setShippingLoading(true);
+          fetch(API + '/api/shipping/estimate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId, destination: { zip, city, state } })
+          })
+            .then(r => r.json())
+            .then(data => {
+              if (!data.error) setShippingEstimate(data);
+              setShippingLoading(false);
+            })
+            .catch(() => setShippingLoading(false));
+        }
+      }, [zip, state, city, isPickup]);
+
+      useEffect(() => {
+        if (cardMounted.current) return;
+        const elements = stripePromise.elements();
+        const card = elements.create('card', {
+          style: {
+            base: {
+              fontFamily: "'Inter', sans-serif",
+              fontSize: '15px',
+              color: '#292524',
+              '::placeholder': { color: '#57534e' }
+            }
+          }
+        });
+        card.mount('#card-element');
+        cardRef.current = card;
+        cardMounted.current = true;
+        return () => {
+          if (cardRef.current) {
+            cardRef.current.unmount();
+            cardMounted.current = false;
+          }
+        };
+      }, []);
+
+      const US_STATES = [
+        'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY',
+        'LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND',
+        'OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'
+      ];
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+
+        if (!customerName || !customerEmail) {
+          setError('Please fill in all required fields.');
+          return;
+        }
+        if (!isPickup && (!line1 || !city || !state || !zip)) {
+          setError('Please fill in all required shipping fields.');
+          return;
+        }
+
+        setProcessing(true);
+
+        try {
+          // 1. Create payment intent (include destination for shipping calc)
+          const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
+          if (!isPickup) piBody.destination = { zip, city, state };
+          const piRes = await fetch(API + '/api/checkout/create-payment-intent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(piBody)
+          });
+          const piData = await piRes.json();
+          if (piData.error) {
+            setError(piData.error);
+            setProcessing(false);
+            return;
+          }
+
+          // 2. Confirm card payment
+          const { error: stripeError, paymentIntent } = await stripePromise.confirmCardPayment(
+            piData.clientSecret, {
+              payment_method: {
+                card: cardRef.current,
+                billing_details: {
+                  name: customerName,
+                  email: customerEmail,
+                }
+              }
+            }
+          );
+
+          if (stripeError) {
+            setError(stripeError.message);
+            setProcessing(false);
+            return;
+          }
+
+          // 3. Place order
+          const orderRes = await fetch(API + '/api/checkout/place-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: sessionId,
+              payment_intent_id: paymentIntent.id,
+              customer_name: customerName,
+              customer_email: customerEmail,
+              phone: phone,
+              delivery_method: deliveryMethod,
+              shipping: isPickup ? null : { line1, line2, city, state, zip }
+            })
+          });
+          const orderData = await orderRes.json();
+          if (orderData.error) {
+            setError(orderData.error);
+            setProcessing(false);
+            return;
+          }
+
+          handleOrderComplete(orderData.order);
+        } catch (err) {
+          setError(err.message || 'Something went wrong. Please try again.');
+          setProcessing(false);
+        }
+      };
+
+      return (
+        <div className="checkout-page">
+          <h1>Checkout</h1>
+
+          <form className="checkout-form" onSubmit={handleSubmit}>
+            {error && <div className="checkout-error">{error}</div>}
+
+            <div className="checkout-section">
+              <h3>Contact Information</h3>
+              <div className="checkout-row">
+                <div className="checkout-field">
+                  <label>Full Name *</label>
+                  <input className="checkout-input" value={customerName}
+                    onChange={e => setCustomerName(e.target.value)} placeholder="John Smith" />
+                </div>
+                <div className="checkout-field">
+                  <label>Email *</label>
+                  <input className="checkout-input" type="email" value={customerEmail}
+                    onChange={e => setCustomerEmail(e.target.value)} placeholder="john@example.com" />
+                </div>
+              </div>
+              <div className="checkout-field">
+                <label>Phone</label>
+                <input className="checkout-input" type="tel" value={phone}
+                  onChange={e => setPhone(e.target.value)} placeholder="(555) 123-4567" />
+              </div>
+            </div>
+
+            {isPickup ? (
+              <div className="checkout-section">
+                <h3>Store Pickup</h3>
+                <div style={{ background: 'var(--stone-100)', padding: '1.25rem', fontSize: '0.875rem', lineHeight: 1.6 }}>
+                  <div style={{ fontWeight: 500, marginBottom: '0.5rem' }}>Pickup Location</div>
+                  <div>Atelier Surfaces</div>
+                  <div>1440 S. State College Blvd., Suite 6M</div>
+                  <div>Anaheim, CA 92806</div>
+                  <div style={{ marginTop: '0.75rem', color: 'var(--stone-600)', fontSize: '0.8125rem' }}>
+                    Your order will be ready for pickup within 5 business days. We will send a confirmation email when your order is ready.
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="checkout-section">
+                <h3>Shipping Address</h3>
+                <div className="checkout-field">
+                  <label>Address Line 1 *</label>
+                  <input className="checkout-input" value={line1}
+                    onChange={e => setLine1(e.target.value)} placeholder="123 Main Street" />
+                </div>
+                <div className="checkout-field">
+                  <label>Address Line 2</label>
+                  <input className="checkout-input" value={line2}
+                    onChange={e => setLine2(e.target.value)} placeholder="Apt, Suite, Unit" />
+                </div>
+                <div className="checkout-row-3">
+                  <div className="checkout-field">
+                    <label>City *</label>
+                    <input className="checkout-input" value={city}
+                      onChange={e => setCity(e.target.value)} placeholder="New York" />
+                  </div>
+                  <div className="checkout-field">
+                    <label>State *</label>
+                    <select className="checkout-input" value={state} onChange={e => setState(e.target.value)}>
+                      <option value="">Select</option>
+                      {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="checkout-field">
+                    <label>ZIP Code *</label>
+                    <input className="checkout-input" value={zip}
+                      onChange={e => setZip(e.target.value)} placeholder="10001" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="checkout-section">
+              <h3>Payment</h3>
+              <div className="checkout-field">
+                <label>Card Details</label>
+                <div id="card-element" className="stripe-element"></div>
+              </div>
+            </div>
+
+            <button type="submit" className="checkout-btn" disabled={processing || shippingLoading}>
+              {processing && <span className="checkout-spinner"></span>}
+              {processing ? 'Processing...' : `Place Order - $${cartTotal.toFixed(2)}`}
+            </button>
+          </form>
+
+          <div className="order-summary">
+            <h3>Order Summary</h3>
+            {cart.map(item => (
+              <div key={item.id} className="order-summary-row" style={{ fontSize: '0.875rem' }}>
+                <span>
+                  {item.product_name || 'Product'}
+                  {item.is_sample ? ' (Sample)' : ` x ${item.num_boxes} bx`}
+                </span>
+                <span>{item.is_sample ? 'FREE' : '$' + parseFloat(item.subtotal).toFixed(2)}</span>
+              </div>
+            ))}
+            {productItems.length > 0 && (
+              <div className="order-summary-row" style={{ borderTop: '1px solid var(--stone-200)', marginTop: '0.5rem', paddingTop: '0.75rem' }}>
+                <span>Subtotal</span>
+                <span>${productSubtotal.toFixed(2)}</span>
+              </div>
+            )}
+            {productItems.length > 0 && (
+              <div className="order-summary-row muted">
+                <span>
+                  {isPickup ? 'Shipping (Store Pickup)' : (
+                    <>Shipping{shippingEstimate && shippingEstimate.method && (
+                      <span> ({shippingEstimate.method === 'ltl_freight' ? 'LTL Freight' : 'Parcel'})</span>
+                    )}</>
+                  )}
+                </span>
+                <span>
+                  {isPickup ? <span style={{ color: '#16a34a', fontWeight: 500 }}>FREE</span> :
+                    shippingLoading ? '...' :
+                    shippingEstimate ? '$' + productShipping.toFixed(2) :
+                    'Enter address'}
+                </span>
+              </div>
+            )}
+            {sampleItems.length > 0 && (
+              <div className="order-summary-row muted">
+                <span>Sample Shipping</span>
+                <span>$12.00</span>
+              </div>
+            )}
+            <div className="order-summary-total">
+              <span>Total</span>
+              <span>${cartTotal.toFixed(2)}</span>
+            </div>
+            <a className="back-btn" onClick={goCart} style={{ marginTop: '1rem', display: 'inline-block' }}>
+              ← Back to Cart
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    function ConfirmationPage({ order, goHome }) {
+      if (!order) return null;
+
+      const items = order.items || [];
+      const productItems = items.filter(i => !i.is_sample);
+      const sampleItems = items.filter(i => i.is_sample);
+
+      return (
+        <div className="confirmation-page">
+          <div className="confirmation-check">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+          <h1>Order Confirmed</h1>
+          <div className="confirmation-order-number">
+            Order number: <strong>{order.order_number}</strong>
+          </div>
+
+          <div className="confirmation-details">
+            <h3>Items Ordered</h3>
+            {items.map((item, idx) => (
+              <div key={idx} className="confirmation-item">
+                <span>
+                  {item.product_name || 'Product'}
+                  {item.is_sample && ' (Sample)'}
+                  {!item.is_sample && ` - ${item.num_boxes} box${item.num_boxes !== 1 ? 'es' : ''}`}
+                </span>
+                <span style={{ fontWeight: 500 }}>
+                  {item.is_sample ? 'FREE' : '$' + parseFloat(item.subtotal || 0).toFixed(2)}
+                </span>
+              </div>
+            ))}
+            {productItems.length > 0 && (
+              <div className="confirmation-item" style={{ color: 'var(--stone-600)' }}>
+                <span>Subtotal</span>
+                <span>${parseFloat(order.subtotal || 0).toFixed(2)}</span>
+              </div>
+            )}
+            {order.delivery_method === 'pickup' ? (
+              <div className="confirmation-item" style={{ color: '#16a34a' }}>
+                <span>Shipping (Store Pickup)</span>
+                <span style={{ fontWeight: 500 }}>FREE</span>
+              </div>
+            ) : parseFloat(order.shipping || 0) > 0 ? (
+              <div className="confirmation-item" style={{ color: 'var(--stone-600)' }}>
+                <span>Shipping ({order.shipping_method === 'ltl_freight' ? 'LTL Freight' : 'Parcel'})</span>
+                <span>${parseFloat(order.shipping).toFixed(2)}</span>
+              </div>
+            ) : null}
+            {parseFloat(order.sample_shipping || 0) > 0 && (
+              <div className="confirmation-item" style={{ color: 'var(--stone-600)' }}>
+                <span>Sample Shipping</span>
+                <span>${parseFloat(order.sample_shipping).toFixed(2)}</span>
+              </div>
+            )}
+            <div className="confirmation-item" style={{ fontWeight: 600 }}>
+              <span>Total</span>
+              <span>${parseFloat(order.total || 0).toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="confirmation-details">
+            {order.delivery_method === 'pickup' ? (
+              <>
+                <h3>Store Pickup</h3>
+                <div className="confirmation-address">
+                  <div style={{ fontWeight: 500 }}>Atelier Surfaces</div>
+                  <div>1440 S. State College Blvd., Suite 6M</div>
+                  <div>Anaheim, CA 92806</div>
+                  <div style={{ marginTop: '0.75rem', color: 'var(--stone-600)', fontSize: '0.875rem' }}>
+                    Ready for pickup within 5 business days. We will email {order.customer_email} when your order is ready.
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3>Shipping To</h3>
+                <div className="confirmation-address">
+                  <div>{order.customer_name}</div>
+                  <div>{order.shipping_address_line1}</div>
+                  {order.shipping_address_line2 && <div>{order.shipping_address_line2}</div>}
+                  <div>{order.shipping_city}, {order.shipping_state} {order.shipping_zip}</div>
+                  {order.customer_email && <div style={{ marginTop: '0.5rem' }}>{order.customer_email}</div>}
+                  <div style={{ marginTop: '0.5rem', color: 'var(--stone-600)', fontSize: '0.875rem' }}>
+                    Estimated delivery: 5-10 business days
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <button className="btn" onClick={goHome} style={{ marginTop: '1rem' }}>
+            Continue Shopping
+          </button>
+        </div>
+      );
+    }
+
+    function Footer() {
+      return (
+        <footer>
+          <p>© 2026 Atelier Surfaces</p>
+        </footer>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>

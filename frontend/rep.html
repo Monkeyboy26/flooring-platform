@@ -1,0 +1,1899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Rep Portal - Atelier Surfaces</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --stone-50: #fafaf9;
+      --stone-100: #f5f5f4;
+      --stone-200: #e7e5e4;
+      --stone-300: #d6d3d1;
+      --stone-400: #a8a29e;
+      --stone-500: #78716c;
+      --stone-600: #57534e;
+      --stone-700: #44403c;
+      --stone-800: #292524;
+      --stone-900: #1c1917;
+      --gold: #c9a668;
+      --gold-light: #d4b87a;
+      --green: #16a34a;
+      --green-light: #dcfce7;
+      --red: #dc2626;
+      --red-light: #fee2e2;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--stone-50);
+      color: var(--stone-800);
+    }
+
+    /* Auth Gate */
+    .auth-gate {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--stone-100) 0%, var(--stone-200) 100%);
+    }
+    .auth-box {
+      background: white;
+      padding: 3rem;
+      width: 400px;
+      max-width: 90vw;
+      border: 1px solid var(--stone-200);
+    }
+    .auth-box h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+      font-weight: 300;
+      margin-bottom: 0.5rem;
+    }
+    .auth-box p {
+      color: var(--stone-600);
+      font-size: 0.875rem;
+      margin-bottom: 2rem;
+    }
+    .auth-box input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border: 2px solid var(--stone-200);
+      font-size: 0.875rem;
+      font-family: 'Inter', sans-serif;
+      margin-bottom: 1rem;
+    }
+    .auth-box input:focus { outline: none; border-color: var(--gold); }
+    .auth-error {
+      color: var(--red);
+      font-size: 0.8125rem;
+      margin-bottom: 1rem;
+    }
+
+    /* Layout */
+    .rep-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .rep-sidebar {
+      background: var(--stone-900);
+      color: white;
+      padding: 2rem 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem;
+      font-weight: 300;
+      padding: 0 1.5rem;
+      margin-bottom: 0.25rem;
+    }
+    .sidebar-subtitle {
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--stone-500);
+      padding: 0 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .sidebar-nav { flex: 1; }
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.875rem;
+      color: var(--stone-400);
+      cursor: pointer;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+    }
+    .sidebar-item:hover {
+      color: white;
+      background: rgba(255,255,255,0.05);
+    }
+    .sidebar-item.active {
+      color: white;
+      background: rgba(255,255,255,0.08);
+      border-left-color: var(--gold);
+    }
+    .sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .sidebar-logout {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--stone-700);
+    }
+    .sidebar-rep-name {
+      font-size: 0.75rem;
+      color: var(--stone-400);
+      padding: 0 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Content area */
+    .rep-content {
+      padding: 2rem 2.5rem;
+      min-height: 100vh;
+    }
+    .content-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+    .content-header h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+      font-weight: 300;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.8125rem;
+      font-family: 'Inter', sans-serif;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .btn-primary { background: var(--stone-900); color: white; }
+    .btn-primary:hover { background: var(--gold); }
+    .btn-secondary { background: white; color: var(--stone-800); border: 1px solid var(--stone-300); }
+    .btn-secondary:hover { background: var(--stone-100); }
+    .btn-danger { background: var(--red); color: white; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-success { background: var(--green); color: white; }
+    .btn-success:hover { background: #15803d; }
+    .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.75rem; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Stat cards */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .stat-card {
+      background: white;
+      border: 1px solid var(--stone-200);
+      padding: 1.5rem;
+    }
+    .stat-card-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--stone-500);
+      margin-bottom: 0.5rem;
+    }
+    .stat-card-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.5rem;
+      font-weight: 400;
+      color: var(--stone-900);
+    }
+
+    /* Tables */
+    .rep-table {
+      width: 100%;
+      background: white;
+      border: 1px solid var(--stone-200);
+      border-collapse: collapse;
+    }
+    .rep-table th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--stone-500);
+      border-bottom: 2px solid var(--stone-200);
+      background: var(--stone-50);
+    }
+    .rep-table td {
+      padding: 0.875rem 1rem;
+      font-size: 0.875rem;
+      border-bottom: 1px solid var(--stone-100);
+      vertical-align: middle;
+    }
+    .rep-table tr:hover td { background: var(--stone-50); }
+    .rep-table .actions { white-space: nowrap; }
+    .rep-table .actions button { margin-right: 0.5rem; }
+
+    /* Status badges */
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      border-radius: 2px;
+    }
+    .badge-active, .badge-confirmed { background: var(--green-light); color: var(--green); }
+    .badge-draft { background: var(--stone-100); color: var(--stone-500); }
+    .badge-inactive { background: var(--red-light); color: var(--red); }
+    .badge-pending { background: #fef3c7; color: #d97706; }
+    .badge-shipped { background: #dbeafe; color: #2563eb; }
+    .badge-delivered { background: var(--green-light); color: #15803d; }
+    .badge-cancelled, .badge-declined, .badge-expired { background: var(--red-light); color: var(--red); }
+    .badge-sent { background: #dbeafe; color: #2563eb; }
+    .badge-acknowledged { background: #fef3c7; color: #d97706; }
+    .badge-fulfilled { background: var(--green-light); color: #15803d; }
+    .badge-accepted { background: #fef3c7; color: #d97706; }
+    .badge-converted { background: var(--green-light); color: var(--green); }
+
+    /* Forms */
+    .form-card {
+      background: white;
+      border: 1px solid var(--stone-200);
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .form-card h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.25rem;
+      font-weight: 400;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--stone-200);
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--stone-600);
+      margin-bottom: 0.4rem;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--stone-300);
+      font-size: 0.875rem;
+      font-family: 'Inter', sans-serif;
+      background: white;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+
+    .order-info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .order-info-item label {
+      display: block;
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--stone-500);
+      margin-bottom: 0.25rem;
+    }
+    .order-info-item span {
+      font-size: 0.875rem;
+      color: var(--stone-800);
+    }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .filter-bar input,
+    .filter-bar select {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8125rem;
+      font-family: 'Inter', sans-serif;
+      border: 1px solid var(--stone-300);
+      background: white;
+      color: var(--stone-800);
+    }
+    .filter-bar input:focus, .filter-bar select:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+    .filter-bar input[type="text"] { min-width: 220px; }
+    .filter-bar .filter-count {
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: var(--stone-400);
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--stone-400);
+      font-size: 0.875rem;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-box {
+      background: white;
+      padding: 2rem;
+      width: 480px;
+      max-width: 90vw;
+    }
+    .modal-box h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem;
+      font-weight: 400;
+      margin-bottom: 1rem;
+    }
+    .modal-box p {
+      color: var(--stone-600);
+      font-size: 0.875rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+    }
+
+    /* Price history */
+    .price-history {
+      margin-top: 0.5rem;
+      padding: 0.75rem;
+      background: var(--stone-50);
+      border: 1px solid var(--stone-200);
+      font-size: 0.75rem;
+    }
+    .price-history-entry {
+      padding: 0.35rem 0;
+      border-bottom: 1px solid var(--stone-100);
+      color: var(--stone-600);
+    }
+    .price-history-entry:last-child { border-bottom: none; }
+
+    /* Product search results */
+    .search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid var(--stone-300);
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .search-result-item {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      border-bottom: 1px solid var(--stone-100);
+      font-size: 0.875rem;
+    }
+    .search-result-item:hover { background: var(--stone-50); }
+    .search-result-item .product-meta {
+      font-size: 0.75rem;
+      color: var(--stone-500);
+      margin-top: 0.2rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    const API = 'http://localhost:3001';
+
+    // ========== Rep Fetch Helper ==========
+    function repFetch(path, options = {}) {
+      const token = sessionStorage.getItem('rep_token');
+      return fetch(API + path, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Rep-Token': token || '',
+          ...(options.headers || {})
+        }
+      }).then(r => {
+        if (r.status === 401) {
+          sessionStorage.removeItem('rep_token');
+          sessionStorage.removeItem('rep_info');
+          window.location.reload();
+          throw new Error('Unauthorized');
+        }
+        const ct = r.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+          throw new Error('Server returned non-JSON (status ' + r.status + ')');
+        }
+        return r.json();
+      });
+    }
+
+    // ========== App ==========
+    function App() {
+      const [authed, setAuthed] = useState(false);
+      const [checking, setChecking] = useState(true);
+
+      useEffect(() => {
+        const token = sessionStorage.getItem('rep_token');
+        if (!token) { setChecking(false); return; }
+        repFetch('/api/rep/me')
+          .then(data => {
+            if (data.rep) {
+              sessionStorage.setItem('rep_info', JSON.stringify(data.rep));
+              setAuthed(true);
+            }
+            setChecking(false);
+          })
+          .catch(() => {
+            sessionStorage.removeItem('rep_token');
+            sessionStorage.removeItem('rep_info');
+            setChecking(false);
+          });
+      }, []);
+
+      const handleLogin = (token, rep) => {
+        sessionStorage.setItem('rep_token', token);
+        sessionStorage.setItem('rep_info', JSON.stringify(rep));
+        setAuthed(true);
+      };
+
+      const handleLogout = () => {
+        repFetch('/api/rep/logout', { method: 'POST' }).catch(() => {});
+        sessionStorage.removeItem('rep_token');
+        sessionStorage.removeItem('rep_info');
+        setAuthed(false);
+      };
+
+      if (checking) return <div className="loading">Loading...</div>;
+      if (!authed) return <LoginView onLogin={handleLogin} />;
+      return <RepLayout onLogout={handleLogout} />;
+    }
+
+    // ========== LoginView ==========
+    function LoginView({ onLogin }) {
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+        try {
+          const resp = await fetch(API + '/api/rep/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.error || 'Login failed');
+          onLogin(data.token, data.rep);
+        } catch (err) {
+          setError(err.message);
+          setLoading(false);
+        }
+      };
+
+      return (
+        <div className="auth-gate">
+          <form className="auth-box" onSubmit={handleSubmit}>
+            <h1>Sales Portal</h1>
+            <p>Sign in with your rep credentials</p>
+            {error && <div className="auth-error">{error}</div>}
+            <input type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required />
+            <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
+            <button className="btn btn-primary" style={{ width: '100%', padding: '0.875rem', marginTop: '0.5rem' }} disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+        </div>
+      );
+    }
+
+    // ========== RepLayout ==========
+    function RepLayout({ onLogout }) {
+      const [view, setView] = useState('dashboard');
+      const [editId, setEditId] = useState(null);
+      const repInfo = JSON.parse(sessionStorage.getItem('rep_info') || '{}');
+
+      const navigate = (v, id) => {
+        setView(v);
+        setEditId(id || null);
+        window.scrollTo(0, 0);
+      };
+
+      const navItems = [
+        { key: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4' },
+        { key: 'orders', label: 'Orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
+        { key: 'quotes', label: 'Quotes', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+      ];
+
+      const activeBase = view.split('-')[0] === 'order' ? 'orders' :
+                          view.split('-')[0] === 'quote' ? 'quotes' : view;
+
+      return (
+        <div className="rep-layout">
+          <div className="rep-sidebar">
+            <div className="sidebar-logo">Atelier Surfaces</div>
+            <div className="sidebar-subtitle">Sales Portal</div>
+            <div className="sidebar-nav">
+              {navItems.map(item => (
+                <div
+                  key={item.key}
+                  className={'sidebar-item' + (activeBase === item.key ? ' active' : '')}
+                  onClick={() => navigate(item.key)}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={item.icon} />
+                  </svg>
+                  {item.label}
+                </div>
+              ))}
+            </div>
+            <div className="sidebar-logout">
+              <div className="sidebar-rep-name">{repInfo.first_name} {repInfo.last_name}</div>
+              <div className="sidebar-item" onClick={onLogout}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+              </div>
+            </div>
+          </div>
+          <div className="rep-content">
+            {view === 'dashboard' && <RepDashboardView navigate={navigate} />}
+            {view === 'orders' && <RepOrdersListView navigate={navigate} />}
+            {view === 'order-detail' && <RepOrderDetailView navigate={navigate} editId={editId} />}
+            {view === 'quotes' && <RepQuotesListView navigate={navigate} />}
+            {view === 'quote-create' && <RepQuoteFormView navigate={navigate} />}
+            {view === 'quote-edit' && <RepQuoteFormView navigate={navigate} editId={editId} />}
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepDashboardView ==========
+    function RepDashboardView({ navigate }) {
+      const [data, setData] = useState(null);
+
+      useEffect(() => {
+        repFetch('/api/rep/dashboard').then(setData).catch(() => {});
+      }, []);
+
+      if (!data) return <div className="loading">Loading dashboard...</div>;
+
+      const { stats, recent_orders } = data;
+      const cards = [
+        { label: 'Total Orders', value: stats.total_orders },
+        { label: 'My Orders', value: stats.my_orders },
+        { label: 'Pending', value: stats.pending_orders },
+        { label: 'Confirmed', value: stats.confirmed_orders },
+        { label: 'Shipped', value: stats.shipped_orders },
+        { label: 'My Quotes', value: stats.my_quotes },
+        { label: 'Draft Quotes', value: stats.draft_quotes },
+      ];
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Dashboard</h1>
+          </div>
+          <div className="stat-grid">
+            {cards.map(c => (
+              <div className="stat-card" key={c.label}>
+                <div className="stat-card-label">{c.label}</div>
+                <div className="stat-card-value">{c.value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="form-card">
+            <h3>Recent Orders</h3>
+            <table className="rep-table">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Customer</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Rep</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent_orders.map(o => (
+                  <tr key={o.id}>
+                    <td style={{ fontWeight: 500 }}>{o.order_number}</td>
+                    <td>{o.customer_name}</td>
+                    <td>{o.item_count}</td>
+                    <td>${parseFloat(o.total).toFixed(2)}</td>
+                    <td><span className={'badge badge-' + o.status}>{o.status}</span></td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{o.rep_name || '—'}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(o.created_at).toLocaleDateString()}</td>
+                    <td className="actions">
+                      <button className="btn btn-secondary btn-sm" onClick={() => navigate('order-detail', o.id)}>View</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepOrdersListView ==========
+    function RepOrdersListView({ navigate }) {
+      const [orders, setOrders] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [search, setSearch] = useState('');
+      const [statusFilter, setStatusFilter] = useState('');
+      const [mineOnly, setMineOnly] = useState(false);
+
+      const load = useCallback(() => {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (search) params.set('search', search);
+        if (statusFilter) params.set('status', statusFilter);
+        if (mineOnly) params.set('mine', 'true');
+        repFetch('/api/rep/orders?' + params.toString())
+          .then(data => { setOrders(data.orders || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, [search, statusFilter, mineOnly]);
+
+      useEffect(load, [load]);
+
+      const assignToMe = async (orderId) => {
+        await repFetch('/api/rep/orders/' + orderId + '/assign', { method: 'PUT' });
+        load();
+      };
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Orders</h1>
+          </div>
+          <div className="filter-bar">
+            <input type="text" placeholder="Search name, email, order#..." value={search} onChange={e => setSearch(e.target.value)} />
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="shipped">Shipped</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', cursor: 'pointer' }}>
+              <input type="checkbox" checked={mineOnly} onChange={e => setMineOnly(e.target.checked)} style={{ accentColor: 'var(--gold)' }} />
+              My Orders Only
+            </label>
+            <span className="filter-count">{orders.length} order{orders.length !== 1 ? 's' : ''}</span>
+          </div>
+          {loading ? <div className="loading">Loading orders...</div> : (
+            <table className="rep-table">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Customer</th>
+                  <th>Email</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Rep</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map(o => (
+                  <tr key={o.id}>
+                    <td style={{ fontWeight: 500 }}>{o.order_number}</td>
+                    <td>{o.customer_name}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{o.customer_email}</td>
+                    <td>{o.item_count}</td>
+                    <td>${parseFloat(o.total).toFixed(2)}</td>
+                    <td><span className={'badge badge-' + o.status}>{o.status}</span></td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{o.rep_name || '—'}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(o.created_at).toLocaleDateString()}</td>
+                    <td className="actions">
+                      <button className="btn btn-secondary btn-sm" onClick={() => navigate('order-detail', o.id)}>View</button>
+                      {!o.sales_rep_id && (
+                        <button className="btn btn-primary btn-sm" onClick={() => assignToMe(o.id)}>Assign to Me</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {orders.length === 0 && (
+                  <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No orders found</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+      );
+    }
+
+    // ========== RepOrderDetailView ==========
+    function RepOrderDetailView({ navigate, editId }) {
+      const [order, setOrder] = useState(null);
+      const [items, setItems] = useState([]);
+      const [adjustments, setAdjustments] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [updating, setUpdating] = useState(false);
+      const [editingItem, setEditingItem] = useState(null);
+      const [newPrice, setNewPrice] = useState('');
+      const [priceReason, setPriceReason] = useState('');
+      const [purchaseOrders, setPurchaseOrders] = useState([]);
+      const [posLoading, setPosLoading] = useState(false);
+      const [editingPOItem, setEditingPOItem] = useState(null);
+      const [newCost, setNewCost] = useState('');
+      const [poUpdating, setPoUpdating] = useState(false);
+
+      const loadPOs = useCallback(() => {
+        if (!editId) return;
+        setPosLoading(true);
+        repFetch('/api/rep/orders/' + editId + '/purchase-orders')
+          .then(data => { setPurchaseOrders(data.purchase_orders || []); setPosLoading(false); })
+          .catch(() => setPosLoading(false));
+      }, [editId]);
+
+      const load = useCallback(() => {
+        if (!editId) return;
+        repFetch('/api/rep/orders/' + editId)
+          .then(data => {
+            setOrder(data.order);
+            setItems(data.items || []);
+            setAdjustments(data.price_adjustments || []);
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      }, [editId]);
+
+      useEffect(load, [load]);
+      useEffect(loadPOs, [loadPOs]);
+
+      const savePOCost = async (poId, itemId) => {
+        const val = parseFloat(newCost);
+        if (isNaN(val) || val < 0) return alert('Invalid cost');
+        setPoUpdating(true);
+        try {
+          await repFetch('/api/rep/purchase-orders/' + poId + '/items/' + itemId, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cost: val })
+          });
+          setEditingPOItem(null);
+          setNewCost('');
+          loadPOs();
+        } catch (err) { alert(err.message); }
+        setPoUpdating(false);
+      };
+
+      const approvePO = async (poId) => {
+        if (!confirm('Approve and send this PO to the vendor?')) return;
+        setPoUpdating(true);
+        try {
+          await repFetch('/api/rep/purchase-orders/' + poId + '/approve', { method: 'POST' });
+          loadPOs();
+        } catch (err) { alert(err.message); }
+        setPoUpdating(false);
+      };
+
+      const cancelPO = async (poId) => {
+        if (!confirm('Cancel this purchase order?')) return;
+        setPoUpdating(true);
+        try {
+          await repFetch('/api/rep/purchase-orders/' + poId + '/cancel', { method: 'POST' });
+          loadPOs();
+        } catch (err) { alert(err.message); }
+        setPoUpdating(false);
+      };
+
+      const updateStatus = async (newStatus) => {
+        setUpdating(true);
+        try {
+          const data = await repFetch('/api/rep/orders/' + editId + '/status', {
+            method: 'PUT',
+            body: JSON.stringify({ status: newStatus })
+          });
+          if (data.order) setOrder(data.order);
+        } catch (err) {}
+        setUpdating(false);
+      };
+
+      const assignToMe = async () => {
+        const data = await repFetch('/api/rep/orders/' + editId + '/assign', { method: 'PUT' });
+        if (data.order) setOrder(data.order);
+      };
+
+      const savePrice = async (itemId) => {
+        if (!newPrice) return;
+        setUpdating(true);
+        try {
+          const data = await repFetch('/api/rep/orders/' + editId + '/items/' + itemId + '/price', {
+            method: 'PUT',
+            body: JSON.stringify({ unit_price: newPrice, reason: priceReason })
+          });
+          if (data.order) setOrder(data.order);
+          if (data.items) setItems(data.items);
+          if (data.price_adjustments) setAdjustments(data.price_adjustments);
+          setEditingItem(null);
+          setNewPrice('');
+          setPriceReason('');
+        } catch (err) {}
+        setUpdating(false);
+      };
+
+      if (loading) return <div className="loading">Loading order...</div>;
+      if (!order) return <div className="loading">Order not found</div>;
+
+      const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : 'boxes';
+      const statusFlow = { pending: 'confirmed', confirmed: 'shipped', shipped: 'delivered' };
+      const nextStatus = statusFlow[order.status];
+      const canCancel = order.status !== 'cancelled' && order.status !== 'delivered';
+      const repInfo = JSON.parse(sessionStorage.getItem('rep_info') || '{}');
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Order {order.order_number}</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('orders')}>Back to Orders</button>
+          </div>
+
+          {/* Status + Assignment */}
+          <div className="form-card">
+            <h3>Order Status</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <span className={'badge badge-' + order.status} style={{ fontSize: '0.8125rem', padding: '0.35rem 0.85rem' }}>{order.status}</span>
+              {nextStatus && (
+                <button className="btn btn-primary btn-sm" onClick={() => updateStatus(nextStatus)} disabled={updating}>
+                  Mark {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}
+                </button>
+              )}
+              {canCancel && (
+                <button className="btn btn-danger btn-sm" onClick={() => updateStatus('cancelled')} disabled={updating}>
+                  Cancel Order
+                </button>
+              )}
+              <div style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
+                <strong>Assigned to:</strong> {order.rep_name || 'Unassigned'}
+                {!order.sales_rep_id && (
+                  <button className="btn btn-primary btn-sm" style={{ marginLeft: '0.75rem' }} onClick={assignToMe}>
+                    Assign to Me
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Customer Info */}
+          <div className="form-card">
+            <h3>Customer Information</h3>
+            <div className="order-info-grid">
+              <div className="order-info-item">
+                <label>Name</label>
+                <span>{order.customer_name}</span>
+              </div>
+              <div className="order-info-item">
+                <label>Email</label>
+                <span>{order.customer_email}</span>
+              </div>
+              <div className="order-info-item">
+                <label>Phone</label>
+                <span>{order.phone || '\u2014'}</span>
+              </div>
+              <div className="order-info-item">
+                <label>Payment</label>
+                <span>{order.payment_method || 'stripe'} {order.stripe_payment_intent_id ? '(' + order.stripe_payment_intent_id.slice(0, 15) + '...)' : ''}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery */}
+          <div className="form-card">
+            {order.delivery_method === 'pickup' ? (
+              <>
+                <h3>Store Pickup</h3>
+                <div className="order-info-grid">
+                  <div className="order-info-item" style={{ gridColumn: '1 / -1' }}>
+                    <span>
+                      <strong>Atelier Surfaces</strong><br />
+                      1440 S. State College Blvd., Suite 6M<br />
+                      Anaheim, CA 92806
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3>Shipping Address</h3>
+                <div className="order-info-grid">
+                  <div className="order-info-item" style={{ gridColumn: '1 / -1' }}>
+                    <span>
+                      {order.shipping_address_line1}
+                      {order.shipping_address_line2 && <><br />{order.shipping_address_line2}</>}
+                      <br />{order.shipping_city}, {order.shipping_state} {order.shipping_zip}
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Order Items with Price Editing */}
+          <div className="form-card">
+            <h3>Order Items</h3>
+            <table className="rep-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Description</th>
+                  <th>Type</th>
+                  <th>SqFt</th>
+                  <th>Qty</th>
+                  <th>Unit Price</th>
+                  <th>Subtotal</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(item => {
+                  const itemAdj = adjustments.filter(a => a.order_item_id === item.id);
+                  const isCustom = !item.product_id;
+                  return (
+                    <React.Fragment key={item.id}>
+                      <tr>
+                        <td style={{ fontWeight: 500 }}>
+                          {item.product_name || item.current_product_name || '\u2014'}
+                          {isCustom && <span className="badge badge-draft" style={{ marginLeft: '0.5rem', fontSize: '0.6rem' }}>Custom</span>}
+                        </td>
+                        <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{item.description || item.collection || item.current_collection || '\u2014'}</td>
+                        <td>
+                          <span className={'badge ' + (item.is_sample ? 'badge-draft' : 'badge-active')}>
+                            {item.is_sample ? 'Sample' : 'Product'}
+                          </span>
+                        </td>
+                        <td>{item.sqft_needed ? parseFloat(item.sqft_needed).toFixed(1) : '\u2014'}</td>
+                        <td>{item.num_boxes} <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>{qtyLabel(item.sell_by)}</span></td>
+                        <td>
+                          {editingItem === item.id ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={newPrice}
+                              onChange={e => setNewPrice(e.target.value)}
+                              style={{ width: '90px', padding: '0.3rem 0.5rem', fontSize: '0.8125rem', border: '1px solid var(--gold)' }}
+                              autoFocus
+                            />
+                          ) : (
+                            item.unit_price ? '$' + parseFloat(item.unit_price).toFixed(2) : '\u2014'
+                          )}
+                        </td>
+                        <td>{item.subtotal ? '$' + parseFloat(item.subtotal).toFixed(2) : '\u2014'}</td>
+                        <td className="actions">
+                          {editingItem === item.id ? (
+                            <>
+                              <button className="btn btn-success btn-sm" onClick={() => savePrice(item.id)} disabled={updating}>Save</button>
+                              <button className="btn btn-secondary btn-sm" onClick={() => { setEditingItem(null); setNewPrice(''); setPriceReason(''); }}>Cancel</button>
+                            </>
+                          ) : (
+                            !item.is_sample && (
+                              <button className="btn btn-secondary btn-sm" onClick={() => { setEditingItem(item.id); setNewPrice(parseFloat(item.unit_price || 0).toFixed(2)); setPriceReason(''); }}>
+                                Edit Price
+                              </button>
+                            )
+                          )}
+                        </td>
+                      </tr>
+                      {editingItem === item.id && (
+                        <tr>
+                          <td colSpan="8" style={{ paddingTop: 0, background: 'var(--stone-50)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--stone-600)' }}>Reason:</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Customer discount, price match..."
+                                value={priceReason}
+                                onChange={e => setPriceReason(e.target.value)}
+                                style={{ flex: 1, padding: '0.4rem 0.75rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)' }}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      {itemAdj.length > 0 && editingItem !== item.id && (
+                        <tr>
+                          <td colSpan="8" style={{ paddingTop: 0, paddingBottom: '0.5rem' }}>
+                            <div className="price-history">
+                              <div style={{ fontWeight: 600, marginBottom: '0.35rem', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Price History</div>
+                              {itemAdj.map(a => (
+                                <div className="price-history-entry" key={a.id}>
+                                  ${parseFloat(a.previous_unit_price).toFixed(2)} &rarr; ${parseFloat(a.new_unit_price).toFixed(2)}
+                                  {a.reason && <span> &mdash; {a.reason}</span>}
+                                  <span style={{ marginLeft: '0.5rem', color: 'var(--stone-400)' }}>
+                                    by {a.rep_name} on {new Date(a.created_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Purchase Orders */}
+          {purchaseOrders.length > 0 && (
+            <div className="form-card">
+              <h3>Purchase Orders</h3>
+              {posLoading ? <p>Loading...</p> : purchaseOrders.map(po => (
+                <div key={po.id} style={{ marginBottom: '2rem', border: '1px solid var(--stone-200)', padding: '1.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <strong>{po.vendor_name}</strong>
+                      <code style={{ fontSize: '0.75rem', background: 'var(--stone-100)', padding: '0.2rem 0.5rem' }}>{po.po_number}</code>
+                      <span className={'badge badge-' + po.status}>{po.status}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      {po.status === 'draft' && (
+                        <React.Fragment>
+                          <button className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
+                            onClick={() => approvePO(po.id)} disabled={poUpdating}>
+                            Approve &amp; Send to Vendor
+                          </button>
+                          <button className="btn" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem', background: 'var(--red-light)', color: 'var(--red)' }}
+                            onClick={() => cancelPO(po.id)} disabled={poUpdating}>
+                            Cancel PO
+                          </button>
+                        </React.Fragment>
+                      )}
+                      {(po.status === 'sent' || po.status === 'acknowledged') && (
+                        <button className="btn" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem', background: 'var(--red-light)', color: 'var(--red)' }}
+                          onClick={() => cancelPO(po.id)} disabled={poUpdating}>
+                          Cancel PO
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {po.approved_by_name && (
+                    <p style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>
+                      Approved by {po.approved_by_name} on {new Date(po.approved_at).toLocaleDateString()}
+                    </p>
+                  )}
+                  <table className="rep-table" style={{ fontSize: '0.8125rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Vendor SKU</th>
+                        <th>Qty</th>
+                        <th>Retail Price</th>
+                        <th>Cost</th>
+                        <th>Margin</th>
+                        <th style={{ textAlign: 'right' }}>Subtotal (Cost)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(po.items || []).map(item => {
+                        const cost = parseFloat(item.cost);
+                        const retail = parseFloat(item.retail_price || 0);
+                        const margin = retail > 0 ? ((retail - cost) / retail * 100) : 0;
+                        const isEditing = editingPOItem === item.id;
+                        return (
+                          <tr key={item.id}>
+                            <td>{item.product_name || '—'}</td>
+                            <td>{item.vendor_sku || '—'}</td>
+                            <td>{item.qty}</td>
+                            <td>{item.retail_price ? '$' + retail.toFixed(2) : '—'}</td>
+                            <td>
+                              {po.status === 'draft' ? (
+                                isEditing ? (
+                                  <span style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                                    <input type="number" step="0.01" min="0" value={newCost}
+                                      onChange={e => setNewCost(e.target.value)}
+                                      style={{ width: '80px', padding: '0.2rem 0.4rem', fontSize: '0.8125rem' }} />
+                                    <button onClick={() => savePOCost(po.id, item.id)} disabled={poUpdating}
+                                      style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', background: 'var(--green)', color: 'white', border: 'none', cursor: 'pointer' }}>Save</button>
+                                    <button onClick={() => { setEditingPOItem(null); setNewCost(''); }}
+                                      style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', border: '1px solid var(--stone-300)', background: 'white', cursor: 'pointer' }}>Cancel</button>
+                                  </span>
+                                ) : (
+                                  <span>
+                                    ${cost.toFixed(2)}{' '}
+                                    <button onClick={() => { setEditingPOItem(item.id); setNewCost(cost.toFixed(2)); }}
+                                      style={{ fontSize: '0.65rem', padding: '0.1rem 0.3rem', background: 'none', border: '1px solid var(--stone-300)', cursor: 'pointer', color: 'var(--stone-600)' }}>Edit</button>
+                                  </span>
+                                )
+                              ) : (
+                                <span>${cost.toFixed(2)}</span>
+                              )}
+                            </td>
+                            <td style={{ color: margin <= 0 ? 'var(--red)' : 'inherit', fontWeight: margin <= 0 ? 600 : 400 }}>
+                              {retail > 0 ? margin.toFixed(1) + '%' : '—'}
+                            </td>
+                            <td style={{ textAlign: 'right' }}>${parseFloat(item.subtotal).toFixed(2)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div style={{ textAlign: 'right', marginTop: '0.75rem', fontWeight: 600, fontSize: '0.9rem' }}>
+                    PO Total: ${parseFloat(po.subtotal).toFixed(2)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Order Totals */}
+          <div className="form-card">
+            <h3>Order Totals</h3>
+            <div style={{ maxWidth: '300px', marginLeft: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem' }}>
+                <span>Subtotal</span>
+                <span>${parseFloat(order.subtotal).toFixed(2)}</span>
+              </div>
+              {order.delivery_method === 'pickup' ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem' }}>
+                  <span>Shipping (Store Pickup)</span>
+                  <span style={{ color: '#16a34a', fontWeight: 500 }}>FREE</span>
+                </div>
+              ) : parseFloat(order.shipping || 0) > 0 ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem' }}>
+                  <span>Shipping</span>
+                  <span>${parseFloat(order.shipping).toFixed(2)}</span>
+                </div>
+              ) : null}
+              {parseFloat(order.sample_shipping || 0) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem' }}>
+                  <span>Sample Shipping</span>
+                  <span>${parseFloat(order.sample_shipping).toFixed(2)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 0', fontSize: '1.1rem', fontWeight: 600, borderTop: '2px solid var(--stone-200)' }}>
+                <span>Total</span>
+                <span>${parseFloat(order.total).toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepQuotesListView ==========
+    function RepQuotesListView({ navigate }) {
+      const [quotes, setQuotes] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [search, setSearch] = useState('');
+      const [statusFilter, setStatusFilter] = useState('');
+
+      const load = useCallback(() => {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (search) params.set('search', search);
+        if (statusFilter) params.set('status', statusFilter);
+        repFetch('/api/rep/quotes?' + params.toString())
+          .then(data => { setQuotes(data.quotes || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, [search, statusFilter]);
+
+      useEffect(load, [load]);
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Quotes</h1>
+            <button className="btn btn-primary" onClick={() => navigate('quote-create')}>New Quote</button>
+          </div>
+          <div className="filter-bar">
+            <input type="text" placeholder="Search name, email, quote#..." value={search} onChange={e => setSearch(e.target.value)} />
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="sent">Sent</option>
+              <option value="accepted">Accepted</option>
+              <option value="converted">Converted</option>
+              <option value="expired">Expired</option>
+              <option value="declined">Declined</option>
+            </select>
+            <span className="filter-count">{quotes.length} quote{quotes.length !== 1 ? 's' : ''}</span>
+          </div>
+          {loading ? <div className="loading">Loading quotes...</div> : (
+            <table className="rep-table">
+              <thead>
+                <tr>
+                  <th>Quote #</th>
+                  <th>Customer</th>
+                  <th>Email</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quotes.map(q => (
+                  <tr key={q.id}>
+                    <td style={{ fontWeight: 500 }}>{q.quote_number}</td>
+                    <td>{q.customer_name}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{q.customer_email}</td>
+                    <td>{q.item_count}</td>
+                    <td>${parseFloat(q.total).toFixed(2)}</td>
+                    <td><span className={'badge badge-' + q.status}>{q.status}</span></td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(q.created_at).toLocaleDateString()}</td>
+                    <td className="actions">
+                      <button className="btn btn-secondary btn-sm" onClick={() => navigate('quote-edit', q.id)}>
+                        {q.status === 'draft' ? 'Edit' : 'View'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {quotes.length === 0 && (
+                  <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No quotes found</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+      );
+    }
+
+    // ========== RepQuoteFormView ==========
+    function RepQuoteFormView({ navigate, editId }) {
+      const [quote, setQuote] = useState(null);
+      const [quoteItems, setQuoteItems] = useState([]);
+      const [loading, setLoading] = useState(!!editId);
+      const [saving, setSaving] = useState(false);
+      const [form, setForm] = useState({
+        customer_name: '', customer_email: '', phone: '',
+        shipping_address_line1: '', shipping_address_line2: '',
+        shipping_city: '', shipping_state: '', shipping_zip: '', notes: '',
+        delivery_method: 'shipping'
+      });
+
+      // Product search
+      const [productSearch, setProductSearch] = useState('');
+      const [searchResults, setSearchResults] = useState([]);
+      const [showResults, setShowResults] = useState(false);
+      const searchTimeout = useRef(null);
+
+      // Custom item form
+      const [showCustomForm, setShowCustomForm] = useState(false);
+      const [customItem, setCustomItem] = useState({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'sqft' });
+
+      // Convert modal
+      const [showConvertModal, setShowConvertModal] = useState(false);
+      const [convertMethod, setConvertMethod] = useState('offline');
+
+      useEffect(() => {
+        if (!editId) return;
+        repFetch('/api/rep/quotes/' + editId)
+          .then(data => {
+            setQuote(data.quote);
+            setQuoteItems(data.items || []);
+            setForm({
+              customer_name: data.quote.customer_name || '',
+              customer_email: data.quote.customer_email || '',
+              phone: data.quote.phone || '',
+              shipping_address_line1: data.quote.shipping_address_line1 || '',
+              shipping_address_line2: data.quote.shipping_address_line2 || '',
+              shipping_city: data.quote.shipping_city || '',
+              shipping_state: data.quote.shipping_state || '',
+              shipping_zip: data.quote.shipping_zip || '',
+              notes: data.quote.notes || '',
+              delivery_method: data.quote.delivery_method || 'shipping'
+            });
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      }, [editId]);
+
+      const handleProductSearch = (term) => {
+        setProductSearch(term);
+        if (searchTimeout.current) clearTimeout(searchTimeout.current);
+        if (term.length < 2) { setSearchResults([]); setShowResults(false); return; }
+        searchTimeout.current = setTimeout(() => {
+          fetch(API + '/api/products?search=' + encodeURIComponent(term))
+            .then(r => r.json())
+            .then(data => {
+              setSearchResults(data.products || []);
+              setShowResults(true);
+            })
+            .catch(() => {});
+        }, 300);
+      };
+
+      const addProductToQuote = async (product) => {
+        setShowResults(false);
+        setProductSearch('');
+
+        // Fetch product details to get SKU + pricing
+        const data = await fetch(API + '/api/products/' + product.id).then(r => r.json());
+        const sku = data.skus && data.skus[0];
+        const price = sku ? parseFloat(sku.retail_price || 0) : parseFloat(product.price || 0);
+        const sqftPerBox = sku ? parseFloat(sku.sqft_per_box || 0) : 0;
+        const sellBy = sku ? (sku.sell_by || 'sqft') : 'sqft';
+
+        const newItem = {
+          product_id: product.id,
+          sku_id: sku ? sku.id : null,
+          product_name: product.name,
+          collection: product.collection || '',
+          sqft_needed: sqftPerBox || 0,
+          num_boxes: 1,
+          unit_price: price.toFixed(2),
+          subtotal: price.toFixed(2),
+          is_sample: false,
+          sell_by: sellBy,
+          _sqft_per_box: sqftPerBox
+        };
+
+        if (editId) {
+          // Save directly via API
+          const result = await repFetch('/api/rep/quotes/' + editId + '/items', {
+            method: 'POST',
+            body: JSON.stringify(newItem)
+          });
+          if (result.item) {
+            result.item._sqft_per_box = sqftPerBox;
+            setQuoteItems(prev => [...prev, result.item]);
+            // Refresh quote for totals
+            const qData = await repFetch('/api/rep/quotes/' + editId);
+            setQuote(qData.quote);
+          }
+        } else {
+          setQuoteItems(prev => [...prev, { ...newItem, _temp_id: Date.now() }]);
+        }
+      };
+
+      const addCustomItemToQuote = async () => {
+        if (!customItem.product_name || !customItem.unit_price) return;
+        const price = parseFloat(customItem.unit_price) || 0;
+        const qty = parseInt(customItem.num_boxes) || 1;
+        const newItem = {
+          product_id: null,
+          sku_id: null,
+          product_name: customItem.product_name,
+          collection: '',
+          description: customItem.description || '',
+          sqft_needed: customItem.sqft_needed ? parseFloat(customItem.sqft_needed) : null,
+          num_boxes: qty,
+          unit_price: price.toFixed(2),
+          subtotal: (price * qty).toFixed(2),
+          sell_by: customItem.sell_by || 'sqft',
+          is_sample: false,
+          _is_custom: true
+        };
+
+        if (editId) {
+          const result = await repFetch('/api/rep/quotes/' + editId + '/items', {
+            method: 'POST',
+            body: JSON.stringify(newItem)
+          });
+          if (result.item) {
+            result.item._is_custom = true;
+            setQuoteItems(prev => [...prev, result.item]);
+            const qData = await repFetch('/api/rep/quotes/' + editId);
+            setQuote(qData.quote);
+          }
+        } else {
+          setQuoteItems(prev => [...prev, { ...newItem, _temp_id: Date.now() }]);
+        }
+
+        setCustomItem({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'sqft' });
+        setShowCustomForm(false);
+      };
+
+      const updateItemLocal = (index, field, value) => {
+        setQuoteItems(prev => {
+          const updated = [...prev];
+          const item = { ...updated[index] };
+          item[field] = value;
+
+          // Recalculate subtotal
+          if (field === 'num_boxes' || field === 'unit_price') {
+            const boxes = field === 'num_boxes' ? parseInt(value) || 0 : parseInt(item.num_boxes) || 0;
+            const price = field === 'unit_price' ? parseFloat(value) || 0 : parseFloat(item.unit_price) || 0;
+            item.subtotal = (price * boxes).toFixed(2);
+            if (field === 'num_boxes' && item._sqft_per_box) {
+              item.sqft_needed = (boxes * parseFloat(item._sqft_per_box)).toFixed(2);
+            }
+          }
+          updated[index] = item;
+          return updated;
+        });
+      };
+
+      const saveItemEdit = async (item, index) => {
+        if (editId && item.id) {
+          await repFetch('/api/rep/quotes/' + editId + '/items/' + item.id, {
+            method: 'PUT',
+            body: JSON.stringify({
+              num_boxes: item.num_boxes,
+              unit_price: item.unit_price,
+              sqft_needed: item.sqft_needed,
+              subtotal: item.subtotal,
+              product_name: item.product_name,
+              collection: item.collection,
+              description: item.description,
+              sell_by: item.sell_by
+            })
+          });
+          const qData = await repFetch('/api/rep/quotes/' + editId);
+          setQuote(qData.quote);
+        }
+      };
+
+      const removeItem = async (item, index) => {
+        if (editId && item.id) {
+          await repFetch('/api/rep/quotes/' + editId + '/items/' + item.id, { method: 'DELETE' });
+          const qData = await repFetch('/api/rep/quotes/' + editId);
+          setQuote(qData.quote);
+        }
+        setQuoteItems(prev => prev.filter((_, i) => i !== index));
+      };
+
+      const saveQuote = async () => {
+        setSaving(true);
+        try {
+          if (editId) {
+            await repFetch('/api/rep/quotes/' + editId, {
+              method: 'PUT',
+              body: JSON.stringify(form)
+            });
+          } else {
+            const itemsPayload = quoteItems.map(i => ({
+              product_id: i.product_id,
+              sku_id: i.sku_id,
+              product_name: i.product_name,
+              collection: i.collection,
+              description: i.description,
+              sqft_needed: i.sqft_needed,
+              num_boxes: i.num_boxes,
+              unit_price: i.unit_price,
+              subtotal: i.subtotal,
+              sell_by: i.sell_by,
+              is_sample: i.is_sample
+            }));
+            const data = await repFetch('/api/rep/quotes', {
+              method: 'POST',
+              body: JSON.stringify({ ...form, items: itemsPayload })
+            });
+            if (data.quote) {
+              navigate('quote-edit', data.quote.id);
+              return;
+            }
+          }
+          // Reload
+          if (editId) {
+            const data = await repFetch('/api/rep/quotes/' + editId);
+            setQuote(data.quote);
+            setQuoteItems(data.items || []);
+          }
+        } catch (err) {}
+        setSaving(false);
+      };
+
+      const sendQuote = async () => {
+        if (!editId) return;
+        setSaving(true);
+        try {
+          await repFetch('/api/rep/quotes/' + editId + '/send', { method: 'POST' });
+          const data = await repFetch('/api/rep/quotes/' + editId);
+          setQuote(data.quote);
+        } catch (err) {}
+        setSaving(false);
+      };
+
+      const convertQuote = async () => {
+        if (!editId) return;
+        setSaving(true);
+        try {
+          const data = await repFetch('/api/rep/quotes/' + editId + '/convert', {
+            method: 'POST',
+            body: JSON.stringify({ payment_method: convertMethod })
+          });
+          if (data.order) {
+            navigate('order-detail', data.order.id);
+            return;
+          }
+        } catch (err) {}
+        setSaving(false);
+        setShowConvertModal(false);
+      };
+
+      if (loading) return <div className="loading">Loading quote...</div>;
+
+      const isReadonly = quote && !['draft', 'sent'].includes(quote.status);
+      const calcSubtotal = quoteItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
+      const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : 'boxes';
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>{editId ? (quote ? 'Quote ' + quote.quote_number : 'Edit Quote') : 'New Quote'}</h1>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              {quote && quote.status === 'draft' && (
+                <button className="btn btn-secondary" onClick={sendQuote} disabled={saving}>Send to Customer</button>
+              )}
+              {quote && ['draft', 'sent', 'accepted'].includes(quote.status) && (
+                <button className="btn btn-success" onClick={() => setShowConvertModal(true)} disabled={saving}>Convert to Order</button>
+              )}
+              <button className="btn btn-secondary" onClick={() => navigate('quotes')}>Back to Quotes</button>
+            </div>
+          </div>
+
+          {quote && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <span className={'badge badge-' + quote.status} style={{ fontSize: '0.8125rem', padding: '0.35rem 0.85rem' }}>{quote.status}</span>
+            </div>
+          )}
+
+          {/* Customer Info */}
+          <div className="form-card">
+            <h3>Customer Information</h3>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Customer Name *</label>
+                <input type="text" value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} disabled={isReadonly} />
+              </div>
+              <div className="form-group">
+                <label>Email *</label>
+                <input type="email" value={form.customer_email} onChange={e => setForm(f => ({ ...f, customer_email: e.target.value }))} disabled={isReadonly} />
+              </div>
+              <div className="form-group">
+                <label>Phone</label>
+                <input type="text" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} disabled={isReadonly} />
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery Method */}
+          <div className="form-card">
+            <h3>Delivery Method</h3>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Method</label>
+                <select value={form.delivery_method} onChange={e => setForm(f => ({ ...f, delivery_method: e.target.value }))} disabled={isReadonly}>
+                  <option value="shipping">Ship to Customer</option>
+                  <option value="pickup">Store Pickup</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Shipping - only show when shipping */}
+          {form.delivery_method === 'shipping' ? (
+            <div className="form-card">
+              <h3>Shipping Address</h3>
+              <div className="form-grid">
+                <div className="form-group full">
+                  <label>Address Line 1</label>
+                  <input type="text" value={form.shipping_address_line1} onChange={e => setForm(f => ({ ...f, shipping_address_line1: e.target.value }))} disabled={isReadonly} />
+                </div>
+                <div className="form-group full">
+                  <label>Address Line 2</label>
+                  <input type="text" value={form.shipping_address_line2} onChange={e => setForm(f => ({ ...f, shipping_address_line2: e.target.value }))} disabled={isReadonly} />
+                </div>
+                <div className="form-group">
+                  <label>City</label>
+                  <input type="text" value={form.shipping_city} onChange={e => setForm(f => ({ ...f, shipping_city: e.target.value }))} disabled={isReadonly} />
+                </div>
+                <div className="form-group">
+                  <label>State</label>
+                  <input type="text" value={form.shipping_state} onChange={e => setForm(f => ({ ...f, shipping_state: e.target.value }))} disabled={isReadonly} />
+                </div>
+                <div className="form-group">
+                  <label>ZIP Code</label>
+                  <input type="text" value={form.shipping_zip} onChange={e => setForm(f => ({ ...f, shipping_zip: e.target.value }))} disabled={isReadonly} />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="form-card">
+              <h3>Pickup Location</h3>
+              <div style={{ fontSize: '0.875rem', lineHeight: 1.6 }}>
+                <div>Atelier Surfaces</div>
+                <div>1440 S. State College Blvd., Suite 6M</div>
+                <div>Anaheim, CA 92806</div>
+                <div style={{ marginTop: '0.5rem', color: 'var(--stone-500)', fontSize: '0.8125rem' }}>
+                  Ready for pickup within 5 business days.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Line Items */}
+          <div className="form-card">
+            <h3>Line Items</h3>
+            {!isReadonly && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <input
+                      type="text"
+                      placeholder="Search catalog products..."
+                      value={productSearch}
+                      onChange={e => handleProductSearch(e.target.value)}
+                      onFocus={() => { if (searchResults.length > 0) setShowResults(true); }}
+                      onBlur={() => setTimeout(() => setShowResults(false), 200)}
+                      style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }}
+                    />
+                    {showResults && searchResults.length > 0 && (
+                      <div className="search-results">
+                        {searchResults.slice(0, 10).map(p => (
+                          <div key={p.id} className="search-result-item" onMouseDown={() => addProductToQuote(p)}>
+                            <div>{p.name}</div>
+                            <div className="product-meta">
+                              {p.vendor_name} {p.collection && ' \u2022 ' + p.collection}
+                              {p.price && ' \u2022 $' + parseFloat(p.price).toFixed(2) + '/sqft'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    className={'btn ' + (showCustomForm ? 'btn-secondary' : 'btn-primary')}
+                    onClick={() => setShowCustomForm(!showCustomForm)}
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    {showCustomForm ? 'Cancel' : '+ Custom Item'}
+                  </button>
+                </div>
+
+                {showCustomForm && (
+                  <div style={{ background: 'var(--stone-50)', border: '1px solid var(--stone-200)', padding: '1.25rem', marginBottom: '0.75rem' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-600)', marginBottom: '0.75rem' }}>Add Custom Item</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>Item Name *</label>
+                        <input type="text" placeholder="e.g. Custom threshold piece" value={customItem.product_name} onChange={e => setCustomItem(c => ({ ...c, product_name: e.target.value }))} />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>Description</label>
+                        <input type="text" placeholder="e.g. 36in marble saddle, honed finish" value={customItem.description} onChange={e => setCustomItem(c => ({ ...c, description: e.target.value }))} />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>Sold By *</label>
+                        <select value={customItem.sell_by} onChange={e => setCustomItem(c => ({ ...c, sell_by: e.target.value }))}>
+                          <option value="sqft">Per SqFt (boxes)</option>
+                          <option value="unit">Per Unit (slabs/prefab)</option>
+                          <option value="piece">Per Piece (mosaics)</option>
+                        </select>
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>{customItem.sell_by === 'unit' ? 'Qty (units) *' : customItem.sell_by === 'piece' ? 'Qty (pieces) *' : 'Qty (boxes) *'}</label>
+                        <input type="number" min="1" value={customItem.num_boxes} onChange={e => setCustomItem(c => ({ ...c, num_boxes: e.target.value }))} />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>Unit Price *</label>
+                        <input type="number" step="0.01" min="0" placeholder="0.00" value={customItem.unit_price} onChange={e => setCustomItem(c => ({ ...c, unit_price: e.target.value }))} />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>SqFt (optional)</label>
+                        <input type="number" step="0.1" min="0" placeholder="Leave blank if N/A" value={customItem.sqft_needed} onChange={e => setCustomItem(c => ({ ...c, sqft_needed: e.target.value }))} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                        <button className="btn btn-primary" onClick={addCustomItemToQuote} disabled={!customItem.product_name || !customItem.unit_price} style={{ width: '100%' }}>
+                          Add to Quote
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <table className="rep-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Description</th>
+                  <th>SqFt</th>
+                  <th>Qty</th>
+                  <th>Unit Price</th>
+                  <th>Subtotal</th>
+                  {!isReadonly && <th>Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {quoteItems.map((item, idx) => {
+                  const isCustom = !item.product_id;
+                  return (
+                    <tr key={item.id || item._temp_id || idx}>
+                      <td style={{ fontWeight: 500 }}>
+                        {!isReadonly && isCustom ? (
+                          <input
+                            type="text"
+                            value={item.product_name || ''}
+                            onChange={e => updateItemLocal(idx, 'product_name', e.target.value)}
+                            onBlur={() => saveItemEdit(item, idx)}
+                            style={{ width: '100%', minWidth: '140px', padding: '0.3rem 0.5rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)' }}
+                          />
+                        ) : (
+                          <span>{item.product_name || '\u2014'}</span>
+                        )}
+                        {isCustom && <span className="badge badge-draft" style={{ marginLeft: '0.5rem', fontSize: '0.6rem' }}>Custom</span>}
+                      </td>
+                      <td>
+                        {!isReadonly && isCustom ? (
+                          <input
+                            type="text"
+                            value={item.description || ''}
+                            onChange={e => updateItemLocal(idx, 'description', e.target.value)}
+                            onBlur={() => saveItemEdit(item, idx)}
+                            placeholder="Details..."
+                            style={{ width: '100%', minWidth: '120px', padding: '0.3rem 0.5rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', color: 'var(--stone-600)' }}
+                          />
+                        ) : (
+                          <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{item.description || item.collection || '\u2014'}</span>
+                        )}
+                      </td>
+                      <td>{item.sqft_needed ? parseFloat(item.sqft_needed).toFixed(1) : '\u2014'}</td>
+                      <td>
+                        {!isReadonly ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.num_boxes}
+                              onChange={e => updateItemLocal(idx, 'num_boxes', e.target.value)}
+                              onBlur={() => saveItemEdit(item, idx)}
+                              style={{ width: '60px', padding: '0.3rem 0.5rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)' }}
+                            />
+                            <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>{qtyLabel(item.sell_by)}</span>
+                          </span>
+                        ) : (
+                          <span>{item.num_boxes} <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>{qtyLabel(item.sell_by)}</span></span>
+                        )}
+                      </td>
+                      <td>
+                        {!isReadonly ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={item.unit_price}
+                            onChange={e => updateItemLocal(idx, 'unit_price', e.target.value)}
+                            onBlur={() => saveItemEdit(item, idx)}
+                            style={{ width: '90px', padding: '0.3rem 0.5rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)' }}
+                          />
+                        ) : '$' + parseFloat(item.unit_price).toFixed(2)}
+                      </td>
+                      <td>${parseFloat(item.subtotal).toFixed(2)}</td>
+                      {!isReadonly && (
+                        <td className="actions">
+                          <button className="btn btn-danger btn-sm" onClick={() => removeItem(item, idx)}>Remove</button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+                {quoteItems.length === 0 && (
+                  <tr><td colSpan={isReadonly ? 6 : 7} style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No items yet. Search products or add a custom item above.</td></tr>
+                )}
+              </tbody>
+            </table>
+            <div style={{ maxWidth: '300px', marginLeft: 'auto', marginTop: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 0', fontSize: '1.1rem', fontWeight: 600, borderTop: '2px solid var(--stone-200)' }}>
+                <span>Total</span>
+                <span>${(quote ? parseFloat(quote.total) : calcSubtotal).toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="form-card">
+            <h3>Notes</h3>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} disabled={isReadonly} placeholder="Internal notes about this quote..." rows="3" />
+            </div>
+          </div>
+
+          {/* Actions */}
+          {!isReadonly && (
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button className="btn btn-primary" onClick={saveQuote} disabled={saving || !form.customer_name || !form.customer_email}>
+                {saving ? 'Saving...' : (editId ? 'Save Changes' : 'Create Quote')}
+              </button>
+            </div>
+          )}
+
+          {/* Convert Modal */}
+          {showConvertModal && (
+            <div className="modal-overlay" onClick={() => setShowConvertModal(false)}>
+              <div className="modal-box" onClick={e => e.stopPropagation()}>
+                <h3>Convert Quote to Order</h3>
+                <p>Choose a payment method for this order:</p>
+                <div className="form-group">
+                  <label>Payment Method</label>
+                  <select value={convertMethod} onChange={e => setConvertMethod(e.target.value)}>
+                    <option value="offline">Offline (Mark as paid manually)</option>
+                    <option value="stripe">Stripe (Create payment intent)</option>
+                  </select>
+                </div>
+                <div className="modal-actions">
+                  <button className="btn btn-secondary" onClick={() => setShowConvertModal(false)}>Cancel</button>
+                  <button className="btn btn-primary" onClick={convertQuote} disabled={saving}>
+                    {saving ? 'Converting...' : 'Convert to Order'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== Render ==========
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
