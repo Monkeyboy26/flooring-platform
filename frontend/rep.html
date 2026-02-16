@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sales Rep Portal - Atelier Surfaces</title>
+  <title>Sales Rep Portal - Roma Flooring Designs</title>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -393,6 +393,32 @@
       gap: 0.75rem;
       justify-content: flex-end;
     }
+    .modal-box.modal-wide {
+      width: 720px;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+    .email-preview-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+      padding: 0.75rem 1rem;
+      background: var(--stone-50);
+      border: 1px solid var(--stone-200);
+      margin-bottom: 1rem;
+      font-size: 0.8125rem;
+      color: var(--stone-600);
+    }
+    .email-preview-meta strong {
+      color: var(--stone-800);
+    }
+    .email-preview-frame {
+      border: 1px solid var(--stone-200);
+      background: #fafaf9;
+      padding: 0;
+      width: 100%;
+      min-height: 400px;
+    }
 
     /* Price history */
     .price-history {
@@ -575,7 +601,7 @@
       return (
         <div className="rep-layout">
           <div className="rep-sidebar">
-            <div className="sidebar-logo">Atelier Surfaces</div>
+            <div className="sidebar-logo">Roma Flooring Designs</div>
             <div className="sidebar-subtitle">Sales Portal</div>
             <div className="sidebar-nav">
               {navItems.map(item => (
@@ -791,6 +817,8 @@
       const [editingPOItem, setEditingPOItem] = useState(null);
       const [newCost, setNewCost] = useState('');
       const [poUpdating, setPoUpdating] = useState(false);
+      const [showTrackingForm, setShowTrackingForm] = useState(false);
+      const [trackingData, setTrackingData] = useState({ tracking_number: '', carrier: '', shipped_at: new Date().toISOString().slice(0, 10) });
 
       const loadPOs = useCallback(() => {
         if (!editId) return;
@@ -852,13 +880,25 @@
       };
 
       const updateStatus = async (newStatus) => {
+        if (newStatus === 'shipped' && order.delivery_method === 'shipping' && !showTrackingForm) {
+          setShowTrackingForm(true);
+          return;
+        }
         setUpdating(true);
         try {
+          const body = { status: newStatus };
+          if (newStatus === 'shipped' && showTrackingForm) {
+            body.tracking_number = trackingData.tracking_number;
+            body.carrier = trackingData.carrier;
+            body.shipped_at = trackingData.shipped_at;
+          }
           const data = await repFetch('/api/rep/orders/' + editId + '/status', {
             method: 'PUT',
-            body: JSON.stringify({ status: newStatus })
+            body: JSON.stringify(body)
           });
           if (data.order) setOrder(data.order);
+          setShowTrackingForm(false);
+          setTrackingData({ tracking_number: '', carrier: '', shipped_at: new Date().toISOString().slice(0, 10) });
         } catch (err) {}
         setUpdating(false);
       };
@@ -907,12 +947,12 @@
             <h3>Order Status</h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
               <span className={'badge badge-' + order.status} style={{ fontSize: '0.8125rem', padding: '0.35rem 0.85rem' }}>{order.status}</span>
-              {nextStatus && (
+              {!showTrackingForm && nextStatus && (
                 <button className="btn btn-primary btn-sm" onClick={() => updateStatus(nextStatus)} disabled={updating}>
                   Mark {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}
                 </button>
               )}
-              {canCancel && (
+              {!showTrackingForm && canCancel && (
                 <button className="btn btn-danger btn-sm" onClick={() => updateStatus('cancelled')} disabled={updating}>
                   Cancel Order
                 </button>
@@ -926,6 +966,51 @@
                 )}
               </div>
             </div>
+
+            {showTrackingForm && (
+              <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '6px' }}>
+                <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--stone-700)' }}>Shipment Details</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Carrier *</label>
+                    <select className="form-control" value={trackingData.carrier} onChange={e => setTrackingData({ ...trackingData, carrier: e.target.value })} style={{ fontSize: '0.8125rem' }}>
+                      <option value="">Select carrier...</option>
+                      <option>UPS</option>
+                      <option>FedEx</option>
+                      <option>USPS</option>
+                      <option>FedEx Freight</option>
+                      <option>XPO Logistics</option>
+                      <option>R+L Carriers</option>
+                      <option>SAIA</option>
+                      <option>Old Dominion</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Tracking Number *</label>
+                    <input className="form-control" type="text" placeholder="Enter tracking number" value={trackingData.tracking_number} onChange={e => setTrackingData({ ...trackingData, tracking_number: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Ship Date</label>
+                    <input className="form-control" type="date" value={trackingData.shipped_at} onChange={e => setTrackingData({ ...trackingData, shipped_at: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                  </div>
+                </div>
+                <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-primary btn-sm" onClick={() => updateStatus('shipped')} disabled={updating || !trackingData.carrier || !trackingData.tracking_number}>
+                    {updating ? 'Submitting...' : 'Confirm Shipment'}
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setShowTrackingForm(false)}>Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {order.tracking_number && (
+              <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '1.5rem', fontSize: '0.8125rem' }}>
+                <div><strong style={{ color: 'var(--stone-500)' }}>Tracking:</strong> {order.tracking_number}</div>
+                {order.shipping_carrier && <div><strong style={{ color: 'var(--stone-500)' }}>Carrier:</strong> {order.shipping_carrier}</div>}
+                {order.shipped_at && <div><strong style={{ color: 'var(--stone-500)' }}>Shipped:</strong> {new Date(order.shipped_at).toLocaleDateString()}</div>}
+              </div>
+            )}
           </div>
 
           {/* Customer Info */}
@@ -959,7 +1044,7 @@
                 <div className="order-info-grid">
                   <div className="order-info-item" style={{ gridColumn: '1 / -1' }}>
                     <span>
-                      <strong>Atelier Surfaces</strong><br />
+                      <strong>Roma Flooring Designs</strong><br />
                       1440 S. State College Blvd., Suite 6M<br />
                       Anaheim, CA 92806
                     </span>
@@ -1332,6 +1417,19 @@
       const [showConvertModal, setShowConvertModal] = useState(false);
       const [convertMethod, setConvertMethod] = useState('offline');
 
+      // Email preview modal
+      const [showPreview, setShowPreview] = useState(false);
+      const [previewHtml, setPreviewHtml] = useState('');
+      const [previewMeta, setPreviewMeta] = useState(null);
+      const [previewLoading, setPreviewLoading] = useState(false);
+      const [sendFeedback, setSendFeedback] = useState(null);
+
+      // Promo code
+      const [promoCode, setPromoCode] = useState('');
+      const [promoResult, setPromoResult] = useState(null);
+      const [promoLoading, setPromoLoading] = useState(false);
+      const [promoError, setPromoError] = useState('');
+
       useEffect(() => {
         if (!editId) return;
         repFetch('/api/rep/quotes/' + editId)
@@ -1350,6 +1448,13 @@
               notes: data.quote.notes || '',
               delivery_method: data.quote.delivery_method || 'shipping'
             });
+            if (data.quote.promo_code) {
+              setPromoCode(data.quote.promo_code);
+              setPromoResult({
+                code: data.quote.promo_code,
+                discount_amount: parseFloat(data.quote.discount_amount || 0)
+              });
+            }
             setLoading(false);
           })
           .catch(() => setLoading(false));
@@ -1500,13 +1605,48 @@
         setQuoteItems(prev => prev.filter((_, i) => i !== index));
       };
 
+      const applyRepPromo = () => {
+        const code = promoCode.trim();
+        if (!code) return;
+        setPromoLoading(true);
+        setPromoError('');
+        const items = quoteItems.map(i => ({
+          product_id: i.product_id,
+          subtotal: i.subtotal,
+          is_sample: i.is_sample || false
+        }));
+        repFetch('/api/rep/promo-codes/validate', {
+          method: 'POST',
+          body: JSON.stringify({ code, items, customer_email: form.customer_email })
+        })
+          .then(data => {
+            if (data.valid) {
+              setPromoResult(data);
+              setPromoError('');
+              setPromoCode(data.code);
+            } else {
+              setPromoResult(null);
+              setPromoError(data.error || 'Invalid promo code');
+            }
+            setPromoLoading(false);
+          })
+          .catch(() => { setPromoError('Unable to validate'); setPromoLoading(false); });
+      };
+
+      const removeRepPromo = () => {
+        setPromoResult(null);
+        setPromoCode('');
+        setPromoError('');
+      };
+
       const saveQuote = async () => {
         setSaving(true);
         try {
+          const promoPayload = promoResult ? promoResult.code : '';
           if (editId) {
             await repFetch('/api/rep/quotes/' + editId, {
               method: 'PUT',
-              body: JSON.stringify(form)
+              body: JSON.stringify({ ...form, promo_code: promoPayload })
             });
           } else {
             const itemsPayload = quoteItems.map(i => ({
@@ -1524,7 +1664,7 @@
             }));
             const data = await repFetch('/api/rep/quotes', {
               method: 'POST',
-              body: JSON.stringify({ ...form, items: itemsPayload })
+              body: JSON.stringify({ ...form, items: itemsPayload, promo_code: promoPayload })
             });
             if (data.quote) {
               navigate('quote-edit', data.quote.id);
@@ -1536,18 +1676,45 @@
             const data = await repFetch('/api/rep/quotes/' + editId);
             setQuote(data.quote);
             setQuoteItems(data.items || []);
+            if (data.quote.promo_code) {
+              setPromoCode(data.quote.promo_code);
+              setPromoResult({ code: data.quote.promo_code, discount_amount: parseFloat(data.quote.discount_amount || 0) });
+            } else {
+              setPromoResult(null);
+              setPromoCode('');
+            }
           }
         } catch (err) {}
         setSaving(false);
       };
 
+      const openPreview = async () => {
+        if (!editId) return;
+        setPreviewLoading(true);
+        setShowPreview(true);
+        setPreviewHtml('');
+        setPreviewMeta(null);
+        try {
+          const data = await repFetch('/api/rep/quotes/' + editId + '/preview');
+          setPreviewHtml(data.html || '');
+          setPreviewMeta({ to: data.to, subject: data.subject, reply_to: data.reply_to });
+        } catch (err) {
+          setPreviewHtml('<p style="padding:2rem;color:#dc2626;">Failed to load email preview.</p>');
+        }
+        setPreviewLoading(false);
+      };
+
       const sendQuote = async () => {
         if (!editId) return;
+        setShowPreview(false);
         setSaving(true);
+        setSendFeedback(null);
         try {
-          await repFetch('/api/rep/quotes/' + editId + '/send', { method: 'POST' });
+          const result = await repFetch('/api/rep/quotes/' + editId + '/send', { method: 'POST' });
           const data = await repFetch('/api/rep/quotes/' + editId);
           setQuote(data.quote);
+          setSendFeedback({ emailed: result.emailed, message: result.message });
+          setTimeout(() => setSendFeedback(null), 6000);
         } catch (err) {}
         setSaving(false);
       };
@@ -1581,7 +1748,7 @@
             <h1>{editId ? (quote ? 'Quote ' + quote.quote_number : 'Edit Quote') : 'New Quote'}</h1>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               {quote && quote.status === 'draft' && (
-                <button className="btn btn-secondary" onClick={sendQuote} disabled={saving}>Send to Customer</button>
+                <button className="btn btn-secondary" onClick={openPreview} disabled={saving}>Send to Customer</button>
               )}
               {quote && ['draft', 'sent', 'accepted'].includes(quote.status) && (
                 <button className="btn btn-success" onClick={() => setShowConvertModal(true)} disabled={saving}>Convert to Order</button>
@@ -1660,7 +1827,7 @@
             <div className="form-card">
               <h3>Pickup Location</h3>
               <div style={{ fontSize: '0.875rem', lineHeight: 1.6 }}>
-                <div>Atelier Surfaces</div>
+                <div>Roma Flooring Designs</div>
                 <div>1440 S. State College Blvd., Suite 6M</div>
                 <div>Anaheim, CA 92806</div>
                 <div style={{ marginTop: '0.5rem', color: 'var(--stone-500)', fontSize: '0.8125rem' }}>
@@ -1842,11 +2009,56 @@
               </tbody>
             </table>
             <div style={{ maxWidth: '300px', marginLeft: 'auto', marginTop: '1rem' }}>
+              {promoResult && promoResult.discount_amount > 0 && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', fontSize: '0.875rem', color: 'var(--stone-600)' }}>
+                    <span>Subtotal</span>
+                    <span>${(quote ? parseFloat(quote.subtotal) : calcSubtotal).toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', fontSize: '0.875rem', color: '#16a34a' }}>
+                    <span>Discount ({promoResult.code})</span>
+                    <span>-${promoResult.discount_amount.toFixed(2)}</span>
+                  </div>
+                </>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 0', fontSize: '1.1rem', fontWeight: 600, borderTop: '2px solid var(--stone-200)' }}>
                 <span>Total</span>
-                <span>${(quote ? parseFloat(quote.total) : calcSubtotal).toFixed(2)}</span>
+                <span>${((quote ? parseFloat(quote.total) : calcSubtotal) - (promoResult && !quote ? promoResult.discount_amount : 0)).toFixed(2)}</span>
               </div>
             </div>
+          </div>
+
+          {/* Promo Code */}
+          <div className="form-card">
+            <h3>Promo Code</h3>
+            {isReadonly ? (
+              promoResult ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ background: '#dcfce7', color: '#166534', padding: '0.25rem 0.6rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>{promoResult.code}</span>
+                  <span style={{ color: '#16a34a', fontSize: '0.875rem' }}>-${promoResult.discount_amount.toFixed(2)}</span>
+                </div>
+              ) : (
+                <span style={{ color: 'var(--stone-400)', fontSize: '0.875rem' }}>No promo code applied</span>
+              )
+            ) : promoResult ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ background: '#dcfce7', color: '#166534', padding: '0.25rem 0.6rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>{promoResult.code}</span>
+                <span style={{ color: '#16a34a', fontSize: '0.875rem' }}>-${promoResult.discount_amount.toFixed(2)}</span>
+                <button className="btn btn-danger btn-sm" onClick={removeRepPromo}>Remove</button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: 'flex', gap: '0.5rem', maxWidth: '360px' }}>
+                  <input type="text" value={promoCode} onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoError(''); }}
+                    onKeyDown={e => e.key === 'Enter' && applyRepPromo()}
+                    placeholder="Enter promo code" style={{ flex: 1 }} />
+                  <button className="btn btn-primary btn-sm" onClick={applyRepPromo} disabled={promoLoading || !promoCode.trim()}>
+                    {promoLoading ? '...' : 'Apply'}
+                  </button>
+                </div>
+                {promoError && <div style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.3rem' }}>{promoError}</div>}
+              </div>
+            )}
           </div>
 
           {/* Notes */}
@@ -1863,6 +2075,56 @@
               <button className="btn btn-primary" onClick={saveQuote} disabled={saving || !form.customer_name || !form.customer_email}>
                 {saving ? 'Saving...' : (editId ? 'Save Changes' : 'Create Quote')}
               </button>
+            </div>
+          )}
+
+          {/* Send Feedback */}
+          {sendFeedback && (
+            <div style={{
+              padding: '0.75rem 1rem',
+              marginBottom: '1rem',
+              border: '1px solid',
+              borderColor: sendFeedback.emailed ? '#86efac' : '#fde68a',
+              background: sendFeedback.emailed ? '#f0fdf4' : '#fffbeb',
+              color: sendFeedback.emailed ? '#166534' : '#92400e',
+              fontSize: '0.875rem'
+            }}>
+              {sendFeedback.message}
+            </div>
+          )}
+
+          {/* Email Preview Modal */}
+          {showPreview && (
+            <div className="modal-overlay" onClick={() => setShowPreview(false)}>
+              <div className="modal-box modal-wide" onClick={e => e.stopPropagation()}>
+                <h3>Email Preview</h3>
+                {previewLoading ? (
+                  <p>Loading preview...</p>
+                ) : (
+                  <>
+                    {previewMeta && (
+                      <div className="email-preview-meta">
+                        <span><strong>To:</strong> {previewMeta.to}</span>
+                        <span><strong>Subject:</strong> {previewMeta.subject}</span>
+                        <span><strong>Reply-To:</strong> {previewMeta.reply_to}</span>
+                      </div>
+                    )}
+                    <iframe
+                      className="email-preview-frame"
+                      srcDoc={previewHtml}
+                      sandbox=""
+                      title="Email preview"
+                      style={{ width: '100%', minHeight: '450px', border: '1px solid var(--stone-200)' }}
+                    />
+                  </>
+                )}
+                <div className="modal-actions" style={{ marginTop: '1rem' }}>
+                  <button className="btn btn-secondary" onClick={() => setShowPreview(false)}>Cancel</button>
+                  <button className="btn btn-primary" onClick={sendQuote} disabled={saving || previewLoading}>
+                    {saving ? 'Sending...' : 'Confirm & Send'}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

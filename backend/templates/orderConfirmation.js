@@ -53,7 +53,7 @@ export function generateOrderConfirmationHTML(orderData) {
 
   <!-- Header -->
   <tr><td style="padding:32px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:18px;letter-spacing:4px;color:#292524;font-weight:600;">ATELIER SURFACES</p>
+    <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:18px;letter-spacing:4px;color:#292524;font-weight:600;">ROMA FLOORING DESIGNS</p>
   </td></tr>
 
   <!-- Title -->
@@ -123,7 +123,7 @@ export function generateOrderConfirmationHTML(orderData) {
 
   <!-- Footer -->
   <tr><td style="padding:24px 40px;border-top:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:14px;letter-spacing:2px;color:#a8a29e;">ATELIER SURFACES</p>
+    <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:14px;letter-spacing:2px;color:#a8a29e;">ROMA FLOORING DESIGNS</p>
     <p style="margin:8px 0 0;font-family:Inter,Arial,sans-serif;font-size:11px;color:#a8a29e;">Curated flooring &amp; surfaces for refined spaces</p>
   </td></tr>
 

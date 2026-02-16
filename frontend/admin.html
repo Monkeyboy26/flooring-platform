@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin - Atelier Surfaces</title>
+  <title>Admin - Roma Flooring Designs</title>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -172,6 +173,10 @@
     .btn-secondary:hover { background: var(--stone-100); }
     .btn-danger { background: var(--red); color: white; }
     .btn-danger:hover { background: #b91c1c; }
+    .btn-link { background: none; border: none; color: var(--stone-600); cursor: pointer; font-size: 0.8125rem; padding: 0.2rem 0.4rem; text-decoration: underline; }
+    .btn-link:hover { color: var(--stone-900); }
+    .btn-link-danger { color: var(--red); }
+    .btn-link-danger:hover { color: #b91c1c; }
     .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.75rem; }
 
     /* Stat cards */
@@ -540,6 +545,158 @@
       color: var(--stone-400);
     }
     .admin-table th.sorted .sort-arrow { color: var(--gold); }
+
+    /* Media Manager */
+    .media-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+    .media-card {
+      position: relative;
+      border: 1px solid var(--stone-200);
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: grab;
+    }
+    .media-card img {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      display: block;
+    }
+    .media-card-info {
+      padding: 0.5rem 0.625rem;
+      font-size: 0.75rem;
+    }
+    .media-card-type {
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--stone-500);
+      font-size: 0.65rem;
+      margin-bottom: 0.25rem;
+    }
+    .media-card-actions {
+      display: flex;
+      gap: 0.375rem;
+    }
+    .media-card-actions button {
+      font-size: 0.65rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid var(--stone-200);
+      background: var(--stone-50);
+      cursor: pointer;
+    }
+    .media-card-actions button:hover { border-color: var(--stone-400); }
+    .media-card-actions button.delete-btn { color: var(--red); border-color: var(--red-light); }
+    .media-card-actions button.delete-btn:hover { background: var(--red-light); }
+    .media-card.dragging {
+      opacity: 0.5;
+      border: 2px dashed var(--gold);
+    }
+    .media-upload-zone {
+      border: 2px dashed var(--stone-300);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      color: var(--stone-400);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.875rem;
+    }
+    .media-upload-zone:hover { border-color: var(--gold); color: var(--stone-600); }
+    .media-upload-zone.drag-active {
+      border-color: var(--gold);
+      background: rgba(201, 166, 104, 0.06);
+      color: var(--gold);
+    }
+    .media-url-form {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .media-url-form input {
+      flex: 1;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--stone-200);
+      border-radius: 6px;
+      font-size: 0.875rem;
+    }
+
+    /* Analytics */
+    .analytics-period-bar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .period-btn {
+      padding: 0.5rem 1rem;
+      font-size: 0.75rem;
+      font-family: 'Inter', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border: 1px solid var(--stone-300);
+      background: white;
+      color: var(--stone-600);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .period-btn:hover { border-color: var(--gold); color: var(--stone-800); }
+    .period-btn.active {
+      background: var(--gold);
+      color: white;
+      border-color: var(--gold);
+    }
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .analytics-two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .chart-container {
+      background: white;
+      border: 1px solid var(--stone-200);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .chart-container h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.25rem;
+      font-weight: 400;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--stone-200);
+    }
+    .vendor-margin-bar {
+      display: inline-block;
+      height: 8px;
+      background: var(--stone-200);
+      border-radius: 4px;
+      width: 100px;
+      position: relative;
+      vertical-align: middle;
+    }
+    .vendor-margin-bar-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      background: var(--gold);
+      border-radius: 4px;
+    }
+    @media (max-width: 900px) {
+      .analytics-grid { grid-template-columns: repeat(2, 1fr); }
+      .analytics-two-col { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -550,18 +707,24 @@
     const API = 'http://localhost:3001';
 
     // ========== Admin Fetch Helper ==========
+    function getAuthHeaders() {
+      const staffToken = sessionStorage.getItem('staff_token');
+      if (staffToken) return { 'X-Staff-Token': staffToken };
+      return {};
+    }
+
     function adminFetch(path, options = {}) {
-      const key = sessionStorage.getItem('admin_api_key');
       return fetch(API + path, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Key': key || '',
+          ...getAuthHeaders(),
           ...(options.headers || {})
         }
       }).then(r => {
         if (r.status === 401) {
-          sessionStorage.removeItem('admin_api_key');
+          sessionStorage.removeItem('staff_token');
+          sessionStorage.removeItem('staff_data');
           window.location.reload();
           throw new Error('Unauthorized');
         }
@@ -574,16 +737,16 @@
     }
 
     function adminUpload(path, file) {
-      const key = sessionStorage.getItem('admin_api_key');
       const formData = new FormData();
       formData.append('file', file);
       return fetch(API + path, {
         method: 'POST',
-        headers: { 'X-Admin-Key': key || '' },
+        headers: getAuthHeaders(),
         body: formData
       }).then(r => {
         if (r.status === 401) {
-          sessionStorage.removeItem('admin_api_key');
+          sessionStorage.removeItem('staff_token');
+          sessionStorage.removeItem('staff_data');
           window.location.reload();
           throw new Error('Unauthorized');
         }
@@ -631,63 +794,218 @@
     function AdminApp() {
       const [authed, setAuthed] = useState(false);
       const [checking, setChecking] = useState(true);
+      const [staffData, setStaffData] = useState(null);
 
       useEffect(() => {
-        const key = sessionStorage.getItem('admin_api_key');
-        if (!key) { setChecking(false); return; }
-        fetch(API + '/api/admin/stats', { headers: { 'X-Admin-Key': key } })
-          .then(r => {
-            if (r.ok) { setAuthed(true); }
-            else { sessionStorage.removeItem('admin_api_key'); }
-            setChecking(false);
-          })
-          .catch(() => { setChecking(false); });
+        // Check for existing staff session
+        const token = sessionStorage.getItem('staff_token');
+        const saved = sessionStorage.getItem('staff_data');
+        if (token && saved) {
+          fetch(API + '/api/staff/me', { headers: { 'X-Staff-Token': token } })
+            .then(r => {
+              if (r.ok) return r.json();
+              throw new Error('Invalid session');
+            })
+            .then(data => {
+              setStaffData(data.staff);
+              setAuthed(true);
+              setChecking(false);
+            })
+            .catch(() => {
+              sessionStorage.removeItem('staff_token');
+              sessionStorage.removeItem('staff_data');
+              setChecking(false);
+            });
+          return;
+        }
+        setChecking(false);
       }, []);
 
+      const handleLogout = () => {
+        const token = sessionStorage.getItem('staff_token');
+        if (token) {
+          fetch(API + '/api/staff/logout', {
+            method: 'POST',
+            headers: { 'X-Staff-Token': token }
+          }).catch(() => {});
+        }
+        sessionStorage.removeItem('staff_token');
+        sessionStorage.removeItem('staff_data');
+        setAuthed(false);
+        setStaffData(null);
+      };
+
+      const handleAuth = (data) => {
+        setStaffData(data);
+        setAuthed(true);
+      };
+
       if (checking) return React.createElement('div', { className: 'loading' }, 'Loading...');
-      if (!authed) return React.createElement(AuthGate, { onAuth: () => setAuthed(true) });
-      return React.createElement(AdminLayout, { onLogout: () => { sessionStorage.removeItem('admin_api_key'); setAuthed(false); } });
+      if (!authed) return React.createElement(AuthGate, { onAuth: handleAuth });
+      return React.createElement(AdminLayout, { onLogout: handleLogout, staffData });
     }
 
     // ========== AuthGate ==========
     function AuthGate({ onAuth }) {
-      const [key, setKey] = useState('');
+      const [mode, setMode] = useState('checking'); // 'checking', 'setup', 'login'
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [firstName, setFirstName] = useState('');
+      const [lastName, setLastName] = useState('');
       const [error, setError] = useState('');
       const [loading, setLoading] = useState(false);
 
-      const handleSubmit = (e) => {
+      useEffect(() => {
+        fetch(API + '/api/staff/setup-check')
+          .then(r => r.json())
+          .then(data => setMode(data.needs_setup ? 'setup' : 'login'))
+          .catch(() => setMode('login'));
+      }, []);
+
+      const [needs2FA, setNeeds2FA] = useState(false);
+      const [twoFACode, setTwoFACode] = useState('');
+      const [twoFAStaffId, setTwoFAStaffId] = useState(null);
+      const [rememberDevice, setRememberDevice] = useState(true);
+
+      const handleLogin = (e) => {
         e.preventDefault();
-        if (!key.trim()) return;
+        if (!email.trim() || !password) return;
         setLoading(true);
         setError('');
-        fetch(API + '/api/admin/stats', { headers: { 'X-Admin-Key': key.trim() } })
-          .then(r => {
-            if (r.ok) {
-              sessionStorage.setItem('admin_api_key', key.trim());
-              onAuth();
+        fetch(API + '/api/staff/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim(), password, device_fingerprint: navigator.userAgent })
+        })
+          .then(r => r.json().then(data => ({ ok: r.ok, data })))
+          .then(({ ok, data }) => {
+            if (ok && data.requires_2fa) {
+              setNeeds2FA(true);
+              setTwoFAStaffId(data.staff_id);
+              setLoading(false);
+            } else if (ok) {
+              sessionStorage.setItem('staff_token', data.token);
+              sessionStorage.setItem('staff_data', JSON.stringify(data.staff));
+              onAuth(data.staff);
             } else {
-              setError('Invalid API key');
+              setError(data.error || 'Login failed');
             }
             setLoading(false);
           })
           .catch(() => { setError('Cannot reach API'); setLoading(false); });
       };
 
+      const handleVerify2FA = (e) => {
+        e.preventDefault();
+        if (!twoFACode) return;
+        setLoading(true);
+        setError('');
+        fetch(API + '/api/staff/verify-2fa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ staff_id: twoFAStaffId, code: twoFACode, trust_device: rememberDevice, device_fingerprint: navigator.userAgent })
+        })
+          .then(r => r.json().then(data => ({ ok: r.ok, data })))
+          .then(({ ok, data }) => {
+            if (ok) {
+              sessionStorage.setItem('staff_token', data.token);
+              sessionStorage.setItem('staff_data', JSON.stringify(data.staff));
+              onAuth(data.staff);
+            } else {
+              setError(data.error || 'Invalid code');
+            }
+            setLoading(false);
+          })
+          .catch(() => { setError('Cannot reach API'); setLoading(false); });
+      };
+
+      const resend2FA = () => {
+        fetch(API + '/api/staff/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim(), password, device_fingerprint: navigator.userAgent })
+        }).then(() => setError('')).catch(() => {});
+      };
+
+      const handleSetup = (e) => {
+        e.preventDefault();
+        if (!email.trim() || !password || !firstName.trim() || !lastName.trim()) return;
+        setLoading(true);
+        setError('');
+        fetch(API + '/api/staff/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim(), password, first_name: firstName.trim(), last_name: lastName.trim() })
+        })
+          .then(r => r.json().then(data => ({ ok: r.ok, data })))
+          .then(({ ok, data }) => {
+            if (ok) {
+              sessionStorage.setItem('staff_token', data.token);
+              sessionStorage.setItem('staff_data', JSON.stringify(data.staff));
+              onAuth(data.staff);
+            } else {
+              setError(data.error || 'Setup failed');
+            }
+            setLoading(false);
+          })
+          .catch(() => { setError('Cannot reach API'); setLoading(false); });
+      };
+
+      if (mode === 'checking') return <div className="loading">Loading...</div>;
+
+      if (mode === 'setup') {
+        return (
+          <div className="auth-gate">
+            <form className="auth-box" onSubmit={handleSetup}>
+              <h1>Welcome</h1>
+              <p>Create your admin account to get started</p>
+              {error && <div className="auth-error">{error}</div>}
+              <input type="text" placeholder="First Name" value={firstName} onChange={e => setFirstName(e.target.value)} autoFocus />
+              <input type="text" placeholder="Last Name" value={lastName} onChange={e => setLastName(e.target.value)} />
+              <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+              <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
+              <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+                {loading ? 'Creating Account...' : 'Create Admin Account'}
+              </button>
+            </form>
+          </div>
+        );
+      }
+
+      if (needs2FA) {
+        return (
+          <div className="auth-gate">
+            <form className="auth-box" onSubmit={handleVerify2FA}>
+              <h1>Verification</h1>
+              <p>A 6-digit code was sent to your email. Enter it below.</p>
+              {error && <div className="auth-error">{error}</div>}
+              <input type="text" placeholder="Enter 6-digit code" value={twoFACode} onChange={e => setTwoFACode(e.target.value.replace(/\D/g, '').slice(0, 6))} autoFocus
+                style={{ textAlign: 'center', letterSpacing: '0.3em', fontSize: '1.5rem' }} />
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', color: 'var(--stone-600)', margin: '0.5rem 0 1rem' }}>
+                <input type="checkbox" checked={rememberDevice} onChange={e => setRememberDevice(e.target.checked)} />
+                Trust this device for 30 days
+              </label>
+              <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading || twoFACode.length < 6}>
+                {loading ? 'Verifying...' : 'Verify'}
+              </button>
+              <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <a onClick={resend2FA} style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', cursor: 'pointer', textDecoration: 'underline' }}>Resend code</a>
+              </div>
+            </form>
+          </div>
+        );
+      }
+
       return (
         <div className="auth-gate">
-          <form className="auth-box" onSubmit={handleSubmit}>
+          <form className="auth-box" onSubmit={handleLogin}>
             <h1>Admin Dashboard</h1>
-            <p>Enter your API key to continue</p>
+            <p>Sign in with your staff account</p>
             {error && <div className="auth-error">{error}</div>}
-            <input
-              type="password"
-              placeholder="API Key"
-              value={key}
-              onChange={e => setKey(e.target.value)}
-              autoFocus
-            />
+            <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} autoFocus />
+            <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
             <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
-              {loading ? 'Verifying...' : 'Sign In'}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
         </div>
@@ -695,11 +1013,12 @@
     }
 
     // ========== AdminLayout ==========
-    function AdminLayout({ onLogout }) {
+    function AdminLayout({ onLogout, staffData }) {
       const [view, setView] = useState('dashboard');
       const [editId, setEditId] = useState(null);
       const scrollPositions = React.useRef({});
       const pendingScroll = React.useRef(null);
+      const staffRole = staffData ? staffData.role : 'admin';
 
       const navigate = (v, id) => {
         scrollPositions.current[view] = window.scrollY;
@@ -720,16 +1039,22 @@
         }
       };
 
-      const navItems = [
-        { key: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4' },
-        { key: 'orders', label: 'Orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
-        { key: 'products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-        { key: 'vendors', label: 'Vendors', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-        { key: 'categories', label: 'Categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
-        { key: 'import', label: 'Import', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' },
-        { key: 'scrapers', label: 'Scrapers', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
-        { key: 'reps', label: 'Sales Reps', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+      const allNavItems = [
+        { key: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4', roles: ['admin', 'manager', 'sales_rep', 'warehouse'] },
+        { key: 'orders', label: 'Orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01', roles: ['admin', 'manager', 'sales_rep', 'warehouse'] },
+        { key: 'products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', roles: ['admin', 'manager'] },
+        { key: 'vendors', label: 'Vendors', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', roles: ['admin', 'manager'] },
+        { key: 'categories', label: 'Categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z', roles: ['admin', 'manager'] },
+        { key: 'import', label: 'Import', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12', roles: ['admin', 'manager'] },
+        { key: 'scrapers', label: 'Scrapers', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9', roles: ['admin', 'manager'] },
+        { key: 'reps', label: 'Sales Reps', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', roles: ['admin', 'manager'] },
+        { key: 'trade', label: 'Trade', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'manager', 'sales_rep'] },
+        { key: 'promos', label: 'Promo Codes', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4zM17 3h2a2 2 0 012 2v2', roles: ['admin', 'manager'] },
+        { key: 'staff', label: 'Staff', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', roles: ['admin'] },
+        { key: 'audit', label: 'Audit Log', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4', roles: ['admin', 'manager'] },
       ];
+
+      const navItems = allNavItems.filter(item => item.roles.includes(staffRole));
 
       const activeBase = view.split('-')[0] === 'product' ? 'products' :
                           view.split('-')[0] === 'vendor' ? 'vendors' :
@@ -737,12 +1062,16 @@
                           view.split('-')[0] === 'order' ? 'orders' :
                           view.split('-')[0] === 'import' ? 'import' :
                           view.split('-')[0] === 'scraper' || view === 'scrapers' ? 'scrapers' :
-                          view.split('-')[0] === 'rep' || view === 'reps' ? 'reps' : view;
+                          view.split('-')[0] === 'rep' || view === 'reps' ? 'reps' :
+                          view.split('-')[0] === 'promo' || view === 'promos' ? 'promos' :
+                          view.split('-')[0] === 'trade' ? 'trade' :
+                          view.split('-')[0] === 'staff' ? 'staff' :
+                          view === 'audit' ? 'audit' : view;
 
       return (
         <div className="admin-layout">
           <div className="admin-sidebar">
-            <div className="sidebar-logo">Atelier Surfaces</div>
+            <div className="sidebar-logo">Roma Flooring</div>
             <div className="sidebar-subtitle">Admin Panel</div>
             <div className="sidebar-nav">
               {navItems.map(item => (
@@ -759,6 +1088,10 @@
               ))}
             </div>
             <div className="sidebar-logout">
+              {staffData && <div style={{ padding: '0 1.5rem 0.75rem', fontSize: '0.75rem', color: 'var(--stone-500)' }}>
+                {staffData.first_name} {staffData.last_name}
+                <br /><span style={{ textTransform: 'capitalize' }}>{(staffData.role || '').replace('_', ' ')}</span>
+              </div>}
               <div className="sidebar-item" onClick={onLogout}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -789,6 +1122,14 @@
             {view === 'reps' && <RepsListView navigate={navigate} />}
             {view === 'rep-create' && <RepFormView navigate={navigate} />}
             {view === 'rep-edit' && <RepFormView navigate={navigate} editId={editId} />}
+            {view === 'trade' && <TradeManagementView navigate={navigate} />}
+            {view === 'staff' && <StaffListView navigate={navigate} />}
+            {view === 'staff-create' && <StaffFormView navigate={navigate} />}
+            {view === 'staff-edit' && <StaffFormView navigate={navigate} editId={editId} />}
+            {view === 'promos' && <PromoCodesListView navigate={navigate} />}
+            {view === 'promo-create' && <PromoCodeFormView navigate={navigate} />}
+            {view === 'promo-edit' && <PromoCodeFormView navigate={navigate} editId={editId} />}
+            {view === 'audit' && <AuditLogView navigate={navigate} />}
           </div>
         </div>
       );
@@ -797,19 +1138,114 @@
     // ========== DashboardView ==========
     function DashboardView({ navigate }) {
       const [stats, setStats] = useState(null);
+      const [period, setPeriod] = useState('30d');
+      const [analytics, setAnalytics] = useState(null);
+      const [analyticsLoading, setAnalyticsLoading] = useState(true);
+      const revenueChartRef = React.useRef(null);
+      const revenueChartInstance = React.useRef(null);
+      const statusChartRef = React.useRef(null);
+      const statusChartInstance = React.useRef(null);
 
       useEffect(() => {
         adminFetch('/api/admin/stats').then(setStats).catch(() => {});
       }, []);
 
+      useEffect(() => {
+        setAnalyticsLoading(true);
+        adminFetch(`/api/admin/analytics?period=${period}`)
+          .then(data => { setAnalytics(data); setAnalyticsLoading(false); })
+          .catch(() => setAnalyticsLoading(false));
+      }, [period]);
+
+      // Revenue line chart
+      useEffect(() => {
+        if (!analytics || !revenueChartRef.current) return;
+        if (revenueChartInstance.current) revenueChartInstance.current.destroy();
+        const ctx = revenueChartRef.current.getContext('2d');
+        const data = analytics.revenue_over_time || [];
+        revenueChartInstance.current = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: data.map(d => d.date),
+            datasets: [{
+              label: 'Revenue',
+              data: data.map(d => d.revenue),
+              borderColor: '#b8960c',
+              backgroundColor: 'rgba(184, 150, 12, 0.08)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: data.length > 60 ? 0 : 3,
+              pointBackgroundColor: '#b8960c'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) {
+                    const idx = ctx.dataIndex;
+                    const rev = '$' + ctx.parsed.y.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const orders = data[idx] ? data[idx].order_count : 0;
+                    return [rev, orders + ' order' + (orders !== 1 ? 's' : '')];
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { callback: v => '$' + v.toLocaleString() }
+              }
+            }
+          }
+        });
+        return () => { if (revenueChartInstance.current) revenueChartInstance.current.destroy(); };
+      }, [analytics]);
+
+      // Order status donut chart
+      useEffect(() => {
+        if (!analytics || !statusChartRef.current) return;
+        if (statusChartInstance.current) statusChartInstance.current.destroy();
+        const ctx = statusChartRef.current.getContext('2d');
+        const data = analytics.order_status || [];
+        const colorMap = {
+          pending: '#a8a29e', confirmed: '#c9a668', shipped: '#6b8f71',
+          delivered: '#16a34a', cancelled: '#dc2626', draft: '#d6d3d1'
+        };
+        statusChartInstance.current = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: data.map(d => d.status),
+            datasets: [{
+              data: data.map(d => d.count),
+              backgroundColor: data.map(d => colorMap[d.status] || '#78716c'),
+              borderWidth: 2,
+              borderColor: '#fff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16, font: { size: 11 } } }
+            }
+          }
+        });
+        return () => { if (statusChartInstance.current) statusChartInstance.current.destroy(); };
+      }, [analytics]);
+
       if (!stats) return <div className="loading">Loading dashboard...</div>;
 
-      const cards = [
-        { label: 'Orders', value: stats.counts.orders },
-        { label: 'Products', value: stats.counts.products },
-        { label: 'Vendors', value: stats.counts.vendors },
-        { label: 'Categories', value: stats.counts.categories },
-        { label: 'SKUs', value: stats.counts.skus },
+      const fmtMoney = v => '$' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      const periods = [
+        { key: '30d', label: '30 Days' },
+        { key: '90d', label: '90 Days' },
+        { key: '12m', label: '12 Months' },
+        { key: 'all', label: 'All Time' }
       ];
 
       return (
@@ -817,14 +1253,145 @@
           <div className="content-header">
             <h1>Dashboard</h1>
           </div>
-          <div className="stat-grid">
-            {cards.map(c => (
+
+          {/* Period selector */}
+          <div className="analytics-period-bar">
+            {periods.map(p => (
+              <button key={p.key} className={'period-btn' + (period === p.key ? ' active' : '')} onClick={() => setPeriod(p.key)}>{p.label}</button>
+            ))}
+          </div>
+
+          {/* Analytics summary cards */}
+          {analyticsLoading ? (
+            <div className="stat-grid"><div className="stat-card"><div className="stat-card-label">Loading analytics...</div></div></div>
+          ) : analytics ? (
+            <React.Fragment>
+              <div className="analytics-grid">
+                <div className="stat-card">
+                  <div className="stat-card-label">Revenue</div>
+                  <div className="stat-card-value">{fmtMoney(analytics.summary.revenue)}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-card-label">Orders</div>
+                  <div className="stat-card-value">{analytics.summary.orders}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-card-label">Avg Order Value</div>
+                  <div className="stat-card-value">{fmtMoney(analytics.summary.avg_order_value)}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-card-label">Margin</div>
+                  <div className="stat-card-value">{analytics.summary.margin_pct}%</div>
+                </div>
+              </div>
+
+              {/* Revenue over time chart */}
+              <div className="chart-container">
+                <h3>Revenue Over Time</h3>
+                {(analytics.revenue_over_time || []).length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '3rem' }}>No data for this period</div>
+                ) : (
+                  <div style={{ height: '300px' }}>
+                    <canvas ref={revenueChartRef}></canvas>
+                  </div>
+                )}
+              </div>
+
+              {/* Two column: Top Products + Order Status */}
+              <div className="analytics-two-col">
+                <div className="chart-container" style={{ marginBottom: 0 }}>
+                  <h3>Top Products</h3>
+                  {(analytics.top_products || []).length === 0 ? (
+                    <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No data for this period</div>
+                  ) : (
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Product</th>
+                          <th>Revenue</th>
+                          <th>Units</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {analytics.top_products.map((p, i) => (
+                          <tr key={p.product_id || i}>
+                            <td>{i + 1}</td>
+                            <td>{p.name || 'Unknown'}</td>
+                            <td>{fmtMoney(p.revenue)}</td>
+                            <td>{p.units_sold}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+                <div className="chart-container" style={{ marginBottom: 0 }}>
+                  <h3>Order Status</h3>
+                  {(analytics.order_status || []).length === 0 ? (
+                    <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No data for this period</div>
+                  ) : (
+                    <div style={{ height: '280px' }}>
+                      <canvas ref={statusChartRef}></canvas>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Vendor performance table */}
+              {(analytics.vendor_performance || []).length > 0 && (
+                <div className="chart-container">
+                  <h3>Vendor Performance</h3>
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Vendor</th>
+                        <th>Revenue</th>
+                        <th>Cost</th>
+                        <th>Margin %</th>
+                        <th>Margin</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analytics.vendor_performance.map(v => (
+                        <tr key={v.vendor_id}>
+                          <td>{v.name}</td>
+                          <td>{fmtMoney(v.revenue)}</td>
+                          <td>{fmtMoney(v.cost)}</td>
+                          <td>{v.margin_pct}%</td>
+                          <td>
+                            <span className="vendor-margin-bar">
+                              <span className="vendor-margin-bar-fill" style={{ width: Math.min(v.margin_pct, 100) + '%' }}></span>
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </React.Fragment>
+          ) : (
+            <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '3rem' }}>Failed to load analytics</div>
+          )}
+
+          {/* Existing inventory count cards */}
+          <div className="stat-grid" style={{ marginTop: '1rem' }}>
+            {[
+              { label: 'Orders', value: stats.counts.orders },
+              { label: 'Products', value: stats.counts.products },
+              { label: 'Vendors', value: stats.counts.vendors },
+              { label: 'Categories', value: stats.counts.categories },
+              { label: 'SKUs', value: stats.counts.skus },
+            ].map(c => (
               <div key={c.label} className="stat-card">
                 <div className="stat-card-label">{c.label}</div>
                 <div className="stat-card-value">{c.value}</div>
               </div>
             ))}
           </div>
+
+          {/* Recent Orders */}
           <div className="form-card">
             <h3>Recent Orders</h3>
             <table className="admin-table">
@@ -853,6 +1420,8 @@
               </tbody>
             </table>
           </div>
+
+          {/* Recent Products */}
           <div className="form-card">
             <h3>Recent Products</h3>
             <table className="admin-table">
@@ -1280,22 +1849,9 @@
             </div>
           </CollapsibleSection>
 
-          {editId && media.length > 0 && (
-            <CollapsibleSection title={`Images (${media.length})`} defaultOpen={true}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem', padding: '0.5rem 0' }}>
-                {media.map(m => (
-                  <div key={m.id} style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
-                    <img
-                      src={m.url}
-                      alt={m.asset_type}
-                      style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
-                    />
-                    <div style={{ padding: '0.375rem 0.5rem', fontSize: '0.7rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                      {m.asset_type}{m.sort_order > 0 ? ` #${m.sort_order}` : ''}
-                    </div>
-                  </div>
-                ))}
-              </div>
+          {editId && (
+            <CollapsibleSection title={`Media (${media.length})`} defaultOpen={true}>
+              <ProductMediaManager productId={editId} media={media} setMedia={setMedia} />
             </CollapsibleSection>
           )}
 
@@ -1396,6 +1952,209 @@
               </select>
             </div>
           </div>
+        </div>
+      );
+    }
+
+    // ========== ProductMediaManager ==========
+    function ProductMediaManager({ productId, media, setMedia }) {
+      const { useState, useRef, useCallback } = React;
+      const [uploading, setUploading] = useState(false);
+      const [urlInput, setUrlInput] = useState('');
+      const [addAssetType, setAddAssetType] = useState('alternate');
+      const [dragActive, setDragActive] = useState(false);
+      const [draggedId, setDraggedId] = useState(null);
+      const [deleteTarget, setDeleteTarget] = useState(null);
+      const fileInputRef = useRef(null);
+
+      const API = '';
+      const assetTypes = ['primary', 'alternate', 'lifestyle', 'detail', 'spec_pdf', 'swatch'];
+
+      const handleFiles = async (files) => {
+        setUploading(true);
+        for (const file of files) {
+          try {
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('asset_type', addAssetType);
+            const resp = await fetch(API + '/api/admin/products/' + productId + '/media/upload', {
+              method: 'POST',
+              headers: getAuthHeaders(),
+              body: fd
+            });
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data.media) setMedia(prev => [...prev, data.media]);
+            }
+          } catch (_) {}
+        }
+        setUploading(false);
+      };
+
+      const handleUrlSubmit = async () => {
+        if (!urlInput.trim()) return;
+        try {
+          const data = await adminFetch('/api/admin/products/' + productId + '/media/url', {
+            method: 'POST',
+            body: JSON.stringify({ url: urlInput.trim(), asset_type: addAssetType })
+          });
+          if (data.media) {
+            setMedia(prev => [...prev, data.media]);
+            setUrlInput('');
+          }
+        } catch (_) {}
+      };
+
+      const handleDelete = async (mediaId) => {
+        try {
+          await adminFetch('/api/admin/media/' + mediaId, { method: 'DELETE' });
+          setMedia(prev => prev.filter(m => m.id !== mediaId));
+          setDeleteTarget(null);
+        } catch (_) {}
+      };
+
+      const handleTypeChange = async (mediaId, newType) => {
+        try {
+          const data = await adminFetch('/api/admin/media/' + mediaId, {
+            method: 'PUT',
+            body: JSON.stringify({ asset_type: newType })
+          });
+          if (data.media) {
+            setMedia(prev => prev.map(m => m.id === mediaId ? data.media : m));
+          }
+        } catch (_) {}
+      };
+
+      const handleDragStart = (e, id) => {
+        setDraggedId(id);
+        e.dataTransfer.effectAllowed = 'move';
+      };
+
+      const handleDragOver = (e, targetId) => {
+        e.preventDefault();
+        if (!draggedId || draggedId === targetId) return;
+        setMedia(prev => {
+          const items = [...prev];
+          const fromIdx = items.findIndex(m => m.id === draggedId);
+          const toIdx = items.findIndex(m => m.id === targetId);
+          if (fromIdx < 0 || toIdx < 0) return prev;
+          const [moved] = items.splice(fromIdx, 1);
+          items.splice(toIdx, 0, moved);
+          return items;
+        });
+      };
+
+      const handleDrop = async (e) => {
+        e.preventDefault();
+        setDraggedId(null);
+        const order = media.map((m, i) => ({ id: m.id, sort_order: i }));
+        try {
+          const data = await adminFetch('/api/admin/products/' + productId + '/media/reorder', {
+            method: 'PATCH',
+            body: JSON.stringify({ order })
+          });
+          if (data.media) setMedia(data.media);
+        } catch (_) {}
+      };
+
+      const onZoneDragOver = (e) => { e.preventDefault(); setDragActive(true); };
+      const onZoneDragLeave = () => setDragActive(false);
+      const onZoneDrop = (e) => {
+        e.preventDefault();
+        setDragActive(false);
+        if (e.dataTransfer.files.length) handleFiles(Array.from(e.dataTransfer.files));
+      };
+
+      const isPdf = (url) => url && url.toLowerCase().endsWith('.pdf');
+
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {media.length > 0 ? (
+            <div className="media-grid">
+              {media.map(m => (
+                <div
+                  key={m.id}
+                  className={'media-card' + (draggedId === m.id ? ' dragging' : '')}
+                  draggable
+                  onDragStart={e => handleDragStart(e, m.id)}
+                  onDragOver={e => handleDragOver(e, m.id)}
+                  onDrop={handleDrop}
+                  onDragEnd={() => setDraggedId(null)}
+                >
+                  {isPdf(m.url) ? (
+                    <div style={{ width: '100%', height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--stone-100)', color: 'var(--stone-400)', fontSize: '0.75rem' }}>PDF</div>
+                  ) : (
+                    <img src={m.url} alt={m.asset_type} />
+                  )}
+                  <div className="media-card-info">
+                    <select
+                      value={m.asset_type}
+                      onChange={e => handleTypeChange(m.id, e.target.value)}
+                      style={{ width: '100%', fontSize: '0.7rem', padding: '0.2rem', marginBottom: '0.375rem', border: '1px solid var(--stone-200)', borderRadius: '4px' }}
+                    >
+                      {assetTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <div className="media-card-actions">
+                      <button onClick={() => window.open(m.url, '_blank')}>View</button>
+                      <button className="delete-btn" onClick={() => setDeleteTarget(m)}>Delete</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--stone-400)', fontSize: '0.875rem' }}>
+              No media yet. Upload files or paste URLs below.
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ fontSize: '0.8rem', color: 'var(--stone-600)' }}>Type for new uploads:</label>
+            <select
+              value={addAssetType}
+              onChange={e => setAddAssetType(e.target.value)}
+              style={{ fontSize: '0.8rem', padding: '0.3rem 0.5rem', border: '1px solid var(--stone-200)', borderRadius: '6px' }}
+            >
+              {assetTypes.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+
+          <div
+            className={'media-upload-zone' + (dragActive ? ' drag-active' : '')}
+            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+            onDragOver={onZoneDragOver}
+            onDragLeave={onZoneDragLeave}
+            onDrop={onZoneDrop}
+          >
+            {uploading ? 'Uploading...' : 'Drop images here or click to browse'}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".jpg,.jpeg,.png,.webp,.pdf"
+              style={{ display: 'none' }}
+              onChange={e => { if (e.target.files.length) handleFiles(Array.from(e.target.files)); e.target.value = ''; }}
+            />
+          </div>
+
+          <div className="media-url-form">
+            <input
+              value={urlInput}
+              onChange={e => setUrlInput(e.target.value)}
+              placeholder="Paste external image URL..."
+              onKeyDown={e => { if (e.key === 'Enter') handleUrlSubmit(); }}
+            />
+            <button className="btn btn-secondary btn-sm" onClick={handleUrlSubmit}>Add URL</button>
+          </div>
+
+          {deleteTarget && (
+            <DeleteConfirmModal
+              title="Delete Media"
+              message={`Delete this ${deleteTarget.asset_type} image? This cannot be undone.`}
+              onConfirm={() => handleDelete(deleteTarget.id)}
+              onCancel={() => setDeleteTarget(null)}
+            />
+          )}
         </div>
       );
     }
@@ -1712,6 +2471,11 @@
     function OrdersListView({ navigate }) {
       const [orders, setOrders] = useState([]);
       const [loading, setLoading] = useState(true);
+      const [statusGroup, setStatusGroup] = useState('open');
+      const [myOrders, setMyOrders] = useState(false);
+
+      const openStatuses = ['pending', 'confirmed', 'shipped'];
+      const closedStatuses = ['delivered', 'cancelled'];
 
       const load = () => {
         setLoading(true);
@@ -1721,12 +2485,33 @@
       };
       useEffect(load, []);
 
+      const staffData = JSON.parse(sessionStorage.getItem('staff_data') || 'null');
+      const isRepOrManager = staffData && (staffData.role === 'sales_rep' || staffData.role === 'manager');
+
+      const filtered = orders.filter(o => {
+        const inGroup = statusGroup === 'open' ? openStatuses.includes(o.status) : closedStatuses.includes(o.status);
+        if (!inGroup) return false;
+        if (myOrders && staffData) return o.sales_rep_id === staffData.id;
+        return true;
+      });
+
       if (loading) return <div className="loading">Loading orders...</div>;
 
       return (
         <div>
           <div className="content-header">
             <h1>Orders</h1>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
+            <button className={statusGroup === 'open' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setStatusGroup('open')}>Open</button>
+            <button className={statusGroup === 'closed' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setStatusGroup('closed')}>Closed</button>
+            {isRepOrManager && (
+              <label style={{ marginLeft: '1rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8125rem', color: 'var(--stone-600)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={myOrders} onChange={e => setMyOrders(e.target.checked)} />
+                My Orders
+              </label>
+            )}
+            <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>{filtered.length} order{filtered.length !== 1 ? 's' : ''}</span>
           </div>
           <table className="admin-table">
             <thead>
@@ -1743,7 +2528,7 @@
               </tr>
             </thead>
             <tbody>
-              {orders.map(o => (
+              {filtered.map(o => (
                 <tr key={o.id}>
                   <td style={{ fontWeight: 500 }}>{o.order_number}</td>
                   <td>{o.customer_name}</td>
@@ -1758,8 +2543,8 @@
                   </td>
                 </tr>
               ))}
-              {orders.length === 0 && (
-                <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No orders found</td></tr>
+              {filtered.length === 0 && (
+                <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No {statusGroup} orders found</td></tr>
               )}
             </tbody>
           </table>
@@ -1777,6 +2562,8 @@
       const [purchaseOrders, setPurchaseOrders] = useState([]);
       const [posLoading, setPosLoading] = useState(false);
       const [poUpdating, setPoUpdating] = useState(false);
+      const [showTrackingForm, setShowTrackingForm] = useState(false);
+      const [trackingData, setTrackingData] = useState({ tracking_number: '', carrier: '', shipped_at: new Date().toISOString().slice(0, 10) });
 
       const loadPOs = () => {
         if (!editId) return;
@@ -1813,13 +2600,26 @@
       };
 
       const updateStatus = (newStatus) => {
+        // For shipping orders being marked shipped, show tracking form first
+        if (newStatus === 'shipped' && order.delivery_method === 'shipping' && !showTrackingForm) {
+          setShowTrackingForm(true);
+          return;
+        }
         setUpdating(true);
+        const body = { status: newStatus };
+        if (newStatus === 'shipped' && showTrackingForm) {
+          body.tracking_number = trackingData.tracking_number;
+          body.carrier = trackingData.carrier;
+          body.shipped_at = trackingData.shipped_at;
+        }
         adminFetch('/api/admin/orders/' + editId + '/status', {
           method: 'PUT',
-          body: JSON.stringify({ status: newStatus })
+          body: JSON.stringify(body)
         })
           .then(data => {
             if (data.order) setOrder(data.order);
+            setShowTrackingForm(false);
+            setTrackingData({ tracking_number: '', carrier: '', shipped_at: new Date().toISOString().slice(0, 10) });
             setUpdating(false);
           })
           .catch(() => setUpdating(false));
@@ -1853,19 +2653,70 @@
 
           <div className="form-card">
             <h3>Order Status</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
               <span className={'badge badge-' + order.status} style={{ fontSize: '0.8125rem', padding: '0.35rem 0.85rem' }}>{order.status}</span>
-              {nextStatus && (
+              {!showTrackingForm && nextStatus && (
                 <button className="btn btn-primary btn-sm" onClick={() => updateStatus(nextStatus)} disabled={updating}>
                   {updating ? 'Updating...' : 'Mark ' + nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}
                 </button>
               )}
-              {canCancel && (
+              {!showTrackingForm && canCancel && (
                 <button className="btn btn-danger btn-sm" onClick={() => updateStatus('cancelled')} disabled={updating}>
                   Cancel Order
                 </button>
               )}
+              <button className="btn btn-secondary btn-sm" onClick={() => {
+                const token = sessionStorage.getItem('staff_token');
+                window.open(API + '/api/staff/orders/' + editId + '/packing-slip?token=' + encodeURIComponent(token), '_blank');
+              }}>
+                Generate Packing Slip
+              </button>
             </div>
+
+            {showTrackingForm && (
+              <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '6px' }}>
+                <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--stone-700)' }}>Shipment Details</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Carrier *</label>
+                    <select className="form-control" value={trackingData.carrier} onChange={e => setTrackingData({ ...trackingData, carrier: e.target.value })} style={{ fontSize: '0.8125rem' }}>
+                      <option value="">Select carrier...</option>
+                      <option>UPS</option>
+                      <option>FedEx</option>
+                      <option>USPS</option>
+                      <option>FedEx Freight</option>
+                      <option>XPO Logistics</option>
+                      <option>R+L Carriers</option>
+                      <option>SAIA</option>
+                      <option>Old Dominion</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Tracking Number *</label>
+                    <input className="form-control" type="text" placeholder="Enter tracking number" value={trackingData.tracking_number} onChange={e => setTrackingData({ ...trackingData, tracking_number: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Ship Date</label>
+                    <input className="form-control" type="date" value={trackingData.shipped_at} onChange={e => setTrackingData({ ...trackingData, shipped_at: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                  </div>
+                </div>
+                <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-primary btn-sm" onClick={() => updateStatus('shipped')} disabled={updating || !trackingData.carrier || !trackingData.tracking_number}>
+                    {updating ? 'Submitting...' : 'Confirm Shipment'}
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setShowTrackingForm(false)}>Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {order.tracking_number && (
+              <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '1.5rem', fontSize: '0.8125rem' }}>
+                <div><strong style={{ color: 'var(--stone-500)' }}>Tracking:</strong> {order.tracking_number}</div>
+                {order.shipping_carrier && <div><strong style={{ color: 'var(--stone-500)' }}>Carrier:</strong> {order.shipping_carrier}</div>}
+                {order.shipped_at && <div><strong style={{ color: 'var(--stone-500)' }}>Shipped:</strong> {new Date(order.shipped_at).toLocaleDateString()}</div>}
+              </div>
+            )}
           </div>
 
           <div className="form-card">
@@ -1914,7 +2765,7 @@
                 <div className="order-info-grid">
                   <div className="order-info-item" style={{ gridColumn: '1 / -1' }}>
                     <span>
-                      <strong>Atelier Surfaces</strong><br />
+                      <strong>Roma Flooring Designs</strong><br />
                       1440 S. State College Blvd., Suite 6M<br />
                       Anaheim, CA 92806
                     </span>
@@ -2075,6 +2926,12 @@
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem' }}>
                   <span>Sample Shipping</span>
                   <span>${parseFloat(order.sample_shipping).toFixed(2)}</span>
+                </div>
+              )}
+              {parseFloat(order.discount_amount || 0) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem', color: '#16a34a' }}>
+                  <span>Discount{order.promo_code ? ` (${order.promo_code})` : ''}</span>
+                  <span>-${parseFloat(order.discount_amount).toFixed(2)}</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 0', fontSize: '1rem', fontWeight: 600, borderTop: '2px solid var(--stone-200)', marginTop: '0.5rem' }}>
@@ -3202,6 +4059,1075 @@
               </span>
             </div>
           )}
+        </div>
+      );
+    }
+
+    // ========== Trade Management ==========
+    function TradeManagementView({ navigate }) {
+      const [tab, setTab] = useState('customers');
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Trade Program</h1>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+            <button className={tab === 'customers' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setTab('customers')}>
+              Trade Customers
+            </button>
+            <button className={tab === 'tiers' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setTab('tiers')}>
+              Margin Tiers
+            </button>
+          </div>
+          {tab === 'customers' && <TradeCustomersTab />}
+          {tab === 'tiers' && <MarginTiersTab />}
+        </div>
+      );
+    }
+
+    function MarginTiersTab() {
+      const [tiers, setTiers] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [showForm, setShowForm] = useState(false);
+      const [editTier, setEditTier] = useState(null);
+      const [name, setName] = useState('');
+      const [discountPercent, setDiscountPercent] = useState('');
+      const [saving, setSaving] = useState(false);
+
+      const fetchTiers = () => {
+        adminFetch('/api/admin/margin-tiers')
+          .then(data => { setTiers(data.tiers || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+
+      useEffect(() => { fetchTiers(); }, []);
+
+      const openCreate = () => {
+        setEditTier(null);
+        setName('');
+        setDiscountPercent('');
+        setShowForm(true);
+      };
+
+      const openEdit = (tier) => {
+        setEditTier(tier);
+        setName(tier.name);
+        setDiscountPercent(tier.discount_percent);
+        setShowForm(true);
+      };
+
+      const handleSave = async () => {
+        setSaving(true);
+        try {
+          if (editTier) {
+            await adminFetch('/api/admin/margin-tiers/' + editTier.id, {
+              method: 'PUT',
+              body: JSON.stringify({ name, discount_percent: parseFloat(discountPercent) })
+            });
+          } else {
+            await adminFetch('/api/admin/margin-tiers', {
+              method: 'POST',
+              body: JSON.stringify({ name, discount_percent: parseFloat(discountPercent) })
+            });
+          }
+          setShowForm(false);
+          fetchTiers();
+        } catch (err) {
+          alert(err.message || 'Error saving tier');
+        }
+        setSaving(false);
+      };
+
+      const handleDelete = async (tier) => {
+        if (!confirm(`Delete tier "${tier.name}"?`)) return;
+        try {
+          await adminFetch('/api/admin/margin-tiers/' + tier.id, { method: 'DELETE' });
+          fetchTiers();
+        } catch (err) {
+          alert(err.message || 'Cannot delete tier');
+        }
+      };
+
+      if (loading) return <div className="loading">Loading tiers...</div>;
+
+      return (
+        <div>
+          <div style={{ marginBottom: '1rem' }}>
+            <button className="btn btn-primary" onClick={openCreate}>+ Add Tier</button>
+          </div>
+
+          {showForm && (
+            <div className="form-card" style={{ marginBottom: '1.5rem' }}>
+              <h3>{editTier ? 'Edit Tier' : 'New Margin Tier'}</h3>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Tier Name</label>
+                  <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Silver" />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Discount %</label>
+                  <input type="number" step="0.01" min="0" max="100" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} placeholder="e.g. 10" />
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-primary" onClick={handleSave} disabled={saving || !name || !discountPercent}>
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Tier Name</th>
+                <th>Discount</th>
+                <th>Customers</th>
+                <th>Example ($10.00 retail)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tiers.length === 0 ? (
+                <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>No margin tiers yet</td></tr>
+              ) : tiers.map(t => (
+                <tr key={t.id}>
+                  <td><strong>{t.name}</strong></td>
+                  <td>{parseFloat(t.discount_percent).toFixed(1)}%</td>
+                  <td>{t.customer_count}</td>
+                  <td>${(10 * (1 - parseFloat(t.discount_percent) / 100)).toFixed(2)}</td>
+                  <td>
+                    <button className="btn-link" onClick={() => openEdit(t)}>Edit</button>
+                    <button className="btn-link btn-link-danger" onClick={() => handleDelete(t)} style={{ marginLeft: '0.5rem' }}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    function TradeCustomersTab() {
+      const [customers, setCustomers] = useState([]);
+      const [tiers, setTiers] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [statusFilter, setStatusFilter] = useState('');
+      const [expandedId, setExpandedId] = useState(null);
+      const [docs, setDocs] = useState([]);
+      const [docsLoading, setDocsLoading] = useState(false);
+      const [denialReason, setDenialReason] = useState('');
+      const [actionLoading, setActionLoading] = useState(false);
+      const [reps, setReps] = useState([]);
+
+      const fetchCustomers = () => {
+        let url = '/api/admin/trade-customers';
+        if (statusFilter) url += '?status=' + statusFilter;
+        adminFetch(url)
+          .then(data => { setCustomers(data.customers || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+
+      const fetchTiers = () => {
+        adminFetch('/api/admin/margin-tiers')
+          .then(data => setTiers(data.tiers || []))
+          .catch(() => {});
+      };
+
+      const fetchReps = () => {
+        adminFetch('/api/admin/staff')
+          .then(data => setReps((data.staff || []).filter(s => ['sales_rep', 'manager'].includes(s.role) && s.is_active)))
+          .catch(() => {});
+      };
+
+      useEffect(() => { fetchTiers(); fetchReps(); }, []);
+      useEffect(() => { fetchCustomers(); }, [statusFilter]);
+
+      const loadDocs = (customerId) => {
+        setDocsLoading(true);
+        adminFetch('/api/admin/trade-customers/' + customerId + '/documents')
+          .then(data => { setDocs(data.documents || []); setDocsLoading(false); })
+          .catch(() => { setDocs([]); setDocsLoading(false); });
+      };
+
+      const toggleExpand = (id) => {
+        if (expandedId === id) { setExpandedId(null); return; }
+        setExpandedId(id);
+        setDenialReason('');
+        loadDocs(id);
+      };
+
+      const approveCustomer = async (id) => {
+        if (!confirm('Approve this trade customer? A $99/year Stripe subscription will be created.')) return;
+        setActionLoading(true);
+        try {
+          await adminFetch('/api/admin/trade-customers/' + id + '/approve', { method: 'POST' });
+          fetchCustomers();
+          setExpandedId(null);
+        } catch (err) {
+          alert(err.message || 'Error approving customer');
+        }
+        setActionLoading(false);
+      };
+
+      const denyCustomer = async (id) => {
+        if (!confirm('Deny this trade application?')) return;
+        setActionLoading(true);
+        try {
+          await adminFetch('/api/admin/trade-customers/' + id + '/deny', {
+            method: 'POST',
+            body: JSON.stringify({ reason: denialReason })
+          });
+          fetchCustomers();
+          setExpandedId(null);
+        } catch (err) {
+          alert(err.message || 'Error denying customer');
+        }
+        setActionLoading(false);
+      };
+
+      const updateCustomer = async (id, updates) => {
+        try {
+          await adminFetch('/api/admin/trade-customers/' + id, {
+            method: 'PUT',
+            body: JSON.stringify(updates)
+          });
+          fetchCustomers();
+        } catch (err) {
+          alert(err.message || 'Error updating customer');
+        }
+      };
+
+      const deleteCustomer = async (id, name) => {
+        if (!confirm(`Delete trade customer "${name}"? This cannot be undone.`)) return;
+        try {
+          await adminFetch('/api/admin/trade-customers/' + id, { method: 'DELETE' });
+          fetchCustomers();
+        } catch (err) {
+          alert(err.message || 'Error deleting customer');
+        }
+      };
+
+      const assignRep = async (customerId, repId) => {
+        try {
+          await adminFetch('/api/admin/trade-customers/' + customerId + '/assign-rep', {
+            method: 'PUT',
+            body: JSON.stringify({ rep_id: repId || null, reason: 'Manual assignment from admin' })
+          });
+          fetchCustomers();
+        } catch (err) {
+          alert(err.message || 'Error assigning rep');
+        }
+      };
+
+      const statusBadge = (status) => {
+        const cls = status === 'approved' ? 'badge-active' : status === 'pending' ? 'badge-pending' : 'badge-inactive';
+        return <span className={'badge ' + cls}>{status}</span>;
+      };
+
+      const docTypeLabel = (t) => ({ ein: 'EIN Certificate', resale_cert: 'Resale Certificate', contractor_license: 'Contractor License' }[t] || t);
+
+      if (loading) return <div className="loading">Loading trade customers...</div>;
+
+      return (
+        <div>
+          <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <label style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>Filter by status:</label>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }}>
+              <option value="">All</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Company</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Tier</th>
+                <th>Applied</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {customers.length === 0 ? (
+                <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>No trade customers found</td></tr>
+              ) : customers.map(c => (
+                <React.Fragment key={c.id}>
+                  <tr style={{ cursor: 'pointer' }} onClick={() => toggleExpand(c.id)}>
+                    <td><strong>{c.company_name}</strong></td>
+                    <td>{c.contact_name}</td>
+                    <td>{c.email}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', textTransform: 'capitalize' }}>{(c.business_type || '').replace('_', ' ') || '\u2014'}</td>
+                    <td>{statusBadge(c.status)}</td>
+                    <td>
+                      <select value={c.margin_tier_id || ''} onClick={e => e.stopPropagation()} onChange={e => updateCustomer(c.id, { margin_tier_id: e.target.value || null })}
+                        style={{ padding: '0.3rem 0.4rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' }}>
+                        <option value="">No tier</option>
+                        {tiers.map(t => <option key={t.id} value={t.id}>{t.name} ({parseFloat(t.discount_percent).toFixed(0)}%)</option>)}
+                      </select>
+                    </td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
+                      {new Date(c.created_at).toLocaleDateString()}
+                    </td>
+                    <td onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        {c.status === 'pending' && (
+                          <>
+                            <button className="btn-link" onClick={() => approveCustomer(c.id)} disabled={actionLoading}>Approve</button>
+                            <button className="btn-link btn-link-danger" onClick={() => { setExpandedId(c.id); loadDocs(c.id); }}>Review</button>
+                          </>
+                        )}
+                        {c.status === 'approved' && (
+                          <button className="btn-link btn-link-danger" onClick={() => updateCustomer(c.id, { status: 'rejected' })}>Revoke</button>
+                        )}
+                        {c.status === 'rejected' && (
+                          <button className="btn-link" onClick={() => approveCustomer(c.id)} disabled={actionLoading}>Approve</button>
+                        )}
+                        <button className="btn-link btn-link-danger" onClick={() => deleteCustomer(c.id, c.company_name)}>Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                  {expandedId === c.id && (
+                    <tr><td colSpan="8" style={{ background: 'var(--stone-50)', padding: '1.5rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                        <div>
+                          <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem' }}>Documents</h4>
+                          {docsLoading ? <div>Loading documents...</div> : docs.length === 0 ? <div style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>No documents uploaded</div> : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              {docs.map(d => (
+                                <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', background: 'white', border: '1px solid var(--stone-200)', fontSize: '0.8125rem' }}>
+                                  <div>
+                                    <strong>{docTypeLabel(d.doc_type)}</strong>
+                                    <div style={{ color: 'var(--stone-400)', fontSize: '0.75rem' }}>{d.file_name} — {(d.file_size / 1024).toFixed(0)} KB</div>
+                                  </div>
+                                  {d.url && <a href={d.url} target="_blank" rel="noopener" style={{ color: 'var(--gold)', fontWeight: 500, fontSize: '0.8125rem' }}>View</a>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {c.subscription_status && (
+                            <div style={{ marginTop: '1rem', fontSize: '0.8125rem' }}>
+                              <strong>Subscription:</strong> {c.subscription_status}
+                              {c.subscription_expires_at && <span> — expires {new Date(c.subscription_expires_at).toLocaleDateString()}</span>}
+                            </div>
+                          )}
+                          {c.total_spend !== undefined && (
+                            <div style={{ marginTop: '0.5rem', fontSize: '0.8125rem' }}>
+                              <strong>Total Spend:</strong> ${parseFloat(c.total_spend || 0).toLocaleString()}
+                            </div>
+                          )}
+                          <div style={{ marginTop: '1rem', fontSize: '0.8125rem' }}>
+                            <strong>Assigned Rep:</strong>{' '}
+                            <select value={c.assigned_rep_id || ''} onChange={e => assignRep(c.id, e.target.value)}
+                              style={{ padding: '0.3rem 0.4rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem', marginLeft: '0.25rem' }}>
+                              <option value="">Unassigned</option>
+                              {reps.map(r => <option key={r.id} value={r.id}>{r.first_name} {r.last_name}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                        <div>
+                          {c.status === 'pending' && (
+                            <>
+                              <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem' }}>Actions</h4>
+                              <div style={{ marginBottom: '1rem' }}>
+                                <button className="btn btn-primary btn-sm" onClick={() => approveCustomer(c.id)} disabled={actionLoading} style={{ marginRight: '0.5rem' }}>
+                                  {actionLoading ? 'Processing...' : 'Approve & Create Subscription'}
+                                </button>
+                              </div>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>Denial Reason (optional)</label>
+                                <textarea value={denialReason} onChange={e => setDenialReason(e.target.value)}
+                                  style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif', minHeight: '60px', resize: 'vertical' }}
+                                  placeholder="Reason for denial..." />
+                                <button className="btn btn-danger btn-sm" onClick={() => denyCustomer(c.id)} disabled={actionLoading} style={{ marginTop: '0.5rem' }}>
+                                  Deny Application
+                                </button>
+                              </div>
+                            </>
+                          )}
+                          {c.denial_reason && (
+                            <div style={{ marginTop: '1rem', fontSize: '0.8125rem' }}>
+                              <strong>Denial Reason:</strong> {c.denial_reason}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </td></tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    // ========== StaffListView ==========
+    function StaffListView({ navigate }) {
+      const [staff, setStaff] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      const fetchStaff = () => {
+        adminFetch('/api/admin/staff')
+          .then(data => { setStaff(data.staff || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+
+      useEffect(fetchStaff, []);
+
+      const toggleActive = (id) => {
+        adminFetch('/api/admin/staff/' + id + '/toggle', { method: 'PATCH' })
+          .then(() => fetchStaff())
+          .catch(err => alert(err.message));
+      };
+
+      const terminateStaff = async (s) => {
+        if (!confirm(`Terminate "${s.first_name} ${s.last_name}"? This will deactivate their account and unassign all their trade customers.`)) return;
+        try {
+          const data = await adminFetch('/api/admin/staff/' + s.id + '/terminate', { method: 'PATCH' });
+          let msg = `${data.terminated.name} has been terminated.`;
+          if (data.freed_customers.length > 0) {
+            msg += ` ${data.freed_customers.length} customer(s) unassigned.`;
+            if (data.recommended_rep) msg += ` Recommended reassignment: ${data.recommended_rep.name}`;
+          }
+          alert(msg);
+          fetchStaff();
+        } catch (err) {
+          alert(err.message || 'Error terminating staff');
+        }
+      };
+
+      const roleLabels = { admin: 'Admin', manager: 'Manager', sales_rep: 'Sales Rep', warehouse: 'Warehouse' };
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Staff Accounts</h1>
+            <button className="btn btn-primary" onClick={() => navigate('staff-create')}>Add Staff</button>
+          </div>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>Loading...</td></tr>
+              ) : staff.length === 0 ? (
+                <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-500)' }}>No staff accounts</td></tr>
+              ) : staff.map(s => (
+                <tr key={s.id}>
+                  <td><strong>{s.first_name} {s.last_name}</strong></td>
+                  <td>{s.email}</td>
+                  <td><span className={'status-badge status-' + (s.role === 'admin' ? 'active' : s.role === 'manager' ? 'confirmed' : 'draft')}>{roleLabels[s.role] || s.role}</span></td>
+                  <td><span className={'status-badge status-' + (s.is_active ? 'active' : 'draft')}>{s.is_active ? 'Active' : 'Inactive'}</span></td>
+                  <td>{new Date(s.created_at).toLocaleDateString()}</td>
+                  <td>
+                    <button className="btn-link" onClick={() => navigate('staff-edit', s.id)}>Edit</button>
+                    <button className="btn-link" onClick={() => toggleActive(s.id)} style={{ marginLeft: '0.5rem' }}>{s.is_active ? 'Deactivate' : 'Activate'}</button>
+                    {s.is_active && ['sales_rep', 'manager'].includes(s.role) && (
+                      <button className="btn-link btn-link-danger" onClick={() => terminateStaff(s)} style={{ marginLeft: '0.5rem' }}>Terminate</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    // ========== StaffFormView ==========
+    function StaffFormView({ navigate, editId }) {
+      const [form, setForm] = useState({ email: '', first_name: '', last_name: '', phone: '', role: 'sales_rep', password: '' });
+      const [loading, setLoading] = useState(!!editId);
+      const [saving, setSaving] = useState(false);
+      const [error, setError] = useState('');
+      const [assignedCustomers, setAssignedCustomers] = useState([]);
+
+      useEffect(() => {
+        if (editId) {
+          adminFetch('/api/admin/staff')
+            .then(data => {
+              const s = (data.staff || []).find(x => x.id === editId);
+              if (s) setForm({ email: s.email, first_name: s.first_name, last_name: s.last_name, phone: s.phone || '', role: s.role, password: '' });
+              setLoading(false);
+            })
+            .catch(() => setLoading(false));
+          // Load assigned customers for reps/managers
+          adminFetch('/api/admin/trade-customers')
+            .then(data => setAssignedCustomers((data.customers || []).filter(c => c.assigned_rep_id === editId)))
+            .catch(() => {});
+        }
+      }, [editId]);
+
+      const handleSave = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        setError('');
+        try {
+          if (editId) {
+            const payload = { email: form.email, first_name: form.first_name, last_name: form.last_name, phone: form.phone || null, role: form.role };
+            await adminFetch('/api/admin/staff/' + editId, { method: 'PUT', body: JSON.stringify(payload) });
+            if (form.password) {
+              await adminFetch('/api/admin/staff/' + editId + '/password', { method: 'PUT', body: JSON.stringify({ password: form.password }) });
+            }
+          } else {
+            if (!form.password) { setError('Password is required'); setSaving(false); return; }
+            await adminFetch('/api/admin/staff', { method: 'POST', body: JSON.stringify(form) });
+          }
+          navigate('staff');
+        } catch (err) {
+          setError(err.message || 'Failed to save');
+          setSaving(false);
+        }
+      };
+
+      if (loading) return <div className="loading">Loading...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>{editId ? 'Edit Staff Member' : 'Add Staff Member'}</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('staff')}>Back</button>
+          </div>
+          <div className="form-card" style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '2rem', maxWidth: '600px' }}>
+            {error && <div className="auth-error">{error}</div>}
+            <form onSubmit={handleSave}>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>First Name *</label>
+                <input style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} required />
+              </div>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>Last Name *</label>
+                <input style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} required />
+              </div>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>Email *</label>
+                <input type="email" style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
+              </div>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>Phone</label>
+                <input style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+              </div>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>Role *</label>
+                <select style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
+                  <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
+                  <option value="sales_rep">Sales Rep</option>
+                  <option value="warehouse">Warehouse</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>{editId ? 'New Password (leave blank to keep)' : 'Password *'}</label>
+                <input type="password" style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} {...(!editId ? { required: true } : {})} />
+              </div>
+              <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : (editId ? 'Update' : 'Create')}</button>
+            </form>
+          </div>
+          {editId && assignedCustomers.length > 0 && (
+            <div style={{ marginTop: '2rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Assigned Trade Customers ({assignedCustomers.length})</h3>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Company</th>
+                    <th>Contact</th>
+                    <th>Status</th>
+                    <th>Tier</th>
+                    <th>Total Spend</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assignedCustomers.map(c => (
+                    <tr key={c.id}>
+                      <td><strong>{c.company_name}</strong></td>
+                      <td>{c.contact_name}</td>
+                      <td><span className={'badge badge-' + (c.status === 'approved' ? 'active' : c.status === 'pending' ? 'pending' : 'inactive')}>{c.status}</span></td>
+                      <td>{c.tier_name || '\u2014'}</td>
+                      <td>${parseFloat(c.total_spend || 0).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== PromoCodesListView ==========
+    function PromoCodesListView({ navigate }) {
+      const [codes, setCodes] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      const load = () => {
+        setLoading(true);
+        adminFetch('/api/admin/promo-codes')
+          .then(data => { setCodes(data.promo_codes || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      useEffect(load, []);
+
+      const toggleActive = (id) => {
+        adminFetch('/api/admin/promo-codes/' + id + '/toggle', { method: 'PATCH' })
+          .then(data => {
+            if (data.promo_code) {
+              setCodes(prev => prev.map(c => c.id === id ? { ...c, is_active: data.promo_code.is_active } : c));
+            }
+          })
+          .catch(() => {});
+      };
+
+      if (loading) return <div className="loading">Loading promo codes...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Promo Codes</h1>
+            <button className="btn btn-primary" onClick={() => navigate('promo-create')}>+ Create Promo Code</button>
+          </div>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Discount</th>
+                <th>Min Order</th>
+                <th>Uses</th>
+                <th>Expires</th>
+                <th>Active</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {codes.map(c => (
+                <tr key={c.id}>
+                  <td>
+                    <code style={{ fontSize: '0.8125rem', background: 'var(--stone-100)', padding: '0.15rem 0.4rem', fontWeight: 600 }}>{c.code}</code>
+                    {c.description && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.15rem' }}>{c.description}</div>}
+                  </td>
+                  <td style={{ fontWeight: 500 }}>
+                    {c.discount_type === 'percent' ? parseFloat(c.discount_value) + '%' : '$' + parseFloat(c.discount_value).toFixed(2)}
+                  </td>
+                  <td>{parseFloat(c.min_order_amount || 0) > 0 ? '$' + parseFloat(c.min_order_amount).toFixed(2) : '—'}</td>
+                  <td>
+                    {c.usage_count || 0}{c.max_uses ? ' / ' + c.max_uses : ''}
+                    {c.max_uses_per_customer && <div style={{ fontSize: '0.7rem', color: 'var(--stone-500)' }}>Max {c.max_uses_per_customer}/customer</div>}
+                  </td>
+                  <td style={{ fontSize: '0.8125rem' }}>
+                    {c.expires_at ? (
+                      <span style={{ color: new Date(c.expires_at) < new Date() ? '#dc2626' : 'inherit' }}>
+                        {new Date(c.expires_at).toLocaleDateString()}
+                        {new Date(c.expires_at) < new Date() && <span style={{ fontSize: '0.7rem' }}> (expired)</span>}
+                      </span>
+                    ) : 'Never'}
+                  </td>
+                  <td>
+                    <div className={'toggle' + (c.is_active ? ' on' : '')} onClick={() => toggleActive(c.id)} />
+                  </td>
+                  <td className="actions">
+                    <button className="btn btn-secondary btn-sm" onClick={() => navigate('promo-edit', c.id)}>Edit</button>
+                  </td>
+                </tr>
+              ))}
+              {codes.length === 0 && (
+                <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No promo codes yet</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    // ========== PromoCodeFormView ==========
+    function PromoCodeFormView({ navigate, editId }) {
+      const [loading, setLoading] = useState(!!editId);
+      const [saving, setSaving] = useState(false);
+      const [error, setError] = useState('');
+      const [categories, setCategories] = useState([]);
+      const [products, setProducts] = useState([]);
+      const [productSearch, setProductSearch] = useState('');
+      const [searchResults, setSearchResults] = useState([]);
+      const searchTimeout = useRef(null);
+      const [form, setForm] = useState({
+        code: '',
+        description: '',
+        discount_type: 'percent',
+        discount_value: '',
+        min_order_amount: '',
+        max_uses: '',
+        max_uses_per_customer: '',
+        restricted_category_ids: [],
+        restricted_product_ids: [],
+        is_active: true,
+        expires_at: ''
+      });
+      const [usages, setUsages] = useState([]);
+
+      useEffect(() => {
+        // Load categories for restriction checkboxes
+        adminFetch('/api/admin/categories')
+          .then(data => setCategories(data.categories || []))
+          .catch(() => {});
+      }, []);
+
+      useEffect(() => {
+        if (!editId) return;
+        adminFetch('/api/admin/promo-codes/' + editId + '/usages')
+          .then(data => setUsages(data.usages || []))
+          .catch(() => {});
+      }, [editId]);
+
+      useEffect(() => {
+        if (!editId) return;
+        // Load existing code data — fetch from list and find, or fetch individually
+        adminFetch('/api/admin/promo-codes')
+          .then(data => {
+            const code = (data.promo_codes || []).find(c => c.id === editId);
+            if (code) {
+              setForm({
+                code: code.code || '',
+                description: code.description || '',
+                discount_type: code.discount_type || 'percent',
+                discount_value: code.discount_value ? parseFloat(code.discount_value).toString() : '',
+                min_order_amount: parseFloat(code.min_order_amount || 0) > 0 ? parseFloat(code.min_order_amount).toString() : '',
+                max_uses: code.max_uses || '',
+                max_uses_per_customer: code.max_uses_per_customer || '',
+                restricted_category_ids: code.restricted_category_ids || [],
+                restricted_product_ids: code.restricted_product_ids || [],
+                is_active: code.is_active,
+                expires_at: code.expires_at ? new Date(code.expires_at).toISOString().slice(0, 16) : ''
+              });
+              // Load restricted product names
+              if (code.restricted_product_ids && code.restricted_product_ids.length > 0) {
+                Promise.all(code.restricted_product_ids.map(pid =>
+                  fetch(API + '/api/products/' + pid).then(r => r.json()).then(d => ({ id: pid, name: d.name || pid })).catch(() => ({ id: pid, name: pid }))
+                )).then(setProducts);
+              }
+            }
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      }, [editId]);
+
+      const handleProductSearch = (term) => {
+        setProductSearch(term);
+        if (searchTimeout.current) clearTimeout(searchTimeout.current);
+        if (term.length < 2) { setSearchResults([]); return; }
+        searchTimeout.current = setTimeout(() => {
+          fetch(API + '/api/products?search=' + encodeURIComponent(term))
+            .then(r => r.json())
+            .then(data => setSearchResults(data.products || []))
+            .catch(() => {});
+        }, 300);
+      };
+
+      const addProductRestriction = (product) => {
+        if (form.restricted_product_ids.includes(product.id)) return;
+        setForm(f => ({ ...f, restricted_product_ids: [...f.restricted_product_ids, product.id] }));
+        setProducts(prev => [...prev, { id: product.id, name: product.name }]);
+        setProductSearch('');
+        setSearchResults([]);
+      };
+
+      const removeProductRestriction = (productId) => {
+        setForm(f => ({ ...f, restricted_product_ids: f.restricted_product_ids.filter(id => id !== productId) }));
+        setProducts(prev => prev.filter(p => p.id !== productId));
+      };
+
+      const toggleCategoryRestriction = (catId) => {
+        setForm(f => {
+          const ids = f.restricted_category_ids.includes(catId)
+            ? f.restricted_category_ids.filter(id => id !== catId)
+            : [...f.restricted_category_ids, catId];
+          return { ...f, restricted_category_ids: ids };
+        });
+      };
+
+      const handleSave = async () => {
+        setError('');
+        setSaving(true);
+        try {
+          const payload = {
+            code: form.code,
+            description: form.description || null,
+            discount_type: form.discount_type,
+            discount_value: parseFloat(form.discount_value),
+            min_order_amount: form.min_order_amount ? parseFloat(form.min_order_amount) : 0,
+            max_uses: form.max_uses ? parseInt(form.max_uses) : null,
+            max_uses_per_customer: form.max_uses_per_customer ? parseInt(form.max_uses_per_customer) : null,
+            restricted_category_ids: form.restricted_category_ids,
+            restricted_product_ids: form.restricted_product_ids,
+            is_active: form.is_active,
+            expires_at: form.expires_at || null
+          };
+
+          if (editId) {
+            await adminFetch('/api/admin/promo-codes/' + editId, {
+              method: 'PUT',
+              body: JSON.stringify(payload)
+            });
+          } else {
+            await adminFetch('/api/admin/promo-codes', {
+              method: 'POST',
+              body: JSON.stringify(payload)
+            });
+          }
+          navigate('promos');
+        } catch (err) {
+          setError(err.message || 'Failed to save');
+        }
+        setSaving(false);
+      };
+
+      if (loading) return <div className="loading">Loading...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>{editId ? 'Edit Promo Code' : 'Create Promo Code'}</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('promos')}>Back to Promo Codes</button>
+          </div>
+
+          {error && <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</div>}
+
+          <div className="form-card">
+            <h3>Code Details</h3>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Code *</label>
+                <input type="text" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="e.g., SAVE10" style={{ textTransform: 'uppercase', fontWeight: 600 }} />
+              </div>
+              <div className="form-group">
+                <label>Description (shown to customers)</label>
+                <input type="text" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g., 10% off your order" />
+              </div>
+            </div>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Discount Type *</label>
+                <select value={form.discount_type} onChange={e => setForm(f => ({ ...f, discount_type: e.target.value }))}>
+                  <option value="percent">Percentage (%)</option>
+                  <option value="fixed">Fixed Amount ($)</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>{form.discount_type === 'percent' ? 'Discount Percentage *' : 'Discount Amount ($) *'}</label>
+                <input type="number" value={form.discount_value} onChange={e => setForm(f => ({ ...f, discount_value: e.target.value }))}
+                  min="0" max={form.discount_type === 'percent' ? '100' : undefined} step="0.01"
+                  placeholder={form.discount_type === 'percent' ? 'e.g., 10' : 'e.g., 25.00'} />
+              </div>
+            </div>
+          </div>
+
+          <div className="form-card">
+            <h3>Constraints</h3>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Minimum Order Amount ($)</label>
+                <input type="number" value={form.min_order_amount} onChange={e => setForm(f => ({ ...f, min_order_amount: e.target.value }))}
+                  min="0" step="0.01" placeholder="No minimum" />
+              </div>
+              <div className="form-group">
+                <label>Max Total Uses</label>
+                <input type="number" value={form.max_uses} onChange={e => setForm(f => ({ ...f, max_uses: e.target.value }))}
+                  min="1" placeholder="Unlimited" />
+              </div>
+            </div>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Max Uses Per Customer</label>
+                <input type="number" value={form.max_uses_per_customer} onChange={e => setForm(f => ({ ...f, max_uses_per_customer: e.target.value }))}
+                  min="1" placeholder="Unlimited" />
+              </div>
+              <div className="form-group">
+                <label>Expiration Date</label>
+                <input type="datetime-local" value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} />
+              </div>
+            </div>
+            <div className="form-group" style={{ marginTop: '0.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <div className={'toggle' + (form.is_active ? ' on' : '')} onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))} />
+                Active
+              </label>
+            </div>
+          </div>
+
+          <div className="form-card">
+            <h3>Category Restrictions</h3>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>
+              Leave unchecked for all categories. Check specific categories to limit the discount.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {categories.map(cat => (
+                <label key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8125rem', cursor: 'pointer', padding: '0.3rem 0.6rem', border: '1px solid var(--stone-200)', borderRadius: '4px', background: form.restricted_category_ids.includes(cat.id) ? '#dcfce7' : 'white' }}>
+                  <input type="checkbox" checked={form.restricted_category_ids.includes(cat.id)}
+                    onChange={() => toggleCategoryRestriction(cat.id)} />
+                  {cat.name}
+                </label>
+              ))}
+              {categories.length === 0 && <span style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>No categories loaded</span>}
+            </div>
+          </div>
+
+          <div className="form-card">
+            <h3>Product Restrictions</h3>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>
+              Leave empty for all products. Add specific products to limit the discount.
+            </p>
+            <div style={{ position: 'relative', maxWidth: '400px' }}>
+              <input type="text" value={productSearch} onChange={e => handleProductSearch(e.target.value)}
+                placeholder="Search products to restrict..." />
+              {searchResults.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid var(--stone-200)', borderRadius: '0 0 6px 6px', maxHeight: '200px', overflowY: 'auto', zIndex: 10 }}>
+                  {searchResults.map(p => (
+                    <div key={p.id} onClick={() => addProductRestriction(p)}
+                      style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.8125rem', borderBottom: '1px solid var(--stone-100)' }}
+                      onMouseEnter={e => e.target.style.background = 'var(--stone-50)'}
+                      onMouseLeave={e => e.target.style.background = 'white'}>
+                      {p.name} {p.collection && <span style={{ color: 'var(--stone-500)' }}>({p.collection})</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {products.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.75rem' }}>
+                {products.map(p => (
+                  <span key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'var(--stone-100)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem' }}>
+                    {p.name}
+                    <span onClick={() => removeProductRestriction(p.id)} style={{ cursor: 'pointer', color: 'var(--stone-500)', fontWeight: 600 }}>&times;</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+            <button className="btn btn-secondary" onClick={() => navigate('promos')}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleSave} disabled={saving || !form.code || !form.discount_value}>
+              {saving ? 'Saving...' : (editId ? 'Save Changes' : 'Create Promo Code')}
+            </button>
+          </div>
+
+          {editId && usages.length > 0 && (
+            <div className="form-card" style={{ marginTop: '1.5rem' }}>
+              <h3>Usage History ({usages.length})</h3>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Order / Quote</th>
+                    <th>Discount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usages.map(u => (
+                    <tr key={u.id}>
+                      <td style={{ fontSize: '0.8125rem' }}>{new Date(u.created_at).toLocaleString()}</td>
+                      <td style={{ fontSize: '0.8125rem' }}>{u.customer_email}</td>
+                      <td style={{ fontSize: '0.8125rem' }}>
+                        {u.order_number && <span onClick={() => navigate('order-detail', u.order_id)} style={{ cursor: 'pointer', color: 'var(--accent-gold)', textDecoration: 'underline' }}>{u.order_number}</span>}
+                        {u.quote_number && !u.order_number && <span style={{ color: 'var(--stone-500)' }}>{u.quote_number} (quote)</span>}
+                      </td>
+                      <td style={{ fontSize: '0.8125rem', color: '#16a34a' }}>-${parseFloat(u.discount_amount).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== AuditLogView ==========
+    function AuditLogView({ navigate }) {
+      const [logs, setLogs] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [page, setPage] = useState(1);
+      const [totalPages, setTotalPages] = useState(1);
+      const [actionFilter, setActionFilter] = useState('');
+
+      const load = () => {
+        setLoading(true);
+        let url = '/api/admin/audit-log?page=' + page + '&limit=50';
+        if (actionFilter) url += '&action=' + encodeURIComponent(actionFilter);
+        adminFetch(url)
+          .then(data => {
+            setLogs(data.logs || []);
+            setTotalPages(data.total_pages || 1);
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      };
+
+      useEffect(load, [page, actionFilter]);
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Audit Log</h1>
+          </div>
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', alignItems: 'center' }}>
+            <label style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>Filter action:</label>
+            <input type="text" value={actionFilter} onChange={e => { setActionFilter(e.target.value); setPage(1); }}
+              placeholder="e.g. staff.login, trade.approve"
+              style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', width: '250px' }} />
+            <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>Page {page} of {totalPages}</span>
+          </div>
+          {loading ? <div className="loading">Loading...</div> : (
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Staff</th>
+                  <th>Action</th>
+                  <th>Entity</th>
+                  <th>Details</th>
+                  <th>IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map(log => (
+                  <tr key={log.id}>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', whiteSpace: 'nowrap' }}>{new Date(log.created_at).toLocaleString()}</td>
+                    <td style={{ fontSize: '0.8125rem' }}>{log.staff_name || log.staff_id || '\u2014'}</td>
+                    <td style={{ fontWeight: 500, fontSize: '0.8125rem' }}>{log.action}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{log.entity_type ? log.entity_type + (log.entity_id ? ' #' + log.entity_id.slice(0, 8) : '') : '\u2014'}</td>
+                    <td style={{ fontSize: '0.75rem', color: 'var(--stone-400)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {log.details ? JSON.stringify(log.details) : '\u2014'}
+                    </td>
+                    <td style={{ fontSize: '0.75rem', color: 'var(--stone-400)' }}>{log.ip_address || '\u2014'}</td>
+                  </tr>
+                ))}
+                {logs.length === 0 && (
+                  <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No audit log entries found</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+            <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</button>
+            <button className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
+          </div>
         </div>
       );
     }

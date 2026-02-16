@@ -344,3 +344,309 @@ CREATE INDEX idx_purchase_orders_vendor ON purchase_orders(vendor_id);
 CREATE INDEX idx_purchase_orders_status ON purchase_orders(status);
 CREATE INDEX idx_purchase_order_items_po ON purchase_order_items(purchase_order_id);
 CREATE INDEX idx_purchase_order_items_order_item ON purchase_order_items(order_item_id);
+
+-- ==================== Trade Pricing ====================
+
+CREATE TABLE margin_tiers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL UNIQUE,
+    discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE trade_customers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    password_salt TEXT NOT NULL,
+    company_name TEXT NOT NULL,
+    contact_name TEXT NOT NULL,
+    phone TEXT,
+    status VARCHAR(20) DEFAULT 'pending',
+    margin_tier_id UUID REFERENCES margin_tiers(id),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE trade_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    trade_customer_id UUID NOT NULL REFERENCES trade_customers(id) ON DELETE CASCADE,
+    token TEXT UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_trade_sessions_token ON trade_sessions(token);
+CREATE INDEX idx_trade_customers_status ON trade_customers(status);
+CREATE INDEX idx_trade_customers_tier ON trade_customers(margin_tier_id);
+
+-- ==================== Staff Accounts ====================
+
+CREATE TABLE staff_accounts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    password_salt TEXT NOT NULL,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    phone TEXT,
+    role VARCHAR(20) NOT NULL DEFAULT 'sales_rep',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT staff_role_check CHECK (role IN ('admin', 'manager', 'sales_rep', 'warehouse'))
+);
+
+CREATE TABLE staff_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    staff_id UUID NOT NULL REFERENCES staff_accounts(id) ON DELETE CASCADE,
+    token TEXT UNIQUE NOT NULL,
+    device_fingerprint TEXT,
+    is_trusted BOOLEAN DEFAULT false,
+    trusted_until TIMESTAMP,
+    remember_me BOOLEAN DEFAULT false,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE audit_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    staff_id UUID REFERENCES staff_accounts(id),
+    action TEXT NOT NULL,
+    entity_type TEXT,
+    entity_id UUID,
+    details JSONB DEFAULT '{}',
+    ip_address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_staff_sessions_token ON staff_sessions(token);
+CREATE INDEX idx_staff_sessions_staff ON staff_sessions(staff_id);
+CREATE INDEX idx_audit_log_staff ON audit_log(staff_id);
+CREATE INDEX idx_audit_log_entity ON audit_log(entity_type, entity_id);
+CREATE INDEX idx_audit_log_created ON audit_log(created_at);
+
+-- ==================== Shipping Detail Columns ====================
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_carrier TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_transit_days INTEGER;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_residential BOOLEAN DEFAULT true;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_liftgate BOOLEAN DEFAULT true;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_is_fallback BOOLEAN DEFAULT false;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_number TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipped_at TIMESTAMP;
+
+-- ==================== Trade Application Enhancements ====================
+
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS business_type VARCHAR(50);
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(30) DEFAULT 'none';
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMP;
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS denial_reason TEXT;
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES staff_accounts(id);
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS total_spend DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS tier_locked_until TIMESTAMP;
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS assigned_rep_id UUID REFERENCES staff_accounts(id);
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;
+
+CREATE TABLE trade_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    trade_customer_id UUID REFERENCES trade_customers(id) ON DELETE CASCADE,
+    doc_type VARCHAR(50) NOT NULL,
+    file_name TEXT NOT NULL,
+    file_key TEXT NOT NULL,
+    file_size INTEGER,
+    mime_type TEXT,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_trade_documents_customer ON trade_documents(trade_customer_id);
+
+-- ==================== Tier Progression ====================
+
+ALTER TABLE margin_tiers ADD COLUMN IF NOT EXISTS spend_threshold DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE margin_tiers ADD COLUMN IF NOT EXISTS tier_level INTEGER DEFAULT 0;
+
+-- ==================== Orders Trade Enhancements ====================
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS trade_customer_id UUID REFERENCES trade_customers(id);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS po_number TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_tax_exempt BOOLEAN DEFAULT false;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS project_id UUID;
+
+-- ==================== Quotes Trade Enhancement ====================
+
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS trade_customer_id UUID REFERENCES trade_customers(id);
+ALTER TABLE quotes ALTER COLUMN sales_rep_id DROP NOT NULL;
+
+-- ==================== Customer-Rep History ====================
+
+CREATE TABLE customer_rep_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    trade_customer_id UUID NOT NULL REFERENCES trade_customers(id) ON DELETE CASCADE,
+    from_rep_id UUID REFERENCES staff_accounts(id),
+    to_rep_id UUID REFERENCES staff_accounts(id),
+    reason TEXT,
+    changed_by UUID REFERENCES staff_accounts(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_customer_rep_history_customer ON customer_rep_history(trade_customer_id);
+
+-- ==================== Trade Dashboard Tables ====================
+
+CREATE TABLE trade_projects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    trade_customer_id UUID NOT NULL REFERENCES trade_customers(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    client_name TEXT,
+    address TEXT,
+    notes TEXT,
+    expected_date DATE,
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE trade_favorites (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    trade_customer_id UUID NOT NULL REFERENCES trade_customers(id) ON DELETE CASCADE,
+    collection_name TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE trade_favorite_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    favorite_id UUID NOT NULL REFERENCES trade_favorites(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES products(id),
+    sku_id UUID REFERENCES skus(id),
+    notes TEXT,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_trade_projects_customer ON trade_projects(trade_customer_id);
+CREATE INDEX idx_trade_favorites_customer ON trade_favorites(trade_customer_id);
+CREATE INDEX idx_trade_favorite_items_fav ON trade_favorite_items(favorite_id);
+
+-- ==================== Trade Customer Address ====================
+
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS address_line1 TEXT;
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS state VARCHAR(2);
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS zip VARCHAR(10);
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS contractor_license TEXT;
+
+-- ==================== 2FA ====================
+
+CREATE TABLE staff_2fa_codes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    staff_id UUID NOT NULL REFERENCES staff_accounts(id) ON DELETE CASCADE,
+    code TEXT NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_staff_2fa_codes_staff ON staff_2fa_codes(staff_id);
+
+-- ==================== Installation Inquiries ====================
+
+CREATE TABLE installation_inquiries (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_name VARCHAR(200) NOT NULL,
+    customer_email VARCHAR(255) NOT NULL,
+    phone VARCHAR(30),
+    zip_code VARCHAR(10),
+    estimated_sqft NUMERIC(10,2),
+    message TEXT,
+    product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+    product_name VARCHAR(300),
+    collection VARCHAR(200),
+    status VARCHAR(20) DEFAULT 'new',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_installation_inquiries_status ON installation_inquiries(status);
+
+-- ==================== Customer Accounts ====================
+
+CREATE TABLE customers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    password_salt TEXT NOT NULL,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    phone TEXT,
+    address_line1 TEXT,
+    address_line2 TEXT,
+    city TEXT,
+    state TEXT,
+    zip TEXT,
+    password_reset_token TEXT,
+    password_reset_expires TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE customer_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    token TEXT UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_customer_sessions_token ON customer_sessions(token);
+CREATE INDEX idx_customers_email ON customers(email);
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
+CREATE INDEX idx_orders_customer ON orders(customer_id);
+
+-- ==================== Promo Codes ====================
+
+CREATE TABLE promo_codes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code TEXT NOT NULL UNIQUE,
+    description TEXT,
+    discount_type VARCHAR(10) NOT NULL CHECK (discount_type IN ('percent', 'fixed')),
+    discount_value DECIMAL(10,2) NOT NULL,
+    min_order_amount DECIMAL(10,2) DEFAULT 0,
+    max_uses INTEGER,
+    max_uses_per_customer INTEGER,
+    restricted_category_ids UUID[] DEFAULT '{}',
+    restricted_product_ids UUID[] DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
+    expires_at TIMESTAMP,
+    created_by UUID REFERENCES staff_accounts(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX idx_promo_codes_upper_code ON promo_codes(UPPER(code));
+
+CREATE TABLE promo_code_usages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    promo_code_id UUID NOT NULL REFERENCES promo_codes(id) ON DELETE CASCADE,
+    order_id UUID REFERENCES orders(id),
+    quote_id UUID REFERENCES quotes(id),
+    customer_email TEXT NOT NULL,
+    discount_amount DECIMAL(10,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_promo_usages_code ON promo_code_usages(promo_code_id);
+CREATE INDEX idx_promo_usages_email ON promo_code_usages(customer_email);
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS promo_code_id UUID REFERENCES promo_codes(id);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS promo_code TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2) DEFAULT 0;
+
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS promo_code_id UUID REFERENCES promo_codes(id);
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS promo_code TEXT;
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2) DEFAULT 0;

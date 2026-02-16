@@ -7,7 +7,12 @@ import EasyPostClient from '@easypost/api';
 import multer from 'multer';
 import XLSX from 'xlsx';
 import cron from 'node-cron';
-import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate } from './services/emailService.js';
+import fs from 'fs';
+import path from 'path';
+import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset } from './services/emailService.js';
+import { generateQuoteSentHTML } from './templates/quoteSent.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 const easypost = process.env.EASYPOST_API_KEY ? new EasyPostClient(process.env.EASYPOST_API_KEY) : null;
@@ -15,6 +20,14 @@ const easypost = process.env.EASYPOST_API_KEY ? new EasyPostClient(process.env.E
 // Shipping configuration
 const WEIGHT_THRESHOLD_LBS = 150; // parcel vs LTL cutoff
 const SHIP_FROM = { zip: '92806', city: 'Anaheim', state: 'CA', country: 'US' };
+
+function getNextBusinessDay() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  if (d.getDay() === 0) d.setDate(d.getDate() + 1); // Sun → Mon
+  if (d.getDay() === 6) d.setDate(d.getDate() + 2); // Sat → Mon
+  return d.toISOString().split('T')[0];
+}
 
 // Pickup-only detection: slabs and prefab countertops cannot be shipped
 function isPickupOnly(item) {
@@ -40,11 +53,66 @@ const pool = new pg.Pool({
 app.use(cors());
 app.use(express.json());
 
+// ==================== S3/MinIO Client ====================
+const S3_BUCKET = process.env.S3_BUCKET || 'trade-documents';
+let s3 = null;
+if (process.env.S3_ENDPOINT) {
+  s3 = new S3Client({
+    endpoint: process.env.S3_ENDPOINT,
+    region: process.env.S3_REGION || 'us-east-1',
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY || 'minioadmin',
+      secretAccessKey: process.env.S3_SECRET_KEY || 'minioadmin'
+    },
+    forcePathStyle: true
+  });
+  // Ensure bucket exists
+  (async () => {
+    try {
+      await s3.send(new HeadBucketCommand({ Bucket: S3_BUCKET }));
+    } catch {
+      try {
+        await s3.send(new CreateBucketCommand({ Bucket: S3_BUCKET }));
+        console.log(`[S3] Created bucket: ${S3_BUCKET}`);
+      } catch (err) {
+        console.error('[S3] Failed to create bucket:', err.message);
+      }
+    }
+  })();
+}
+
+async function uploadToS3(fileKey, buffer, mimeType) {
+  if (!s3) throw new Error('S3 not configured');
+  await s3.send(new PutObjectCommand({
+    Bucket: S3_BUCKET,
+    Key: fileKey,
+    Body: buffer,
+    ContentType: mimeType
+  }));
+  return fileKey;
+}
+
+async function getPresignedUrl(fileKey) {
+  if (!s3) throw new Error('S3 not configured');
+  const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: fileKey });
+  return getSignedUrl(s3, command, { expiresIn: 3600 });
+}
+
+const docUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, allowed.includes(ext));
+  }
+});
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.get('/api/products', async (req, res) => {
+app.get('/api/products', optionalTradeAuth, async (req, res) => {
   try {
     const { category } = req.query;
     let query = `
@@ -54,7 +122,17 @@ app.get('/api/products', async (req, res) => {
          WHERE s.product_id = p.id LIMIT 1) as price,
         (SELECT ma.url FROM media_assets ma
          WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
-         ORDER BY ma.sort_order LIMIT 1) as primary_image
+         ORDER BY ma.sort_order LIMIT 1) as primary_image,
+        (SELECT CASE
+           WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand END) IS NULL THEN 'unknown'
+           WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand ELSE 0 END) > 10 THEN 'in_stock'
+           WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand ELSE 0 END) > 0 THEN 'low_stock'
+           ELSE 'out_of_stock'
+         END
+         FROM skus s2
+         LEFT JOIN inventory_snapshots inv ON inv.sku_id = s2.id
+         WHERE s2.product_id = p.id
+        ) as stock_status
       FROM products p
       JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN categories c ON c.id = p.category_id
@@ -80,6 +158,12 @@ app.get('/api/products', async (req, res) => {
           )
         )
       `;
+      paramIndex++;
+    }
+
+    if (req.query.collection) {
+      params.push(req.query.collection);
+      query += ` AND p.collection = $${paramIndex}`;
       paramIndex++;
     }
 
@@ -114,13 +198,29 @@ app.get('/api/products', async (req, res) => {
 
     query += ' ORDER BY p.name';
     const result = await pool.query(query, params);
-    res.json({ products: result.rows });
+
+    let products = result.rows;
+    if (req.tradeCustomer && req.tradeCustomer.discount_percent > 0) {
+      products = products.map(p => {
+        if (p.price) {
+          const retail = parseFloat(p.price);
+          return {
+            ...p,
+            trade_price: (retail * (1 - req.tradeCustomer.discount_percent / 100)).toFixed(2),
+            trade_tier: req.tradeCustomer.tier_name
+          };
+        }
+        return p;
+      });
+    }
+
+    res.json({ products });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.get('/api/products/:id', async (req, res) => {
+app.get('/api/products/:id', optionalTradeAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const product = await pool.query(`
@@ -132,15 +232,40 @@ app.get('/api/products/:id', async (req, res) => {
     `, [id]);
     if (!product.rows.length) return res.status(404).json({ error: 'Product not found' });
 
-    const skus = await pool.query(`
+    const skusResult = await pool.query(`
       SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs,
-        pr.cost, pr.retail_price, pr.price_basis
+        pr.cost, pr.retail_price, pr.price_basis,
+        inv.qty_on_hand, inv.qty_in_transit, inv.fresh_until,
+        CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_on_hand, 0) * pk.sqft_per_box) END as qty_on_hand_sqft,
+        CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_in_transit, 0) * pk.sqft_per_box) END as qty_in_transit_sqft,
+        CASE
+          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+          ELSE 'out_of_stock'
+        END as stock_status
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
       WHERE s.product_id = $1
       ORDER BY s.created_at
     `, [id]);
+
+    let skus = skusResult.rows;
+    if (req.tradeCustomer && req.tradeCustomer.discount_percent > 0) {
+      skus = skus.map(s => {
+        if (s.retail_price) {
+          const retail = parseFloat(s.retail_price);
+          return {
+            ...s,
+            trade_price: (retail * (1 - req.tradeCustomer.discount_percent / 100)).toFixed(2),
+            trade_tier: req.tradeCustomer.tier_name
+          };
+        }
+        return s;
+      });
+    }
 
     const media = await pool.query(`
       SELECT id, asset_type, url, sort_order FROM media_assets
@@ -148,7 +273,67 @@ app.get('/api/products/:id', async (req, res) => {
       ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 ELSE 2 END, sort_order
     `, [id]);
 
-    res.json({ product: product.rows[0], skus: skus.rows, media: media.rows });
+    res.json({ product: product.rows[0], skus, media: media.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/products/:id/recommendations', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await pool.query('SELECT collection, category_id FROM products WHERE id = $1', [id]);
+    if (!product.rows.length) return res.status(404).json({ error: 'Product not found' });
+
+    const { collection, category_id } = product.rows[0];
+    const selectCols = `
+      SELECT p.id, p.name, p.collection, v.name as vendor_name, c.name as category_name, c.slug as category_slug,
+        (SELECT pr.retail_price FROM pricing pr
+         JOIN skus s ON s.id = pr.sku_id
+         WHERE s.product_id = p.id LIMIT 1) as price,
+        (SELECT ma.url FROM media_assets ma
+         WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY ma.sort_order LIMIT 1) as primary_image,
+        (SELECT CASE
+           WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand END) IS NULL THEN 'unknown'
+           WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand ELSE 0 END) > 10 THEN 'in_stock'
+           WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand ELSE 0 END) > 0 THEN 'low_stock'
+           ELSE 'out_of_stock'
+         END
+         FROM skus s2
+         LEFT JOIN inventory_snapshots inv ON inv.sku_id = s2.id
+         WHERE s2.product_id = p.id
+        ) as stock_status
+      FROM products p
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE p.status = 'active' AND p.id != $1
+    `;
+
+    let recs = [];
+
+    // Same collection first
+    if (collection) {
+      const collRes = await pool.query(
+        selectCols + ' AND p.collection = $2 ORDER BY RANDOM() LIMIT 4',
+        [id, collection]
+      );
+      recs = collRes.rows;
+    }
+
+    // Fill remaining with same category
+    if (recs.length < 4 && category_id) {
+      const excludeIds = [id, ...recs.map(r => r.id)];
+      const placeholders = excludeIds.map((_, i) => `$${i + 1}`).join(', ');
+      const catRes = await pool.query(
+        selectCols.replace('p.id != $1', `p.id NOT IN (${placeholders})`) +
+          ` AND p.category_id = $${excludeIds.length + 1} ORDER BY RANDOM() LIMIT $${excludeIds.length + 2}`,
+        [...excludeIds, category_id, 4 - recs.length]
+      );
+      recs = recs.concat(catRes.rows);
+    }
+
+    res.json({ recommendations: recs });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -197,6 +382,30 @@ app.get('/api/attributes', async (req, res) => {
     }
 
     res.json({ attributes: Object.values(grouped) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/collections', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT p.collection as name,
+        COUNT(*)::int as product_count,
+        (SELECT ma.url FROM media_assets ma
+         JOIN products p2 ON p2.id = ma.product_id
+         WHERE p2.collection = p.collection AND p2.status = 'active' AND ma.asset_type = 'primary'
+         ORDER BY ma.sort_order LIMIT 1) as image
+      FROM products p
+      WHERE p.status = 'active' AND p.collection IS NOT NULL AND p.collection != ''
+      GROUP BY p.collection
+      ORDER BY p.collection
+    `);
+    const collections = result.rows.map(r => ({
+      ...r,
+      slug: r.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    }));
+    res.json({ collections });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -438,13 +647,11 @@ async function getFreightViewToken() {
   return fvToken;
 }
 
-async function getLTLRates(freightItems, destination) {
+async function getLTLRates(freightItems, destination, options = {}) {
   const token = await getFreightViewToken();
-
-  // pickupDate = next business day
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const pickupDate = tomorrow.toISOString().split('T')[0];
+  const pickupDate = getNextBusinessDay();
+  const residential = options.residential !== false; // default true
+  const liftgate = options.liftgate !== false; // default true
 
   const resp = await fetch(FV_BASE + '/v2.0/shipments/ltl?returnQuotes=true&waitDuration=15', {
     method: 'POST',
@@ -472,20 +679,56 @@ async function getLTLRates(freightItems, destination) {
   }
 
   const data = await resp.json();
+  console.log('[FreightView] Response keys:', Object.keys(data), 'quotes count:', (data.quotes || []).length);
+  if (data.quotes && data.quotes.length > 0) {
+    console.log('[FreightView] First quote keys:', Object.keys(data.quotes[0]), JSON.stringify(data.quotes[0]));
+  }
   const quotes = data.quotes || [];
   if (quotes.length === 0) {
     throw new Error('No LTL freight rates available for this destination');
   }
   const sorted = quotes.sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount));
-  const best = sorted[0];
-  return {
-    amount: parseFloat(best.amount),
-    carrier: best.providerName || 'LTL Carrier',
-    service: 'LTL Freight'
-  };
+  return sorted.slice(0, 3).map((q, idx) => ({
+    id: 'fv-' + idx,
+    amount: parseFloat(parseFloat(q.amount).toFixed(2)),
+    carrier: q.providerName || 'LTL Carrier',
+    service: q.serviceType || 'LTL Freight',
+    transit_days: q.transitDays || q.transitTime || null,
+    is_cheapest: idx === 0,
+    is_fallback: false
+  }));
 }
 
-async function calculateShipping(sessionId, destination) {
+function getFallbackLTLEstimate(totalWeightLbs, destinationZip) {
+  const baseRate = 0.50; // $/lb
+  const minCharge = 150;
+  // Zone multiplier by first digit of destination zip
+  const zoneMultipliers = {
+    '9': 1.0, '8': 1.1, // west
+    '7': 1.2, '6': 1.25, // south/midwest
+    '5': 1.3, '4': 1.35, // midwest
+    '3': 1.4, '2': 1.5, // southeast/mid-atlantic
+    '1': 1.55, '0': 1.6  // northeast
+  };
+  const firstDigit = (destinationZip || '9')[0];
+  const multiplier = zoneMultipliers[firstDigit] || 1.3;
+  const economy = Math.max(minCharge, totalWeightLbs * baseRate * multiplier);
+  const standard = parseFloat((economy * 1.3).toFixed(2));
+  const expedited = parseFloat((economy * 1.75).toFixed(2));
+  // Zone-based transit day estimates (west coast origin)
+  const zoneTransit = { '9': 3, '8': 4, '7': 5, '6': 6, '5': 7, '4': 7, '3': 8, '2': 9, '1': 9, '0': 10 };
+  const baseDays = zoneTransit[firstDigit] || 7;
+  return [
+    { id: 'fallback-economy', amount: parseFloat(economy.toFixed(2)), carrier: 'Economy Freight', service: 'LTL Economy', transit_days: baseDays + 3, is_cheapest: true, is_fallback: true },
+    { id: 'fallback-standard', amount: standard, carrier: 'Standard Freight', service: 'LTL Standard', transit_days: baseDays, is_cheapest: false, is_fallback: true },
+    { id: 'fallback-expedited', amount: expedited, carrier: 'Expedited Freight', service: 'LTL Expedited', transit_days: Math.max(2, baseDays - 3), is_cheapest: false, is_fallback: true }
+  ];
+}
+
+async function calculateShipping(sessionId, destination, shippingOptions = {}) {
+  const residential = shippingOptions.residential !== false;
+  const liftgate = shippingOptions.liftgate !== false;
+
   // Get packaging weight + freight class for non-sample cart items
   const result = await pool.query(`
     SELECT ci.num_boxes, ci.is_sample, pk.weight_per_box_lbs, pk.freight_class
@@ -512,15 +755,24 @@ async function calculateShipping(sessionId, destination) {
 
   // Sample-only order — no product shipping
   if (totalWeightLbs === 0 || totalBoxes === 0) {
-    return { shipping: 0, method: null, carrier: null, weight_lbs: 0, total_boxes: 0 };
+    return { options: [{ id: 'none', amount: 0, carrier: null, service: null, transit_days: null, is_cheapest: true, is_fallback: false }], method: null, weight_lbs: 0, total_boxes: 0, residential, liftgate };
   }
 
-  let rateResult;
+  let options;
   let method;
 
   if (totalWeightLbs <= WEIGHT_THRESHOLD_LBS) {
     method = 'parcel';
-    rateResult = await getParcelRates(totalWeightLbs, destination);
+    const rateResult = await getParcelRates(totalWeightLbs, destination);
+    options = [{
+      id: 'parcel-0',
+      amount: parseFloat(parseFloat(rateResult.amount).toFixed(2)),
+      carrier: rateResult.carrier,
+      service: rateResult.service,
+      transit_days: null,
+      is_cheapest: true,
+      is_fallback: false
+    }];
   } else {
     method = 'ltl_freight';
     // Build one FreightView item per freight class
@@ -532,33 +784,38 @@ async function calculateShipping(sessionId, destination) {
       description: 'Flooring materials',
       type: 'pallet'
     }));
-    rateResult = await getLTLRates(freightItems, destination);
+    try {
+      options = await getLTLRates(freightItems, destination, { residential, liftgate });
+    } catch (fvErr) {
+      console.error('FreightView API failed, using fallback:', fvErr.message);
+      options = getFallbackLTLEstimate(totalWeightLbs, destination.zip);
+    }
   }
 
   return {
-    shipping: parseFloat(rateResult.amount.toFixed(2)),
+    options,
     method,
-    carrier: rateResult.carrier,
-    service: rateResult.service,
     weight_lbs: parseFloat(totalWeightLbs.toFixed(2)),
-    total_boxes: totalBoxes
+    total_boxes: totalBoxes,
+    residential,
+    liftgate
   };
 }
 
 app.post('/api/shipping/estimate', async (req, res) => {
   try {
-    const { session_id, destination, delivery_method } = req.body;
+    const { session_id, destination, delivery_method, residential, liftgate } = req.body;
 
     // Pickup orders have no shipping cost
     if (delivery_method === 'pickup') {
-      return res.json({ shipping: 0, method: 'pickup', carrier: null, weight_lbs: 0, total_boxes: 0 });
+      return res.json({ options: [{ id: 'pickup', amount: 0, carrier: null, service: null, transit_days: null, is_cheapest: true, is_fallback: false }], method: 'pickup', weight_lbs: 0, total_boxes: 0, residential: false, liftgate: false });
     }
 
     if (!session_id || !destination || !destination.zip) {
       return res.status(400).json({ error: 'session_id and destination.zip are required' });
     }
 
-    const result = await calculateShipping(session_id, destination);
+    const result = await calculateShipping(session_id, destination, { residential, liftgate });
     res.json(result);
   } catch (err) {
     console.error('Shipping estimate error:', err.message);
@@ -566,15 +823,156 @@ app.post('/api/shipping/estimate', async (req, res) => {
   }
 });
 
+// ==================== Promo Code Helper ====================
+
+async function calculatePromoDiscount(promoCode, items, customerEmail, dbClient) {
+  const client = dbClient || pool;
+  if (!promoCode || !promoCode.trim()) return { valid: false, error: 'No promo code provided' };
+
+  // Look up code case-insensitively
+  const codeResult = await client.query(
+    'SELECT * FROM promo_codes WHERE UPPER(code) = UPPER($1)',
+    [promoCode.trim()]
+  );
+  if (codeResult.rows.length === 0) return { valid: false, error: 'Invalid promo code' };
+
+  const promo = codeResult.rows[0];
+
+  // Check active
+  if (!promo.is_active) return { valid: false, error: 'This promo code is no longer active' };
+
+  // Check expiration
+  if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+    return { valid: false, error: 'This promo code has expired' };
+  }
+
+  // Check max total uses (only count usages with order_id, not quote-only)
+  if (promo.max_uses !== null) {
+    const usageCount = await client.query(
+      'SELECT COUNT(*)::int as cnt FROM promo_code_usages WHERE promo_code_id = $1 AND order_id IS NOT NULL',
+      [promo.id]
+    );
+    if (usageCount.rows[0].cnt >= promo.max_uses) {
+      return { valid: false, error: 'This promo code has reached its usage limit' };
+    }
+  }
+
+  // Check per-customer uses
+  if (promo.max_uses_per_customer !== null && customerEmail) {
+    const custUsageCount = await client.query(
+      'SELECT COUNT(*)::int as cnt FROM promo_code_usages WHERE promo_code_id = $1 AND order_id IS NOT NULL AND LOWER(customer_email) = LOWER($2)',
+      [promo.id, customerEmail]
+    );
+    if (custUsageCount.rows[0].cnt >= promo.max_uses_per_customer) {
+      return { valid: false, error: 'You have already used this promo code the maximum number of times' };
+    }
+  }
+
+  // Filter eligible items (exclude samples, apply category/product restrictions)
+  const restrictedCategories = promo.restricted_category_ids || [];
+  const restrictedProducts = promo.restricted_product_ids || [];
+  const hasRestrictions = restrictedCategories.length > 0 || restrictedProducts.length > 0;
+
+  const eligibleItems = items.filter(item => {
+    if (item.is_sample) return false;
+    if (!hasRestrictions) return true;
+    if (restrictedProduct_ids_match(item.product_id, restrictedProducts)) return true;
+    if (restrictedCategory_ids_match(item.category_id, restrictedCategories)) return true;
+    return false;
+  });
+
+  const fullProductSubtotal = items.filter(i => !i.is_sample).reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
+  const eligibleSubtotal = eligibleItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
+
+  // Check min order amount against full product subtotal
+  const minOrder = parseFloat(promo.min_order_amount || 0);
+  if (minOrder > 0 && fullProductSubtotal < minOrder) {
+    return { valid: false, error: `Minimum order amount of $${minOrder.toFixed(2)} required` };
+  }
+
+  if (eligibleSubtotal <= 0) {
+    return { valid: false, error: hasRestrictions ? 'No eligible items in cart for this promo code' : 'No eligible items in cart' };
+  }
+
+  // Calculate discount
+  let discountAmount = 0;
+  if (promo.discount_type === 'percent') {
+    discountAmount = eligibleSubtotal * parseFloat(promo.discount_value) / 100;
+  } else {
+    discountAmount = Math.min(parseFloat(promo.discount_value), eligibleSubtotal);
+  }
+
+  // Never round up in merchant's favor
+  discountAmount = Math.floor(discountAmount * 100) / 100;
+
+  return {
+    valid: true,
+    promo,
+    discount_amount: discountAmount,
+    eligible_subtotal: eligibleSubtotal
+  };
+}
+
+function restrictedProduct_ids_match(productId, restrictedIds) {
+  if (!productId || !restrictedIds || restrictedIds.length === 0) return false;
+  return restrictedIds.some(id => id === productId);
+}
+
+function restrictedCategory_ids_match(categoryId, restrictedIds) {
+  if (!categoryId || !restrictedIds || restrictedIds.length === 0) return false;
+  return restrictedIds.some(id => id === categoryId);
+}
+
+// ==================== Promo Code Validation Endpoints ====================
+
+app.post('/api/promo-codes/validate', async (req, res) => {
+  try {
+    const { code, session_id, customer_email } = req.body;
+    if (!code || !session_id) return res.status(400).json({ valid: false, error: 'Code and session_id are required' });
+
+    // Fetch cart items with category_id
+    const cartResult = await pool.query(`
+      SELECT ci.*, p.category_id, p.id as product_id
+      FROM cart_items ci
+      LEFT JOIN products p ON p.id = ci.product_id
+      WHERE ci.session_id = $1
+    `, [session_id]);
+
+    if (cartResult.rows.length === 0) return res.json({ valid: false, error: 'Cart is empty' });
+
+    const items = cartResult.rows.map(row => ({
+      product_id: row.product_id,
+      category_id: row.category_id,
+      subtotal: row.subtotal,
+      is_sample: row.is_sample
+    }));
+
+    const result = await calculatePromoDiscount(code, items, customer_email || null);
+
+    if (!result.valid) return res.json({ valid: false, error: result.error });
+
+    res.json({
+      valid: true,
+      code: result.promo.code,
+      discount_type: result.promo.discount_type,
+      discount_value: parseFloat(result.promo.discount_value),
+      discount_amount: result.discount_amount,
+      description: result.promo.description || ''
+    });
+  } catch (err) {
+    res.status(500).json({ valid: false, error: err.message });
+  }
+});
+
 // ==================== Checkout API ====================
 
 app.post('/api/checkout/create-payment-intent', async (req, res) => {
   try {
-    const { session_id, destination, delivery_method } = req.body;
+    const { session_id, destination, delivery_method, shipping_option_id, residential, liftgate, promo_code } = req.body;
     if (!session_id) return res.status(400).json({ error: 'session_id is required' });
 
     const result = await pool.query(`
-      SELECT ci.*, p.name as product_name, p.collection,
+      SELECT ci.*, p.name as product_name, p.collection, p.category_id,
         s.variant_type, s.vendor_sku, c.slug as category_slug
       FROM cart_items ci
       LEFT JOIN products p ON p.id = ci.product_id
@@ -607,15 +1005,36 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
         return res.status(400).json({ error: 'Cart contains items that are available for store pickup only (slabs/prefab). Please select store pickup.' });
       }
       try {
-        const shippingResult = await calculateShipping(session_id, destination);
-        shippingCost = shippingResult.shipping;
+        const shippingResult = await calculateShipping(session_id, destination, { residential, liftgate });
+        const opts = shippingResult.options || [];
+        // Select the option matching shipping_option_id, or default to cheapest
+        const selected = (shipping_option_id && opts.find(o => o.id === shipping_option_id)) || opts.find(o => o.is_cheapest) || opts[0];
+        shippingCost = selected ? selected.amount : 0;
         shippingMethod = shippingResult.method;
       } catch (shipErr) {
         console.error('Shipping calc error during payment intent:', shipErr.message);
       }
     }
 
-    const total = productSubtotal + shippingCost + sampleShipping;
+    // Validate promo code if provided
+    let discountAmount = 0;
+    let promoCodeStr = null;
+    if (promo_code) {
+      const promoItems = items.map(row => ({
+        product_id: row.product_id,
+        category_id: row.category_id,
+        subtotal: row.subtotal,
+        is_sample: row.is_sample
+      }));
+      const promoResult = await calculatePromoDiscount(promo_code, promoItems);
+      if (!promoResult.valid) {
+        return res.status(400).json({ error: promoResult.error });
+      }
+      discountAmount = promoResult.discount_amount;
+      promoCodeStr = promoResult.promo.code;
+    }
+
+    const total = productSubtotal + shippingCost + sampleShipping - discountAmount;
 
     if (total <= 0) {
       return res.status(400).json({ error: 'Order total must be greater than zero' });
@@ -632,7 +1051,9 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
       clientSecret: paymentIntent.client_secret,
       amount: total,
       shipping: shippingCost,
-      shipping_method: shippingMethod
+      shipping_method: shippingMethod,
+      discount_amount: discountAmount,
+      promo_code: promoCodeStr
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -717,10 +1138,18 @@ async function generatePurchaseOrders(orderId, client) {
   return createdPOs;
 }
 
-app.post('/api/checkout/place-order', async (req, res) => {
+app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { session_id, payment_intent_id, customer_name, customer_email, phone, shipping, delivery_method } = req.body;
+    const { session_id, payment_intent_id, customer_name: bodyName, customer_email: bodyEmail, phone: bodyPhone, shipping, delivery_method,
+            po_number, project_id, is_tax_exempt, shipping_option_id, residential, liftgate,
+            create_account, account_password, promo_code } = req.body;
+
+    // Pre-fill from customer profile if logged in
+    const customer_name = bodyName || (req.customer ? (req.customer.first_name + ' ' + req.customer.last_name) : '');
+    const customer_email = bodyEmail || (req.customer ? req.customer.email : '');
+    const phone = bodyPhone || (req.customer ? req.customer.phone : '');
+
     if (!session_id || !payment_intent_id || !customer_name || !customer_email) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -742,7 +1171,7 @@ app.post('/api/checkout/place-order', async (req, res) => {
 
     // Get cart items
     const cartResult = await client.query(`
-      SELECT ci.*, p.name as product_name, p.collection
+      SELECT ci.*, p.name as product_name, p.collection, p.category_id
       FROM cart_items ci
       LEFT JOIN products p ON p.id = ci.product_id
       WHERE ci.session_id = $1
@@ -762,6 +1191,11 @@ app.post('/api/checkout/place-order', async (req, res) => {
     // Calculate product shipping
     let shippingCost = 0;
     let shippingMethod = null;
+    let selectedCarrier = null;
+    let selectedTransitDays = null;
+    let isResidential = residential !== false;
+    let isLiftgate = liftgate !== false;
+    let isFallback = false;
     if (isPickup) {
       shippingCost = 0;
       shippingMethod = 'pickup';
@@ -769,15 +1203,42 @@ app.post('/api/checkout/place-order', async (req, res) => {
       try {
         const shippingResult = await calculateShipping(session_id, {
           zip: shipping.zip, city: shipping.city, state: shipping.state
-        });
-        shippingCost = shippingResult.shipping;
+        }, { residential: isResidential, liftgate: isLiftgate });
+        const opts = shippingResult.options || [];
+        const selected = (shipping_option_id && opts.find(o => o.id === shipping_option_id)) || opts.find(o => o.is_cheapest) || opts[0];
+        shippingCost = selected ? selected.amount : 0;
         shippingMethod = shippingResult.method;
+        selectedCarrier = selected ? selected.carrier : null;
+        selectedTransitDays = selected ? selected.transit_days : null;
+        isFallback = selected ? (selected.is_fallback || false) : false;
       } catch (shipErr) {
         console.error('Shipping calc error during order placement:', shipErr.message);
       }
     }
 
-    const total = productSubtotal + shippingCost + sampleShipping;
+    // Validate promo code if provided (re-validate for race condition protection)
+    let discountAmount = 0;
+    let promoCodeId = null;
+    let promoCodeStr = null;
+    if (promo_code) {
+      const promoItems = items.map(row => ({
+        product_id: row.product_id,
+        category_id: row.category_id,
+        subtotal: row.subtotal,
+        is_sample: row.is_sample
+      }));
+      const promoResult = await calculatePromoDiscount(promo_code, promoItems, customer_email, client);
+      if (!promoResult.valid) {
+        return res.status(400).json({ error: promoResult.error });
+      }
+      discountAmount = promoResult.discount_amount;
+      promoCodeId = promoResult.promo.id;
+      promoCodeStr = promoResult.promo.code;
+    }
+
+    const total = productSubtotal + shippingCost + sampleShipping - discountAmount;
+    const tradeCustomerId = req.tradeCustomer ? req.tradeCustomer.id : null;
+    const existingCustomerId = req.customer ? req.customer.id : null;
 
     const orderNumber = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
 
@@ -786,14 +1247,20 @@ app.post('/api/checkout/place-order', async (req, res) => {
     const orderResult = await client.query(`
       INSERT INTO orders (order_number, session_id, customer_email, customer_name, phone,
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
-        subtotal, shipping, shipping_method, sample_shipping, total, stripe_payment_intent_id, delivery_method, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'confirmed')
+        subtotal, shipping, shipping_method, sample_shipping, total, stripe_payment_intent_id, delivery_method, status,
+        trade_customer_id, po_number, is_tax_exempt, project_id,
+        shipping_carrier, shipping_transit_days, shipping_residential, shipping_liftgate, shipping_is_fallback,
+        customer_id, promo_code_id, promo_code, discount_amount)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'confirmed', $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
       RETURNING *
     `, [orderNumber, session_id, customer_email, customer_name, phone || null,
         isPickup ? null : shipping.line1, isPickup ? null : (shipping.line2 || null),
         isPickup ? null : shipping.city, isPickup ? null : shipping.state, isPickup ? null : shipping.zip,
         productSubtotal.toFixed(2), shippingCost.toFixed(2), shippingMethod, sampleShipping.toFixed(2), total.toFixed(2),
-        payment_intent_id, isPickup ? 'pickup' : 'shipping']);
+        payment_intent_id, isPickup ? 'pickup' : 'shipping',
+        tradeCustomerId, po_number || null, is_tax_exempt || false, project_id || null,
+        selectedCarrier, selectedTransitDays, isResidential, isLiftgate, isFallback,
+        existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2)]);
 
     const order = orderResult.rows[0];
 
@@ -808,17 +1275,92 @@ app.post('/api/checkout/place-order', async (req, res) => {
           item.unit_price || null, item.subtotal || null, item.is_sample || false]);
     }
 
+    // Record promo code usage
+    if (promoCodeId && discountAmount > 0) {
+      await client.query(
+        'INSERT INTO promo_code_usages (promo_code_id, order_id, customer_email, discount_amount) VALUES ($1, $2, $3, $4)',
+        [promoCodeId, order.id, customer_email, discountAmount.toFixed(2)]
+      );
+    }
+
+    // Customer account creation at checkout
+    let newCustomerToken = null;
+    let newCustomerData = null;
+    if (create_account && account_password && !req.customer) {
+      const existingCust = await client.query('SELECT id FROM customers WHERE email = $1', [customer_email]);
+      if (!existingCust.rows.length) {
+        const nameParts = customer_name.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        const { hash, salt } = hashPassword(account_password);
+        const custResult = await client.query(
+          `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone,
+            address_line1, address_line2, city, state, zip)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+          [customer_email, hash, salt, firstName, lastName, phone || null,
+           isPickup ? null : (shipping ? shipping.line1 : null),
+           isPickup ? null : (shipping ? shipping.line2 || null : null),
+           isPickup ? null : (shipping ? shipping.city : null),
+           isPickup ? null : (shipping ? shipping.state : null),
+           isPickup ? null : (shipping ? shipping.zip : null)]
+        );
+        const newCust = custResult.rows[0];
+        await client.query('UPDATE orders SET customer_id = $1 WHERE id = $2', [newCust.id, order.id]);
+
+        newCustomerToken = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        await client.query(
+          'INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
+          [newCust.id, newCustomerToken, expiresAt]
+        );
+        newCustomerData = { id: newCust.id, email: newCust.email, first_name: newCust.first_name, last_name: newCust.last_name };
+      }
+    }
+
     // Generate purchase orders (one per vendor)
     await generatePurchaseOrders(order.id, client);
+
+    // Trade customer: increment spend and check tier promotion
+    if (tradeCustomerId) {
+      await client.query(
+        'UPDATE trade_customers SET total_spend = total_spend + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [total, tradeCustomerId]
+      );
+      const promotion = await checkTierPromotion(tradeCustomerId, client);
+      if (promotion) {
+        console.log(`[Trade] Customer ${tradeCustomerId} promoted to ${promotion.name}`);
+      }
+
+      // Auto-assign rep if unassigned
+      const custCheck = await client.query('SELECT assigned_rep_id FROM trade_customers WHERE id = $1', [tradeCustomerId]);
+      if (!custCheck.rows[0].assigned_rep_id) {
+        const rep = await getNextAvailableRep();
+        if (rep) {
+          await client.query(
+            'UPDATE trade_customers SET assigned_rep_id = $1, assigned_at = CURRENT_TIMESTAMP WHERE id = $2',
+            [rep.id, tradeCustomerId]
+          );
+          await client.query(
+            "INSERT INTO customer_rep_history (trade_customer_id, to_rep_id, reason) VALUES ($1, $2, 'Auto-assigned on first order')",
+            [tradeCustomerId, rep.id]
+          );
+        }
+      }
+    }
 
     // Clear cart
     await client.query('DELETE FROM cart_items WHERE session_id = $1', [session_id]);
 
     await client.query('COMMIT');
 
-    // Return order with items
+    // Return order with items (include customer token if account was created)
     const orderItems = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
-    res.json({ order: { ...order, items: orderItems.rows } });
+    const response = { order: { ...order, items: orderItems.rows } };
+    if (newCustomerToken && newCustomerData) {
+      response.customer_token = newCustomerToken;
+      response.customer = newCustomerData;
+    }
+    res.json(response);
 
     // Fire-and-forget: send order confirmation email
     const emailOrder = { ...order, items: orderItems.rows };
@@ -833,16 +1375,16 @@ app.post('/api/checkout/place-order', async (req, res) => {
 
 // ==================== Admin API ====================
 
-function adminAuth(req, res, next) {
-  const key = req.headers['x-admin-key'];
-  if (!process.env.ADMIN_API_KEY || !key || key !== process.env.ADMIN_API_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-}
+// staffAuth removed in Phase 8 — all admin endpoints now use staffAuth
+// Role-based access: staffAuth validates session, requireRole restricts by role
+// Products/vendors/categories/import/scrapers/reps/margin-tiers: admin + manager
+// Orders: all staff roles (warehouse needs read access)
+// Trade customers: admin + manager + sales_rep
+// Staff management: admin only
+// Audit log: admin + manager (enforced at its own route)
 
 // Dashboard stats
-app.get('/api/admin/stats', adminAuth, async (req, res) => {
+app.get('/api/admin/stats', staffAuth, async (req, res) => {
   try {
     const counts = await pool.query(`
       SELECT
@@ -870,8 +1412,142 @@ app.get('/api/admin/stats', adminAuth, async (req, res) => {
   }
 });
 
+// Dashboard analytics
+app.get('/api/admin/analytics', staffAuth, async (req, res) => {
+  try {
+    const period = req.query.period || '30d';
+    let sinceDate = null;
+    const now = new Date();
+    if (period === '30d') {
+      sinceDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    } else if (period === '90d') {
+      sinceDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    } else if (period === '12m') {
+      sinceDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    }
+    // 'all' => sinceDate stays null
+
+    const dateFilter = sinceDate ? `AND o.created_at >= $1` : '';
+    const params = sinceDate ? [sinceDate.toISOString()] : [];
+
+    const [summaryRes, costRes, revenueRes, topProductsRes, vendorRes, statusRes] = await Promise.all([
+      // 1. Summary stats
+      pool.query(`
+        SELECT COALESCE(SUM(total), 0) as revenue,
+               COUNT(*)::int as orders,
+               COALESCE(AVG(total), 0) as avg_order_value
+        FROM orders o
+        WHERE status != 'cancelled' ${dateFilter}
+      `, params),
+
+      // 2. Cost & margin from purchase orders
+      pool.query(`
+        SELECT COALESCE(SUM(poi.subtotal), 0) as total_cost
+        FROM purchase_order_items poi
+        JOIN purchase_orders po ON po.id = poi.purchase_order_id
+        JOIN orders o ON o.id = po.order_id
+        WHERE o.status != 'cancelled' ${dateFilter}
+      `, params),
+
+      // 3. Revenue over time
+      pool.query(
+        (period === '12m' || period === 'all')
+          ? `SELECT TO_CHAR(o.created_at, 'YYYY-MM') as date,
+                    COALESCE(SUM(o.total), 0) as revenue,
+                    COUNT(*)::int as order_count
+             FROM orders o
+             WHERE o.status != 'cancelled' ${dateFilter}
+             GROUP BY TO_CHAR(o.created_at, 'YYYY-MM')
+             ORDER BY date`
+          : `SELECT DATE(o.created_at)::text as date,
+                    COALESCE(SUM(o.total), 0) as revenue,
+                    COUNT(*)::int as order_count
+             FROM orders o
+             WHERE o.status != 'cancelled' ${dateFilter}
+             GROUP BY DATE(o.created_at)
+             ORDER BY date`,
+        params
+      ),
+
+      // 4. Top 10 products by revenue
+      pool.query(`
+        SELECT oi.product_id, COALESCE(p.name, oi.product_name) as name,
+               COALESCE(SUM(oi.subtotal), 0) as revenue,
+               COALESCE(SUM(oi.num_boxes), 0)::int as units_sold
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        LEFT JOIN products p ON p.id = oi.product_id
+        WHERE o.status != 'cancelled' ${dateFilter}
+        GROUP BY oi.product_id, p.name, oi.product_name
+        ORDER BY revenue DESC
+        LIMIT 10
+      `, params),
+
+      // 5. Vendor performance
+      pool.query(`
+        SELECT v.id as vendor_id, v.name,
+               COALESCE(SUM(poi.retail_price * poi.qty), 0) as revenue,
+               COALESCE(SUM(poi.subtotal), 0) as cost
+        FROM purchase_order_items poi
+        JOIN purchase_orders po ON po.id = poi.purchase_order_id
+        JOIN vendors v ON v.id = po.vendor_id
+        JOIN orders o ON o.id = po.order_id
+        WHERE o.status != 'cancelled' ${dateFilter}
+        GROUP BY v.id, v.name
+        ORDER BY revenue DESC
+      `, params),
+
+      // 6. Order status breakdown
+      pool.query(`
+        SELECT status, COUNT(*)::int as count
+        FROM orders o
+        WHERE 1=1 ${dateFilter}
+        GROUP BY status
+        ORDER BY count DESC
+      `, params)
+    ]);
+
+    const revenue = parseFloat(summaryRes.rows[0].revenue);
+    const totalCost = parseFloat(costRes.rows[0].total_cost);
+    const marginPct = revenue > 0 ? ((revenue - totalCost) / revenue) * 100 : 0;
+
+    res.json({
+      period,
+      summary: {
+        revenue,
+        orders: summaryRes.rows[0].orders,
+        avg_order_value: parseFloat(summaryRes.rows[0].avg_order_value),
+        margin_pct: parseFloat(marginPct.toFixed(1))
+      },
+      revenue_over_time: revenueRes.rows.map(r => ({
+        date: r.date,
+        revenue: parseFloat(r.revenue),
+        order_count: r.order_count
+      })),
+      top_products: topProductsRes.rows.map(r => ({
+        product_id: r.product_id,
+        name: r.name,
+        revenue: parseFloat(r.revenue),
+        units_sold: r.units_sold
+      })),
+      vendor_performance: vendorRes.rows.map(r => ({
+        vendor_id: r.vendor_id,
+        name: r.name,
+        revenue: parseFloat(r.revenue),
+        cost: parseFloat(r.cost),
+        margin_pct: parseFloat(r.revenue) > 0
+          ? parseFloat((((parseFloat(r.revenue) - parseFloat(r.cost)) / parseFloat(r.revenue)) * 100).toFixed(1))
+          : 0
+      })),
+      order_status: statusRes.rows
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // List all products (admin view - any status)
-app.get('/api/admin/products', adminAuth, async (req, res) => {
+app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT p.*, v.name as vendor_name, c.name as category_name,
@@ -894,7 +1570,7 @@ app.get('/api/admin/products', adminAuth, async (req, res) => {
 });
 
 // Bulk update product status
-app.patch('/api/admin/products/bulk/status', adminAuth, async (req, res) => {
+app.patch('/api/admin/products/bulk/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { ids, status } = req.body;
     if (!ids || !ids.length) return res.status(400).json({ error: 'ids array is required' });
@@ -910,7 +1586,7 @@ app.patch('/api/admin/products/bulk/status', adminAuth, async (req, res) => {
 });
 
 // Bulk update product category
-app.patch('/api/admin/products/bulk/category', adminAuth, async (req, res) => {
+app.patch('/api/admin/products/bulk/category', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { ids, category_id } = req.body;
     if (!ids || !ids.length) return res.status(400).json({ error: 'ids array is required' });
@@ -925,7 +1601,7 @@ app.patch('/api/admin/products/bulk/category', adminAuth, async (req, res) => {
 });
 
 // Bulk delete products (cascade)
-app.delete('/api/admin/products/bulk', adminAuth, async (req, res) => {
+app.delete('/api/admin/products/bulk', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { ids } = req.body;
@@ -954,7 +1630,7 @@ app.delete('/api/admin/products/bulk', adminAuth, async (req, res) => {
 });
 
 // Get single product with full details
-app.get('/api/admin/products/:id', adminAuth, async (req, res) => {
+app.get('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const product = await pool.query(`
@@ -989,7 +1665,7 @@ app.get('/api/admin/products/:id', adminAuth, async (req, res) => {
 });
 
 // Create product
-app.post('/api/admin/products', adminAuth, async (req, res) => {
+app.post('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { name, collection, vendor_id, category_id, status, description_short, description_long } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
@@ -1007,7 +1683,7 @@ app.post('/api/admin/products', adminAuth, async (req, res) => {
 });
 
 // Update product
-app.put('/api/admin/products/:id', adminAuth, async (req, res) => {
+app.put('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, collection, vendor_id, category_id, status, description_short, description_long } = req.body;
@@ -1034,7 +1710,7 @@ app.put('/api/admin/products/:id', adminAuth, async (req, res) => {
 });
 
 // Delete product (cascade)
-app.delete('/api/admin/products/:id', adminAuth, async (req, res) => {
+app.delete('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -1063,7 +1739,7 @@ app.delete('/api/admin/products/:id', adminAuth, async (req, res) => {
 });
 
 // List SKUs for a product
-app.get('/api/admin/products/:productId/skus', adminAuth, async (req, res) => {
+app.get('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { productId } = req.params;
     const result = await pool.query(`
@@ -1082,7 +1758,7 @@ app.get('/api/admin/products/:productId/skus', adminAuth, async (req, res) => {
 });
 
 // Create SKU + packaging + pricing
-app.post('/api/admin/products/:productId/skus', adminAuth, async (req, res) => {
+app.post('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { productId } = req.params;
@@ -1135,7 +1811,7 @@ app.post('/api/admin/products/:productId/skus', adminAuth, async (req, res) => {
 });
 
 // Update SKU + upsert packaging + pricing
-app.put('/api/admin/skus/:id', adminAuth, async (req, res) => {
+app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -1201,7 +1877,7 @@ app.put('/api/admin/skus/:id', adminAuth, async (req, res) => {
 });
 
 // Delete SKU + related rows
-app.delete('/api/admin/skus/:id', adminAuth, async (req, res) => {
+app.delete('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -1221,8 +1897,187 @@ app.delete('/api/admin/skus/:id', adminAuth, async (req, res) => {
   }
 });
 
+// ==================== Media Upload API ====================
+
+const UPLOADS_DIR = process.env.UPLOADS_PATH || './uploads';
+
+const mediaUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(UPLOADS_DIR, 'products', req.params.id);
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, `${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`);
+    }
+  }),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, allowed.includes(ext));
+  }
+});
+
+// 3A. Upload file
+app.post('/api/admin/products/:id/media/upload', staffAuth, requireRole('admin', 'manager'), mediaUpload.single('file'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!req.file) return res.status(400).json({ error: 'No valid file uploaded' });
+    const product = await pool.query('SELECT id FROM products WHERE id = $1', [id]);
+    if (!product.rows.length) {
+      try { fs.unlinkSync(req.file.path); } catch (_) {}
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    const assetType = req.body.asset_type || 'alternate';
+    let sortOrder = req.body.sort_order;
+    if (sortOrder == null) {
+      const maxSort = await pool.query(
+        'SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM media_assets WHERE product_id = $1 AND asset_type = $2',
+        [id, assetType]
+      );
+      sortOrder = maxSort.rows[0].next;
+    }
+    const url = `/uploads/products/${id}/${req.file.filename}`;
+    const result = await pool.query(
+      `INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (product_id, asset_type, sort_order) DO UPDATE
+       SET url = EXCLUDED.url, original_url = EXCLUDED.original_url, sku_id = EXCLUDED.sku_id
+       RETURNING *`,
+      [id, req.body.sku_id || null, assetType, url, req.file.originalname, sortOrder]
+    );
+    res.json({ media: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3B. Add media by URL
+app.post('/api/admin/products/:id/media/url', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { url, asset_type = 'alternate', sort_order, sku_id } = req.body;
+    if (!url) return res.status(400).json({ error: 'url is required' });
+    const product = await pool.query('SELECT id FROM products WHERE id = $1', [id]);
+    if (!product.rows.length) return res.status(404).json({ error: 'Product not found' });
+    let finalSort = sort_order;
+    if (finalSort == null) {
+      const maxSort = await pool.query(
+        'SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM media_assets WHERE product_id = $1 AND asset_type = $2',
+        [id, asset_type]
+      );
+      finalSort = maxSort.rows[0].next;
+    }
+    const result = await pool.query(
+      `INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (product_id, asset_type, sort_order) DO UPDATE
+       SET url = EXCLUDED.url, original_url = EXCLUDED.original_url, sku_id = EXCLUDED.sku_id
+       RETURNING *`,
+      [id, sku_id || null, asset_type, url, url, finalSort]
+    );
+    res.json({ media: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3C. Update media asset
+app.put('/api/admin/media/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const fields = [];
+    const vals = [];
+    let i = 1;
+    for (const key of ['asset_type', 'sort_order', 'sku_id']) {
+      if (req.body[key] !== undefined) {
+        fields.push(`${key} = $${i++}`);
+        vals.push(req.body[key]);
+      }
+    }
+    if (!fields.length) return res.status(400).json({ error: 'No fields to update' });
+    vals.push(id);
+    const result = await pool.query(
+      `UPDATE media_assets SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
+      vals
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Media not found' });
+    res.json({ media: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3D. Delete media asset
+app.delete('/api/admin/media/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM media_assets WHERE id = $1 RETURNING *', [id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Media not found' });
+    const deleted = result.rows[0];
+    if (deleted.url && deleted.url.startsWith('/uploads/')) {
+      const filePath = path.join(UPLOADS_DIR, deleted.url.replace('/uploads/', ''));
+      try { fs.unlinkSync(filePath); } catch (_) {}
+    }
+    res.json({ deleted: deleted.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3E. Reorder media assets
+app.patch('/api/admin/products/:id/media/reorder', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { order } = req.body;
+    if (!order || !order.length) return res.status(400).json({ error: 'order array is required' });
+    await client.query('BEGIN');
+    // Offset only the items being reordered to avoid unique constraint violations
+    const reorderIds = order.map(o => o.id);
+    await client.query(
+      'UPDATE media_assets SET sort_order = sort_order + 10000 WHERE product_id = $1 AND id = ANY($2)',
+      [id, reorderIds]
+    );
+    for (const item of order) {
+      await client.query(
+        'UPDATE media_assets SET sort_order = $1 WHERE id = $2 AND product_id = $3',
+        [item.sort_order, item.id, id]
+      );
+    }
+    await client.query('COMMIT');
+    const result = await pool.query(
+      'SELECT * FROM media_assets WHERE product_id = $1 ORDER BY asset_type, sort_order',
+      [id]
+    );
+    res.json({ media: result.rows });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// 3F. List media for a product
+app.get('/api/admin/products/:id/media', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM media_assets WHERE product_id = $1 ORDER BY asset_type, sort_order',
+      [id]
+    );
+    res.json({ media: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // List vendors with product counts
-app.get('/api/admin/vendors', adminAuth, async (req, res) => {
+app.get('/api/admin/vendors', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT v.*, (SELECT COUNT(*)::int FROM products p WHERE p.vendor_id = v.id) as product_count
@@ -1236,7 +2091,7 @@ app.get('/api/admin/vendors', adminAuth, async (req, res) => {
 });
 
 // Create vendor
-app.post('/api/admin/vendors', adminAuth, async (req, res) => {
+app.post('/api/admin/vendors', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { name, code, website } = req.body;
     if (!name || !code) return res.status(400).json({ error: 'Name and code are required' });
@@ -1253,7 +2108,7 @@ app.post('/api/admin/vendors', adminAuth, async (req, res) => {
 });
 
 // Update vendor
-app.put('/api/admin/vendors/:id', adminAuth, async (req, res) => {
+app.put('/api/admin/vendors/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, code, website } = req.body;
@@ -1276,7 +2131,7 @@ app.put('/api/admin/vendors/:id', adminAuth, async (req, res) => {
 });
 
 // Toggle vendor active status
-app.patch('/api/admin/vendors/:id/toggle', adminAuth, async (req, res) => {
+app.patch('/api/admin/vendors/:id/toggle', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(`
@@ -1292,7 +2147,7 @@ app.patch('/api/admin/vendors/:id/toggle', adminAuth, async (req, res) => {
 });
 
 // List categories (flat + tree)
-app.get('/api/admin/categories', adminAuth, async (req, res) => {
+app.get('/api/admin/categories', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT c.*, (SELECT COUNT(*)::int FROM products p WHERE p.category_id = c.id) as product_count
@@ -1315,7 +2170,7 @@ app.get('/api/admin/categories', adminAuth, async (req, res) => {
 });
 
 // Create category
-app.post('/api/admin/categories', adminAuth, async (req, res) => {
+app.post('/api/admin/categories', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { name, slug, parent_id, sort_order } = req.body;
     if (!name || !slug) return res.status(400).json({ error: 'Name and slug are required' });
@@ -1332,7 +2187,7 @@ app.post('/api/admin/categories', adminAuth, async (req, res) => {
 });
 
 // Update category
-app.put('/api/admin/categories/:id', adminAuth, async (req, res) => {
+app.put('/api/admin/categories/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, slug, parent_id, sort_order } = req.body;
@@ -1356,7 +2211,7 @@ app.put('/api/admin/categories/:id', adminAuth, async (req, res) => {
 });
 
 // Delete category (blocked if has children or products)
-app.delete('/api/admin/categories/:id', adminAuth, async (req, res) => {
+app.delete('/api/admin/categories/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1379,7 +2234,7 @@ app.delete('/api/admin/categories/:id', adminAuth, async (req, res) => {
 });
 
 // List all orders
-app.get('/api/admin/orders', adminAuth, async (req, res) => {
+app.get('/api/admin/orders', staffAuth, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT o.*,
@@ -1396,7 +2251,7 @@ app.get('/api/admin/orders', adminAuth, async (req, res) => {
 });
 
 // Get single order with items
-app.get('/api/admin/orders/:id', adminAuth, async (req, res) => {
+app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const order = await pool.query(`
@@ -1421,11 +2276,11 @@ app.get('/api/admin/orders/:id', adminAuth, async (req, res) => {
 });
 
 // Update order status
-app.put('/api/admin/orders/:id/status', adminAuth, async (req, res) => {
+app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, tracking_number, carrier, shipped_at } = req.body;
     const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status. Must be one of: ' + validStatuses.join(', ') });
@@ -1433,11 +2288,34 @@ app.put('/api/admin/orders/:id/status', adminAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
-    const result = await client.query(`
-      UPDATE orders SET status = $1
-      WHERE id = $2
-      RETURNING *
-    `, [status, id]);
+    // For shipped status with shipping delivery, require tracking info
+    let result;
+    if (status === 'shipped' && tracking_number) {
+      result = await client.query(`
+        UPDATE orders SET status = $1, tracking_number = $2, shipping_carrier = $3, shipped_at = COALESCE($4::timestamp, NOW())
+        WHERE id = $5
+        RETURNING *
+      `, [status, tracking_number, carrier || null, shipped_at || null, id]);
+    } else if (status === 'shipped') {
+      // Check if this is a shipping order — if so, require tracking
+      const orderCheck = await client.query('SELECT delivery_method FROM orders WHERE id = $1', [id]);
+      if (orderCheck.rows.length && orderCheck.rows[0].delivery_method === 'shipping') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Tracking number is required for shipping orders' });
+      }
+      // Pickup order — no tracking needed
+      result = await client.query(`
+        UPDATE orders SET status = $1, shipped_at = NOW()
+        WHERE id = $2
+        RETURNING *
+      `, [status, id]);
+    } else {
+      result = await client.query(`
+        UPDATE orders SET status = $1
+        WHERE id = $2
+        RETURNING *
+      `, [status, id]);
+    }
 
     if (!result.rows.length) {
       await client.query('ROLLBACK');
@@ -1519,7 +2397,7 @@ function applyMapping(row, mapping) {
 }
 
 // GET /api/admin/import/fields — list available PIM target fields
-app.get('/api/admin/import/fields', adminAuth, async (req, res) => {
+app.get('/api/admin/import/fields', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const attrResult = await pool.query('SELECT name, slug FROM attributes ORDER BY display_order, name');
     const fields = [...PIM_FIELDS];
@@ -1533,7 +2411,7 @@ app.get('/api/admin/import/fields', adminAuth, async (req, res) => {
 });
 
 // POST /api/admin/import/upload — upload and parse spreadsheet
-app.post('/api/admin/import/upload', adminAuth, importUpload.single('file'), (req, res) => {
+app.post('/api/admin/import/upload', staffAuth, requireRole('admin', 'manager'), importUpload.single('file'), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -1573,7 +2451,7 @@ app.post('/api/admin/import/upload', adminAuth, importUpload.single('file'), (re
 });
 
 // POST /api/admin/import/validate — validate mapped data
-app.post('/api/admin/import/validate', adminAuth, async (req, res) => {
+app.post('/api/admin/import/validate', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { import_session_id, vendor_id, category_id, mapping, defaults } = req.body;
 
@@ -1685,7 +2563,7 @@ app.post('/api/admin/import/validate', adminAuth, async (req, res) => {
 });
 
 // POST /api/admin/import/execute — bulk import products
-app.post('/api/admin/import/execute', adminAuth, async (req, res) => {
+app.post('/api/admin/import/execute', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { import_session_id, vendor_id, category_id, mapping, defaults } = req.body;
     const defaultStatus = (defaults && defaults.status) || 'draft';
@@ -1831,7 +2709,7 @@ app.post('/api/admin/import/execute', adminAuth, async (req, res) => {
 });
 
 // POST /api/admin/import/templates — save a mapping template
-app.post('/api/admin/import/templates', adminAuth, async (req, res) => {
+app.post('/api/admin/import/templates', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { vendor_id, name, mapping } = req.body;
     if (!vendor_id || !name || !mapping) return res.status(400).json({ error: 'vendor_id, name, and mapping are required' });
@@ -1847,7 +2725,7 @@ app.post('/api/admin/import/templates', adminAuth, async (req, res) => {
 });
 
 // GET /api/admin/import/templates — list templates
-app.get('/api/admin/import/templates', adminAuth, async (req, res) => {
+app.get('/api/admin/import/templates', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { vendor_id } = req.query;
     let query = 'SELECT * FROM import_mapping_templates';
@@ -1862,7 +2740,7 @@ app.get('/api/admin/import/templates', adminAuth, async (req, res) => {
 });
 
 // DELETE /api/admin/import/templates/:id — delete a template
-app.delete('/api/admin/import/templates/:id', adminAuth, async (req, res) => {
+app.delete('/api/admin/import/templates/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query('DELETE FROM import_mapping_templates WHERE id = $1 RETURNING id', [id]);
@@ -1910,7 +2788,7 @@ async function runScraper(source) {
 }
 
 // List vendor sources with last job info
-app.get('/api/admin/vendor-sources', adminAuth, async (req, res) => {
+app.get('/api/admin/vendor-sources', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT vs.*,
@@ -1932,7 +2810,7 @@ app.get('/api/admin/vendor-sources', adminAuth, async (req, res) => {
 });
 
 // Create vendor source
-app.post('/api/admin/vendor-sources', adminAuth, async (req, res) => {
+app.post('/api/admin/vendor-sources', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { vendor_id, source_type, name, base_url, config, scraper_key, schedule } = req.body;
     if (!vendor_id || !name || !base_url) {
@@ -1951,7 +2829,7 @@ app.post('/api/admin/vendor-sources', adminAuth, async (req, res) => {
 });
 
 // Update vendor source
-app.put('/api/admin/vendor-sources/:id', adminAuth, async (req, res) => {
+app.put('/api/admin/vendor-sources/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, base_url, config, scraper_key, schedule, is_active, source_type } = req.body;
@@ -1977,7 +2855,7 @@ app.put('/api/admin/vendor-sources/:id', adminAuth, async (req, res) => {
 });
 
 // Delete vendor source
-app.delete('/api/admin/vendor-sources/:id', adminAuth, async (req, res) => {
+app.delete('/api/admin/vendor-sources/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -1996,7 +2874,7 @@ app.delete('/api/admin/vendor-sources/:id', adminAuth, async (req, res) => {
 });
 
 // Trigger manual scrape
-app.post('/api/admin/vendor-sources/:id/scrape', adminAuth, async (req, res) => {
+app.post('/api/admin/vendor-sources/:id/scrape', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const sourceResult = await pool.query('SELECT * FROM vendor_sources WHERE id = $1', [id]);
@@ -2013,7 +2891,7 @@ app.post('/api/admin/vendor-sources/:id/scrape', adminAuth, async (req, res) => 
 });
 
 // List scrape jobs (paginated)
-app.get('/api/admin/scrape-jobs', adminAuth, async (req, res) => {
+app.get('/api/admin/scrape-jobs', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { vendor_source_id, limit, offset } = req.query;
     let query = `
@@ -2043,7 +2921,7 @@ app.get('/api/admin/scrape-jobs', adminAuth, async (req, res) => {
 });
 
 // Get single scrape job detail
-app.get('/api/admin/scrape-jobs/:id', adminAuth, async (req, res) => {
+app.get('/api/admin/scrape-jobs/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(`
@@ -2100,6 +2978,1818 @@ async function repAuth(req, res, next) {
     res.status(500).json({ error: err.message });
   }
 }
+
+// ==================== Trade Auth Middleware ====================
+
+async function tradeAuth(req, res, next) {
+  const token = req.headers['x-trade-token'];
+  if (!token) return res.status(401).json({ error: 'Authentication required' });
+
+  try {
+    const result = await pool.query(`
+      SELECT ts.id as session_id, tc.id, tc.email, tc.company_name, tc.contact_name, tc.status,
+        mt.name as tier_name, mt.discount_percent
+      FROM trade_sessions ts
+      JOIN trade_customers tc ON tc.id = ts.trade_customer_id
+      LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+      WHERE ts.token = $1 AND ts.expires_at > CURRENT_TIMESTAMP
+    `, [token]);
+
+    if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
+    if (result.rows[0].status !== 'approved') return res.status(403).json({ error: 'Account not approved' });
+
+    req.tradeCustomer = {
+      id: result.rows[0].id,
+      email: result.rows[0].email,
+      company_name: result.rows[0].company_name,
+      contact_name: result.rows[0].contact_name,
+      tier_name: result.rows[0].tier_name,
+      discount_percent: parseFloat(result.rows[0].discount_percent) || 0
+    };
+    next();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function optionalTradeAuth(req, res, next) {
+  const token = req.headers['x-trade-token'];
+  if (!token) {
+    req.tradeCustomer = null;
+    return next();
+  }
+
+  try {
+    const result = await pool.query(`
+      SELECT ts.id as session_id, tc.id, tc.email, tc.company_name, tc.contact_name, tc.status,
+        mt.name as tier_name, mt.discount_percent
+      FROM trade_sessions ts
+      JOIN trade_customers tc ON tc.id = ts.trade_customer_id
+      LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+      WHERE ts.token = $1 AND ts.expires_at > CURRENT_TIMESTAMP
+    `, [token]);
+
+    if (result.rows.length && result.rows[0].status === 'approved') {
+      req.tradeCustomer = {
+        id: result.rows[0].id,
+        email: result.rows[0].email,
+        company_name: result.rows[0].company_name,
+        contact_name: result.rows[0].contact_name,
+        tier_name: result.rows[0].tier_name,
+        discount_percent: parseFloat(result.rows[0].discount_percent) || 0
+      };
+    } else {
+      req.tradeCustomer = null;
+    }
+    next();
+  } catch (err) {
+    req.tradeCustomer = null;
+    next();
+  }
+}
+
+// ==================== Customer Auth Middleware ====================
+
+async function customerAuth(req, res, next) {
+  const token = req.headers['x-customer-token'];
+  if (!token) return res.status(401).json({ error: 'Authentication required' });
+
+  try {
+    const result = await pool.query(`
+      SELECT cs.id as session_id, c.id, c.email, c.first_name, c.last_name, c.phone,
+        c.address_line1, c.address_line2, c.city, c.state, c.zip
+      FROM customer_sessions cs
+      JOIN customers c ON c.id = cs.customer_id
+      WHERE cs.token = $1 AND cs.expires_at > CURRENT_TIMESTAMP
+    `, [token]);
+
+    if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
+
+    req.customer = result.rows[0];
+    next();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function optionalCustomerAuth(req, res, next) {
+  const token = req.headers['x-customer-token'];
+  if (!token) {
+    req.customer = null;
+    return next();
+  }
+
+  try {
+    const result = await pool.query(`
+      SELECT cs.id as session_id, c.id, c.email, c.first_name, c.last_name, c.phone,
+        c.address_line1, c.address_line2, c.city, c.state, c.zip
+      FROM customer_sessions cs
+      JOIN customers c ON c.id = cs.customer_id
+      WHERE cs.token = $1 AND cs.expires_at > CURRENT_TIMESTAMP
+    `, [token]);
+
+    if (result.rows.length) {
+      req.customer = result.rows[0];
+    } else {
+      req.customer = null;
+    }
+    next();
+  } catch (err) {
+    req.customer = null;
+    next();
+  }
+}
+
+// ==================== Staff Auth Middleware ====================
+
+async function staffAuth(req, res, next) {
+  const token = req.headers['x-staff-token'];
+  if (!token) return res.status(401).json({ error: 'Authentication required' });
+
+  try {
+    const result = await pool.query(`
+      SELECT ss.id as session_id, sa.id, sa.email, sa.first_name, sa.last_name, sa.role, sa.is_active
+      FROM staff_sessions ss
+      JOIN staff_accounts sa ON sa.id = ss.staff_id
+      WHERE ss.token = $1 AND ss.expires_at > CURRENT_TIMESTAMP
+    `, [token]);
+
+    if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
+    if (!result.rows[0].is_active) return res.status(403).json({ error: 'Account deactivated' });
+
+    req.staff = {
+      id: result.rows[0].id,
+      email: result.rows[0].email,
+      first_name: result.rows[0].first_name,
+      last_name: result.rows[0].last_name,
+      role: result.rows[0].role
+    };
+    next();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.staff) return res.status(401).json({ error: 'Authentication required' });
+    if (!roles.includes(req.staff.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    next();
+  };
+}
+
+async function logAudit(staffId, action, entityType, entityId, details, ipAddress) {
+  try {
+    await pool.query(
+      'INSERT INTO audit_log (staff_id, action, entity_type, entity_id, details, ip_address) VALUES ($1, $2, $3, $4, $5, $6)',
+      [staffId, action, entityType || null, entityId || null, JSON.stringify(details || {}), ipAddress || null]
+    );
+  } catch (err) {
+    console.error('Audit log error:', err.message);
+  }
+}
+
+// ==================== Staff Auth Endpoints ====================
+
+// Check if any staff accounts exist (for first-time setup)
+app.get('/api/staff/setup-check', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT COUNT(*)::int as count FROM staff_accounts');
+    res.json({ needs_setup: result.rows[0].count === 0 });
+  } catch (err) {
+    // Table may not exist yet
+    res.json({ needs_setup: true });
+  }
+});
+
+// First-time setup: create initial admin account
+app.post('/api/staff/setup', async (req, res) => {
+  try {
+    const existing = await pool.query('SELECT COUNT(*)::int as count FROM staff_accounts');
+    if (existing.rows[0].count > 0) {
+      return res.status(400).json({ error: 'Setup already completed. Use login instead.' });
+    }
+
+    const { email, password, first_name, last_name } = req.body;
+    if (!email || !password || !first_name || !last_name) {
+      return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
+    }
+
+    const { hash, salt } = hashPassword(password);
+    const result = await pool.query(`
+      INSERT INTO staff_accounts (email, password_hash, password_salt, first_name, last_name, role)
+      VALUES ($1, $2, $3, $4, $5, 'admin')
+      RETURNING id, email, first_name, last_name, role
+    `, [email.toLowerCase().trim(), hash, salt, first_name.trim(), last_name.trim()]);
+
+    const staff = result.rows[0];
+
+    // Create session
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await pool.query(
+      'INSERT INTO staff_sessions (staff_id, token, expires_at) VALUES ($1, $2, $3)',
+      [staff.id, token, expiresAt]
+    );
+
+    await logAudit(staff.id, 'staff.setup', 'staff_accounts', staff.id, { email: staff.email }, req.ip);
+
+    res.json({ token, staff });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'An account with this email already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Rate limiting store for login attempts
+const loginAttempts = {};
+const LOGIN_MAX = 5;
+const LOGIN_WINDOW = 15 * 60 * 1000; // 15 minutes
+
+app.post('/api/staff/login', async (req, res) => {
+  try {
+    const { email, password, remember_me, device_fingerprint } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+
+    const emailKey = email.toLowerCase().trim();
+
+    // Rate limiting
+    const now = Date.now();
+    if (!loginAttempts[emailKey]) loginAttempts[emailKey] = [];
+    loginAttempts[emailKey] = loginAttempts[emailKey].filter(t => now - t < LOGIN_WINDOW);
+    if (loginAttempts[emailKey].length >= LOGIN_MAX) {
+      return res.status(429).json({ error: 'Too many login attempts. Please try again in 15 minutes.' });
+    }
+
+    const result = await pool.query('SELECT * FROM staff_accounts WHERE email = $1', [emailKey]);
+    if (!result.rows.length) {
+      loginAttempts[emailKey].push(now);
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const staff = result.rows[0];
+    if (!staff.is_active) return res.status(403).json({ error: 'Account deactivated' });
+    if (!verifyPassword(password, staff.password_hash, staff.password_salt)) {
+      loginAttempts[emailKey].push(now);
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Check if device is trusted
+    const fpHash = device_fingerprint ? crypto.createHash('sha256').update(device_fingerprint).digest('hex') : null;
+    let isTrusted = false;
+    if (fpHash) {
+      const trusted = await pool.query(
+        'SELECT id FROM staff_sessions WHERE staff_id = $1 AND device_fingerprint = $2 AND is_trusted = true AND trusted_until > NOW()',
+        [staff.id, fpHash]
+      );
+      isTrusted = trusted.rows.length > 0;
+    }
+
+    // If untrusted device, require 2FA (skip in dev when SMTP not configured)
+    const smtpConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+    if (!isTrusted && fpHash && smtpConfigured) {
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const codeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      await pool.query(
+        'INSERT INTO staff_2fa_codes (staff_id, code, expires_at) VALUES ($1, $2, $3)',
+        [staff.id, code, codeExpires]
+      );
+      const { send2FACode } = await import('./services/emailService.js');
+      await send2FACode(staff.email, code);
+      return res.json({ requires_2fa: true, staff_id: staff.id });
+    }
+    if (!isTrusted && fpHash && !smtpConfigured) {
+      console.log(`[Auth] 2FA bypassed for ${emailKey} — SMTP not configured (dev mode)`);
+    }
+
+    // Trusted device or no fingerprint — create session directly
+    const token = crypto.randomBytes(32).toString('hex');
+    const ttl = remember_me ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    const expiresAt = new Date(Date.now() + ttl);
+
+    await pool.query(
+      'INSERT INTO staff_sessions (staff_id, token, device_fingerprint, is_trusted, trusted_until, remember_me, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [staff.id, token, fpHash, isTrusted, isTrusted ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null, remember_me || false, expiresAt]
+    );
+
+    await logAudit(staff.id, 'staff.login', 'staff_accounts', staff.id, { trusted_device: isTrusted }, req.ip);
+
+    res.json({
+      token,
+      staff: {
+        id: staff.id,
+        email: staff.email,
+        first_name: staff.first_name,
+        last_name: staff.last_name,
+        role: staff.role
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Verify 2FA code
+app.post('/api/staff/verify-2fa', async (req, res) => {
+  try {
+    const { staff_id, code, trust_device, device_fingerprint } = req.body;
+    if (!staff_id || !code) return res.status(400).json({ error: 'Staff ID and code are required' });
+
+    const result = await pool.query(
+      'SELECT * FROM staff_2fa_codes WHERE staff_id = $1 AND code = $2 AND expires_at > NOW() AND used = false ORDER BY created_at DESC LIMIT 1',
+      [staff_id, code]
+    );
+    if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired code' });
+
+    // Mark code as used
+    await pool.query('UPDATE staff_2fa_codes SET used = true WHERE id = $1', [result.rows[0].id]);
+
+    // Get staff
+    const staffResult = await pool.query('SELECT * FROM staff_accounts WHERE id = $1 AND is_active = true', [staff_id]);
+    if (!staffResult.rows.length) return res.status(404).json({ error: 'Staff not found' });
+    const staff = staffResult.rows[0];
+
+    const fpHash = device_fingerprint ? crypto.createHash('sha256').update(device_fingerprint).digest('hex') : null;
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const trustedUntil = trust_device ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null;
+
+    await pool.query(
+      'INSERT INTO staff_sessions (staff_id, token, device_fingerprint, is_trusted, trusted_until, expires_at) VALUES ($1, $2, $3, $4, $5, $6)',
+      [staff.id, token, fpHash, trust_device || false, trustedUntil, expiresAt]
+    );
+
+    await logAudit(staff.id, 'staff.login.2fa', 'staff_accounts', staff.id, { trusted: trust_device || false }, req.ip);
+
+    res.json({
+      token,
+      staff: {
+        id: staff.id,
+        email: staff.email,
+        first_name: staff.first_name,
+        last_name: staff.last_name,
+        role: staff.role
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/staff/logout', staffAuth, async (req, res) => {
+  try {
+    const token = req.headers['x-staff-token'];
+    await pool.query('DELETE FROM staff_sessions WHERE token = $1', [token]);
+    await logAudit(req.staff.id, 'staff.logout', 'staff_accounts', req.staff.id, {}, req.ip);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/staff/me', staffAuth, async (req, res) => {
+  res.json({ staff: req.staff });
+});
+
+// Staff CRUD (admin only)
+app.get('/api/admin/staff', staffAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, email, first_name, last_name, phone, role, is_active, created_at
+      FROM staff_accounts
+      ORDER BY created_at DESC
+    `);
+    res.json({ staff: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/staff', staffAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { email, password, first_name, last_name, phone, role } = req.body;
+    if (!email || !password || !first_name || !last_name) {
+      return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
+    }
+    const validRoles = ['admin', 'manager', 'sales_rep', 'warehouse'];
+    if (role && !validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be one of: ' + validRoles.join(', ') });
+    }
+
+    const { hash, salt } = hashPassword(password);
+    const result = await pool.query(`
+      INSERT INTO staff_accounts (email, password_hash, password_salt, first_name, last_name, phone, role)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, email, first_name, last_name, phone, role, is_active, created_at
+    `, [email.toLowerCase().trim(), hash, salt, first_name.trim(), last_name.trim(), phone || null, role || 'sales_rep']);
+
+    await logAudit(req.staff.id, 'staff.create', 'staff_accounts', result.rows[0].id, { email: email, role: role || 'sales_rep' }, req.ip);
+    res.json({ staff_member: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'An account with this email already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/staff/:id', staffAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email, first_name, last_name, phone, role } = req.body;
+    const validRoles = ['admin', 'manager', 'sales_rep', 'warehouse'];
+    if (role && !validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    const result = await pool.query(`
+      UPDATE staff_accounts SET
+        email = COALESCE($1, email),
+        first_name = COALESCE($2, first_name),
+        last_name = COALESCE($3, last_name),
+        phone = COALESCE($4, phone),
+        role = COALESCE($5, role),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $6
+      RETURNING id, email, first_name, last_name, phone, role, is_active, created_at
+    `, [email ? email.toLowerCase().trim() : null, first_name, last_name, phone, role, id]);
+
+    if (!result.rows.length) return res.status(404).json({ error: 'Staff member not found' });
+    await logAudit(req.staff.id, 'staff.update', 'staff_accounts', id, { changes: req.body }, req.ip);
+    res.json({ staff_member: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'An account with this email already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/admin/staff/:id/toggle', staffAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Prevent self-deactivation
+    if (id === req.staff.id) {
+      return res.status(400).json({ error: 'Cannot deactivate your own account' });
+    }
+
+    const result = await pool.query(`
+      UPDATE staff_accounts SET is_active = NOT is_active, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING id, email, first_name, last_name, phone, role, is_active, created_at
+    `, [id]);
+
+    if (!result.rows.length) return res.status(404).json({ error: 'Staff member not found' });
+
+    // Kill sessions if deactivated
+    if (!result.rows[0].is_active) {
+      await pool.query('DELETE FROM staff_sessions WHERE staff_id = $1', [id]);
+    }
+
+    await logAudit(req.staff.id, result.rows[0].is_active ? 'staff.activate' : 'staff.deactivate', 'staff_accounts', id, {}, req.ip);
+    res.json({ staff_member: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/staff/:id/password', staffAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: 'Password is required' });
+
+    const { hash, salt } = hashPassword(password);
+    const result = await pool.query(
+      'UPDATE staff_accounts SET password_hash = $1, password_salt = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING id',
+      [hash, salt, id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Staff member not found' });
+
+    // Kill all sessions for this staff member
+    await pool.query('DELETE FROM staff_sessions WHERE staff_id = $1', [id]);
+
+    await logAudit(req.staff.id, 'staff.password_reset', 'staff_accounts', id, {}, req.ip);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Trade Auth Endpoints ====================
+
+app.post('/api/trade/register', async (req, res) => {
+  try {
+    const { email, password, company_name, contact_name, phone } = req.body;
+    if (!email || !password || !company_name || !contact_name) {
+      return res.status(400).json({ error: 'Email, password, company name, and contact name are required' });
+    }
+
+    const { hash, salt } = hashPassword(password);
+    await pool.query(
+      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [email.toLowerCase().trim(), hash, salt, company_name.trim(), contact_name.trim(), phone || null]
+    );
+
+    res.json({ success: true, message: 'Registration submitted. Your account is pending approval.' });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'An account with this email already exists' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/trade/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+
+    const result = await pool.query('SELECT * FROM trade_customers WHERE email = $1', [email.toLowerCase().trim()]);
+    if (!result.rows.length) return res.status(401).json({ error: 'Invalid email or password' });
+
+    const customer = result.rows[0];
+    if (customer.status === 'pending') {
+      return res.status(403).json({ error: 'Your account is still pending approval. We will notify you once approved.' });
+    }
+    if (customer.status === 'rejected') {
+      return res.status(403).json({ error: 'Your trade application has been declined.' });
+    }
+    if (!verifyPassword(password, customer.password_hash, customer.password_salt)) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await pool.query(
+      'INSERT INTO trade_sessions (trade_customer_id, token, expires_at) VALUES ($1, $2, $3)',
+      [customer.id, token, expiresAt]
+    );
+
+    // Fetch tier info
+    let tier = null;
+    if (customer.margin_tier_id) {
+      const tierResult = await pool.query('SELECT name, discount_percent FROM margin_tiers WHERE id = $1', [customer.margin_tier_id]);
+      if (tierResult.rows.length) tier = tierResult.rows[0];
+    }
+
+    res.json({
+      token,
+      customer: {
+        id: customer.id,
+        email: customer.email,
+        company_name: customer.company_name,
+        contact_name: customer.contact_name,
+        tier_name: tier ? tier.name : null,
+        discount_percent: tier ? parseFloat(tier.discount_percent) : 0
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/trade/logout', tradeAuth, async (req, res) => {
+  try {
+    const token = req.headers['x-trade-token'];
+    await pool.query('DELETE FROM trade_sessions WHERE token = $1', [token]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/trade/me', tradeAuth, async (req, res) => {
+  res.json({ customer: req.tradeCustomer });
+});
+
+// ==================== Trade Registration Enhancements (Phase 2) ====================
+
+// Create Stripe SetupIntent for payment collection during registration
+app.post('/api/trade/register/setup-intent', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const customer = await stripe.customers.create({ email });
+    const setupIntent = await stripe.setupIntents.create({
+      customer: customer.id,
+      payment_method_types: ['card']
+    });
+    res.json({ client_secret: setupIntent.client_secret, stripe_customer_id: customer.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upload document during registration
+app.post('/api/trade/register/upload', docUpload.single('document'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No valid file uploaded' });
+    const { doc_type } = req.body;
+    if (!doc_type) return res.status(400).json({ error: 'doc_type is required' });
+
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const fileKey = `trade-docs/${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`;
+    await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
+
+    // Store temp doc reference (will link to trade_customer after registration)
+    const result = await pool.query(`
+      INSERT INTO trade_documents (trade_customer_id, doc_type, file_name, file_key, file_size, mime_type)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id
+    `, [
+      req.body.trade_customer_id || null,
+      doc_type, req.file.originalname, fileKey, req.file.size, req.file.mimetype
+    ]);
+
+    res.json({ document_id: result.rows[0].id, file_key: fileKey });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Enhanced registration with business type, documents, and Stripe
+app.post('/api/trade/register/enhanced', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { email, password, company_name, contact_name, phone, business_type, document_ids, stripe_customer_id, address_line1, city, state, zip, contractor_license } = req.body;
+    if (!email || !password || !company_name || !contact_name) {
+      return res.status(400).json({ error: 'Email, password, company name, and contact name are required' });
+    }
+    if (!address_line1 || !city || !state || !zip) {
+      return res.status(400).json({ error: 'Address, city, state, and zip are required' });
+    }
+
+    await client.query('BEGIN');
+
+    const { hash, salt } = hashPassword(password);
+    const result = await client.query(
+      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, stripe_customer_id, address_line1, city, state, zip, contractor_license)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+      [email.toLowerCase().trim(), hash, salt, company_name.trim(), contact_name.trim(), phone || null, business_type || null, stripe_customer_id || null, address_line1.trim(), city.trim(), state.trim().toUpperCase(), zip.trim(), contractor_license || null]
+    );
+
+    const customerId = result.rows[0].id;
+
+    // Link uploaded documents
+    if (document_ids && document_ids.length > 0) {
+      await client.query(
+        'UPDATE trade_documents SET trade_customer_id = $1 WHERE id = ANY($2)',
+        [customerId, document_ids]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Registration submitted. Your account is pending approval.' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.code === '23505') return res.status(409).json({ error: 'An account with this email already exists' });
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Admin: get documents for a trade customer (presigned URLs)
+app.get('/api/admin/trade-customers/:id/documents', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const docs = await pool.query(
+      'SELECT * FROM trade_documents WHERE trade_customer_id = $1 ORDER BY uploaded_at',
+      [req.params.id]
+    );
+    const docsWithUrls = await Promise.all(docs.rows.map(async (doc) => {
+      let url = null;
+      try { url = await getPresignedUrl(doc.file_key); } catch {}
+      return { ...doc, url };
+    }));
+    res.json({ documents: docsWithUrls });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: approve trade customer (creates Stripe subscription)
+app.post('/api/admin/trade-customers/:id/approve', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { margin_tier_id } = req.body;
+
+    const cust = await client.query('SELECT * FROM trade_customers WHERE id = $1', [id]);
+    if (!cust.rows.length) return res.status(404).json({ error: 'Customer not found' });
+    const tc = cust.rows[0];
+
+    if (tc.status === 'approved') return res.status(400).json({ error: 'Already approved' });
+
+    await client.query('BEGIN');
+
+    // If no tier specified, find Silver tier
+    let tierId = margin_tier_id;
+    if (!tierId) {
+      const silver = await client.query("SELECT id FROM margin_tiers WHERE tier_level = 0 ORDER BY tier_level LIMIT 1");
+      if (silver.rows.length) tierId = silver.rows[0].id;
+    }
+
+    // Create Stripe subscription if customer has stripe_customer_id
+    let subscriptionId = null;
+    let subscriptionExpiry = null;
+    if (tc.stripe_customer_id) {
+      try {
+        const subscription = await stripe.subscriptions.create({
+          customer: tc.stripe_customer_id,
+          items: [{ price_data: { currency: 'usd', product_data: { name: 'Roma Flooring Trade Membership' }, recurring: { interval: 'year' }, unit_amount: 9900 } }],
+        });
+        subscriptionId = subscription.id;
+        subscriptionExpiry = new Date(subscription.current_period_end * 1000);
+      } catch (stripeErr) {
+        console.error('Stripe subscription creation failed:', stripeErr.message);
+      }
+    }
+
+    const staffId = req.staff ? req.staff.id : null;
+
+    await client.query(`
+      UPDATE trade_customers SET
+        status = 'approved',
+        margin_tier_id = COALESCE($1, margin_tier_id),
+        stripe_subscription_id = $2,
+        subscription_status = $3,
+        subscription_expires_at = $4,
+        approved_by = $5,
+        approved_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $6
+    `, [tierId, subscriptionId, subscriptionId ? 'active' : 'none', subscriptionExpiry, staffId, id]);
+
+    await client.query('COMMIT');
+
+    if (staffId) await logAudit(staffId, 'trade.approve', 'trade_customers', id, { margin_tier_id: tierId }, req.ip);
+
+    // Send approval email
+    try {
+      const { sendTradeApproval } = await import('./services/emailService.js');
+      if (sendTradeApproval) await sendTradeApproval(tc);
+    } catch {}
+
+    const full = await pool.query(`
+      SELECT tc.*, mt.name as tier_name, mt.discount_percent
+      FROM trade_customers tc LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id WHERE tc.id = $1
+    `, [id]);
+    res.json({ customer: full.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Admin: deny trade customer
+app.post('/api/admin/trade-customers/:id/deny', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { denial_reason } = req.body;
+
+    const result = await pool.query(`
+      UPDATE trade_customers SET
+        status = 'rejected',
+        denial_reason = $1,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING *
+    `, [denial_reason || null, id]);
+
+    if (!result.rows.length) return res.status(404).json({ error: 'Customer not found' });
+
+    // Clean up Stripe payment method if exists
+    const tc = result.rows[0];
+    if (tc.stripe_customer_id) {
+      try {
+        const paymentMethods = await stripe.paymentMethods.list({ customer: tc.stripe_customer_id, type: 'card' });
+        for (const pm of paymentMethods.data) {
+          await stripe.paymentMethods.detach(pm.id);
+        }
+      } catch {}
+    }
+
+    // Kill sessions
+    await pool.query('DELETE FROM trade_sessions WHERE trade_customer_id = $1', [id]);
+
+    const staffId = req.staff ? req.staff.id : null;
+    if (staffId) await logAudit(staffId, 'trade.deny', 'trade_customers', id, { denial_reason }, req.ip);
+
+    // Send denial email
+    try {
+      const { sendTradeDenial } = await import('./services/emailService.js');
+      if (sendTradeDenial) await sendTradeDenial(tc);
+    } catch {}
+
+    res.json({ customer: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Tier Progression (Phase 3) ====================
+
+async function checkTierPromotion(tradeCustomerId, client) {
+  const db = client || pool;
+  const cust = await db.query('SELECT id, total_spend, margin_tier_id FROM trade_customers WHERE id = $1', [tradeCustomerId]);
+  if (!cust.rows.length) return null;
+
+  const spend = parseFloat(cust.rows[0].total_spend) || 0;
+  const currentTierId = cust.rows[0].margin_tier_id;
+
+  // Get current tier level
+  let currentLevel = -1;
+  if (currentTierId) {
+    const ct = await db.query('SELECT tier_level FROM margin_tiers WHERE id = $1', [currentTierId]);
+    if (ct.rows.length) currentLevel = ct.rows[0].tier_level;
+  }
+
+  // Find the highest qualifying tier (never demote)
+  const tiers = await db.query(
+    'SELECT id, name, tier_level, spend_threshold FROM margin_tiers WHERE is_active = true AND spend_threshold <= $1 AND tier_level > $2 ORDER BY tier_level DESC LIMIT 1',
+    [spend, currentLevel]
+  );
+
+  if (tiers.rows.length) {
+    const newTier = tiers.rows[0];
+    await db.query(
+      'UPDATE trade_customers SET margin_tier_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [newTier.id, tradeCustomerId]
+    );
+    // Send tier promotion email
+    const custData = await db.query('SELECT email, contact_name, company_name FROM trade_customers WHERE id = $1', [tradeCustomerId]);
+    if (custData.rows.length) {
+      setImmediate(() => sendTierPromotion(custData.rows[0], newTier.name));
+    }
+    // Audit log
+    try { await logAudit(null, 'trade.tier_promotion', 'trade_customer', tradeCustomerId, { new_tier: newTier.name, spend: spend }); } catch (_) {}
+    return newTier;
+  }
+  return null;
+}
+
+// PUT /api/trade/payment-method — update Stripe payment method
+app.put('/api/trade/payment-method', tradeAuth, async (req, res) => {
+  try {
+    const { payment_method_id } = req.body;
+    if (!payment_method_id) return res.status(400).json({ error: 'payment_method_id required' });
+
+    const cust = await pool.query('SELECT stripe_customer_id, stripe_subscription_id FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
+    const stripeCustomerId = cust.rows[0]?.stripe_customer_id;
+    if (!stripeCustomerId) return res.status(400).json({ error: 'No Stripe customer on file' });
+
+    // Attach the new payment method to the customer
+    await stripe.paymentMethods.attach(payment_method_id, { customer: stripeCustomerId });
+
+    // Set as default payment method
+    await stripe.customers.update(stripeCustomerId, {
+      invoice_settings: { default_payment_method: payment_method_id }
+    });
+
+    // If subscription exists, update its default payment method too
+    const subId = cust.rows[0]?.stripe_subscription_id;
+    if (subId) {
+      await stripe.subscriptions.update(subId, { default_payment_method: payment_method_id });
+    }
+
+    res.json({ success: true, message: 'Payment method updated' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trade membership endpoints
+app.get('/api/trade/membership', tradeAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT tc.total_spend, tc.subscription_status, tc.subscription_expires_at,
+        tc.stripe_subscription_id, mt.name as tier_name, mt.discount_percent, mt.tier_level,
+        mt.spend_threshold
+      FROM trade_customers tc
+      LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+      WHERE tc.id = $1
+    `, [req.tradeCustomer.id]);
+
+    // Get next tier info
+    const nextTier = await pool.query(
+      'SELECT name, spend_threshold, discount_percent FROM margin_tiers WHERE is_active = true AND tier_level > COALESCE((SELECT tier_level FROM margin_tiers WHERE id = $1), -1) ORDER BY tier_level LIMIT 1',
+      [result.rows[0] ? result.rows[0].margin_tier_id : null]
+    );
+
+    res.json({
+      membership: result.rows[0],
+      next_tier: nextTier.rows[0] || null
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/trade/cancel-membership', tradeAuth, async (req, res) => {
+  try {
+    const cust = await pool.query('SELECT stripe_subscription_id FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
+    const subId = cust.rows[0]?.stripe_subscription_id;
+
+    if (subId) {
+      await stripe.subscriptions.update(subId, { cancel_at_period_end: true });
+      await pool.query(
+        "UPDATE trade_customers SET subscription_status = 'cancelling', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+        [req.tradeCustomer.id]
+      );
+    }
+    res.json({ success: true, message: 'Membership will end at the current billing period' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Stripe webhook handler
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const event = req.body;
+    switch (event.type) {
+      case 'invoice.payment_succeeded': {
+        const sub = event.data.object.subscription;
+        if (sub) {
+          await pool.query(
+            "UPDATE trade_customers SET subscription_status = 'active', subscription_expires_at = to_timestamp($1), updated_at = CURRENT_TIMESTAMP WHERE stripe_subscription_id = $2",
+            [event.data.object.period_end, sub]
+          );
+        }
+        break;
+      }
+      case 'invoice.payment_failed': {
+        const sub = event.data.object.subscription;
+        if (sub) {
+          await pool.query(
+            "UPDATE trade_customers SET subscription_status = 'past_due', updated_at = CURRENT_TIMESTAMP WHERE stripe_subscription_id = $1",
+            [sub]
+          );
+          // Send lapsed notification
+          const pastDueCust = await pool.query('SELECT id, email, contact_name, company_name FROM trade_customers WHERE stripe_subscription_id = $1', [sub]);
+          if (pastDueCust.rows.length) {
+            setImmediate(() => sendSubscriptionLapsed(pastDueCust.rows[0]));
+          }
+        }
+        break;
+      }
+      case 'customer.subscription.deleted': {
+        const subId = event.data.object.id;
+        await pool.query(
+          "UPDATE trade_customers SET subscription_status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE stripe_subscription_id = $1",
+          [subId]
+        );
+        break;
+      }
+    }
+    res.json({ received: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Customer-Rep Assignment (Phase 4) ====================
+
+async function getNextAvailableRep() {
+  const result = await pool.query(`
+    SELECT sa.id, sa.first_name, sa.last_name, COUNT(tc.id)::int as customer_count
+    FROM staff_accounts sa
+    LEFT JOIN trade_customers tc ON tc.assigned_rep_id = sa.id
+    WHERE sa.role IN ('sales_rep', 'manager') AND sa.is_active = true
+    GROUP BY sa.id, sa.first_name, sa.last_name
+    ORDER BY customer_count ASC, sa.created_at ASC
+    LIMIT 1
+  `);
+  return result.rows[0] || null;
+}
+
+app.put('/api/admin/trade-customers/:id/assign-rep', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rep_id } = req.body;
+    const staffId = req.staff ? req.staff.id : null;
+
+    const cust = await pool.query('SELECT assigned_rep_id FROM trade_customers WHERE id = $1', [id]);
+    if (!cust.rows.length) return res.status(404).json({ error: 'Customer not found' });
+    const fromRepId = cust.rows[0].assigned_rep_id;
+
+    await pool.query(
+      'UPDATE trade_customers SET assigned_rep_id = $1, assigned_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [rep_id || null, id]
+    );
+
+    // Log history
+    await pool.query(
+      'INSERT INTO customer_rep_history (trade_customer_id, from_rep_id, to_rep_id, reason, changed_by) VALUES ($1, $2, $3, $4, $5)',
+      [id, fromRepId, rep_id, req.body.reason || 'Manual assignment', staffId]
+    );
+
+    if (staffId) await logAudit(staffId, 'trade.assign_rep', 'trade_customers', id, { from_rep_id: fromRepId, to_rep_id: rep_id }, req.ip);
+
+    const full = await pool.query(`
+      SELECT tc.*, mt.name as tier_name, mt.discount_percent,
+        sa.first_name || ' ' || sa.last_name as rep_name
+      FROM trade_customers tc
+      LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+      LEFT JOIN staff_accounts sa ON sa.id = tc.assigned_rep_id
+      WHERE tc.id = $1
+    `, [id]);
+    res.json({ customer: full.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/trade/my-rep', tradeAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT sa.first_name, sa.last_name, sa.email, sa.phone
+      FROM staff_accounts sa
+      JOIN trade_customers tc ON tc.assigned_rep_id = sa.id
+      WHERE tc.id = $1
+    `, [req.tradeCustomer.id]);
+    res.json({ rep: result.rows[0] || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/staff/my-customers — list trade customers assigned to current staff member
+app.get('/api/staff/my-customers', staffAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT tc.id, tc.company_name, tc.contact_name, tc.email, tc.phone,
+        tc.status, tc.total_spend, tc.subscription_status,
+        mt.name as tier_name, mt.discount_percent
+      FROM trade_customers tc
+      LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+      WHERE tc.assigned_rep_id = $1
+      ORDER BY tc.company_name ASC
+    `, [req.staff.id]);
+    res.json({ customers: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/admin/staff/:id/terminate — deactivate staff and free assigned customers
+app.patch('/api/admin/staff/:id/terminate', staffAuth, requireRole('admin'), async (req, res) => {
+  try {
+    if (req.staff && !['admin', 'manager'].includes(req.staff.role)) {
+      return res.status(403).json({ error: 'Admin or manager role required' });
+    }
+    const { id } = req.params;
+    const staffId = req.staff ? req.staff.id : null;
+
+    // Can't terminate yourself
+    if (staffId === id) return res.status(400).json({ error: 'Cannot terminate your own account' });
+
+    const target = await pool.query('SELECT id, first_name, last_name, email, role, is_active FROM staff_accounts WHERE id = $1', [id]);
+    if (!target.rows.length) return res.status(404).json({ error: 'Staff member not found' });
+
+    // Deactivate the staff account
+    await pool.query('UPDATE staff_accounts SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [id]);
+
+    // Invalidate all sessions
+    await pool.query('DELETE FROM staff_sessions WHERE staff_id = $1', [id]);
+
+    // Get assigned customers
+    const customers = await pool.query(
+      'SELECT id, company_name FROM trade_customers WHERE assigned_rep_id = $1',
+      [id]
+    );
+
+    // Find recommended replacement rep via round-robin
+    const recommendedRep = await getNextAvailableRep();
+
+    // Unassign all customers (admin can then reassign them)
+    if (customers.rows.length > 0) {
+      await pool.query(
+        'UPDATE trade_customers SET assigned_rep_id = NULL, assigned_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE assigned_rep_id = $1',
+        [id]
+      );
+
+      // Log history for each customer
+      for (const c of customers.rows) {
+        await pool.query(
+          "INSERT INTO customer_rep_history (trade_customer_id, from_rep_id, to_rep_id, reason, changed_by) VALUES ($1, $2, NULL, 'Staff terminated', $3)",
+          [c.id, id, staffId]
+        );
+      }
+    }
+
+    await logAudit(staffId, 'staff.terminate', 'staff_accounts', id, {
+      terminated: target.rows[0].email,
+      freed_customers: customers.rows.length
+    }, req.ip);
+
+    res.json({
+      success: true,
+      terminated: { id, name: target.rows[0].first_name + ' ' + target.rows[0].last_name },
+      freed_customers: customers.rows.map(c => ({ id: c.id, company_name: c.company_name })),
+      recommended_rep: recommendedRep ? { id: recommendedRep.id, name: recommendedRep.first_name + ' ' + recommendedRep.last_name } : null
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Trade Dashboard (Phase 5) ====================
+
+app.get('/api/trade/dashboard', tradeAuth, async (req, res) => {
+  try {
+    const id = req.tradeCustomer.id;
+    const stats = await pool.query(`
+      SELECT
+        (SELECT COUNT(*)::int FROM orders WHERE trade_customer_id = $1) as total_orders,
+        (SELECT COALESCE(SUM(total), 0) FROM orders WHERE trade_customer_id = $1 AND status != 'cancelled') as total_spent,
+        (SELECT COUNT(*)::int FROM trade_projects WHERE trade_customer_id = $1 AND status = 'active') as active_projects,
+        (SELECT COUNT(*)::int FROM trade_favorites WHERE trade_customer_id = $1) as favorite_collections
+    `, [id]);
+
+    const recentOrders = await pool.query(`
+      SELECT id, order_number, total, status, created_at FROM orders
+      WHERE trade_customer_id = $1 ORDER BY created_at DESC LIMIT 5
+    `, [id]);
+
+    const membership = await pool.query(`
+      SELECT tc.total_spend, tc.subscription_status, tc.subscription_expires_at,
+        mt.name as tier_name, mt.discount_percent, mt.tier_level
+      FROM trade_customers tc LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+      WHERE tc.id = $1
+    `, [id]);
+
+    const mem = membership.rows[0] || {};
+    // Find next tier
+    const nextTier = await pool.query(
+      'SELECT name, spend_threshold FROM margin_tiers WHERE tier_level > $1 ORDER BY tier_level ASC LIMIT 1',
+      [mem.tier_level || 0]
+    );
+    const nt = nextTier.rows[0];
+
+    res.json({
+      tier_name: mem.tier_name || 'Silver',
+      total_spend: parseFloat(mem.total_spend || 0),
+      order_count: stats.rows[0].total_orders,
+      subscription_status: mem.subscription_status,
+      next_tier_name: nt ? nt.name : null,
+      next_tier_threshold: nt ? parseFloat(nt.spend_threshold) : null,
+      recent_orders: recentOrders.rows,
+      active_projects: stats.rows[0].active_projects,
+      favorite_collections: stats.rows[0].favorite_collections
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trade orders
+app.get('/api/trade/orders', tradeAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT o.*, (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) as item_count
+      FROM orders o WHERE o.trade_customer_id = $1 ORDER BY o.created_at DESC
+    `, [req.tradeCustomer.id]);
+    // Attach items to each order for expandable detail
+    const orders = result.rows;
+    for (const o of orders) {
+      const items = await pool.query('SELECT oi.product_name, oi.collection, oi.num_boxes, oi.unit_price, oi.subtotal, oi.sqft_needed, s.internal_sku as sku_code FROM order_items oi LEFT JOIN skus s ON s.id = oi.sku_id WHERE oi.order_id = $1 ORDER BY oi.id', [o.id]);
+      o.items = items.rows;
+    }
+    res.json({ orders });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/trade/orders/:id', tradeAuth, async (req, res) => {
+  try {
+    const order = await pool.query('SELECT * FROM orders WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
+    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const items = await pool.query('SELECT * FROM order_items WHERE order_id = $1 ORDER BY id', [req.params.id]);
+    res.json({ order: order.rows[0], items: items.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trade projects CRUD
+app.get('/api/trade/projects', tradeAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT tp.*, (SELECT COUNT(*)::int FROM orders o WHERE o.project_id = tp.id) as order_count FROM trade_projects tp WHERE tp.trade_customer_id = $1 ORDER BY tp.created_at DESC',
+      [req.tradeCustomer.id]
+    );
+    res.json({ projects: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/trade/projects', tradeAuth, async (req, res) => {
+  try {
+    const { name, client_name, address, notes, expected_date } = req.body;
+    if (!name) return res.status(400).json({ error: 'Project name is required' });
+    const result = await pool.query(
+      'INSERT INTO trade_projects (trade_customer_id, name, client_name, address, notes, expected_date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [req.tradeCustomer.id, name, client_name || null, address || null, notes || null, expected_date || null]
+    );
+    res.json({ project: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/trade/projects/:id', tradeAuth, async (req, res) => {
+  try {
+    const { name, client_name, address, notes, expected_date, status } = req.body;
+    const result = await pool.query(`
+      UPDATE trade_projects SET name = COALESCE($1, name), client_name = COALESCE($2, client_name),
+        address = COALESCE($3, address), notes = COALESCE($4, notes), expected_date = COALESCE($5, expected_date),
+        status = COALESCE($6, status), updated_at = CURRENT_TIMESTAMP
+      WHERE id = $7 AND trade_customer_id = $8 RETURNING *
+    `, [name, client_name, address, notes, expected_date, status, req.params.id, req.tradeCustomer.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Project not found' });
+    res.json({ project: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/trade/projects/:id', tradeAuth, async (req, res) => {
+  try {
+    const project = await pool.query('SELECT * FROM trade_projects WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
+    if (!project.rows.length) return res.status(404).json({ error: 'Project not found' });
+    const orders = await pool.query('SELECT id, order_number, total, status, created_at FROM orders WHERE project_id = $1 ORDER BY created_at DESC', [req.params.id]);
+    res.json({ project: project.rows[0], orders: orders.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete (archive) project
+app.delete('/api/trade/projects/:id', tradeAuth, async (req, res) => {
+  try {
+    // Unlink any orders from this project first
+    await pool.query('UPDATE orders SET project_id = NULL WHERE project_id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
+    const result = await pool.query(
+      'DELETE FROM trade_projects WHERE id = $1 AND trade_customer_id = $2 RETURNING id',
+      [req.params.id, req.tradeCustomer.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Project not found' });
+    res.json({ deleted: req.params.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Assign order to project
+app.put('/api/trade/orders/:id/project', tradeAuth, async (req, res) => {
+  try {
+    const { project_id } = req.body;
+    const result = await pool.query(
+      'UPDATE orders SET project_id = $1 WHERE id = $2 AND trade_customer_id = $3 RETURNING *',
+      [project_id || null, req.params.id, req.tradeCustomer.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Order not found' });
+    res.json({ order: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trade favorites CRUD
+app.get('/api/trade/favorites', tradeAuth, async (req, res) => {
+  try {
+    const collections = await pool.query(
+      'SELECT tf.*, (SELECT COUNT(*)::int FROM trade_favorite_items tfi WHERE tfi.favorite_id = tf.id) as item_count FROM trade_favorites tf WHERE tf.trade_customer_id = $1 ORDER BY tf.created_at DESC',
+      [req.tradeCustomer.id]
+    );
+    res.json({ favorites: collections.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/trade/favorites', tradeAuth, async (req, res) => {
+  try {
+    const { collection_name } = req.body;
+    if (!collection_name) return res.status(400).json({ error: 'Collection name is required' });
+    const result = await pool.query(
+      'INSERT INTO trade_favorites (trade_customer_id, collection_name) VALUES ($1, $2) RETURNING *',
+      [req.tradeCustomer.id, collection_name]
+    );
+    res.json({ favorite: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/trade/favorites/:id', tradeAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM trade_favorites WHERE id = $1 AND trade_customer_id = $2 RETURNING id',
+      [req.params.id, req.tradeCustomer.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Collection not found' });
+    res.json({ deleted: req.params.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/trade/favorites/:id/items', tradeAuth, async (req, res) => {
+  try {
+    const items = await pool.query(`
+      SELECT tfi.*, p.name as product_name, p.collection,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = tfi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image,
+        (SELECT pr.retail_price FROM pricing pr WHERE pr.sku_id = tfi.sku_id) as price
+      FROM trade_favorite_items tfi
+      LEFT JOIN products p ON p.id = tfi.product_id
+      WHERE tfi.favorite_id = $1
+      ORDER BY tfi.added_at DESC
+    `, [req.params.id]);
+    res.json({ items: items.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/trade/favorites/:id/items', tradeAuth, async (req, res) => {
+  try {
+    const { product_id, sku_id, notes } = req.body;
+    // Verify ownership
+    const fav = await pool.query('SELECT id FROM trade_favorites WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
+    if (!fav.rows.length) return res.status(404).json({ error: 'Collection not found' });
+
+    const result = await pool.query(
+      'INSERT INTO trade_favorite_items (favorite_id, product_id, sku_id, notes) VALUES ($1, $2, $3, $4) RETURNING *',
+      [req.params.id, product_id || null, sku_id || null, notes || null]
+    );
+    res.json({ item: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/trade/favorites/:favId/items/:itemId', tradeAuth, async (req, res) => {
+  try {
+    const fav = await pool.query('SELECT id FROM trade_favorites WHERE id = $1 AND trade_customer_id = $2', [req.params.favId, req.tradeCustomer.id]);
+    if (!fav.rows.length) return res.status(404).json({ error: 'Collection not found' });
+    const result = await pool.query('DELETE FROM trade_favorite_items WHERE id = $1 AND favorite_id = $2 RETURNING id', [req.params.itemId, req.params.favId]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Item not found' });
+    res.json({ deleted: req.params.itemId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trade account management
+app.get('/api/trade/account', tradeAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT tc.id, tc.email, tc.company_name, tc.contact_name, tc.phone, tc.business_type,
+        tc.status, tc.total_spend, tc.subscription_status, tc.subscription_expires_at,
+        mt.name as tier_name, mt.discount_percent
+      FROM trade_customers tc
+      LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+      WHERE tc.id = $1
+    `, [req.tradeCustomer.id]);
+    res.json({ account: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/trade/account', tradeAuth, async (req, res) => {
+  try {
+    const { company_name, contact_name, phone } = req.body;
+    const result = await pool.query(`
+      UPDATE trade_customers SET
+        company_name = COALESCE($1, company_name),
+        contact_name = COALESCE($2, contact_name),
+        phone = COALESCE($3, phone),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $4
+      RETURNING id, email, company_name, contact_name, phone
+    `, [company_name, contact_name, phone, req.tradeCustomer.id]);
+    res.json({ account: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/trade/change-password', tradeAuth, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) return res.status(400).json({ error: 'Both current and new password are required' });
+
+    const cust = await pool.query('SELECT password_hash, password_salt FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
+    if (!verifyPassword(current_password, cust.rows[0].password_hash, cust.rows[0].password_salt)) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    const { hash, salt } = hashPassword(new_password);
+    await pool.query('UPDATE trade_customers SET password_hash = $1, password_salt = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3', [hash, salt, req.tradeCustomer.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Trade Checkout Enhancements (Phase 6) ====================
+
+// Bulk order
+app.post('/api/trade/bulk-order', tradeAuth, async (req, res) => {
+  try {
+    const { items } = req.body;
+    if (!items || !items.length) return res.status(400).json({ error: 'Items are required' });
+
+    const validated = [];
+    const errors = [];
+
+    for (const item of items) {
+      const skuCode = item.sku || item.sku_code;
+      const sku = await pool.query(`
+        SELECT s.id, s.vendor_sku, s.internal_sku, p.id as product_id, p.name as product_name, p.collection,
+          pr.retail_price, pk.sqft_per_box, s.sell_by
+        FROM skus s
+        JOIN products p ON p.id = s.product_id
+        LEFT JOIN pricing pr ON pr.sku_id = s.id
+        LEFT JOIN packaging pk ON pk.sku_id = s.id
+        WHERE s.internal_sku = $1 OR s.vendor_sku = $1
+      `, [skuCode]);
+
+      if (!sku.rows.length) {
+        errors.push({ sku: skuCode, error: 'SKU not found' });
+        continue;
+      }
+
+      const s = sku.rows[0];
+      const qty = parseInt(item.qty || item.quantity) || 1;
+      let price = parseFloat(s.retail_price) || 0;
+
+      // Apply trade discount
+      if (req.tradeCustomer.discount_percent > 0) {
+        price = price * (1 - req.tradeCustomer.discount_percent / 100);
+      }
+
+      validated.push({
+        product_id: s.product_id,
+        sku_id: s.id,
+        sku_code: s.internal_sku || s.vendor_sku,
+        product_name: s.product_name,
+        collection: s.collection,
+        vendor_sku: s.vendor_sku,
+        num_boxes: qty,
+        quantity: qty,
+        unit_price: price,
+        subtotal: price * qty,
+        sell_by: s.sell_by,
+        sqft_per_box: parseFloat(s.sqft_per_box) || 0
+      });
+    }
+
+    res.json({ validated_items: validated, errors, total: validated.reduce((sum, i) => sum + i.subtotal, 0) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Confirm bulk order — creates an actual order from validated items
+app.post('/api/trade/bulk-order/confirm', tradeAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { items, po_number, project_id } = req.body;
+    if (!items || !items.length) return res.status(400).json({ error: 'Items are required' });
+
+    const total = items.reduce((sum, i) => sum + (parseFloat(i.subtotal) || 0), 0);
+    const orderNumber = 'ORD-' + Date.now();
+
+    await client.query('BEGIN');
+
+    const orderResult = await client.query(`
+      INSERT INTO orders (order_number, customer_email, customer_name, subtotal, total, status, trade_customer_id, po_number, project_id)
+      VALUES ($1, $2, $3, $4, $4, 'pending', $5, $6, $7) RETURNING *
+    `, [orderNumber, req.tradeCustomer.email, req.tradeCustomer.contact_name, total,
+        req.tradeCustomer.id, po_number || null, project_id || null]);
+    const order = orderResult.rows[0];
+
+    for (const item of items) {
+      await client.query(`
+        INSERT INTO order_items (order_id, sku_id, product_name, collection, num_boxes, unit_price, subtotal)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [order.id, item.sku_id, item.product_name, item.collection || null,
+          item.num_boxes, item.unit_price, item.subtotal]);
+    }
+
+    // Increment trade spend + check tier
+    await client.query(
+      'UPDATE trade_customers SET total_spend = total_spend + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [total, req.tradeCustomer.id]
+    );
+    const promotion = await checkTierPromotion(req.tradeCustomer.id, client);
+    if (promotion) console.log(`[Trade] Bulk order promoted ${req.tradeCustomer.id} to ${promotion.name}`);
+
+    await client.query('COMMIT');
+    res.json({ order: { ...order, items } });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Trade quotes
+app.get('/api/trade/quotes', tradeAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT q.*, (SELECT COUNT(*)::int FROM quote_items qi WHERE qi.quote_id = q.id) as item_count
+      FROM quotes q WHERE q.trade_customer_id = $1 ORDER BY q.created_at DESC
+    `, [req.tradeCustomer.id]);
+    res.json({ quotes: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/trade/quotes/:id', tradeAuth, async (req, res) => {
+  try {
+    const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
+    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    const items = await pool.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [req.params.id]);
+    res.json({ quote: quote.rows[0], items: items.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Accept a quote (convert to order)
+app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const quote = await client.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
+    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    const q = quote.rows[0];
+
+    if (q.expires_at && new Date(q.expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Quote has expired' });
+    }
+    if (q.status === 'converted') return res.status(400).json({ error: 'Quote already converted' });
+
+    const qItems = await client.query('SELECT * FROM quote_items WHERE quote_id = $1', [q.id]);
+    if (!qItems.rows.length) return res.status(400).json({ error: 'Quote has no items' });
+
+    await client.query('BEGIN');
+
+    const orderNumber = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    const orderResult = await client.query(`
+      INSERT INTO orders (order_number, customer_email, customer_name, phone,
+        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
+        subtotal, shipping, total, status, trade_customer_id, delivery_method)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', $13, $14) RETURNING *
+    `, [orderNumber, q.customer_email, q.customer_name, q.phone,
+        q.shipping_address_line1, q.shipping_address_line2, q.shipping_city, q.shipping_state, q.shipping_zip,
+        q.subtotal, q.shipping, q.total, req.tradeCustomer.id, q.delivery_method || 'shipping']);
+
+    const order = orderResult.rows[0];
+    for (const item of qItems.rows) {
+      await client.query(`
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection, item.description,
+          item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample]);
+    }
+
+    await client.query("UPDATE quotes SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [order.id, q.id]);
+    await client.query('COMMIT');
+
+    res.json({ order });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Quote PDF download - accepts token from header or query param (for browser popup)
+app.get('/api/trade/quotes/:id/pdf', (req, res, next) => {
+  if (!req.headers['x-trade-token'] && req.query.token) {
+    req.headers['x-trade-token'] = req.query.token;
+  }
+  next();
+}, tradeAuth, async (req, res) => {
+  try {
+    const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
+    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    const q = quote.rows[0];
+    const items = await pool.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [req.params.id]);
+    const customer = await pool.query('SELECT * FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
+    const c = customer.rows[0] || {};
+
+    const isExpired = q.expires_at && new Date(q.expires_at) < new Date();
+    const expiryStr = q.expires_at ? new Date(q.expires_at).toLocaleDateString() : 'N/A';
+
+    const html = `<!DOCTYPE html><html><head><style>
+      body { font-family: 'Inter', Arial, sans-serif; margin: 0; padding: 2rem; color: #1c1917; }
+      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid #c8a97e; }
+      .company { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.75rem; font-weight: 300; margin-bottom: 0.25rem; }
+      .company-info { font-size: 0.75rem; color: #57534e; line-height: 1.6; }
+      .quote-title { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.5rem; font-weight: 400; color: #c8a97e; }
+      .quote-meta { font-size: 0.8125rem; color: #57534e; line-height: 1.8; text-align: right; }
+      .customer-block { margin-bottom: 2rem; padding: 1rem; background: #fafaf9; border: 1px solid #e7e5e4; }
+      .customer-block h3 { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.1em; color: #78716c; margin: 0 0 0.5rem; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+      th { background: #1c1917; color: #fff; padding: 0.625rem 0.75rem; text-align: left; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; }
+      td { padding: 0.625rem 0.75rem; border-bottom: 1px solid #e7e5e4; font-size: 0.8125rem; }
+      tr:nth-child(even) td { background: #fafaf9; }
+      .totals { text-align: right; margin-top: 1rem; }
+      .totals .line { display: flex; justify-content: flex-end; gap: 2rem; font-size: 0.875rem; padding: 0.25rem 0; }
+      .totals .total-line { font-weight: 600; font-size: 1rem; border-top: 2px solid #1c1917; padding-top: 0.5rem; margin-top: 0.5rem; }
+      .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e7e5e4; font-size: 0.6875rem; color: #78716c; text-align: center; }
+      .expired-badge { display: inline-block; background: #dc2626; color: white; padding: 2px 8px; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
+      .valid-badge { display: inline-block; background: #16a34a; color: white; padding: 2px 8px; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
+    </style></head><body>
+      <div class="header">
+        <div>
+          <div class="company">Roma Flooring Designs</div>
+          <div class="company-info">
+            1440 S. State College Blvd #6M<br/>
+            Anaheim, CA 92806<br/>
+            (714) 999-0009<br/>
+            Sales@romaflooringdesigns.com
+          </div>
+        </div>
+        <div>
+          <div class="quote-title">Quote</div>
+          <div class="quote-meta">
+            <strong>${q.quote_number || 'Q-' + q.id.substring(0, 8).toUpperCase()}</strong><br/>
+            Date: ${new Date(q.created_at).toLocaleDateString()}<br/>
+            Valid Until: ${expiryStr} ${isExpired ? '<span class="expired-badge">Expired</span>' : '<span class="valid-badge">Valid</span>'}
+          </div>
+        </div>
+      </div>
+      <div class="customer-block">
+        <h3>Prepared For</h3>
+        <strong>${c.company_name || q.customer_name || ''}</strong><br/>
+        ${c.contact_name || q.customer_name || ''}<br/>
+        ${q.customer_email || c.email || ''}
+        ${q.phone ? '<br/>' + q.phone : ''}
+        ${q.shipping_address_line1 ? '<br/>' + q.shipping_address_line1 : ''}
+        ${q.shipping_address_line2 ? '<br/>' + q.shipping_address_line2 : ''}
+        ${q.shipping_city ? '<br/>' + q.shipping_city + ', ' + (q.shipping_state || '') + ' ' + (q.shipping_zip || '') : ''}
+      </div>
+      <table>
+        <thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th></tr></thead>
+        <tbody>
+          ${items.rows.map(i => `<tr>
+            <td>${i.product_name || ''}</td>
+            <td>${i.collection || i.description || ''}</td>
+            <td style="text-align:right">${i.num_boxes || i.quantity || 1}</td>
+            <td style="text-align:right">$${parseFloat(i.unit_price || 0).toFixed(2)}</td>
+            <td style="text-align:right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="totals">
+        <div class="line"><span>Subtotal:</span><span>$${parseFloat(q.subtotal || 0).toFixed(2)}</span></div>
+        ${parseFloat(q.shipping || 0) > 0 ? `<div class="line"><span>Shipping:</span><span>$${parseFloat(q.shipping).toFixed(2)}</span></div>` : ''}
+        ${parseFloat(q.tax || 0) > 0 ? `<div class="line"><span>Tax:</span><span>$${parseFloat(q.tax).toFixed(2)}</span></div>` : ''}
+        <div class="line total-line"><span>Total:</span><span>$${parseFloat(q.total || 0).toFixed(2)}</span></div>
+      </div>
+      <div class="footer">
+        <p>This quote is valid for 14 days from the date of issue. Prices are subject to change after expiry.</p>
+        <p>Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
+      </div>
+    </body></html>`;
+
+    try {
+      const puppeteer = await import('puppeteer');
+      const browser = await puppeteer.default.launch({
+        headless: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'domcontentloaded' });
+      const pdf = await page.pdf({ format: 'Letter', margin: { top: '0.75in', bottom: '0.75in', left: '0.75in', right: '0.75in' } });
+      await browser.close();
+      const filename = `quote-${q.quote_number || q.id.substring(0, 8)}.pdf`;
+      res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${filename}"` });
+      res.send(pdf);
+    } catch (pdfErr) {
+      // Fallback: return HTML if puppeteer unavailable
+      res.set('Content-Type', 'text/html');
+      res.send(html);
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Packing Slip & Order Filters (Phase 7) ====================
+
+// Packing slip - accepts token from header or query param (for browser popup)
+app.get('/api/staff/orders/:id/packing-slip', async (req, res, next) => {
+  // Allow token from query param for PDF downloads in new window
+  if (!req.headers['x-staff-token'] && req.query.token) {
+    req.headers['x-staff-token'] = req.query.token;
+  }
+  next();
+}, staffAuth, async (req, res) => {
+  try {
+    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
+    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const items = await pool.query('SELECT * FROM order_items WHERE order_id = $1 ORDER BY id', [req.params.id]);
+    const o = order.rows[0];
+
+    const html = `<!DOCTYPE html><html><head><style>
+      body { font-family: Arial, sans-serif; margin: 2rem; }
+      h1 { font-size: 1.5rem; }
+      .header { display: flex; justify-content: space-between; margin-bottom: 2rem; }
+      .company { font-size: 1.25rem; font-weight: bold; }
+      table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+      th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid #ddd; }
+      th { background: #f5f5f4; font-size: 0.875rem; text-transform: uppercase; }
+      .address { line-height: 1.6; }
+    </style></head><body>
+      <div class="header">
+        <div>
+          <div class="company">Roma Flooring Designs</div>
+          <div>1440 S. State College Blvd #6M</div>
+          <div>Anaheim, CA 92806</div>
+          <div>(714) 999-0009</div>
+        </div>
+        <div>
+          <h1>Packing Slip</h1>
+          <div><strong>Order:</strong> ${o.order_number}</div>
+          <div><strong>Date:</strong> ${new Date(o.created_at).toLocaleDateString()}</div>
+        </div>
+      </div>
+      <div class="address">
+        <strong>Ship To:</strong><br/>
+        ${o.customer_name}<br/>
+        ${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>
+        ${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}
+      </div>
+      <table>
+        <thead><tr><th>Item</th><th>Description</th><th>Qty</th></tr></thead>
+        <tbody>
+          ${items.rows.map(i => `<tr><td>${i.product_name || ''}</td><td>${i.collection || ''}</td><td>${i.num_boxes}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    </body></html>`;
+
+    try {
+      const puppeteer = await import('puppeteer');
+      const browser = await puppeteer.default.launch({
+        headless: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      const page = await browser.newPage();
+      await page.setContent(html);
+      const pdf = await page.pdf({ format: 'Letter', margin: { top: '0.75in', bottom: '0.75in', left: '0.75in', right: '0.75in' } });
+      await browser.close();
+      res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="packing-slip-${o.order_number}.pdf"` });
+      res.send(pdf);
+    } catch (pdfErr) {
+      // Fallback: return HTML if puppeteer unavailable
+      res.set('Content-Type', 'text/html');
+      res.send(html);
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Audit log (admin/manager)
+app.get('/api/admin/audit-log', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { limit, offset, action, entity_type } = req.query;
+    let query = `
+      SELECT al.*, sa.email as staff_email, sa.first_name || ' ' || sa.last_name as staff_name
+      FROM audit_log al
+      LEFT JOIN staff_accounts sa ON sa.id = al.staff_id
+      WHERE 1=1
+    `;
+    const params = [];
+    let idx = 1;
+    if (action) { query += ` AND al.action = $${idx}`; params.push(action); idx++; }
+    if (entity_type) { query += ` AND al.entity_type = $${idx}`; params.push(entity_type); idx++; }
+    query += ` ORDER BY al.created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`;
+    params.push(parseInt(limit) || 50, parseInt(offset) || 0);
+
+    const result = await pool.query(query, params);
+    res.json({ entries: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ==================== Rep Auth Endpoints ====================
 
@@ -2260,7 +4950,7 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, tracking_number, carrier, shipped_at } = req.body;
     const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
@@ -2268,10 +4958,31 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
-    const result = await client.query(
-      'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
-      [status, id]
-    );
+    let result;
+    if (status === 'shipped' && tracking_number) {
+      result = await client.query(`
+        UPDATE orders SET status = $1, tracking_number = $2, shipping_carrier = $3, shipped_at = COALESCE($4::timestamp, NOW())
+        WHERE id = $5
+        RETURNING *
+      `, [status, tracking_number, carrier || null, shipped_at || null, id]);
+    } else if (status === 'shipped') {
+      const orderCheck = await client.query('SELECT delivery_method FROM orders WHERE id = $1', [id]);
+      if (orderCheck.rows.length && orderCheck.rows[0].delivery_method === 'shipping') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Tracking number is required for shipping orders' });
+      }
+      result = await client.query(`
+        UPDATE orders SET status = $1, shipped_at = NOW()
+        WHERE id = $2
+        RETURNING *
+      `, [status, id]);
+    } else {
+      result = await client.query(
+        'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
+        [status, id]
+      );
+    }
+
     if (!result.rows.length) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Order not found' });
@@ -2568,11 +5279,49 @@ app.get('/api/rep/quotes', repAuth, async (req, res) => {
   }
 });
 
+app.post('/api/rep/promo-codes/validate', repAuth, async (req, res) => {
+  try {
+    const { code, items, customer_email } = req.body;
+    if (!code) return res.status(400).json({ valid: false, error: 'Code is required' });
+    if (!items || items.length === 0) return res.json({ valid: false, error: 'No items provided' });
+
+    // Look up category_id for each item's product_id
+    const enrichedItems = [];
+    for (const item of items) {
+      let category_id = item.category_id || null;
+      if (!category_id && item.product_id) {
+        const pResult = await pool.query('SELECT category_id FROM products WHERE id = $1', [item.product_id]);
+        if (pResult.rows.length > 0) category_id = pResult.rows[0].category_id;
+      }
+      enrichedItems.push({
+        product_id: item.product_id,
+        category_id,
+        subtotal: item.subtotal,
+        is_sample: item.is_sample || false
+      });
+    }
+
+    const result = await calculatePromoDiscount(code, enrichedItems, customer_email || null);
+    if (!result.valid) return res.json({ valid: false, error: result.error });
+
+    res.json({
+      valid: true,
+      code: result.promo.code,
+      discount_type: result.promo.discount_type,
+      discount_value: parseFloat(result.promo.discount_value),
+      discount_amount: result.discount_amount,
+      description: result.promo.description || ''
+    });
+  } catch (err) {
+    res.status(500).json({ valid: false, error: err.message });
+  }
+});
+
 app.post('/api/rep/quotes', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { customer_name, customer_email, phone, shipping_address_line1, shipping_address_line2,
-            shipping_city, shipping_state, shipping_zip, notes, items, delivery_method } = req.body;
+            shipping_city, shipping_state, shipping_zip, notes, items, delivery_method, promo_code } = req.body;
     if (!customer_name || !customer_email) {
       return res.status(400).json({ error: 'Customer name and email are required' });
     }
@@ -2614,10 +5363,46 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
         SELECT COALESCE(SUM(subtotal), 0) as subtotal FROM quote_items WHERE quote_id = $1
       `, [quote.id]);
       const subtotal = parseFloat(parseFloat(totals.rows[0].subtotal).toFixed(2));
+
+      // Validate promo code if provided
+      let discountAmount = 0;
+      let promoCodeId = null;
+      let promoCodeStr = null;
+      if (promo_code) {
+        const promoItems = items.map(i => ({
+          product_id: i.product_id,
+          category_id: i.category_id || null,
+          subtotal: i.subtotal,
+          is_sample: i.is_sample || false
+        }));
+        // Enrich items with category_id
+        for (const pi of promoItems) {
+          if (!pi.category_id && pi.product_id) {
+            const pResult = await client.query('SELECT category_id FROM products WHERE id = $1', [pi.product_id]);
+            if (pResult.rows.length > 0) pi.category_id = pResult.rows[0].category_id;
+          }
+        }
+        const promoResult = await calculatePromoDiscount(promo_code, promoItems, customer_email, client);
+        if (promoResult.valid) {
+          discountAmount = promoResult.discount_amount;
+          promoCodeId = promoResult.promo.id;
+          promoCodeStr = promoResult.promo.code;
+        }
+      }
+
+      const total = subtotal - discountAmount;
       await client.query(
-        'UPDATE quotes SET subtotal = $1, total = $1 WHERE id = $2',
-        [subtotal.toFixed(2), quote.id]
+        'UPDATE quotes SET subtotal = $1, total = $2, promo_code_id = $3, promo_code = $4, discount_amount = $5 WHERE id = $6',
+        [subtotal.toFixed(2), total.toFixed(2), promoCodeId, promoCodeStr, discountAmount.toFixed(2), quote.id]
       );
+
+      // Record promo usage
+      if (promoCodeId && discountAmount > 0) {
+        await client.query(
+          'INSERT INTO promo_code_usages (promo_code_id, quote_id, customer_email, discount_amount) VALUES ($1, $2, $3, $4)',
+          [promoCodeId, quote.id, customer_email.toLowerCase().trim(), discountAmount.toFixed(2)]
+        );
+      }
     }
 
     await client.query('COMMIT');
@@ -2655,7 +5440,7 @@ app.put('/api/rep/quotes/:id', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { customer_name, customer_email, phone, shipping_address_line1, shipping_address_line2,
-            shipping_city, shipping_state, shipping_zip, notes, shipping, delivery_method } = req.body;
+            shipping_city, shipping_state, shipping_zip, notes, shipping, delivery_method, promo_code } = req.body;
 
     const result = await pool.query(`
       UPDATE quotes SET
@@ -2678,11 +5463,57 @@ app.put('/api/rep/quotes/:id', repAuth, async (req, res) => {
 
     if (!result.rows.length) return res.status(404).json({ error: 'Quote not found' });
 
-    // Recalculate total
     const q = result.rows[0];
-    const total = parseFloat((parseFloat(q.subtotal || 0) + parseFloat(q.shipping || 0)).toFixed(2));
+
+    // Handle promo code update
+    let discountAmount = parseFloat(q.discount_amount || 0);
+    let promoCodeId = q.promo_code_id;
+    let promoCodeStr = q.promo_code;
+
+    if (promo_code !== undefined) {
+      if (promo_code === '' || promo_code === null) {
+        // Remove promo
+        discountAmount = 0;
+        promoCodeId = null;
+        promoCodeStr = null;
+        await pool.query('DELETE FROM promo_code_usages WHERE quote_id = $1', [id]);
+      } else {
+        // Validate new promo code against current items
+        const itemsResult = await pool.query('SELECT qi.*, p.category_id FROM quote_items qi LEFT JOIN products p ON p.id = qi.product_id WHERE qi.quote_id = $1', [id]);
+        const promoItems = itemsResult.rows.map(i => ({
+          product_id: i.product_id,
+          category_id: i.category_id,
+          subtotal: i.subtotal,
+          is_sample: i.is_sample
+        }));
+        const promoResult = await calculatePromoDiscount(promo_code, promoItems, q.customer_email);
+        if (promoResult.valid) {
+          discountAmount = promoResult.discount_amount;
+          promoCodeId = promoResult.promo.id;
+          promoCodeStr = promoResult.promo.code;
+          // Upsert usage
+          await pool.query('DELETE FROM promo_code_usages WHERE quote_id = $1', [id]);
+          if (discountAmount > 0) {
+            await pool.query(
+              'INSERT INTO promo_code_usages (promo_code_id, quote_id, customer_email, discount_amount) VALUES ($1, $2, $3, $4)',
+              [promoCodeId, id, q.customer_email, discountAmount.toFixed(2)]
+            );
+          }
+        }
+      }
+      await pool.query(
+        'UPDATE quotes SET promo_code_id = $1, promo_code = $2, discount_amount = $3 WHERE id = $4',
+        [promoCodeId, promoCodeStr, discountAmount.toFixed(2), id]
+      );
+    }
+
+    // Recalculate total
+    const total = parseFloat((parseFloat(q.subtotal || 0) + parseFloat(q.shipping || 0) - discountAmount).toFixed(2));
     await pool.query('UPDATE quotes SET total = $1 WHERE id = $2', [total.toFixed(2), id]);
     q.total = total.toFixed(2);
+    q.discount_amount = discountAmount.toFixed(2);
+    q.promo_code_id = promoCodeId;
+    q.promo_code = promoCodeStr;
 
     res.json({ quote: q });
   } catch (err) {
@@ -2846,9 +5677,7 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
       'SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [id]
     );
 
-    res.json({ success: true, message: 'Quote sent to ' + q.customer_email });
-
-    // Fire-and-forget: send quote email to customer
+    // Send email and report delivery status
     const emailData = {
       ...q,
       items: quoteItems.rows,
@@ -2856,7 +5685,46 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
       rep_last_name: req.rep.last_name,
       rep_email: req.rep.email
     };
-    setImmediate(() => sendQuoteSent(emailData));
+    const emailResult = await sendQuoteSent(emailData);
+    const emailed = emailResult && emailResult.sent;
+
+    if (emailed) {
+      res.json({ success: true, message: 'Quote emailed to ' + q.customer_email, emailed: true });
+    } else {
+      res.json({ success: true, message: 'Quote marked as sent (email not configured)', emailed: false });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/rep/quotes/:id/preview', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const quote = await pool.query('SELECT * FROM quotes WHERE id = $1', [id]);
+    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
+
+    const q = quote.rows[0];
+    const quoteItems = await pool.query(
+      'SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [id]
+    );
+
+    const emailData = {
+      ...q,
+      items: quoteItems.rows,
+      rep_first_name: req.rep.first_name,
+      rep_last_name: req.rep.last_name,
+      rep_email: req.rep.email
+    };
+
+    const html = generateQuoteSentHTML(emailData);
+
+    res.json({
+      html,
+      subject: `Your Custom Quote — ${q.quote_number}`,
+      to: q.customer_email,
+      reply_to: req.rep.email
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2906,11 +5774,17 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
     const quoteShipping = isPickupQuote ? '0.00' : q.shipping;
     const quoteTotal = isPickupQuote ? parseFloat(parseFloat(q.subtotal || 0).toFixed(2)).toFixed(2) : q.total;
 
+    // Copy promo code from quote to order
+    const quotePromoCodeId = q.promo_code_id || null;
+    const quotePromoCode = q.promo_code || null;
+    const quoteDiscount = parseFloat(q.discount_amount || 0);
+
     const orderResult = await client.query(`
       INSERT INTO orders (order_number, customer_email, customer_name, phone,
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
-        subtotal, shipping, total, status, sales_rep_id, payment_method, quote_id, stripe_payment_intent_id, delivery_method)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        subtotal, shipping, total, status, sales_rep_id, payment_method, quote_id, stripe_payment_intent_id, delivery_method,
+        promo_code_id, promo_code, discount_amount)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *
     `, [orderNumber, q.customer_email, q.customer_name, q.phone,
         isPickupQuote ? null : (q.shipping_address_line1 || ''),
@@ -2919,7 +5793,8 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
         isPickupQuote ? null : (q.shipping_state || ''),
         isPickupQuote ? null : (q.shipping_zip || ''),
         q.subtotal, quoteShipping, quoteTotal, orderStatus, req.rep.id, payment_method, id, stripePaymentIntentId,
-        q.delivery_method || 'shipping']);
+        q.delivery_method || 'shipping',
+        quotePromoCodeId, quotePromoCode, quoteDiscount.toFixed(2)]);
 
     const order = orderResult.rows[0];
 
@@ -2930,6 +5805,14 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
           item.description, item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample]);
+    }
+
+    // Record promo usage for the order (quote row stays for audit)
+    if (quotePromoCodeId && quoteDiscount > 0) {
+      await client.query(
+        'INSERT INTO promo_code_usages (promo_code_id, order_id, customer_email, discount_amount) VALUES ($1, $2, $3, $4)',
+        [quotePromoCodeId, order.id, q.customer_email, quoteDiscount.toFixed(2)]
+      );
     }
 
     // Update quote status
@@ -2955,9 +5838,134 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
   }
 });
 
+// ==================== Admin Promo Codes ====================
+
+app.get('/api/admin/promo-codes', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT pc.*,
+        (SELECT COUNT(*)::int FROM promo_code_usages pcu WHERE pcu.promo_code_id = pc.id AND pcu.order_id IS NOT NULL) as usage_count
+      FROM promo_codes pc
+      ORDER BY pc.created_at DESC
+    `);
+    res.json({ promo_codes: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/promo-codes', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { code, description, discount_type, discount_value, min_order_amount,
+            max_uses, max_uses_per_customer, restricted_category_ids, restricted_product_ids,
+            is_active, expires_at } = req.body;
+
+    if (!code || !code.trim()) return res.status(400).json({ error: 'Code is required' });
+    if (!discount_type || !['percent', 'fixed'].includes(discount_type)) return res.status(400).json({ error: 'Discount type must be percent or fixed' });
+    if (!discount_value || parseFloat(discount_value) <= 0) return res.status(400).json({ error: 'Discount value must be greater than 0' });
+    if (discount_type === 'percent' && parseFloat(discount_value) > 100) return res.status(400).json({ error: 'Percentage discount cannot exceed 100%' });
+
+    const result = await pool.query(`
+      INSERT INTO promo_codes (code, description, discount_type, discount_value, min_order_amount,
+        max_uses, max_uses_per_customer, restricted_category_ids, restricted_product_ids,
+        is_active, expires_at, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING *
+    `, [code.trim().toUpperCase(), description || null, discount_type, parseFloat(discount_value).toFixed(2),
+        parseFloat(min_order_amount || 0).toFixed(2),
+        max_uses || null, max_uses_per_customer || null,
+        restricted_category_ids || '{}', restricted_product_ids || '{}',
+        is_active !== false, expires_at || null, req.staff.id]);
+
+    await logAudit(req.staff.id, 'create_promo_code', 'promo_code', result.rows[0].id, { code: result.rows[0].code }, req.ip);
+    res.json({ promo_code: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'A promo code with this code already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/promo-codes/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { code, description, discount_type, discount_value, min_order_amount,
+            max_uses, max_uses_per_customer, restricted_category_ids, restricted_product_ids,
+            is_active, expires_at } = req.body;
+
+    if (discount_type && !['percent', 'fixed'].includes(discount_type)) return res.status(400).json({ error: 'Discount type must be percent or fixed' });
+    if (discount_value !== undefined && parseFloat(discount_value) <= 0) return res.status(400).json({ error: 'Discount value must be greater than 0' });
+    if (discount_type === 'percent' && discount_value !== undefined && parseFloat(discount_value) > 100) return res.status(400).json({ error: 'Percentage discount cannot exceed 100%' });
+
+    const result = await pool.query(`
+      UPDATE promo_codes SET
+        code = COALESCE($1, code),
+        description = $2,
+        discount_type = COALESCE($3, discount_type),
+        discount_value = COALESCE($4, discount_value),
+        min_order_amount = COALESCE($5, min_order_amount),
+        max_uses = $6,
+        max_uses_per_customer = $7,
+        restricted_category_ids = COALESCE($8, restricted_category_ids),
+        restricted_product_ids = COALESCE($9, restricted_product_ids),
+        is_active = COALESCE($10, is_active),
+        expires_at = $11,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $12
+      RETURNING *
+    `, [code ? code.trim().toUpperCase() : null, description !== undefined ? description : null,
+        discount_type, discount_value ? parseFloat(discount_value).toFixed(2) : null,
+        min_order_amount !== undefined ? parseFloat(min_order_amount || 0).toFixed(2) : null,
+        max_uses !== undefined ? (max_uses || null) : undefined,
+        max_uses_per_customer !== undefined ? (max_uses_per_customer || null) : undefined,
+        restricted_category_ids || null, restricted_product_ids || null,
+        is_active, expires_at !== undefined ? (expires_at || null) : undefined,
+        id]);
+
+    if (!result.rows.length) return res.status(404).json({ error: 'Promo code not found' });
+
+    await logAudit(req.staff.id, 'update_promo_code', 'promo_code', id, { code: result.rows[0].code }, req.ip);
+    res.json({ promo_code: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'A promo code with this code already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/admin/promo-codes/:id/toggle', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'UPDATE promo_codes SET is_active = NOT is_active, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+      [id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Promo code not found' });
+    await logAudit(req.staff.id, 'toggle_promo_code', 'promo_code', id, { is_active: result.rows[0].is_active }, req.ip);
+    res.json({ promo_code: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/promo-codes/:id/usages', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(`
+      SELECT pcu.*, o.order_number, q.quote_number
+      FROM promo_code_usages pcu
+      LEFT JOIN orders o ON o.id = pcu.order_id
+      LEFT JOIN quotes q ON q.id = pcu.quote_id
+      WHERE pcu.promo_code_id = $1
+      ORDER BY pcu.created_at DESC
+    `, [id]);
+    res.json({ usages: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==================== Admin Rep CRUD ====================
 
-app.get('/api/admin/reps', adminAuth, async (req, res) => {
+app.get('/api/admin/reps', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT sr.id, sr.email, sr.first_name, sr.last_name, sr.phone, sr.is_active, sr.created_at,
@@ -2971,7 +5979,7 @@ app.get('/api/admin/reps', adminAuth, async (req, res) => {
   }
 });
 
-app.post('/api/admin/reps', adminAuth, async (req, res) => {
+app.post('/api/admin/reps', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { email, password, first_name, last_name, phone } = req.body;
     if (!email || !password || !first_name || !last_name) {
@@ -2992,7 +6000,7 @@ app.post('/api/admin/reps', adminAuth, async (req, res) => {
   }
 });
 
-app.put('/api/admin/reps/:id', adminAuth, async (req, res) => {
+app.put('/api/admin/reps/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const { email, first_name, last_name, phone } = req.body;
@@ -3016,7 +6024,7 @@ app.put('/api/admin/reps/:id', adminAuth, async (req, res) => {
   }
 });
 
-app.patch('/api/admin/reps/:id/toggle', adminAuth, async (req, res) => {
+app.patch('/api/admin/reps/:id/toggle', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(`
@@ -3038,7 +6046,7 @@ app.patch('/api/admin/reps/:id/toggle', adminAuth, async (req, res) => {
   }
 });
 
-app.put('/api/admin/reps/:id/password', adminAuth, async (req, res) => {
+app.put('/api/admin/reps/:id/password', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const { password } = req.body;
@@ -3062,7 +6070,7 @@ app.put('/api/admin/reps/:id/password', adminAuth, async (req, res) => {
 });
 
 // Admin assign any rep to order
-app.put('/api/admin/orders/:id/assign', adminAuth, async (req, res) => {
+app.put('/api/admin/orders/:id/assign', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const { sales_rep_id } = req.body;
@@ -3080,7 +6088,7 @@ app.put('/api/admin/orders/:id/assign', adminAuth, async (req, res) => {
 // ==================== Admin Purchase Order Endpoints ====================
 
 // List POs for an order (admin)
-app.get('/api/admin/orders/:id/purchase-orders', adminAuth, async (req, res) => {
+app.get('/api/admin/orders/:id/purchase-orders', staffAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const pos = await pool.query(`
@@ -3116,7 +6124,7 @@ app.get('/api/admin/orders/:id/purchase-orders', adminAuth, async (req, res) => 
 });
 
 // Update PO status (admin progression: sent→acknowledged→fulfilled, or cancel)
-app.put('/api/admin/purchase-orders/:poId/status', adminAuth, async (req, res) => {
+app.put('/api/admin/purchase-orders/:poId/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { poId } = req.params;
     const { status } = req.body;
@@ -3151,7 +6159,7 @@ app.put('/api/admin/purchase-orders/:poId/status', adminAuth, async (req, res) =
 });
 
 // Admin edit cost on draft PO item
-app.put('/api/admin/purchase-orders/:poId/items/:itemId', adminAuth, async (req, res) => {
+app.put('/api/admin/purchase-orders/:poId/items/:itemId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { poId, itemId } = req.params;
@@ -3200,6 +6208,129 @@ app.put('/api/admin/purchase-orders/:poId/items/:itemId', adminAuth, async (req,
   }
 });
 
+// ==================== Admin Trade Management ====================
+
+// Margin Tiers CRUD
+app.get('/api/admin/margin-tiers', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT mt.*, (SELECT COUNT(*)::int FROM trade_customers tc WHERE tc.margin_tier_id = mt.id) as customer_count
+      FROM margin_tiers mt
+      ORDER BY mt.discount_percent
+    `);
+    res.json({ tiers: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/margin-tiers', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { name, discount_percent } = req.body;
+    if (!name || discount_percent == null) return res.status(400).json({ error: 'Name and discount_percent are required' });
+    const result = await pool.query(
+      'INSERT INTO margin_tiers (name, discount_percent) VALUES ($1, $2) RETURNING *',
+      [name.trim(), discount_percent]
+    );
+    res.json({ tier: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'A tier with this name already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/margin-tiers/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { name, discount_percent, is_active } = req.body;
+    const result = await pool.query(
+      `UPDATE margin_tiers SET name = COALESCE($1, name), discount_percent = COALESCE($2, discount_percent),
+       is_active = COALESCE($3, is_active), updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *`,
+      [name, discount_percent, is_active, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Tier not found' });
+    res.json({ tier: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'A tier with this name already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/admin/margin-tiers/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const count = await pool.query('SELECT COUNT(*)::int as c FROM trade_customers WHERE margin_tier_id = $1', [req.params.id]);
+    if (count.rows[0].c > 0) {
+      return res.status(409).json({ error: `Cannot delete: ${count.rows[0].c} customer(s) assigned to this tier` });
+    }
+    const result = await pool.query('DELETE FROM margin_tiers WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Tier not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trade Customers Management
+app.get('/api/admin/trade-customers', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    let query = `
+      SELECT tc.*, mt.name as tier_name, mt.discount_percent,
+        sa.first_name || ' ' || sa.last_name as rep_name
+      FROM trade_customers tc
+      LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+      LEFT JOIN staff_accounts sa ON sa.id = tc.assigned_rep_id
+    `;
+    const params = [];
+    if (req.query.status) {
+      query += ' WHERE tc.status = $1';
+      params.push(req.query.status);
+    }
+    query += ' ORDER BY tc.created_at DESC';
+    const result = await pool.query(query, params);
+    res.json({ customers: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/trade-customers/:id', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const { status, margin_tier_id, notes } = req.body;
+    const result = await pool.query(
+      `UPDATE trade_customers SET status = COALESCE($1, status), margin_tier_id = COALESCE($2, margin_tier_id),
+       notes = COALESCE($3, notes), updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *`,
+      [status, margin_tier_id, notes, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Trade customer not found' });
+
+    // Kill sessions if status changed to non-approved
+    if (status && status !== 'approved') {
+      await pool.query('DELETE FROM trade_sessions WHERE trade_customer_id = $1', [req.params.id]);
+    }
+
+    // Re-fetch with tier info
+    const full = await pool.query(`
+      SELECT tc.*, mt.name as tier_name, mt.discount_percent
+      FROM trade_customers tc
+      LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+      WHERE tc.id = $1
+    `, [req.params.id]);
+
+    res.json({ customer: full.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/admin/trade-customers/:id', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM trade_customers WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Trade customer not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==================== Scheduler Init ====================
 
 const scheduledTasks = new Map();
@@ -3224,6 +6355,356 @@ async function initScheduler() {
     console.log('Scheduler init skipped (tables may not exist yet):', err.message);
   }
 }
+
+// ==================== Membership Lifecycle Cron Jobs ====================
+
+// Run daily at 6 AM UTC
+cron.schedule('0 6 * * *', async () => {
+  console.log('[Cron] Running membership lifecycle checks...');
+  try {
+    // 1) 30-day renewal reminders — active subscriptions expiring within 30 days
+    const renewals = await pool.query(`
+      SELECT id, email, contact_name, company_name, subscription_expires_at
+      FROM trade_customers
+      WHERE subscription_status = 'active'
+        AND subscription_expires_at IS NOT NULL
+        AND subscription_expires_at BETWEEN CURRENT_TIMESTAMP AND CURRENT_TIMESTAMP + INTERVAL '30 days'
+        AND subscription_expires_at > CURRENT_TIMESTAMP + INTERVAL '29 days'
+    `);
+    for (const c of renewals.rows) {
+      const daysLeft = Math.ceil((new Date(c.subscription_expires_at) - Date.now()) / (1000 * 60 * 60 * 24));
+      await sendRenewalReminder({ ...c, days_until_expiry: daysLeft });
+      console.log(`[Cron] Renewal reminder sent to ${c.email} (${daysLeft} days left)`);
+    }
+
+    // 2) 15-day lapse warning — past_due subscriptions (payment failed 15+ days ago)
+    const warnings = await pool.query(`
+      SELECT id, email, contact_name, company_name
+      FROM trade_customers
+      WHERE subscription_status = 'past_due'
+        AND subscription_expires_at IS NOT NULL
+        AND subscription_expires_at < CURRENT_TIMESTAMP - INTERVAL '15 days'
+        AND subscription_expires_at > CURRENT_TIMESTAMP - INTERVAL '16 days'
+    `);
+    for (const c of warnings.rows) {
+      await sendSubscriptionWarning(c);
+      console.log(`[Cron] Subscription warning sent to ${c.email}`);
+    }
+
+    // 3) 30-day grace expiry — past_due for 30+ days → deactivate
+    const expired = await pool.query(`
+      SELECT id, email, contact_name, company_name, stripe_subscription_id
+      FROM trade_customers
+      WHERE subscription_status = 'past_due'
+        AND subscription_expires_at IS NOT NULL
+        AND subscription_expires_at < CURRENT_TIMESTAMP - INTERVAL '30 days'
+    `);
+    for (const c of expired.rows) {
+      // Cancel the Stripe subscription if still active
+      if (c.stripe_subscription_id) {
+        try { await stripe.subscriptions.cancel(c.stripe_subscription_id); } catch (_) {}
+      }
+      // Deactivate: set status to rejected, clear subscription
+      await pool.query(`
+        UPDATE trade_customers
+        SET subscription_status = 'cancelled', status = 'rejected', updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+      `, [c.id]);
+      await sendSubscriptionDeactivated(c);
+      await logAudit(null, 'trade.membership_deactivated', 'trade_customer', c.id, { reason: 'grace_period_expired' });
+      console.log(`[Cron] Membership deactivated for ${c.email} (grace period expired)`);
+    }
+
+    // 4) Cleanup expired staff sessions and 2FA codes
+    await pool.query("DELETE FROM staff_sessions WHERE expires_at < CURRENT_TIMESTAMP");
+    await pool.query("DELETE FROM staff_2fa_codes WHERE expires_at < CURRENT_TIMESTAMP");
+    console.log('[Cron] Cleaned up expired sessions and 2FA codes');
+
+    console.log('[Cron] Membership lifecycle checks complete');
+  } catch (err) {
+    console.error('[Cron] Membership lifecycle error:', err.message);
+  }
+});
+
+// ==================== Customer Accounts ====================
+
+app.post('/api/customer/register', async (req, res) => {
+  try {
+    const { email, password, first_name, last_name, phone } = req.body;
+    if (!email || !password || !first_name || !last_name) {
+      return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+    if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters with 1 uppercase letter and 1 number' });
+    }
+
+    const existing = await pool.query('SELECT id FROM customers WHERE email = $1', [email.toLowerCase()]);
+    if (existing.rows.length) {
+      return res.status(400).json({ error: 'An account with this email already exists' });
+    }
+
+    const { hash, salt } = hashPassword(password);
+    const result = await pool.query(
+      `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, first_name, last_name, phone`,
+      [email.toLowerCase(), hash, salt, first_name, last_name, phone || null]
+    );
+    const customer = result.rows[0];
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
+      [customer.id, token, expiresAt]);
+
+    res.json({ token, customer });
+  } catch (err) {
+    console.error('Customer register error:', err);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+app.post('/api/customer/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const result = await pool.query(
+      'SELECT id, email, password_hash, password_salt, first_name, last_name, phone FROM customers WHERE email = $1',
+      [email.toLowerCase()]
+    );
+    if (!result.rows.length) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const cust = result.rows[0];
+    if (!verifyPassword(password, cust.password_hash, cust.password_salt)) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
+      [cust.id, token, expiresAt]);
+
+    res.json({
+      token,
+      customer: { id: cust.id, email: cust.email, first_name: cust.first_name, last_name: cust.last_name, phone: cust.phone }
+    });
+  } catch (err) {
+    console.error('Customer login error:', err);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+app.post('/api/customer/logout', customerAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM customer_sessions WHERE id = $1', [req.customer.session_id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/customer/me', customerAuth, async (req, res) => {
+  res.json({ customer: req.customer });
+});
+
+app.put('/api/customer/profile', customerAuth, async (req, res) => {
+  try {
+    const { first_name, last_name, phone, address_line1, address_line2, city, state, zip } = req.body;
+    const result = await pool.query(
+      `UPDATE customers SET first_name = COALESCE($1, first_name), last_name = COALESCE($2, last_name),
+        phone = COALESCE($3, phone), address_line1 = COALESCE($4, address_line1),
+        address_line2 = COALESCE($5, address_line2), city = COALESCE($6, city),
+        state = COALESCE($7, state), zip = COALESCE($8, zip), updated_at = CURRENT_TIMESTAMP
+       WHERE id = $9
+       RETURNING id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip`,
+      [first_name, last_name, phone, address_line1, address_line2, city, state, zip, req.customer.id]
+    );
+    res.json({ customer: result.rows[0] });
+  } catch (err) {
+    console.error('Customer profile update error:', err);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+app.put('/api/customer/password', customerAuth, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: 'Current and new password are required' });
+    }
+    if (new_password.length < 8 || !/[A-Z]/.test(new_password) || !/[0-9]/.test(new_password)) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters with 1 uppercase letter and 1 number' });
+    }
+
+    const result = await pool.query('SELECT password_hash, password_salt FROM customers WHERE id = $1', [req.customer.id]);
+    const cust = result.rows[0];
+    if (!verifyPassword(current_password, cust.password_hash, cust.password_salt)) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    const { hash, salt } = hashPassword(new_password);
+    await pool.query('UPDATE customers SET password_hash = $1, password_salt = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+      [hash, salt, req.customer.id]);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Customer password change error:', err);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+app.post('/api/customer/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    // Always return success to not leak whether email exists
+    if (!email) return res.json({ success: true });
+
+    const result = await pool.query('SELECT id, email FROM customers WHERE email = $1', [email.toLowerCase()]);
+    if (result.rows.length) {
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      await pool.query(
+        'UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3',
+        [resetToken, expires, result.rows[0].id]
+      );
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const resetUrl = `${frontendUrl}?reset_token=${resetToken}`;
+      sendPasswordReset(result.rows[0].email, resetUrl).catch(err => console.error('[Email] Password reset error:', err.message));
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.json({ success: true });
+  }
+});
+
+app.post('/api/customer/reset-password', async (req, res) => {
+  try {
+    const { token, new_password } = req.body;
+    if (!token || !new_password) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+    if (new_password.length < 8 || !/[A-Z]/.test(new_password) || !/[0-9]/.test(new_password)) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters with 1 uppercase letter and 1 number' });
+    }
+
+    const result = await pool.query(
+      'SELECT id FROM customers WHERE password_reset_token = $1 AND password_reset_expires > CURRENT_TIMESTAMP',
+      [token]
+    );
+    if (!result.rows.length) {
+      return res.status(400).json({ error: 'Invalid or expired reset link' });
+    }
+
+    const { hash, salt } = hashPassword(new_password);
+    await pool.query(
+      'UPDATE customers SET password_hash = $1, password_salt = $2, password_reset_token = NULL, password_reset_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+      [hash, salt, result.rows[0].id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+app.get('/api/customer/orders', customerAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, order_number, customer_name, customer_email, status, subtotal, shipping, total,
+        delivery_method, shipping_method, tracking_number, shipping_carrier, shipped_at, created_at
+       FROM orders WHERE customer_id = $1 ORDER BY created_at DESC`,
+      [req.customer.id]
+    );
+    res.json({ orders: result.rows });
+  } catch (err) {
+    console.error('Customer orders error:', err);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+app.get('/api/customer/orders/:id', customerAuth, async (req, res) => {
+  try {
+    const orderResult = await pool.query(
+      `SELECT * FROM orders WHERE id = $1 AND customer_id = $2`,
+      [req.params.id, req.customer.id]
+    );
+    if (!orderResult.rows.length) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const itemsResult = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [req.params.id]);
+    res.json({ order: orderResult.rows[0], items: itemsResult.rows });
+  } catch (err) {
+    console.error('Customer order detail error:', err);
+    res.status(500).json({ error: 'Failed to fetch order' });
+  }
+});
+
+// ==================== Installation Inquiries ====================
+
+app.post('/api/installation-inquiries', async (req, res) => {
+  try {
+    const { customer_name, customer_email, phone, zip_code, estimated_sqft, message, product_id } = req.body;
+
+    if (!customer_name || !customer_email) {
+      return res.status(400).json({ error: 'Name and email are required' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+
+    let product_name = null;
+    let collection = null;
+    if (product_id) {
+      const prodResult = await pool.query(
+        'SELECT p.name, p.collection FROM products p WHERE p.id = $1',
+        [product_id]
+      );
+      if (prodResult.rows.length > 0) {
+        product_name = prodResult.rows[0].name;
+        collection = prodResult.rows[0].collection;
+      }
+    }
+
+    const result = await pool.query(
+      `INSERT INTO installation_inquiries (customer_name, customer_email, phone, zip_code, estimated_sqft, message, product_id, product_name, collection)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id`,
+      [customer_name, customer_email, phone || null, zip_code || null, estimated_sqft || null, message || null, product_id || null, product_name, collection]
+    );
+
+    const inquiry = {
+      id: result.rows[0].id,
+      customer_name,
+      customer_email,
+      phone,
+      zip_code,
+      estimated_sqft,
+      message,
+      product_id,
+      product_name,
+      collection
+    };
+
+    // Fire-and-forget emails
+    sendInstallationInquiryNotification(inquiry).catch(err => console.error('[Install Inquiry] Staff email error:', err.message));
+    sendInstallationInquiryConfirmation(inquiry).catch(err => console.error('[Install Inquiry] Confirmation email error:', err.message));
+
+    res.json({ success: true, inquiry_id: result.rows[0].id });
+  } catch (err) {
+    console.error('Installation inquiry error:', err);
+    res.status(500).json({ error: 'Failed to submit inquiry' });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`API running on port ${PORT}`);

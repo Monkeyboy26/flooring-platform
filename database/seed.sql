@@ -172,3 +172,24 @@ INSERT INTO sku_attributes (sku_id, attribute_id, value) VALUES
 ('b50e8400-e29b-41d4-a716-446655440008', 'd50e8400-e29b-41d4-a716-446655440002', 'Vinyl'),
 ('b50e8400-e29b-41d4-a716-446655440008', 'd50e8400-e29b-41d4-a716-446655440003', 'Embossed'),
 ('b50e8400-e29b-41d4-a716-446655440008', 'd50e8400-e29b-41d4-a716-446655440004', '7x48');
+
+-- Inventory Snapshots: varied stock levels for demo
+INSERT INTO inventory_snapshots (sku_id, warehouse, qty_on_hand, qty_in_transit, fresh_until) VALUES
+-- In Stock (qty > 10)
+('b50e8400-e29b-41d4-a716-446655440001', 'default', 48, 0, NOW() + INTERVAL '24 hours'),
+('b50e8400-e29b-41d4-a716-446655440003', 'default', 120, 0, NOW() + INTERVAL '24 hours'),
+('b50e8400-e29b-41d4-a716-446655440006', 'default', 35, 0, NOW() + INTERVAL '24 hours'),
+-- Low Stock (qty 1-10)
+('b50e8400-e29b-41d4-a716-446655440002', 'default', 6, 0, NOW() + INTERVAL '24 hours'),
+('b50e8400-e29b-41d4-a716-446655440005', 'default', 3, 0, NOW() + INTERVAL '24 hours'),
+-- Out of Stock (qty = 0) — SKU 4 has transit stock
+('b50e8400-e29b-41d4-a716-446655440004', 'default', 0, 15, NOW() + INTERVAL '24 hours'),
+('b50e8400-e29b-41d4-a716-446655440008', 'default', 0, 0, NOW() + INTERVAL '24 hours'),
+-- Stale snapshot (fresh_until in past) — tests "unknown" path
+('b50e8400-e29b-41d4-a716-446655440007', 'default', 50, 0, NOW() - INTERVAL '2 hours');
+
+-- Margin Tiers for Trade Pricing
+INSERT INTO margin_tiers (name, discount_percent, spend_threshold, tier_level) VALUES
+('Silver', 10.00, 0, 0),
+('Gold', 15.00, 12500, 1),
+('Platinum', 20.00, 25000, 2);
