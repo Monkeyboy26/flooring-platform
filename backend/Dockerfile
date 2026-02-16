@@ -8,7 +8,10 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci --omit=dev
+RUN groupadd -r appuser && useradd -r -g appuser -u 1001 appuser
 COPY . .
+RUN mkdir -p /app/uploads && chown -R appuser:appuser /app
+USER appuser
 EXPOSE 3001
 CMD ["node", "server.js"]

@@ -2,6 +2,10 @@
   "name": "flooring-backend",
   "version": "1.0.0",
   "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
   "dependencies": {
     "@easypost/api": "^7.5.0",
     "cors": "^2.8.5",
@@ -13,6 +17,8 @@
     "node-cron": "^3.0.3",
     "puppeteer": "^21.11.0",
     "stripe": "^14.11.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "@aws-sdk/client-s3": "^3.500.0",
+    "@aws-sdk/s3-request-presigner": "^3.500.0"
   }
 }
