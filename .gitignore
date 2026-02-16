@@ -3,3 +3,9 @@ node_modules/
 uploads/
 .DS_Store
 .claude/
+
+# Production
+certbot/
+*.sql.gz
+postgres_data/
+minio_data/
