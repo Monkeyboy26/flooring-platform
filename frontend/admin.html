@@ -704,7 +704,9 @@
   <script type="text/babel">
     const { useState, useEffect, useCallback } = React;
 
-    const API = 'http://localhost:3001';
+        const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3001'
+      : `${window.location.protocol}//${window.location.hostname}:3001`;
 
     // ========== Admin Fetch Helper ==========
     function getAuthHeaders() {

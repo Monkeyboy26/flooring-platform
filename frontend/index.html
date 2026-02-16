@@ -3,7 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Roma Flooring Designs</title>
+  <title>Roma Flooring Designs | Premium Flooring &amp; Tile in Anaheim, CA</title>
+  <meta name="description" content="Roma Flooring Designs offers premium flooring, tile, stone, and countertop products in Anaheim, CA. Shop our curated collections of hardwood, porcelain, marble, and more.">
+  <link rel="canonical" href="https://romaflooringdesigns.com/">
+  <meta property="og:title" content="Roma Flooring Designs | Premium Flooring &amp; Tile in Anaheim, CA">
+  <meta property="og:description" content="Roma Flooring Designs offers premium flooring, tile, stone, and countertop products in Anaheim, CA. Shop our curated collections of hardwood, porcelain, marble, and more.">
+  <meta property="og:image" content="https://romaflooringdesigns.com/uploads/og-default.jpg">
+  <meta property="og:url" content="https://romaflooringdesigns.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Roma Flooring Designs">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Roma Flooring Designs | Premium Flooring &amp; Tile in Anaheim, CA">
+  <meta name="twitter:description" content="Roma Flooring Designs offers premium flooring, tile, stone, and countertop products in Anaheim, CA. Shop our curated collections of hardwood, porcelain, marble, and more.">
+  <meta name="twitter:image" content="https://romaflooringdesigns.com/uploads/og-default.jpg">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "LocalBusiness",
+        "name": "Roma Flooring Designs",
+        "url": "https://romaflooringdesigns.com",
+        "logo": "https://romaflooringdesigns.com/uploads/logo.png",
+        "image": "https://romaflooringdesigns.com/uploads/og-default.jpg",
+        "telephone": "(714) 999-0009",
+        "email": "Sales@romaflooringdesigns.com",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "1440 South State College Blvd #6m",
+          "addressLocality": "Anaheim",
+          "addressRegion": "CA",
+          "postalCode": "92806",
+          "addressCountry": "US"
+        },
+        "description": "Premium flooring, tile, stone, and countertop products in Anaheim, CA.",
+        "priceRange": "$$"
+      },
+      {
+        "@type": "WebSite",
+        "name": "Roma Flooring Designs",
+        "url": "https://romaflooringdesigns.com",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://romaflooringdesigns.com/shop?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      }
+    ]
+  }
+  </script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -2031,7 +2079,9 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-    const API = 'http://localhost:3001';
+        const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3001'
+      : `${window.location.protocol}//${window.location.hostname}:3001`;
 
     function getSessionId() {
       let id = localStorage.getItem('cart_session_id');
@@ -2049,6 +2099,214 @@
         return '';
       }
       return '/sqft';
+    }
+
+    // === SEO Utility Functions ===
+    const SITE_NAME = 'Roma Flooring Designs';
+    const SITE_URL = 'https://romaflooringdesigns.com';
+    const DEFAULT_DESCRIPTION = 'Roma Flooring Designs offers premium flooring, tile, stone, and countertop products in Anaheim, CA. Shop our curated collections of hardwood, porcelain, marble, and more.';
+    const DEFAULT_IMAGE = SITE_URL + '/uploads/og-default.jpg';
+
+    function generateSlug(text) {
+      return (text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    }
+
+    function buildUrl(view, params) {
+      params = params || {};
+      switch (view) {
+        case 'home': return '/';
+        case 'shop': {
+          const sp = new URLSearchParams();
+          if (params.category) sp.set('category', params.category);
+          if (params.collection) sp.set('collection', params.collection);
+          if (params.search) sp.set('q', params.search);
+          if (params.filters) {
+            Object.keys(params.filters).forEach(k => {
+              if (params.filters[k] && params.filters[k].length) sp.set(k, params.filters[k].join(','));
+            });
+          }
+          const qs = sp.toString();
+          return '/shop' + (qs ? '?' + qs : '');
+        }
+        case 'collections': return '/collections';
+        case 'product': return '/product/' + (params.id || '') + '/' + generateSlug(params.name || '');
+        case 'trade': return '/trade';
+        case 'trade-dashboard': return '/trade/dashboard';
+        case 'bulk-order': return '/trade/bulk-order';
+        case 'account': return '/account';
+        case 'cart': return '/cart';
+        case 'checkout': return '/checkout';
+        case 'confirmation': return '/order-confirmation';
+        case 'reset-password': return '/reset-password';
+        default: return '/';
+      }
+    }
+
+    function parseUrl(pathname, search) {
+      const path = pathname || '/';
+      const sp = new URLSearchParams(search || '');
+      // Password reset token
+      if (sp.get('reset_token')) return { view: 'reset-password', params: {} };
+      if (path === '/' || path === '') return { view: 'home', params: {} };
+      if (path === '/shop') {
+        const params = {};
+        if (sp.get('category')) params.category = sp.get('category');
+        if (sp.get('collection')) params.collection = sp.get('collection');
+        if (sp.get('q')) params.search = sp.get('q');
+        // Parse filter params (anything not category/collection/q)
+        const filters = {};
+        sp.forEach((val, key) => {
+          if (!['category', 'collection', 'q'].includes(key)) {
+            filters[key] = val.split(',');
+          }
+        });
+        if (Object.keys(filters).length) params.filters = filters;
+        return { view: 'shop', params };
+      }
+      if (path === '/collections') return { view: 'collections', params: {} };
+      if (path.startsWith('/collections/')) {
+        const slug = path.replace('/collections/', '');
+        return { view: 'shop', params: { collection: slug } };
+      }
+      if (path.startsWith('/product/')) {
+        const parts = path.replace('/product/', '').split('/');
+        return { view: 'product', params: { id: parts[0] } };
+      }
+      if (path === '/trade') return { view: 'trade', params: {} };
+      if (path === '/trade/dashboard') return { view: 'trade-dashboard', params: {} };
+      if (path === '/trade/bulk-order') return { view: 'bulk-order', params: {} };
+      if (path === '/account') return { view: 'account', params: {} };
+      if (path === '/cart') return { view: 'cart', params: {} };
+      if (path === '/checkout') return { view: 'checkout', params: {} };
+      if (path === '/order-confirmation') return { view: 'confirmation', params: {} };
+      if (path === '/reset-password') return { view: 'reset-password', params: {} };
+      return { view: 'home', params: {} };
+    }
+
+    function updateMeta(view, params) {
+      params = params || {};
+      let title, description, canonical, image;
+      switch (view) {
+        case 'home':
+          title = SITE_NAME + ' | Premium Flooring & Tile in Anaheim, CA';
+          description = DEFAULT_DESCRIPTION;
+          canonical = SITE_URL + '/';
+          image = DEFAULT_IMAGE;
+          break;
+        case 'shop': {
+          let suffix = '';
+          if (params.search) suffix = ' — Search: ' + params.search;
+          else if (params.categoryName) suffix = ' — ' + params.categoryName;
+          else if (params.collectionName) suffix = ' — ' + params.collectionName;
+          title = 'Shop' + suffix + ' | ' + SITE_NAME;
+          description = 'Browse our selection of premium flooring, tile, and stone products.' + (suffix ? ' ' + suffix.replace(' — ', '') + '.' : '');
+          canonical = SITE_URL + buildUrl('shop', params);
+          image = DEFAULT_IMAGE;
+          break;
+        }
+        case 'collections':
+          title = 'Collections | ' + SITE_NAME;
+          description = 'Explore our curated flooring and tile collections from top manufacturers.';
+          canonical = SITE_URL + '/collections';
+          image = DEFAULT_IMAGE;
+          break;
+        case 'product': {
+          const p = params.product;
+          if (p) {
+            title = p.name + (p.collection ? ' — ' + p.collection : '') + ' | ' + SITE_NAME;
+            description = p.description_short || (p.name + ' by ' + (p.vendor_name || SITE_NAME) + '. Premium flooring available at Roma Flooring Designs.');
+            canonical = SITE_URL + '/product/' + p.id + '/' + generateSlug(p.name);
+            image = params.primaryImage || DEFAULT_IMAGE;
+          } else {
+            title = 'Product | ' + SITE_NAME;
+            description = DEFAULT_DESCRIPTION;
+            canonical = SITE_URL + '/';
+            image = DEFAULT_IMAGE;
+          }
+          break;
+        }
+        case 'trade':
+          title = 'Trade Program | ' + SITE_NAME;
+          description = 'Join the Roma Flooring Designs trade program for exclusive pricing, dedicated support, and bulk ordering.';
+          canonical = SITE_URL + '/trade';
+          image = DEFAULT_IMAGE;
+          break;
+        case 'trade-dashboard':
+          title = 'Trade Dashboard | ' + SITE_NAME;
+          description = 'Manage your trade account, orders, and projects.';
+          canonical = SITE_URL + '/trade/dashboard';
+          image = DEFAULT_IMAGE;
+          break;
+        case 'cart':
+          title = 'Cart | ' + SITE_NAME;
+          description = 'Review items in your cart.';
+          canonical = SITE_URL + '/cart';
+          image = DEFAULT_IMAGE;
+          break;
+        default:
+          title = SITE_NAME + ' | Premium Flooring & Tile in Anaheim, CA';
+          description = DEFAULT_DESCRIPTION;
+          canonical = SITE_URL + '/';
+          image = DEFAULT_IMAGE;
+      }
+      document.title = title;
+      const setMeta = (sel, attr, val) => { const el = document.querySelector(sel); if (el) el.setAttribute(attr, val); };
+      setMeta('meta[name="description"]', 'content', description);
+      setMeta('link[rel="canonical"]', 'href', canonical);
+      setMeta('meta[property="og:title"]', 'content', title);
+      setMeta('meta[property="og:description"]', 'content', description);
+      setMeta('meta[property="og:url"]', 'content', canonical);
+      setMeta('meta[property="og:image"]', 'content', image);
+      setMeta('meta[name="twitter:title"]', 'content', title);
+      setMeta('meta[name="twitter:description"]', 'content', description);
+      setMeta('meta[name="twitter:image"]', 'content', image);
+    }
+
+    function updateStructuredData(view, params) {
+      let el = document.getElementById('dynamic-jsonld');
+      if (view === 'product' && params && params.product) {
+        const p = params.product;
+        const sku = params.selectedSku;
+        const data = {
+          '@context': 'https://schema.org',
+          '@graph': [
+            {
+              '@type': 'Product',
+              name: p.name,
+              description: p.description_short || p.description_long || (p.name + ' by ' + (p.vendor_name || SITE_NAME)),
+              image: params.primaryImage || DEFAULT_IMAGE,
+              brand: { '@type': 'Brand', name: p.vendor_name || SITE_NAME },
+              category: p.category_name || '',
+              offers: {
+                '@type': 'Offer',
+                url: SITE_URL + '/product/' + p.id + '/' + generateSlug(p.name),
+                priceCurrency: 'USD',
+                price: sku ? parseFloat(sku.retail_price || 0).toFixed(2) : parseFloat(p.price || 0).toFixed(2),
+                availability: sku && sku.stock_status === 'out_of_stock' ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+                seller: { '@type': 'Organization', name: SITE_NAME }
+              }
+            },
+            {
+              '@type': 'BreadcrumbList',
+              itemListElement: [
+                { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+                { '@type': 'ListItem', position: 2, name: 'Shop', item: SITE_URL + '/shop' },
+                p.category_name ? { '@type': 'ListItem', position: 3, name: p.category_name, item: SITE_URL + '/shop?category=' + encodeURIComponent(p.category_slug || '') } : null,
+                { '@type': 'ListItem', position: p.category_name ? 4 : 3, name: p.name, item: SITE_URL + '/product/' + p.id + '/' + generateSlug(p.name) }
+              ].filter(Boolean)
+            }
+          ]
+        };
+        if (!el) {
+          el = document.createElement('script');
+          el.type = 'application/ld+json';
+          el.id = 'dynamic-jsonld';
+          document.head.appendChild(el);
+        }
+        el.textContent = JSON.stringify(data);
+      } else {
+        if (el) el.remove();
+      }
     }
 
     function StockBadge({ status }) {
@@ -2125,9 +2383,20 @@
           .catch(err => console.error(err));
       };
 
+      // --- URL-based routing helper ---
+      const navigateTo = (viewName, metaParams, urlParams, useReplace) => {
+        const url = buildUrl(viewName, urlParams || {});
+        if (useReplace) {
+          history.replaceState({ view: viewName, params: urlParams }, '', url);
+        } else {
+          history.pushState({ view: viewName, params: urlParams }, '', url);
+        }
+        updateMeta(viewName, metaParams || {});
+        updateStructuredData(viewName, metaParams || {});
+      };
+
+      // --- URL-based initialization ---
       useEffect(() => {
-        fetchProducts();
-        fetchAttributes();
         fetchCart();
 
         fetch(API + '/api/categories')
@@ -2153,12 +2422,114 @@
             .catch(() => { localStorage.removeItem('customer_token'); setCustomerToken(null); });
         }
 
-        // Check for password reset token in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const resetToken = urlParams.get('reset_token');
-        if (resetToken) {
+        // Parse current URL to determine initial view
+        const parsed = parseUrl(window.location.pathname, window.location.search);
+
+        if (parsed.view === 'product' && parsed.params.id) {
+          // Deep-link to product: fetch minimal product data by ID
+          const tToken = localStorage.getItem('trade_token');
+          const hdrs = tToken ? { 'X-Trade-Token': tToken } : {};
+          fetch(API + '/api/products/' + parsed.params.id, { headers: hdrs })
+            .then(r => { if (!r.ok) throw new Error('Product not found'); return r.json(); })
+            .then(data => {
+              const p = data.product;
+              setSelectedProduct(p);
+              setView('product');
+              updateMeta('product', { product: p });
+            })
+            .catch(() => {
+              // Product not found — go home
+              setView('home');
+              fetchProducts();
+              fetchAttributes();
+              navigateTo('home', {}, {}, true);
+            });
+        } else if (parsed.view === 'shop') {
+          setView('shop');
+          if (parsed.params.category) {
+            setSelectedCategory(parsed.params.category);
+            fetchProducts(parsed.params.category, parsed.params.filters || {});
+            fetchAttributes(parsed.params.category);
+          } else if (parsed.params.collection) {
+            setSelectedCollection(parsed.params.collection);
+            fetchProducts(null, {}, null, parsed.params.collection);
+            fetchAttributes();
+          } else if (parsed.params.search) {
+            setSearchQuery(parsed.params.search);
+            fetchProducts(null, {}, parsed.params.search);
+            fetchAttributes();
+          } else {
+            fetchProducts(null, parsed.params.filters || {});
+            fetchAttributes();
+          }
+          if (parsed.params.filters) setFilters(parsed.params.filters);
+          updateMeta('shop', parsed.params);
+        } else if (parsed.view === 'reset-password') {
           setView('reset-password');
+        } else if (parsed.view !== 'home') {
+          setView(parsed.view);
+          fetchProducts();
+          fetchAttributes();
+          updateMeta(parsed.view, {});
+        } else {
+          fetchProducts();
+          fetchAttributes();
+          updateMeta('home', {});
+          history.replaceState({ view: 'home' }, '', '/');
         }
+
+        // --- popstate handler for back/forward ---
+        const handlePopState = (e) => {
+          const state = e.state;
+          if (state && state.view) {
+            const v = state.view;
+            const p = state.params || {};
+            if (v === 'product' && p.id) {
+              const tToken = localStorage.getItem('trade_token');
+              const hdrs = tToken ? { 'X-Trade-Token': tToken } : {};
+              fetch(API + '/api/products/' + p.id, { headers: hdrs })
+                .then(r => r.json())
+                .then(data => {
+                  setSelectedProduct(data.product);
+                  setView('product');
+                  updateMeta('product', { product: data.product });
+                  updateStructuredData('product', { product: data.product });
+                })
+                .catch(() => { setView('home'); });
+            } else if (v === 'shop') {
+              setView('shop');
+              setSelectedCategory(p.category || null);
+              setSelectedCollection(p.collection || null);
+              setSearchQuery(p.search || '');
+              setFilters(p.filters || {});
+              fetchProducts(p.category || null, p.filters || {}, p.search || null, p.collection || null);
+              fetchAttributes(p.category || null);
+              updateMeta('shop', p);
+              updateStructuredData('shop', {});
+              if (v === 'shop') requestAnimationFrame(() => window.scrollTo(0, shopScrollY.current));
+            } else {
+              setView(v);
+              if (v === 'home') {
+                setSelectedProduct(null);
+                setSelectedCategory(null);
+                setSelectedCollection(null);
+                setFilters({});
+                setSearchQuery('');
+                fetchProducts();
+                fetchAttributes();
+              }
+              updateMeta(v, {});
+              updateStructuredData(v, {});
+            }
+          } else {
+            // No state — parse URL
+            const reparsed = parseUrl(window.location.pathname, window.location.search);
+            setView(reparsed.view);
+            updateMeta(reparsed.view, reparsed.params);
+          }
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
       }, []);
 
       const fetchCart = () => {
@@ -2168,12 +2539,15 @@
           .catch(err => console.error(err));
       };
 
-      const handleTradeLogin = (token, customer) => {
+      const handleTradeLogin = (token, cust) => {
         localStorage.setItem('trade_token', token);
         setTradeToken(token);
-        setTradeCustomer(customer);
+        setTradeCustomer(cust);
         setShowTradeModal(false);
-        if (view === 'trade') setView('trade-dashboard');
+        if (view === 'trade') {
+          setView('trade-dashboard');
+          navigateTo('trade-dashboard', {}, {});
+        }
         fetchProducts(selectedCategory, filters, searchQuery);
       };
 
@@ -2203,10 +2577,13 @@
         localStorage.removeItem('customer_token');
         setCustomerToken(null);
         setCustomer(null);
-        if (view === 'account') setView('home');
+        if (view === 'account') {
+          setView('home');
+          navigateTo('home', {}, {});
+        }
       };
 
-      const goAccount = () => { setView('account'); window.scrollTo(0, 0); };
+      const goAccount = () => { setView('account'); navigateTo('account', {}, {}); window.scrollTo(0, 0); };
       const openCustomerLogin = () => { setAuthModalMode('login'); setShowAuthModal(true); };
       const openCustomerRegister = () => { setAuthModalMode('register'); setShowAuthModal(true); };
 
@@ -2261,6 +2638,7 @@
         shopScrollY.current = window.scrollY;
         setSelectedProduct(product);
         setView('product');
+        navigateTo('product', { product }, { id: product.id, name: product.name });
         window.scrollTo(0, 0);
       };
 
@@ -2272,6 +2650,7 @@
         setView('shop');
         fetchProducts(null, {}, query);
         fetchAttributes();
+        navigateTo('shop', { search: query }, { search: query });
         window.scrollTo(0, 0);
       };
 
@@ -2284,6 +2663,7 @@
         setSearchQuery('');
         fetchProducts();
         fetchAttributes();
+        navigateTo('home', {}, {});
       };
 
       const goShop = () => {
@@ -2294,6 +2674,7 @@
         setSearchQuery('');
         fetchProducts();
         fetchAttributes();
+        navigateTo('shop', {}, {});
         window.scrollTo(0, 0);
       };
 
@@ -2303,10 +2684,12 @@
         setSelectedCollection(null);
         setFilters({});
         setSearchQuery('');
+        navigateTo('collections', {}, {});
         window.scrollTo(0, 0);
       };
 
       const goCollection = (name) => {
+        const slug = generateSlug(name);
         setSelectedCollection(name);
         setSelectedCategory(null);
         setFilters({});
@@ -2314,12 +2697,18 @@
         setView('shop');
         fetchProducts(null, {}, null, name);
         fetchAttributes();
+        navigateTo('shop', { collectionName: name }, { collection: slug });
         window.scrollTo(0, 0);
       };
 
-      const goTrade = () => { setView(tradeCustomer ? 'trade-dashboard' : 'trade'); window.scrollTo(0, 0); };
-      const goTradeDashboard = () => { setView('trade-dashboard'); window.scrollTo(0, 0); };
-      const goBulkOrder = () => { setView('bulk-order'); window.scrollTo(0, 0); };
+      const goTrade = () => {
+        const v = tradeCustomer ? 'trade-dashboard' : 'trade';
+        setView(v);
+        navigateTo(v, {}, {});
+        window.scrollTo(0, 0);
+      };
+      const goTradeDashboard = () => { setView('trade-dashboard'); navigateTo('trade-dashboard', {}, {}); window.scrollTo(0, 0); };
+      const goBulkOrder = () => { setView('bulk-order'); navigateTo('bulk-order', {}, {}); window.scrollTo(0, 0); };
       const openTradeRegister = () => { setTradeModalMode('register'); setShowTradeModal(true); };
       const openTradeLogin = () => { setTradeModalMode('login'); setShowTradeModal(true); };
       const handleRequestInstall = (product) => { setInstallModalProduct(product); setShowInstallModal(true); };
@@ -2331,6 +2720,7 @@
         setFilters({});
         fetchProducts(slug);
         fetchAttributes(slug);
+        navigateTo('shop', { category: slug }, { category: slug });
       };
 
       const handleFilterToggle = (slug, value) => {
@@ -2346,6 +2736,11 @@
             delete updated[slug];
           }
           fetchProducts(selectedCategory, updated);
+          const urlP = { filters: updated };
+          if (selectedCategory) urlP.category = selectedCategory;
+          if (selectedCollection) urlP.collection = generateSlug(selectedCollection);
+          if (searchQuery) urlP.search = searchQuery;
+          navigateTo('shop', urlP, urlP, true);
           return updated;
         });
       };
@@ -2358,6 +2753,7 @@
       const goCart = () => {
         setView('cart');
         setCartOpen(false);
+        navigateTo('cart', {}, {});
         window.scrollTo(0, 0);
       };
 
@@ -2366,6 +2762,11 @@
           setView('shop');
           setSelectedProduct(null);
           fetchProducts(selectedCategory, filters);
+          const urlP = {};
+          if (selectedCategory) urlP.category = selectedCategory;
+          if (selectedCollection) urlP.collection = generateSlug(selectedCollection);
+          if (searchQuery) urlP.search = searchQuery;
+          navigateTo('shop', urlP, urlP);
           requestAnimationFrame(() => window.scrollTo(0, shopScrollY.current));
         } else {
           goHome();
@@ -2375,6 +2776,7 @@
       const goCheckout = () => {
         setView('checkout');
         setCartOpen(false);
+        navigateTo('checkout', {}, {});
         window.scrollTo(0, 0);
       };
 
@@ -2382,6 +2784,7 @@
         setCompletedOrder(order);
         setCart([]);
         setView('confirmation');
+        navigateTo('confirmation', {}, {}, true);
         window.scrollTo(0, 0);
       };
 
@@ -2905,8 +3308,12 @@
             const mediaList = data.media || [];
             setMedia(mediaList);
             const primary = mediaList.find(m => m.asset_type === 'primary');
-            setSelectedImage(primary ? primary.url : (mediaList.length > 0 ? mediaList[0].url : null));
+            const primaryUrl = primary ? primary.url : (mediaList.length > 0 ? mediaList[0].url : null);
+            setSelectedImage(primaryUrl);
             setLoading(false);
+            // Update structured data with full product info
+            updateMeta('product', { product: data.product, primaryImage: primaryUrl });
+            updateStructuredData('product', { product: data.product, selectedSku: defaultSku, primaryImage: primaryUrl });
           })
           .catch(err => {
             console.error(err);
@@ -3054,6 +3461,12 @@
                   </>
                 )}
               </div>
+
+              {displayProduct.description_short && (
+                <p style={{ color: 'var(--stone-600)', fontSize: '0.9375rem', lineHeight: 1.7, marginBottom: '1rem' }}>
+                  {displayProduct.description_short}
+                </p>
+              )}
 
               {selectedSku && (
                 <div className="stock-status-detail">
@@ -3224,6 +3637,17 @@
               <button className="btn-install-cta" onClick={() => onRequestInstall(fullProduct || product)}>
                 Request Installation Quote
               </button>
+
+              {displayProduct.description_long && (
+                <div style={{ borderTop: '1px solid var(--stone-200)', marginTop: '1.5rem', paddingTop: '1.5rem' }}>
+                  <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.25rem', fontWeight: 500, marginBottom: '0.75rem', color: 'var(--stone-800)' }}>
+                    Product Description
+                  </h3>
+                  <p style={{ color: 'var(--stone-600)', fontSize: '0.875rem', lineHeight: 1.8, whiteSpace: 'pre-line' }}>
+                    {displayProduct.description_long}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

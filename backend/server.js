@@ -13,6 +13,7 @@ import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, Head
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset } from './services/emailService.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
+import healthRoutes from './routes/health.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 const easypost = process.env.EASYPOST_API_KEY ? new EasyPostClient(process.env.EASYPOST_API_KEY) : null;
@@ -40,7 +41,7 @@ function isPickupOnly(item) {
 }
 
 const app = express();
-const PORT = 3001;
+const PORT = parseInt(process.env.PORT || '3001', 10);
 
 const pool = new pg.Pool({
   host: process.env.DB_HOST || 'localhost',
@@ -51,7 +52,8 @@ const pool = new pg.Pool({
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
+app.use(healthRoutes);
 
 // ==================== S3/MinIO Client ====================
 const S3_BUCKET = process.env.S3_BUCKET || 'trade-documents';
@@ -108,10 +110,6 @@ const docUpload = multer({
   }
 });
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
 app.get('/api/products', optionalTradeAuth, async (req, res) => {
   try {
     const { category } = req.query;
@@ -163,7 +161,7 @@ app.get('/api/products', optionalTradeAuth, async (req, res) => {
 
     if (req.query.collection) {
       params.push(req.query.collection);
-      query += ` AND p.collection = $${paramIndex}`;
+      query += ` AND (p.collection = $${paramIndex} OR LOWER(REGEXP_REPLACE(p.collection, '[^a-zA-Z0-9]+', '-', 'g')) = LOWER($${paramIndex}))`;
       paramIndex++;
     }
 
@@ -6703,6 +6701,58 @@ app.post('/api/installation-inquiries', async (req, res) => {
   } catch (err) {
     console.error('Installation inquiry error:', err);
     res.status(500).json({ error: 'Failed to submit inquiry' });
+  }
+});
+
+// === Sitemap XML ===
+function generateSlugBackend(text) {
+  return (text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+app.get('/api/sitemap.xml', async (req, res) => {
+  try {
+    const baseUrl = 'https://romaflooringdesigns.com';
+
+    const [productsResult, categoriesResult, collectionsResult] = await Promise.all([
+      pool.query(`SELECT id, name FROM products WHERE status = 'active' ORDER BY name`),
+      pool.query(`SELECT slug FROM categories WHERE is_active = true ORDER BY slug`),
+      pool.query(`SELECT DISTINCT collection as name FROM products WHERE status = 'active' AND collection IS NOT NULL AND collection != '' ORDER BY collection`)
+    ]);
+
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+
+    // Static pages
+    const staticPages = ['/', '/shop', '/collections', '/trade'];
+    for (const page of staticPages) {
+      xml += `  <url><loc>${baseUrl}${page}</loc><changefreq>weekly</changefreq><priority>${page === '/' ? '1.0' : '0.8'}</priority></url>\n`;
+    }
+
+    // Category pages
+    for (const row of categoriesResult.rows) {
+      xml += `  <url><loc>${baseUrl}/shop?category=${encodeURIComponent(row.slug)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>\n`;
+    }
+
+    // Collection pages
+    for (const row of collectionsResult.rows) {
+      const slug = generateSlugBackend(row.name);
+      xml += `  <url><loc>${baseUrl}/collections/${encodeURIComponent(slug)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>\n`;
+    }
+
+    // Product pages
+    for (const row of productsResult.rows) {
+      const slug = generateSlugBackend(row.name);
+      xml += `  <url><loc>${baseUrl}/product/${row.id}/${encodeURIComponent(slug)}</loc><changefreq>daily</changefreq><priority>0.9</priority></url>\n`;
+    }
+
+    xml += '</urlset>';
+
+    res.set('Content-Type', 'application/xml');
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.send(xml);
+  } catch (err) {
+    console.error('Sitemap error:', err);
+    res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>');
   }
 });
 
