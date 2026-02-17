@@ -351,6 +351,59 @@ export async function sendInstallationInquiryConfirmation(inquiry) {
 }
 
 /**
+ * Send purchase order PDF to vendor via email.
+ */
+export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_number, is_revised, pdf_buffer }) {
+  if (!transporter) {
+    console.log(`[Email] Skipping PO email for ${po_number} to ${vendor_email} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const subject = is_revised
+      ? `Revised Purchase Order — ${po_number}`
+      : `Purchase Order — ${po_number}`;
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#fafaf9;font-family:Inter,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf9;padding:40px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e7e5e4;">
+  <tr><td style="padding:40px;text-align:center;">
+    <h1 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:300;color:#1c1917;margin:0 0 24px;">Roma Flooring Designs</h1>
+    <p style="color:#57534e;font-size:16px;margin:0 0 8px;">Dear ${vendor_name || 'Vendor'},</p>
+    <p style="color:#57534e;font-size:16px;margin:0 0 24px;">
+      ${is_revised ? 'Please find the revised purchase order attached.' : 'Please find the attached purchase order for your review.'}
+    </p>
+    <div style="background:#f5f5f4;display:inline-block;padding:12px 32px;margin:0 0 24px;font-size:18px;font-weight:500;color:#1c1917;">
+      ${po_number}
+    </div>
+    <p style="color:#78716c;font-size:13px;margin:0;">
+      If you have any questions, please contact us at (714) 999-0009 or Sales@romaflooringdesigns.com
+    </p>
+  </td></tr>
+  <tr><td style="padding:16px 40px;background:#fafaf9;border-top:1px solid #e7e5e4;text-align:center;">
+    <p style="color:#a8a29e;font-size:11px;margin:0;">Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: vendor_email,
+      subject,
+      html,
+      attachments: [{ filename: `${po_number}.pdf`, content: pdf_buffer, contentType: 'application/pdf' }]
+    });
+    console.log(`[Email] PO ${po_number} sent to ${vendor_email}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send PO ${po_number} to ${vendor_email}:`, err.message);
+    return { sent: false, error: err.message };
+  }
+}
+
+/**
  * Send password reset email to customer.
  */
 export async function sendPasswordReset(email, resetUrl) {
@@ -369,5 +422,89 @@ export async function sendPasswordReset(email, resetUrl) {
     console.log(`[Email] Password reset sent to ${email}`);
   } catch (err) {
     console.error(`[Email] Failed to send password reset to ${email}:`, err.message);
+  }
+}
+
+/**
+ * Send payment request email to customer with Stripe checkout link.
+ */
+export async function sendPaymentRequest({ order, amount, checkout_url, message }) {
+  if (!transporter) {
+    console.log(`[Email] Skipping payment request for ${order.order_number} — SMTP not configured`);
+    return;
+  }
+  try {
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#fafaf9;font-family:Inter,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf9;padding:40px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e7e5e4;">
+  <tr><td style="padding:40px;text-align:center;">
+    <h1 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:300;color:#1c1917;margin:0 0 24px;">Roma Flooring Designs</h1>
+    <p style="color:#57534e;font-size:16px;margin:0 0 8px;">Payment Required for Order <strong>${order.order_number}</strong></p>
+    <p style="color:#57534e;font-size:14px;margin:0 0 24px;">
+      There is a balance due of <strong>$${parseFloat(amount).toFixed(2)}</strong> on your order.
+    </p>
+    ${message ? `<p style="color:#57534e;font-size:14px;margin:0 0 24px;padding:12px 16px;background:#fafaf9;border:1px solid #e7e5e4;text-align:left;">${message}</p>` : ''}
+    <a href="${checkout_url}" style="display:inline-block;background:#1c1917;color:#fff;padding:14px 40px;text-decoration:none;font-size:16px;font-weight:500;margin:0 0 24px;">Pay Now — $${parseFloat(amount).toFixed(2)}</a>
+    <p style="color:#78716c;font-size:12px;margin:0;">This payment link expires in 72 hours. If you have questions, contact us at (714) 999-0009.</p>
+  </td></tr>
+  <tr><td style="padding:16px 40px;background:#fafaf9;border-top:1px solid #e7e5e4;text-align:center;">
+    <p style="color:#a8a29e;font-size:11px;margin:0;">Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: order.customer_email,
+      subject: `Payment Required — Order ${order.order_number}`,
+      html
+    });
+    console.log(`[Email] Payment request sent to ${order.customer_email} for ${order.order_number}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send payment request for ${order.order_number}:`, err.message);
+  }
+}
+
+/**
+ * Send payment received confirmation email.
+ */
+export async function sendPaymentReceived(order, amount) {
+  if (!transporter) {
+    console.log(`[Email] Skipping payment received for ${order.order_number} — SMTP not configured`);
+    return;
+  }
+  try {
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#fafaf9;font-family:Inter,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf9;padding:40px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e7e5e4;">
+  <tr><td style="padding:40px;text-align:center;">
+    <h1 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:300;color:#1c1917;margin:0 0 24px;">Roma Flooring Designs</h1>
+    <div style="background:#dcfce7;display:inline-block;padding:8px 20px;margin:0 0 24px;font-size:14px;font-weight:500;color:#166534;">Payment Received</div>
+    <p style="color:#57534e;font-size:16px;margin:0 0 8px;">Thank you! We received your payment of <strong>$${parseFloat(amount).toFixed(2)}</strong> for order <strong>${order.order_number}</strong>.</p>
+    <p style="color:#78716c;font-size:13px;margin:16px 0 0;">If you have questions, contact us at (714) 999-0009 or Sales@romaflooringdesigns.com</p>
+  </td></tr>
+  <tr><td style="padding:16px 40px;background:#fafaf9;border-top:1px solid #e7e5e4;text-align:center;">
+    <p style="color:#a8a29e;font-size:11px;margin:0;">Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: order.customer_email,
+      subject: `Payment Received — Order ${order.order_number}`,
+      html
+    });
+    console.log(`[Email] Payment received confirmation sent to ${order.customer_email} for ${order.order_number}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send payment received for ${order.order_number}:`, err.message);
   }
 }

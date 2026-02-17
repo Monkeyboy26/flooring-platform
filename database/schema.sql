@@ -316,7 +316,7 @@ CREATE TABLE purchase_orders (
     status VARCHAR(30) DEFAULT 'draft',
     subtotal DECIMAL(10,2) DEFAULT 0,
     notes TEXT,
-    approved_by UUID REFERENCES sales_reps(id),
+    approved_by UUID REFERENCES staff_accounts(id),
     approved_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -438,6 +438,8 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_liftgate BOOLEAN DEFAULT tr
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_is_fallback BOOLEAN DEFAULT false;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_number TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipped_at TIMESTAMP;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMP;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP;
 
 -- ==================== Trade Application Enhancements ====================
 
@@ -650,3 +652,91 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2) DEFAUL
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS promo_code_id UUID REFERENCES promo_codes(id);
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS promo_code TEXT;
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2) DEFAULT 0;
+
+-- ==================== PO Enhancements ====================
+
+-- PO item-level status tracking
+ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending';
+CREATE INDEX IF NOT EXISTS idx_poi_status ON purchase_order_items(status);
+
+-- PO revision tracking
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS is_revised BOOLEAN DEFAULT false;
+
+-- Allow manually-added PO line items (no parent order item)
+ALTER TABLE purchase_order_items ALTER COLUMN order_item_id DROP NOT NULL;
+
+-- ==================== Vendor Email + PO Activity Log ====================
+
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS email TEXT;
+
+CREATE TABLE IF NOT EXISTS po_activity_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    purchase_order_id UUID NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+    action TEXT NOT NULL,
+    performed_by UUID REFERENCES staff_accounts(id),
+    performer_name TEXT,
+    recipient_email TEXT,
+    revision INTEGER,
+    details JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_po_activity_po_id ON po_activity_log(purchase_order_id);
+
+-- ==================== Order Refund Tracking ====================
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS stripe_refund_id TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_amount DECIMAL(10,2);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMP;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS refunded_by UUID REFERENCES staff_accounts(id);
+
+-- ==================== Order Balance & Payments ====================
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS amount_paid DECIMAL(10,2) DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS order_payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    payment_type VARCHAR(20) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    stripe_payment_intent_id TEXT,
+    stripe_refund_id TEXT,
+    stripe_checkout_session_id TEXT,
+    description TEXT,
+    initiated_by UUID,
+    initiated_by_name TEXT,
+    status VARCHAR(20) DEFAULT 'completed',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_payments_order ON order_payments(order_id);
+
+CREATE TABLE IF NOT EXISTS payment_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    amount DECIMAL(10,2) NOT NULL,
+    stripe_checkout_session_id TEXT,
+    stripe_checkout_url TEXT,
+    status VARCHAR(20) DEFAULT 'pending',
+    sent_to_email TEXT NOT NULL,
+    sent_by UUID,
+    sent_by_name TEXT,
+    message TEXT,
+    paid_at TIMESTAMP,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_payment_requests_order ON payment_requests(order_id);
+
+-- ==================== Customer Notes ====================
+
+CREATE TABLE IF NOT EXISTS customer_notes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_type VARCHAR(10) NOT NULL,
+    customer_ref TEXT NOT NULL,
+    staff_id UUID REFERENCES staff_accounts(id),
+    note TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_customer_notes_ref ON customer_notes(customer_type, customer_ref);

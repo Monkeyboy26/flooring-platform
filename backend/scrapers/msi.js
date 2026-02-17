@@ -105,7 +105,12 @@ export async function run(pool, job, source) {
     'prefab-countertops': 'unit',
     'soapstone-countertops': 'unit',
     'vanity-tops': 'unit',
+    'lvp-plank': 'box',
+    'waterproof-wood': 'box',
   };
+
+  // Vinyl trim/accessories are sold per piece, not per box
+  const TRIM_SELL_BY = 'unit';
 
   // Build slug→id lookup from DB
   const categoryIdMap = {};
@@ -227,7 +232,9 @@ export async function run(pool, job, source) {
             const vendorSku = entry.code;
             const cleanSku = vendorSku.replace(/\s+/g, '-').toUpperCase();
             const internalSku = 'MSI-' + cleanSku;
-            const sellBy = SELL_BY_MAP[categorySlug] || 'sqft';
+            const baseSellBy = SELL_BY_MAP[categorySlug] || 'sqft';
+            // Vinyl trim/accessories are sold per piece, not per box
+            const sellBy = (entry.variant_type === 'trim' || entry.variant_type === 'accessory') ? TRIM_SELL_BY : baseSellBy;
             const sku = await upsertSku(pool, {
               product_id: product.id,
               vendor_sku: vendorSku,
@@ -615,7 +622,35 @@ async function scrapeProductPage(browser, url, config) {
 
       // --- Product name from h1 ---
       const h1 = document.querySelector('h1');
-      if (h1) result.name = h1.textContent.trim();
+      if (h1) {
+        let rawName = h1.textContent.trim();
+        // Title-case ALL CAPS product names or names with ALL CAPS prefix
+        // e.g. "AMBER FORRESTER Luxury Vinyl Plank" → "Amber Forrester Luxury Vinyl Plank"
+        // e.g. "BARNSTORM" → "Barnstorm"
+        // Preserves abbreviations like "LVP", "SPC", "XL"
+        const ABBREVS = ['LVP','SPC','XL','XXL','LG','HD','HDP','USA'];
+        const CATEGORY_SUFFIXES = /(Porcelain|Ceramic|Marble|Granite|Travertine|Vinyl|Tile|Plank|Flooring|Wood|Luxury|Series|Waterproof|Hybrid|Rigid|Core|Collection)\b/i;
+        const words = rawName.split(/\s+/);
+        let hasAllCapsPrefix = false;
+        for (const w of words) {
+          if (CATEGORY_SUFFIXES.test(w)) break;
+          if (w.length > 2 && w === w.toUpperCase() && !ABBREVS.includes(w)) {
+            hasAllCapsPrefix = true;
+            break;
+          }
+        }
+        if (hasAllCapsPrefix) {
+          rawName = words.map(w => {
+            if (ABBREVS.includes(w.toUpperCase())) return w.toUpperCase();
+            if (CATEGORY_SUFFIXES.test(w)) return w; // preserve existing casing of category words
+            if (w === w.toUpperCase() && w.length > 2) {
+              return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+            }
+            return w;
+          }).join(' ');
+        }
+        result.name = rawName;
+      }
 
       // --- SKU variants ---
       // MSI product pages list variants in a freeform layout within the sizes section.
@@ -750,6 +785,87 @@ async function scrapeProductPage(browser, url, config) {
           itemDescription,
           variant_type: currentVariantType
         });
+      }
+
+      // --- Post-process SKU variant names and types ---
+      // MSI SKU prefix → variant_type mapping
+      const SKU_TYPE_MAP = {
+        'VTR': 'tile',    // main vinyl plank
+        'VTT': 'trim',    // vinyl trim/molding
+        'VTU': 'accessory', // underlayment
+        'XL':  'accessory', // adhesives/primers
+        'NSL': 'slab',     // natural stone slab
+        'TTR': 'trim',     // tile trim
+        'TT':  'trim',     // generic trim (e.g. TTVINTAJ-T-SR)
+      };
+
+      // SKU suffix → human-readable trim name
+      const TRIM_SUFFIX_MAP = {
+        '-EC':     'End Cap',
+        '-FSN':    'Flush Stair Nose',
+        '-FSN-EE': 'Flush Stair Nose Eased Edge',
+        '-OSN':    'Overlapping Stair Nose',
+        '-QR':     'Quarter Round',
+        '-SR':     'Reducer',
+        '-TL':     'T-Molding',
+        '-ST-EE':  'Stair Tread Eased Edge',
+        '-T-SR':   'T-Molding / Reducer',
+      };
+
+      for (const sku of result.skus) {
+        const code = sku.code.toUpperCase();
+
+        // 1. Infer variant_type from SKU prefix if not already set by section header
+        if (!sku.variant_type) {
+          for (const [prefix, type] of Object.entries(SKU_TYPE_MAP)) {
+            if (code.startsWith(prefix)) {
+              sku.variant_type = type;
+              break;
+            }
+          }
+        }
+
+        // 2. Clean leading dashes/spaces from variant names
+        if (sku.variantName) {
+          sku.variantName = sku.variantName.replace(/^[-–—\s]+/, '').trim();
+        }
+
+        // 3. Fix "Tl Molding" → "T-Molding"
+        if (sku.variantName) {
+          sku.variantName = sku.variantName.replace(/\bTl\s+Molding\b/i, 'T-Molding');
+        }
+
+        // 4. If variant name is still the raw SKU code (no spaces, all alphanumeric+dashes),
+        //    generate a readable name from the code
+        const nameIsCode = sku.variantName && /^[A-Z0-9][\w-]*$/i.test(sku.variantName)
+          && !sku.variantName.includes(' ');
+        if (!sku.variantName || nameIsCode) {
+          // Try trim suffix first (longest match first)
+          const suffixes = Object.keys(TRIM_SUFFIX_MAP).sort((a, b) => b.length - a.length);
+          let matched = false;
+          for (const suffix of suffixes) {
+            if (code.endsWith(suffix)) {
+              sku.variantName = TRIM_SUFFIX_MAP[suffix];
+              matched = true;
+              break;
+            }
+          }
+          // For main planks, parse dimensions from the code (e.g. VTRAMBFOR7X48-5MM-20MIL)
+          if (!matched) {
+            const dimMatch = code.match(/(\d+)\s*X\s*(\d+)/i);
+            const thickMatch = code.match(/(\d+(?:\.\d+)?)\s*MM/i);
+            const milMatch = code.match(/(\d+)\s*MIL/i);
+            if (dimMatch || thickMatch) {
+              const parts = [];
+              if (dimMatch) parts.push(dimMatch[1] + 'x' + dimMatch[2]);
+              if (thickMatch) parts.push(thickMatch[1] + 'mm');
+              if (milMatch) parts.push(milMatch[1] + 'mil');
+              if (sku.finish) parts.push(sku.finish.charAt(0).toUpperCase() + sku.finish.slice(1).toLowerCase());
+              sku.variantName = parts.join(' ');
+              if (dimMatch) sku.size = dimMatch[1] + 'x' + dimMatch[2];
+            }
+          }
+        }
       }
 
       // --- Specs from dt/dd pairs ---

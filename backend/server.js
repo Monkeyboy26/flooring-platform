@@ -11,7 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived } from './services/emailService.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import healthRoutes from './routes/health.js';
 
@@ -21,6 +21,175 @@ const easypost = process.env.EASYPOST_API_KEY ? new EasyPostClient(process.env.E
 // Shipping configuration
 const WEIGHT_THRESHOLD_LBS = 150; // parcel vs LTL cutoff
 const SHIP_FROM = { zip: '92806', city: 'Anaheim', state: 'CA', country: 'US' };
+
+// ==================== Document Helpers ====================
+
+function getDocumentBaseCSS() {
+  return `
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap');
+    body { font-family: 'Inter', Arial, sans-serif; margin: 0; padding: 2rem; color: #1c1917; font-size: 13px; line-height: 1.5; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid #c8a97e; }
+    .company { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.75rem; font-weight: 300; margin-bottom: 0.25rem; }
+    .company-info { font-size: 0.75rem; color: #57534e; line-height: 1.6; }
+    .doc-title { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.5rem; font-weight: 400; color: #c8a97e; }
+    .doc-meta { font-size: 0.8125rem; color: #57534e; line-height: 1.8; text-align: right; }
+    .info-block { margin-bottom: 1.5rem; padding: 1rem; background: #fafaf9; border: 1px solid #e7e5e4; }
+    .info-block h3 { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.1em; color: #78716c; margin: 0 0 0.5rem; }
+    .info-columns { display: flex; gap: 2rem; margin-bottom: 1.5rem; }
+    .info-columns .info-block { flex: 1; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+    th { background: #1c1917; color: #fff; padding: 0.625rem 0.75rem; text-align: left; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { padding: 0.625rem 0.75rem; border-bottom: 1px solid #e7e5e4; font-size: 0.8125rem; }
+    tr:nth-child(even) td { background: #fafaf9; }
+    .totals { text-align: right; margin-top: 1rem; }
+    .totals .line { display: flex; justify-content: flex-end; gap: 2rem; font-size: 0.875rem; padding: 0.25rem 0; }
+    .totals .total-line { font-weight: 600; font-size: 1rem; border-top: 2px solid #1c1917; padding-top: 0.5rem; margin-top: 0.5rem; }
+    .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e7e5e4; font-size: 0.6875rem; color: #78716c; text-align: center; }
+    .badge { display: inline-block; padding: 2px 8px; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; border-radius: 3px; }
+    .badge-status { background: #e7e5e4; color: #57534e; }
+    .badge-revised { background: #fef3c7; color: #92400e; }
+    .badge-sent { background: #dbeafe; color: #1e40af; }
+    .badge-fulfilled { background: #dcfce7; color: #166534; }
+    .badge-cancelled { background: #fee2e2; color: #991b1b; }
+    .notes-section { margin-top: 1.5rem; padding: 1rem; background: #fafaf9; border: 1px solid #e7e5e4; }
+    .notes-section h4 { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.1em; color: #78716c; margin: 0 0 0.5rem; }
+  `;
+}
+
+function getDocumentHeader(title) {
+  return `
+    <div class="header">
+      <div>
+        <div class="company">Roma Flooring Designs</div>
+        <div class="company-info">
+          1440 S. State College Blvd #6M<br/>
+          Anaheim, CA 92806<br/>
+          (714) 999-0009<br/>
+          Sales@romaflooringdesigns.com
+        </div>
+      </div>
+      <div>
+        <div class="doc-title">${title}</div>
+      </div>
+    </div>
+  `;
+}
+
+function getDocumentFooter() {
+  return `
+    <div class="footer">
+      <p>Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
+    </div>
+  `;
+}
+
+async function generatePDF(html, filename, req, res) {
+  // Preview mode: return HTML directly for iframe rendering
+  if (req.query.preview === 'true') {
+    res.set('Content-Type', 'text/html');
+    return res.send(html);
+  }
+  try {
+    const puppeteer = await import('puppeteer');
+    const browser = await puppeteer.default.launch({
+      headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    const pdf = await page.pdf({ format: 'Letter', margin: { top: '0.75in', bottom: '0.75in', left: '0.75in', right: '0.75in' } });
+    await browser.close();
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${filename}"` });
+    res.send(pdf);
+  } catch (pdfErr) {
+    // Fallback: return HTML if Puppeteer unavailable
+    res.set('Content-Type', 'text/html');
+    res.send(html);
+  }
+}
+
+async function generatePOHtml(poId) {
+  const po = await pool.query(`
+    SELECT po.*, v.name as vendor_name, v.code as vendor_code, v.email as vendor_email,
+      sa.first_name || ' ' || sa.last_name as approved_by_name,
+      o.order_number
+    FROM purchase_orders po
+    JOIN vendors v ON v.id = po.vendor_id
+    LEFT JOIN staff_accounts sa ON sa.id = po.approved_by
+    LEFT JOIN orders o ON o.id = po.order_id
+    WHERE po.id = $1
+  `, [poId]);
+  if (!po.rows.length) return null;
+  const p = po.rows[0];
+  const items = await pool.query('SELECT * FROM purchase_order_items WHERE purchase_order_id = $1 ORDER BY created_at', [poId]);
+
+  const html = `<!DOCTYPE html><html><head><style>
+    ${getDocumentBaseCSS()}
+  </style></head><body>
+    ${getDocumentHeader('Purchase Order')}
+    <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
+      <strong>${p.po_number}</strong>
+      ${p.is_revised ? ' <span class="badge badge-revised">REVISED</span>' : ''}
+      <br/>
+      Date: ${new Date(p.created_at).toLocaleDateString()}
+      ${p.order_number ? '<br/>Order: ' + p.order_number : ''}
+    </div>
+    <div class="info-columns">
+      <div class="info-block">
+        <h3>Vendor</h3>
+        <strong>${p.vendor_name}</strong><br/>
+        Code: ${p.vendor_code}
+      </div>
+      <div class="info-block">
+        <h3>Ship To</h3>
+        <strong>Roma Flooring Designs</strong><br/>
+        1440 S. State College Blvd., Suite 6M<br/>
+        Anaheim, CA 92806
+      </div>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Product</th><th>Vendor SKU</th>
+        <th style="text-align:right">Qty</th>
+        <th style="text-align:right">Cost</th><th style="text-align:right">Subtotal</th>
+      </tr></thead>
+      <tbody>
+        ${items.rows.map(i => {
+          return `<tr>
+            <td>${i.product_name || ''}</td>
+            <td>${i.vendor_sku || '—'}</td>
+            <td style="text-align:right">${i.qty}</td>
+            <td style="text-align:right">$${parseFloat(i.cost).toFixed(2)}</td>
+            <td style="text-align:right">$${parseFloat(i.subtotal).toFixed(2)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <div class="totals">
+      <div class="line total-line"><span>PO Total:</span><span>$${parseFloat(p.subtotal || 0).toFixed(2)}</span></div>
+    </div>
+    ${p.notes ? `<div class="notes-section"><h4>Notes</h4><div>${p.notes}</div></div>` : ''}
+    ${p.approved_by_name ? `<div style="margin-top:1rem;font-size:0.8125rem;color:#57534e;">Approved by ${p.approved_by_name} on ${new Date(p.approved_at).toLocaleDateString()}</div>` : ''}
+    ${getDocumentFooter()}
+  </body></html>`;
+
+  return { html, po: p, items: items.rows };
+}
+
+async function generatePDFBuffer(html) {
+  const puppeteer = await import('puppeteer');
+  const browser = await puppeteer.default.launch({
+    headless: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+  const page = await browser.newPage();
+  await page.setContent(html, { waitUntil: 'domcontentloaded' });
+  const pdf = await page.pdf({ format: 'Letter', margin: { top: '0.75in', bottom: '0.75in', left: '0.75in', right: '0.75in' } });
+  await browser.close();
+  return Buffer.from(pdf);
+}
 
 function getNextBusinessDay() {
   const d = new Date();
@@ -38,6 +207,21 @@ function isPickupOnly(item) {
   const slug = (item.category_slug || '').toLowerCase();
   if (slug === 'prefab-countertops' || slug === 'countertops') return true;
   return false;
+}
+
+// ==================== Order Balance Helper ====================
+
+async function recalculateBalance(orderId, client) {
+  const db = client || pool;
+  const result = await db.query('SELECT total, amount_paid FROM orders WHERE id = $1', [orderId]);
+  if (!result.rows.length) return null;
+  const total = parseFloat(result.rows[0].total);
+  const amount_paid = parseFloat(result.rows[0].amount_paid);
+  const balance = parseFloat((total - amount_paid).toFixed(2));
+  let balance_status = 'paid';
+  if (balance > 0.01) balance_status = 'balance_due';
+  else if (balance < -0.01) balance_status = 'credit';
+  return { amount_paid, total, balance, balance_status };
 }
 
 const app = express();
@@ -800,6 +984,80 @@ async function calculateShipping(sessionId, destination, shippingOptions = {}) {
   };
 }
 
+// Same as calculateShipping but queries order_items instead of cart_items
+async function calculateShippingForOrder(orderId, destination, shippingOptions = {}) {
+  const residential = shippingOptions.residential !== false;
+  const liftgate = shippingOptions.liftgate !== false;
+
+  const result = await pool.query(`
+    SELECT oi.num_boxes, oi.is_sample, pk.weight_per_box_lbs, pk.freight_class
+    FROM order_items oi
+    JOIN skus s ON s.id = oi.sku_id
+    LEFT JOIN packaging pk ON pk.sku_id = s.id
+    WHERE oi.order_id = $1 AND oi.is_sample = false
+  `, [orderId]);
+
+  let totalWeightLbs = 0;
+  let totalBoxes = 0;
+  const byFreightClass = {};
+  for (const row of result.rows) {
+    const boxes = parseInt(row.num_boxes) || 0;
+    const weightPerBox = parseFloat(row.weight_per_box_lbs) || 0;
+    const weight = boxes * weightPerBox;
+    const fc = parseInt(row.freight_class) || 70;
+    totalWeightLbs += weight;
+    totalBoxes += boxes;
+    if (!byFreightClass[fc]) byFreightClass[fc] = 0;
+    byFreightClass[fc] += weight;
+  }
+
+  if (totalWeightLbs === 0 || totalBoxes === 0) {
+    return { options: [{ id: 'none', amount: 0, carrier: null, service: null, transit_days: null, is_cheapest: true, is_fallback: false }], method: null, weight_lbs: 0, total_boxes: 0, residential, liftgate };
+  }
+
+  let options;
+  let method;
+
+  if (totalWeightLbs <= WEIGHT_THRESHOLD_LBS) {
+    method = 'parcel';
+    const rateResult = await getParcelRates(totalWeightLbs, destination);
+    options = [{
+      id: 'parcel-0',
+      amount: parseFloat(parseFloat(rateResult.amount).toFixed(2)),
+      carrier: rateResult.carrier,
+      service: rateResult.service,
+      transit_days: null,
+      is_cheapest: true,
+      is_fallback: false
+    }];
+  } else {
+    method = 'ltl_freight';
+    const freightItems = Object.entries(byFreightClass).map(([fc, weight]) => ({
+      quantity: 1,
+      weight: Math.ceil(weight),
+      weightUOM: 'lbs',
+      freightClass: parseInt(fc),
+      description: 'Flooring materials',
+      type: 'pallet'
+    }));
+    try {
+      options = await getLTLRates(freightItems, destination, { residential, liftgate });
+    } catch (fvErr) {
+      console.error('FreightView API failed, using fallback:', fvErr.message);
+      options = getFallbackLTLEstimate(totalWeightLbs, destination.zip);
+    }
+  }
+
+  return {
+    options,
+    method,
+    weight_lbs: parseFloat(totalWeightLbs.toFixed(2)),
+    total_boxes: totalBoxes,
+    residential,
+    liftgate
+  };
+}
+
 app.post('/api/shipping/estimate', async (req, res) => {
   try {
     const { session_id, destination, delivery_method, residential, liftgate } = req.body;
@@ -1064,15 +1322,18 @@ async function generatePurchaseOrders(orderId, client) {
   // Get order items with vendor and cost info (exclude samples and custom items)
   const itemsResult = await client.query(`
     SELECT oi.id as order_item_id, oi.product_name, oi.num_boxes as qty, oi.unit_price,
-           oi.sell_by, oi.description,
+           oi.sqft_needed, oi.sell_by, oi.description,
            p.vendor_id, v.code as vendor_code, v.name as vendor_name,
            s.id as sku_id, s.vendor_sku,
-           COALESCE(pr.cost, 0) as vendor_cost
+           COALESCE(pr.cost, 0) as vendor_cost,
+           COALESCE(pr.price_basis, 'per_sqft') as price_basis,
+           pk.sqft_per_box
     FROM order_items oi
     JOIN products p ON p.id = oi.product_id
     JOIN vendors v ON v.id = p.vendor_id
     LEFT JOIN skus s ON s.id = oi.sku_id
     LEFT JOIN pricing pr ON pr.sku_id = s.id
+    LEFT JOIN packaging pk ON pk.sku_id = s.id
     WHERE oi.order_id = $1
       AND oi.is_sample = false
       AND oi.product_id IS NOT NULL
@@ -1100,10 +1361,13 @@ async function generatePurchaseOrders(orderId, client) {
     const random = Math.random().toString(36).substr(2, 4).toUpperCase();
     const poNumber = `PO-${group.vendor_code}-${timestamp}-${random}`;
 
-    // Calculate subtotal
+    // Calculate subtotal — cost per box * qty (boxes)
     let poSubtotal = 0;
     for (const item of group.items) {
-      poSubtotal += parseFloat(item.vendor_cost) * item.qty;
+      const sqftPerBox = parseFloat(item.sqft_per_box || 1);
+      const vendorCost = parseFloat(item.vendor_cost);
+      const costPerBox = item.price_basis === 'per_sqft' ? vendorCost * sqftPerBox : vendorCost;
+      poSubtotal += costPerBox * item.qty;
     }
 
     // Create purchase order
@@ -1115,18 +1379,23 @@ async function generatePurchaseOrders(orderId, client) {
 
     const po = poResult.rows[0];
 
-    // Create purchase order items
+    // Create purchase order items — all prices normalized to per-box
     for (const item of group.items) {
-      const cost = parseFloat(item.vendor_cost);
-      const itemSubtotal = cost * item.qty;
+      const sqftPerBox = parseFloat(item.sqft_per_box || 1);
+      const vendorCost = parseFloat(item.vendor_cost);
+      const costPerBox = item.price_basis === 'per_sqft' ? vendorCost * sqftPerBox : vendorCost;
+      const retailPerBox = item.unit_price
+        ? (item.price_basis === 'per_sqft' ? parseFloat(item.unit_price) * sqftPerBox : parseFloat(item.unit_price))
+        : null;
+      const itemSubtotal = costPerBox * item.qty;
       await client.query(`
         INSERT INTO purchase_order_items
           (purchase_order_id, order_item_id, sku_id, product_name, vendor_sku, description, qty, sell_by, cost, original_cost, retail_price, subtotal)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       `, [po.id, item.order_item_id, item.sku_id, item.product_name, item.vendor_sku,
           item.description, item.qty, item.sell_by,
-          cost.toFixed(2), cost.toFixed(2),
-          item.unit_price ? parseFloat(item.unit_price).toFixed(2) : null,
+          costPerBox.toFixed(2), costPerBox.toFixed(2),
+          retailPerBox !== null ? retailPerBox.toFixed(2) : null,
           itemSubtotal.toFixed(2)]);
     }
 
@@ -1248,8 +1517,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         subtotal, shipping, shipping_method, sample_shipping, total, stripe_payment_intent_id, delivery_method, status,
         trade_customer_id, po_number, is_tax_exempt, project_id,
         shipping_carrier, shipping_transit_days, shipping_residential, shipping_liftgate, shipping_is_fallback,
-        customer_id, promo_code_id, promo_code, discount_amount)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'confirmed', $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
+        customer_id, promo_code_id, promo_code, discount_amount, amount_paid)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'confirmed', $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
       RETURNING *
     `, [orderNumber, session_id, customer_email, customer_name, phone || null,
         isPickup ? null : shipping.line1, isPickup ? null : (shipping.line2 || null),
@@ -1258,7 +1527,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         payment_intent_id, isPickup ? 'pickup' : 'shipping',
         tradeCustomerId, po_number || null, is_tax_exempt || false, project_id || null,
         selectedCarrier, selectedTransitDays, isResidential, isLiftgate, isFallback,
-        existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2)]);
+        existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2), total.toFixed(2)]);
 
     const order = orderResult.rows[0];
 
@@ -1272,6 +1541,12 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
           item.sqft_needed || null, item.num_boxes,
           item.unit_price || null, item.subtotal || null, item.is_sample || false]);
     }
+
+    // Record initial charge in order_payments ledger
+    await client.query(`
+      INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status)
+      VALUES ($1, 'charge', $2, $3, 'Original payment', 'completed')
+    `, [order.id, total.toFixed(2), payment_intent_id]);
 
     // Record promo code usage
     if (promoCodeId && discountAmount > 0) {
@@ -2091,14 +2366,14 @@ app.get('/api/admin/vendors', staffAuth, requireRole('admin', 'manager'), async 
 // Create vendor
 app.post('/api/admin/vendors', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    const { name, code, website } = req.body;
+    const { name, code, website, email } = req.body;
     if (!name || !code) return res.status(400).json({ error: 'Name and code are required' });
 
     const result = await pool.query(`
-      INSERT INTO vendors (name, code, website)
-      VALUES ($1, $2, $3)
+      INSERT INTO vendors (name, code, website, email)
+      VALUES ($1, $2, $3, $4)
       RETURNING *
-    `, [name, code, website || null]);
+    `, [name, code, website || null, email || null]);
     res.json({ vendor: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2109,17 +2384,18 @@ app.post('/api/admin/vendors', staffAuth, requireRole('admin', 'manager'), async
 app.put('/api/admin/vendors/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, code, website } = req.body;
+    const { name, code, website, email } = req.body;
 
     const result = await pool.query(`
       UPDATE vendors SET
         name = COALESCE($1, name),
         code = COALESCE($2, code),
         website = COALESCE($3, website),
+        email = $4,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $4
+      WHERE id = $5
       RETURNING *
-    `, [name, code, website, id]);
+    `, [name, code, website, email || null, id]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Vendor not found' });
     res.json({ vendor: result.rows[0] });
@@ -2239,7 +2515,7 @@ app.get('/api/admin/orders', staffAuth, async (req, res) => {
         sr.first_name || ' ' || sr.last_name as rep_name,
         (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) as item_count
       FROM orders o
-      LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
       ORDER BY o.created_at DESC
     `);
     res.json({ orders: result.rows });
@@ -2254,7 +2530,7 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
     const { id } = req.params;
     const order = await pool.query(`
       SELECT o.*, sr.first_name || ' ' || sr.last_name as rep_name
-      FROM orders o LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+      FROM orders o LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
       WHERE o.id = $1
     `, [id]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
@@ -2267,7 +2543,11 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
       ORDER BY oi.id
     `, [id]);
 
-    res.json({ order: order.rows[0], items: items.rows });
+    const payments = await pool.query('SELECT * FROM order_payments WHERE order_id = $1 ORDER BY created_at', [id]);
+    const paymentRequests = await pool.query('SELECT * FROM payment_requests WHERE order_id = $1 ORDER BY created_at DESC', [id]);
+    const balanceInfo = await recalculateBalance(id);
+
+    res.json({ order: order.rows[0], items: items.rows, payments: payments.rows, payment_requests: paymentRequests.rows, balance: balanceInfo });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2279,12 +2559,24 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
   try {
     const { id } = req.params;
     const { status, tracking_number, carrier, shipped_at } = req.body;
-    const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled', 'refunded'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status. Must be one of: ' + validStatuses.join(', ') });
     }
 
+    // Refunded status can only be set via the dedicated refund endpoint
+    if (status === 'refunded') {
+      return res.status(400).json({ error: 'Use the refund endpoint to issue refunds' });
+    }
+
     await client.query('BEGIN');
+
+    // Block uncancelling a refunded order
+    const currentOrder = await client.query('SELECT status, stripe_refund_id FROM orders WHERE id = $1', [id]);
+    if (currentOrder.rows.length && currentOrder.rows[0].status === 'cancelled' && currentOrder.rows[0].stripe_refund_id) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Cannot uncancel an order that has been refunded' });
+    }
 
     // For shipped status with shipping delivery, require tracking info
     let result;
@@ -2307,12 +2599,32 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
         WHERE id = $2
         RETURNING *
       `, [status, id]);
+    } else if (status === 'confirmed') {
+      result = await client.query(
+        'UPDATE orders SET status = $1, confirmed_at = NOW() WHERE id = $2 RETURNING *',
+        [status, id]
+      );
+    } else if (status === 'delivered') {
+      result = await client.query(
+        'UPDATE orders SET status = $1, delivered_at = NOW() WHERE id = $2 RETURNING *',
+        [status, id]
+      );
     } else {
-      result = await client.query(`
-        UPDATE orders SET status = $1
-        WHERE id = $2
-        RETURNING *
-      `, [status, id]);
+      // When reverting to an earlier status, clear downstream timestamps
+      const statusOrder = ['pending', 'confirmed', 'shipped', 'delivered'];
+      const targetIdx = statusOrder.indexOf(status);
+      const clearFields = [];
+      const clearValues = [status, id];
+      if (targetIdx >= 0) {
+        if (targetIdx < 1) clearFields.push('confirmed_at = NULL');
+        if (targetIdx < 2) clearFields.push('shipped_at = NULL, tracking_number = NULL, shipping_carrier = NULL');
+        if (targetIdx < 3) clearFields.push('delivered_at = NULL');
+      }
+      const setClauses = ['status = $1'].concat(clearFields).join(', ');
+      result = await client.query(
+        'UPDATE orders SET ' + setClauses + ' WHERE id = $2 RETURNING *',
+        clearValues
+      );
     }
 
     if (!result.rows.length) {
@@ -2328,6 +2640,25 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
       }
     }
 
+    // Cascade PO cancellation when order is cancelled
+    if (status === 'cancelled') {
+      const pos = await client.query(
+        "SELECT id, status FROM purchase_orders WHERE order_id = $1 AND status NOT IN ('fulfilled', 'cancelled')",
+        [id]
+      );
+      for (const po of pos.rows) {
+        await client.query(
+          "UPDATE purchase_orders SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+          [po.id]
+        );
+        await client.query(
+          `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, details)
+           VALUES ($1, 'auto_cancelled', $2, $3, $4)`,
+          [po.id, req.staff.id, req.staff.first_name + ' ' + req.staff.last_name, JSON.stringify({ reason: 'order_cancelled' })]
+        );
+      }
+    }
+
     await client.query('COMMIT');
     const updatedOrder = result.rows[0];
     res.json({ order: updatedOrder });
@@ -2339,6 +2670,391 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
     res.status(500).json({ error: err.message });
   } finally {
     client.release();
+  }
+});
+
+// Change delivery method on existing order (admin)
+app.put('/api/admin/orders/:id/delivery-method', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { delivery_method, shipping_address, shipping_option_index, residential, liftgate } = req.body;
+
+    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = orderResult.rows[0];
+
+    if (!['pending', 'confirmed'].includes(order.status)) {
+      return res.status(400).json({ error: 'Can only change delivery method on pending or confirmed orders' });
+    }
+
+    if (!['pickup', 'shipping'].includes(delivery_method)) {
+      return res.status(400).json({ error: 'delivery_method must be "pickup" or "shipping"' });
+    }
+
+    // Switch to pickup
+    if (delivery_method === 'pickup') {
+      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+      const updated = await pool.query(`
+        UPDATE orders SET delivery_method = 'pickup', shipping = 0, shipping_method = 'pickup',
+          shipping_carrier = NULL, shipping_transit_days = NULL, shipping_residential = false,
+          shipping_liftgate = false, shipping_is_fallback = false,
+          shipping_address_line1 = NULL, shipping_address_line2 = NULL,
+          shipping_city = NULL, shipping_state = NULL, shipping_zip = NULL,
+          total = $2
+        WHERE id = $1 RETURNING *
+      `, [id, newTotal]);
+      const balanceInfo = await recalculateBalance(id);
+      return res.json({ order: updated.rows[0], balance: balanceInfo });
+    }
+
+    // Switch to shipping — need address
+    if (!shipping_address || !shipping_address.line1 || !shipping_address.city || !shipping_address.state || !shipping_address.zip) {
+      return res.status(400).json({ error: 'shipping_address with line1, city, state, zip is required' });
+    }
+
+    // If no option selected yet, calculate rates and return them
+    if (shipping_option_index === undefined || shipping_option_index === null) {
+      const destination = { zip: shipping_address.zip, city: shipping_address.city, state: shipping_address.state };
+      const rates = await calculateShippingForOrder(order.id, destination, { residential: residential !== false, liftgate: liftgate !== false });
+      return res.json({ shipping_options: rates.options, method: rates.method, weight_lbs: rates.weight_lbs, total_boxes: rates.total_boxes });
+    }
+
+    // Apply selected shipping option
+    const destination = { zip: shipping_address.zip, city: shipping_address.city, state: shipping_address.state };
+    const rates = await calculateShippingForOrder(order.id, destination, { residential: residential !== false, liftgate: liftgate !== false });
+
+    const optionIdx = parseInt(shipping_option_index);
+    if (optionIdx < 0 || optionIdx >= rates.options.length) {
+      return res.status(400).json({ error: 'Invalid shipping_option_index' });
+    }
+
+    const selected = rates.options[optionIdx];
+    const shippingCost = parseFloat(selected.amount || 0);
+    const newTotal = (parseFloat(order.subtotal) + shippingCost + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+
+    const updated = await pool.query(`
+      UPDATE orders SET delivery_method = 'shipping', shipping = $2, shipping_method = $3,
+        shipping_carrier = $4, shipping_transit_days = $5,
+        shipping_residential = $6, shipping_liftgate = $7, shipping_is_fallback = $8,
+        shipping_address_line1 = $9, shipping_address_line2 = $10,
+        shipping_city = $11, shipping_state = $12, shipping_zip = $13,
+        total = $14
+      WHERE id = $1 RETURNING *
+    `, [id, shippingCost.toFixed(2), rates.method,
+        selected.carrier || null, selected.transit_days || null,
+        residential !== false, liftgate !== false, selected.is_fallback || false,
+        shipping_address.line1, shipping_address.line2 || null,
+        shipping_address.city, shipping_address.state, shipping_address.zip,
+        newTotal]);
+
+    const balanceInfo = await recalculateBalance(id);
+    return res.json({ order: updated.rows[0], balance: balanceInfo });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Refund order (admin)
+app.post('/api/admin/orders/:id/refund', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, reason } = req.body || {};
+    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
+
+    const o = order.rows[0];
+    if (!o.stripe_payment_intent_id) {
+      return res.status(400).json({ error: 'No Stripe payment found for this order' });
+    }
+
+    // Calculate max refundable from ledger
+    const chargesResult = await pool.query(
+      "SELECT COALESCE(SUM(amount), 0) as total FROM order_payments WHERE order_id = $1 AND payment_type IN ('charge', 'additional_charge') AND status = 'completed'",
+      [id]
+    );
+    const refundsResult = await pool.query(
+      "SELECT COALESCE(SUM(ABS(amount)), 0) as total FROM order_payments WHERE order_id = $1 AND payment_type = 'refund' AND status = 'completed'",
+      [id]
+    );
+    const totalCharged = parseFloat(chargesResult.rows[0].total);
+    const totalRefunded = parseFloat(refundsResult.rows[0].total);
+    const maxRefundable = parseFloat((totalCharged - totalRefunded).toFixed(2));
+
+    if (maxRefundable <= 0) {
+      return res.status(400).json({ error: 'No refundable amount remaining' });
+    }
+
+    // Partial refund: use provided amount; full refund: requires cancelled status
+    let refundAmount;
+    if (amount != null) {
+      refundAmount = parseFloat(parseFloat(amount).toFixed(2));
+      if (isNaN(refundAmount) || refundAmount <= 0) {
+        return res.status(400).json({ error: 'Invalid refund amount' });
+      }
+      if (refundAmount > maxRefundable) {
+        return res.status(400).json({ error: `Refund amount exceeds maximum refundable ($${maxRefundable.toFixed(2)})` });
+      }
+    } else {
+      // Full refund — require cancelled status
+      if (o.status !== 'cancelled') {
+        return res.status(400).json({ error: 'Order must be cancelled before issuing a full refund' });
+      }
+      refundAmount = maxRefundable;
+    }
+
+    const refundOpts = { payment_intent: o.stripe_payment_intent_id, amount: Math.round(refundAmount * 100) };
+    const refund = await stripe.refunds.create(refundOpts);
+
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    const description = reason || (amount != null ? `Partial refund of $${refundAmount.toFixed(2)}` : 'Full refund');
+
+    // Record in ledger
+    await pool.query(`
+      INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, stripe_refund_id, description, initiated_by, initiated_by_name, status)
+      VALUES ($1, 'refund', $2, $3, $4, $5, $6, $7, 'completed')
+    `, [id, (-refundAmount).toFixed(2), o.stripe_payment_intent_id, refund.id, description, req.staff.id, staffName]);
+
+    // Update amount_paid
+    const newAmountPaid = parseFloat((parseFloat(o.amount_paid) - refundAmount).toFixed(2));
+    const isFullRefund = !amount && o.status === 'cancelled';
+
+    const result = await pool.query(
+      `UPDATE orders SET amount_paid = $1, stripe_refund_id = $2, refund_amount = COALESCE(refund_amount, 0) + $3,
+        refunded_at = NOW(), refunded_by = $4 ${isFullRefund ? ", status = 'refunded'" : ''}
+       WHERE id = $5 RETURNING *`,
+      [newAmountPaid.toFixed(2), refund.id, refundAmount.toFixed(2), req.staff.id, id]
+    );
+
+    const balanceInfo = await recalculateBalance(id);
+    res.json({ order: result.rows[0], balance: balanceInfo });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add item to existing order (admin)
+app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { sku_id, num_boxes, sqft_needed } = req.body;
+    if (!sku_id || !num_boxes || num_boxes < 1) {
+      return res.status(400).json({ error: 'sku_id and num_boxes (>= 1) are required' });
+    }
+
+    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!orderResult.rows.length) { client.release(); return res.status(404).json({ error: 'Order not found' }); }
+    const order = orderResult.rows[0];
+    if (!['pending', 'confirmed'].includes(order.status)) {
+      client.release();
+      return res.status(400).json({ error: 'Can only add items to pending or confirmed orders' });
+    }
+
+    // Look up SKU + product + pricing
+    const skuResult = await client.query(`
+      SELECT s.*, p.name as product_name, p.collection, pr.retail_price, pr.price_basis,
+        pk.sqft_per_box, pk.weight_per_box_lbs
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      WHERE s.id = $1
+    `, [sku_id]);
+    if (!skuResult.rows.length) { client.release(); return res.status(404).json({ error: 'SKU not found' }); }
+    const sku = skuResult.rows[0];
+
+    const unitPrice = parseFloat(sku.retail_price || 0);
+    const isSample = sku.is_sample || false;
+    const sqftPerBox = parseFloat(sku.sqft_per_box || 1);
+    const isPerSqft = sku.price_basis === 'per_sqft';
+    const computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
+    const itemSubtotal = isSample ? 0 : parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+
+    await client.query('BEGIN');
+
+    await client.query(`
+      INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
+        sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    `, [id, sku.product_id, sku_id, sku.product_name, sku.collection,
+        sqft_needed || computedSqft || null, num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
+        isSample, sku.sell_by || null]);
+
+    // Recalculate order totals
+    const totalsResult = await client.query(`
+      SELECT COALESCE(SUM(CASE WHEN NOT is_sample THEN subtotal ELSE 0 END), 0) as new_subtotal
+      FROM order_items WHERE order_id = $1
+    `, [id]);
+    const newSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
+    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
+
+    await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
+      [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
+
+    await client.query('COMMIT');
+
+    const balanceInfo = await recalculateBalance(id);
+    const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    const updatedItems = await pool.query(`
+      SELECT oi.*, p.name as current_product_name, p.collection as current_collection
+      FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+      WHERE oi.order_id = $1 ORDER BY oi.id
+    `, [id]);
+
+    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Remove item from existing order (admin)
+app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, itemId } = req.params;
+
+    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!orderResult.rows.length) { client.release(); return res.status(404).json({ error: 'Order not found' }); }
+    const order = orderResult.rows[0];
+    if (!['pending', 'confirmed'].includes(order.status)) {
+      client.release();
+      return res.status(400).json({ error: 'Can only remove items from pending or confirmed orders' });
+    }
+
+    const itemResult = await client.query('SELECT * FROM order_items WHERE id = $1 AND order_id = $2', [itemId, id]);
+    if (!itemResult.rows.length) { client.release(); return res.status(404).json({ error: 'Order item not found' }); }
+
+    await client.query('BEGIN');
+    await client.query('DELETE FROM order_items WHERE id = $1', [itemId]);
+
+    // Recalculate order totals
+    const totalsResult = await client.query(`
+      SELECT COALESCE(SUM(CASE WHEN NOT is_sample THEN subtotal ELSE 0 END), 0) as new_subtotal
+      FROM order_items WHERE order_id = $1
+    `, [id]);
+    const newSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
+    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
+
+    await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
+      [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
+
+    await client.query('COMMIT');
+
+    const balanceInfo = await recalculateBalance(id);
+    const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    const updatedItems = await pool.query(`
+      SELECT oi.*, p.name as current_product_name, p.collection as current_collection
+      FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+      WHERE oi.order_id = $1 ORDER BY oi.id
+    `, [id]);
+
+    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Send payment request (admin)
+app.post('/api/admin/orders/:id/payment-request', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body || {};
+    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const o = order.rows[0];
+
+    const balanceInfo = await recalculateBalance(id);
+    if (!balanceInfo || balanceInfo.balance_status !== 'balance_due') {
+      return res.status(400).json({ error: 'No balance due on this order' });
+    }
+
+    const amountDue = balanceInfo.balance;
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+
+    // Create Stripe Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer_email: o.customer_email,
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: { name: `Balance Due — Order ${o.order_number}` },
+          unit_amount: Math.round(amountDue * 100)
+        },
+        quantity: 1
+      }],
+      metadata: { order_id: id, type: 'payment_request' },
+      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
+      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
+      expires_at: Math.floor(Date.now() / 1000) + 72 * 3600
+    });
+
+    const prResult = await pool.query(`
+      INSERT INTO payment_requests (order_id, amount, stripe_checkout_session_id, stripe_checkout_url, sent_to_email, sent_by, sent_by_name, message, expires_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
+    `, [id, amountDue.toFixed(2), session.id, session.url, o.customer_email, req.staff.id, staffName, message || null,
+        new Date(Date.now() + 72 * 3600 * 1000)]);
+
+    // Update metadata with payment_request_id
+    await stripe.checkout.sessions.update(session.id, {
+      metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' }
+    });
+
+    // Send email
+    setImmediate(() => sendPaymentRequest({ order: o, amount: amountDue, checkout_url: session.url, message: message || null }));
+
+    res.json({ payment_request: prResult.rows[0], checkout_url: session.url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Cancel payment request (admin)
+app.post('/api/admin/orders/:id/payment-requests/:reqId/cancel', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id, reqId } = req.params;
+    const pr = await pool.query('SELECT * FROM payment_requests WHERE id = $1 AND order_id = $2', [reqId, id]);
+    if (!pr.rows.length) return res.status(404).json({ error: 'Payment request not found' });
+    if (pr.rows[0].status !== 'pending') return res.status(400).json({ error: 'Payment request is not pending' });
+
+    // Expire the Stripe session
+    if (pr.rows[0].stripe_checkout_session_id) {
+      try { await stripe.checkout.sessions.expire(pr.rows[0].stripe_checkout_session_id); } catch (e) { /* session may already be expired */ }
+    }
+
+    await pool.query("UPDATE payment_requests SET status = 'cancelled' WHERE id = $1", [reqId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// SKU search for add-item (admin)
+app.get('/api/admin/skus/search', staffAuth, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 2) return res.json({ results: [] });
+    const results = await pool.query(`
+      SELECT s.id as sku_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
+        p.name as product_name, p.collection,
+        pr.retail_price
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      WHERE p.status = 'active' AND s.status = 'active'
+        AND (p.name ILIKE $1 OR s.internal_sku ILIKE $1 OR s.vendor_sku ILIKE $1 OR s.variant_name ILIKE $1 OR p.collection ILIKE $1)
+      ORDER BY p.name, s.variant_name
+      LIMIT 15
+    `, ['%' + q + '%']);
+    res.json({ results: results.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -3352,12 +4068,13 @@ app.get('/api/staff/me', staffAuth, async (req, res) => {
 });
 
 // Staff CRUD (admin only)
-app.get('/api/admin/staff', staffAuth, requireRole('admin'), async (req, res) => {
+app.get('/api/admin/staff', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT id, email, first_name, last_name, phone, role, is_active, created_at
-      FROM staff_accounts
-      ORDER BY created_at DESC
+      SELECT sa.id, sa.email, sa.first_name, sa.last_name, sa.phone, sa.role, sa.is_active, sa.created_at,
+        (SELECT COUNT(*)::int FROM trade_customers tc WHERE tc.assigned_rep_id = sa.id) as assigned_customers
+      FROM staff_accounts sa
+      ORDER BY sa.created_at DESC
     `);
     res.json({ staff: result.rows });
   } catch (err) {
@@ -3365,7 +4082,7 @@ app.get('/api/admin/staff', staffAuth, requireRole('admin'), async (req, res) =>
   }
 });
 
-app.post('/api/admin/staff', staffAuth, requireRole('admin'), async (req, res) => {
+app.post('/api/admin/staff', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { email, password, first_name, last_name, phone, role } = req.body;
     if (!email || !password || !first_name || !last_name) {
@@ -3374,6 +4091,10 @@ app.post('/api/admin/staff', staffAuth, requireRole('admin'), async (req, res) =
     const validRoles = ['admin', 'manager', 'sales_rep', 'warehouse'];
     if (role && !validRoles.includes(role)) {
       return res.status(400).json({ error: 'Invalid role. Must be one of: ' + validRoles.join(', ') });
+    }
+    // Managers cannot create admin accounts
+    if (req.staff.role === 'manager' && role === 'admin') {
+      return res.status(403).json({ error: 'Managers cannot create admin accounts' });
     }
 
     const { hash, salt } = hashPassword(password);
@@ -3391,13 +4112,23 @@ app.post('/api/admin/staff', staffAuth, requireRole('admin'), async (req, res) =
   }
 });
 
-app.put('/api/admin/staff/:id', staffAuth, requireRole('admin'), async (req, res) => {
+app.put('/api/admin/staff/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const { email, first_name, last_name, phone, role } = req.body;
     const validRoles = ['admin', 'manager', 'sales_rep', 'warehouse'];
     if (role && !validRoles.includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
+    }
+    // Managers cannot edit admin accounts or promote to admin
+    if (req.staff.role === 'manager') {
+      const target = await pool.query('SELECT role FROM staff_accounts WHERE id = $1', [id]);
+      if (target.rows.length && target.rows[0].role === 'admin') {
+        return res.status(403).json({ error: 'Managers cannot edit admin accounts' });
+      }
+      if (role === 'admin') {
+        return res.status(403).json({ error: 'Managers cannot promote accounts to admin' });
+      }
     }
 
     const result = await pool.query(`
@@ -3421,12 +4152,19 @@ app.put('/api/admin/staff/:id', staffAuth, requireRole('admin'), async (req, res
   }
 });
 
-app.patch('/api/admin/staff/:id/toggle', staffAuth, requireRole('admin'), async (req, res) => {
+app.patch('/api/admin/staff/:id/toggle', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     // Prevent self-deactivation
     if (id === req.staff.id) {
       return res.status(400).json({ error: 'Cannot deactivate your own account' });
+    }
+    // Managers cannot toggle admin accounts
+    if (req.staff.role === 'manager') {
+      const target = await pool.query('SELECT role FROM staff_accounts WHERE id = $1', [id]);
+      if (target.rows.length && target.rows[0].role === 'admin') {
+        return res.status(403).json({ error: 'Managers cannot modify admin accounts' });
+      }
     }
 
     const result = await pool.query(`
@@ -3449,7 +4187,7 @@ app.patch('/api/admin/staff/:id/toggle', staffAuth, requireRole('admin'), async 
   }
 });
 
-app.put('/api/admin/staff/:id/password', staffAuth, requireRole('admin'), async (req, res) => {
+app.put('/api/admin/staff/:id/password', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const { password } = req.body;
@@ -3941,6 +4679,50 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
         );
         break;
       }
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        if (session.metadata && session.metadata.type === 'payment_request') {
+          const { order_id, payment_request_id } = session.metadata;
+          const paidAmount = (session.amount_total || 0) / 100;
+
+          // Mark payment request as paid
+          if (payment_request_id) {
+            await pool.query(
+              "UPDATE payment_requests SET status = 'paid', paid_at = NOW() WHERE id = $1",
+              [payment_request_id]
+            );
+          }
+
+          // Record additional charge in ledger
+          await pool.query(`
+            INSERT INTO order_payments (order_id, payment_type, amount, stripe_checkout_session_id, description, status)
+            VALUES ($1, 'additional_charge', $2, $3, 'Additional payment via checkout', 'completed')
+          `, [order_id, paidAmount.toFixed(2), session.id]);
+
+          // Update amount_paid
+          await pool.query(
+            'UPDATE orders SET amount_paid = amount_paid + $1 WHERE id = $2',
+            [paidAmount.toFixed(2), order_id]
+          );
+
+          // Send confirmation email
+          const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [order_id]);
+          if (orderResult.rows.length) {
+            setImmediate(() => sendPaymentReceived(orderResult.rows[0], paidAmount));
+          }
+        }
+        break;
+      }
+      case 'checkout.session.expired': {
+        const session = event.data.object;
+        if (session.metadata && session.metadata.type === 'payment_request' && session.metadata.payment_request_id) {
+          await pool.query(
+            "UPDATE payment_requests SET status = 'expired' WHERE id = $1 AND status = 'pending'",
+            [session.metadata.payment_request_id]
+          );
+        }
+        break;
+      }
     }
     res.json({ received: true });
   } catch (err) {
@@ -4033,7 +4815,7 @@ app.get('/api/staff/my-customers', staffAuth, async (req, res) => {
 });
 
 // PATCH /api/admin/staff/:id/terminate — deactivate staff and free assigned customers
-app.patch('/api/admin/staff/:id/terminate', staffAuth, requireRole('admin'), async (req, res) => {
+app.patch('/api/admin/staff/:id/terminate', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     if (req.staff && !['admin', 'manager'].includes(req.staff.role)) {
       return res.status(403).json({ error: 'Admin or manager role required' });
@@ -4593,45 +5375,17 @@ app.get('/api/trade/quotes/:id/pdf', (req, res, next) => {
     const expiryStr = q.expires_at ? new Date(q.expires_at).toLocaleDateString() : 'N/A';
 
     const html = `<!DOCTYPE html><html><head><style>
-      body { font-family: 'Inter', Arial, sans-serif; margin: 0; padding: 2rem; color: #1c1917; }
-      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid #c8a97e; }
-      .company { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.75rem; font-weight: 300; margin-bottom: 0.25rem; }
-      .company-info { font-size: 0.75rem; color: #57534e; line-height: 1.6; }
-      .quote-title { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.5rem; font-weight: 400; color: #c8a97e; }
-      .quote-meta { font-size: 0.8125rem; color: #57534e; line-height: 1.8; text-align: right; }
-      .customer-block { margin-bottom: 2rem; padding: 1rem; background: #fafaf9; border: 1px solid #e7e5e4; }
-      .customer-block h3 { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.1em; color: #78716c; margin: 0 0 0.5rem; }
-      table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
-      th { background: #1c1917; color: #fff; padding: 0.625rem 0.75rem; text-align: left; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; }
-      td { padding: 0.625rem 0.75rem; border-bottom: 1px solid #e7e5e4; font-size: 0.8125rem; }
-      tr:nth-child(even) td { background: #fafaf9; }
-      .totals { text-align: right; margin-top: 1rem; }
-      .totals .line { display: flex; justify-content: flex-end; gap: 2rem; font-size: 0.875rem; padding: 0.25rem 0; }
-      .totals .total-line { font-weight: 600; font-size: 1rem; border-top: 2px solid #1c1917; padding-top: 0.5rem; margin-top: 0.5rem; }
-      .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e7e5e4; font-size: 0.6875rem; color: #78716c; text-align: center; }
+      ${getDocumentBaseCSS()}
       .expired-badge { display: inline-block; background: #dc2626; color: white; padding: 2px 8px; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
       .valid-badge { display: inline-block; background: #16a34a; color: white; padding: 2px 8px; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
     </style></head><body>
-      <div class="header">
-        <div>
-          <div class="company">Roma Flooring Designs</div>
-          <div class="company-info">
-            1440 S. State College Blvd #6M<br/>
-            Anaheim, CA 92806<br/>
-            (714) 999-0009<br/>
-            Sales@romaflooringdesigns.com
-          </div>
-        </div>
-        <div>
-          <div class="quote-title">Quote</div>
-          <div class="quote-meta">
-            <strong>${q.quote_number || 'Q-' + q.id.substring(0, 8).toUpperCase()}</strong><br/>
-            Date: ${new Date(q.created_at).toLocaleDateString()}<br/>
-            Valid Until: ${expiryStr} ${isExpired ? '<span class="expired-badge">Expired</span>' : '<span class="valid-badge">Valid</span>'}
-          </div>
-        </div>
+      ${getDocumentHeader('Quote')}
+      <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
+        <strong>${q.quote_number || 'Q-' + q.id.substring(0, 8).toUpperCase()}</strong><br/>
+        Date: ${new Date(q.created_at).toLocaleDateString()}<br/>
+        Valid Until: ${expiryStr} ${isExpired ? '<span class="expired-badge">Expired</span>' : '<span class="valid-badge">Valid</span>'}
       </div>
-      <div class="customer-block">
+      <div class="info-block">
         <h3>Prepared For</h3>
         <strong>${c.company_name || q.customer_name || ''}</strong><br/>
         ${c.contact_name || q.customer_name || ''}<br/>
@@ -4665,25 +5419,7 @@ app.get('/api/trade/quotes/:id/pdf', (req, res, next) => {
       </div>
     </body></html>`;
 
-    try {
-      const puppeteer = await import('puppeteer');
-      const browser = await puppeteer.default.launch({
-        headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'domcontentloaded' });
-      const pdf = await page.pdf({ format: 'Letter', margin: { top: '0.75in', bottom: '0.75in', left: '0.75in', right: '0.75in' } });
-      await browser.close();
-      const filename = `quote-${q.quote_number || q.id.substring(0, 8)}.pdf`;
-      res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${filename}"` });
-      res.send(pdf);
-    } catch (pdfErr) {
-      // Fallback: return HTML if puppeteer unavailable
-      res.set('Content-Type', 'text/html');
-      res.send(html);
-    }
+    await generatePDF(html, `quote-${q.quote_number || q.id.substring(0, 8)}.pdf`, req, res);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -4693,7 +5429,6 @@ app.get('/api/trade/quotes/:id/pdf', (req, res, next) => {
 
 // Packing slip - accepts token from header or query param (for browser popup)
 app.get('/api/staff/orders/:id/packing-slip', async (req, res, next) => {
-  // Allow token from query param for PDF downloads in new window
   if (!req.headers['x-staff-token'] && req.query.token) {
     req.headers['x-staff-token'] = req.query.token;
   }
@@ -4702,64 +5437,149 @@ app.get('/api/staff/orders/:id/packing-slip', async (req, res, next) => {
   try {
     const order = await pool.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
-    const items = await pool.query('SELECT * FROM order_items WHERE order_id = $1 ORDER BY id', [req.params.id]);
+    const items = await pool.query(`
+      SELECT oi.*, p.sqft_per_box
+      FROM order_items oi
+      LEFT JOIN packaging p ON p.sku_id = oi.sku_id
+      WHERE oi.order_id = $1 ORDER BY oi.id
+    `, [req.params.id]);
     const o = order.rows[0];
 
+    const isPickup = o.delivery_method === 'pickup';
+    const shipToBlock = isPickup
+      ? `<div class="info-block">
+          <h3>Store Pickup</h3>
+          <strong>Roma Flooring Designs</strong><br/>
+          1440 S. State College Blvd., Suite 6M<br/>
+          Anaheim, CA 92806
+        </div>`
+      : `<div class="info-block">
+          <h3>Ship To</h3>
+          <strong>${o.customer_name}</strong><br/>
+          ${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>
+          ${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}
+        </div>`;
+
     const html = `<!DOCTYPE html><html><head><style>
-      body { font-family: Arial, sans-serif; margin: 2rem; }
-      h1 { font-size: 1.5rem; }
-      .header { display: flex; justify-content: space-between; margin-bottom: 2rem; }
-      .company { font-size: 1.25rem; font-weight: bold; }
-      table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-      th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid #ddd; }
-      th { background: #f5f5f4; font-size: 0.875rem; text-transform: uppercase; }
-      .address { line-height: 1.6; }
+      ${getDocumentBaseCSS()}
     </style></head><body>
-      <div class="header">
-        <div>
-          <div class="company">Roma Flooring Designs</div>
-          <div>1440 S. State College Blvd #6M</div>
-          <div>Anaheim, CA 92806</div>
-          <div>(714) 999-0009</div>
-        </div>
-        <div>
-          <h1>Packing Slip</h1>
-          <div><strong>Order:</strong> ${o.order_number}</div>
-          <div><strong>Date:</strong> ${new Date(o.created_at).toLocaleDateString()}</div>
-        </div>
+      ${getDocumentHeader('Packing Slip')}
+      <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
+        <strong>${o.order_number}</strong><br/>
+        Date: ${new Date(o.created_at).toLocaleDateString()}
       </div>
-      <div class="address">
-        <strong>Ship To:</strong><br/>
-        ${o.customer_name}<br/>
-        ${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>
-        ${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}
-      </div>
+      ${shipToBlock}
       <table>
-        <thead><tr><th>Item</th><th>Description</th><th>Qty</th></tr></thead>
+        <thead><tr><th>Product</th><th>Description</th><th style="text-align:right">Boxes</th><th style="text-align:right">SqFt/Box</th><th style="text-align:right">Total SqFt</th></tr></thead>
         <tbody>
-          ${items.rows.map(i => `<tr><td>${i.product_name || ''}</td><td>${i.collection || ''}</td><td>${i.num_boxes}</td></tr>`).join('')}
+          ${items.rows.map(i => {
+            const sqftPerBox = i.sqft_per_box ? parseFloat(i.sqft_per_box) : null;
+            const totalSqft = i.sqft_needed ? parseFloat(i.sqft_needed) : (sqftPerBox ? sqftPerBox * i.num_boxes : null);
+            return `<tr>
+              <td>${i.product_name || ''}</td>
+              <td>${i.collection || i.description || ''}</td>
+              <td style="text-align:right">${i.num_boxes}</td>
+              <td style="text-align:right">${sqftPerBox ? sqftPerBox.toFixed(2) : '—'}</td>
+              <td style="text-align:right">${totalSqft ? totalSqft.toFixed(1) : '—'}</td>
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>
+      ${getDocumentFooter()}
     </body></html>`;
 
-    try {
-      const puppeteer = await import('puppeteer');
-      const browser = await puppeteer.default.launch({
-        headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
-      const page = await browser.newPage();
-      await page.setContent(html);
-      const pdf = await page.pdf({ format: 'Letter', margin: { top: '0.75in', bottom: '0.75in', left: '0.75in', right: '0.75in' } });
-      await browser.close();
-      res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="packing-slip-${o.order_number}.pdf"` });
-      res.send(pdf);
-    } catch (pdfErr) {
-      // Fallback: return HTML if puppeteer unavailable
-      res.set('Content-Type', 'text/html');
-      res.send(html);
-    }
+    await generatePDF(html, `packing-slip-${o.order_number}.pdf`, req, res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Invoice PDF - accepts token from header or query param
+app.get('/api/staff/orders/:id/invoice', async (req, res, next) => {
+  if (!req.headers['x-staff-token'] && req.query.token) {
+    req.headers['x-staff-token'] = req.query.token;
+  }
+  next();
+}, staffAuth, async (req, res) => {
+  try {
+    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
+    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const items = await pool.query(`
+      SELECT oi.*, p.sqft_per_box
+      FROM order_items oi
+      LEFT JOIN packaging p ON p.sku_id = oi.sku_id
+      WHERE oi.order_id = $1 ORDER BY oi.id
+    `, [req.params.id]);
+    const o = order.rows[0];
+
+    const isPickup = o.delivery_method === 'pickup';
+    const billToBlock = `<div class="info-block">
+      <h3>Bill To</h3>
+      <strong>${o.customer_name}</strong><br/>
+      ${o.customer_email}${o.phone ? '<br/>' + o.phone : ''}
+    </div>`;
+    const shipToBlock = isPickup
+      ? `<div class="info-block">
+          <h3>Store Pickup</h3>
+          <strong>Roma Flooring Designs</strong><br/>
+          1440 S. State College Blvd., Suite 6M<br/>
+          Anaheim, CA 92806
+        </div>`
+      : `<div class="info-block">
+          <h3>Ship To</h3>
+          <strong>${o.customer_name}</strong><br/>
+          ${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>
+          ${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}
+        </div>`;
+
+    const html = `<!DOCTYPE html><html><head><style>
+      ${getDocumentBaseCSS()}
+    </style></head><body>
+      ${getDocumentHeader('Invoice')}
+      <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
+        <strong>${o.order_number}</strong><br/>
+        Date: ${new Date(o.created_at).toLocaleDateString()}
+      </div>
+      <div class="info-columns">
+        ${billToBlock}
+        ${shipToBlock}
+      </div>
+      <table>
+        <thead><tr>
+          <th>Product</th><th>Description</th>
+          <th style="text-align:right">SqFt</th><th style="text-align:right">Boxes</th>
+          <th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th>
+        </tr></thead>
+        <tbody>
+          ${items.rows.map(i => `<tr>
+            <td>${i.product_name || ''}</td>
+            <td>${i.collection || i.description || ''}</td>
+            <td style="text-align:right">${i.sqft_needed ? parseFloat(i.sqft_needed).toFixed(1) : '—'}</td>
+            <td style="text-align:right">${i.num_boxes}</td>
+            <td style="text-align:right">${i.unit_price ? '$' + parseFloat(i.unit_price).toFixed(2) : '—'}</td>
+            <td style="text-align:right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="totals">
+        <div class="line"><span>Subtotal:</span><span>$${parseFloat(o.subtotal || 0).toFixed(2)}</span></div>
+        ${parseFloat(o.shipping || 0) > 0 ? `<div class="line"><span>Shipping${o.shipping_method ? ' (' + (o.shipping_method === 'ltl_freight' ? 'LTL Freight' : 'Parcel') + ')' : ''}:</span><span>$${parseFloat(o.shipping).toFixed(2)}</span></div>` : ''}
+        ${isPickup ? '<div class="line"><span>Shipping (Store Pickup):</span><span style="color:#16a34a">FREE</span></div>' : ''}
+        ${parseFloat(o.sample_shipping || 0) > 0 ? `<div class="line"><span>Sample Shipping:</span><span>$${parseFloat(o.sample_shipping).toFixed(2)}</span></div>` : ''}
+        ${parseFloat(o.discount_amount || 0) > 0 ? `<div class="line"><span>Discount${o.promo_code ? ' (' + o.promo_code + ')' : ''}:</span><span style="color:#16a34a">-$${parseFloat(o.discount_amount).toFixed(2)}</span></div>` : ''}
+        <div class="line total-line"><span>Total:</span><span>$${parseFloat(o.total || 0).toFixed(2)}</span></div>
+      </div>
+      ${o.payment_method || o.stripe_payment_intent_id ? `
+        <div class="notes-section">
+          <h4>Payment Information</h4>
+          ${o.payment_method ? '<div>Method: ' + o.payment_method + '</div>' : ''}
+          ${o.stripe_payment_intent_id ? '<div style="font-size:0.75rem;color:#78716c;">Stripe ID: ' + o.stripe_payment_intent_id + '</div>' : ''}
+        </div>
+      ` : ''}
+      ${getDocumentFooter()}
+    </body></html>`;
+
+    await generatePDF(html, `invoice-${o.order_number}.pdf`, req, res);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -4934,10 +5754,17 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
       ORDER BY opa.created_at DESC
     `, [id]);
 
+    const payments = await pool.query('SELECT * FROM order_payments WHERE order_id = $1 ORDER BY created_at', [id]);
+    const paymentRequests = await pool.query('SELECT * FROM payment_requests WHERE order_id = $1 ORDER BY created_at DESC', [id]);
+    const balanceInfo = await recalculateBalance(id);
+
     res.json({
       order: order.rows[0],
       items: items.rows,
-      price_adjustments: adjustments.rows
+      price_adjustments: adjustments.rows,
+      payments: payments.rows,
+      payment_requests: paymentRequests.rows,
+      balance: balanceInfo
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -4949,12 +5776,24 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, tracking_number, carrier, shipped_at } = req.body;
-    const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled', 'refunded'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
+    // Refunded status can only be set via the dedicated refund endpoint
+    if (status === 'refunded') {
+      return res.status(400).json({ error: 'Use the refund endpoint to issue refunds' });
+    }
+
     await client.query('BEGIN');
+
+    // Block uncancelling a refunded order
+    const currentOrder = await client.query('SELECT status, stripe_refund_id FROM orders WHERE id = $1', [id]);
+    if (currentOrder.rows.length && currentOrder.rows[0].status === 'cancelled' && currentOrder.rows[0].stripe_refund_id) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Cannot uncancel an order that has been refunded' });
+    }
 
     let result;
     if (status === 'shipped' && tracking_number) {
@@ -4974,6 +5813,16 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
         WHERE id = $2
         RETURNING *
       `, [status, id]);
+    } else if (status === 'confirmed') {
+      result = await client.query(
+        'UPDATE orders SET status = $1, confirmed_at = NOW() WHERE id = $2 RETURNING *',
+        [status, id]
+      );
+    } else if (status === 'delivered') {
+      result = await client.query(
+        'UPDATE orders SET status = $1, delivered_at = NOW() WHERE id = $2 RETURNING *',
+        [status, id]
+      );
     } else {
       result = await client.query(
         'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
@@ -4994,6 +5843,26 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
       }
     }
 
+    // Cascade PO cancellation when order is cancelled
+    if (status === 'cancelled') {
+      const pos = await client.query(
+        "SELECT id, status FROM purchase_orders WHERE order_id = $1 AND status NOT IN ('fulfilled', 'cancelled')",
+        [id]
+      );
+      for (const po of pos.rows) {
+        await client.query(
+          "UPDATE purchase_orders SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+          [po.id]
+        );
+        const repName = req.rep.first_name + ' ' + req.rep.last_name;
+        await client.query(
+          `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, details)
+           VALUES ($1, 'auto_cancelled', $2, $3)`,
+          [po.id, repName, JSON.stringify({ reason: 'order_cancelled' })]
+        );
+      }
+    }
+
     await client.query('COMMIT');
     const updatedOrder = result.rows[0];
     res.json({ order: updatedOrder });
@@ -5005,6 +5874,87 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
     res.status(500).json({ error: err.message });
   } finally {
     client.release();
+  }
+});
+
+// Change delivery method on existing order (rep)
+app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { delivery_method, shipping_address, shipping_option_index, residential, liftgate } = req.body;
+
+    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = orderResult.rows[0];
+
+    if (!['pending', 'confirmed'].includes(order.status)) {
+      return res.status(400).json({ error: 'Can only change delivery method on pending or confirmed orders' });
+    }
+
+    if (!['pickup', 'shipping'].includes(delivery_method)) {
+      return res.status(400).json({ error: 'delivery_method must be "pickup" or "shipping"' });
+    }
+
+    // Switch to pickup
+    if (delivery_method === 'pickup') {
+      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+      const updated = await pool.query(`
+        UPDATE orders SET delivery_method = 'pickup', shipping = 0, shipping_method = 'pickup',
+          shipping_carrier = NULL, shipping_transit_days = NULL, shipping_residential = false,
+          shipping_liftgate = false, shipping_is_fallback = false,
+          shipping_address_line1 = NULL, shipping_address_line2 = NULL,
+          shipping_city = NULL, shipping_state = NULL, shipping_zip = NULL,
+          total = $2
+        WHERE id = $1 RETURNING *
+      `, [id, newTotal]);
+      const balanceInfo = await recalculateBalance(id);
+      return res.json({ order: updated.rows[0], balance: balanceInfo });
+    }
+
+    // Switch to shipping — need address
+    if (!shipping_address || !shipping_address.line1 || !shipping_address.city || !shipping_address.state || !shipping_address.zip) {
+      return res.status(400).json({ error: 'shipping_address with line1, city, state, zip is required' });
+    }
+
+    // If no option selected yet, calculate rates and return them
+    if (shipping_option_index === undefined || shipping_option_index === null) {
+      const destination = { zip: shipping_address.zip, city: shipping_address.city, state: shipping_address.state };
+      const rates = await calculateShippingForOrder(order.id, destination, { residential: residential !== false, liftgate: liftgate !== false });
+      return res.json({ shipping_options: rates.options, method: rates.method, weight_lbs: rates.weight_lbs, total_boxes: rates.total_boxes });
+    }
+
+    // Apply selected shipping option
+    const destination = { zip: shipping_address.zip, city: shipping_address.city, state: shipping_address.state };
+    const rates = await calculateShippingForOrder(order.id, destination, { residential: residential !== false, liftgate: liftgate !== false });
+
+    const optionIdx = parseInt(shipping_option_index);
+    if (optionIdx < 0 || optionIdx >= rates.options.length) {
+      return res.status(400).json({ error: 'Invalid shipping_option_index' });
+    }
+
+    const selected = rates.options[optionIdx];
+    const shippingCost = parseFloat(selected.amount || 0);
+    const newTotal = (parseFloat(order.subtotal) + shippingCost + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+
+    const updated = await pool.query(`
+      UPDATE orders SET delivery_method = 'shipping', shipping = $2, shipping_method = $3,
+        shipping_carrier = $4, shipping_transit_days = $5,
+        shipping_residential = $6, shipping_liftgate = $7, shipping_is_fallback = $8,
+        shipping_address_line1 = $9, shipping_address_line2 = $10,
+        shipping_city = $11, shipping_state = $12, shipping_zip = $13,
+        total = $14
+      WHERE id = $1 RETURNING *
+    `, [id, shippingCost.toFixed(2), rates.method,
+        selected.carrier || null, selected.transit_days || null,
+        residential !== false, liftgate !== false, selected.is_fallback || false,
+        shipping_address.line1, shipping_address.line2 || null,
+        shipping_address.city, shipping_address.state, shipping_address.zip,
+        newTotal]);
+
+    const balanceInfo = await recalculateBalance(id);
+    return res.json({ order: updated.rows[0], balance: balanceInfo });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -5096,12 +6046,213 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
       ORDER BY opa.created_at DESC
     `, [id]);
 
-    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, price_adjustments: adjustments.rows });
+    const balanceInfo = await recalculateBalance(id);
+    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, price_adjustments: adjustments.rows, balance: balanceInfo });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
   } finally {
     client.release();
+  }
+});
+
+// Add item to existing order (rep)
+app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { sku_id, num_boxes, sqft_needed } = req.body;
+    if (!sku_id || !num_boxes || num_boxes < 1) {
+      return res.status(400).json({ error: 'sku_id and num_boxes (>= 1) are required' });
+    }
+
+    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!orderResult.rows.length) { client.release(); return res.status(404).json({ error: 'Order not found' }); }
+    const order = orderResult.rows[0];
+    if (!['pending', 'confirmed'].includes(order.status)) {
+      client.release();
+      return res.status(400).json({ error: 'Can only add items to pending or confirmed orders' });
+    }
+
+    const skuResult = await client.query(`
+      SELECT s.*, p.name as product_name, p.collection, pr.retail_price, pr.price_basis,
+        pk.sqft_per_box, pk.weight_per_box_lbs
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      WHERE s.id = $1
+    `, [sku_id]);
+    if (!skuResult.rows.length) { client.release(); return res.status(404).json({ error: 'SKU not found' }); }
+    const sku = skuResult.rows[0];
+
+    const unitPrice = parseFloat(sku.retail_price || 0);
+    const isSample = sku.is_sample || false;
+    const sqftPerBox = parseFloat(sku.sqft_per_box || 1);
+    const isPerSqft = sku.price_basis === 'per_sqft';
+    const computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
+    const itemSubtotal = isSample ? 0 : parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+
+    await client.query('BEGIN');
+
+    await client.query(`
+      INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
+        sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    `, [id, sku.product_id, sku_id, sku.product_name, sku.collection,
+        sqft_needed || computedSqft || null, num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
+        isSample, sku.sell_by || null]);
+
+    const totalsResult = await client.query(`
+      SELECT COALESCE(SUM(CASE WHEN NOT is_sample THEN subtotal ELSE 0 END), 0) as new_subtotal
+      FROM order_items WHERE order_id = $1
+    `, [id]);
+    const newSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
+    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
+
+    await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
+      [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
+
+    await client.query('COMMIT');
+
+    const balanceInfo = await recalculateBalance(id);
+    const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    const updatedItems = await pool.query(`
+      SELECT oi.*, p.name as current_product_name, p.collection as current_collection
+      FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+      WHERE oi.order_id = $1 ORDER BY oi.id
+    `, [id]);
+
+    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Remove item from existing order (rep)
+app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, itemId } = req.params;
+
+    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!orderResult.rows.length) { client.release(); return res.status(404).json({ error: 'Order not found' }); }
+    const order = orderResult.rows[0];
+    if (!['pending', 'confirmed'].includes(order.status)) {
+      client.release();
+      return res.status(400).json({ error: 'Can only remove items from pending or confirmed orders' });
+    }
+
+    const itemResult = await client.query('SELECT * FROM order_items WHERE id = $1 AND order_id = $2', [itemId, id]);
+    if (!itemResult.rows.length) { client.release(); return res.status(404).json({ error: 'Order item not found' }); }
+
+    await client.query('BEGIN');
+    await client.query('DELETE FROM order_items WHERE id = $1', [itemId]);
+
+    const totalsResult = await client.query(`
+      SELECT COALESCE(SUM(CASE WHEN NOT is_sample THEN subtotal ELSE 0 END), 0) as new_subtotal
+      FROM order_items WHERE order_id = $1
+    `, [id]);
+    const newSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
+    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
+
+    await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
+      [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
+
+    await client.query('COMMIT');
+
+    const balanceInfo = await recalculateBalance(id);
+    const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    const updatedItems = await pool.query(`
+      SELECT oi.*, p.name as current_product_name, p.collection as current_collection
+      FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+      WHERE oi.order_id = $1 ORDER BY oi.id
+    `, [id]);
+
+    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Send payment request (rep)
+app.post('/api/rep/orders/:id/payment-request', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body || {};
+    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const o = order.rows[0];
+
+    const balanceInfo = await recalculateBalance(id);
+    if (!balanceInfo || balanceInfo.balance_status !== 'balance_due') {
+      return res.status(400).json({ error: 'No balance due on this order' });
+    }
+
+    const amountDue = balanceInfo.balance;
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer_email: o.customer_email,
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: { name: `Balance Due — Order ${o.order_number}` },
+          unit_amount: Math.round(amountDue * 100)
+        },
+        quantity: 1
+      }],
+      metadata: { order_id: id, type: 'payment_request' },
+      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
+      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
+      expires_at: Math.floor(Date.now() / 1000) + 72 * 3600
+    });
+
+    const prResult = await pool.query(`
+      INSERT INTO payment_requests (order_id, amount, stripe_checkout_session_id, stripe_checkout_url, sent_to_email, sent_by, sent_by_name, message, expires_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
+    `, [id, amountDue.toFixed(2), session.id, session.url, o.customer_email, req.rep.id, repName, message || null,
+        new Date(Date.now() + 72 * 3600 * 1000)]);
+
+    await stripe.checkout.sessions.update(session.id, {
+      metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' }
+    });
+
+    setImmediate(() => sendPaymentRequest({ order: o, amount: amountDue, checkout_url: session.url, message: message || null }));
+
+    res.json({ payment_request: prResult.rows[0], checkout_url: session.url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// SKU search for add-item (rep)
+app.get('/api/rep/skus/search', repAuth, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 2) return res.json({ results: [] });
+    const results = await pool.query(`
+      SELECT s.id as sku_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
+        p.name as product_name, p.collection,
+        pr.retail_price
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      WHERE p.status = 'active' AND s.status = 'active'
+        AND (p.name ILIKE $1 OR s.internal_sku ILIKE $1 OR s.vendor_sku ILIKE $1 OR s.variant_name ILIKE $1 OR p.collection ILIKE $1)
+      ORDER BY p.name, s.variant_name
+      LIMIT 15
+    `, ['%' + q + '%']);
+    res.json({ results: results.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -5201,46 +6352,65 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId', repAuth, async (req, res
 app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => {
   try {
     const { poId } = req.params;
-    const po = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
-    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
-    if (po.rows[0].status !== 'draft') {
+    const poCheck = await pool.query(`
+      SELECT po.*, v.name as vendor_name, v.email as vendor_email
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      WHERE po.id = $1
+    `, [poId]);
+    if (!poCheck.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+    if (poCheck.rows[0].status !== 'draft') {
       return res.status(400).json({ error: 'Only draft POs can be approved' });
     }
 
+    const po = poCheck.rows[0];
+    const newRevision = (po.revision || 0) + 1;
+    const isRevised = newRevision > 1;
+
     const result = await pool.query(`
-      UPDATE purchase_orders SET status = 'sent', approved_by = $1, approved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2 RETURNING *
-    `, [req.rep.id, poId]);
+      UPDATE purchase_orders SET status = 'sent', revision = $1, is_revised = $2,
+        approved_by = $3, approved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $4 RETURNING *
+    `, [newRevision, isRevised, req.rep.id, poId]);
 
-    res.json({ purchase_order: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    let emailSent = false;
 
-// Cancel PO
-app.post('/api/rep/purchase-orders/:poId/cancel', repAuth, async (req, res) => {
-  try {
-    const { poId } = req.params;
-    const po = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
-    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
-    if (po.rows[0].status === 'fulfilled') {
-      return res.status(400).json({ error: 'Cannot cancel a fulfilled PO' });
+    // Send email if vendor has email
+    if (po.vendor_email) {
+      try {
+        const poData = await generatePOHtml(poId);
+        if (poData) {
+          const pdfBuffer = await generatePDFBuffer(poData.html);
+          const emailResult = await sendPurchaseOrderToVendor({
+            vendor_email: po.vendor_email,
+            vendor_name: po.vendor_name,
+            po_number: po.po_number,
+            is_revised: isRevised,
+            pdf_buffer: pdfBuffer
+          });
+          emailSent = emailResult.sent;
+        }
+      } catch (emailErr) {
+        console.error('[Rep PO Approve] Email send failed:', emailErr.message);
+      }
     }
-    if (po.rows[0].status === 'cancelled') {
-      return res.status(400).json({ error: 'PO is already cancelled' });
-    }
 
-    const result = await pool.query(
-      "UPDATE purchase_orders SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
-      [poId]
+    // Log activity
+    const action = isRevised ? 'revised_and_sent' : 'sent';
+    await pool.query(
+      `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, recipient_email, revision, details)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [poId, action, req.rep.id, repName, po.vendor_email || null, newRevision,
+       JSON.stringify({ email_sent: emailSent, approved_via: 'rep_portal' })]
     );
 
-    res.json({ purchase_order: result.rows[0] });
+    res.json({ purchase_order: result.rows[0], email_sent: emailSent });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // ==================== Rep Quote Endpoints ====================
 
@@ -5961,112 +7131,6 @@ app.get('/api/admin/promo-codes/:id/usages', staffAuth, requireRole('admin', 'ma
   }
 });
 
-// ==================== Admin Rep CRUD ====================
-
-app.get('/api/admin/reps', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT sr.id, sr.email, sr.first_name, sr.last_name, sr.phone, sr.is_active, sr.created_at,
-        (SELECT COUNT(*)::int FROM orders o WHERE o.sales_rep_id = sr.id) as assigned_orders
-      FROM sales_reps sr
-      ORDER BY sr.created_at DESC
-    `);
-    res.json({ reps: result.rows });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/admin/reps', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
-  try {
-    const { email, password, first_name, last_name, phone } = req.body;
-    if (!email || !password || !first_name || !last_name) {
-      return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
-    }
-
-    const { hash, salt } = hashPassword(password);
-    const result = await pool.query(`
-      INSERT INTO sales_reps (email, password_hash, password_salt, first_name, last_name, phone)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, email, first_name, last_name, phone, is_active, created_at
-    `, [email.toLowerCase().trim(), hash, salt, first_name, last_name, phone || null]);
-
-    res.json({ rep: result.rows[0] });
-  } catch (err) {
-    if (err.code === '23505') return res.status(400).json({ error: 'A rep with this email already exists' });
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put('/api/admin/reps/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { email, first_name, last_name, phone } = req.body;
-
-    const result = await pool.query(`
-      UPDATE sales_reps SET
-        email = COALESCE($1, email),
-        first_name = COALESCE($2, first_name),
-        last_name = COALESCE($3, last_name),
-        phone = COALESCE($4, phone),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $5
-      RETURNING id, email, first_name, last_name, phone, is_active, created_at
-    `, [email ? email.toLowerCase().trim() : null, first_name, last_name, phone, id]);
-
-    if (!result.rows.length) return res.status(404).json({ error: 'Rep not found' });
-    res.json({ rep: result.rows[0] });
-  } catch (err) {
-    if (err.code === '23505') return res.status(400).json({ error: 'A rep with this email already exists' });
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.patch('/api/admin/reps/:id/toggle', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await pool.query(`
-      UPDATE sales_reps SET is_active = NOT is_active, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-      RETURNING id, email, first_name, last_name, phone, is_active, created_at
-    `, [id]);
-
-    if (!result.rows.length) return res.status(404).json({ error: 'Rep not found' });
-
-    // Kill sessions if deactivated
-    if (!result.rows[0].is_active) {
-      await pool.query('DELETE FROM rep_sessions WHERE rep_id = $1', [id]);
-    }
-
-    res.json({ rep: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put('/api/admin/reps/:id/password', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { password } = req.body;
-    if (!password) return res.status(400).json({ error: 'Password is required' });
-
-    const { hash, salt } = hashPassword(password);
-    const result = await pool.query(
-      'UPDATE sales_reps SET password_hash = $1, password_salt = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING id',
-      [hash, salt, id]
-    );
-
-    if (!result.rows.length) return res.status(404).json({ error: 'Rep not found' });
-
-    // Kill all sessions
-    await pool.query('DELETE FROM rep_sessions WHERE rep_id = $1', [id]);
-
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // Admin assign any rep to order
 app.put('/api/admin/orders/:id/assign', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
@@ -6094,7 +7158,7 @@ app.get('/api/admin/orders/:id/purchase-orders', staffAuth, async (req, res) => 
         sr.first_name || ' ' || sr.last_name as approved_by_name
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
-      LEFT JOIN sales_reps sr ON sr.id = po.approved_by
+      LEFT JOIN staff_accounts sr ON sr.id = po.approved_by
       WHERE po.order_id = $1
       ORDER BY po.created_at
     `, [id]);
@@ -6121,33 +7185,57 @@ app.get('/api/admin/orders/:id/purchase-orders', staffAuth, async (req, res) => 
   }
 });
 
-// Update PO status (admin progression: sent→acknowledged→fulfilled, or cancel)
+// Update PO status (with revert support and revision tracking)
 app.put('/api/admin/purchase-orders/:poId/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { poId } = req.params;
     const { status } = req.body;
 
     const validTransitions = {
-      draft: ['sent', 'cancelled'],
-      sent: ['acknowledged', 'cancelled'],
-      acknowledged: ['fulfilled', 'cancelled'],
+      draft: ['sent'],
+      sent: ['acknowledged', 'draft'],
+      acknowledged: ['fulfilled', 'sent'],
+      fulfilled: ['acknowledged'],
     };
 
     const po = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
     if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
 
     const current = po.rows[0].status;
-    if (current === 'fulfilled') return res.status(400).json({ error: 'Cannot change status of a fulfilled PO' });
-    if (current === 'cancelled') return res.status(400).json({ error: 'Cannot change status of a cancelled PO' });
-
     const allowed = validTransitions[current] || [];
     if (!allowed.includes(status)) {
       return res.status(400).json({ error: `Cannot transition from ${current} to ${status}. Allowed: ${allowed.join(', ')}` });
     }
 
+    let extraSets = '';
+    const params = [status, poId];
+
+    // When reverting to draft, clear approval
+    if (status === 'draft') {
+      extraSets = ', approved_by = NULL, approved_at = NULL';
+    }
+
+    // When transitioning draft→sent, increment revision and mark revised if re-sent
+    if (current === 'draft' && status === 'sent') {
+      const newRevision = (po.rows[0].revision || 0) + 1;
+      const isRevised = newRevision > 1;
+      extraSets = `, revision = ${newRevision}, is_revised = ${isRevised}, approved_by = $3, approved_at = CURRENT_TIMESTAMP`;
+      params.push(req.staff.id);
+    }
+
     const result = await pool.query(
-      'UPDATE purchase_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
-      [status, poId]
+      `UPDATE purchase_orders SET status = $1, updated_at = CURRENT_TIMESTAMP${extraSets} WHERE id = $2 RETURNING *`,
+      params
+    );
+
+    // Log status change to activity log
+    const actionMap = { sent: 'sent', acknowledged: 'acknowledged', fulfilled: 'fulfilled', cancelled: 'cancelled', draft: 'reverted' };
+    const action = actionMap[status] || status;
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    await pool.query(
+      `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, revision, details)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [poId, action, req.staff.id, staffName, result.rows[0].revision || 0, JSON.stringify({ from_status: current, to_status: status })]
     );
 
     res.json({ purchase_order: result.rows[0] });
@@ -6156,16 +7244,165 @@ app.put('/api/admin/purchase-orders/:poId/status', staffAuth, requireRole('admin
   }
 });
 
-// Admin edit cost on draft PO item
+// Admin update PO notes
+app.put('/api/admin/purchase-orders/:poId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { poId } = req.params;
+    const { notes } = req.body;
+    const po = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+    if (po.rows[0].status !== 'draft') return res.status(400).json({ error: 'Only draft POs can be edited' });
+    const result = await pool.query(
+      'UPDATE purchase_orders SET notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      [notes || null, poId]
+    );
+    res.json({ purchase_order: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Send PO to vendor via email
+app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { poId } = req.params;
+
+    // Fetch PO with vendor email
+    const poResult = await pool.query(`
+      SELECT po.*, v.name as vendor_name, v.email as vendor_email
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      WHERE po.id = $1
+    `, [poId]);
+    if (!poResult.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+    const po = poResult.rows[0];
+
+    if (!po.vendor_email) {
+      return res.status(400).json({ error: 'Vendor has no email configured. Edit the vendor to add an email address.' });
+    }
+
+    if (!['draft', 'sent'].includes(po.status)) {
+      return res.status(400).json({ error: 'Only draft or sent POs can be sent to vendors' });
+    }
+
+    // Generate PO HTML + PDF
+    const poData = await generatePOHtml(poId);
+    if (!poData) return res.status(404).json({ error: 'Purchase order not found' });
+
+    let action = 'sent';
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+
+    if (po.status === 'draft') {
+      // Draft → Sent: increment revision, set approved_by/at
+      const newRevision = (po.revision || 0) + 1;
+      const isRevised = newRevision > 1;
+      await pool.query(`
+        UPDATE purchase_orders SET status = 'sent', revision = $1, is_revised = $2,
+          approved_by = $3, approved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $4
+      `, [newRevision, isRevised, req.staff.id, poId]);
+      action = isRevised ? 'revised_and_sent' : 'sent';
+    } else {
+      // Already sent: resend
+      action = 'resent';
+    }
+
+    // Regenerate HTML after status update for accurate PDF
+    const updatedData = await generatePOHtml(poId);
+    let pdfBuffer;
+    try {
+      pdfBuffer = await generatePDFBuffer(updatedData.html);
+    } catch (pdfErr) {
+      // If Puppeteer unavailable, send HTML as fallback (no attachment)
+      console.error('[PO Send] PDF generation failed:', pdfErr.message);
+      return res.status(500).json({ error: 'PDF generation failed. Puppeteer may not be available.' });
+    }
+
+    // Send email
+    const emailResult = await sendPurchaseOrderToVendor({
+      vendor_email: po.vendor_email,
+      vendor_name: po.vendor_name,
+      po_number: po.po_number,
+      is_revised: action === 'revised_and_sent',
+      pdf_buffer: pdfBuffer
+    });
+
+    // Log activity
+    const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    await pool.query(
+      `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, recipient_email, revision, details)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [poId, action, req.staff.id, staffName, po.vendor_email, updatedPO.rows[0].revision || 0,
+       JSON.stringify({ email_sent: emailResult.sent })]
+    );
+
+    res.json({ purchase_order: updatedPO.rows[0], email_sent: emailResult.sent });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get PO activity log
+app.get('/api/admin/purchase-orders/:poId/activity', staffAuth, async (req, res) => {
+  try {
+    const { poId } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM po_activity_log WHERE purchase_order_id = $1 ORDER BY created_at DESC',
+      [poId]
+    );
+    res.json({ activity: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin bulk update PO item statuses (must be before :itemId routes)
+app.put('/api/admin/purchase-orders/:poId/items/bulk-status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { poId } = req.params;
+    const { status } = req.body;
+    const validStatuses = ['pending', 'ordered', 'shipped', 'received', 'cancelled'];
+    if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status. Allowed: ' + validStatuses.join(', ') });
+
+    const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+
+    await client.query('BEGIN');
+
+    await client.query(
+      `UPDATE purchase_order_items SET status = $1 WHERE purchase_order_id = $2 AND status NOT IN ('received', 'cancelled')`,
+      [status, poId]
+    );
+
+    const allItems = await client.query('SELECT status FROM purchase_order_items WHERE purchase_order_id = $1', [poId]);
+    const statuses = allItems.rows.map(r => r.status);
+    let newPOStatus = null;
+    if (statuses.length > 0 && statuses.every(s => s === 'received')) newPOStatus = 'fulfilled';
+    else if (statuses.length > 0 && statuses.every(s => s === 'cancelled')) newPOStatus = 'cancelled';
+
+    if (newPOStatus && po.rows[0].status !== newPOStatus) {
+      await client.query('UPDATE purchase_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newPOStatus, poId]);
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, derived_po_status: newPOStatus });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Admin edit cost/qty on draft PO item
 app.put('/api/admin/purchase-orders/:poId/items/:itemId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { poId, itemId } = req.params;
-    const { cost } = req.body;
+    const { cost, qty } = req.body;
 
-    if (cost == null) return res.status(400).json({ error: 'cost is required' });
-    const newCost = parseFloat(cost);
-    if (isNaN(newCost) || newCost < 0) return res.status(400).json({ error: 'Invalid cost' });
+    if (cost == null && qty == null) return res.status(400).json({ error: 'cost or qty is required' });
 
     const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
     if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
@@ -6181,10 +7418,15 @@ app.put('/api/admin/purchase-orders/:poId/items/:itemId', staffAuth, requireRole
       return res.status(404).json({ error: 'PO item not found' });
     }
 
-    const itemSubtotal = newCost * item.rows[0].qty;
+    const newCost = cost != null ? parseFloat(cost) : parseFloat(item.rows[0].cost);
+    const newQty = qty != null ? parseInt(qty) : item.rows[0].qty;
+    if (isNaN(newCost) || newCost < 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Invalid cost' }); }
+    if (isNaN(newQty) || newQty < 1) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Invalid qty' }); }
+
+    const itemSubtotal = newCost * newQty;
     await client.query(
-      'UPDATE purchase_order_items SET cost = $1, subtotal = $2 WHERE id = $3',
-      [newCost.toFixed(2), itemSubtotal.toFixed(2), itemId]
+      'UPDATE purchase_order_items SET cost = $1, qty = $2, subtotal = $3 WHERE id = $4',
+      [newCost.toFixed(2), newQty, itemSubtotal.toFixed(2), itemId]
     );
 
     const totals = await client.query(
@@ -6203,6 +7445,141 @@ app.put('/api/admin/purchase-orders/:poId/items/:itemId', staffAuth, requireRole
     res.status(500).json({ error: err.message });
   } finally {
     client.release();
+  }
+});
+
+// Admin add line item to draft PO
+app.post('/api/admin/purchase-orders/:poId/items', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { poId } = req.params;
+    const { product_name, vendor_sku, description, qty, cost, sell_by } = req.body;
+
+    if (!product_name || cost == null || qty == null) return res.status(400).json({ error: 'product_name, cost, and qty are required' });
+    const parsedCost = parseFloat(cost);
+    const parsedQty = parseInt(qty);
+    if (isNaN(parsedCost) || parsedCost < 0) return res.status(400).json({ error: 'Invalid cost' });
+    if (isNaN(parsedQty) || parsedQty < 1) return res.status(400).json({ error: 'Invalid qty' });
+
+    const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+    if (po.rows[0].status !== 'draft') return res.status(400).json({ error: 'Only draft POs can be edited' });
+
+    await client.query('BEGIN');
+
+    const subtotal = parsedCost * parsedQty;
+    const itemResult = await client.query(
+      `INSERT INTO purchase_order_items (purchase_order_id, product_name, vendor_sku, description, qty, sell_by, cost, original_cost, subtotal)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8) RETURNING *`,
+      [poId, product_name, vendor_sku || null, description || null, parsedQty, sell_by || 'sqft', parsedCost.toFixed(2), subtotal.toFixed(2)]
+    );
+
+    const totals = await client.query(
+      'SELECT COALESCE(SUM(subtotal), 0) as total FROM purchase_order_items WHERE purchase_order_id = $1',
+      [poId]
+    );
+    await client.query(
+      'UPDATE purchase_orders SET subtotal = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [parseFloat(totals.rows[0].total).toFixed(2), poId]
+    );
+
+    await client.query('COMMIT');
+    res.json({ item: itemResult.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Admin delete line item from draft PO
+app.delete('/api/admin/purchase-orders/:poId/items/:itemId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { poId, itemId } = req.params;
+
+    const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+    if (po.rows[0].status !== 'draft') return res.status(400).json({ error: 'Only draft POs can be edited' });
+
+    await client.query('BEGIN');
+
+    const del = await client.query('DELETE FROM purchase_order_items WHERE id = $1 AND purchase_order_id = $2 RETURNING id', [itemId, poId]);
+    if (!del.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'PO item not found' }); }
+
+    const totals = await client.query(
+      'SELECT COALESCE(SUM(subtotal), 0) as total FROM purchase_order_items WHERE purchase_order_id = $1',
+      [poId]
+    );
+    await client.query(
+      'UPDATE purchase_orders SET subtotal = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [parseFloat(totals.rows[0].total).toFixed(2), poId]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Admin update single PO item status
+app.put('/api/admin/purchase-orders/:poId/items/:itemId/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { poId, itemId } = req.params;
+    const { status } = req.body;
+    const validStatuses = ['pending', 'ordered', 'shipped', 'received', 'cancelled'];
+    if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status. Allowed: ' + validStatuses.join(', ') });
+
+    const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+
+    await client.query('BEGIN');
+
+    const item = await client.query('SELECT * FROM purchase_order_items WHERE id = $1 AND purchase_order_id = $2', [itemId, poId]);
+    if (!item.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'PO item not found' }); }
+
+    await client.query('UPDATE purchase_order_items SET status = $1 WHERE id = $2', [status, itemId]);
+
+    // Auto-derive PO-level status from item statuses
+    const allItems = await client.query('SELECT status FROM purchase_order_items WHERE purchase_order_id = $1', [poId]);
+    const statuses = allItems.rows.map(r => r.status);
+    let newPOStatus = null;
+    if (statuses.length > 0 && statuses.every(s => s === 'received')) newPOStatus = 'fulfilled';
+    else if (statuses.length > 0 && statuses.every(s => s === 'cancelled')) newPOStatus = 'cancelled';
+
+    if (newPOStatus && po.rows[0].status !== newPOStatus) {
+      await client.query('UPDATE purchase_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newPOStatus, poId]);
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, derived_po_status: newPOStatus });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// PO Document PDF - accepts token from header or query param
+app.get('/api/staff/purchase-orders/:id/pdf', async (req, res, next) => {
+  if (!req.headers['x-staff-token'] && req.query.token) {
+    req.headers['x-staff-token'] = req.query.token;
+  }
+  next();
+}, staffAuth, async (req, res) => {
+  try {
+    const result = await generatePOHtml(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Purchase order not found' });
+    await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -6324,6 +7701,318 @@ app.delete('/api/admin/trade-customers/:id', staffAuth, requireRole('admin', 'ma
     const result = await pool.query('DELETE FROM trade_customers WHERE id = $1 RETURNING id', [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Trade customer not found' });
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Admin Customers ====================
+
+// GET /api/admin/customers — unified list
+app.get('/api/admin/customers', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const { search, type = 'all', sort = 'last_order', dir = 'desc', page = 1, limit = 50 } = req.query;
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
+
+    const queries = [];
+
+    // Retail customers
+    if (type === 'all' || type === 'retail') {
+      queries.push(pool.query(`
+        SELECT c.id, c.first_name || ' ' || c.last_name as name, c.email, c.phone,
+          'retail' as customer_type, c.created_at,
+          COUNT(o.id)::int as order_count,
+          COALESCE(SUM(o.total), 0) as total_spent,
+          MAX(o.created_at) as last_order_date
+        FROM customers c
+        LEFT JOIN orders o ON o.customer_id = c.id
+        GROUP BY c.id
+      `));
+    }
+
+    // Guest customers
+    if (type === 'all' || type === 'guest') {
+      queries.push(pool.query(`
+        SELECT 'guest_' || LOWER(o.customer_email) as id,
+          (array_agg(o.customer_name ORDER BY o.created_at DESC))[1] as name,
+          LOWER(o.customer_email) as email,
+          (array_agg(o.phone ORDER BY o.created_at DESC))[1] as phone,
+          'guest' as customer_type,
+          MIN(o.created_at) as created_at,
+          COUNT(o.id)::int as order_count,
+          COALESCE(SUM(o.total), 0) as total_spent,
+          MAX(o.created_at) as last_order_date
+        FROM orders o
+        WHERE o.customer_id IS NULL AND o.trade_customer_id IS NULL
+          AND o.customer_email IS NOT NULL
+        GROUP BY LOWER(o.customer_email)
+      `));
+    }
+
+    // Trade customers
+    if (type === 'all' || type === 'trade') {
+      queries.push(pool.query(`
+        SELECT tc.id, tc.contact_name as name, tc.email, tc.phone,
+          'trade' as customer_type, tc.created_at,
+          COUNT(o.id)::int as order_count,
+          COALESCE(SUM(o.total), 0) as total_spent,
+          MAX(o.created_at) as last_order_date,
+          tc.company_name, mt.name as tier_name, tc.status as trade_status
+        FROM trade_customers tc
+        LEFT JOIN orders o ON o.trade_customer_id = tc.id
+        LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+        GROUP BY tc.id, mt.name
+      `));
+    }
+
+    const results = await Promise.all(queries);
+    let all = [];
+    for (const r of results) {
+      all = all.concat(r.rows);
+    }
+
+    // Prefix IDs for retail/trade (guest already prefixed in query)
+    all = all.map(c => {
+      if (c.customer_type === 'retail') c.id = 'retail_' + c.id;
+      else if (c.customer_type === 'trade') c.id = 'trade_' + c.id;
+      c.total_spent = parseFloat(c.total_spent) || 0;
+      return c;
+    });
+
+    // Search filter
+    if (search) {
+      const s = search.toLowerCase();
+      all = all.filter(c =>
+        (c.name && c.name.toLowerCase().includes(s)) ||
+        (c.email && c.email.toLowerCase().includes(s)) ||
+        (c.phone && c.phone.toLowerCase().includes(s)) ||
+        (c.company_name && c.company_name.toLowerCase().includes(s))
+      );
+    }
+
+    const total = all.length;
+
+    // Sort
+    const sortDir = (dir || 'desc').toLowerCase() === 'asc' ? 1 : -1;
+    const sortKey = sort || 'last_order';
+    all.sort((a, b) => {
+      let av, bv;
+      switch (sortKey) {
+        case 'name': av = (a.name || '').toLowerCase(); bv = (b.name || '').toLowerCase(); return av < bv ? -sortDir : av > bv ? sortDir : 0;
+        case 'email': av = (a.email || '').toLowerCase(); bv = (b.email || '').toLowerCase(); return av < bv ? -sortDir : av > bv ? sortDir : 0;
+        case 'orders': return (a.order_count - b.order_count) * sortDir;
+        case 'spent': return (a.total_spent - b.total_spent) * sortDir;
+        case 'created': av = new Date(a.created_at || 0).getTime(); bv = new Date(b.created_at || 0).getTime(); return (av - bv) * sortDir;
+        case 'last_order': default:
+          av = a.last_order_date ? new Date(a.last_order_date).getTime() : 0;
+          bv = b.last_order_date ? new Date(b.last_order_date).getTime() : 0;
+          return (av - bv) * sortDir;
+      }
+    });
+
+    // Paginate
+    const offset = (pageNum - 1) * limitNum;
+    const customers = all.slice(offset, offset + limitNum);
+
+    res.json({ customers, total, page: pageNum, limit: limitNum });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/admin/customers/:id — detail view
+app.get('/api/admin/customers/:id', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const { type } = req.query;
+    const refId = req.params.id;
+    if (!type || !['retail', 'guest', 'trade'].includes(type)) {
+      return res.status(400).json({ error: 'type query param required (retail|guest|trade)' });
+    }
+
+    let customer, orders, noteRef;
+
+    if (type === 'retail') {
+      const cResult = await pool.query(`
+        SELECT id, first_name, last_name, first_name || ' ' || last_name as name, email, phone,
+          address_line1, address_line2, city, state, zip, created_at
+        FROM customers WHERE id = $1
+      `, [refId]);
+      if (!cResult.rows.length) return res.status(404).json({ error: 'Customer not found' });
+      customer = cResult.rows[0];
+      customer.customer_type = 'retail';
+      noteRef = refId;
+
+      const oResult = await pool.query(`
+        SELECT o.*, (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id)::int as item_count
+        FROM orders o WHERE o.customer_id = $1 ORDER BY o.created_at DESC
+      `, [refId]);
+      orders = oResult.rows;
+
+    } else if (type === 'trade') {
+      const cResult = await pool.query(`
+        SELECT tc.id, tc.email, tc.company_name, tc.contact_name, tc.contact_name as name,
+          tc.phone, tc.status, tc.notes, tc.created_at, tc.updated_at, tc.business_type,
+          tc.subscription_status, tc.subscription_expires_at, tc.total_spend,
+          tc.address_line1, tc.city, tc.state, tc.zip, tc.contractor_license,
+          mt.name as tier_name, mt.discount_percent,
+          sa.first_name || ' ' || sa.last_name as rep_name
+        FROM trade_customers tc
+        LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+        LEFT JOIN staff_accounts sa ON sa.id = tc.assigned_rep_id
+        WHERE tc.id = $1
+      `, [refId]);
+      if (!cResult.rows.length) return res.status(404).json({ error: 'Trade customer not found' });
+      customer = cResult.rows[0];
+      customer.customer_type = 'trade';
+      noteRef = refId;
+
+      const oResult = await pool.query(`
+        SELECT o.*, (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id)::int as item_count
+        FROM orders o WHERE o.trade_customer_id = $1 ORDER BY o.created_at DESC
+      `, [refId]);
+      orders = oResult.rows;
+
+    } else {
+      // Guest — refId is the email
+      const email = refId.toLowerCase();
+      const oResult = await pool.query(`
+        SELECT o.*, (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id)::int as item_count
+        FROM orders o
+        WHERE LOWER(o.customer_email) = $1 AND o.customer_id IS NULL AND o.trade_customer_id IS NULL
+        ORDER BY o.created_at DESC
+      `, [email]);
+      orders = oResult.rows;
+      if (!orders.length) return res.status(404).json({ error: 'No guest orders found for this email' });
+
+      const latest = orders[0];
+      customer = {
+        customer_type: 'guest',
+        name: latest.customer_name,
+        email: latest.customer_email,
+        phone: latest.phone,
+        address_line1: latest.shipping_address_line1,
+        address_line2: latest.shipping_address_line2,
+        city: latest.shipping_city,
+        state: latest.shipping_state,
+        zip: latest.shipping_zip,
+        created_at: orders[orders.length - 1].created_at
+      };
+      noteRef = email;
+    }
+
+    // Notes
+    const notesResult = await pool.query(`
+      SELECT cn.*, sa.first_name || ' ' || sa.last_name as staff_name
+      FROM customer_notes cn
+      LEFT JOIN staff_accounts sa ON sa.id = cn.staff_id
+      WHERE cn.customer_type = $1 AND cn.customer_ref = $2
+      ORDER BY cn.created_at DESC
+    `, [type, noteRef]);
+
+    // Stats — basic
+    const totalOrders = orders.length;
+    const totalSpent = orders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+    const avgOrderValue = totalOrders > 0 ? totalSpent / totalOrders : 0;
+    const firstOrderDate = orders.length ? orders[orders.length - 1].created_at : null;
+    const lastOrderDate = orders.length ? orders[0].created_at : null;
+
+    // Stats — financial: open balance & available credit (computed from orders)
+    const openBalance = orders
+      .filter(o => !['cancelled', 'refunded'].includes(o.status))
+      .reduce((sum, o) => {
+        const bal = (parseFloat(o.total) || 0) - (parseFloat(o.amount_paid) || 0);
+        return sum + (bal > 0.01 ? bal : 0);
+      }, 0);
+
+    const availableCredit = orders
+      .filter(o => !['cancelled', 'refunded'].includes(o.status))
+      .reduce((sum, o) => {
+        const over = (parseFloat(o.amount_paid) || 0) - (parseFloat(o.total) || 0);
+        return sum + (over > 0.01 ? over : 0);
+      }, 0);
+
+    // Quotes & payment requests — run in parallel
+    const orderIds = orders.map(o => o.id);
+
+    const quotesPromise = (async () => {
+      try {
+        let quotesQuery, quotesParam;
+        if (type === 'trade') {
+          quotesQuery = `SELECT q.id, q.quote_number, q.total, q.status, q.expires_at, q.created_at,
+            (SELECT COUNT(*)::int FROM quote_items qi WHERE qi.quote_id = q.id) as item_count
+            FROM quotes q WHERE q.trade_customer_id = $1 AND q.status IN ('draft', 'sent')
+            ORDER BY q.created_at DESC`;
+          quotesParam = refId;
+        } else {
+          const email = (customer.email || '').toLowerCase();
+          quotesQuery = `SELECT q.id, q.quote_number, q.total, q.status, q.expires_at, q.created_at,
+            (SELECT COUNT(*)::int FROM quote_items qi WHERE qi.quote_id = q.id) as item_count
+            FROM quotes q WHERE LOWER(q.customer_email) = $1 AND q.status IN ('draft', 'sent')
+            ORDER BY q.created_at DESC`;
+          quotesParam = email;
+        }
+        const result = await pool.query(quotesQuery, [quotesParam]);
+        return result.rows;
+      } catch (e) { return []; }
+    })();
+
+    const paymentReqPromise = (async () => {
+      try {
+        if (!orderIds.length) return [];
+        const result = await pool.query(`
+          SELECT pr.id, pr.order_id, pr.amount, pr.status, pr.sent_to_email, pr.expires_at, pr.created_at,
+            o.order_number
+          FROM payment_requests pr
+          JOIN orders o ON o.id = pr.order_id
+          WHERE pr.order_id = ANY($1::uuid[]) AND pr.status = 'pending'
+          ORDER BY pr.created_at DESC
+        `, [orderIds]);
+        return result.rows;
+      } catch (e) { return []; }
+    })();
+
+    const [quotes, paymentRequests] = await Promise.all([quotesPromise, paymentReqPromise]);
+
+    const openQuotesCount = quotes.length;
+    const openQuotesValue = quotes.reduce((sum, q) => sum + (parseFloat(q.total) || 0), 0);
+    const pendingPaymentsCount = paymentRequests.length;
+    const pendingPaymentsTotal = paymentRequests.reduce((sum, pr) => sum + (parseFloat(pr.amount) || 0), 0);
+
+    res.json({
+      customer,
+      orders,
+      notes: notesResult.rows,
+      quotes,
+      payment_requests: paymentRequests,
+      stats: {
+        total_orders: totalOrders, total_spent: totalSpent, avg_order_value: avgOrderValue,
+        first_order_date: firstOrderDate, last_order_date: lastOrderDate,
+        open_balance: openBalance, available_credit: availableCredit,
+        open_quotes_count: openQuotesCount, open_quotes_value: openQuotesValue,
+        pending_payments_count: pendingPaymentsCount, pending_payments_total: pendingPaymentsTotal
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/customers/:id/notes — add a note
+app.post('/api/admin/customers/:id/notes', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const { customer_type, customer_ref, note } = req.body;
+    if (!customer_type || !customer_ref || !note) {
+      return res.status(400).json({ error: 'customer_type, customer_ref, and note are required' });
+    }
+    const result = await pool.query(`
+      INSERT INTO customer_notes (customer_type, customer_ref, staff_id, note)
+      VALUES ($1, $2, $3, $4) RETURNING *
+    `, [customer_type, customer_ref, req.staff.id, note.trim()]);
+
+    const newNote = result.rows[0];
+    newNote.staff_name = req.staff.first_name + ' ' + req.staff.last_name;
+    res.json({ note: newNote });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -6618,7 +8307,7 @@ app.post('/api/customer/reset-password', async (req, res) => {
 app.get('/api/customer/orders', customerAuth, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, order_number, customer_name, customer_email, status, subtotal, shipping, total,
+      `SELECT id, order_number, customer_name, customer_email, status, subtotal, shipping, total, amount_paid,
         delivery_method, shipping_method, tracking_number, shipping_carrier, shipped_at, created_at
        FROM orders WHERE customer_id = $1 ORDER BY created_at DESC`,
       [req.customer.id]
@@ -6633,14 +8322,20 @@ app.get('/api/customer/orders', customerAuth, async (req, res) => {
 app.get('/api/customer/orders/:id', customerAuth, async (req, res) => {
   try {
     const orderResult = await pool.query(
-      `SELECT * FROM orders WHERE id = $1 AND customer_id = $2`,
+      `SELECT id, order_number, customer_email, customer_name, phone,
+        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
+        delivery_method, subtotal, shipping, shipping_method, sample_shipping, total, amount_paid,
+        status, tracking_number, shipping_carrier, shipped_at, delivered_at, created_at,
+        promo_code, discount_amount
+      FROM orders WHERE id = $1 AND customer_id = $2`,
       [req.params.id, req.customer.id]
     );
     if (!orderResult.rows.length) {
       return res.status(404).json({ error: 'Order not found' });
     }
     const itemsResult = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [req.params.id]);
-    res.json({ order: orderResult.rows[0], items: itemsResult.rows });
+    const balanceInfo = await recalculateBalance(req.params.id);
+    res.json({ order: orderResult.rows[0], items: itemsResult.rows, balance: balanceInfo });
   } catch (err) {
     console.error('Customer order detail error:', err);
     res.status(500).json({ error: 'Failed to fetch order' });
@@ -6756,7 +8451,117 @@ app.get('/api/sitemap.xml', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`API running on port ${PORT}`);
-  initScheduler();
+// Startup migration: consolidate sales_reps FK to allow staff_accounts IDs
+async function runMigrations() {
+  try {
+    // Drop old FK constraints on orders.sales_rep_id and quotes.sales_rep_id
+    // so that staff_accounts IDs can be stored there
+    await pool.query(`
+      DO $$ BEGIN
+        ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_sales_rep_id_fkey;
+        ALTER TABLE quotes DROP CONSTRAINT IF EXISTS quotes_sales_rep_id_fkey;
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END $$;
+    `);
+    console.log('Migrations: FK constraints updated');
+
+    // PO enhancements: item status, revision tracking, nullable order_item_id
+    await pool.query(`
+      ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending';
+      ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;
+      ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS is_revised BOOLEAN DEFAULT false;
+    `);
+    await pool.query(`
+      DO $$ BEGIN
+        ALTER TABLE purchase_order_items ALTER COLUMN order_item_id DROP NOT NULL;
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END $$;
+    `);
+    console.log('Migrations: PO enhancements applied');
+
+    // Order balance & payments
+    await pool.query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS amount_paid DECIMAL(10,2) DEFAULT 0;
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS order_payments (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        payment_type VARCHAR(20) NOT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        stripe_payment_intent_id TEXT,
+        stripe_refund_id TEXT,
+        stripe_checkout_session_id TEXT,
+        description TEXT,
+        initiated_by UUID,
+        initiated_by_name TEXT,
+        status VARCHAR(20) DEFAULT 'completed',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_order_payments_order ON order_payments(order_id);
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS payment_requests (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        amount DECIMAL(10,2) NOT NULL,
+        stripe_checkout_session_id TEXT,
+        stripe_checkout_url TEXT,
+        status VARCHAR(20) DEFAULT 'pending',
+        sent_to_email TEXT NOT NULL,
+        sent_by UUID,
+        sent_by_name TEXT,
+        message TEXT,
+        paid_at TIMESTAMP,
+        expires_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_payment_requests_order ON payment_requests(order_id);
+    `);
+    // Backfill amount_paid for existing orders
+    await pool.query(`
+      UPDATE orders SET amount_paid = total WHERE stripe_payment_intent_id IS NOT NULL AND status NOT IN ('refunded') AND amount_paid = 0;
+    `);
+    await pool.query(`
+      UPDATE orders SET amount_paid = total - COALESCE(refund_amount, 0) WHERE status = 'refunded' AND amount_paid = 0;
+    `);
+    // Seed initial charge records
+    await pool.query(`
+      INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status)
+        SELECT id, 'charge', total, stripe_payment_intent_id, 'Original payment', 'completed'
+        FROM orders WHERE stripe_payment_intent_id IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM order_payments op WHERE op.order_id = orders.id AND op.payment_type = 'charge');
+    `);
+    // Seed existing refunds
+    await pool.query(`
+      INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, stripe_refund_id, description, initiated_by, status)
+        SELECT id, 'refund', -1*COALESCE(refund_amount,0), stripe_payment_intent_id, stripe_refund_id, 'Full refund', refunded_by, 'completed'
+        FROM orders WHERE stripe_refund_id IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM order_payments op WHERE op.order_id = orders.id AND op.payment_type = 'refund');
+    `);
+    console.log('Migrations: Order balance & payments applied');
+
+    // Customer notes table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS customer_notes (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        customer_type VARCHAR(10) NOT NULL,
+        customer_ref TEXT NOT NULL,
+        staff_id UUID REFERENCES staff_accounts(id),
+        note TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_customer_notes_ref ON customer_notes(customer_type, customer_ref);
+    `);
+    console.log('Migrations: Customer notes table applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+}
+
+runMigrations().then(() => {
+  app.listen(PORT, () => {
+    console.log(`API running on port ${PORT}`);
+    initScheduler();
+  });
 });

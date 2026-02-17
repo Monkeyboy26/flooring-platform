@@ -253,6 +253,7 @@
     .badge-shipped { background: #dbeafe; color: #2563eb; }
     .badge-delivered { background: var(--green-light); color: #15803d; }
     .badge-cancelled, .badge-declined, .badge-expired { background: var(--red-light); color: var(--red); }
+    .badge-refunded { background: #ede9fe; color: #6d28d9; }
     .badge-sent { background: #dbeafe; color: #2563eb; }
     .badge-acknowledged { background: #fef3c7; color: #d97706; }
     .badge-fulfilled { background: var(--green-light); color: #15803d; }
@@ -685,6 +686,7 @@
                   <th>Customer</th>
                   <th>Items</th>
                   <th>Total</th>
+                  <th>Method</th>
                   <th>Status</th>
                   <th>Rep</th>
                   <th>Date</th>
@@ -698,7 +700,8 @@
                     <td>{o.customer_name}</td>
                     <td>{o.item_count}</td>
                     <td>${parseFloat(o.total).toFixed(2)}</td>
-                    <td><span className={'badge badge-' + o.status}>{o.status}</span></td>
+                    <td>{o.delivery_method === 'pickup' ? <span className="badge badge-draft">Pickup</span> : o.shipping_method === 'ltl_freight' ? <span className="badge badge-shipped">LTL</span> : <span className="badge badge-active">Parcel</span>}</td>
+                    <td><span className={'badge badge-' + o.status}>{o.delivery_method === 'pickup' && o.status === 'shipped' ? 'ready' : o.delivery_method === 'pickup' && o.status === 'delivered' ? 'picked up' : o.status}</span></td>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{o.rep_name || '—'}</td>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(o.created_at).toLocaleDateString()}</td>
                     <td className="actions">
@@ -769,6 +772,7 @@
                   <th>Email</th>
                   <th>Items</th>
                   <th>Total</th>
+                  <th>Method</th>
                   <th>Status</th>
                   <th>Rep</th>
                   <th>Date</th>
@@ -783,7 +787,8 @@
                     <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{o.customer_email}</td>
                     <td>{o.item_count}</td>
                     <td>${parseFloat(o.total).toFixed(2)}</td>
-                    <td><span className={'badge badge-' + o.status}>{o.status}</span></td>
+                    <td>{o.delivery_method === 'pickup' ? <span className="badge badge-draft">Pickup</span> : o.shipping_method === 'ltl_freight' ? <span className="badge badge-shipped">LTL</span> : <span className="badge badge-active">Parcel</span>}</td>
+                    <td><span className={'badge badge-' + o.status}>{o.delivery_method === 'pickup' && o.status === 'shipped' ? 'ready' : o.delivery_method === 'pickup' && o.status === 'delivered' ? 'picked up' : o.status}</span></td>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{o.rep_name || '—'}</td>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(o.created_at).toLocaleDateString()}</td>
                     <td className="actions">
@@ -795,7 +800,7 @@
                   </tr>
                 ))}
                 {orders.length === 0 && (
-                  <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No orders found</td></tr>
+                  <tr><td colSpan="10" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No orders found</td></tr>
                 )}
               </tbody>
             </table>
@@ -821,6 +826,20 @@
       const [poUpdating, setPoUpdating] = useState(false);
       const [showTrackingForm, setShowTrackingForm] = useState(false);
       const [trackingData, setTrackingData] = useState({ tracking_number: '', carrier: '', shipped_at: new Date().toISOString().slice(0, 10) });
+      const [showDeliveryForm, setShowDeliveryForm] = useState(false);
+      const [deliveryAddress, setDeliveryAddress] = useState({ line1: '', line2: '', city: '', state: '', zip: '' });
+      const [shippingOptions, setShippingOptions] = useState(null);
+      const [deliveryUpdating, setDeliveryUpdating] = useState(false);
+      const [payments, setPayments] = useState([]);
+      const [paymentRequests, setPaymentRequests] = useState([]);
+      const [balanceInfo, setBalanceInfo] = useState(null);
+      const [showPaymentRequestModal, setShowPaymentRequestModal] = useState(false);
+      const [paymentRequestMessage, setPaymentRequestMessage] = useState('');
+      const [addingItem, setAddingItem] = useState(false);
+      const [addItemSku, setAddItemSku] = useState('');
+      const [addItemBoxes, setAddItemBoxes] = useState(1);
+      const [skuSearchResults, setSkuSearchResults] = useState([]);
+      const [skuSearching, setSkuSearching] = useState(false);
 
       const loadPOs = useCallback(() => {
         if (!editId) return;
@@ -837,6 +856,9 @@
             setOrder(data.order);
             setItems(data.items || []);
             setAdjustments(data.price_adjustments || []);
+            setPayments(data.payments || []);
+            setPaymentRequests(data.payment_requests || []);
+            setBalanceInfo(data.balance || null);
             setLoading(false);
           })
           .catch(() => setLoading(false));
@@ -865,17 +887,10 @@
         if (!confirm('Approve and send this PO to the vendor?')) return;
         setPoUpdating(true);
         try {
-          await repFetch('/api/rep/purchase-orders/' + poId + '/approve', { method: 'POST' });
-          loadPOs();
-        } catch (err) { alert(err.message); }
-        setPoUpdating(false);
-      };
-
-      const cancelPO = async (poId) => {
-        if (!confirm('Cancel this purchase order?')) return;
-        setPoUpdating(true);
-        try {
-          await repFetch('/api/rep/purchase-orders/' + poId + '/cancel', { method: 'POST' });
+          const result = await repFetch('/api/rep/purchase-orders/' + poId + '/approve', { method: 'POST' });
+          if (result.email_sent === false) {
+            alert('PO approved but email could not be sent. The vendor may not have an email on file, or SMTP is not configured.');
+          }
           loadPOs();
         } catch (err) { alert(err.message); }
         setPoUpdating(false);
@@ -921,6 +936,7 @@
           if (data.order) setOrder(data.order);
           if (data.items) setItems(data.items);
           if (data.price_adjustments) setAdjustments(data.price_adjustments);
+          if (data.balance) setBalanceInfo(data.balance);
           setEditingItem(null);
           setNewPrice('');
           setPriceReason('');
@@ -932,9 +948,13 @@
       if (!order) return <div className="loading">Order not found</div>;
 
       const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : 'boxes';
+      const isPickup = order.delivery_method === 'pickup';
       const statusFlow = { pending: 'confirmed', confirmed: 'shipped', shipped: 'delivered' };
+      const statusLabels = isPickup
+        ? { pending: 'Pending', confirmed: 'Confirmed', shipped: 'Ready for Pickup', delivered: 'Picked Up', cancelled: 'Cancelled', refunded: 'Refunded' }
+        : { pending: 'Pending', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled', refunded: 'Refunded' };
       const nextStatus = statusFlow[order.status];
-      const canCancel = order.status !== 'cancelled' && order.status !== 'delivered';
+      const canCancel = order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'refunded';
       const repInfo = JSON.parse(sessionStorage.getItem('rep_info') || '{}');
 
       return (
@@ -948,16 +968,21 @@
           <div className="form-card">
             <h3>Order Status</h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-              <span className={'badge badge-' + order.status} style={{ fontSize: '0.8125rem', padding: '0.35rem 0.85rem' }}>{order.status}</span>
+              <span className={'badge badge-' + order.status} style={{ fontSize: '0.8125rem', padding: '0.35rem 0.85rem' }}>{statusLabels[order.status] || order.status}</span>
               {!showTrackingForm && nextStatus && (
                 <button className="btn btn-primary btn-sm" onClick={() => updateStatus(nextStatus)} disabled={updating}>
-                  Mark {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}
+                  Mark {statusLabels[nextStatus] || nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}
                 </button>
               )}
               {!showTrackingForm && canCancel && (
                 <button className="btn btn-danger btn-sm" onClick={() => updateStatus('cancelled')} disabled={updating}>
                   Cancel Order
                 </button>
+              )}
+              {order.status === 'refunded' && (
+                <span className="badge badge-refunded" style={{ fontSize: '0.8125rem', padding: '0.35rem 0.85rem' }}>
+                  Refunded ${parseFloat(order.refund_amount || 0).toFixed(2)}
+                </span>
               )}
               <div style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
                 <strong>Assigned to:</strong> {order.rep_name || 'Unassigned'}
@@ -1042,8 +1067,17 @@
           <div className="form-card">
             {order.delivery_method === 'pickup' ? (
               <>
-                <h3>Store Pickup</h3>
-                <div className="order-info-grid">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0 }}>Store Pickup</h3>
+                  {['pending', 'confirmed'].includes(order.status) && (
+                    <button className="btn btn-secondary btn-sm" disabled={deliveryUpdating} onClick={() => {
+                      setDeliveryAddress({ line1: order.shipping_address_line1 || '', line2: order.shipping_address_line2 || '', city: order.shipping_city || '', state: order.shipping_state || '', zip: order.shipping_zip || '' });
+                      setShippingOptions(null);
+                      setShowDeliveryForm(true);
+                    }}>Switch to Shipping</button>
+                  )}
+                </div>
+                <div className="order-info-grid" style={{ marginTop: '0.75rem' }}>
                   <div className="order-info-item" style={{ gridColumn: '1 / -1' }}>
                     <span>
                       <strong>Roma Flooring Designs</strong><br />
@@ -1052,11 +1086,105 @@
                     </span>
                   </div>
                 </div>
+                {showDeliveryForm && (
+                  <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '6px' }}>
+                    <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--stone-700)' }}>Shipping Address</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Address Line 1 *</label>
+                        <input className="form-control" value={deliveryAddress.line1} onChange={e => setDeliveryAddress({ ...deliveryAddress, line1: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                      </div>
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Address Line 2</label>
+                        <input className="form-control" value={deliveryAddress.line2} onChange={e => setDeliveryAddress({ ...deliveryAddress, line2: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>City *</label>
+                        <input className="form-control" value={deliveryAddress.city} onChange={e => setDeliveryAddress({ ...deliveryAddress, city: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>State *</label>
+                          <input className="form-control" value={deliveryAddress.state} onChange={e => setDeliveryAddress({ ...deliveryAddress, state: e.target.value })} maxLength={2} style={{ fontSize: '0.8125rem' }} />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>ZIP *</label>
+                          <input className="form-control" value={deliveryAddress.zip} onChange={e => setDeliveryAddress({ ...deliveryAddress, zip: e.target.value })} maxLength={10} style={{ fontSize: '0.8125rem' }} />
+                        </div>
+                      </div>
+                    </div>
+                    {!shippingOptions && (
+                      <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                        <button className="btn btn-primary btn-sm" disabled={deliveryUpdating || !deliveryAddress.line1 || !deliveryAddress.city || !deliveryAddress.state || !deliveryAddress.zip} onClick={async () => {
+                          setDeliveryUpdating(true);
+                          try {
+                            const data = await repFetch('/api/rep/orders/' + editId + '/delivery-method', {
+                              method: 'PUT',
+                              body: JSON.stringify({ delivery_method: 'shipping', shipping_address: deliveryAddress })
+                            });
+                            if (data.shipping_options) setShippingOptions(data.shipping_options);
+                          } catch (err) {}
+                          setDeliveryUpdating(false);
+                        }}>{deliveryUpdating ? 'Calculating...' : 'Get Rates'}</button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => { setShowDeliveryForm(false); setShippingOptions(null); }}>Cancel</button>
+                      </div>
+                    )}
+                    {shippingOptions && (
+                      <div style={{ marginTop: '0.75rem' }}>
+                        <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.5rem', fontWeight: 600 }}>Select Shipping Rate</div>
+                        {shippingOptions.map((opt, idx) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', border: '1px solid var(--stone-200)', borderRadius: '4px', marginBottom: '0.5rem', background: '#fff' }}>
+                            <div>
+                              <strong style={{ fontSize: '0.8125rem' }}>{opt.carrier || 'Standard'}</strong>
+                              {opt.service && <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginLeft: '0.5rem' }}>{opt.service}</span>}
+                              {opt.transit_days && <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginLeft: '0.5rem' }}>({opt.transit_days} days)</span>}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              <strong>${parseFloat(opt.amount).toFixed(2)}</strong>
+                              <button className="btn btn-primary btn-sm" disabled={deliveryUpdating} onClick={async () => {
+                                setDeliveryUpdating(true);
+                                try {
+                                  const data = await repFetch('/api/rep/orders/' + editId + '/delivery-method', {
+                                    method: 'PUT',
+                                    body: JSON.stringify({ delivery_method: 'shipping', shipping_address: deliveryAddress, shipping_option_index: idx })
+                                  });
+                                  if (data.order) { setOrder(data.order); setShowDeliveryForm(false); setShippingOptions(null); }
+                                  if (data.balance) setBalanceInfo(data.balance);
+                                } catch (err) {}
+                                setDeliveryUpdating(false);
+                              }}>{deliveryUpdating ? 'Applying...' : 'Apply'}</button>
+                            </div>
+                          </div>
+                        ))}
+                        <div style={{ marginTop: '0.5rem', textAlign: 'center' }}>
+                          <button className="btn btn-secondary btn-sm" onClick={() => { setShowDeliveryForm(false); setShippingOptions(null); }}>Cancel</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             ) : (
               <>
-                <h3>Shipping Address</h3>
-                <div className="order-info-grid">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0 }}>Shipping Address</h3>
+                  {['pending', 'confirmed'].includes(order.status) && (
+                    <button className="btn btn-secondary btn-sm" disabled={deliveryUpdating} onClick={async () => {
+                      if (!confirm('Switch this order to store pickup? Shipping will be set to $0.')) return;
+                      setDeliveryUpdating(true);
+                      try {
+                        const data = await repFetch('/api/rep/orders/' + editId + '/delivery-method', {
+                          method: 'PUT',
+                          body: JSON.stringify({ delivery_method: 'pickup' })
+                        });
+                        if (data.order) setOrder(data.order);
+                        if (data.balance) setBalanceInfo(data.balance);
+                      } catch (err) {}
+                      setDeliveryUpdating(false);
+                    }}>{deliveryUpdating ? 'Updating...' : 'Switch to Pickup'}</button>
+                  )}
+                </div>
+                <div className="order-info-grid" style={{ marginTop: '0.75rem' }}>
                   <div className="order-info-item" style={{ gridColumn: '1 / -1' }}>
                     <span>
                       {order.shipping_address_line1}
@@ -1127,11 +1255,25 @@
                               <button className="btn btn-secondary btn-sm" onClick={() => { setEditingItem(null); setNewPrice(''); setPriceReason(''); }}>Cancel</button>
                             </>
                           ) : (
-                            !item.is_sample && (
-                              <button className="btn btn-secondary btn-sm" onClick={() => { setEditingItem(item.id); setNewPrice(parseFloat(item.unit_price || 0).toFixed(2)); setPriceReason(''); }}>
-                                Edit Price
-                              </button>
-                            )
+                            <div style={{ display: 'flex', gap: '0.25rem' }}>
+                              {!item.is_sample && (
+                                <button className="btn btn-secondary btn-sm" onClick={() => { setEditingItem(item.id); setNewPrice(parseFloat(item.unit_price || 0).toFixed(2)); setPriceReason(''); }}>
+                                  Edit Price
+                                </button>
+                              )}
+                              {!item.is_sample && ['pending', 'confirmed'].includes(order.status) && (
+                                <button className="btn btn-sm btn-secondary" style={{ color: '#dc2626', fontSize: '0.7rem' }}
+                                  onClick={async () => {
+                                    if (!confirm('Remove this item from the order?')) return;
+                                    try {
+                                      const data = await repFetch('/api/rep/orders/' + editId + '/items/' + item.id, { method: 'DELETE' });
+                                      if (data.order) setOrder(data.order);
+                                      if (data.items) setItems(data.items);
+                                      if (data.balance) setBalanceInfo(data.balance);
+                                    } catch (err) { alert(err.message); }
+                                  }}>Remove</button>
+                              )}
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -1174,6 +1316,64 @@
                 })}
               </tbody>
             </table>
+            {['pending', 'confirmed'].includes(order.status) && (
+              <div style={{ marginTop: '0.75rem' }}>
+                {!addingItem ? (
+                  <button className="btn btn-sm btn-secondary" onClick={() => { setAddingItem(true); setAddItemSku(''); setAddItemBoxes(1); setSkuSearchResults([]); }}>
+                    + Add Item
+                  </button>
+                ) : (
+                  <div style={{ padding: '1rem', border: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 2, minWidth: '200px' }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Search SKU</label>
+                        <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
+                          onChange={async (e) => {
+                            const q = e.target.value; setAddItemSku(q);
+                            if (q.length >= 2) {
+                              setSkuSearching(true);
+                              try {
+                                const data = await repFetch('/api/rep/skus/search?q=' + encodeURIComponent(q));
+                                setSkuSearchResults((data.results || []).map(r => ({
+                                  sku_id: r.sku_id, label: r.product_name + ' — ' + (r.variant_name || r.internal_sku), price: r.retail_price || 0
+                                })));
+                              } catch (e) {}
+                              setSkuSearching(false);
+                            } else { setSkuSearchResults([]); }
+                          }}
+                          style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                        {skuSearchResults.length > 0 && (
+                          <div style={{ border: '1px solid var(--stone-200)', maxHeight: '150px', overflow: 'auto', background: '#fff' }}>
+                            {skuSearchResults.map((r, i) => (
+                              <div key={i} style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}
+                                onClick={async () => {
+                                  try {
+                                    const data = await repFetch('/api/rep/orders/' + editId + '/add-item', {
+                                      method: 'POST', body: JSON.stringify({ sku_id: r.sku_id, num_boxes: addItemBoxes })
+                                    });
+                                    if (data.order) setOrder(data.order);
+                                    if (data.items) setItems(data.items);
+                                    if (data.balance) setBalanceInfo(data.balance);
+                                    setAddingItem(false); setSkuSearchResults([]);
+                                  } catch (err) { alert(err.message); }
+                                }}>
+                                {r.label} — ${parseFloat(r.price).toFixed(2)}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ width: '80px' }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Boxes</label>
+                        <input type="number" min="1" value={addItemBoxes} onChange={e => setAddItemBoxes(parseInt(e.target.value) || 1)}
+                          style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                      </div>
+                      <button className="btn btn-sm btn-secondary" onClick={() => setAddingItem(false)}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Purchase Orders */}
@@ -1190,21 +1390,9 @@
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       {po.status === 'draft' && (
-                        <React.Fragment>
-                          <button className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
-                            onClick={() => approvePO(po.id)} disabled={poUpdating}>
-                            Approve &amp; Send to Vendor
-                          </button>
-                          <button className="btn" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem', background: 'var(--red-light)', color: 'var(--red)' }}
-                            onClick={() => cancelPO(po.id)} disabled={poUpdating}>
-                            Cancel PO
-                          </button>
-                        </React.Fragment>
-                      )}
-                      {(po.status === 'sent' || po.status === 'acknowledged') && (
-                        <button className="btn" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem', background: 'var(--red-light)', color: 'var(--red)' }}
-                          onClick={() => cancelPO(po.id)} disabled={poUpdating}>
-                          Cancel PO
+                        <button className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
+                          onClick={() => approvePO(po.id)} disabled={poUpdating}>
+                          Approve &amp; Send to Vendor
                         </button>
                       )}
                     </div>
@@ -1281,7 +1469,7 @@
           {/* Order Totals */}
           <div className="form-card">
             <h3>Order Totals</h3>
-            <div style={{ maxWidth: '300px', marginLeft: 'auto' }}>
+            <div style={{ maxWidth: '350px', marginLeft: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem' }}>
                 <span>Subtotal</span>
                 <span>${parseFloat(order.subtotal).toFixed(2)}</span>
@@ -1307,9 +1495,121 @@
                 <span>Total</span>
                 <span>${parseFloat(order.total).toFixed(2)}</span>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem', color: 'var(--stone-500)' }}>
+                <span>Amount Paid</span>
+                <span>${parseFloat(order.amount_paid || 0).toFixed(2)}</span>
+              </div>
+              {balanceInfo && balanceInfo.balance_status === 'paid' && (
+                <div style={{ padding: '0.5rem 0.75rem', background: '#dcfce7', color: '#166534', fontSize: '0.8125rem', fontWeight: 500, textAlign: 'center', marginTop: '0.5rem' }}>
+                  Paid in Full
+                </div>
+              )}
+              {balanceInfo && balanceInfo.balance_status === 'credit' && (
+                <div style={{ padding: '0.5rem 0.75rem', background: '#dbeafe', color: '#1e40af', fontSize: '0.8125rem', fontWeight: 500, textAlign: 'center', marginTop: '0.5rem' }}>
+                  Credit Available: ${Math.abs(balanceInfo.balance).toFixed(2)}
+                </div>
+              )}
+              {balanceInfo && balanceInfo.balance_status === 'balance_due' && (
+                <div style={{ padding: '0.5rem 0.75rem', background: '#fef3c7', color: '#92400e', fontSize: '0.8125rem', fontWeight: 500, textAlign: 'center', marginTop: '0.5rem' }}>
+                  Balance Due: ${balanceInfo.balance.toFixed(2)}
+                </div>
+              )}
+              {balanceInfo && balanceInfo.balance_status === 'balance_due' && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+                  <button className="btn btn-sm" style={{ background: '#fef3c7', color: '#92400e' }}
+                    onClick={() => { setPaymentRequestMessage(''); setShowPaymentRequestModal(true); }}>
+                    Send Payment Request (${balanceInfo.balance.toFixed(2)})
+                  </button>
+                </div>
+              )}
             </div>
           </div>
+
+          {payments.length > 0 && (
+            <div className="form-card">
+              <h3>Payment History</h3>
+              <table className="rep-table" style={{ fontSize: '0.8125rem' }}>
+                <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Description</th><th>By</th></tr></thead>
+                <tbody>
+                  {payments.map(p => (
+                    <tr key={p.id}>
+                      <td>{new Date(p.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <span style={{ display: 'inline-block', padding: '2px 8px', fontSize: '0.6875rem', fontWeight: 600, background: p.payment_type === 'refund' ? '#fee2e2' : '#dcfce7', color: p.payment_type === 'refund' ? '#991b1b' : '#166534' }}>
+                          {p.payment_type === 'charge' ? 'Charge' : p.payment_type === 'refund' ? 'Refund' : 'Additional'}
+                        </span>
+                      </td>
+                      <td style={{ color: parseFloat(p.amount) < 0 ? '#dc2626' : '#16a34a', fontWeight: 500 }}>
+                        {parseFloat(p.amount) < 0 ? '-' : '+'}${Math.abs(parseFloat(p.amount)).toFixed(2)}
+                      </td>
+                      <td>{p.description || '—'}</td>
+                      <td>{p.initiated_by_name || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {paymentRequests.length > 0 && (
+            <div className="form-card">
+              <h3>Payment Requests</h3>
+              <table className="rep-table" style={{ fontSize: '0.8125rem' }}>
+                <thead><tr><th>Date</th><th>Amount</th><th>Sent To</th><th>Status</th></tr></thead>
+                <tbody>
+                  {paymentRequests.map(pr => (
+                    <tr key={pr.id}>
+                      <td>{new Date(pr.created_at).toLocaleDateString()}</td>
+                      <td>${parseFloat(pr.amount).toFixed(2)}</td>
+                      <td>{pr.sent_to_email}</td>
+                      <td>
+                        <span style={{ display: 'inline-block', padding: '2px 8px', fontSize: '0.6875rem', fontWeight: 600,
+                          background: pr.status === 'paid' ? '#dcfce7' : pr.status === 'pending' ? '#dbeafe' : '#fee2e2',
+                          color: pr.status === 'paid' ? '#166534' : pr.status === 'pending' ? '#1e40af' : '#991b1b' }}>
+                          {pr.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
+
+        {showPaymentRequestModal && (
+          <div className="modal-overlay" onClick={() => setShowPaymentRequestModal(false)}>
+            <div className="modal-box" onClick={e => e.stopPropagation()}>
+              <h3>Send Payment Request</h3>
+              <p>Send a payment link for <strong>${balanceInfo ? balanceInfo.balance.toFixed(2) : '0.00'}</strong> to <strong>{order.customer_email}</strong>.</p>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Message to Customer (optional)</label>
+                <textarea value={paymentRequestMessage} onChange={e => setPaymentRequestMessage(e.target.value)}
+                  placeholder="e.g. Additional items were added to your order..."
+                  rows={3} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)', resize: 'vertical' }} />
+              </div>
+              <div className="modal-actions">
+                <button className="btn btn-secondary" onClick={() => setShowPaymentRequestModal(false)} disabled={updating}>Cancel</button>
+                <button className="btn" style={{ background: '#fef3c7', color: '#92400e' }} disabled={updating}
+                  onClick={async () => {
+                    setUpdating(true);
+                    try {
+                      await repFetch('/api/rep/orders/' + editId + '/payment-request', {
+                        method: 'POST', body: JSON.stringify({ message: paymentRequestMessage || undefined })
+                      });
+                      setShowPaymentRequestModal(false);
+                      alert('Payment request sent to ' + order.customer_email);
+                      const refreshed = await repFetch('/api/rep/orders/' + editId);
+                      setPaymentRequests(refreshed.payment_requests || []);
+                    } catch (err) { alert(err.message); }
+                    setUpdating(false);
+                  }}>
+                  {updating ? 'Sending...' : 'Send Payment Request'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       );
     }
 

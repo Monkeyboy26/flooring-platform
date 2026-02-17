@@ -6330,6 +6330,11 @@
                             {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                           {statusBadge(order.status)}
+                          {parseFloat(order.total || 0) > parseFloat(order.amount_paid || 0) + 0.01 && (
+                            <span style={{ display: 'inline-block', padding: '2px 8px', fontSize: '0.6875rem', fontWeight: 600, background: '#fef3c7', color: '#92400e' }}>
+                              Balance Due
+                            </span>
+                          )}
                           <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>
                             ${parseFloat(order.total).toFixed(2)}
                           </span>
@@ -6383,6 +6388,18 @@
                               </div>
                             ))}
                           </div>
+
+                          {/* Balance/Credit status */}
+                          {orderDetail.balance && orderDetail.balance.balance_status === 'credit' && (
+                            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
+                              You have a credit of <strong>${Math.abs(orderDetail.balance.balance).toFixed(2)}</strong> on this order.
+                            </div>
+                          )}
+                          {orderDetail.balance && orderDetail.balance.balance_status === 'balance_due' && (
+                            <div style={{ background: '#fef3c7', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#92400e' }}>
+                              Balance due: <strong>${orderDetail.balance.balance.toFixed(2)}</strong> — check your email for a payment link.
+                            </div>
+                          )}
 
                           {/* Shipping address */}
                           {orderDetail.order.shipping_address_line1 && (

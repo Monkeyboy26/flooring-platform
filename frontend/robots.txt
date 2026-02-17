@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /checkout
+Disallow: /order-confirmation
+Disallow: /account
+Disallow: /reset-password
+Disallow: /trade/dashboard
+Disallow: /trade/bulk-order
+
+Sitemap: https://romaflooringdesigns.com/sitemap.xml
