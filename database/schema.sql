@@ -740,3 +740,129 @@ CREATE TABLE IF NOT EXISTS customer_notes (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_customer_notes_ref ON customer_notes(customer_type, customer_ref);
+
+-- ==================== Rep Notifications ====================
+
+CREATE TABLE IF NOT EXISTS rep_notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    rep_id UUID NOT NULL REFERENCES sales_reps(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT,
+    entity_type VARCHAR(30),
+    entity_id UUID,
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_rep_notifications_rep ON rep_notifications(rep_id);
+CREATE INDEX IF NOT EXISTS idx_rep_notifications_unread ON rep_notifications(rep_id, is_read) WHERE is_read = false;
+CREATE INDEX IF NOT EXISTS idx_rep_notifications_created ON rep_notifications(created_at);
+
+-- ==================== Commission Config ====================
+
+CREATE TABLE IF NOT EXISTS commission_config (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    rate DECIMAL(5,4) NOT NULL DEFAULT 0.10,
+    default_cost_ratio DECIMAL(5,4) NOT NULL DEFAULT 0.55,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+INSERT INTO commission_config (rate, default_cost_ratio)
+    SELECT 0.10, 0.55 WHERE NOT EXISTS (SELECT 1 FROM commission_config);
+
+-- ==================== Rep Commissions ====================
+
+CREATE TABLE IF NOT EXISTS rep_commissions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    rep_id UUID NOT NULL REFERENCES sales_reps(id),
+    order_total DECIMAL(10,2) NOT NULL,
+    vendor_cost DECIMAL(10,2) NOT NULL DEFAULT 0,
+    margin DECIMAL(10,2) NOT NULL DEFAULT 0,
+    commission_rate DECIMAL(5,4) NOT NULL,
+    commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    paid_at TIMESTAMP,
+    paid_by UUID,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rep_commissions_order ON rep_commissions(order_id);
+CREATE INDEX IF NOT EXISTS idx_rep_commissions_rep ON rep_commissions(rep_id);
+CREATE INDEX IF NOT EXISTS idx_rep_commissions_status ON rep_commissions(status);
+
+-- ==================== Showroom Visits ====================
+
+CREATE TABLE IF NOT EXISTS showroom_visits (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  token VARCHAR(64) UNIQUE NOT NULL,
+  rep_id UUID NOT NULL REFERENCES sales_reps(id),
+  customer_name TEXT NOT NULL,
+  customer_email TEXT,
+  customer_phone TEXT,
+  message TEXT,
+  status VARCHAR(20) DEFAULT 'draft',
+  sent_at TIMESTAMP,
+  opened_at TIMESTAMP,
+  items_carted_at TIMESTAMP,
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_showroom_visits_rep ON showroom_visits(rep_id);
+CREATE INDEX IF NOT EXISTS idx_showroom_visits_token ON showroom_visits(token);
+
+CREATE TABLE IF NOT EXISTS showroom_visit_items (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  visit_id UUID NOT NULL REFERENCES showroom_visits(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES products(id),
+  sku_id UUID REFERENCES skus(id),
+  product_name TEXT NOT NULL,
+  collection TEXT,
+  variant_name TEXT,
+  retail_price DECIMAL(10,2),
+  price_basis VARCHAR(20),
+  primary_image TEXT,
+  rep_note TEXT,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_showroom_visit_items_visit ON showroom_visit_items(visit_id);
+
+-- ==================== Sample Requests ====================
+
+CREATE TABLE IF NOT EXISTS sample_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  request_number VARCHAR(40) UNIQUE NOT NULL,
+  rep_id UUID NOT NULL REFERENCES sales_reps(id),
+  customer_name TEXT NOT NULL,
+  customer_email TEXT,
+  customer_phone TEXT,
+  shipping_address_line1 TEXT,
+  shipping_address_line2 TEXT,
+  shipping_city TEXT,
+  shipping_state TEXT,
+  shipping_zip TEXT,
+  status VARCHAR(20) DEFAULT 'requested',
+  tracking_number TEXT,
+  notes TEXT,
+  shipped_at TIMESTAMP,
+  delivered_at TIMESTAMP,
+  cancelled_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_sample_requests_rep ON sample_requests(rep_id);
+CREATE INDEX IF NOT EXISTS idx_sample_requests_status ON sample_requests(status);
+
+CREATE TABLE IF NOT EXISTS sample_request_items (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  sample_request_id UUID NOT NULL REFERENCES sample_requests(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES products(id),
+  sku_id UUID REFERENCES skus(id),
+  product_name TEXT NOT NULL,
+  collection TEXT,
+  variant_name TEXT,
+  primary_image TEXT,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_sample_request_items_request ON sample_request_items(sample_request_id);

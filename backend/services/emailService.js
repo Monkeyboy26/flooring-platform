@@ -12,6 +12,9 @@ import { generateSubscriptionDeactivatedHTML } from '../templates/subscriptionDe
 import { generateInstallationInquiryStaffHTML } from '../templates/installationInquiryStaff.js';
 import { generateInstallationInquiryConfirmationHTML } from '../templates/installationInquiryConfirmation.js';
 import { generatePasswordResetHTML } from '../templates/passwordReset.js';
+import { generateVisitRecapHTML } from '../templates/visitRecap.js';
+import { generateSampleRequestConfirmationHTML } from '../templates/sampleRequestConfirmation.js';
+import { generateSampleRequestShippedHTML } from '../templates/sampleRequestShipped.js';
 
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
@@ -472,6 +475,31 @@ export async function sendPaymentRequest({ order, amount, checkout_url, message 
 /**
  * Send payment received confirmation email.
  */
+/**
+ * Send visit recap email to customer.
+ */
+export async function sendVisitRecap(visitData) {
+  if (!transporter) {
+    console.log(`[Email] Skipping visit recap for ${visitData.customer_email} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const html = generateVisitRecapHTML(visitData);
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: visitData.customer_email,
+      replyTo: visitData.rep_email,
+      subject: 'Your Showroom Visit Recap — Roma Flooring Designs',
+      html
+    });
+    console.log(`[Email] Visit recap sent to ${visitData.customer_email}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send visit recap to ${visitData.customer_email}:`, err.message);
+    return { sent: false, error: err.message };
+  }
+}
+
 export async function sendPaymentReceived(order, amount) {
   if (!transporter) {
     console.log(`[Email] Skipping payment received for ${order.order_number} — SMTP not configured`);
@@ -506,5 +534,49 @@ export async function sendPaymentReceived(order, amount) {
     console.log(`[Email] Payment received confirmation sent to ${order.customer_email} for ${order.order_number}`);
   } catch (err) {
     console.error(`[Email] Failed to send payment received for ${order.order_number}:`, err.message);
+  }
+}
+
+/**
+ * Send sample request confirmation email to customer.
+ */
+export async function sendSampleRequestConfirmation(data) {
+  if (!transporter) {
+    console.log(`[Email] Skipping sample request confirmation for ${data.request_number} — SMTP not configured`);
+    return;
+  }
+  try {
+    const html = generateSampleRequestConfirmationHTML(data);
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: data.customer_email,
+      subject: `Sample Request Received — ${data.request_number}`,
+      html
+    });
+    console.log(`[Email] Sample request confirmation sent to ${data.customer_email} for ${data.request_number}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send sample request confirmation for ${data.request_number}:`, err.message);
+  }
+}
+
+/**
+ * Send sample request shipped email to customer.
+ */
+export async function sendSampleRequestShipped(data) {
+  if (!transporter) {
+    console.log(`[Email] Skipping sample request shipped for ${data.request_number} — SMTP not configured`);
+    return;
+  }
+  try {
+    const html = generateSampleRequestShippedHTML(data);
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: data.customer_email,
+      subject: `Your Samples Have Shipped — ${data.request_number}`,
+      html
+    });
+    console.log(`[Email] Sample request shipped sent to ${data.customer_email} for ${data.request_number}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send sample request shipped for ${data.request_number}:`, err.message);
   }
 }

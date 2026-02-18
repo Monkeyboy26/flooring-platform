@@ -209,6 +209,178 @@
       color: var(--stone-900);
     }
 
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .metric-card {
+      background: white;
+      border: 1px solid var(--stone-200);
+      padding: 1.5rem;
+    }
+    .metric-card-label {
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--stone-500);
+      margin-bottom: 0.5rem;
+    }
+    .metric-card-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+      font-weight: 400;
+      color: var(--stone-900);
+    }
+    .metric-card-sub {
+      font-size: 0.75rem;
+      color: var(--stone-400);
+      margin-top: 0.25rem;
+    }
+    .metric-change-up { color: var(--green); font-weight: 500; }
+    .metric-change-down { color: var(--red); font-weight: 500; }
+    .top-products-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .top-products-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--stone-100);
+      font-size: 0.8125rem;
+    }
+    .top-products-list li:last-child { border-bottom: none; }
+
+    /* Commission badges */
+    .badge-earned { background: var(--green-light); color: var(--green); }
+    .badge-paid { background: #dbeafe; color: #2563eb; }
+    .badge-forfeited { background: var(--red-light); color: var(--red); }
+
+    /* Timeline */
+    .timeline {
+      position: relative;
+      padding-left: 2rem;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 0.5rem;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--stone-200);
+    }
+    .timeline-item {
+      position: relative;
+      padding-bottom: 1.25rem;
+    }
+    .timeline-dot {
+      position: absolute;
+      left: -1.625rem;
+      top: 0.25rem;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--stone-400);
+    }
+    .timeline-dot-order_placed { background: var(--gold); }
+    .timeline-dot-status_change { background: #2563eb; }
+    .timeline-dot-payment { background: var(--green); }
+    .timeline-dot-sample_request { background: #8b5cf6; }
+    .timeline-dot-quote { background: #d97706; }
+    .timeline-dot-note { background: var(--stone-500); }
+    .timeline-type-badge {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      border-radius: 2px;
+      margin-right: 0.5rem;
+    }
+    .timeline-type-order_placed { background: #fef3c7; color: #92400e; }
+    .timeline-type-status_change { background: #dbeafe; color: #1e40af; }
+    .timeline-type-payment { background: var(--green-light); color: var(--green); }
+    .timeline-type-sample_request { background: #ede9fe; color: #6d28d9; }
+    .timeline-type-quote { background: #fff7ed; color: #c2410c; }
+    .timeline-type-note { background: var(--stone-100); color: var(--stone-600); }
+
+    /* Visit Product Cards */
+    .visit-product-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1rem;
+      border: 1px solid var(--stone-200);
+      background: white;
+      margin-bottom: 0.5rem;
+    }
+    .visit-product-image {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border: 1px solid var(--stone-200);
+      flex-shrink: 0;
+    }
+    .visit-product-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .visit-product-info .vp-name {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--stone-800);
+    }
+    .visit-product-info .vp-collection {
+      font-size: 0.8125rem;
+      color: var(--stone-500);
+    }
+    .visit-product-info .vp-price {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--stone-800);
+      margin-top: 0.25rem;
+    }
+    .visit-url-box {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--stone-50);
+      border: 1px solid var(--stone-200);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.8125rem;
+      color: var(--stone-600);
+      word-break: break-all;
+    }
+    .visit-url-box button {
+      flex-shrink: 0;
+    }
+    .badge-opened { background: #fef3c7; color: #d97706; }
+    .badge-carted { background: var(--green-light); color: var(--green); }
+
+    .timeline-title {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--stone-800);
+    }
+    .timeline-desc {
+      font-size: 0.8125rem;
+      color: var(--stone-500);
+      margin-top: 0.15rem;
+    }
+    .timeline-time {
+      font-size: 0.75rem;
+      color: var(--stone-400);
+      margin-top: 0.15rem;
+    }
+
     /* Tables */
     .rep-table {
       width: 100%;
@@ -259,6 +431,7 @@
     .badge-fulfilled { background: var(--green-light); color: #15803d; }
     .badge-accepted { background: #fef3c7; color: #d97706; }
     .badge-converted { background: var(--green-light); color: var(--green); }
+    .badge-requested { background: #fef3c7; color: #d97706; }
 
     /* Forms */
     .form-card {
@@ -436,6 +609,162 @@
     }
     .price-history-entry:last-child { border-bottom: none; }
 
+    /* Notification bell */
+    .notification-bell {
+      position: relative;
+      cursor: pointer;
+      padding: 0.5rem;
+      margin: 0 1rem;
+      color: var(--stone-400);
+      transition: color 0.15s;
+    }
+    .notification-bell:hover { color: white; }
+    .notification-bell svg { width: 20px; height: 20px; }
+    .notification-badge {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      background: var(--red);
+      color: white;
+      font-size: 0.6rem;
+      font-weight: 700;
+      min-width: 16px;
+      height: 16px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+    .notification-dropdown {
+      position: absolute;
+      bottom: 100%;
+      left: 0;
+      width: 360px;
+      max-height: 480px;
+      background: white;
+      border: 1px solid var(--stone-200);
+      box-shadow: 0 -8px 24px rgba(0,0,0,0.15);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 0.5rem;
+    }
+    .notification-dropdown-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--stone-200);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--stone-600);
+    }
+    .notification-dropdown-list {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 380px;
+    }
+    .notification-item {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--stone-100);
+      cursor: pointer;
+      transition: background 0.1s;
+      font-size: 0.8125rem;
+    }
+    .notification-item:hover { background: var(--stone-50); }
+    .notification-item.unread { background: #fffbeb; }
+    .notification-item-title { font-weight: 500; color: var(--stone-800); }
+    .notification-item-message { color: var(--stone-500); font-size: 0.75rem; margin-top: 0.2rem; }
+    .notification-item-time { color: var(--stone-400); font-size: 0.6875rem; margin-top: 0.2rem; }
+
+    /* Catalog grid */
+    .cost-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8125rem;
+      color: var(--stone-600);
+      cursor: pointer;
+      user-select: none;
+    }
+    .cost-toggle-track {
+      width: 36px;
+      height: 20px;
+      border-radius: 10px;
+      background: var(--stone-300);
+      position: relative;
+      transition: background 0.2s;
+    }
+    .cost-toggle-track.active {
+      background: var(--gold);
+    }
+    .cost-toggle-track::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.2s;
+    }
+    .cost-toggle-track.active::after {
+      transform: translateX(16px);
+    }
+    .catalog-image {
+      width: 48px;
+      height: 48px;
+      object-fit: cover;
+      border: 1px solid var(--stone-200);
+      background: var(--stone-100);
+    }
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .pagination span {
+      font-size: 0.8125rem;
+      color: var(--stone-500);
+    }
+
+    /* Product detail media */
+    .product-media-grid {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .product-media-main {
+      width: 400px;
+      max-width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      border: 1px solid var(--stone-200);
+      background: var(--stone-100);
+    }
+    .product-media-thumbs {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      overflow-y: auto;
+      max-height: 400px;
+    }
+    .product-media-thumb {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border: 2px solid transparent;
+      cursor: pointer;
+      background: var(--stone-100);
+    }
+    .product-media-thumb.active { border-color: var(--gold); }
+
     /* Product search results */
     .search-results {
       position: absolute;
@@ -580,26 +909,547 @@
       );
     }
 
+    // ========== RepCustomersListView ==========
+    function RepCustomersListView({ navigate }) {
+      const [customers, setCustomers] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [searchInput, setSearchInput] = useState('');
+      const [searchTerm, setSearchTerm] = useState('');
+      const [typeFilter, setTypeFilter] = useState('all');
+      const [sortCol, setSortCol] = useState('last_order');
+      const [sortDir, setSortDir] = useState('desc');
+      const [page, setPage] = useState(1);
+      const [total, setTotal] = useState(0);
+      const limit = 50;
+
+      const load = useCallback(() => {
+        setLoading(true);
+        let url = '/api/rep/customers?page=' + page + '&limit=' + limit + '&sort=' + sortCol + '&dir=' + sortDir + '&type=' + typeFilter;
+        if (searchTerm) url += '&search=' + encodeURIComponent(searchTerm);
+        repFetch(url)
+          .then(data => {
+            setCustomers(data.customers || []);
+            setTotal(data.total || 0);
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      }, [page, sortCol, sortDir, typeFilter, searchTerm]);
+
+      useEffect(load, [load]);
+
+      const handleSort = (col) => {
+        if (sortCol === col) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); }
+        else { setSortCol(col); setSortDir('desc'); }
+        setPage(1);
+      };
+
+      const handleSearch = (e) => {
+        e.preventDefault();
+        setSearchTerm(searchInput);
+        setPage(1);
+      };
+
+      const totalPages = Math.ceil(total / limit) || 1;
+
+      const typeBadge = (t) => {
+        if (t === 'retail') return <span className="badge badge-active">Retail</span>;
+        if (t === 'trade') return <span className="badge badge-shipped">Trade</span>;
+        return <span className="badge badge-draft">Guest</span>;
+      };
+
+      const sortIcon = (col) => sortCol === col ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : '';
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Customers</h1>
+            <span style={{ fontSize: '0.875rem', color: 'var(--stone-400)', marginLeft: '1rem' }}>{total} total</span>
+          </div>
+          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', alignItems: 'center' }}>
+            <input
+              type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)}
+              placeholder="Search name, email, phone, company..."
+              style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', width: '300px' }}
+            />
+            <button type="submit" className="btn btn-secondary btn-sm">Search</button>
+            {searchTerm && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSearchInput(''); setSearchTerm(''); setPage(1); }}>Clear</button>}
+            <select
+              value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
+              style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }}
+            >
+              <option value="all">All Types</option>
+              <option value="retail">Retail</option>
+              <option value="guest">Guest</option>
+              <option value="trade">Trade</option>
+            </select>
+            <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>{customers.length} shown</span>
+          </form>
+          {loading ? <div className="loading">Loading customers...</div> : (
+            <table className="rep-table">
+              <thead>
+                <tr>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('name')}>Name{sortIcon('name')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('email')}>Email{sortIcon('email')}</th>
+                  <th>Phone</th>
+                  <th>Type</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('orders')}>Orders{sortIcon('orders')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('spent')}>Total Spent{sortIcon('spent')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('last_order')}>Last Order{sortIcon('last_order')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('created')}>Created{sortIcon('created')}</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {customers.map(c => (
+                  <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate('customer-detail', c.id)}>
+                    <td style={{ fontWeight: 500 }}>
+                      {c.name || '\u2014'}
+                      {c.company_name ? <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)' }}>{c.company_name}</div> : null}
+                    </td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{c.email}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{c.phone || '\u2014'}</td>
+                    <td>{typeBadge(c.customer_type)}</td>
+                    <td>{c.order_count}</td>
+                    <td>${(parseFloat(c.total_spent) || 0).toFixed(2)}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{c.last_order_date ? new Date(c.last_order_date).toLocaleDateString() : '\u2014'}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(c.created_at).toLocaleDateString()}</td>
+                    <td className="actions" onClick={e => e.stopPropagation()}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => navigate('customer-detail', c.id)}>View</button>
+                    </td>
+                  </tr>
+                ))}
+                {customers.length === 0 && (
+                  <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No customers found</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', marginTop: '1rem' }}>
+              <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</button>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>Page {page} of {totalPages}</span>
+              <button className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== RepCustomerDetailView ==========
+    function RepCustomerDetailView({ navigate, editId }) {
+      const [customer, setCustomer] = useState(null);
+      const [orders, setOrders] = useState([]);
+      const [notes, setNotes] = useState([]);
+      const [stats, setStats] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [quotes, setQuotes] = useState([]);
+      const [paymentRequests, setPaymentRequests] = useState([]);
+      const [newNote, setNewNote] = useState('');
+      const [addingNote, setAddingNote] = useState(false);
+      const [timeline, setTimeline] = useState([]);
+      const [timelineLoading, setTimelineLoading] = useState(false);
+      const [showTimeline, setShowTimeline] = useState(false);
+
+      // Parse the composite ID: retail_UUID, trade_UUID, guest_email
+      const parseId = (compositeId) => {
+        if (!compositeId) return { type: null, ref: null };
+        const idx = compositeId.indexOf('_');
+        if (idx === -1) return { type: null, ref: null };
+        const type = compositeId.substring(0, idx);
+        const ref = compositeId.substring(idx + 1);
+        return { type, ref };
+      };
+
+      const { type, ref } = parseId(editId);
+
+      useEffect(() => {
+        if (!type || !ref) return;
+        setLoading(true);
+        repFetch('/api/rep/customers/' + encodeURIComponent(ref) + '?type=' + type)
+          .then(data => {
+            setCustomer(data.customer);
+            setOrders(data.orders || []);
+            setNotes(data.notes || []);
+            setQuotes(data.quotes || []);
+            setPaymentRequests(data.payment_requests || []);
+            setStats(data.stats || {});
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      }, [editId]);
+
+      const addNote = () => {
+        if (!newNote.trim()) return;
+        setAddingNote(true);
+        repFetch('/api/rep/customers/' + encodeURIComponent(ref) + '/notes', {
+          method: 'POST',
+          body: JSON.stringify({ customer_type: type, customer_ref: ref, note: newNote.trim() })
+        })
+          .then(data => {
+            setNotes(prev => [data.note, ...prev]);
+            setNewNote('');
+            setAddingNote(false);
+          })
+          .catch(() => setAddingNote(false));
+      };
+
+      const loadTimeline = () => {
+        if (showTimeline) { setShowTimeline(false); return; }
+        if (timeline.length > 0) { setShowTimeline(true); return; }
+        setTimelineLoading(true);
+        setShowTimeline(true);
+        repFetch('/api/rep/customers/' + encodeURIComponent(ref) + '/timeline?type=' + type)
+          .then(data => { setTimeline(data.timeline || []); setTimelineLoading(false); })
+          .catch(() => setTimelineLoading(false));
+      };
+
+      const timelineTypeLabel = { order_placed: 'Order', status_change: 'Status', payment: 'Payment', sample_request: 'Sample', quote: 'Quote', note: 'Note' };
+
+      const pendingPaymentOrderIds = new Set(paymentRequests.map(pr => pr.order_id));
+
+      if (loading) return <div className="loading">Loading customer...</div>;
+      if (!customer) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--stone-400)' }}>Customer not found</div>;
+
+      const typeBadge = (t) => {
+        if (t === 'retail') return <span className="badge badge-active">Retail</span>;
+        if (t === 'trade') return <span className="badge badge-shipped">Trade</span>;
+        return <span className="badge badge-draft">Guest</span>;
+      };
+
+      const statusBadge = (s) => <span className={'badge badge-' + s}>{s}</span>;
+
+      const statCard = (label, value, extraStyle) => (
+        <div style={Object.assign({ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem', flex: 1, minWidth: '140px' }, extraStyle || {})}>
+          <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>{label}</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 500, fontFamily: "'Cormorant Garamond', serif" }}>{value}</div>
+        </div>
+      );
+
+      return (
+        <div>
+          {/* Header */}
+          <div className="content-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => navigate('customers')}>{'\u2190'} Back</button>
+              <h1>{customer.name || customer.email}</h1>
+              {typeBadge(customer.customer_type)}
+            </div>
+          </div>
+
+          {/* Stats row 1 — Order stats */}
+          {stats && (
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+              {statCard('Total Orders', stats.total_orders || 0)}
+              {statCard('Total Spent', '$' + (parseFloat(stats.total_spent) || 0).toFixed(2))}
+              {statCard('Avg Order', '$' + (parseFloat(stats.avg_order_value) || 0).toFixed(2))}
+              {statCard('First Order', stats.first_order_date ? new Date(stats.first_order_date).toLocaleDateString() : '\u2014')}
+              {statCard('Last Order', stats.last_order_date ? new Date(stats.last_order_date).toLocaleDateString() : '\u2014')}
+            </div>
+          )}
+
+          {/* Stats row 2 — Financial stats */}
+          {stats && (
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+              {statCard('Open Balance', '$' + (parseFloat(stats.open_balance) || 0).toFixed(2),
+                (parseFloat(stats.open_balance) || 0) > 0 ? { background: '#fef2f2', borderColor: '#fecaca' } : null)}
+              {statCard('Available Credit', '$' + (parseFloat(stats.available_credit) || 0).toFixed(2),
+                (parseFloat(stats.available_credit) || 0) > 0 ? { background: '#f0fdf4', borderColor: '#bbf7d0' } : null)}
+              {statCard('Open Quotes', (stats.open_quotes_count || 0) + ' ($' + (parseFloat(stats.open_quotes_value) || 0).toFixed(2) + ')')}
+              {statCard('Pending Payments', (stats.pending_payments_count || 0) + ' ($' + (parseFloat(stats.pending_payments_total) || 0).toFixed(2) + ')')}
+              {customer.customer_type === 'trade'
+                ? statCard('Lifetime Spend', '$' + (parseFloat(customer.total_spend) || 0).toFixed(2))
+                : <div style={{ flex: 1, minWidth: '140px' }} />}
+            </div>
+          )}
+
+          {/* Customer Information */}
+          <div className="form-card" style={{ marginBottom: '1.5rem' }}>
+            <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 600 }}>Customer Information</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Name</div>
+                  <div>{customer.name || '\u2014'}</div>
+                </div>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Email</div>
+                  <div>{customer.email || '\u2014'}</div>
+                </div>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Phone</div>
+                  <div>{customer.phone || '\u2014'}</div>
+                </div>
+              </div>
+              <div>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Address</div>
+                  <div>
+                    {customer.address_line1 ? (
+                      <>
+                        {customer.address_line1}
+                        {customer.address_line2 && <><br />{customer.address_line2}</>}
+                        <br />
+                        {[customer.city, customer.state, customer.zip].filter(Boolean).join(', ')}
+                      </>
+                    ) : '\u2014'}
+                  </div>
+                </div>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Customer Since</div>
+                  <div>{customer.created_at ? new Date(customer.created_at).toLocaleDateString() : '\u2014'}</div>
+                </div>
+                {/* Trade-specific fields */}
+                {customer.customer_type === 'trade' && (
+                  <>
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Company</div>
+                      <div>{customer.company_name || '\u2014'}</div>
+                    </div>
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Tier / Status</div>
+                      <div>
+                        {(customer.tier_name || 'No tier') + ' \u2022 '}
+                        <span className={'badge badge-' + (customer.status === 'approved' ? 'active' : customer.status === 'pending' ? 'pending' : 'draft')}>{customer.status || 'unknown'}</span>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Subscription</div>
+                      <div>{(customer.subscription_status || 'none') + (customer.subscription_expires_at ? ' (expires ' + new Date(customer.subscription_expires_at).toLocaleDateString() + ')' : '')}</div>
+                    </div>
+                    {customer.rep_name && (
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Assigned Rep</div>
+                        <div>{customer.rep_name}</div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Order History */}
+          <div className="form-card" style={{ marginBottom: '1.5rem' }}>
+            <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 600 }}>Order History ({orders.length})</h3>
+            {orders.length === 0 ? (
+              <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--stone-400)' }}>No orders yet</div>
+            ) : (
+              <table className="rep-table">
+                <thead>
+                  <tr>
+                    <th>Order #</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                    <th>Paid</th>
+                    <th>Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map(o => (
+                    <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => navigate('order-detail', o.id)}>
+                      <td style={{ fontWeight: 500 }}>{o.order_number}</td>
+                      <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(o.created_at).toLocaleDateString()}</td>
+                      <td>{statusBadge(o.status)}</td>
+                      <td>{o.item_count || '\u2014'}</td>
+                      <td>${(parseFloat(o.total) || 0).toFixed(2)}</td>
+                      <td>${(parseFloat(o.amount_paid) || 0).toFixed(2)}</td>
+                      <td>
+                        ${((parseFloat(o.total) || 0) - (parseFloat(o.amount_paid) || 0)).toFixed(2)}
+                        {pendingPaymentOrderIds.has(o.id) && (
+                          <span style={{ marginLeft: '0.5rem', fontSize: '0.625rem', padding: '0.125rem 0.375rem', background: '#fef3c7', color: '#92400e', borderRadius: '3px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                            Payment Requested
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Activity Timeline */}
+          <div className="form-card" style={{ marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showTimeline ? '1rem' : 0 }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Activity Timeline</h3>
+              <button className="btn btn-secondary btn-sm" onClick={loadTimeline}>
+                {timelineLoading ? 'Loading...' : showTimeline ? 'Hide Timeline' : 'Show Timeline'}
+              </button>
+            </div>
+            {showTimeline && !timelineLoading && (
+              timeline.length === 0 ? (
+                <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--stone-400)' }}>No activity found</div>
+              ) : (
+                <div className="timeline">
+                  {timeline.map((evt, i) => (
+                    <div className="timeline-item" key={i}
+                      style={{ cursor: evt.entity_type === 'order' || evt.entity_type === 'quote' ? 'pointer' : 'default' }}
+                      onClick={() => {
+                        if (evt.entity_type === 'order') navigate('order-detail', evt.entity_id);
+                        else if (evt.entity_type === 'quote') navigate('quote-edit', evt.entity_id);
+                      }}>
+                      <div className={'timeline-dot timeline-dot-' + evt.event_type}></div>
+                      <div>
+                        <span className={'timeline-type-badge timeline-type-' + evt.event_type}>
+                          {timelineTypeLabel[evt.event_type] || evt.event_type}
+                        </span>
+                        <span className="timeline-title">{evt.title}</span>
+                        {evt.description && <div className="timeline-desc">{evt.description}</div>}
+                        <div className="timeline-time">{new Date(evt.timestamp).toLocaleString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
+
+          {/* Notes */}
+          <div className="form-card">
+            <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 600 }}>Notes ({notes.length})</h3>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+              <textarea
+                value={newNote} onChange={e => setNewNote(e.target.value)}
+                placeholder="Add a note about this customer..."
+                rows={2}
+                style={{ flex: 1, padding: '0.5rem 0.75rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: "'Inter', sans-serif", resize: 'vertical' }}
+              />
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={addNote}
+                disabled={addingNote || !newNote.trim()}
+                style={{ alignSelf: 'flex-end' }}
+              >{addingNote ? 'Adding...' : 'Add Note'}</button>
+            </div>
+            {notes.length === 0 ? (
+              <div style={{ padding: '0.5rem', textAlign: 'center', color: 'var(--stone-400)', fontSize: '0.8125rem' }}>No notes yet</div>
+            ) : (
+              notes.map(n => (
+                <div key={n.id} style={{ padding: '0.75rem', borderBottom: '1px solid var(--stone-100)', fontSize: '0.875rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                    <span style={{ fontWeight: 500, fontSize: '0.8125rem' }}>{n.staff_name || 'Staff'}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--stone-400)' }}>{new Date(n.created_at).toLocaleString()}</span>
+                  </div>
+                  <div style={{ color: 'var(--stone-600)', whiteSpace: 'pre-wrap' }}>{n.note}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      );
+    }
+
     // ========== RepLayout ==========
     function RepLayout({ onLogout }) {
       const [view, setView] = useState('dashboard');
       const [editId, setEditId] = useState(null);
+      const [unreadCount, setUnreadCount] = useState(0);
+      const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+      const [notifList, setNotifList] = useState([]);
+      const [notifLoading, setNotifLoading] = useState(false);
+      const [showCost, setShowCost] = useState(true);
       const repInfo = JSON.parse(sessionStorage.getItem('rep_info') || '{}');
+      const notifRef = useRef(null);
 
       const navigate = (v, id) => {
         setView(v);
         setEditId(id || null);
         window.scrollTo(0, 0);
+        setShowNotifDropdown(false);
+      };
+
+      // Poll unread count every 45 seconds
+      const pollNotifCount = useCallback(() => {
+        repFetch('/api/rep/notifications/count')
+          .then(d => setUnreadCount(d.unread_count || 0))
+          .catch(() => {});
+      }, []);
+
+      useEffect(() => {
+        pollNotifCount();
+        const interval = setInterval(pollNotifCount, 45000);
+        return () => clearInterval(interval);
+      }, [pollNotifCount]);
+
+      // Close dropdown on outside click
+      useEffect(() => {
+        const handler = (e) => {
+          if (notifRef.current && !notifRef.current.contains(e.target)) {
+            setShowNotifDropdown(false);
+          }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+      }, []);
+
+      const openNotifDropdown = () => {
+        if (showNotifDropdown) { setShowNotifDropdown(false); return; }
+        setShowNotifDropdown(true);
+        setNotifLoading(true);
+        repFetch('/api/rep/notifications?limit=15')
+          .then(d => { setNotifList(d.notifications || []); setUnreadCount(d.unread_count || 0); setNotifLoading(false); })
+          .catch(() => setNotifLoading(false));
+      };
+
+      const markAllRead = () => {
+        repFetch('/api/rep/notifications/read-all', { method: 'PUT' })
+          .then(() => {
+            setUnreadCount(0);
+            setNotifList(prev => prev.map(n => ({ ...n, is_read: true })));
+          })
+          .catch(() => {});
+      };
+
+      const handleNotifClick = (n) => {
+        if (!n.is_read) {
+          repFetch('/api/rep/notifications/' + n.id + '/read', { method: 'PUT' }).catch(() => {});
+          setNotifList(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x));
+          setUnreadCount(prev => Math.max(0, prev - 1));
+        }
+        if (n.entity_type === 'order' && n.entity_id) {
+          navigate('order-detail', n.entity_id);
+        } else if (n.entity_type === 'quote' && n.entity_id) {
+          navigate('quote-edit', n.entity_id);
+        } else {
+          setShowNotifDropdown(false);
+        }
+      };
+
+      const timeAgo = (dateStr) => {
+        const now = new Date();
+        const d = new Date(dateStr);
+        const diffMs = now - d;
+        const mins = Math.floor(diffMs / 60000);
+        if (mins < 1) return 'just now';
+        if (mins < 60) return mins + 'm ago';
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return hours + 'h ago';
+        const days = Math.floor(hours / 24);
+        if (days < 7) return days + 'd ago';
+        return d.toLocaleDateString();
       };
 
       const navItems = [
         { key: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4' },
+        { key: 'catalog', label: 'Catalog', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
         { key: 'orders', label: 'Orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
         { key: 'quotes', label: 'Quotes', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+        { key: 'customers', label: 'Customers', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+        { key: 'commissions', label: 'Commissions', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+        { key: 'visits', label: 'Visits', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+        { key: 'samples', label: 'Samples', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
       ];
 
-      const activeBase = view.split('-')[0] === 'order' ? 'orders' :
-                          view.split('-')[0] === 'quote' ? 'quotes' : view;
+      const activeBase = view === 'commissions' ? 'commissions' :
+                          view === 'visits' || view === 'visit-create' || view === 'visit-detail' ? 'visits' :
+                          view === 'samples' || view === 'sample-create' || view === 'sample-detail' ? 'samples' :
+                          view.split('-')[0] === 'product' ? 'catalog' :
+                          view === 'catalog' ? 'catalog' :
+                          view.split('-')[0] === 'order' ? 'orders' :
+                          view.split('-')[0] === 'quote' ? 'quotes' :
+                          view.split('-')[0] === 'customer' ? 'customers' : view;
 
       return (
         <div className="rep-layout">
@@ -621,7 +1471,43 @@
               ))}
             </div>
             <div className="sidebar-logout">
-              <div className="sidebar-rep-name">{repInfo.first_name} {repInfo.last_name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className="sidebar-rep-name">{repInfo.first_name} {repInfo.last_name}</div>
+                <div className="notification-bell" ref={notifRef} onClick={openNotifDropdown}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  {unreadCount > 0 && <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+                  {showNotifDropdown && (
+                    <div className="notification-dropdown" onClick={e => e.stopPropagation()}>
+                      <div className="notification-dropdown-header">
+                        <span>Notifications</span>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          {unreadCount > 0 && (
+                            <button className="btn btn-sm btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem', textTransform: 'none', letterSpacing: 0 }}
+                              onClick={markAllRead}>Mark all read</button>
+                          )}
+                          <button className="btn btn-sm btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem', textTransform: 'none', letterSpacing: 0 }}
+                            onClick={() => navigate('notifications')}>View All</button>
+                        </div>
+                      </div>
+                      <div className="notification-dropdown-list">
+                        {notifLoading ? (
+                          <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--stone-400)', fontSize: '0.8125rem' }}>Loading...</div>
+                        ) : notifList.length === 0 ? (
+                          <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--stone-400)', fontSize: '0.8125rem' }}>No notifications</div>
+                        ) : notifList.map(n => (
+                          <div key={n.id} className={'notification-item' + (n.is_read ? '' : ' unread')} onClick={() => handleNotifClick(n)}>
+                            <div className="notification-item-title">{n.title}</div>
+                            {n.message && <div className="notification-item-message">{n.message}</div>}
+                            <div className="notification-item-time">{timeAgo(n.created_at)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="sidebar-item" onClick={onLogout}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -632,11 +1518,1694 @@
           </div>
           <div className="rep-content">
             {view === 'dashboard' && <RepDashboardView navigate={navigate} />}
+            {view === 'catalog' && <RepCatalogView navigate={navigate} showCost={showCost} setShowCost={setShowCost} />}
+            {view === 'product-detail' && <RepProductDetailView navigate={navigate} editId={editId} showCost={showCost} setShowCost={setShowCost} />}
             {view === 'orders' && <RepOrdersListView navigate={navigate} />}
             {view === 'order-detail' && <RepOrderDetailView navigate={navigate} editId={editId} />}
+            {view === 'order-create' && <RepCreateOrderView navigate={navigate} />}
             {view === 'quotes' && <RepQuotesListView navigate={navigate} />}
             {view === 'quote-create' && <RepQuoteFormView navigate={navigate} />}
             {view === 'quote-edit' && <RepQuoteFormView navigate={navigate} editId={editId} />}
+            {view === 'customers' && <RepCustomersListView navigate={navigate} />}
+            {view === 'customer-detail' && <RepCustomerDetailView navigate={navigate} editId={editId} />}
+            {view === 'commissions' && <RepCommissionsView navigate={navigate} />}
+            {view === 'visits' && <RepVisitsListView navigate={navigate} />}
+            {view === 'visit-create' && <RepVisitBuilderView navigate={navigate} />}
+            {view === 'visit-detail' && <RepVisitDetailView navigate={navigate} editId={editId} />}
+            {view === 'samples' && <RepSampleRequestsListView navigate={navigate} />}
+            {view === 'sample-create' && <RepSampleRequestCreateView navigate={navigate} />}
+            {view === 'sample-detail' && <RepSampleRequestDetailView navigate={navigate} editId={editId} />}
+            {view === 'notifications' && <RepNotificationsListView navigate={navigate} />}
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepCatalogView ==========
+    function RepCatalogView({ navigate, showCost, setShowCost }) {
+      const [products, setProducts] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [search, setSearch] = useState('');
+      const [category, setCategory] = useState('');
+      const [categories, setCategories] = useState([]);
+      const [page, setPage] = useState(1);
+      const [total, setTotal] = useState(0);
+      const limit = 30;
+
+      useEffect(() => {
+        fetch(API + '/api/categories').then(r => r.json()).then(d => setCategories(d.categories || [])).catch(() => {});
+      }, []);
+
+      const load = useCallback(() => {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (search) params.set('search', search);
+        if (category) params.set('category', category);
+        params.set('page', page);
+        params.set('limit', limit);
+        repFetch('/api/rep/products?' + params.toString())
+          .then(d => { setProducts(d.products || []); setTotal(d.total || 0); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, [search, category, page]);
+
+      useEffect(load, [load]);
+
+      const totalPages = Math.ceil(total / limit) || 1;
+
+      const stockBadge = (s) => {
+        if (s === 'in_stock') return <span className="badge badge-active">In Stock</span>;
+        if (s === 'low_stock') return <span className="badge badge-pending">Low Stock</span>;
+        if (s === 'out_of_stock') return <span className="badge badge-cancelled">Out of Stock</span>;
+        return <span className="badge badge-draft">Unknown</span>;
+      };
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Product Catalog</h1>
+            <span style={{ fontSize: '0.875rem', color: 'var(--stone-400)' }}>{total} products</span>
+          </div>
+          <div className="filter-bar">
+            <input type="text" placeholder="Search products..." value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }} />
+            <select value={category} onChange={e => { setCategory(e.target.value); setPage(1); }}>
+              <option value="">All Categories</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.slug}>{c.name}</option>
+              ))}
+            </select>
+            <label className="cost-toggle" onClick={() => setShowCost(s => !s)}>
+              <div className={'cost-toggle-track' + (showCost ? ' active' : '')}></div>
+              Show Cost
+            </label>
+            <span className="filter-count">{products.length} shown</span>
+          </div>
+          {loading ? <div className="loading">Loading products...</div> : (
+            <table className="rep-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '60px' }}></th>
+                  <th>Product</th>
+                  <th>Collection</th>
+                  <th>Vendor</th>
+                  <th>Retail</th>
+                  {showCost && <th>Cost</th>}
+                  {showCost && <th>Margin%</th>}
+                  <th>Stock</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map(p => (
+                  <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => navigate('product-detail', p.id)}>
+                    <td>
+                      {p.primary_image ? (
+                        <img src={p.primary_image} alt="" className="catalog-image" />
+                      ) : (
+                        <div className="catalog-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--stone-400)', fontSize: '0.6rem' }}>No img</div>
+                      )}
+                    </td>
+                    <td style={{ fontWeight: 500 }}>{p.name}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{p.collection || '\u2014'}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{p.vendor_name}</td>
+                    <td>{p.price ? '$' + parseFloat(p.price).toFixed(2) : '\u2014'}</td>
+                    {showCost && <td>{p.cost ? '$' + parseFloat(p.cost).toFixed(2) : '\u2014'}</td>}
+                    {showCost && <td style={{ color: p.margin_pct <= 0 ? 'var(--red)' : 'inherit', fontWeight: p.margin_pct <= 0 ? 600 : 400 }}>
+                      {p.price ? p.margin_pct.toFixed(1) + '%' : '\u2014'}
+                    </td>}
+                    <td>{stockBadge(p.stock_status)}</td>
+                    <td className="actions" onClick={e => e.stopPropagation()}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => navigate('product-detail', p.id)}>View</button>
+                    </td>
+                  </tr>
+                ))}
+                {products.length === 0 && (
+                  <tr><td colSpan={showCost ? 9 : 7} style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No products found</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</button>
+              <span>Page {page} of {totalPages}</span>
+              <button className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== RepProductDetailView ==========
+    function RepProductDetailView({ navigate, editId, showCost, setShowCost }) {
+      const [product, setProduct] = useState(null);
+      const [skus, setSkus] = useState([]);
+      const [media, setMedia] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [selectedImage, setSelectedImage] = useState(null);
+
+      useEffect(() => {
+        if (!editId) return;
+        setLoading(true);
+        repFetch('/api/rep/products/' + editId)
+          .then(d => {
+            setProduct(d.product);
+            setSkus(d.skus || []);
+            setMedia(d.media || []);
+            const primary = (d.media || []).find(m => m.asset_type === 'primary');
+            if (primary) setSelectedImage(primary.url);
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      }, [editId]);
+
+      if (loading) return <div className="loading">Loading product...</div>;
+      if (!product) return <div className="loading">Product not found</div>;
+
+      const stockBadge = (s) => {
+        if (s === 'in_stock') return <span className="badge badge-active">In Stock</span>;
+        if (s === 'low_stock') return <span className="badge badge-pending">Low Stock</span>;
+        if (s === 'out_of_stock') return <span className="badge badge-cancelled">Out of Stock</span>;
+        return <span className="badge badge-draft">Unknown</span>;
+      };
+
+      return (
+        <div>
+          <div className="content-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => navigate('catalog')}>{'\u2190'} Back to Catalog</button>
+              <h1>{product.name}</h1>
+            </div>
+          </div>
+
+          {/* Product Header Card */}
+          <div className="form-card">
+            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+              {/* Media */}
+              <div>
+                {selectedImage ? (
+                  <div className="product-media-grid">
+                    <img src={selectedImage} alt="" className="product-media-main" />
+                    {media.length > 1 && (
+                      <div className="product-media-thumbs">
+                        {media.map(m => (
+                          <img key={m.id} src={m.url} alt="" className={'product-media-thumb' + (m.url === selectedImage ? ' active' : '')}
+                            onClick={() => setSelectedImage(m.url)} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ width: '300px', height: '300px', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--stone-400)' }}>No images</div>
+                )}
+              </div>
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: '280px' }}>
+                <div className="order-info-grid">
+                  <div className="order-info-item">
+                    <label>Collection</label>
+                    <span>{product.collection || '\u2014'}</span>
+                  </div>
+                  <div className="order-info-item">
+                    <label>Vendor</label>
+                    <span>{product.vendor_name}</span>
+                  </div>
+                  <div className="order-info-item">
+                    <label>Category</label>
+                    <span>{product.category_name || '\u2014'}</span>
+                  </div>
+                  <div className="order-info-item">
+                    <label>Status</label>
+                    <span className={'badge badge-' + product.status}>{product.status}</span>
+                  </div>
+                </div>
+                {product.description_short && (
+                  <div style={{ marginTop: '1rem', fontSize: '0.875rem', color: 'var(--stone-600)', lineHeight: 1.6 }}>{product.description_short}</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* SKU Table */}
+          <div className="form-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h3 style={{ margin: 0 }}>SKUs ({skus.length})</h3>
+              <label className="cost-toggle" onClick={() => setShowCost(s => !s)}>
+                <div className={'cost-toggle-track' + (showCost ? ' active' : '')}></div>
+                Show Cost
+              </label>
+            </div>
+            <table className="rep-table" style={{ fontSize: '0.8125rem' }}>
+              <thead>
+                <tr>
+                  <th>Variant</th>
+                  <th>Internal SKU</th>
+                  <th>Vendor SKU</th>
+                  <th>Retail</th>
+                  {showCost && <th>Cost</th>}
+                  {showCost && <th>Margin%</th>}
+                  <th>SqFt/Box</th>
+                  <th>Pcs/Box</th>
+                  <th>Wt/Box</th>
+                  <th>Stock</th>
+                  <th>Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                {skus.map(s => (
+                  <tr key={s.id}>
+                    <td style={{ fontWeight: 500 }}>{s.variant_name || '\u2014'}{s.is_sample && <span className="badge badge-draft" style={{ marginLeft: '0.5rem' }}>Sample</span>}</td>
+                    <td><code style={{ fontSize: '0.75rem' }}>{s.internal_sku}</code></td>
+                    <td style={{ color: 'var(--stone-500)' }}>{s.vendor_sku}</td>
+                    <td>{s.retail_price ? '$' + parseFloat(s.retail_price).toFixed(2) : '\u2014'}</td>
+                    {showCost && <td>{s.cost ? '$' + parseFloat(s.cost).toFixed(2) : '\u2014'}</td>}
+                    {showCost && <td style={{ color: s.margin_pct <= 0 ? 'var(--red)' : 'inherit', fontWeight: s.margin_pct <= 0 ? 600 : 400 }}>
+                      {s.retail_price ? s.margin_pct.toFixed(1) + '%' : '\u2014'}
+                    </td>}
+                    <td>{s.sqft_per_box ? parseFloat(s.sqft_per_box).toFixed(2) : '\u2014'}</td>
+                    <td>{s.pieces_per_box || '\u2014'}</td>
+                    <td>{s.weight_per_box_lbs ? parseFloat(s.weight_per_box_lbs).toFixed(1) + ' lbs' : '\u2014'}</td>
+                    <td>{stockBadge(s.stock_status)}</td>
+                    <td>{s.qty_on_hand != null ? s.qty_on_hand : '\u2014'}</td>
+                  </tr>
+                ))}
+                {skus.length === 0 && (
+                  <tr><td colSpan={showCost ? 11 : 9} style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No active SKUs</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepCreateOrderView ==========
+    function RepCreateOrderView({ navigate }) {
+      const [form, setForm] = useState({
+        customer_name: '', customer_email: '', phone: '',
+        delivery_method: 'shipping',
+        shipping_line1: '', shipping_line2: '', shipping_city: '', shipping_state: '', shipping_zip: '',
+        payment_method: 'offline'
+      });
+      const [items, setItems] = useState([]);
+      const [skuSearch, setSkuSearch] = useState('');
+      const [skuResults, setSkuResults] = useState([]);
+      const [skuSearching, setSkuSearching] = useState(false);
+      const [addBoxes, setAddBoxes] = useState(1);
+      const [showCustom, setShowCustom] = useState(false);
+      const [customItem, setCustomItem] = useState({ product_name: '', unit_price: '', num_boxes: 1, description: '' });
+      const [vendors, setVendors] = useState([]);
+      const [customVendor, setCustomVendor] = useState('');
+      const [promoCode, setPromoCode] = useState('');
+      const [promoResult, setPromoResult] = useState(null);
+      const [promoError, setPromoError] = useState('');
+      const [promoLoading, setPromoLoading] = useState(false);
+      const [saving, setSaving] = useState(false);
+
+      useEffect(() => {
+        repFetch('/api/rep/vendors').then(d => setVendors(d.vendors || [])).catch(() => {});
+      }, []);
+
+      const searchSku = async (q) => {
+        setSkuSearch(q);
+        if (q.length < 2) { setSkuResults([]); return; }
+        setSkuSearching(true);
+        try {
+          const data = await repFetch('/api/rep/skus/search?q=' + encodeURIComponent(q));
+          setSkuResults(data.results || []);
+        } catch (e) {}
+        setSkuSearching(false);
+      };
+
+      const addSkuItem = (r) => {
+        const numBoxes = parseInt(addBoxes) || 1;
+        const unitPrice = parseFloat(r.retail_price || 0);
+        const sqftPerBox = parseFloat(r.sqft_per_box || 0);
+        setItems(prev => [...prev, {
+          _key: Date.now(),
+          sku_id: r.sku_id,
+          product_name: r.product_name + (r.variant_name ? ' \u2014 ' + r.variant_name : ''),
+          vendor_name: r.vendor_name,
+          unit_price: unitPrice,
+          num_boxes: numBoxes,
+          subtotal: unitPrice * numBoxes,
+          sqft_per_box: sqftPerBox,
+          is_sample: r.is_sample
+        }]);
+        setSkuSearch('');
+        setSkuResults([]);
+        setAddBoxes(1);
+      };
+
+      const addCustom = () => {
+        const numBoxes = parseInt(customItem.num_boxes) || 1;
+        const unitPrice = parseFloat(customItem.unit_price);
+        if (!customItem.product_name.trim() || isNaN(unitPrice)) return;
+        setItems(prev => [...prev, {
+          _key: Date.now(),
+          sku_id: null,
+          product_name: customItem.product_name.trim(),
+          vendor_name: vendors.find(v => v.id === customVendor)?.name || 'Custom',
+          vendor_id: customVendor || null,
+          unit_price: unitPrice,
+          num_boxes: numBoxes,
+          subtotal: unitPrice * numBoxes,
+          description: customItem.description || null,
+          is_custom: true
+        }]);
+        setCustomItem({ product_name: '', unit_price: '', num_boxes: 1, description: '' });
+        setCustomVendor('');
+        setShowCustom(false);
+      };
+
+      const removeItem = (key) => {
+        setItems(prev => prev.filter(i => i._key !== key));
+        setPromoResult(null);
+        setPromoCode('');
+      };
+
+      const subtotal = items.filter(i => !i.is_sample).reduce((sum, i) => sum + i.subtotal, 0);
+      const discount = promoResult ? promoResult.discount_amount : 0;
+      const total = subtotal - discount;
+
+      const applyPromo = async () => {
+        if (!promoCode.trim()) return;
+        setPromoLoading(true);
+        setPromoError('');
+        try {
+          const promoItems = items.map(i => ({
+            sku_id: i.sku_id,
+            product_id: i.product_id || null,
+            subtotal: i.subtotal,
+            is_sample: i.is_sample || false
+          }));
+          const data = await repFetch('/api/rep/promo-codes/validate', {
+            method: 'POST',
+            body: JSON.stringify({ code: promoCode, items: promoItems, customer_email: form.customer_email })
+          });
+          if (data.valid) {
+            setPromoResult(data);
+            setPromoError('');
+          } else {
+            setPromoError(data.error || 'Invalid promo code');
+          }
+        } catch (err) { setPromoError(err.message); }
+        setPromoLoading(false);
+      };
+
+      const createOrder = async () => {
+        if (!form.customer_name || !form.customer_email || items.length === 0) return;
+        setSaving(true);
+        try {
+          const orderItems = items.map(i => {
+            if (i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes };
+            return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, num_boxes: i.num_boxes, description: i.description };
+          });
+          const body = {
+            customer_name: form.customer_name,
+            customer_email: form.customer_email,
+            phone: form.phone || undefined,
+            delivery_method: form.delivery_method,
+            payment_method: form.payment_method,
+            items: orderItems,
+            promo_code: promoResult ? promoResult.code : undefined
+          };
+          if (form.delivery_method === 'shipping') {
+            body.shipping_address = {
+              line1: form.shipping_line1,
+              line2: form.shipping_line2 || undefined,
+              city: form.shipping_city,
+              state: form.shipping_state,
+              zip: form.shipping_zip
+            };
+          }
+          const data = await repFetch('/api/rep/orders', {
+            method: 'POST',
+            body: JSON.stringify(body)
+          });
+          if (data.order) {
+            navigate('order-detail', data.order.id);
+          }
+        } catch (err) { alert(err.message); }
+        setSaving(false);
+      };
+
+      const canCreate = form.customer_name && form.customer_email && items.length > 0 &&
+        (form.delivery_method === 'pickup' || (form.shipping_line1 && form.shipping_city && form.shipping_state && form.shipping_zip));
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Create Order</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('orders')}>Back to Orders</button>
+          </div>
+
+          {/* Customer Info */}
+          <div className="form-card">
+            <h3>Customer Information</h3>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Customer Name *</label>
+                <input type="text" value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} placeholder="Full name" />
+              </div>
+              <div className="form-group">
+                <label>Email *</label>
+                <input type="email" value={form.customer_email} onChange={e => setForm(f => ({ ...f, customer_email: e.target.value }))} placeholder="email@example.com" />
+              </div>
+              <div className="form-group">
+                <label>Phone</label>
+                <input type="text" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="(555) 123-4567" />
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery Method */}
+          <div className="form-card">
+            <h3>Delivery Method</h3>
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', cursor: 'pointer' }}>
+                <input type="radio" name="delivery" value="shipping" checked={form.delivery_method === 'shipping'}
+                  onChange={() => setForm(f => ({ ...f, delivery_method: 'shipping' }))} style={{ accentColor: 'var(--gold)' }} />
+                Shipping
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', cursor: 'pointer' }}>
+                <input type="radio" name="delivery" value="pickup" checked={form.delivery_method === 'pickup'}
+                  onChange={() => setForm(f => ({ ...f, delivery_method: 'pickup' }))} style={{ accentColor: 'var(--gold)' }} />
+                Store Pickup
+              </label>
+            </div>
+            {form.delivery_method === 'shipping' && (
+              <div className="form-grid">
+                <div className="form-group full">
+                  <label>Address Line 1 *</label>
+                  <input type="text" value={form.shipping_line1} onChange={e => setForm(f => ({ ...f, shipping_line1: e.target.value }))} />
+                </div>
+                <div className="form-group full">
+                  <label>Address Line 2</label>
+                  <input type="text" value={form.shipping_line2} onChange={e => setForm(f => ({ ...f, shipping_line2: e.target.value }))} />
+                </div>
+                <div className="form-group">
+                  <label>City *</label>
+                  <input type="text" value={form.shipping_city} onChange={e => setForm(f => ({ ...f, shipping_city: e.target.value }))} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label>State *</label>
+                    <input type="text" value={form.shipping_state} onChange={e => setForm(f => ({ ...f, shipping_state: e.target.value }))} maxLength={2} />
+                  </div>
+                  <div className="form-group">
+                    <label>ZIP *</label>
+                    <input type="text" value={form.shipping_zip} onChange={e => setForm(f => ({ ...f, shipping_zip: e.target.value }))} maxLength={10} />
+                  </div>
+                </div>
+              </div>
+            )}
+            {form.delivery_method === 'pickup' && (
+              <div style={{ fontSize: '0.875rem', color: 'var(--stone-600)', lineHeight: 1.6 }}>
+                <strong>Roma Flooring Designs</strong><br />
+                1440 S. State College Blvd., Suite 6M<br />
+                Anaheim, CA 92806
+              </div>
+            )}
+          </div>
+
+          {/* Items */}
+          <div className="form-card">
+            <h3>Order Items</h3>
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <div style={{ flex: 2, minWidth: '200px', position: 'relative' }}>
+                  <input type="text" value={skuSearch} placeholder="Search SKU or product name..."
+                    onChange={e => searchSku(e.target.value)}
+                    style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: "'Inter', sans-serif" }} />
+                  {skuResults.length > 0 && (
+                    <div className="search-results">
+                      {skuResults.map((r, i) => (
+                        <div key={i} className="search-result-item" onMouseDown={() => addSkuItem(r)}>
+                          <div>{r.product_name}{r.variant_name ? ' \u2014 ' + r.variant_name : ''}</div>
+                          <div className="product-meta">
+                            {r.vendor_name || ''} {r.internal_sku && '\u2022 ' + r.internal_sku} {r.retail_price && '\u2022 $' + parseFloat(r.retail_price).toFixed(2)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div style={{ width: '80px' }}>
+                  <input type="number" min="1" value={addBoxes} onChange={e => setAddBoxes(parseInt(e.target.value) || 1)}
+                    placeholder="Qty" style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }} />
+                </div>
+                <button className={'btn ' + (showCustom ? 'btn-secondary' : 'btn-primary')} onClick={() => setShowCustom(!showCustom)} style={{ whiteSpace: 'nowrap' }}>
+                  {showCustom ? 'Cancel' : '+ Custom Item'}
+                </button>
+              </div>
+              {showCustom && (
+                <div style={{ background: 'var(--stone-50)', border: '1px solid var(--stone-200)', padding: '1.25rem', marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-600)', marginBottom: '0.75rem' }}>Add Custom Item</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 100px 80px', gap: '0.75rem', alignItems: 'end' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label>Product Name *</label>
+                      <input type="text" value={customItem.product_name} onChange={e => setCustomItem(c => ({ ...c, product_name: e.target.value }))} placeholder="e.g. Custom transition strip" />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label>Vendor</label>
+                      <select value={customVendor} onChange={e => setCustomVendor(e.target.value)} style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }}>
+                        <option value="">Optional...</option>
+                        {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label>Unit Price *</label>
+                      <input type="number" step="0.01" min="0" value={customItem.unit_price} onChange={e => setCustomItem(c => ({ ...c, unit_price: e.target.value }))} placeholder="0.00" />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label>Qty *</label>
+                      <input type="number" min="1" value={customItem.num_boxes} onChange={e => setCustomItem(c => ({ ...c, num_boxes: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem', alignItems: 'end' }}>
+                    <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                      <label>Description</label>
+                      <input type="text" value={customItem.description} onChange={e => setCustomItem(c => ({ ...c, description: e.target.value }))} placeholder="Optional notes" />
+                    </div>
+                    <button className="btn btn-primary" onClick={addCustom} disabled={!customItem.product_name.trim() || !customItem.unit_price}>Add</button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <table className="rep-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Vendor</th>
+                  <th>Qty</th>
+                  <th>Unit Price</th>
+                  <th>Subtotal</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(item => (
+                  <tr key={item._key}>
+                    <td style={{ fontWeight: 500 }}>
+                      {item.product_name}
+                      {item.is_custom && <span className="badge badge-draft" style={{ marginLeft: '0.5rem', fontSize: '0.6rem' }}>Custom</span>}
+                      {item.is_sample && <span className="badge badge-draft" style={{ marginLeft: '0.5rem', fontSize: '0.6rem' }}>Sample</span>}
+                    </td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{item.vendor_name || '\u2014'}</td>
+                    <td>{item.num_boxes}</td>
+                    <td>${item.unit_price.toFixed(2)}</td>
+                    <td>${item.subtotal.toFixed(2)}</td>
+                    <td className="actions">
+                      <button className="btn btn-danger btn-sm" onClick={() => removeItem(item._key)}>Remove</button>
+                    </td>
+                  </tr>
+                ))}
+                {items.length === 0 && (
+                  <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No items yet. Search products or add a custom item above.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Promo Code */}
+          <div className="form-card">
+            <h3>Promo Code</h3>
+            {promoResult ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ background: '#dcfce7', color: '#166534', padding: '0.25rem 0.6rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>{promoResult.code}</span>
+                <span style={{ color: '#16a34a', fontSize: '0.875rem' }}>-${promoResult.discount_amount.toFixed(2)}</span>
+                <button className="btn btn-danger btn-sm" onClick={() => { setPromoResult(null); setPromoCode(''); }}>Remove</button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: 'flex', gap: '0.5rem', maxWidth: '360px' }}>
+                  <input type="text" value={promoCode} onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoError(''); }}
+                    onKeyDown={e => e.key === 'Enter' && applyPromo()}
+                    placeholder="Enter promo code" style={{ flex: 1, padding: '0.75rem 1rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }} />
+                  <button className="btn btn-primary btn-sm" onClick={applyPromo} disabled={promoLoading || !promoCode.trim() || items.length === 0}>
+                    {promoLoading ? '...' : 'Apply'}
+                  </button>
+                </div>
+                {promoError && <div style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.3rem' }}>{promoError}</div>}
+              </div>
+            )}
+          </div>
+
+          {/* Summary */}
+          <div className="form-card">
+            <h3>Order Summary</h3>
+            <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <div className="form-group">
+                  <label>Payment Method</label>
+                  <select value={form.payment_method} onChange={e => setForm(f => ({ ...f, payment_method: e.target.value }))}
+                    style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }}>
+                    <option value="offline">Offline (Mark as paid)</option>
+                    <option value="stripe">Stripe (Create payment intent)</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ minWidth: '280px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem' }}>
+                  <span>Subtotal</span>
+                  <span>${subtotal.toFixed(2)}</span>
+                </div>
+                {discount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem', color: '#16a34a' }}>
+                    <span>Discount ({promoResult.code})</span>
+                    <span>-${discount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 0', fontSize: '1.1rem', fontWeight: 600, borderTop: '2px solid var(--stone-200)' }}>
+                  <span>Total</span>
+                  <span>${total.toFixed(2)}</span>
+                </div>
+                <button className="btn btn-primary" style={{ width: '100%', padding: '0.875rem', marginTop: '0.5rem' }}
+                  onClick={createOrder} disabled={saving || !canCreate}>
+                  {saving ? 'Creating Order...' : 'Create Order'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepSampleRequestsListView ==========
+    function RepSampleRequestsListView({ navigate }) {
+      const [requests, setRequests] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [statusFilter, setStatusFilter] = useState('');
+      const [search, setSearch] = useState('');
+
+      const load = useCallback(() => {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (statusFilter) params.set('status', statusFilter);
+        if (search.trim()) params.set('search', search.trim());
+        const qs = params.toString() ? '?' + params.toString() : '';
+        repFetch('/api/rep/sample-requests' + qs)
+          .then(d => { setRequests(d.sample_requests || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, [statusFilter, search]);
+
+      useEffect(load, [load]);
+
+      if (loading) return <div className="loading">Loading sample requests...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Sample Requests</h1>
+            <button className="btn btn-primary" onClick={() => navigate('sample-create')}>+ New Sample Request</button>
+          </div>
+
+          <div className="filter-bar" style={{ marginBottom: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <input
+              type="text" placeholder="Search name, email, SR#..."
+              value={search} onChange={e => setSearch(e.target.value)}
+              style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem', width: 220 }}
+            />
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="">All Statuses</option>
+              <option value="requested">Requested</option>
+              <option value="shipped">Shipped</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <span className="filter-count">{requests.length} requests</span>
+          </div>
+
+          <div className="form-card" style={{ padding: 0 }}>
+            <table className="rep-table">
+              <thead>
+                <tr>
+                  <th>SR#</th>
+                  <th>Customer</th>
+                  <th>Email</th>
+                  <th>Items</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map(r => (
+                  <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => navigate('sample-detail', r.id)}>
+                    <td style={{ fontWeight: 500, fontSize: '0.8125rem' }}>{r.request_number}</td>
+                    <td style={{ fontWeight: 500 }}>{r.customer_name}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{r.customer_email || '\u2014'}</td>
+                    <td>{r.item_count}</td>
+                    <td><span className={'badge badge-' + r.status}>{r.status}</span></td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(r.created_at).toLocaleDateString()}</td>
+                    <td className="actions">
+                      <button className="btn btn-sm btn-secondary" onClick={e => { e.stopPropagation(); navigate('sample-detail', r.id); }}>View</button>
+                    </td>
+                  </tr>
+                ))}
+                {requests.length === 0 && (
+                  <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No sample requests found</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepSampleRequestCreateView ==========
+    function RepSampleRequestCreateView({ navigate }) {
+      const [customerName, setCustomerName] = useState('');
+      const [customerEmail, setCustomerEmail] = useState('');
+      const [customerPhone, setCustomerPhone] = useState('');
+      const [addrLine1, setAddrLine1] = useState('');
+      const [addrLine2, setAddrLine2] = useState('');
+      const [addrCity, setAddrCity] = useState('');
+      const [addrState, setAddrState] = useState('');
+      const [addrZip, setAddrZip] = useState('');
+      const [notes, setNotes] = useState('');
+      const [items, setItems] = useState([]);
+      const [skuSearch, setSkuSearch] = useState('');
+      const [skuResults, setSkuResults] = useState([]);
+      const [skuSearching, setSkuSearching] = useState(false);
+      const [saving, setSaving] = useState(false);
+
+      const searchSku = async (q) => {
+        setSkuSearch(q);
+        if (q.length < 2) { setSkuResults([]); return; }
+        setSkuSearching(true);
+        try {
+          const data = await repFetch('/api/rep/skus/search?q=' + encodeURIComponent(q));
+          setSkuResults(data.results || []);
+        } catch (e) {}
+        setSkuSearching(false);
+      };
+
+      const addProduct = (r) => {
+        if (items.length >= 5) return alert('Maximum 5 items per sample request');
+        if (items.find(i => i.product_id === r.product_id)) return alert('This product is already added');
+        setItems(prev => [...prev, {
+          _key: Date.now(),
+          product_id: r.product_id || null,
+          sku_id: r.sku_id,
+          product_name: r.product_name,
+          collection: r.collection,
+          variant_name: r.variant_name,
+          vendor_name: r.vendor_name
+        }]);
+        setSkuSearch('');
+        setSkuResults([]);
+      };
+
+      const removeItem = (key) => setItems(prev => prev.filter(i => i._key !== key));
+
+      const submitRequest = async () => {
+        if (!customerName.trim()) return alert('Customer name is required');
+        if (!items.length) return alert('Add at least one product');
+        setSaving(true);
+        try {
+          const body = {
+            customer_name: customerName.trim(),
+            customer_email: customerEmail.trim() || null,
+            customer_phone: customerPhone.trim() || null,
+            shipping_address_line1: addrLine1.trim() || null,
+            shipping_address_line2: addrLine2.trim() || null,
+            shipping_city: addrCity.trim() || null,
+            shipping_state: addrState.trim() || null,
+            shipping_zip: addrZip.trim() || null,
+            notes: notes.trim() || null,
+            items: items.map(i => ({ product_id: i.product_id, sku_id: i.sku_id }))
+          };
+          const created = await repFetch('/api/rep/sample-requests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          navigate('sample-detail', created.sample_request.id);
+        } catch (err) {
+          alert('Error: ' + (err.message || 'Failed to create'));
+        }
+        setSaving(false);
+      };
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>New Sample Request</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('samples')}>Back to Samples</button>
+          </div>
+
+          <div className="form-card">
+            <h3>Customer Information</h3>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Customer Name *</label>
+                <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Full name" />
+              </div>
+              <div className="form-group">
+                <label>Email</label>
+                <input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="customer@email.com" />
+              </div>
+              <div className="form-group">
+                <label>Phone</label>
+                <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="(555) 123-4567" />
+              </div>
+            </div>
+          </div>
+
+          <div className="form-card">
+            <h3>Shipping Address</h3>
+            <div className="form-grid">
+              <div className="form-group full">
+                <label>Address Line 1</label>
+                <input value={addrLine1} onChange={e => setAddrLine1(e.target.value)} placeholder="Street address" />
+              </div>
+              <div className="form-group full">
+                <label>Address Line 2</label>
+                <input value={addrLine2} onChange={e => setAddrLine2(e.target.value)} placeholder="Apt, suite, unit..." />
+              </div>
+              <div className="form-group">
+                <label>City</label>
+                <input value={addrCity} onChange={e => setAddrCity(e.target.value)} placeholder="City" />
+              </div>
+              <div className="form-group">
+                <label>State</label>
+                <input value={addrState} onChange={e => setAddrState(e.target.value)} placeholder="CA" maxLength={2} />
+              </div>
+              <div className="form-group">
+                <label>ZIP</label>
+                <input value={addrZip} onChange={e => setAddrZip(e.target.value)} placeholder="90210" maxLength={10} />
+              </div>
+            </div>
+          </div>
+
+          <div className="form-card">
+            <h3>Products (max 5)</h3>
+            <div className="form-group">
+              <label>Search Products</label>
+              <input value={skuSearch} onChange={e => searchSku(e.target.value)} placeholder="Search by product name, SKU, or collection..." />
+            </div>
+            {skuResults.length > 0 && (
+              <div style={{ border: '1px solid var(--stone-200)', maxHeight: 300, overflow: 'auto', marginBottom: '1.5rem' }}>
+                {skuResults.map(r => (
+                  <div key={r.sku_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderBottom: '1px solid var(--stone-100)', cursor: 'pointer' }}
+                    onClick={() => addProduct(r)}>
+                    <div>
+                      <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{r.product_name}{r.variant_name ? ' \u2014 ' + r.variant_name : ''}</div>
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
+                        {r.collection || ''}{r.vendor_name ? ' \u00b7 ' + r.vendor_name : ''}{r.internal_sku ? ' \u00b7 ' + r.internal_sku : ''}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {items.length === 0 && (
+              <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem', border: '1px dashed var(--stone-200)' }}>
+                Search and add products for the sample request
+              </div>
+            )}
+
+            {items.map(item => (
+              <div key={item._key} className="visit-product-card">
+                <div className="visit-product-info">
+                  <div className="vp-name">{item.product_name}{item.variant_name ? ' \u2014 ' + item.variant_name : ''}</div>
+                  <div className="vp-collection">{item.collection || ''}{item.vendor_name ? ' \u00b7 ' + item.vendor_name : ''}</div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#15803d', marginTop: '0.25rem' }}>Free Sample</div>
+                </div>
+                <button className="btn btn-sm" onClick={() => removeItem(item._key)}
+                  style={{ color: 'var(--red)', background: 'var(--red-light)', border: 'none', padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem' }}>Remove</button>
+              </div>
+            ))}
+          </div>
+
+          <div className="form-card">
+            <h3>Notes</h3>
+            <div className="form-group full">
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any special instructions or notes..." rows="3" />
+            </div>
+          </div>
+
+          <div style={{ background: '#fefce8', border: '1px solid #fde68a', padding: '0.75rem 1rem', marginBottom: '1.5rem', fontSize: '0.8125rem', color: '#854d0e' }}>
+            Samples are free. Flat-rate $12 shipping applies.
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+            <button className="btn btn-primary" disabled={saving} onClick={submitRequest}>
+              {saving ? 'Submitting...' : 'Submit Sample Request'}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepSampleRequestDetailView ==========
+    function RepSampleRequestDetailView({ navigate, editId }) {
+      const [sr, setSr] = useState(null);
+      const [items, setItems] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [trackingInput, setTrackingInput] = useState('');
+      const [showTrackingInput, setShowTrackingInput] = useState(false);
+      const [acting, setActing] = useState(false);
+
+      const load = useCallback(() => {
+        setLoading(true);
+        repFetch('/api/rep/sample-requests/' + editId)
+          .then(d => { setSr(d.sample_request); setItems(d.items || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, [editId]);
+
+      useEffect(load, [load]);
+
+      const markShipped = async () => {
+        setActing(true);
+        try {
+          await repFetch('/api/rep/sample-requests/' + editId + '/ship', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tracking_number: trackingInput.trim() || null })
+          });
+          setShowTrackingInput(false);
+          load();
+        } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
+        setActing(false);
+      };
+
+      const markDelivered = async () => {
+        setActing(true);
+        try {
+          await repFetch('/api/rep/sample-requests/' + editId + '/deliver', { method: 'PUT' });
+          load();
+        } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
+        setActing(false);
+      };
+
+      const cancelRequest = async () => {
+        if (!confirm('Cancel this sample request?')) return;
+        setActing(true);
+        try {
+          await repFetch('/api/rep/sample-requests/' + editId + '/cancel', { method: 'PUT' });
+          load();
+        } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
+        setActing(false);
+      };
+
+      const deleteRequest = async () => {
+        if (!confirm('Delete this sample request? This cannot be undone.')) return;
+        try {
+          await repFetch('/api/rep/sample-requests/' + editId, { method: 'DELETE' });
+          navigate('samples');
+        } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
+      };
+
+      if (loading) return <div className="loading">Loading sample request...</div>;
+      if (!sr) return <div className="loading">Sample request not found</div>;
+
+      const addressParts = [sr.shipping_address_line1, sr.shipping_address_line2].filter(Boolean);
+      const cityLine = [sr.shipping_city, sr.shipping_state].filter(Boolean).join(', ');
+      if (sr.shipping_zip && cityLine) addressParts.push(cityLine + ' ' + sr.shipping_zip);
+      else if (cityLine) addressParts.push(cityLine);
+      else if (sr.shipping_zip) addressParts.push(sr.shipping_zip);
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Sample Request {sr.request_number}</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('samples')}>Back to Samples</button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+            <div className="form-card">
+              <h3>Customer</h3>
+              <div style={{ fontSize: '0.875rem', lineHeight: 1.8 }}>
+                <div><strong>{sr.customer_name}</strong></div>
+                {sr.customer_email && <div style={{ color: 'var(--stone-500)' }}>{sr.customer_email}</div>}
+                {sr.customer_phone && <div style={{ color: 'var(--stone-500)' }}>{sr.customer_phone}</div>}
+              </div>
+              {addressParts.length > 0 && (
+                <div style={{ marginTop: '1rem' }}>
+                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-400)', marginBottom: '0.25rem' }}>Shipping Address</div>
+                  {addressParts.map((l, i) => <div key={i} style={{ fontSize: '0.875rem', color: 'var(--stone-600)' }}>{l}</div>)}
+                </div>
+              )}
+            </div>
+
+            <div className="form-card">
+              <h3>Status</h3>
+              <div style={{ marginBottom: '1rem' }}>
+                <span className={'badge badge-' + sr.status} style={{ fontSize: '0.875rem', padding: '0.35rem 0.75rem' }}>{sr.status}</span>
+              </div>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', lineHeight: 2 }}>
+                <div>Created: {new Date(sr.created_at).toLocaleString()}</div>
+                {sr.shipped_at && <div>Shipped: {new Date(sr.shipped_at).toLocaleString()}</div>}
+                {sr.delivered_at && <div>Delivered: {new Date(sr.delivered_at).toLocaleString()}</div>}
+                {sr.cancelled_at && <div>Cancelled: {new Date(sr.cancelled_at).toLocaleString()}</div>}
+              </div>
+              {sr.tracking_number && (
+                <div style={{ marginTop: '0.75rem' }}>
+                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-400)', marginBottom: '0.25rem' }}>Tracking</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '0.9375rem', fontWeight: 500, color: 'var(--stone-800)' }}>{sr.tracking_number}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="form-card" style={{ marginBottom: '1.5rem' }}>
+            <h3>Actions</h3>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              {sr.status === 'requested' && !showTrackingInput && (
+                <button className="btn btn-primary" disabled={acting} onClick={() => setShowTrackingInput(true)}>Mark Shipped</button>
+              )}
+              {showTrackingInput && (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input
+                    placeholder="Tracking number (optional)"
+                    value={trackingInput} onChange={e => setTrackingInput(e.target.value)}
+                    style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem', width: 240 }}
+                  />
+                  <button className="btn btn-primary" disabled={acting} onClick={markShipped}>
+                    {acting ? 'Shipping...' : 'Confirm Ship'}
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => setShowTrackingInput(false)}>Cancel</button>
+                </div>
+              )}
+              {sr.status === 'shipped' && (
+                <button className="btn btn-primary" disabled={acting} onClick={markDelivered}>
+                  {acting ? 'Updating...' : 'Mark Delivered'}
+                </button>
+              )}
+              {(sr.status === 'requested' || sr.status === 'shipped') && (
+                <button className="btn btn-secondary" disabled={acting} onClick={cancelRequest}
+                  style={{ color: 'var(--red)', borderColor: 'var(--red)' }}>Cancel Request</button>
+              )}
+              {sr.status === 'requested' && (
+                <button className="btn btn-secondary" disabled={acting} onClick={deleteRequest}
+                  style={{ color: 'var(--red)', borderColor: 'var(--red)' }}>Delete</button>
+              )}
+            </div>
+          </div>
+
+          {/* Notes */}
+          {sr.notes && (
+            <div className="form-card" style={{ marginBottom: '1.5rem' }}>
+              <h3>Notes</h3>
+              <p style={{ fontSize: '0.875rem', color: 'var(--stone-600)', margin: 0, whiteSpace: 'pre-wrap' }}>{sr.notes}</p>
+            </div>
+          )}
+
+          {/* Items */}
+          <div className="form-card">
+            <h3>Items ({items.length})</h3>
+            {items.map(item => (
+              <div key={item.id} className="visit-product-card">
+                {item.primary_image && (
+                  <img src={item.primary_image} alt={item.product_name}
+                    style={{ width: 80, height: 80, objectFit: 'cover', border: '1px solid var(--stone-200)', flexShrink: 0 }} />
+                )}
+                <div className="visit-product-info">
+                  <div className="vp-name">{item.product_name}{item.variant_name ? ' \u2014 ' + item.variant_name : ''}</div>
+                  {item.collection && <div className="vp-collection">{item.collection}</div>}
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#15803d', marginTop: '0.25rem' }}>Free Sample</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepNotificationsListView ==========
+    function RepNotificationsListView({ navigate }) {
+      const [notifications, setNotifications] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [unreadOnly, setUnreadOnly] = useState(false);
+      const [page, setPage] = useState(1);
+      const [total, setTotal] = useState(0);
+      const limit = 50;
+
+      const load = useCallback(() => {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (unreadOnly) params.set('unread_only', 'true');
+        params.set('limit', limit);
+        params.set('offset', (page - 1) * limit);
+        repFetch('/api/rep/notifications?' + params.toString())
+          .then(d => { setNotifications(d.notifications || []); setTotal(d.total || 0); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, [unreadOnly, page]);
+
+      useEffect(load, [load]);
+
+      const markAllRead = () => {
+        repFetch('/api/rep/notifications/read-all', { method: 'PUT' })
+          .then(() => { setNotifications(prev => prev.map(n => ({ ...n, is_read: true }))); })
+          .catch(() => {});
+      };
+
+      const handleClick = (n) => {
+        if (!n.is_read) {
+          repFetch('/api/rep/notifications/' + n.id + '/read', { method: 'PUT' }).catch(() => {});
+          setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x));
+        }
+        if (n.entity_type === 'order' && n.entity_id) navigate('order-detail', n.entity_id);
+        else if (n.entity_type === 'quote' && n.entity_id) navigate('quote-edit', n.entity_id);
+      };
+
+      const totalPages = Math.ceil(total / limit) || 1;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Notifications</h1>
+            <button className="btn btn-secondary" onClick={markAllRead}>Mark All Read</button>
+          </div>
+          <div className="filter-bar">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', cursor: 'pointer' }}>
+              <input type="checkbox" checked={unreadOnly} onChange={e => { setUnreadOnly(e.target.checked); setPage(1); }} style={{ accentColor: 'var(--gold)' }} />
+              Unread Only
+            </label>
+            <span className="filter-count">{total} notification{total !== 1 ? 's' : ''}</span>
+          </div>
+          {loading ? <div className="loading">Loading notifications...</div> : (
+            <div>
+              {notifications.map(n => (
+                <div key={n.id}
+                  style={{
+                    padding: '1rem 1.5rem',
+                    marginBottom: '0.5rem',
+                    background: n.is_read ? 'white' : '#fffbeb',
+                    border: '1px solid ' + (n.is_read ? 'var(--stone-200)' : '#fde68a'),
+                    cursor: 'pointer',
+                    transition: 'background 0.1s'
+                  }}
+                  onClick={() => handleClick(n)}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontWeight: n.is_read ? 400 : 600, fontSize: '0.875rem', color: 'var(--stone-800)' }}>{n.title}</div>
+                      {n.message && <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginTop: '0.25rem' }}>{n.message}</div>}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
+                      {new Date(n.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.35rem' }}>
+                    <span className="badge badge-draft" style={{ fontSize: '0.6rem' }}>{n.type}</span>
+                    {!n.is_read && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--gold)', display: 'inline-block', marginTop: '2px' }}></span>}
+                  </div>
+                </div>
+              ))}
+              {notifications.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--stone-400)' }}>
+                  {unreadOnly ? 'No unread notifications' : 'No notifications yet'}
+                </div>
+              )}
+            </div>
+          )}
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</button>
+              <span>Page {page} of {totalPages}</span>
+              <button className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== RepCommissionsView ==========
+    function RepCommissionsView({ navigate }) {
+      const [data, setData] = useState(null);
+      const [statusFilter, setStatusFilter] = useState('');
+      const [loading, setLoading] = useState(true);
+
+      const load = useCallback(() => {
+        setLoading(true);
+        const params = statusFilter ? '?status=' + statusFilter : '';
+        repFetch('/api/rep/commissions' + params)
+          .then(d => { setData(d); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, [statusFilter]);
+
+      useEffect(load, [load]);
+
+      if (loading || !data) return <div className="loading">Loading commissions...</div>;
+
+      const { summary, commission_rate, commissions } = data;
+      const summaryCards = [
+        { label: 'Earned', value: '$' + parseFloat(summary.total_earned).toFixed(2), bg: 'var(--green-light)', color: 'var(--green)' },
+        { label: 'Pending', value: '$' + parseFloat(summary.total_pending).toFixed(2), bg: '#fef3c7', color: '#d97706' },
+        { label: 'Paid Out', value: '$' + parseFloat(summary.total_paid).toFixed(2), bg: '#dbeafe', color: '#2563eb' },
+        { label: 'Forfeited', value: '$' + parseFloat(summary.total_forfeited).toFixed(2), bg: 'var(--red-light)', color: 'var(--red)' },
+        { label: 'Commission Rate', value: (commission_rate * 100).toFixed(0) + '%', bg: 'var(--stone-100)', color: 'var(--stone-700)' },
+      ];
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Commissions</h1>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+            {summaryCards.map(c => (
+              <div key={c.label} style={{ background: c.bg, padding: '1.25rem', border: '1px solid var(--stone-200)' }}>
+                <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: c.color, marginBottom: '0.5rem' }}>{c.label}</div>
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.75rem', fontWeight: 400, color: c.color }}>{c.value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="filter-bar" style={{ marginBottom: '1rem' }}>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="earned">Earned</option>
+              <option value="paid">Paid</option>
+              <option value="forfeited">Forfeited</option>
+            </select>
+            <span className="filter-count">{commissions.length} commissions</span>
+          </div>
+
+          <div className="form-card" style={{ padding: 0 }}>
+            <table className="rep-table">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Customer</th>
+                  <th>Order Total</th>
+                  <th>Vendor Cost</th>
+                  <th>Margin</th>
+                  <th>Commission</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {commissions.map(c => (
+                  <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate('order-detail', c.order_id)}>
+                    <td style={{ fontWeight: 500 }}>{c.order_number}</td>
+                    <td>{c.customer_name}</td>
+                    <td>${parseFloat(c.order_total).toFixed(2)}</td>
+                    <td>${parseFloat(c.vendor_cost).toFixed(2)}</td>
+                    <td>${parseFloat(c.margin).toFixed(2)}</td>
+                    <td style={{ fontWeight: 600 }}>${parseFloat(c.commission_amount).toFixed(2)}</td>
+                    <td><span className={'badge badge-' + c.status}>{c.status}</span></td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(c.order_date).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+                {commissions.length === 0 && (
+                  <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No commissions found</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepVisitsListView ==========
+    function RepVisitsListView({ navigate }) {
+      const [visits, setVisits] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [statusFilter, setStatusFilter] = useState('');
+
+      const load = useCallback(() => {
+        setLoading(true);
+        const params = statusFilter ? '?status=' + statusFilter : '';
+        repFetch('/api/rep/visits' + params)
+          .then(d => { setVisits(d.visits || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, [statusFilter]);
+
+      useEffect(load, [load]);
+
+      if (loading) return <div className="loading">Loading visits...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Showroom Visits</h1>
+            <button className="btn btn-primary" onClick={() => navigate('visit-create')}>+ New Visit</button>
+          </div>
+
+          <div className="filter-bar" style={{ marginBottom: '1rem' }}>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="sent">Sent</option>
+              <option value="opened">Opened</option>
+              <option value="carted">Carted</option>
+            </select>
+            <span className="filter-count">{visits.length} visits</span>
+          </div>
+
+          <div className="form-card" style={{ padding: 0 }}>
+            <table className="rep-table">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Email</th>
+                  <th>Items</th>
+                  <th>Status</th>
+                  <th>Sent</th>
+                  <th>Opened</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visits.map(v => (
+                  <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => navigate('visit-detail', v.id)}>
+                    <td style={{ fontWeight: 500 }}>{v.customer_name}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{v.customer_email || '—'}</td>
+                    <td>{v.item_count}</td>
+                    <td><span className={'badge badge-' + v.status}>{v.status}</span></td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{v.sent_at ? new Date(v.sent_at).toLocaleDateString() : '—'}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{v.opened_at ? new Date(v.opened_at).toLocaleDateString() : '—'}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(v.created_at).toLocaleDateString()}</td>
+                    <td className="actions">
+                      <button className="btn btn-sm btn-secondary" onClick={e => { e.stopPropagation(); navigate('visit-detail', v.id); }}>View</button>
+                    </td>
+                  </tr>
+                ))}
+                {visits.length === 0 && (
+                  <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No visits found</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepVisitBuilderView ==========
+    function RepVisitBuilderView({ navigate }) {
+      const [customerName, setCustomerName] = useState('');
+      const [customerEmail, setCustomerEmail] = useState('');
+      const [customerPhone, setCustomerPhone] = useState('');
+      const [message, setMessage] = useState('');
+      const [items, setItems] = useState([]);
+      const [skuSearch, setSkuSearch] = useState('');
+      const [skuResults, setSkuResults] = useState([]);
+      const [skuSearching, setSkuSearching] = useState(false);
+      const [saving, setSaving] = useState(false);
+
+      const searchSku = async (q) => {
+        setSkuSearch(q);
+        if (q.length < 2) { setSkuResults([]); return; }
+        setSkuSearching(true);
+        try {
+          const data = await repFetch('/api/rep/skus/search?q=' + encodeURIComponent(q));
+          setSkuResults(data.results || []);
+        } catch (e) {}
+        setSkuSearching(false);
+      };
+
+      const addProduct = (r) => {
+        // Avoid duplicates
+        if (items.find(i => i.sku_id === r.sku_id)) return;
+        setItems(prev => [...prev, {
+          _key: Date.now(),
+          product_id: r.product_id || null,
+          sku_id: r.sku_id,
+          product_name: r.product_name,
+          collection: r.collection,
+          variant_name: r.variant_name,
+          vendor_name: r.vendor_name,
+          retail_price: r.retail_price ? parseFloat(r.retail_price) : null,
+          price_basis: r.price_basis,
+          rep_note: ''
+        }]);
+        setSkuSearch('');
+        setSkuResults([]);
+      };
+
+      const removeItem = (key) => setItems(prev => prev.filter(i => i._key !== key));
+
+      const updateNote = (key, note) => {
+        setItems(prev => prev.map(i => i._key === key ? { ...i, rep_note: note } : i));
+      };
+
+      const saveVisit = async (andSend) => {
+        if (!customerName.trim()) return alert('Customer name is required');
+        if (!items.length) return alert('Add at least one product');
+        if (andSend && !customerEmail.trim()) return alert('Customer email is required to send');
+        setSaving(true);
+        try {
+          const body = {
+            customer_name: customerName.trim(),
+            customer_email: customerEmail.trim() || null,
+            customer_phone: customerPhone.trim() || null,
+            message: message.trim() || null,
+            items: items.map(i => ({
+              product_id: i.product_id,
+              sku_id: i.sku_id,
+              rep_note: i.rep_note || null
+            }))
+          };
+          const created = await repFetch('/api/rep/visits', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          if (andSend && created.visit) {
+            await repFetch('/api/rep/visits/' + created.visit.id + '/send', { method: 'POST' });
+          }
+          navigate('visit-detail', created.visit.id);
+        } catch (err) {
+          alert('Error: ' + (err.message || 'Failed to save'));
+        }
+        setSaving(false);
+      };
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>New Showroom Visit</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('visits')}>Back to Visits</button>
+          </div>
+
+          <div className="form-card">
+            <h3>Customer Information</h3>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Customer Name *</label>
+                <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Full name" />
+              </div>
+              <div className="form-group">
+                <label>Email</label>
+                <input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="customer@email.com" />
+              </div>
+              <div className="form-group">
+                <label>Phone</label>
+                <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="(555) 123-4567" />
+              </div>
+              <div className="form-group full">
+                <label>Message (optional)</label>
+                <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Thanks for visiting! Here are the materials we discussed..." rows="3" />
+              </div>
+            </div>
+          </div>
+
+          <div className="form-card">
+            <h3>Products</h3>
+            <div className="form-group">
+              <label>Search Products</label>
+              <input value={skuSearch} onChange={e => searchSku(e.target.value)} placeholder="Search by product name, SKU, or collection..." />
+            </div>
+            {skuResults.length > 0 && (
+              <div style={{ border: '1px solid var(--stone-200)', maxHeight: 300, overflow: 'auto', marginBottom: '1.5rem' }}>
+                {skuResults.map(r => (
+                  <div key={r.sku_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderBottom: '1px solid var(--stone-100)', cursor: 'pointer' }}
+                    onClick={() => addProduct(r)}>
+                    <div>
+                      <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{r.product_name}{r.variant_name ? ' — ' + r.variant_name : ''}</div>
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
+                        {r.collection || ''}{r.vendor_name ? ' · ' + r.vendor_name : ''}{r.internal_sku ? ' · ' + r.internal_sku : ''}
+                      </div>
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+                      {r.retail_price ? '$' + parseFloat(r.retail_price).toFixed(2) : '—'}
+                      {r.price_basis === 'per_sqft' ? '/sqft' : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {items.length === 0 && (
+              <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem', border: '1px dashed var(--stone-200)' }}>
+                Search and add products the customer viewed
+              </div>
+            )}
+
+            {items.map(item => (
+              <div key={item._key} className="visit-product-card">
+                <div className="visit-product-info">
+                  <div className="vp-name">{item.product_name}{item.variant_name ? ' — ' + item.variant_name : ''}</div>
+                  <div className="vp-collection">{item.collection || ''}{item.vendor_name ? ' · ' + item.vendor_name : ''}</div>
+                  <div className="vp-price">
+                    {item.retail_price ? '$' + item.retail_price.toFixed(2) : '—'}
+                    {item.price_basis === 'per_sqft' ? '/sqft' : ''}
+                  </div>
+                </div>
+                <div style={{ flex: '0 0 200px' }}>
+                  <input placeholder="Rep note..." value={item.rep_note} onChange={e => updateNote(item._key, e.target.value)}
+                    style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem' }} />
+                </div>
+                <button className="btn btn-sm" onClick={() => removeItem(item._key)}
+                  style={{ color: 'var(--red)', background: 'var(--red-light)', border: 'none', padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem' }}>Remove</button>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+            <button className="btn btn-secondary" disabled={saving} onClick={() => saveVisit(false)}>
+              {saving ? 'Saving...' : 'Save as Draft'}
+            </button>
+            <button className="btn btn-primary" disabled={saving} onClick={() => saveVisit(true)}>
+              {saving ? 'Saving...' : 'Save & Send'}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepVisitDetailView ==========
+    function RepVisitDetailView({ navigate, editId }) {
+      const [visit, setVisit] = useState(null);
+      const [items, setItems] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [sending, setSending] = useState(false);
+      const [copied, setCopied] = useState(false);
+
+      useEffect(() => {
+        repFetch('/api/rep/visits/' + editId)
+          .then(d => { setVisit(d.visit); setItems(d.items || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, [editId]);
+
+      const sendRecap = async () => {
+        if (!visit.customer_email) return alert('No customer email set');
+        setSending(true);
+        try {
+          await repFetch('/api/rep/visits/' + editId + '/send', { method: 'POST' });
+          const d = await repFetch('/api/rep/visits/' + editId);
+          setVisit(d.visit);
+        } catch (err) {
+          alert('Error: ' + (err.message || 'Failed to send'));
+        }
+        setSending(false);
+      };
+
+      const deleteVisit = async () => {
+        if (!confirm('Delete this visit?')) return;
+        try {
+          await repFetch('/api/rep/visits/' + editId, { method: 'DELETE' });
+          navigate('visits');
+        } catch (err) {
+          alert('Error: ' + (err.message || 'Failed to delete'));
+        }
+      };
+
+      const copyUrl = () => {
+        const url = window.location.origin + '/visit/' + visit.token;
+        navigator.clipboard.writeText(url).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
+      };
+
+      if (loading) return <div className="loading">Loading visit...</div>;
+      if (!visit) return <div className="loading">Visit not found</div>;
+
+      const priceLabel = (item) => {
+        if (!item.retail_price) return '—';
+        const p = '$' + parseFloat(item.retail_price).toFixed(2);
+        return item.price_basis === 'per_sqft' ? p + '/sqft' : p;
+      };
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Visit Recap</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('visits')}>Back to Visits</button>
+          </div>
+
+          {/* Customer Info */}
+          <div className="form-card">
+            <h3>Customer Information</h3>
+            <div className="order-info-grid">
+              <div className="order-info-item"><label>Name</label><span>{visit.customer_name}</span></div>
+              <div className="order-info-item"><label>Email</label><span>{visit.customer_email || '—'}</span></div>
+              <div className="order-info-item"><label>Phone</label><span>{visit.customer_phone || '—'}</span></div>
+              <div className="order-info-item"><label>Status</label><span className={'badge badge-' + visit.status}>{visit.status}</span></div>
+            </div>
+            {visit.message && (
+              <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--stone-50)', borderLeft: '3px solid var(--gold)' }}>
+                <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Message</div>
+                <div style={{ fontSize: '0.875rem', color: 'var(--stone-700)' }}>{visit.message}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Timestamps */}
+          <div className="form-card">
+            <h3>Status Tracking</h3>
+            <div className="order-info-grid">
+              <div className="order-info-item"><label>Created</label><span>{new Date(visit.created_at).toLocaleString()}</span></div>
+              <div className="order-info-item"><label>Sent</label><span>{visit.sent_at ? new Date(visit.sent_at).toLocaleString() : '—'}</span></div>
+              <div className="order-info-item"><label>Opened</label><span>{visit.opened_at ? new Date(visit.opened_at).toLocaleString() : '—'}</span></div>
+              <div className="order-info-item"><label>Carted</label><span>{visit.items_carted_at ? new Date(visit.items_carted_at).toLocaleString() : '—'}</span></div>
+            </div>
+          </div>
+
+          {/* Shareable Link */}
+          <div className="form-card">
+            <h3>Shareable Link</h3>
+            <div className="visit-url-box">
+              <span style={{ flex: 1 }}>{window.location.origin}/visit/{visit.token}</span>
+              <button className="btn btn-sm btn-secondary" onClick={copyUrl}>
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+              {visit.customer_email && (visit.status === 'draft' || visit.status === 'sent') && (
+                <button className="btn btn-primary" disabled={sending} onClick={sendRecap}>
+                  {sending ? 'Sending...' : visit.status === 'sent' ? 'Resend Email' : 'Send Email'}
+                </button>
+              )}
+              {visit.status === 'draft' && (
+                <button className="btn btn-secondary" style={{ color: 'var(--red)' }} onClick={deleteVisit}>Delete Visit</button>
+              )}
+            </div>
+          </div>
+
+          {/* Items */}
+          <div className="form-card">
+            <h3>Products ({items.length})</h3>
+            {items.map(item => (
+              <div key={item.id} className="visit-product-card">
+                {item.primary_image && (
+                  <img src={item.primary_image} alt={item.product_name} className="visit-product-image" />
+                )}
+                <div className="visit-product-info">
+                  <div className="vp-name">{item.product_name}{item.variant_name ? ' — ' + item.variant_name : ''}</div>
+                  <div className="vp-collection">{item.collection || ''}</div>
+                  <div className="vp-price">{priceLabel(item)}</div>
+                  {item.rep_note && (
+                    <div style={{ marginTop: '0.25rem', fontSize: '0.8125rem', fontStyle: 'italic', color: 'var(--stone-500)' }}>
+                      "{item.rep_note}"
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {items.length === 0 && (
+              <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No products in this visit</div>
+            )}
           </div>
         </div>
       );
@@ -645,15 +3214,20 @@
     // ========== RepDashboardView ==========
     function RepDashboardView({ navigate }) {
       const [data, setData] = useState(null);
+      const [commissionSummary, setCommissionSummary] = useState(null);
 
       useEffect(() => {
         repFetch('/api/rep/dashboard').then(setData).catch(() => {});
+        repFetch('/api/rep/commissions/summary').then(setCommissionSummary).catch(() => {});
       }, []);
 
       if (!data) return <div className="loading">Loading dashboard...</div>;
 
-      const { stats, recent_orders } = data;
-      const cards = [
+      const { stats, metrics, recent_orders } = data;
+      const momChange = metrics.month_over_month_change;
+      const commEarned = commissionSummary ? parseFloat(commissionSummary.total_earned) + parseFloat(commissionSummary.total_pending) : 0;
+
+      const countCards = [
         { label: 'Total Orders', value: stats.total_orders },
         { label: 'My Orders', value: stats.my_orders },
         { label: 'Pending', value: stats.pending_orders },
@@ -668,8 +3242,61 @@
           <div className="content-header">
             <h1>Dashboard</h1>
           </div>
+
+          {/* Metrics Grid */}
+          <div className="metrics-grid">
+            <div className="metric-card">
+              <div className="metric-card-label">Sales This Month</div>
+              <div className="metric-card-value">${metrics.sales_this_month.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="metric-card-sub">
+                {momChange !== 0 && (
+                  <span className={momChange >= 0 ? 'metric-change-up' : 'metric-change-down'}>
+                    {momChange >= 0 ? '+' : ''}{momChange.toFixed(1)}% vs last month
+                  </span>
+                )}
+                {momChange === 0 && <span>No change vs last month</span>}
+              </div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-card-label">Avg Order Value</div>
+              <div className="metric-card-value">${metrics.avg_order_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="metric-card-sub">Across all my orders</div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-card-label">Quote Conversion</div>
+              <div className="metric-card-value">{metrics.conversion_rate.toFixed(1)}%</div>
+              <div className="metric-card-sub">{metrics.quotes_converted} of {metrics.quotes_total_sent} quotes converted</div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-card-label">Pipeline Value</div>
+              <div className="metric-card-value">${metrics.pipeline_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="metric-card-sub">Open draft + sent quotes</div>
+            </div>
+            <div className="metric-card" style={{ cursor: 'pointer' }} onClick={() => navigate('commissions')}>
+              <div className="metric-card-label">Commission Earned</div>
+              <div className="metric-card-value">${commEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="metric-card-sub">Earned + pending &mdash; click to view</div>
+            </div>
+            <div className="metric-card" style={{ gridColumn: 'span 1' }}>
+              <div className="metric-card-label">Top Products</div>
+              {metrics.top_products.length === 0 ? (
+                <div className="metric-card-sub" style={{ marginTop: '0.5rem' }}>No sales data yet</div>
+              ) : (
+                <ul className="top-products-list">
+                  {metrics.top_products.map((p, i) => (
+                    <li key={i}>
+                      <span style={{ fontWeight: 500 }}>{p.product_name}</span>
+                      <span style={{ color: 'var(--stone-500)' }}>${p.revenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {/* Count Cards */}
           <div className="stat-grid">
-            {cards.map(c => (
+            {countCards.map(c => (
               <div className="stat-card" key={c.label}>
                 <div className="stat-card-label">{c.label}</div>
                 <div className="stat-card-value">{c.value}</div>
@@ -677,6 +3304,7 @@
             ))}
           </div>
 
+          {/* Recent Orders */}
           <div className="form-card">
             <h3>Recent Orders</h3>
             <table className="rep-table">
@@ -702,7 +3330,7 @@
                     <td>${parseFloat(o.total).toFixed(2)}</td>
                     <td>{o.delivery_method === 'pickup' ? <span className="badge badge-draft">Pickup</span> : o.shipping_method === 'ltl_freight' ? <span className="badge badge-shipped">LTL</span> : <span className="badge badge-active">Parcel</span>}</td>
                     <td><span className={'badge badge-' + o.status}>{o.delivery_method === 'pickup' && o.status === 'shipped' ? 'ready' : o.delivery_method === 'pickup' && o.status === 'delivered' ? 'picked up' : o.status}</span></td>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{o.rep_name || '—'}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{o.rep_name || '\u2014'}</td>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(o.created_at).toLocaleDateString()}</td>
                     <td className="actions">
                       <button className="btn btn-secondary btn-sm" onClick={() => navigate('order-detail', o.id)}>View</button>
@@ -737,15 +3365,11 @@
 
       useEffect(load, [load]);
 
-      const assignToMe = async (orderId) => {
-        await repFetch('/api/rep/orders/' + orderId + '/assign', { method: 'PUT' });
-        load();
-      };
-
       return (
         <div>
           <div className="content-header">
             <h1>Orders</h1>
+            <button className="btn btn-primary" onClick={() => navigate('order-create')}>New Order</button>
           </div>
           <div className="filter-bar">
             <input type="text" placeholder="Search name, email, order#..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -793,9 +3417,6 @@
                     <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(o.created_at).toLocaleDateString()}</td>
                     <td className="actions">
                       <button className="btn btn-secondary btn-sm" onClick={() => navigate('order-detail', o.id)}>View</button>
-                      {!o.sales_rep_id && (
-                        <button className="btn btn-primary btn-sm" onClick={() => assignToMe(o.id)}>Assign to Me</button>
-                      )}
                     </td>
                   </tr>
                 ))}
@@ -826,6 +3447,8 @@
       const [poUpdating, setPoUpdating] = useState(false);
       const [showTrackingForm, setShowTrackingForm] = useState(false);
       const [trackingData, setTrackingData] = useState({ tracking_number: '', carrier: '', shipped_at: new Date().toISOString().slice(0, 10) });
+      const [showCancelForm, setShowCancelForm] = useState(false);
+      const [cancelReason, setCancelReason] = useState('');
       const [showDeliveryForm, setShowDeliveryForm] = useState(false);
       const [deliveryAddress, setDeliveryAddress] = useState({ line1: '', line2: '', city: '', state: '', zip: '' });
       const [shippingOptions, setShippingOptions] = useState(null);
@@ -840,6 +3463,47 @@
       const [addItemBoxes, setAddItemBoxes] = useState(1);
       const [skuSearchResults, setSkuSearchResults] = useState([]);
       const [skuSearching, setSkuSearching] = useState(false);
+      const [addItemMode, setAddItemMode] = useState('sku');
+      const [customItemName, setCustomItemName] = useState('');
+      const [customItemPrice, setCustomItemPrice] = useState('');
+      const [customItemVendor, setCustomItemVendor] = useState('');
+      const [customItemDesc, setCustomItemDesc] = useState('');
+      const [customItemBoxes, setCustomItemBoxes] = useState(1);
+      const [addItemVendors, setAddItemVendors] = useState([]);
+      const [orderActivity, setOrderActivity] = useState(null);
+
+      const orderActionLabel = (action) => {
+        const labels = {
+          status_changed: 'Status Changed', delivery_method_changed: 'Delivery Changed',
+          refund_issued: 'Refund Issued', item_added: 'Item Added', item_removed: 'Item Removed',
+          payment_request_sent: 'Payment Request Sent', payment_request_cancelled: 'Payment Request Cancelled',
+          rep_assigned: 'Rep Assigned', price_adjusted: 'Price Adjusted'
+        };
+        return labels[action] || action;
+      };
+
+      const orderActivityDetail = (entry) => {
+        const d = entry.details || {};
+        switch (entry.action) {
+          case 'status_changed': return (d.from || '?') + ' → ' + (d.to || '?') + (d.tracking_number ? ' (tracking: ' + d.tracking_number + ')' : '');
+          case 'delivery_method_changed': return (d.from || '?') + ' → ' + (d.to || '?') + (d.shipping_cost ? ' ($' + d.shipping_cost + ')' : '');
+          case 'refund_issued': return '$' + (d.amount || '0') + (d.is_full ? ' (full)' : ' (partial)') + (d.reason ? ' — ' + d.reason : '');
+          case 'item_added': return (d.product_name || '?') + (d.is_custom ? ' (custom)' : '') + ' × ' + (d.num_boxes || '?') + ' — $' + (d.subtotal || '0');
+          case 'item_removed': return (d.product_name || '?') + ' × ' + (d.num_boxes || '?') + ' — $' + (d.subtotal || '0');
+          case 'payment_request_sent': return '$' + (d.amount || '0') + ' to ' + (d.sent_to || '?');
+          case 'payment_request_cancelled': return '$' + (d.amount || '0');
+          case 'rep_assigned': return d.unassigned ? 'Unassigned' : (d.rep_name || '?');
+          case 'price_adjusted': return (d.product_name || '?') + ': $' + (d.previous_price || '?') + ' → $' + (d.new_price || '?') + (d.reason ? ' — ' + d.reason : '');
+          default: return JSON.stringify(d);
+        }
+      };
+
+      const loadOrderActivity = useCallback(async () => {
+        try {
+          const data = await repFetch('/api/rep/orders/' + editId + '/activity');
+          setOrderActivity(data.activity || []);
+        } catch (err) { console.error('Failed to load order activity:', err); }
+      }, [editId]);
 
       const loadPOs = useCallback(() => {
         if (!editId) return;
@@ -896,14 +3560,26 @@
         setPoUpdating(false);
       };
 
-      const updateStatus = async (newStatus) => {
+      const updatePOItemStatus = async (poId, itemId, status) => {
+        setPoUpdating(true);
+        try {
+          await repFetch('/api/rep/purchase-orders/' + poId + '/items/' + itemId + '/status', {
+            method: 'PUT',
+            body: JSON.stringify({ status })
+          });
+          loadPOs();
+        } catch (err) { alert(err.message); }
+        setPoUpdating(false);
+      };
+
+      const updateStatus = async (newStatus, extras) => {
         if (newStatus === 'shipped' && order.delivery_method === 'shipping' && !showTrackingForm) {
           setShowTrackingForm(true);
           return;
         }
         setUpdating(true);
         try {
-          const body = { status: newStatus };
+          const body = { status: newStatus, ...extras };
           if (newStatus === 'shipped' && showTrackingForm) {
             body.tracking_number = trackingData.tracking_number;
             body.carrier = trackingData.carrier;
@@ -914,15 +3590,13 @@
             body: JSON.stringify(body)
           });
           if (data.order) setOrder(data.order);
+          loadPOs();
           setShowTrackingForm(false);
+          setShowCancelForm(false);
+          setCancelReason('');
           setTrackingData({ tracking_number: '', carrier: '', shipped_at: new Date().toISOString().slice(0, 10) });
         } catch (err) {}
         setUpdating(false);
-      };
-
-      const assignToMe = async () => {
-        const data = await repFetch('/api/rep/orders/' + editId + '/assign', { method: 'PUT' });
-        if (data.order) setOrder(data.order);
       };
 
       const savePrice = async (itemId) => {
@@ -974,9 +3648,14 @@
                   Mark {statusLabels[nextStatus] || nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}
                 </button>
               )}
-              {!showTrackingForm && canCancel && (
-                <button className="btn btn-danger btn-sm" onClick={() => updateStatus('cancelled')} disabled={updating}>
+              {!showTrackingForm && !showCancelForm && canCancel && (
+                <button className="btn btn-danger btn-sm" onClick={() => setShowCancelForm(true)} disabled={updating}>
                   Cancel Order
+                </button>
+              )}
+              {!showTrackingForm && order.status === 'cancelled' && !order.stripe_refund_id && (
+                <button className="btn btn-primary btn-sm" onClick={() => { if (confirm('Reopen this order? It will return to Pending status.')) updateStatus('pending'); }} disabled={updating}>
+                  Reopen Order
                 </button>
               )}
               {order.status === 'refunded' && (
@@ -986,13 +3665,33 @@
               )}
               <div style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
                 <strong>Assigned to:</strong> {order.rep_name || 'Unassigned'}
-                {!order.sales_rep_id && (
-                  <button className="btn btn-primary btn-sm" style={{ marginLeft: '0.75rem' }} onClick={assignToMe}>
-                    Assign to Me
-                  </button>
-                )}
               </div>
             </div>
+
+            {order.status === 'cancelled' && order.cancel_reason && (
+              <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', background: '#fee2e2', color: '#991b1b', fontSize: '0.8125rem', borderRadius: '6px' }}>
+                <strong>Cancellation reason:</strong> {order.cancel_reason}
+              </div>
+            )}
+
+            {showCancelForm && (
+              <div style={{ marginTop: '1rem', padding: '1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px' }}>
+                <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: '#991b1b' }}>Cancel Order</h4>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-600)', marginBottom: '0.25rem' }}>Reason for cancellation *</label>
+                <textarea value={cancelReason} onChange={e => setCancelReason(e.target.value)}
+                  placeholder="e.g. Customer requested cancellation, out of stock..."
+                  rows={3} style={{ width: '100%', padding: '0.5rem', border: '1px solid #fecaca', borderRadius: '4px', fontSize: '0.8125rem', resize: 'vertical', marginBottom: '0.75rem' }} />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-danger btn-sm" disabled={updating || !cancelReason.trim()}
+                    onClick={() => updateStatus('cancelled', { cancel_reason: cancelReason.trim() })}>
+                    {updating ? 'Cancelling...' : 'Confirm Cancellation'}
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => { setShowCancelForm(false); setCancelReason(''); }} disabled={updating}>
+                    Go Back
+                  </button>
+                </div>
+              </div>
+            )}
 
             {showTrackingForm && (
               <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '6px' }}>
@@ -1270,6 +3969,7 @@
                                       if (data.order) setOrder(data.order);
                                       if (data.items) setItems(data.items);
                                       if (data.balance) setBalanceInfo(data.balance);
+                                      loadPOs();
                                     } catch (err) { alert(err.message); }
                                   }}>Remove</button>
                               )}
@@ -1319,57 +4019,142 @@
             {['pending', 'confirmed'].includes(order.status) && (
               <div style={{ marginTop: '0.75rem' }}>
                 {!addingItem ? (
-                  <button className="btn btn-sm btn-secondary" onClick={() => { setAddingItem(true); setAddItemSku(''); setAddItemBoxes(1); setSkuSearchResults([]); }}>
+                  <button className="btn btn-sm btn-secondary" onClick={() => {
+                    setAddingItem(true); setAddItemMode('sku'); setAddItemSku(''); setAddItemBoxes(1);
+                    setSkuSearchResults([]); setCustomItemName(''); setCustomItemPrice('');
+                    setCustomItemVendor(''); setCustomItemDesc(''); setCustomItemBoxes(1);
+                    if (addItemVendors.length === 0) {
+                      repFetch('/api/rep/vendors').then(d => setAddItemVendors(d.vendors || [])).catch(() => {});
+                    }
+                  }}>
                     + Add Item
                   </button>
                 ) : (
                   <div style={{ padding: '1rem', border: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
-                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                      <div style={{ flex: 2, minWidth: '200px' }}>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Search SKU</label>
-                        <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
-                          onChange={async (e) => {
-                            const q = e.target.value; setAddItemSku(q);
-                            if (q.length >= 2) {
-                              setSkuSearching(true);
-                              try {
-                                const data = await repFetch('/api/rep/skus/search?q=' + encodeURIComponent(q));
-                                setSkuSearchResults((data.results || []).map(r => ({
-                                  sku_id: r.sku_id, label: r.product_name + ' — ' + (r.variant_name || r.internal_sku), price: r.retail_price || 0
-                                })));
-                              } catch (e) {}
-                              setSkuSearching(false);
-                            } else { setSkuSearchResults([]); }
-                          }}
-                          style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
-                        {skuSearchResults.length > 0 && (
-                          <div style={{ border: '1px solid var(--stone-200)', maxHeight: '150px', overflow: 'auto', background: '#fff' }}>
-                            {skuSearchResults.map((r, i) => (
-                              <div key={i} style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}
-                                onClick={async () => {
-                                  try {
-                                    const data = await repFetch('/api/rep/orders/' + editId + '/add-item', {
-                                      method: 'POST', body: JSON.stringify({ sku_id: r.sku_id, num_boxes: addItemBoxes })
-                                    });
-                                    if (data.order) setOrder(data.order);
-                                    if (data.items) setItems(data.items);
-                                    if (data.balance) setBalanceInfo(data.balance);
-                                    setAddingItem(false); setSkuSearchResults([]);
-                                  } catch (err) { alert(err.message); }
-                                }}>
-                                {r.label} — ${parseFloat(r.price).toFixed(2)}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ width: '80px' }}>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Boxes</label>
-                        <input type="number" min="1" value={addItemBoxes} onChange={e => setAddItemBoxes(parseInt(e.target.value) || 1)}
-                          style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
-                      </div>
+                    {/* Mode toggle */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <button className={addItemMode === 'sku' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary'}
+                        onClick={() => { setAddItemMode('sku'); setCustomItemName(''); setCustomItemPrice(''); setCustomItemVendor(''); setCustomItemDesc(''); setCustomItemBoxes(1); }}>
+                        Search SKU
+                      </button>
+                      <button className={addItemMode === 'custom' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary'}
+                        onClick={() => { setAddItemMode('custom'); setAddItemSku(''); setSkuSearchResults([]); setAddItemBoxes(1); }}>
+                        Custom Item
+                      </button>
+                      <div style={{ flex: 1 }}></div>
                       <button className="btn btn-sm btn-secondary" onClick={() => setAddingItem(false)}>Cancel</button>
                     </div>
+
+                    {addItemMode === 'sku' ? (
+                      /* SKU search mode */
+                      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 2, minWidth: '200px' }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Search SKU</label>
+                          <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
+                            onChange={async (e) => {
+                              const q = e.target.value; setAddItemSku(q);
+                              if (q.length >= 2) {
+                                setSkuSearching(true);
+                                try {
+                                  const data = await repFetch('/api/rep/skus/search?q=' + encodeURIComponent(q));
+                                  setSkuSearchResults((data.results || []).map(r => ({
+                                    sku_id: r.sku_id,
+                                    label: r.product_name + ' — ' + (r.variant_name || r.internal_sku),
+                                    price: r.retail_price || 0,
+                                    vendor_name: r.vendor_name
+                                  })));
+                                } catch (e) {}
+                                setSkuSearching(false);
+                              } else { setSkuSearchResults([]); }
+                            }}
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                          {skuSearchResults.length > 0 && (
+                            <div style={{ border: '1px solid var(--stone-200)', maxHeight: '150px', overflow: 'auto', background: '#fff' }}>
+                              {skuSearchResults.map((r, i) => (
+                                <div key={i} style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}
+                                  onClick={async () => {
+                                    try {
+                                      const data = await repFetch('/api/rep/orders/' + editId + '/add-item', {
+                                        method: 'POST', body: JSON.stringify({ sku_id: r.sku_id, num_boxes: addItemBoxes })
+                                      });
+                                      if (data.order) setOrder(data.order);
+                                      if (data.items) setItems(data.items);
+                                      if (data.balance) setBalanceInfo(data.balance);
+                                      loadPOs();
+                                      setAddingItem(false); setSkuSearchResults([]);
+                                    } catch (err) { alert(err.message); }
+                                  }}>
+                                  {r.label}{r.vendor_name ? ' (' + r.vendor_name + ')' : ''} — ${parseFloat(r.price).toFixed(2)}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ width: '80px' }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Boxes</label>
+                          <input type="number" min="1" value={addItemBoxes} onChange={e => setAddItemBoxes(parseInt(e.target.value) || 1)}
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                        </div>
+                      </div>
+                    ) : (
+                      /* Custom item mode */
+                      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                        <div style={{ minWidth: '160px', flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Vendor *</label>
+                          <select value={customItemVendor} onChange={e => setCustomItemVendor(e.target.value)}
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }}>
+                            <option value="">Select vendor...</option>
+                            {addItemVendors.map(v => (
+                              <option key={v.id} value={v.id}>{v.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div style={{ minWidth: '160px', flex: 2 }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Product Name *</label>
+                          <input type="text" value={customItemName} onChange={e => setCustomItemName(e.target.value)}
+                            placeholder="e.g. Custom transition strip"
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                        </div>
+                        <div style={{ width: '100px' }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Unit Price *</label>
+                          <input type="number" min="0" step="0.01" value={customItemPrice} onChange={e => setCustomItemPrice(e.target.value)}
+                            placeholder="0.00"
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                        </div>
+                        <div style={{ width: '70px' }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Boxes *</label>
+                          <input type="number" min="1" value={customItemBoxes} onChange={e => setCustomItemBoxes(parseInt(e.target.value) || 1)}
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                        </div>
+                        <div style={{ minWidth: '140px', flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Description</label>
+                          <input type="text" value={customItemDesc} onChange={e => setCustomItemDesc(e.target.value)}
+                            placeholder="Optional notes"
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                        </div>
+                        <button className="btn btn-sm btn-primary" disabled={!customItemVendor || !customItemName.trim() || !customItemPrice}
+                          onClick={async () => {
+                            try {
+                              const data = await repFetch('/api/rep/orders/' + editId + '/add-item', {
+                                method: 'POST', body: JSON.stringify({
+                                  product_name: customItemName.trim(),
+                                  unit_price: parseFloat(customItemPrice),
+                                  vendor_id: customItemVendor,
+                                  num_boxes: customItemBoxes,
+                                  description: customItemDesc || undefined
+                                })
+                              });
+                              if (data.order) setOrder(data.order);
+                              if (data.items) setItems(data.items);
+                              if (data.balance) setBalanceInfo(data.balance);
+                              loadPOs();
+                              setAddingItem(false);
+                            } catch (err) { alert(err.message); }
+                          }}>
+                          Add
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1411,6 +4196,7 @@
                         <th>Retail Price</th>
                         <th>Cost</th>
                         <th>Margin</th>
+                        {po.status !== 'draft' && <th>Status</th>}
                         <th style={{ textAlign: 'right' }}>Subtotal (Cost)</th>
                       </tr>
                     </thead>
@@ -1452,6 +4238,17 @@
                             <td style={{ color: margin <= 0 ? 'var(--red)' : 'inherit', fontWeight: margin <= 0 ? 600 : 400 }}>
                               {retail > 0 ? margin.toFixed(1) + '%' : '—'}
                             </td>
+                            {po.status !== 'draft' && (
+                              <td>
+                                <select value={item.status || 'pending'} disabled={poUpdating}
+                                  onChange={e => updatePOItemStatus(po.id, item.id, e.target.value)}
+                                  style={{ fontSize: '0.75rem', padding: '0.2rem 0.35rem', border: '1px solid var(--stone-300)', borderRadius: '4px', background: 'white' }}>
+                                  {['pending', 'ordered', 'shipped', 'received', 'cancelled'].map(s => (
+                                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                                  ))}
+                                </select>
+                              </td>
+                            )}
                             <td style={{ textAlign: 'right' }}>${parseFloat(item.subtotal).toFixed(2)}</td>
                           </tr>
                         );
@@ -1465,6 +4262,33 @@
               ))}
             </div>
           )}
+
+          {/* Order Activity */}
+          <div className="form-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Order Activity</h3>
+              <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
+                onClick={loadOrderActivity}>{orderActivity ? 'Refresh' : 'Load Activity'}</button>
+            </div>
+            {orderActivity === null ? (
+              <p style={{ fontSize: '0.8125rem', color: 'var(--stone-400)' }}>Click "Load Activity" to view order history</p>
+            ) : orderActivity.length === 0 ? (
+              <p style={{ fontSize: '0.8125rem', color: 'var(--stone-400)' }}>No activity recorded yet</p>
+            ) : (
+              <div>
+                {orderActivity.map(entry => (
+                  <div key={entry.id} style={{ fontSize: '0.8125rem', padding: '0.5rem 0', borderBottom: '1px solid var(--stone-100)', display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                    <div>
+                      <strong>{orderActionLabel(entry.action)}</strong>
+                      <span style={{ color: 'var(--stone-500)', marginLeft: '0.5rem' }}>{orderActivityDetail(entry)}</span>
+                      {entry.performer_name && <span style={{ color: 'var(--stone-400)', marginLeft: '0.5rem' }}>— {entry.performer_name}</span>}
+                    </div>
+                    <span style={{ color: 'var(--stone-400)', whiteSpace: 'nowrap', fontSize: '0.75rem' }}>{new Date(entry.created_at).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Order Totals */}
           <div className="form-card">
@@ -1575,12 +4399,11 @@
               </table>
             </div>
           )}
-        </div>
 
-        {showPaymentRequestModal && (
-          <div className="modal-overlay" onClick={() => setShowPaymentRequestModal(false)}>
-            <div className="modal-box" onClick={e => e.stopPropagation()}>
-              <h3>Send Payment Request</h3>
+          {showPaymentRequestModal && (
+            <div className="modal-overlay" onClick={() => setShowPaymentRequestModal(false)}>
+              <div className="modal-box" onClick={e => e.stopPropagation()}>
+                <h3>Send Payment Request</h3>
               <p>Send a payment link for <strong>${balanceInfo ? balanceInfo.balance.toFixed(2) : '0.00'}</strong> to <strong>{order.customer_email}</strong>.</p>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Message to Customer (optional)</label>
@@ -1606,10 +4429,11 @@
                   }}>
                   {updating ? 'Sending...' : 'Send Payment Request'}
                 </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       );
     }
 

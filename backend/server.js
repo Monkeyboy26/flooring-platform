@@ -11,7 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped } from './services/emailService.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import healthRoutes from './routes/health.js';
 
@@ -222,6 +222,111 @@ async function recalculateBalance(orderId, client) {
   if (balance > 0.01) balance_status = 'balance_due';
   else if (balance < -0.01) balance_status = 'credit';
   return { amount_paid, total, balance, balance_status };
+}
+
+// ==================== Order Activity Log Helper ====================
+
+async function logOrderActivity(queryable, orderId, action, performerId, performerName, details = {}) {
+  try {
+    await queryable.query(
+      `INSERT INTO order_activity_log (order_id, action, performed_by, performer_name, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [orderId, action, performerId || null, performerName || null, JSON.stringify(details)]
+    );
+  } catch (err) {
+    console.error('Failed to log order activity:', err.message);
+  }
+}
+
+// ==================== Rep Notification Helper ====================
+
+async function createRepNotification(queryable, repId, type, title, message, entityType, entityId) {
+  try {
+    await queryable.query(
+      `INSERT INTO rep_notifications (rep_id, type, title, message, entity_type, entity_id)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [repId, type, title, message || null, entityType || null, entityId || null]
+    );
+  } catch (err) {
+    console.error('Failed to create rep notification:', err.message);
+  }
+}
+
+async function notifyAllActiveReps(queryable, type, title, message, entityType, entityId) {
+  try {
+    const reps = await queryable.query('SELECT id FROM sales_reps WHERE is_active = true');
+    for (const rep of reps.rows) {
+      await createRepNotification(queryable, rep.id, type, title, message, entityType, entityId);
+    }
+  } catch (err) {
+    console.error('Failed to notify all reps:', err.message);
+  }
+}
+
+// ==================== Commission Recalculation Helper ====================
+
+async function recalculateCommission(queryable, orderId) {
+  try {
+    // Fetch order
+    const orderRes = await queryable.query(
+      'SELECT id, total, status, sales_rep_id, amount_paid FROM orders WHERE id = $1',
+      [orderId]
+    );
+    if (!orderRes.rows.length) return;
+    const order = orderRes.rows[0];
+    if (!order.sales_rep_id) return;
+
+    // Fetch commission config
+    const configRes = await queryable.query('SELECT rate, default_cost_ratio FROM commission_config LIMIT 1');
+    if (!configRes.rows.length) return;
+    const config = configRes.rows[0];
+    const rate = parseFloat(config.rate);
+    const defaultCostRatio = parseFloat(config.default_cost_ratio);
+
+    // Calculate vendor cost from purchase_order_items (excluding cancelled POs)
+    const costRes = await queryable.query(`
+      SELECT COALESCE(SUM(poi.subtotal), 0) as vendor_cost
+      FROM purchase_order_items poi
+      JOIN purchase_orders po ON po.id = poi.purchase_order_id
+      WHERE po.order_id = $1 AND po.status != 'cancelled'
+    `, [orderId]);
+    let vendorCost = parseFloat(costRes.rows[0].vendor_cost);
+
+    // Fallback: if no PO data, estimate cost
+    const orderTotal = parseFloat(order.total);
+    if (vendorCost === 0) {
+      vendorCost = orderTotal * defaultCostRatio;
+    }
+
+    const margin = Math.max(0, orderTotal - vendorCost);
+    const commissionAmount = margin * rate;
+
+    // Determine status
+    let commissionStatus = 'pending';
+    if (['cancelled', 'refunded'].includes(order.status)) {
+      commissionStatus = 'forfeited';
+    } else if (order.status === 'delivered' && parseFloat(order.amount_paid) >= orderTotal) {
+      commissionStatus = 'earned';
+    }
+
+    // Upsert — preserve 'paid' status
+    await queryable.query(`
+      INSERT INTO rep_commissions (order_id, rep_id, order_total, vendor_cost, margin, commission_rate, commission_amount, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (order_id) DO UPDATE SET
+        rep_id = EXCLUDED.rep_id,
+        order_total = EXCLUDED.order_total,
+        vendor_cost = EXCLUDED.vendor_cost,
+        margin = EXCLUDED.margin,
+        commission_rate = EXCLUDED.commission_rate,
+        commission_amount = EXCLUDED.commission_amount,
+        status = CASE WHEN rep_commissions.status = 'paid' THEN 'paid' ELSE EXCLUDED.status END,
+        updated_at = CURRENT_TIMESTAMP
+    `, [orderId, order.sales_rep_id, orderTotal.toFixed(2), vendorCost.toFixed(2),
+        margin.toFixed(2), rate, commissionAmount.toFixed(2), commissionStatus]);
+  } catch (err) {
+    console.error('Failed to recalculate commission:', err.message);
+  }
 }
 
 const app = express();
@@ -1402,6 +1507,11 @@ async function generatePurchaseOrders(orderId, client) {
     createdPOs.push(po);
   }
 
+  // Recalculate commission now that cost data is available
+  if (createdPOs.length > 0) {
+    setImmediate(() => recalculateCommission(pool, orderId));
+  }
+
   return createdPOs;
 }
 
@@ -1635,9 +1745,18 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     }
     res.json(response);
 
+    // Recalculate commission for storefront order (if rep assigned)
+    setImmediate(() => recalculateCommission(pool, order.id));
+
     // Fire-and-forget: send order confirmation email
     const emailOrder = { ...order, items: orderItems.rows };
     setImmediate(() => sendOrderConfirmation(emailOrder));
+
+    // Fire-and-forget: notify all active reps about new storefront order
+    setImmediate(() => notifyAllActiveReps(pool, 'new_order',
+      'New Order ' + order.order_number,
+      order.customer_name + ' placed order ' + order.order_number + ' ($' + parseFloat(order.total).toFixed(2) + ')',
+      'order', order.id));
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
@@ -2659,12 +2778,40 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
       }
     }
 
+    // Delete cancelled POs when order is uncancelled — fresh POs will be generated on re-confirm
+    const oldStatus = currentOrder.rows.length ? currentOrder.rows[0].status : null;
+    if (oldStatus === 'cancelled' && status !== 'cancelled') {
+      const cancelledPOs = await client.query(
+        "SELECT id FROM purchase_orders WHERE order_id = $1 AND status = 'cancelled'",
+        [id]
+      );
+      for (const po of cancelledPOs.rows) {
+        await client.query('DELETE FROM po_activity_log WHERE purchase_order_id = $1', [po.id]);
+        await client.query('DELETE FROM purchase_order_items WHERE purchase_order_id = $1', [po.id]);
+        await client.query('DELETE FROM purchase_orders WHERE id = $1', [po.id]);
+      }
+    }
+
+    await logOrderActivity(client, id, 'status_changed', req.staff.id, req.staff.first_name + ' ' + req.staff.last_name,
+      { from: oldStatus, to: status, ...(tracking_number ? { tracking_number, carrier: carrier || null } : {}) });
+
     await client.query('COMMIT');
     const updatedOrder = result.rows[0];
     res.json({ order: updatedOrder });
 
+    // Recalculate commission on admin status change
+    setImmediate(() => recalculateCommission(pool, id));
+
     // Fire-and-forget: send status update email for shipped/delivered/cancelled
     setImmediate(() => sendOrderStatusUpdate(updatedOrder, status));
+
+    // Notify assigned rep about admin status change
+    if (updatedOrder.sales_rep_id) {
+      setImmediate(() => createRepNotification(pool, updatedOrder.sales_rep_id, 'order_status_changed',
+        'Order ' + updatedOrder.order_number + ' → ' + status,
+        'Admin changed status to ' + status,
+        'order', id));
+    }
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
@@ -2691,6 +2838,9 @@ app.put('/api/admin/orders/:id/delivery-method', staffAuth, requireRole('admin',
       return res.status(400).json({ error: 'delivery_method must be "pickup" or "shipping"' });
     }
 
+    const oldDeliveryMethod = order.delivery_method;
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+
     // Switch to pickup
     if (delivery_method === 'pickup') {
       const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
@@ -2703,6 +2853,8 @@ app.put('/api/admin/orders/:id/delivery-method', staffAuth, requireRole('admin',
           total = $2
         WHERE id = $1 RETURNING *
       `, [id, newTotal]);
+      await logOrderActivity(pool, id, 'delivery_method_changed', req.staff.id, staffName,
+        { from: oldDeliveryMethod, to: 'pickup' });
       const balanceInfo = await recalculateBalance(id);
       return res.json({ order: updated.rows[0], balance: balanceInfo });
     }
@@ -2747,6 +2899,8 @@ app.put('/api/admin/orders/:id/delivery-method', staffAuth, requireRole('admin',
         shipping_address.city, shipping_address.state, shipping_address.zip,
         newTotal]);
 
+    await logOrderActivity(pool, id, 'delivery_method_changed', req.staff.id, staffName,
+      { from: oldDeliveryMethod, to: 'shipping', shipping_cost: shippingCost.toFixed(2) });
     const balanceInfo = await recalculateBalance(id);
     return res.json({ order: updated.rows[0], balance: balanceInfo });
   } catch (err) {
@@ -2825,6 +2979,8 @@ app.post('/api/admin/orders/:id/refund', staffAuth, requireRole('admin', 'manage
       [newAmountPaid.toFixed(2), refund.id, refundAmount.toFixed(2), req.staff.id, id]
     );
 
+    await logOrderActivity(pool, id, 'refund_issued', req.staff.id, staffName,
+      { amount: refundAmount.toFixed(2), reason: reason || null, is_full: isFullRefund });
     const balanceInfo = await recalculateBalance(id);
     res.json({ order: result.rows[0], balance: balanceInfo });
   } catch (err) {
@@ -2833,52 +2989,94 @@ app.post('/api/admin/orders/:id/refund', staffAuth, requireRole('admin', 'manage
 });
 
 // Add item to existing order (admin)
+// Supports two modes:
+//   SKU mode: { sku_id, num_boxes, sqft_needed? }
+//   Custom mode: { product_name, unit_price, vendor_id, num_boxes, description?, sqft_needed? }
 app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { sku_id, num_boxes, sqft_needed } = req.body;
-    if (!sku_id || !num_boxes || num_boxes < 1) {
-      return res.status(400).json({ error: 'sku_id and num_boxes (>= 1) are required' });
+    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description } = req.body;
+
+    const isCustom = !sku_id;
+    if (isCustom) {
+      if (!product_name || !product_name.trim()) return res.status(400).json({ error: 'product_name is required for custom items' });
+      if (unit_price == null || parseFloat(unit_price) < 0) return res.status(400).json({ error: 'unit_price >= 0 is required for custom items' });
+      if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required for custom items' });
+      if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'num_boxes >= 1 is required' });
+    } else {
+      if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'sku_id and num_boxes (>= 1) are required' });
     }
 
     const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
-    if (!orderResult.rows.length) { client.release(); return res.status(404).json({ error: 'Order not found' }); }
+    if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
     if (!['pending', 'confirmed'].includes(order.status)) {
-      client.release();
       return res.status(400).json({ error: 'Can only add items to pending or confirmed orders' });
     }
 
-    // Look up SKU + product + pricing
-    const skuResult = await client.query(`
-      SELECT s.*, p.name as product_name, p.collection, pr.retail_price, pr.price_basis,
-        pk.sqft_per_box, pk.weight_per_box_lbs
-      FROM skus s
-      JOIN products p ON p.id = s.product_id
-      LEFT JOIN pricing pr ON pr.sku_id = s.id
-      LEFT JOIN packaging pk ON pk.sku_id = s.id
-      WHERE s.id = $1
-    `, [sku_id]);
-    if (!skuResult.rows.length) { client.release(); return res.status(404).json({ error: 'SKU not found' }); }
-    const sku = skuResult.rows[0];
+    let sku = null;
+    let unitPrice, isSample, sqftPerBox, isPerSqft, computedSqft, itemSubtotal;
+    let itemVendorId;
 
-    const unitPrice = parseFloat(sku.retail_price || 0);
-    const isSample = sku.is_sample || false;
-    const sqftPerBox = parseFloat(sku.sqft_per_box || 1);
-    const isPerSqft = sku.price_basis === 'per_sqft';
-    const computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
-    const itemSubtotal = isSample ? 0 : parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+    if (!isCustom) {
+      // SKU mode: Look up SKU + product + pricing + cost
+      const skuResult = await client.query(`
+        SELECT s.*, p.name as product_name, p.collection, p.vendor_id,
+          pr.retail_price, pr.price_basis, pr.cost,
+          pk.sqft_per_box, pk.weight_per_box_lbs
+        FROM skus s
+        JOIN products p ON p.id = s.product_id
+        LEFT JOIN pricing pr ON pr.sku_id = s.id
+        LEFT JOIN packaging pk ON pk.sku_id = s.id
+        WHERE s.id = $1
+      `, [sku_id]);
+      if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
+      sku = skuResult.rows[0];
+
+      unitPrice = parseFloat(sku.retail_price || 0);
+      isSample = sku.is_sample || false;
+      sqftPerBox = parseFloat(sku.sqft_per_box || 1);
+      isPerSqft = sku.price_basis === 'per_sqft';
+      computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
+      itemSubtotal = isSample ? 0 : parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+      itemVendorId = sku.vendor_id;
+    } else {
+      // Custom mode
+      unitPrice = parseFloat(unit_price);
+      isSample = false;
+      itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
+      itemVendorId = vendor_id;
+
+      // Validate vendor exists
+      const vendorCheck = await client.query('SELECT id FROM vendors WHERE id = $1', [vendor_id]);
+      if (!vendorCheck.rows.length) return res.status(400).json({ error: 'Vendor not found' });
+    }
 
     await client.query('BEGIN');
 
-    await client.query(`
-      INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
-        sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    `, [id, sku.product_id, sku_id, sku.product_name, sku.collection,
-        sqft_needed || computedSqft || null, num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
-        isSample, sku.sell_by || null]);
+    // Insert order item
+    let newItemId;
+    if (!isCustom) {
+      const insertResult = await client.query(`
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
+          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING id
+      `, [id, sku.product_id, sku_id, sku.product_name, sku.collection,
+          sqft_needed || computedSqft || null, num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
+          isSample, sku.sell_by || null]);
+      newItemId = insertResult.rows[0].id;
+    } else {
+      const insertResult = await client.query(`
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
+          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description)
+        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, NULL, $7)
+        RETURNING id
+      `, [id, product_name.trim(), sqft_needed || null, num_boxes, unitPrice.toFixed(2),
+          itemSubtotal.toFixed(2), description || null]);
+      newItemId = insertResult.rows[0].id;
+    }
 
     // Recalculate order totals
     const totalsResult = await client.query(`
@@ -2891,6 +3089,70 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
       [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
 
+    // --- Auto-update Purchase Orders ---
+    if (!isSample) {
+      // Find existing draft PO for this vendor on this order
+      const existingPO = await client.query(
+        `SELECT id, subtotal FROM purchase_orders
+         WHERE order_id = $1 AND vendor_id = $2 AND status = 'draft'
+         LIMIT 1`,
+        [id, itemVendorId]
+      );
+
+      let poId;
+      if (existingPO.rows.length) {
+        poId = existingPO.rows[0].id;
+      } else {
+        // Create new draft PO for this vendor
+        const vendorResult = await client.query('SELECT code FROM vendors WHERE id = $1', [itemVendorId]);
+        const vendorCode = vendorResult.rows[0]?.code || 'CUST';
+        const poNumber = `PO-${vendorCode}-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        const newPO = await client.query(
+          `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal)
+           VALUES ($1, $2, $3, 'draft', 0) RETURNING id`,
+          [id, itemVendorId, poNumber]
+        );
+        poId = newPO.rows[0].id;
+      }
+
+      // Build PO item values
+      let poCost, poRetail, poVendorSku, poProductName;
+      if (sku) {
+        const skuSqftPerBox = parseFloat(sku.sqft_per_box || 1);
+        const vendorCost = parseFloat(sku.cost || 0);
+        poCost = sku.price_basis === 'per_sqft' ? vendorCost * skuSqftPerBox : vendorCost;
+        poRetail = sku.price_basis === 'per_sqft' ? unitPrice * skuSqftPerBox : unitPrice;
+        poVendorSku = sku.vendor_sku;
+        poProductName = sku.product_name;
+      } else {
+        poCost = unitPrice;
+        poRetail = unitPrice;
+        poVendorSku = null;
+        poProductName = product_name.trim();
+      }
+
+      // Insert PO item linked to order item
+      await client.query(`
+        INSERT INTO purchase_order_items
+          (purchase_order_id, order_item_id, sku_id, product_name, vendor_sku, description,
+           qty, sell_by, cost, original_cost, retail_price, subtotal)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10, $11)
+      `, [poId, newItemId, sku?.id || null, poProductName, poVendorSku,
+          description || null, num_boxes, sku?.sell_by || null,
+          poCost.toFixed(2), poRetail ? poRetail.toFixed(2) : null,
+          (poCost * num_boxes).toFixed(2)]);
+
+      // Recalculate PO subtotal
+      await client.query(`
+        UPDATE purchase_orders SET subtotal = (
+          SELECT COALESCE(SUM(subtotal), 0) FROM purchase_order_items WHERE purchase_order_id = $1
+        ) WHERE id = $1
+      `, [poId]);
+    }
+
+    await logOrderActivity(client, id, 'item_added', req.staff.id, req.staff.first_name + ' ' + req.staff.last_name,
+      { product_name: isCustom ? product_name.trim() : sku.product_name, is_custom: isCustom, num_boxes, subtotal: itemSubtotal.toFixed(2) });
+
     await client.query('COMMIT');
 
     const balanceInfo = await recalculateBalance(id);
@@ -2901,7 +3163,21 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
 
-    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo });
+    // Fetch updated POs for response
+    const posResult = await pool.query(`
+      SELECT po.*, v.name as vendor_name
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      WHERE po.order_id = $1
+      ORDER BY po.created_at
+    `, [id]);
+    const purchaseOrders = posResult.rows;
+    for (const po of purchaseOrders) {
+      const poItems = await pool.query('SELECT * FROM purchase_order_items WHERE purchase_order_id = $1 ORDER BY created_at', [po.id]);
+      po.items = poItems.rows;
+    }
+
+    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo, purchase_orders: purchaseOrders });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
@@ -2917,18 +3193,41 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     const { id, itemId } = req.params;
 
     const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
-    if (!orderResult.rows.length) { client.release(); return res.status(404).json({ error: 'Order not found' }); }
+    if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
     if (!['pending', 'confirmed'].includes(order.status)) {
-      client.release();
       return res.status(400).json({ error: 'Can only remove items from pending or confirmed orders' });
     }
 
     const itemResult = await client.query('SELECT * FROM order_items WHERE id = $1 AND order_id = $2', [itemId, id]);
-    if (!itemResult.rows.length) { client.release(); return res.status(404).json({ error: 'Order item not found' }); }
+    if (!itemResult.rows.length) return res.status(404).json({ error: 'Order item not found' });
 
     await client.query('BEGIN');
+
+    // Delete linked PO items first (FK constraint), then recalculate affected PO subtotals
+    const linkedPOItems = await client.query(
+      'SELECT id, purchase_order_id FROM purchase_order_items WHERE order_item_id = $1', [itemId]
+    );
+    const affectedPOIds = [...new Set(linkedPOItems.rows.map(r => r.purchase_order_id))];
+    if (linkedPOItems.rows.length > 0) {
+      await client.query('DELETE FROM purchase_order_items WHERE order_item_id = $1', [itemId]);
+    }
+
     await client.query('DELETE FROM order_items WHERE id = $1', [itemId]);
+
+    // Recalculate affected PO subtotals and remove empty POs
+    for (const poId of affectedPOIds) {
+      const remaining = await client.query('SELECT COUNT(*) as cnt FROM purchase_order_items WHERE purchase_order_id = $1', [poId]);
+      if (parseInt(remaining.rows[0].cnt) === 0) {
+        await client.query('DELETE FROM purchase_orders WHERE id = $1', [poId]);
+      } else {
+        await client.query(`
+          UPDATE purchase_orders SET subtotal = (
+            SELECT COALESCE(SUM(subtotal), 0) FROM purchase_order_items WHERE purchase_order_id = $1
+          ) WHERE id = $1
+        `, [poId]);
+      }
+    }
 
     // Recalculate order totals
     const totalsResult = await client.query(`
@@ -2941,6 +3240,10 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
       [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
 
+    const removedItem = itemResult.rows[0];
+    await logOrderActivity(client, id, 'item_removed', req.staff.id, req.staff.first_name + ' ' + req.staff.last_name,
+      { product_name: removedItem.product_name, num_boxes: removedItem.num_boxes, subtotal: parseFloat(removedItem.subtotal).toFixed(2) });
+
     await client.query('COMMIT');
 
     const balanceInfo = await recalculateBalance(id);
@@ -2951,7 +3254,21 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
 
-    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo });
+    // Fetch updated POs
+    const posResult = await pool.query(`
+      SELECT po.*, v.name as vendor_name
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      WHERE po.order_id = $1
+      ORDER BY po.created_at
+    `, [id]);
+    const purchaseOrders = posResult.rows;
+    for (const po of purchaseOrders) {
+      const poItems = await pool.query('SELECT * FROM purchase_order_items WHERE purchase_order_id = $1 ORDER BY created_at', [po.id]);
+      po.items = poItems.rows;
+    }
+
+    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo, purchase_orders: purchaseOrders });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
@@ -3006,6 +3323,9 @@ app.post('/api/admin/orders/:id/payment-request', staffAuth, requireRole('admin'
       metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' }
     });
 
+    await logOrderActivity(pool, id, 'payment_request_sent', req.staff.id, staffName,
+      { amount: amountDue.toFixed(2), sent_to: o.customer_email });
+
     // Send email
     setImmediate(() => sendPaymentRequest({ order: o, amount: amountDue, checkout_url: session.url, message: message || null }));
 
@@ -3029,6 +3349,8 @@ app.post('/api/admin/orders/:id/payment-requests/:reqId/cancel', staffAuth, requ
     }
 
     await pool.query("UPDATE payment_requests SET status = 'cancelled' WHERE id = $1", [reqId]);
+    await logOrderActivity(pool, id, 'payment_request_cancelled', req.staff.id, req.staff.first_name + ' ' + req.staff.last_name,
+      { amount: parseFloat(pr.rows[0].amount).toFixed(2) });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -3042,11 +3364,15 @@ app.get('/api/admin/skus/search', staffAuth, async (req, res) => {
     if (!q || q.length < 2) return res.json({ results: [] });
     const results = await pool.query(`
       SELECT s.id as sku_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
-        p.name as product_name, p.collection,
-        pr.retail_price
+        p.name as product_name, p.collection, p.vendor_id,
+        v.name as vendor_name,
+        pr.retail_price, pr.cost, pr.price_basis,
+        pk.sqft_per_box
       FROM skus s
       JOIN products p ON p.id = s.product_id
+      LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
       WHERE p.status = 'active' AND s.status = 'active'
         AND (p.name ILIKE $1 OR s.internal_sku ILIKE $1 OR s.vendor_sku ILIKE $1 OR s.variant_name ILIKE $1 OR p.collection ILIKE $1)
       ORDER BY p.name, s.variant_name
@@ -4709,6 +5035,14 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [order_id]);
           if (orderResult.rows.length) {
             setImmediate(() => sendPaymentReceived(orderResult.rows[0], paidAmount));
+
+            // Notify assigned rep about payment received
+            if (orderResult.rows[0].sales_rep_id) {
+              setImmediate(() => createRepNotification(pool, orderResult.rows[0].sales_rep_id, 'payment_received',
+                'Payment received for ' + orderResult.rows[0].order_number,
+                '$' + paidAmount.toFixed(2) + ' payment received for order ' + orderResult.rows[0].order_number,
+                'order', order_id));
+            }
           }
         }
         break;
@@ -5660,6 +5994,7 @@ app.get('/api/rep/me', repAuth, async (req, res) => {
 
 app.get('/api/rep/dashboard', repAuth, async (req, res) => {
   try {
+    // Original stat counts
     const stats = await pool.query(`
       SELECT
         (SELECT COUNT(*)::int FROM orders) as total_orders,
@@ -5671,8 +6006,52 @@ app.get('/api/rep/dashboard', repAuth, async (req, res) => {
         (SELECT COUNT(*)::int FROM quotes WHERE sales_rep_id = $1 AND status = 'draft') as draft_quotes
     `, [req.rep.id]);
 
+    // Sales metrics scoped to this rep
+    const metricsRes = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN date_trunc('month', created_at) = date_trunc('month', CURRENT_DATE)
+          AND status NOT IN ('cancelled','refunded') THEN total ELSE 0 END), 0) as sales_this_month,
+        COALESCE(SUM(CASE WHEN date_trunc('month', created_at) = date_trunc('month', CURRENT_DATE - INTERVAL '1 month')
+          AND status NOT IN ('cancelled','refunded') THEN total ELSE 0 END), 0) as sales_last_month,
+        COALESCE(AVG(CASE WHEN status NOT IN ('cancelled','refunded') THEN total END), 0) as avg_order_value
+      FROM orders WHERE sales_rep_id = $1
+    `, [req.rep.id]);
+
+    const metrics = metricsRes.rows[0];
+    const salesThisMonth = parseFloat(metrics.sales_this_month);
+    const salesLastMonth = parseFloat(metrics.sales_last_month);
+    const momChange = salesLastMonth > 0 ? ((salesThisMonth - salesLastMonth) / salesLastMonth * 100) : (salesThisMonth > 0 ? 100 : 0);
+
+    // Quote conversion
+    const quoteMetrics = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE status NOT IN ('draft'))::int as quotes_total_sent,
+        COUNT(*) FILTER (WHERE converted_order_id IS NOT NULL)::int as quotes_converted
+      FROM quotes WHERE sales_rep_id = $1
+    `, [req.rep.id]);
+    const qm = quoteMetrics.rows[0];
+    const conversionRate = qm.quotes_total_sent > 0 ? (qm.quotes_converted / qm.quotes_total_sent * 100) : 0;
+
+    // Pipeline value
+    const pipelineRes = await pool.query(`
+      SELECT COALESCE(SUM(total), 0) as pipeline_value
+      FROM quotes WHERE sales_rep_id = $1 AND status IN ('draft', 'sent')
+    `, [req.rep.id]);
+
+    // Top 5 products by revenue
+    const topProducts = await pool.query(`
+      SELECT oi.product_name, SUM(oi.subtotal::numeric) as revenue, SUM(oi.num_boxes)::int as qty_sold
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      WHERE o.sales_rep_id = $1 AND o.status NOT IN ('cancelled','refunded') AND oi.product_name IS NOT NULL
+      GROUP BY oi.product_name
+      ORDER BY revenue DESC
+      LIMIT 5
+    `, [req.rep.id]);
+
     const recentOrders = await pool.query(`
       SELECT o.id, o.order_number, o.customer_name, o.total, o.status, o.created_at,
+        o.delivery_method, o.shipping_method,
         sr.first_name || ' ' || sr.last_name as rep_name,
         (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) as item_count
       FROM orders o
@@ -5680,7 +6059,674 @@ app.get('/api/rep/dashboard', repAuth, async (req, res) => {
       ORDER BY o.created_at DESC LIMIT 10
     `);
 
-    res.json({ stats: stats.rows[0], recent_orders: recentOrders.rows });
+    res.json({
+      stats: stats.rows[0],
+      metrics: {
+        sales_this_month: salesThisMonth,
+        sales_last_month: salesLastMonth,
+        month_over_month_change: parseFloat(momChange.toFixed(1)),
+        avg_order_value: parseFloat(parseFloat(metrics.avg_order_value).toFixed(2)),
+        conversion_rate: parseFloat(conversionRate.toFixed(1)),
+        quotes_converted: qm.quotes_converted,
+        quotes_total_sent: qm.quotes_total_sent,
+        pipeline_value: parseFloat(parseFloat(pipelineRes.rows[0].pipeline_value).toFixed(2)),
+        top_products: topProducts.rows.map(r => ({
+          product_name: r.product_name,
+          revenue: parseFloat(parseFloat(r.revenue).toFixed(2)),
+          qty_sold: r.qty_sold
+        }))
+      },
+      recent_orders: recentOrders.rows
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Rep Commission Endpoints ====================
+
+app.get('/api/rep/commissions', repAuth, async (req, res) => {
+  try {
+    const { status } = req.query;
+    let query = `
+      SELECT rc.*, o.order_number, o.customer_name, o.status as order_status, o.created_at as order_date
+      FROM rep_commissions rc
+      JOIN orders o ON o.id = rc.order_id
+      WHERE rc.rep_id = $1
+    `;
+    const params = [req.rep.id];
+    let idx = 2;
+
+    if (status) {
+      query += ` AND rc.status = $${idx}`;
+      params.push(status);
+      idx++;
+    }
+
+    query += ' ORDER BY rc.created_at DESC';
+    const commissions = await pool.query(query, params);
+
+    const summaryRes = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN status = 'earned' THEN commission_amount ELSE 0 END), 0) as total_earned,
+        COALESCE(SUM(CASE WHEN status = 'pending' THEN commission_amount ELSE 0 END), 0) as total_pending,
+        COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END), 0) as total_paid,
+        COALESCE(SUM(CASE WHEN status = 'forfeited' THEN commission_amount ELSE 0 END), 0) as total_forfeited
+      FROM rep_commissions WHERE rep_id = $1
+    `, [req.rep.id]);
+
+    const configRes = await pool.query('SELECT rate FROM commission_config LIMIT 1');
+    const commissionRate = configRes.rows.length ? parseFloat(configRes.rows[0].rate) : 0.10;
+
+    res.json({
+      summary: summaryRes.rows[0],
+      commission_rate: commissionRate,
+      commissions: commissions.rows
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/rep/commissions/summary', repAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN status = 'earned' THEN commission_amount ELSE 0 END), 0) as total_earned,
+        COALESCE(SUM(CASE WHEN status = 'pending' THEN commission_amount ELSE 0 END), 0) as total_pending,
+        COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END), 0) as total_paid
+      FROM rep_commissions WHERE rep_id = $1
+    `, [req.rep.id]);
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Showroom Visits (Rep) ====================
+
+app.post('/api/rep/visits', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { customer_name, customer_email, customer_phone, message, items } = req.body;
+    if (!customer_name) return res.status(400).json({ error: 'Customer name is required' });
+    if (!items || !items.length) return res.status(400).json({ error: 'At least one product is required' });
+
+    await client.query('BEGIN');
+    const token = crypto.randomBytes(16).toString('hex');
+    const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+    const visitRes = await client.query(`
+      INSERT INTO showroom_visits (token, rep_id, customer_name, customer_email, customer_phone, message, status, expires_at)
+      VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7) RETURNING *
+    `, [token, req.rep.id, customer_name, customer_email || null, customer_phone || null, message || null, expiresAt]);
+    const visit = visitRes.rows[0];
+
+    const resolvedItems = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      let productName = item.product_name || 'Unknown';
+      let collection = null;
+      let variantName = null;
+      let retailPrice = null;
+      let priceBasis = null;
+      let primaryImage = null;
+      let productId = item.product_id || null;
+      let skuId = item.sku_id || null;
+
+      if (item.product_id) {
+        const pRes = await client.query(`
+          SELECT p.name, p.collection,
+            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+          FROM products p WHERE p.id = $1
+        `, [item.product_id]);
+        if (pRes.rows.length) {
+          productName = pRes.rows[0].name;
+          collection = pRes.rows[0].collection;
+          primaryImage = pRes.rows[0].primary_image;
+        }
+      }
+
+      if (item.sku_id) {
+        const sRes = await client.query(`
+          SELECT s.variant_name, s.product_id,
+            pr.retail_price, pr.price_basis,
+            p.name as product_name, p.collection,
+            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+          FROM skus s
+          JOIN products p ON p.id = s.product_id
+          LEFT JOIN pricing pr ON pr.sku_id = s.id
+          WHERE s.id = $1
+        `, [item.sku_id]);
+        if (sRes.rows.length) {
+          const s = sRes.rows[0];
+          productId = s.product_id;
+          productName = s.product_name;
+          collection = s.collection;
+          variantName = s.variant_name;
+          retailPrice = s.retail_price ? parseFloat(s.retail_price) : null;
+          priceBasis = s.price_basis;
+          primaryImage = s.primary_image;
+        }
+      } else if (item.product_id) {
+        // No SKU — try to get price from first active SKU
+        const prRes = await client.query(`
+          SELECT pr.retail_price, pr.price_basis, s.variant_name
+          FROM skus s LEFT JOIN pricing pr ON pr.sku_id = s.id
+          WHERE s.product_id = $1 AND s.status = 'active' ORDER BY s.created_at LIMIT 1
+        `, [item.product_id]);
+        if (prRes.rows.length) {
+          retailPrice = prRes.rows[0].retail_price ? parseFloat(prRes.rows[0].retail_price) : null;
+          priceBasis = prRes.rows[0].price_basis;
+          if (!variantName) variantName = prRes.rows[0].variant_name;
+        }
+      }
+
+      const itemRes = await client.query(`
+        INSERT INTO showroom_visit_items (visit_id, product_id, sku_id, product_name, collection, variant_name, retail_price, price_basis, primary_image, rep_note, sort_order)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *
+      `, [visit.id, productId, skuId, productName, collection, variantName, retailPrice, priceBasis, primaryImage, item.rep_note || null, i]);
+      resolvedItems.push(itemRes.rows[0]);
+    }
+
+    await client.query('COMMIT');
+    res.json({ visit, items: resolvedItems });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/rep/visits', repAuth, async (req, res) => {
+  try {
+    const { status } = req.query;
+    let query = `
+      SELECT sv.*,
+        (SELECT COUNT(*)::int FROM showroom_visit_items WHERE visit_id = sv.id) as item_count
+      FROM showroom_visits sv
+      WHERE sv.rep_id = $1
+    `;
+    const params = [req.rep.id];
+    let idx = 2;
+
+    if (status) {
+      query += ` AND sv.status = $${idx}`;
+      params.push(status);
+      idx++;
+    }
+
+    query += ' ORDER BY sv.created_at DESC';
+    const result = await pool.query(query, params);
+    res.json({ visits: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/rep/visits/:id', repAuth, async (req, res) => {
+  try {
+    const visitRes = await pool.query('SELECT * FROM showroom_visits WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
+
+    const itemsRes = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [req.params.id]);
+    res.json({ visit: visitRes.rows[0], items: itemsRes.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/rep/visits/:id', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const visitRes = await client.query('SELECT * FROM showroom_visits WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
+    if (visitRes.rows[0].status !== 'draft') return res.status(400).json({ error: 'Can only edit draft visits' });
+
+    await client.query('BEGIN');
+    const { customer_name, customer_email, customer_phone, message, items } = req.body;
+
+    // Update visit info
+    const fields = [];
+    const vals = [];
+    let idx = 1;
+    if (customer_name !== undefined) { fields.push(`customer_name = $${idx}`); vals.push(customer_name); idx++; }
+    if (customer_email !== undefined) { fields.push(`customer_email = $${idx}`); vals.push(customer_email || null); idx++; }
+    if (customer_phone !== undefined) { fields.push(`customer_phone = $${idx}`); vals.push(customer_phone || null); idx++; }
+    if (message !== undefined) { fields.push(`message = $${idx}`); vals.push(message || null); idx++; }
+
+    if (fields.length) {
+      vals.push(req.params.id);
+      await client.query(`UPDATE showroom_visits SET ${fields.join(', ')} WHERE id = $${idx}`, vals);
+    }
+
+    // Replace items if provided
+    if (items) {
+      await client.query('DELETE FROM showroom_visit_items WHERE visit_id = $1', [req.params.id]);
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        let productName = item.product_name || 'Unknown';
+        let collection = null;
+        let variantName = null;
+        let retailPrice = null;
+        let priceBasis = null;
+        let primaryImage = null;
+        let productId = item.product_id || null;
+        let skuId = item.sku_id || null;
+
+        if (item.sku_id) {
+          const sRes = await client.query(`
+            SELECT s.variant_name, s.product_id,
+              pr.retail_price, pr.price_basis,
+              p.name as product_name, p.collection,
+              (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+            FROM skus s
+            JOIN products p ON p.id = s.product_id
+            LEFT JOIN pricing pr ON pr.sku_id = s.id
+            WHERE s.id = $1
+          `, [item.sku_id]);
+          if (sRes.rows.length) {
+            const s = sRes.rows[0];
+            productId = s.product_id;
+            productName = s.product_name;
+            collection = s.collection;
+            variantName = s.variant_name;
+            retailPrice = s.retail_price ? parseFloat(s.retail_price) : null;
+            priceBasis = s.price_basis;
+            primaryImage = s.primary_image;
+          }
+        } else if (item.product_id) {
+          const pRes = await client.query(`
+            SELECT p.name, p.collection,
+              (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+            FROM products p WHERE p.id = $1
+          `, [item.product_id]);
+          if (pRes.rows.length) {
+            productName = pRes.rows[0].name;
+            collection = pRes.rows[0].collection;
+            primaryImage = pRes.rows[0].primary_image;
+          }
+          const prRes = await client.query(`
+            SELECT pr.retail_price, pr.price_basis, s.variant_name
+            FROM skus s LEFT JOIN pricing pr ON pr.sku_id = s.id
+            WHERE s.product_id = $1 AND s.status = 'active' ORDER BY s.created_at LIMIT 1
+          `, [item.product_id]);
+          if (prRes.rows.length) {
+            retailPrice = prRes.rows[0].retail_price ? parseFloat(prRes.rows[0].retail_price) : null;
+            priceBasis = prRes.rows[0].price_basis;
+            if (!variantName) variantName = prRes.rows[0].variant_name;
+          }
+        }
+
+        await client.query(`
+          INSERT INTO showroom_visit_items (visit_id, product_id, sku_id, product_name, collection, variant_name, retail_price, price_basis, primary_image, rep_note, sort_order)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `, [req.params.id, productId, skuId, productName, collection, variantName, retailPrice, priceBasis, primaryImage, item.rep_note || null, i]);
+      }
+    }
+
+    await client.query('COMMIT');
+    const updatedVisit = await pool.query('SELECT * FROM showroom_visits WHERE id = $1', [req.params.id]);
+    const updatedItems = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [req.params.id]);
+    res.json({ visit: updatedVisit.rows[0], items: updatedItems.rows });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/rep/visits/:id', repAuth, async (req, res) => {
+  try {
+    const visitRes = await pool.query('SELECT * FROM showroom_visits WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
+    if (visitRes.rows[0].status !== 'draft') return res.status(400).json({ error: 'Can only delete draft visits' });
+
+    await pool.query('DELETE FROM showroom_visits WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/rep/visits/:id/send', repAuth, async (req, res) => {
+  try {
+    const visitRes = await pool.query('SELECT * FROM showroom_visits WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
+    const visit = visitRes.rows[0];
+    if (!visit.customer_email) return res.status(400).json({ error: 'Customer email is required to send' });
+
+    const itemsRes = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [visit.id]);
+
+    const repRes = await pool.query('SELECT first_name, last_name, email FROM sales_reps WHERE id = $1', [req.rep.id]);
+    const rep = repRes.rows[0];
+
+    const storefrontUrl = process.env.STOREFRONT_URL || `http://localhost:3000`;
+    const recapUrl = `${storefrontUrl}/visit/${visit.token}`;
+
+    await sendVisitRecap({
+      customer_name: visit.customer_name,
+      customer_email: visit.customer_email,
+      rep_name: `${rep.first_name} ${rep.last_name}`,
+      rep_email: rep.email,
+      message: visit.message,
+      items: itemsRes.rows,
+      recap_url: recapUrl
+    });
+
+    const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    await pool.query(`UPDATE showroom_visits SET status = 'sent', sent_at = NOW(), expires_at = $2 WHERE id = $1`, [visit.id, expiresAt]);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Showroom Visits (Public) ====================
+
+app.get('/api/visit-recap/:token', async (req, res) => {
+  try {
+    const visitRes = await pool.query(`
+      SELECT sv.*, sr.first_name || ' ' || sr.last_name as rep_name
+      FROM showroom_visits sv
+      JOIN sales_reps sr ON sr.id = sv.rep_id
+      WHERE sv.token = $1
+    `, [req.params.token]);
+    if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit recap not found' });
+
+    const visit = visitRes.rows[0];
+    if (visit.expires_at && new Date(visit.expires_at) < new Date()) {
+      return res.status(410).json({ error: 'This visit recap has expired' });
+    }
+
+    // Update status to opened on first view
+    if (visit.status === 'sent') {
+      await pool.query(`UPDATE showroom_visits SET status = 'opened', opened_at = NOW() WHERE id = $1`, [visit.id]);
+    }
+
+    const itemsRes = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [visit.id]);
+
+    res.json({
+      visit: {
+        customer_name: visit.customer_name,
+        message: visit.message,
+        rep_name: visit.rep_name,
+        created_at: visit.created_at
+      },
+      items: itemsRes.rows
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/visit-recap/:token/carted', async (req, res) => {
+  try {
+    const visitRes = await pool.query('SELECT * FROM showroom_visits WHERE token = $1', [req.params.token]);
+    if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
+
+    const visit = visitRes.rows[0];
+    if (visit.status !== 'carted') {
+      await pool.query(`UPDATE showroom_visits SET status = 'carted', items_carted_at = NOW() WHERE id = $1`, [visit.id]);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Rep Sample Request Endpoints ====================
+
+app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { customer_name, customer_email, customer_phone, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, notes, items } = req.body;
+    if (!customer_name) return res.status(400).json({ error: 'Customer name is required' });
+    if (!items || !items.length) return res.status(400).json({ error: 'At least one item is required' });
+    if (items.length > 5) return res.status(400).json({ error: 'Maximum 5 items per sample request' });
+
+    // Check for duplicate product_ids
+    const productIds = items.map(i => i.product_id).filter(Boolean);
+    if (new Set(productIds).size !== productIds.length) {
+      return res.status(400).json({ error: 'Duplicate products are not allowed' });
+    }
+
+    await client.query('BEGIN');
+
+    const ts = Date.now().toString(36);
+    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const request_number = `SR-${ts}-${rand}`;
+
+    const srRes = await client.query(`
+      INSERT INTO sample_requests (request_number, rep_id, customer_name, customer_email, customer_phone,
+        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, notes, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'requested') RETURNING *
+    `, [request_number, req.rep.id, customer_name, customer_email || null, customer_phone || null,
+        shipping_address_line1 || null, shipping_address_line2 || null, shipping_city || null, shipping_state || null, shipping_zip || null, notes || null]);
+    const sample_request = srRes.rows[0];
+
+    const resolvedItems = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      let productName = 'Unknown';
+      let collection = null;
+      let variantName = null;
+      let primaryImage = null;
+      let productId = item.product_id || null;
+      let skuId = item.sku_id || null;
+
+      if (item.sku_id) {
+        const sRes = await client.query(`
+          SELECT s.variant_name, s.product_id,
+            p.name as product_name, p.collection,
+            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+          FROM skus s
+          JOIN products p ON p.id = s.product_id
+          WHERE s.id = $1
+        `, [item.sku_id]);
+        if (sRes.rows.length) {
+          const s = sRes.rows[0];
+          productId = s.product_id;
+          productName = s.product_name;
+          collection = s.collection;
+          variantName = s.variant_name;
+          primaryImage = s.primary_image;
+        }
+      } else if (item.product_id) {
+        const pRes = await client.query(`
+          SELECT p.name, p.collection,
+            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+          FROM products p WHERE p.id = $1
+        `, [item.product_id]);
+        if (pRes.rows.length) {
+          productName = pRes.rows[0].name;
+          collection = pRes.rows[0].collection;
+          primaryImage = pRes.rows[0].primary_image;
+        }
+      }
+
+      const itemRes = await client.query(`
+        INSERT INTO sample_request_items (sample_request_id, product_id, sku_id, product_name, collection, variant_name, primary_image, sort_order)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
+      `, [sample_request.id, productId, skuId, productName, collection, variantName, primaryImage, i]);
+      resolvedItems.push(itemRes.rows[0]);
+    }
+
+    await client.query('COMMIT');
+
+    // Fire-and-forget: email + notification
+    if (customer_email) {
+      setImmediate(() => sendSampleRequestConfirmation({
+        customer_name, customer_email, request_number,
+        items: resolvedItems,
+        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip
+      }));
+    }
+    setImmediate(() => createRepNotification(pool, req.rep.id, 'sample_request_created',
+      `Sample request ${request_number} created`,
+      `Sample request for ${customer_name} with ${resolvedItems.length} item(s)`,
+      'sample_request', sample_request.id));
+
+    res.json({ sample_request, items: resolvedItems });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/rep/sample-requests', repAuth, async (req, res) => {
+  try {
+    const { status, search } = req.query;
+    let query = `
+      SELECT sr.*,
+        (SELECT COUNT(*)::int FROM sample_request_items WHERE sample_request_id = sr.id) as item_count
+      FROM sample_requests sr
+      WHERE sr.rep_id = $1
+    `;
+    const params = [req.rep.id];
+    let idx = 2;
+
+    if (status) {
+      query += ` AND sr.status = $${idx}`;
+      params.push(status);
+      idx++;
+    }
+    if (search) {
+      query += ` AND (sr.customer_name ILIKE $${idx} OR sr.customer_email ILIKE $${idx} OR sr.request_number ILIKE $${idx})`;
+      params.push('%' + search + '%');
+      idx++;
+    }
+
+    query += ' ORDER BY sr.created_at DESC';
+    const result = await pool.query(query, params);
+    res.json({ sample_requests: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
+  try {
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
+
+    const itemsRes = await pool.query('SELECT * FROM sample_request_items WHERE sample_request_id = $1 ORDER BY sort_order', [req.params.id]);
+    res.json({ sample_request: srRes.rows[0], items: itemsRes.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
+  try {
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
+    if (srRes.rows[0].status !== 'requested') return res.status(400).json({ error: 'Can only edit requests in requested status' });
+
+    const { customer_name, customer_email, customer_phone, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, notes } = req.body;
+    const fields = [];
+    const vals = [];
+    let idx = 1;
+    if (customer_name !== undefined) { fields.push(`customer_name = $${idx}`); vals.push(customer_name); idx++; }
+    if (customer_email !== undefined) { fields.push(`customer_email = $${idx}`); vals.push(customer_email || null); idx++; }
+    if (customer_phone !== undefined) { fields.push(`customer_phone = $${idx}`); vals.push(customer_phone || null); idx++; }
+    if (shipping_address_line1 !== undefined) { fields.push(`shipping_address_line1 = $${idx}`); vals.push(shipping_address_line1 || null); idx++; }
+    if (shipping_address_line2 !== undefined) { fields.push(`shipping_address_line2 = $${idx}`); vals.push(shipping_address_line2 || null); idx++; }
+    if (shipping_city !== undefined) { fields.push(`shipping_city = $${idx}`); vals.push(shipping_city || null); idx++; }
+    if (shipping_state !== undefined) { fields.push(`shipping_state = $${idx}`); vals.push(shipping_state || null); idx++; }
+    if (shipping_zip !== undefined) { fields.push(`shipping_zip = $${idx}`); vals.push(shipping_zip || null); idx++; }
+    if (notes !== undefined) { fields.push(`notes = $${idx}`); vals.push(notes || null); idx++; }
+
+    if (!fields.length) return res.status(400).json({ error: 'No fields to update' });
+
+    vals.push(req.params.id);
+    await pool.query(`UPDATE sample_requests SET ${fields.join(', ')} WHERE id = $${idx}`, vals);
+
+    const updated = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
+    res.json({ sample_request: updated.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/rep/sample-requests/:id/ship', repAuth, async (req, res) => {
+  try {
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
+    if (srRes.rows[0].status !== 'requested') return res.status(400).json({ error: 'Can only ship requests in requested status' });
+
+    const { tracking_number } = req.body || {};
+    await pool.query(
+      `UPDATE sample_requests SET status = 'shipped', shipped_at = NOW(), tracking_number = $2 WHERE id = $1`,
+      [req.params.id, tracking_number || null]
+    );
+
+    const updated = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
+    const sr = updated.rows[0];
+
+    // Fire-and-forget: email + notification
+    if (sr.customer_email) {
+      const itemsRes = await pool.query('SELECT * FROM sample_request_items WHERE sample_request_id = $1 ORDER BY sort_order', [sr.id]);
+      setImmediate(() => sendSampleRequestShipped({
+        customer_name: sr.customer_name,
+        customer_email: sr.customer_email,
+        request_number: sr.request_number,
+        tracking_number: sr.tracking_number,
+        items: itemsRes.rows
+      }));
+    }
+    setImmediate(() => createRepNotification(pool, req.rep.id, 'sample_request_shipped',
+      `Sample request ${sr.request_number} shipped`,
+      tracking_number ? `Tracking: ${tracking_number}` : 'No tracking number provided',
+      'sample_request', sr.id));
+
+    res.json({ sample_request: sr });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/rep/sample-requests/:id/deliver', repAuth, async (req, res) => {
+  try {
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
+    if (srRes.rows[0].status !== 'shipped') return res.status(400).json({ error: 'Can only mark shipped requests as delivered' });
+
+    await pool.query(`UPDATE sample_requests SET status = 'delivered', delivered_at = NOW() WHERE id = $1`, [req.params.id]);
+    const updated = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
+    res.json({ sample_request: updated.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/rep/sample-requests/:id/cancel', repAuth, async (req, res) => {
+  try {
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
+    if (!['requested', 'shipped'].includes(srRes.rows[0].status)) return res.status(400).json({ error: 'Can only cancel requested or shipped sample requests' });
+
+    await pool.query(`UPDATE sample_requests SET status = 'cancelled', cancelled_at = NOW() WHERE id = $1`, [req.params.id]);
+    const updated = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
+    res.json({ sample_request: updated.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
+  try {
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
+    if (srRes.rows[0].status !== 'requested') return res.status(400).json({ error: 'Can only delete requests in requested status' });
+
+    await pool.query('DELETE FROM sample_requests WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -5723,6 +6769,216 @@ app.get('/api/rep/orders', repAuth, async (req, res) => {
     res.json({ orders: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Quick Create Order (Rep) ====================
+
+app.post('/api/rep/orders', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { customer_name, customer_email, phone, delivery_method, shipping_address,
+            payment_method, items, promo_code } = req.body;
+
+    if (!customer_name || !customer_email) {
+      return res.status(400).json({ error: 'Customer name and email are required' });
+    }
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'At least one item is required' });
+    }
+    if (!payment_method || !['offline', 'stripe'].includes(payment_method)) {
+      return res.status(400).json({ error: 'payment_method must be offline or stripe' });
+    }
+
+    const isPickup = delivery_method === 'pickup';
+    if (!isPickup && (!shipping_address || !shipping_address.line1 || !shipping_address.city || !shipping_address.state || !shipping_address.zip)) {
+      return res.status(400).json({ error: 'Shipping address is required for delivery orders' });
+    }
+
+    await client.query('BEGIN');
+
+    // Resolve items
+    const resolvedItems = [];
+    for (const item of items) {
+      if (item.sku_id) {
+        // SKU-based item
+        const skuResult = await client.query(`
+          SELECT s.id as sku_id, s.product_id, s.vendor_sku, s.variant_name, s.sell_by, s.is_sample,
+            p.name as product_name, p.collection, p.category_id,
+            pr.retail_price, pr.cost, pr.price_basis,
+            pk.sqft_per_box
+          FROM skus s
+          JOIN products p ON p.id = s.product_id
+          LEFT JOIN pricing pr ON pr.sku_id = s.id
+          LEFT JOIN packaging pk ON pk.sku_id = s.id
+          WHERE s.id = $1 AND s.status = 'active'
+        `, [item.sku_id]);
+
+        if (!skuResult.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'SKU not found: ' + item.sku_id });
+        }
+
+        const sku = skuResult.rows[0];
+        const numBoxes = parseInt(item.num_boxes) || 1;
+        const unitPrice = parseFloat(sku.retail_price || 0);
+        const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
+        const sqftNeeded = sqftPerBox > 0 ? sqftPerBox * numBoxes : null;
+        const subtotal = unitPrice * numBoxes;
+
+        resolvedItems.push({
+          product_id: sku.product_id,
+          sku_id: sku.sku_id,
+          product_name: sku.product_name + (sku.variant_name ? ' — ' + sku.variant_name : ''),
+          collection: sku.collection,
+          category_id: sku.category_id,
+          sqft_needed: sqftNeeded,
+          num_boxes: numBoxes,
+          unit_price: unitPrice,
+          subtotal,
+          sell_by: sku.sell_by,
+          is_sample: sku.is_sample || false
+        });
+      } else if (item.product_name && item.unit_price != null) {
+        // Custom item
+        const numBoxes = parseInt(item.num_boxes) || 1;
+        const unitPrice = parseFloat(item.unit_price);
+        resolvedItems.push({
+          product_id: null,
+          sku_id: null,
+          product_name: item.product_name,
+          collection: null,
+          category_id: null,
+          description: item.description || null,
+          sqft_needed: null,
+          num_boxes: numBoxes,
+          unit_price: unitPrice,
+          subtotal: unitPrice * numBoxes,
+          sell_by: null,
+          is_sample: false
+        });
+      } else {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Each item must have either sku_id or product_name + unit_price' });
+      }
+    }
+
+    const productItems = resolvedItems.filter(i => !i.is_sample);
+    const subtotal = productItems.reduce((sum, i) => sum + i.subtotal, 0);
+
+    // Promo code
+    let discountAmount = 0;
+    let promoCodeId = null;
+    let promoCodeStr = null;
+    if (promo_code) {
+      const promoItems = resolvedItems.map(i => ({
+        product_id: i.product_id,
+        category_id: i.category_id,
+        subtotal: i.subtotal,
+        is_sample: i.is_sample
+      }));
+      const promoResult = await calculatePromoDiscount(promo_code, promoItems, customer_email, client);
+      if (!promoResult.valid) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: promoResult.error });
+      }
+      discountAmount = promoResult.discount_amount;
+      promoCodeId = promoResult.promo.id;
+      promoCodeStr = promoResult.promo.code;
+    }
+
+    const total = subtotal - discountAmount;
+    const orderNumber = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    const orderStatus = payment_method === 'offline' ? 'confirmed' : 'pending';
+
+    let stripePaymentIntentId = null;
+    if (payment_method === 'stripe') {
+      const totalCents = Math.round(total * 100);
+      if (totalCents > 0) {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: totalCents,
+          currency: 'usd',
+        });
+        stripePaymentIntentId = paymentIntent.id;
+      }
+    }
+
+    const orderResult = await client.query(`
+      INSERT INTO orders (order_number, customer_email, customer_name, phone,
+        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
+        subtotal, shipping, total, status, sales_rep_id, payment_method, delivery_method,
+        stripe_payment_intent_id, promo_code_id, promo_code, discount_amount,
+        amount_paid)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      RETURNING *
+    `, [orderNumber, customer_email.toLowerCase().trim(), customer_name, phone || null,
+        isPickup ? null : shipping_address.line1, isPickup ? null : (shipping_address.line2 || null),
+        isPickup ? null : shipping_address.city, isPickup ? null : shipping_address.state, isPickup ? null : shipping_address.zip,
+        subtotal.toFixed(2), total.toFixed(2), orderStatus, req.rep.id, payment_method,
+        isPickup ? 'pickup' : 'shipping',
+        stripePaymentIntentId, promoCodeId, promoCodeStr, discountAmount.toFixed(2),
+        payment_method === 'offline' ? total.toFixed(2) : '0.00']);
+
+    const order = orderResult.rows[0];
+
+    for (const item of resolvedItems) {
+      await client.query(`
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
+          sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
+          item.description || null, item.sqft_needed, item.num_boxes,
+          item.unit_price.toFixed(2), item.subtotal.toFixed(2), item.sell_by || null, item.is_sample]);
+    }
+
+    // Record offline payment in ledger
+    if (payment_method === 'offline') {
+      await client.query(`
+        INSERT INTO order_payments (order_id, payment_type, amount, description, initiated_by, initiated_by_name, status)
+        VALUES ($1, 'charge', $2, 'Offline payment (rep-created)', $3, $4, 'completed')
+      `, [order.id, total.toFixed(2), req.rep.id, req.rep.first_name + ' ' + req.rep.last_name]);
+    }
+
+    // Record promo usage
+    if (promoCodeId && discountAmount > 0) {
+      await client.query(
+        'INSERT INTO promo_code_usages (promo_code_id, order_id, customer_email, discount_amount) VALUES ($1, $2, $3, $4)',
+        [promoCodeId, order.id, customer_email, discountAmount.toFixed(2)]
+      );
+    }
+
+    // Generate POs if confirmed
+    if (orderStatus === 'confirmed') {
+      await generatePurchaseOrders(order.id, client);
+    }
+
+    // Log activity
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(client, order.id, 'order_created', req.rep.id, repName,
+      { payment_method, item_count: resolvedItems.length, total: total.toFixed(2) });
+
+    await client.query('COMMIT');
+
+    const orderItems = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+    res.json({ order: { ...order, items: orderItems.rows } });
+
+    // Recalculate commission for rep-created order
+    setImmediate(() => recalculateCommission(pool, order.id));
+
+    // Fire-and-forget: send confirmation email
+    const emailOrder = { ...order, items: orderItems.rows };
+    setImmediate(() => sendOrderConfirmation(emailOrder));
+
+    // Fire-and-forget: notify creating rep
+    setImmediate(() => createRepNotification(pool, req.rep.id, 'order_created',
+      'Order ' + orderNumber + ' created',
+      'You created order ' + orderNumber + ' for ' + customer_name + ' ($' + total.toFixed(2) + ')',
+      'order', order.id));
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -5775,7 +7031,7 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { status, tracking_number, carrier, shipped_at } = req.body;
+    const { status, tracking_number, carrier, shipped_at, cancel_reason } = req.body;
     const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled', 'refunded'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
@@ -5786,13 +7042,18 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'Use the refund endpoint to issue refunds' });
     }
 
+    // Require cancel reason
+    if (status === 'cancelled' && (!cancel_reason || !cancel_reason.trim())) {
+      return res.status(400).json({ error: 'A cancellation reason is required' });
+    }
+
     await client.query('BEGIN');
 
     // Block uncancelling a refunded order
     const currentOrder = await client.query('SELECT status, stripe_refund_id FROM orders WHERE id = $1', [id]);
     if (currentOrder.rows.length && currentOrder.rows[0].status === 'cancelled' && currentOrder.rows[0].stripe_refund_id) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Cannot uncancel an order that has been refunded' });
+      return res.status(400).json({ error: 'Cannot reopen an order that has been refunded' });
     }
 
     let result;
@@ -5823,9 +7084,15 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
         'UPDATE orders SET status = $1, delivered_at = NOW() WHERE id = $2 RETURNING *',
         [status, id]
       );
-    } else {
+    } else if (status === 'cancelled') {
       result = await client.query(
-        'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
+        'UPDATE orders SET status = $1, cancel_reason = $2 WHERE id = $3 RETURNING *',
+        [status, cancel_reason.trim(), id]
+      );
+    } else {
+      // For uncancelling or other transitions, clear cancel_reason
+      result = await client.query(
+        'UPDATE orders SET status = $1, cancel_reason = NULL WHERE id = $2 RETURNING *',
         [status, id]
       );
     }
@@ -5863,12 +7130,49 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
       }
     }
 
+    // Delete cancelled POs when order is uncancelled — fresh POs will be generated on re-confirm
+    const oldStatusRep = currentOrder.rows.length ? currentOrder.rows[0].status : null;
+    if (oldStatusRep === 'cancelled' && status !== 'cancelled') {
+      const cancelledPOs = await client.query(
+        "SELECT id FROM purchase_orders WHERE order_id = $1 AND status = 'cancelled'",
+        [id]
+      );
+      for (const po of cancelledPOs.rows) {
+        await client.query('DELETE FROM po_activity_log WHERE purchase_order_id = $1', [po.id]);
+        await client.query('DELETE FROM purchase_order_items WHERE purchase_order_id = $1', [po.id]);
+        await client.query('DELETE FROM purchase_orders WHERE id = $1', [po.id]);
+      }
+    }
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(client, id, 'status_changed', req.rep.id, repName,
+      { from: oldStatusRep, to: status,
+        ...(tracking_number ? { tracking_number, carrier: carrier || null } : {}),
+        ...(status === 'cancelled' && cancel_reason ? { cancel_reason: cancel_reason.trim() } : {}) });
+
+    // Auto-assign rep if order is unassigned
+    if (!result.rows[0].sales_rep_id) {
+      await client.query('UPDATE orders SET sales_rep_id = $1 WHERE id = $2', [req.rep.id, id]);
+      result.rows[0].sales_rep_id = req.rep.id;
+      await logOrderActivity(client, id, 'rep_assigned', req.rep.id, repName, { rep_name: repName, auto: true });
+    }
+
     await client.query('COMMIT');
     const updatedOrder = result.rows[0];
     res.json({ order: updatedOrder });
 
+    // Recalculate commission on status change
+    setImmediate(() => recalculateCommission(pool, id));
+
     // Fire-and-forget: send status update email for shipped/delivered/cancelled
     setImmediate(() => sendOrderStatusUpdate(updatedOrder, status));
+
+    // Notify assigned rep if a different rep made the change
+    if (updatedOrder.sales_rep_id && updatedOrder.sales_rep_id !== req.rep.id) {
+      setImmediate(() => createRepNotification(pool, updatedOrder.sales_rep_id, 'order_status_changed',
+        'Order ' + updatedOrder.order_number + ' → ' + status,
+        req.rep.first_name + ' ' + req.rep.last_name + ' changed status to ' + status,
+        'order', id));
+    }
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
@@ -5895,6 +7199,9 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'delivery_method must be "pickup" or "shipping"' });
     }
 
+    const oldDeliveryMethod = order.delivery_method;
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+
     // Switch to pickup
     if (delivery_method === 'pickup') {
       const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
@@ -5907,6 +7214,8 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
           total = $2
         WHERE id = $1 RETURNING *
       `, [id, newTotal]);
+      await logOrderActivity(pool, id, 'delivery_method_changed', req.rep.id, repName,
+        { from: oldDeliveryMethod, to: 'pickup' });
       const balanceInfo = await recalculateBalance(id);
       return res.json({ order: updated.rows[0], balance: balanceInfo });
     }
@@ -5951,6 +7260,8 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
         shipping_address.city, shipping_address.state, shipping_address.zip,
         newTotal]);
 
+    await logOrderActivity(pool, id, 'delivery_method_changed', req.rep.id, repName,
+      { from: oldDeliveryMethod, to: 'shipping', shipping_cost: shippingCost.toFixed(2) });
     const balanceInfo = await recalculateBalance(id);
     return res.json({ order: updated.rows[0], balance: balanceInfo });
   } catch (err) {
@@ -5966,7 +7277,15 @@ app.put('/api/rep/orders/:id/assign', repAuth, async (req, res) => {
       [req.rep.id, id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(pool, id, 'rep_assigned', req.rep.id, repName, { rep_name: repName });
     res.json({ order: result.rows[0] });
+
+    // Notify the assigned rep
+    setImmediate(() => createRepNotification(pool, req.rep.id, 'order_assigned',
+      'Order ' + result.rows[0].order_number + ' assigned to you',
+      'You have been assigned to order ' + result.rows[0].order_number,
+      'order', id));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -6029,6 +7348,9 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
       [orderSubtotal.toFixed(2), orderTotal.toFixed(2), id]
     );
 
+    await logOrderActivity(client, id, 'price_adjusted', req.rep.id, req.rep.first_name + ' ' + req.rep.last_name,
+      { product_name: current.product_name, previous_price: prevPrice.toFixed(2), new_price: newPrice.toFixed(2), reason: reason || null });
+
     await client.query('COMMIT');
 
     // Return updated order + items
@@ -6057,51 +7379,90 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
 });
 
 // Add item to existing order (rep)
+// Supports two modes:
+//   SKU mode: { sku_id, num_boxes, sqft_needed? }
+//   Custom mode: { product_name, unit_price, vendor_id, num_boxes, description?, sqft_needed? }
 app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { sku_id, num_boxes, sqft_needed } = req.body;
-    if (!sku_id || !num_boxes || num_boxes < 1) {
-      return res.status(400).json({ error: 'sku_id and num_boxes (>= 1) are required' });
+    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description } = req.body;
+
+    const isCustom = !sku_id;
+    if (isCustom) {
+      if (!product_name || !product_name.trim()) return res.status(400).json({ error: 'product_name is required for custom items' });
+      if (unit_price == null || parseFloat(unit_price) < 0) return res.status(400).json({ error: 'unit_price >= 0 is required for custom items' });
+      if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required for custom items' });
+      if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'num_boxes >= 1 is required' });
+    } else {
+      if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'sku_id and num_boxes (>= 1) are required' });
     }
 
     const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
-    if (!orderResult.rows.length) { client.release(); return res.status(404).json({ error: 'Order not found' }); }
+    if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
     if (!['pending', 'confirmed'].includes(order.status)) {
-      client.release();
       return res.status(400).json({ error: 'Can only add items to pending or confirmed orders' });
     }
 
-    const skuResult = await client.query(`
-      SELECT s.*, p.name as product_name, p.collection, pr.retail_price, pr.price_basis,
-        pk.sqft_per_box, pk.weight_per_box_lbs
-      FROM skus s
-      JOIN products p ON p.id = s.product_id
-      LEFT JOIN pricing pr ON pr.sku_id = s.id
-      LEFT JOIN packaging pk ON pk.sku_id = s.id
-      WHERE s.id = $1
-    `, [sku_id]);
-    if (!skuResult.rows.length) { client.release(); return res.status(404).json({ error: 'SKU not found' }); }
-    const sku = skuResult.rows[0];
+    let sku = null;
+    let unitPrice, isSample, sqftPerBox, isPerSqft, computedSqft, itemSubtotal;
+    let itemVendorId;
 
-    const unitPrice = parseFloat(sku.retail_price || 0);
-    const isSample = sku.is_sample || false;
-    const sqftPerBox = parseFloat(sku.sqft_per_box || 1);
-    const isPerSqft = sku.price_basis === 'per_sqft';
-    const computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
-    const itemSubtotal = isSample ? 0 : parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+    if (!isCustom) {
+      const skuResult = await client.query(`
+        SELECT s.*, p.name as product_name, p.collection, p.vendor_id,
+          pr.retail_price, pr.price_basis, pr.cost,
+          pk.sqft_per_box, pk.weight_per_box_lbs
+        FROM skus s
+        JOIN products p ON p.id = s.product_id
+        LEFT JOIN pricing pr ON pr.sku_id = s.id
+        LEFT JOIN packaging pk ON pk.sku_id = s.id
+        WHERE s.id = $1
+      `, [sku_id]);
+      if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
+      sku = skuResult.rows[0];
+
+      unitPrice = parseFloat(sku.retail_price || 0);
+      isSample = sku.is_sample || false;
+      sqftPerBox = parseFloat(sku.sqft_per_box || 1);
+      isPerSqft = sku.price_basis === 'per_sqft';
+      computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
+      itemSubtotal = isSample ? 0 : parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+      itemVendorId = sku.vendor_id;
+    } else {
+      unitPrice = parseFloat(unit_price);
+      isSample = false;
+      itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
+      itemVendorId = vendor_id;
+
+      const vendorCheck = await client.query('SELECT id FROM vendors WHERE id = $1', [vendor_id]);
+      if (!vendorCheck.rows.length) return res.status(400).json({ error: 'Vendor not found' });
+    }
 
     await client.query('BEGIN');
 
-    await client.query(`
-      INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
-        sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    `, [id, sku.product_id, sku_id, sku.product_name, sku.collection,
-        sqft_needed || computedSqft || null, num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
-        isSample, sku.sell_by || null]);
+    let newItemId;
+    if (!isCustom) {
+      const insertResult = await client.query(`
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
+          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING id
+      `, [id, sku.product_id, sku_id, sku.product_name, sku.collection,
+          sqft_needed || computedSqft || null, num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
+          isSample, sku.sell_by || null]);
+      newItemId = insertResult.rows[0].id;
+    } else {
+      const insertResult = await client.query(`
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
+          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description)
+        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, NULL, $7)
+        RETURNING id
+      `, [id, product_name.trim(), sqft_needed || null, num_boxes, unitPrice.toFixed(2),
+          itemSubtotal.toFixed(2), description || null]);
+      newItemId = insertResult.rows[0].id;
+    }
 
     const totalsResult = await client.query(`
       SELECT COALESCE(SUM(CASE WHEN NOT is_sample THEN subtotal ELSE 0 END), 0) as new_subtotal
@@ -6113,6 +7474,65 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
       [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
 
+    // --- Auto-update Purchase Orders ---
+    if (!isSample) {
+      const existingPO = await client.query(
+        `SELECT id, subtotal FROM purchase_orders
+         WHERE order_id = $1 AND vendor_id = $2 AND status = 'draft'
+         LIMIT 1`,
+        [id, itemVendorId]
+      );
+
+      let poId;
+      if (existingPO.rows.length) {
+        poId = existingPO.rows[0].id;
+      } else {
+        const vendorResult = await client.query('SELECT code FROM vendors WHERE id = $1', [itemVendorId]);
+        const vendorCode = vendorResult.rows[0]?.code || 'CUST';
+        const poNumber = `PO-${vendorCode}-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        const newPO = await client.query(
+          `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal)
+           VALUES ($1, $2, $3, 'draft', 0) RETURNING id`,
+          [id, itemVendorId, poNumber]
+        );
+        poId = newPO.rows[0].id;
+      }
+
+      let poCost, poRetail, poVendorSku, poProductName;
+      if (sku) {
+        const skuSqftPerBox = parseFloat(sku.sqft_per_box || 1);
+        const vendorCost = parseFloat(sku.cost || 0);
+        poCost = sku.price_basis === 'per_sqft' ? vendorCost * skuSqftPerBox : vendorCost;
+        poRetail = sku.price_basis === 'per_sqft' ? unitPrice * skuSqftPerBox : unitPrice;
+        poVendorSku = sku.vendor_sku;
+        poProductName = sku.product_name;
+      } else {
+        poCost = unitPrice;
+        poRetail = unitPrice;
+        poVendorSku = null;
+        poProductName = product_name.trim();
+      }
+
+      await client.query(`
+        INSERT INTO purchase_order_items
+          (purchase_order_id, order_item_id, sku_id, product_name, vendor_sku, description,
+           qty, sell_by, cost, original_cost, retail_price, subtotal)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10, $11)
+      `, [poId, newItemId, sku?.id || null, poProductName, poVendorSku,
+          description || null, num_boxes, sku?.sell_by || null,
+          poCost.toFixed(2), poRetail ? poRetail.toFixed(2) : null,
+          (poCost * num_boxes).toFixed(2)]);
+
+      await client.query(`
+        UPDATE purchase_orders SET subtotal = (
+          SELECT COALESCE(SUM(subtotal), 0) FROM purchase_order_items WHERE purchase_order_id = $1
+        ) WHERE id = $1
+      `, [poId]);
+    }
+
+    await logOrderActivity(client, id, 'item_added', req.rep.id, req.rep.first_name + ' ' + req.rep.last_name,
+      { product_name: isCustom ? product_name.trim() : sku.product_name, is_custom: isCustom, num_boxes, subtotal: itemSubtotal.toFixed(2) });
+
     await client.query('COMMIT');
 
     const balanceInfo = await recalculateBalance(id);
@@ -6123,7 +7543,20 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
 
-    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo });
+    const posResult = await pool.query(`
+      SELECT po.*, v.name as vendor_name
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      WHERE po.order_id = $1
+      ORDER BY po.created_at
+    `, [id]);
+    const purchaseOrders = posResult.rows;
+    for (const po of purchaseOrders) {
+      const poItems = await pool.query('SELECT * FROM purchase_order_items WHERE purchase_order_id = $1 ORDER BY created_at', [po.id]);
+      po.items = poItems.rows;
+    }
+
+    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo, purchase_orders: purchaseOrders });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
@@ -6139,18 +7572,41 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
     const { id, itemId } = req.params;
 
     const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
-    if (!orderResult.rows.length) { client.release(); return res.status(404).json({ error: 'Order not found' }); }
+    if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
     if (!['pending', 'confirmed'].includes(order.status)) {
-      client.release();
       return res.status(400).json({ error: 'Can only remove items from pending or confirmed orders' });
     }
 
     const itemResult = await client.query('SELECT * FROM order_items WHERE id = $1 AND order_id = $2', [itemId, id]);
-    if (!itemResult.rows.length) { client.release(); return res.status(404).json({ error: 'Order item not found' }); }
+    if (!itemResult.rows.length) return res.status(404).json({ error: 'Order item not found' });
 
     await client.query('BEGIN');
+
+    // Delete linked PO items first (FK constraint), then recalculate affected PO subtotals
+    const linkedPOItems = await client.query(
+      'SELECT id, purchase_order_id FROM purchase_order_items WHERE order_item_id = $1', [itemId]
+    );
+    const affectedPOIds = [...new Set(linkedPOItems.rows.map(r => r.purchase_order_id))];
+    if (linkedPOItems.rows.length > 0) {
+      await client.query('DELETE FROM purchase_order_items WHERE order_item_id = $1', [itemId]);
+    }
+
     await client.query('DELETE FROM order_items WHERE id = $1', [itemId]);
+
+    // Recalculate affected PO subtotals and remove empty POs
+    for (const poId of affectedPOIds) {
+      const remaining = await client.query('SELECT COUNT(*) as cnt FROM purchase_order_items WHERE purchase_order_id = $1', [poId]);
+      if (parseInt(remaining.rows[0].cnt) === 0) {
+        await client.query('DELETE FROM purchase_orders WHERE id = $1', [poId]);
+      } else {
+        await client.query(`
+          UPDATE purchase_orders SET subtotal = (
+            SELECT COALESCE(SUM(subtotal), 0) FROM purchase_order_items WHERE purchase_order_id = $1
+          ) WHERE id = $1
+        `, [poId]);
+      }
+    }
 
     const totalsResult = await client.query(`
       SELECT COALESCE(SUM(CASE WHEN NOT is_sample THEN subtotal ELSE 0 END), 0) as new_subtotal
@@ -6162,6 +7618,10 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
     await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
       [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
 
+    const removedItemRep = itemResult.rows[0];
+    await logOrderActivity(client, id, 'item_removed', req.rep.id, req.rep.first_name + ' ' + req.rep.last_name,
+      { product_name: removedItemRep.product_name, num_boxes: removedItemRep.num_boxes, subtotal: parseFloat(removedItemRep.subtotal).toFixed(2) });
+
     await client.query('COMMIT');
 
     const balanceInfo = await recalculateBalance(id);
@@ -6172,7 +7632,21 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
 
-    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo });
+    // Fetch updated POs
+    const posResult = await pool.query(`
+      SELECT po.*, v.name as vendor_name
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      WHERE po.order_id = $1
+      ORDER BY po.created_at
+    `, [id]);
+    const purchaseOrders = posResult.rows;
+    for (const po of purchaseOrders) {
+      const poItems = await pool.query('SELECT * FROM purchase_order_items WHERE purchase_order_id = $1 ORDER BY created_at', [po.id]);
+      po.items = poItems.rows;
+    }
+
+    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo, purchase_orders: purchaseOrders });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
@@ -6225,9 +7699,22 @@ app.post('/api/rep/orders/:id/payment-request', repAuth, async (req, res) => {
       metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' }
     });
 
+    await logOrderActivity(pool, id, 'payment_request_sent', req.rep.id, repName,
+      { amount: amountDue.toFixed(2), sent_to: o.customer_email });
+
     setImmediate(() => sendPaymentRequest({ order: o, amount: amountDue, checkout_url: session.url, message: message || null }));
 
     res.json({ payment_request: prResult.rows[0], checkout_url: session.url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Vendors list for rep (used in custom item dropdown)
+app.get('/api/rep/vendors', repAuth, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name, code FROM vendors WHERE is_active = true ORDER BY name');
+    res.json({ vendors: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -6240,17 +7727,196 @@ app.get('/api/rep/skus/search', repAuth, async (req, res) => {
     if (!q || q.length < 2) return res.json({ results: [] });
     const results = await pool.query(`
       SELECT s.id as sku_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
-        p.name as product_name, p.collection,
-        pr.retail_price
+        p.name as product_name, p.collection, p.vendor_id,
+        v.name as vendor_name,
+        pr.retail_price, pr.cost, pr.price_basis,
+        pk.sqft_per_box
       FROM skus s
       JOIN products p ON p.id = s.product_id
+      LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
       WHERE p.status = 'active' AND s.status = 'active'
         AND (p.name ILIKE $1 OR s.internal_sku ILIKE $1 OR s.vendor_sku ILIKE $1 OR s.variant_name ILIKE $1 OR p.collection ILIKE $1)
       ORDER BY p.name, s.variant_name
       LIMIT 15
     `, ['%' + q + '%']);
     res.json({ results: results.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Rep Product Catalog ====================
+
+app.get('/api/rep/products', repAuth, async (req, res) => {
+  try {
+    const { search, category, collection, page: pageParam, limit: limitParam } = req.query;
+    const page = parseInt(pageParam) || 1;
+    const limit = Math.min(parseInt(limitParam) || 30, 100);
+    const offset = (page - 1) * limit;
+
+    let query = `
+      SELECT p.*, v.name as vendor_name, c.name as category_name, c.slug as category_slug,
+        (SELECT pr.retail_price FROM pricing pr
+         JOIN skus s ON s.id = pr.sku_id
+         WHERE s.product_id = p.id AND s.status = 'active' LIMIT 1) as price,
+        (SELECT pr.cost FROM pricing pr
+         JOIN skus s ON s.id = pr.sku_id
+         WHERE s.product_id = p.id AND s.status = 'active' LIMIT 1) as cost,
+        (SELECT ma.url FROM media_assets ma
+         WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY ma.sort_order LIMIT 1) as primary_image,
+        (SELECT CASE
+           WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand END) IS NULL THEN 'unknown'
+           WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand ELSE 0 END) > 10 THEN 'in_stock'
+           WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand ELSE 0 END) > 0 THEN 'low_stock'
+           ELSE 'out_of_stock'
+         END
+         FROM skus s2
+         LEFT JOIN inventory_snapshots inv ON inv.sku_id = s2.id
+         WHERE s2.product_id = p.id
+        ) as stock_status
+      FROM products p
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE p.status = 'active'
+    `;
+    const params = [];
+    let paramIndex = 1;
+
+    if (search) {
+      params.push('%' + search + '%');
+      query += ` AND (p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex})`;
+      paramIndex++;
+    }
+
+    if (category) {
+      params.push(category);
+      query += `
+        AND p.category_id IN (
+          SELECT id FROM categories WHERE slug = $${paramIndex}
+          UNION
+          SELECT id FROM categories WHERE parent_id = (
+            SELECT id FROM categories WHERE slug = $${paramIndex}
+          )
+        )
+      `;
+      paramIndex++;
+    }
+
+    if (collection) {
+      params.push(collection);
+      query += ` AND (p.collection = $${paramIndex} OR LOWER(REGEXP_REPLACE(p.collection, '[^a-zA-Z0-9]+', '-', 'g')) = LOWER($${paramIndex}))`;
+      paramIndex++;
+    }
+
+    // Attribute filters
+    try {
+      const attrResult = await pool.query('SELECT slug FROM attributes WHERE is_filterable = true');
+      for (const attr of attrResult.rows) {
+        if (req.query[attr.slug]) {
+          const values = req.query[attr.slug].split(',').map(v => v.trim()).filter(Boolean);
+          if (values.length > 0) {
+            const placeholders = values.map((_, i) => `$${paramIndex + i}`).join(', ');
+            query += `
+              AND p.id IN (
+                SELECT s.product_id FROM skus s
+                JOIN sku_attributes sa ON sa.sku_id = s.id
+                JOIN attributes a ON a.id = sa.attribute_id
+                WHERE a.slug = $${paramIndex + values.length} AND sa.value IN (${placeholders})
+              )
+            `;
+            params.push(...values, attr.slug);
+            paramIndex += values.length + 1;
+          }
+        }
+      }
+    } catch (attrErr) { /* attributes table may not exist yet */ }
+
+    // Count total
+    const countQuery = query.replace(/SELECT p\.\*.*?FROM products p/s, 'SELECT COUNT(*)::int as total FROM products p');
+    const countResult = await pool.query(countQuery, params);
+    const total = countResult.rows[0].total;
+
+    query += ` ORDER BY p.name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(limit, offset);
+
+    const result = await pool.query(query, params);
+
+    // Add margin_pct
+    const products = result.rows.map(p => {
+      const retail = parseFloat(p.price || 0);
+      const cost = parseFloat(p.cost || 0);
+      const margin_pct = retail > 0 ? ((retail - cost) / retail * 100) : 0;
+      return { ...p, margin_pct: parseFloat(margin_pct.toFixed(1)) };
+    });
+
+    res.json({ products, total, page, limit });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/rep/products/:id', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await pool.query(`
+      SELECT p.*, v.name as vendor_name, c.name as category_name, c.slug as category_slug
+      FROM products p
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE p.id = $1
+    `, [id]);
+    if (!product.rows.length) return res.status(404).json({ error: 'Product not found' });
+
+    const skus = await pool.query(`
+      SELECT s.*, pr.retail_price, pr.cost, pr.price_basis,
+        pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.boxes_per_pallet,
+        (SELECT CASE
+           WHEN inv.fresh_until > NOW() THEN
+             CASE WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+                  WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+                  ELSE 'out_of_stock' END
+           ELSE 'unknown' END
+         FROM inventory_snapshots inv WHERE inv.sku_id = s.id LIMIT 1
+        ) as stock_status,
+        (SELECT inv.qty_on_hand FROM inventory_snapshots inv WHERE inv.sku_id = s.id LIMIT 1) as qty_on_hand
+      FROM skus s
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      WHERE s.product_id = $1 AND s.status = 'active'
+      ORDER BY s.variant_name
+    `, [id]);
+
+    // Add margin_pct per SKU
+    const skuRows = skus.rows.map(s => {
+      const retail = parseFloat(s.retail_price || 0);
+      const cost = parseFloat(s.cost || 0);
+      const margin_pct = retail > 0 ? ((retail - cost) / retail * 100) : 0;
+      return { ...s, margin_pct: parseFloat(margin_pct.toFixed(1)) };
+    });
+
+    const media = await pool.query(
+      'SELECT * FROM media_assets WHERE product_id = $1 ORDER BY asset_type, sort_order',
+      [id]
+    );
+
+    res.json({ product: product.rows[0], skus: skuRows, media: media.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Order activity log (rep)
+app.get('/api/rep/orders/:id/activity', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM order_activity_log WHERE order_id = $1 ORDER BY created_at DESC',
+      [id]
+    );
+    res.json({ activity: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -6292,6 +7958,101 @@ app.get('/api/rep/orders/:id/purchase-orders', repAuth, async (req, res) => {
     res.json({ purchase_orders: result });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Rep bulk update PO item statuses (must be before :itemId routes)
+app.put('/api/rep/purchase-orders/:poId/items/bulk-status', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { poId } = req.params;
+    const { status } = req.body;
+    const validStatuses = ['pending', 'ordered', 'shipped', 'received', 'cancelled'];
+    if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status. Allowed: ' + validStatuses.join(', ') });
+
+    const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+
+    await client.query('BEGIN');
+
+    await client.query(
+      `UPDATE purchase_order_items SET status = $1 WHERE purchase_order_id = $2 AND status NOT IN ('received', 'cancelled')`,
+      [status, poId]
+    );
+
+    const allItems = await client.query('SELECT status FROM purchase_order_items WHERE purchase_order_id = $1', [poId]);
+    const statuses = allItems.rows.map(r => r.status);
+    let newPOStatus = null;
+    if (statuses.length > 0 && statuses.every(s => s === 'received')) newPOStatus = 'fulfilled';
+    else if (statuses.length > 0 && statuses.every(s => s === 'cancelled')) newPOStatus = 'cancelled';
+
+    if (newPOStatus && po.rows[0].status !== newPOStatus) {
+      await client.query('UPDATE purchase_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newPOStatus, poId]);
+    }
+
+    // Log activity
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await client.query(
+      `INSERT INTO po_activity_log (purchase_order_id, action, details, performer_type, performer_id, performer_name)
+       VALUES ($1, 'bulk_item_status_update', $2, 'rep', $3, $4)`,
+      [poId, JSON.stringify({ status, derived_po_status: newPOStatus }), req.rep.id, repName]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true, derived_po_status: newPOStatus });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Rep update single PO item status
+app.put('/api/rep/purchase-orders/:poId/items/:itemId/status', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { poId, itemId } = req.params;
+    const { status } = req.body;
+    const validStatuses = ['pending', 'ordered', 'shipped', 'received', 'cancelled'];
+    if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status. Allowed: ' + validStatuses.join(', ') });
+
+    const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+
+    await client.query('BEGIN');
+
+    const item = await client.query('SELECT * FROM purchase_order_items WHERE id = $1 AND purchase_order_id = $2', [itemId, poId]);
+    if (!item.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'PO item not found' }); }
+
+    await client.query('UPDATE purchase_order_items SET status = $1 WHERE id = $2', [status, itemId]);
+
+    // Auto-derive PO-level status
+    const allItems = await client.query('SELECT status FROM purchase_order_items WHERE purchase_order_id = $1', [poId]);
+    const statuses = allItems.rows.map(r => r.status);
+    let newPOStatus = null;
+    if (statuses.length > 0 && statuses.every(s => s === 'received')) newPOStatus = 'fulfilled';
+    else if (statuses.length > 0 && statuses.every(s => s === 'cancelled')) newPOStatus = 'cancelled';
+
+    if (newPOStatus && po.rows[0].status !== newPOStatus) {
+      await client.query('UPDATE purchase_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newPOStatus, poId]);
+    }
+
+    // Log activity
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await client.query(
+      `INSERT INTO po_activity_log (purchase_order_id, action, details, performer_type, performer_id, performer_name)
+       VALUES ($1, 'item_status_update', $2, 'rep', $3, $4)`,
+      [poId, JSON.stringify({ item_id: itemId, status, derived_po_status: newPOStatus }), req.rep.id, repName]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true, derived_po_status: newPOStatus });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -7006,6 +8767,559 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
   }
 });
 
+// ==================== Rep Customer Endpoints ====================
+
+// GET /api/rep/customers — unified list (mirrors admin endpoint)
+app.get('/api/rep/customers', repAuth, async (req, res) => {
+  try {
+    const { search, type = 'all', sort = 'last_order', dir = 'desc', page = 1, limit = 50 } = req.query;
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
+
+    const queries = [];
+
+    // Retail customers
+    if (type === 'all' || type === 'retail') {
+      queries.push(pool.query(`
+        SELECT c.id, c.first_name || ' ' || c.last_name as name, c.email, c.phone,
+          'retail' as customer_type, c.created_at,
+          COUNT(o.id)::int as order_count,
+          COALESCE(SUM(o.total), 0) as total_spent,
+          MAX(o.created_at) as last_order_date
+        FROM customers c
+        LEFT JOIN orders o ON o.customer_id = c.id
+        GROUP BY c.id
+      `));
+    }
+
+    // Guest customers
+    if (type === 'all' || type === 'guest') {
+      queries.push(pool.query(`
+        SELECT 'guest_' || LOWER(o.customer_email) as id,
+          (array_agg(o.customer_name ORDER BY o.created_at DESC))[1] as name,
+          LOWER(o.customer_email) as email,
+          (array_agg(o.phone ORDER BY o.created_at DESC))[1] as phone,
+          'guest' as customer_type,
+          MIN(o.created_at) as created_at,
+          COUNT(o.id)::int as order_count,
+          COALESCE(SUM(o.total), 0) as total_spent,
+          MAX(o.created_at) as last_order_date
+        FROM orders o
+        WHERE o.customer_id IS NULL AND o.trade_customer_id IS NULL
+          AND o.customer_email IS NOT NULL
+        GROUP BY LOWER(o.customer_email)
+      `));
+    }
+
+    // Trade customers
+    if (type === 'all' || type === 'trade') {
+      queries.push(pool.query(`
+        SELECT tc.id, tc.contact_name as name, tc.email, tc.phone,
+          'trade' as customer_type, tc.created_at,
+          COUNT(o.id)::int as order_count,
+          COALESCE(SUM(o.total), 0) as total_spent,
+          MAX(o.created_at) as last_order_date,
+          tc.company_name, mt.name as tier_name, tc.status as trade_status
+        FROM trade_customers tc
+        LEFT JOIN orders o ON o.trade_customer_id = tc.id
+        LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+        GROUP BY tc.id, mt.name
+      `));
+    }
+
+    const results = await Promise.all(queries);
+    let all = [];
+    for (const r of results) {
+      all = all.concat(r.rows);
+    }
+
+    // Prefix IDs for retail/trade (guest already prefixed in query)
+    all = all.map(c => {
+      if (c.customer_type === 'retail') c.id = 'retail_' + c.id;
+      else if (c.customer_type === 'trade') c.id = 'trade_' + c.id;
+      c.total_spent = parseFloat(c.total_spent) || 0;
+      return c;
+    });
+
+    // Search filter
+    if (search) {
+      const s = search.toLowerCase();
+      all = all.filter(c =>
+        (c.name && c.name.toLowerCase().includes(s)) ||
+        (c.email && c.email.toLowerCase().includes(s)) ||
+        (c.phone && c.phone.toLowerCase().includes(s)) ||
+        (c.company_name && c.company_name.toLowerCase().includes(s))
+      );
+    }
+
+    const total = all.length;
+
+    // Sort
+    const sortDir2 = (dir || 'desc').toLowerCase() === 'asc' ? 1 : -1;
+    const sortKey = sort || 'last_order';
+    all.sort((a, b) => {
+      let av, bv;
+      switch (sortKey) {
+        case 'name': av = (a.name || '').toLowerCase(); bv = (b.name || '').toLowerCase(); return av < bv ? -sortDir2 : av > bv ? sortDir2 : 0;
+        case 'email': av = (a.email || '').toLowerCase(); bv = (b.email || '').toLowerCase(); return av < bv ? -sortDir2 : av > bv ? sortDir2 : 0;
+        case 'orders': return (a.order_count - b.order_count) * sortDir2;
+        case 'spent': return (a.total_spent - b.total_spent) * sortDir2;
+        case 'created': av = new Date(a.created_at || 0).getTime(); bv = new Date(b.created_at || 0).getTime(); return (av - bv) * sortDir2;
+        case 'last_order': default:
+          av = a.last_order_date ? new Date(a.last_order_date).getTime() : 0;
+          bv = b.last_order_date ? new Date(b.last_order_date).getTime() : 0;
+          return (av - bv) * sortDir2;
+      }
+    });
+
+    // Paginate
+    const offset = (pageNum - 1) * limitNum;
+    const customers = all.slice(offset, offset + limitNum);
+
+    res.json({ customers, total, page: pageNum, limit: limitNum });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/rep/customers/:id — detail view (mirrors admin endpoint)
+app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
+  try {
+    const { type } = req.query;
+    const refId = req.params.id;
+    if (!type || !['retail', 'guest', 'trade'].includes(type)) {
+      return res.status(400).json({ error: 'type query param required (retail|guest|trade)' });
+    }
+
+    let customer, orders, noteRef;
+
+    if (type === 'retail') {
+      const cResult = await pool.query(`
+        SELECT id, first_name, last_name, first_name || ' ' || last_name as name, email, phone,
+          address_line1, address_line2, city, state, zip, created_at
+        FROM customers WHERE id = $1
+      `, [refId]);
+      if (!cResult.rows.length) return res.status(404).json({ error: 'Customer not found' });
+      customer = cResult.rows[0];
+      customer.customer_type = 'retail';
+      noteRef = refId;
+
+      const oResult = await pool.query(`
+        SELECT o.*, (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id)::int as item_count
+        FROM orders o WHERE o.customer_id = $1 ORDER BY o.created_at DESC
+      `, [refId]);
+      orders = oResult.rows;
+
+    } else if (type === 'trade') {
+      const cResult = await pool.query(`
+        SELECT tc.id, tc.email, tc.company_name, tc.contact_name, tc.contact_name as name,
+          tc.phone, tc.status, tc.notes, tc.created_at, tc.updated_at, tc.business_type,
+          tc.subscription_status, tc.subscription_expires_at, tc.total_spend,
+          tc.address_line1, tc.city, tc.state, tc.zip, tc.contractor_license,
+          mt.name as tier_name, mt.discount_percent,
+          sa.first_name || ' ' || sa.last_name as rep_name
+        FROM trade_customers tc
+        LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+        LEFT JOIN staff_accounts sa ON sa.id = tc.assigned_rep_id
+        WHERE tc.id = $1
+      `, [refId]);
+      if (!cResult.rows.length) return res.status(404).json({ error: 'Trade customer not found' });
+      customer = cResult.rows[0];
+      customer.customer_type = 'trade';
+      noteRef = refId;
+
+      const oResult = await pool.query(`
+        SELECT o.*, (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id)::int as item_count
+        FROM orders o WHERE o.trade_customer_id = $1 ORDER BY o.created_at DESC
+      `, [refId]);
+      orders = oResult.rows;
+
+    } else {
+      // Guest — refId is the email
+      const email = refId.toLowerCase();
+      const oResult = await pool.query(`
+        SELECT o.*, (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id)::int as item_count
+        FROM orders o
+        WHERE LOWER(o.customer_email) = $1 AND o.customer_id IS NULL AND o.trade_customer_id IS NULL
+        ORDER BY o.created_at DESC
+      `, [email]);
+      orders = oResult.rows;
+      if (!orders.length) return res.status(404).json({ error: 'No guest orders found for this email' });
+
+      const latest = orders[0];
+      customer = {
+        customer_type: 'guest',
+        name: latest.customer_name,
+        email: latest.customer_email,
+        phone: latest.phone,
+        address_line1: latest.shipping_address_line1,
+        address_line2: latest.shipping_address_line2,
+        city: latest.shipping_city,
+        state: latest.shipping_state,
+        zip: latest.shipping_zip,
+        created_at: orders[orders.length - 1].created_at
+      };
+      noteRef = email;
+    }
+
+    // Notes — join on sales_reps instead of staff_accounts for rep portal
+    const notesResult = await pool.query(`
+      SELECT cn.*, COALESCE(
+        (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = cn.staff_id),
+        (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = cn.staff_id),
+        'Staff'
+      ) as staff_name
+      FROM customer_notes cn
+      WHERE cn.customer_type = $1 AND cn.customer_ref = $2
+      ORDER BY cn.created_at DESC
+    `, [type, noteRef]);
+
+    // Stats — basic
+    const totalOrders = orders.length;
+    const totalSpent = orders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+    const avgOrderValue = totalOrders > 0 ? totalSpent / totalOrders : 0;
+    const firstOrderDate = orders.length ? orders[orders.length - 1].created_at : null;
+    const lastOrderDate = orders.length ? orders[0].created_at : null;
+
+    // Stats — financial: open balance & available credit
+    const openBalance = orders
+      .filter(o => !['cancelled', 'refunded'].includes(o.status))
+      .reduce((sum, o) => {
+        const bal = (parseFloat(o.total) || 0) - (parseFloat(o.amount_paid) || 0);
+        return sum + (bal > 0.01 ? bal : 0);
+      }, 0);
+
+    const availableCredit = orders
+      .filter(o => !['cancelled', 'refunded'].includes(o.status))
+      .reduce((sum, o) => {
+        const over = (parseFloat(o.amount_paid) || 0) - (parseFloat(o.total) || 0);
+        return sum + (over > 0.01 ? over : 0);
+      }, 0);
+
+    // Quotes & payment requests — run in parallel
+    const orderIds = orders.map(o => o.id);
+
+    const quotesPromise = (async () => {
+      try {
+        let quotesQuery, quotesParam;
+        if (type === 'trade') {
+          quotesQuery = `SELECT q.id, q.quote_number, q.total, q.status, q.expires_at, q.created_at,
+            (SELECT COUNT(*)::int FROM quote_items qi WHERE qi.quote_id = q.id) as item_count
+            FROM quotes q WHERE q.trade_customer_id = $1 AND q.status IN ('draft', 'sent')
+            ORDER BY q.created_at DESC`;
+          quotesParam = refId;
+        } else {
+          const email = (customer.email || '').toLowerCase();
+          quotesQuery = `SELECT q.id, q.quote_number, q.total, q.status, q.expires_at, q.created_at,
+            (SELECT COUNT(*)::int FROM quote_items qi WHERE qi.quote_id = q.id) as item_count
+            FROM quotes q WHERE LOWER(q.customer_email) = $1 AND q.status IN ('draft', 'sent')
+            ORDER BY q.created_at DESC`;
+          quotesParam = email;
+        }
+        const result = await pool.query(quotesQuery, [quotesParam]);
+        return result.rows;
+      } catch (e) { return []; }
+    })();
+
+    const paymentReqPromise = (async () => {
+      try {
+        if (!orderIds.length) return [];
+        const result = await pool.query(`
+          SELECT pr.id, pr.order_id, pr.amount, pr.status, pr.sent_to_email, pr.expires_at, pr.created_at,
+            o.order_number
+          FROM payment_requests pr
+          JOIN orders o ON o.id = pr.order_id
+          WHERE pr.order_id = ANY($1::uuid[]) AND pr.status = 'pending'
+          ORDER BY pr.created_at DESC
+        `, [orderIds]);
+        return result.rows;
+      } catch (e) { return []; }
+    })();
+
+    const [quotes, paymentRequests] = await Promise.all([quotesPromise, paymentReqPromise]);
+
+    const openQuotesCount = quotes.length;
+    const openQuotesValue = quotes.reduce((sum, q) => sum + (parseFloat(q.total) || 0), 0);
+    const pendingPaymentsCount = paymentRequests.length;
+    const pendingPaymentsTotal = paymentRequests.reduce((sum, pr) => sum + (parseFloat(pr.amount) || 0), 0);
+
+    res.json({
+      customer,
+      orders,
+      notes: notesResult.rows,
+      quotes,
+      payment_requests: paymentRequests,
+      stats: {
+        total_orders: totalOrders, total_spent: totalSpent, avg_order_value: avgOrderValue,
+        first_order_date: firstOrderDate, last_order_date: lastOrderDate,
+        open_balance: openBalance, available_credit: availableCredit,
+        open_quotes_count: openQuotesCount, open_quotes_value: openQuotesValue,
+        pending_payments_count: pendingPaymentsCount, pending_payments_total: pendingPaymentsTotal
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/rep/customers/:id/notes — add a note (mirrors admin endpoint)
+app.post('/api/rep/customers/:id/notes', repAuth, async (req, res) => {
+  try {
+    const { customer_type, customer_ref, note } = req.body;
+    if (!customer_type || !customer_ref || !note) {
+      return res.status(400).json({ error: 'customer_type, customer_ref, and note are required' });
+    }
+    const result = await pool.query(`
+      INSERT INTO customer_notes (customer_type, customer_ref, staff_id, note)
+      VALUES ($1, $2, $3, $4) RETURNING *
+    `, [customer_type, customer_ref, req.rep.id, note.trim()]);
+
+    const newNote = result.rows[0];
+    newNote.staff_name = req.rep.first_name + ' ' + req.rep.last_name;
+    res.json({ note: newNote });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/rep/customers/:id/timeline — unified activity feed
+app.get('/api/rep/customers/:id/timeline', repAuth, async (req, res) => {
+  try {
+    const { type } = req.query;
+    const refId = req.params.id;
+    if (!type || !['retail', 'guest', 'trade'].includes(type)) {
+      return res.status(400).json({ error: 'type query param required (retail|guest|trade)' });
+    }
+
+    // Resolve order IDs and email based on customer type
+    let orderIds = [];
+    let customerEmail = '';
+
+    if (type === 'retail') {
+      const oRes = await pool.query('SELECT id FROM orders WHERE customer_id = $1', [refId]);
+      orderIds = oRes.rows.map(r => r.id);
+      const cRes = await pool.query('SELECT email FROM customers WHERE id = $1', [refId]);
+      customerEmail = cRes.rows.length ? cRes.rows[0].email.toLowerCase() : '';
+    } else if (type === 'trade') {
+      const oRes = await pool.query('SELECT id FROM orders WHERE trade_customer_id = $1', [refId]);
+      orderIds = oRes.rows.map(r => r.id);
+      const cRes = await pool.query('SELECT email FROM trade_customers WHERE id = $1', [refId]);
+      customerEmail = cRes.rows.length ? cRes.rows[0].email.toLowerCase() : '';
+    } else {
+      const email = refId.toLowerCase();
+      const oRes = await pool.query(
+        'SELECT id FROM orders WHERE LOWER(customer_email) = $1 AND customer_id IS NULL AND trade_customer_id IS NULL',
+        [email]
+      );
+      orderIds = oRes.rows.map(r => r.id);
+      customerEmail = email;
+    }
+
+    const timeline = [];
+
+    if (orderIds.length > 0) {
+      // Orders placed
+      const ordersRes = await pool.query(`
+        SELECT id, order_number, total, status, created_at
+        FROM orders WHERE id = ANY($1::uuid[])
+      `, [orderIds]);
+      for (const o of ordersRes.rows) {
+        timeline.push({
+          event_type: 'order_placed',
+          entity_id: o.id,
+          entity_type: 'order',
+          title: 'Order ' + o.order_number + ' placed',
+          description: '$' + parseFloat(o.total).toFixed(2) + ' — ' + o.status,
+          timestamp: o.created_at
+        });
+      }
+
+      // Status changes
+      const statusRes = await pool.query(`
+        SELECT oal.id, oal.order_id, oal.details, oal.performer_name, oal.created_at, o.order_number
+        FROM order_activity_log oal
+        JOIN orders o ON o.id = oal.order_id
+        WHERE oal.order_id = ANY($1::uuid[]) AND oal.action = 'status_changed'
+      `, [orderIds]);
+      for (const s of statusRes.rows) {
+        const details = s.details || {};
+        timeline.push({
+          event_type: 'status_change',
+          entity_id: s.order_id,
+          entity_type: 'order',
+          title: 'Order ' + s.order_number + ': ' + (details.from || '?') + ' → ' + (details.to || '?'),
+          description: s.performer_name ? 'by ' + s.performer_name : '',
+          timestamp: s.created_at
+        });
+      }
+
+      // Payments
+      const payRes = await pool.query(`
+        SELECT op.id, op.order_id, op.payment_type, op.amount, op.description, op.created_at, o.order_number
+        FROM order_payments op
+        JOIN orders o ON o.id = op.order_id
+        WHERE op.order_id = ANY($1::uuid[]) AND op.status = 'completed'
+      `, [orderIds]);
+      for (const p of payRes.rows) {
+        timeline.push({
+          event_type: 'payment',
+          entity_id: p.order_id,
+          entity_type: 'order',
+          title: (p.payment_type === 'refund' ? 'Refund' : 'Payment') + ' on ' + p.order_number,
+          description: '$' + Math.abs(parseFloat(p.amount)).toFixed(2) + (p.description ? ' — ' + p.description : ''),
+          timestamp: p.created_at
+        });
+      }
+
+      // Samples
+      const sampleRes = await pool.query(`
+        SELECT oi.id, oi.product_name, oi.order_id, o.order_number, o.created_at
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE oi.is_sample = true AND oi.order_id = ANY($1::uuid[])
+      `, [orderIds]);
+      for (const s of sampleRes.rows) {
+        timeline.push({
+          event_type: 'sample_request',
+          entity_id: s.order_id,
+          entity_type: 'order',
+          title: 'Sample requested: ' + (s.product_name || 'Unknown'),
+          description: 'Order ' + s.order_number,
+          timestamp: s.created_at
+        });
+      }
+    }
+
+    // Quotes
+    if (customerEmail || type === 'trade') {
+      let quotesRes;
+      if (type === 'trade') {
+        quotesRes = await pool.query(`
+          SELECT id, quote_number, total, status, created_at
+          FROM quotes WHERE trade_customer_id = $1
+        `, [refId]);
+      } else {
+        quotesRes = await pool.query(`
+          SELECT id, quote_number, total, status, created_at
+          FROM quotes WHERE LOWER(customer_email) = $1 AND trade_customer_id IS NULL
+        `, [customerEmail]);
+      }
+      for (const q of quotesRes.rows) {
+        timeline.push({
+          event_type: 'quote',
+          entity_id: q.id,
+          entity_type: 'quote',
+          title: 'Quote ' + q.quote_number + ' — ' + q.status,
+          description: '$' + parseFloat(q.total).toFixed(2),
+          timestamp: q.created_at
+        });
+      }
+    }
+
+    // Notes
+    const noteRef = type === 'guest' ? refId.toLowerCase() : refId;
+    const notesRes = await pool.query(`
+      SELECT cn.id, cn.note, cn.created_at,
+        COALESCE(
+          (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = cn.staff_id),
+          (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = cn.staff_id),
+          'Staff'
+        ) as staff_name
+      FROM customer_notes cn
+      WHERE cn.customer_type = $1 AND cn.customer_ref = $2
+    `, [type, noteRef]);
+    for (const n of notesRes.rows) {
+      timeline.push({
+        event_type: 'note',
+        entity_id: n.id,
+        entity_type: 'note',
+        title: 'Note by ' + n.staff_name,
+        description: n.note.length > 120 ? n.note.substring(0, 120) + '...' : n.note,
+        timestamp: n.created_at
+      });
+    }
+
+    // Sort by timestamp desc, limit to 100
+    timeline.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    res.json({ timeline: timeline.slice(0, 100) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Rep Notification Endpoints ====================
+
+app.get('/api/rep/notifications', repAuth, async (req, res) => {
+  try {
+    const { unread_only, limit: limitParam, offset: offsetParam } = req.query;
+    const limit = Math.min(parseInt(limitParam) || 50, 100);
+    const offset = parseInt(offsetParam) || 0;
+
+    let query = 'SELECT * FROM rep_notifications WHERE rep_id = $1';
+    const params = [req.rep.id];
+    let idx = 2;
+
+    if (unread_only === 'true') {
+      query += ' AND is_read = false';
+    }
+
+    const countQuery = query.replace('SELECT *', 'SELECT COUNT(*)::int as total');
+    const totalResult = await pool.query(countQuery, params);
+    const total = totalResult.rows[0].total;
+
+    const unreadResult = await pool.query(
+      'SELECT COUNT(*)::int as cnt FROM rep_notifications WHERE rep_id = $1 AND is_read = false',
+      [req.rep.id]
+    );
+    const unread_count = unreadResult.rows[0].cnt;
+
+    query += ` ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`;
+    params.push(limit, offset);
+
+    const result = await pool.query(query, params);
+    res.json({ notifications: result.rows, unread_count, total });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/rep/notifications/count', repAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT COUNT(*)::int as unread_count FROM rep_notifications WHERE rep_id = $1 AND is_read = false',
+      [req.rep.id]
+    );
+    res.json({ unread_count: result.rows[0].unread_count });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/rep/notifications/read-all', repAuth, async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE rep_notifications SET is_read = true WHERE rep_id = $1 AND is_read = false',
+      [req.rep.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/rep/notifications/:id/read', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(
+      'UPDATE rep_notifications SET is_read = true WHERE id = $1 AND rep_id = $2',
+      [id, req.rep.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==================== Admin Promo Codes ====================
 
 app.get('/api/admin/promo-codes', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -7141,7 +9455,30 @@ app.put('/api/admin/orders/:id/assign', staffAuth, requireRole('admin', 'manager
       [sales_rep_id || null, id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Order not found' });
+    if (sales_rep_id) {
+      const rep = await pool.query('SELECT first_name, last_name FROM staff_accounts WHERE id = $1', [sales_rep_id]);
+      const repName = rep.rows.length ? rep.rows[0].first_name + ' ' + rep.rows[0].last_name : 'Unknown';
+      await logOrderActivity(pool, id, 'rep_assigned', req.staff.id, req.staff.first_name + ' ' + req.staff.last_name,
+        { rep_name: repName });
+    } else {
+      await logOrderActivity(pool, id, 'rep_assigned', req.staff.id, req.staff.first_name + ' ' + req.staff.last_name,
+        { unassigned: true });
+    }
     res.json({ order: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Order activity log (admin)
+app.get('/api/admin/orders/:id/activity', staffAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM order_activity_log WHERE order_id = $1 ORDER BY created_at DESC',
+      [id]
+    );
+    res.json({ activity: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -7901,11 +10238,14 @@ app.get('/api/admin/customers/:id', staffAuth, requireRole('admin', 'manager', '
       noteRef = email;
     }
 
-    // Notes
+    // Notes — COALESCE to resolve names from both staff_accounts and sales_reps
     const notesResult = await pool.query(`
-      SELECT cn.*, sa.first_name || ' ' || sa.last_name as staff_name
+      SELECT cn.*, COALESCE(
+        (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = cn.staff_id),
+        (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = cn.staff_id),
+        'Staff'
+      ) as staff_name
       FROM customer_notes cn
-      LEFT JOIN staff_accounts sa ON sa.id = cn.staff_id
       WHERE cn.customer_type = $1 AND cn.customer_ref = $2
       ORDER BY cn.created_at DESC
     `, [type, noteRef]);
@@ -8333,9 +10673,29 @@ app.get('/api/customer/orders/:id', customerAuth, async (req, res) => {
     if (!orderResult.rows.length) {
       return res.status(404).json({ error: 'Order not found' });
     }
-    const itemsResult = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [req.params.id]);
+    const itemsResult = await pool.query(`
+      SELECT oi.*,
+        poi.status as fulfillment_status
+      FROM order_items oi
+      LEFT JOIN LATERAL (
+        SELECT status FROM purchase_order_items
+        WHERE order_item_id = oi.id AND status != 'cancelled'
+        ORDER BY CASE status
+          WHEN 'received' THEN 4
+          WHEN 'shipped' THEN 3
+          WHEN 'ordered' THEN 2
+          WHEN 'pending' THEN 1
+          ELSE 0
+        END DESC
+        LIMIT 1
+      ) poi ON true
+      WHERE oi.order_id = $1
+    `, [req.params.id]);
+    const items = itemsResult.rows;
     const balanceInfo = await recalculateBalance(req.params.id);
-    res.json({ order: orderResult.rows[0], items: itemsResult.rows, balance: balanceInfo });
+    const totalItems = items.filter(i => !i.is_sample).length;
+    const receivedItems = items.filter(i => !i.is_sample && i.fulfillment_status === 'received').length;
+    res.json({ order: orderResult.rows[0], items, balance: balanceInfo, fulfillment_summary: { total: totalItems, received: receivedItems } });
   } catch (err) {
     console.error('Customer order detail error:', err);
     res.status(500).json({ error: 'Failed to fetch order' });
@@ -8554,6 +10914,191 @@ async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_customer_notes_ref ON customer_notes(customer_type, customer_ref);
     `);
     console.log('Migrations: Customer notes table applied');
+
+    // Order activity log
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS order_activity_log (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        action TEXT NOT NULL,
+        performed_by UUID,
+        performer_name TEXT,
+        details JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_order_activity_log_order ON order_activity_log(order_id);
+    `);
+    console.log('Migrations: Order activity log applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  try {
+    await pool.query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancel_reason TEXT;
+    `);
+    console.log('Migrations: Cancel reason column applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Drop staff_accounts FK on customer_notes so sales_reps can also add notes
+  try {
+    await pool.query(`
+      ALTER TABLE customer_notes DROP CONSTRAINT IF EXISTS customer_notes_staff_id_fkey;
+    `);
+    console.log('Migrations: Customer notes staff_id FK relaxed');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Rep notifications table
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS rep_notifications (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        rep_id UUID NOT NULL REFERENCES sales_reps(id) ON DELETE CASCADE,
+        type VARCHAR(50) NOT NULL,
+        title TEXT NOT NULL,
+        message TEXT,
+        entity_type VARCHAR(30),
+        entity_id UUID,
+        is_read BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_rep_notifications_rep ON rep_notifications(rep_id);
+      CREATE INDEX IF NOT EXISTS idx_rep_notifications_unread ON rep_notifications(rep_id, is_read) WHERE is_read = false;
+      CREATE INDEX IF NOT EXISTS idx_rep_notifications_created ON rep_notifications(created_at);
+    `);
+    console.log('Migrations: Rep notifications table applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Commission tables
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS commission_config (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        rate DECIMAL(5,4) NOT NULL DEFAULT 0.10,
+        default_cost_ratio DECIMAL(5,4) NOT NULL DEFAULT 0.55,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO commission_config (rate, default_cost_ratio)
+        SELECT 0.10, 0.55 WHERE NOT EXISTS (SELECT 1 FROM commission_config);
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS rep_commissions (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        rep_id UUID NOT NULL REFERENCES sales_reps(id),
+        order_total DECIMAL(10,2) NOT NULL,
+        vendor_cost DECIMAL(10,2) NOT NULL DEFAULT 0,
+        margin DECIMAL(10,2) NOT NULL DEFAULT 0,
+        commission_rate DECIMAL(5,4) NOT NULL,
+        commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        paid_at TIMESTAMP,
+        paid_by UUID,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_rep_commissions_order ON rep_commissions(order_id);
+      CREATE INDEX IF NOT EXISTS idx_rep_commissions_rep ON rep_commissions(rep_id);
+      CREATE INDEX IF NOT EXISTS idx_rep_commissions_status ON rep_commissions(status);
+    `);
+    console.log('Migrations: Commission tables applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Showroom visits tables
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS showroom_visits (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        token VARCHAR(64) UNIQUE NOT NULL,
+        rep_id UUID NOT NULL REFERENCES sales_reps(id),
+        customer_name TEXT NOT NULL,
+        customer_email TEXT,
+        customer_phone TEXT,
+        message TEXT,
+        status VARCHAR(20) DEFAULT 'draft',
+        sent_at TIMESTAMP,
+        opened_at TIMESTAMP,
+        items_carted_at TIMESTAMP,
+        expires_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_showroom_visits_rep ON showroom_visits(rep_id);
+      CREATE INDEX IF NOT EXISTS idx_showroom_visits_token ON showroom_visits(token);
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS showroom_visit_items (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        visit_id UUID NOT NULL REFERENCES showroom_visits(id) ON DELETE CASCADE,
+        product_id UUID REFERENCES products(id),
+        sku_id UUID REFERENCES skus(id),
+        product_name TEXT NOT NULL,
+        collection TEXT,
+        variant_name TEXT,
+        retail_price DECIMAL(10,2),
+        price_basis VARCHAR(20),
+        primary_image TEXT,
+        rep_note TEXT,
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_showroom_visit_items_visit ON showroom_visit_items(visit_id);
+    `);
+    console.log('Migrations: Showroom visits tables applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Sample requests tables
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sample_requests (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        request_number VARCHAR(40) UNIQUE NOT NULL,
+        rep_id UUID NOT NULL REFERENCES sales_reps(id),
+        customer_name TEXT NOT NULL,
+        customer_email TEXT,
+        customer_phone TEXT,
+        shipping_address_line1 TEXT,
+        shipping_address_line2 TEXT,
+        shipping_city TEXT,
+        shipping_state TEXT,
+        shipping_zip TEXT,
+        status VARCHAR(20) DEFAULT 'requested',
+        tracking_number TEXT,
+        notes TEXT,
+        shipped_at TIMESTAMP,
+        delivered_at TIMESTAMP,
+        cancelled_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_sample_requests_rep ON sample_requests(rep_id);
+      CREATE INDEX IF NOT EXISTS idx_sample_requests_status ON sample_requests(status);
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sample_request_items (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        sample_request_id UUID NOT NULL REFERENCES sample_requests(id) ON DELETE CASCADE,
+        product_id UUID REFERENCES products(id),
+        sku_id UUID REFERENCES skus(id),
+        product_name TEXT NOT NULL,
+        collection TEXT,
+        variant_name TEXT,
+        primary_image TEXT,
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_sample_request_items_request ON sample_request_items(sample_request_id);
+    `);
+    console.log('Migrations: Sample requests tables applied');
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
