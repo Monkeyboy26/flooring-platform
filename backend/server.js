@@ -11,7 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure } from './services/emailService.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import healthRoutes from './routes/health.js';
 
@@ -342,6 +342,7 @@ const pool = new pg.Pool({
 
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
+app.use('/assets', express.static('assets'));
 app.use(healthRoutes);
 
 // ==================== S3/MinIO Client ====================
@@ -409,7 +410,7 @@ app.get('/api/products', optionalTradeAuth, async (req, res) => {
          WHERE s.product_id = p.id LIMIT 1) as price,
         (SELECT ma.url FROM media_assets ma
          WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
-         ORDER BY ma.sort_order LIMIT 1) as primary_image,
+         ORDER BY CASE WHEN ma.sku_id IS NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image,
         (SELECT CASE
            WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand END) IS NULL THEN 'unknown'
            WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand ELSE 0 END) > 10 THEN 'in_stock'
@@ -430,7 +431,7 @@ app.get('/api/products', optionalTradeAuth, async (req, res) => {
 
     if (req.query.search) {
       params.push('%' + req.query.search + '%');
-      query += ` AND (p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex})`;
+      query += ` AND (p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR (p.collection || ' ' || p.name) ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex})`;
       paramIndex++;
     }
 
@@ -483,7 +484,34 @@ app.get('/api/products', optionalTradeAuth, async (req, res) => {
       // attributes table may not exist yet — skip filtering
     }
 
-    query += ' ORDER BY p.name';
+    // Sort
+    const sortMap = {
+      price_asc: 'price ASC NULLS LAST',
+      price_desc: 'price DESC NULLS LAST',
+      newest: 'created_at DESC',
+      name_asc: 'name ASC',
+      name_desc: 'name DESC'
+    };
+    const sortKey = req.query.sort && sortMap[req.query.sort] ? req.query.sort : 'name_asc';
+    const orderClause = sortMap[sortKey];
+
+    // Wrap as subquery so we can sort by computed aliases (price)
+    const countQuery = `SELECT COUNT(*) FROM (${query}) AS filtered`;
+    const countResult = await pool.query(countQuery, params);
+    const total = parseInt(countResult.rows[0].count);
+
+    query = `SELECT * FROM (${query}) AS filtered ORDER BY ${orderClause}`;
+
+    // Pagination
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 24, 1), 100);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+    params.push(limit);
+    query += ` LIMIT $${paramIndex}`;
+    paramIndex++;
+    params.push(offset);
+    query += ` OFFSET $${paramIndex}`;
+    paramIndex++;
+
     const result = await pool.query(query, params);
 
     let products = result.rows;
@@ -501,7 +529,7 @@ app.get('/api/products', optionalTradeAuth, async (req, res) => {
       });
     }
 
-    res.json({ products });
+    res.json({ products, total });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -555,10 +583,35 @@ app.get('/api/products/:id', optionalTradeAuth, async (req, res) => {
     }
 
     const media = await pool.query(`
-      SELECT id, asset_type, url, sort_order FROM media_assets
-      WHERE product_id = $1
-      ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 ELSE 2 END, sort_order
+      SELECT id, asset_type, url, sort_order, sku_id FROM media_assets
+      WHERE product_id = $1 AND asset_type != 'spec_pdf'
+      ORDER BY
+        CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
+        CASE WHEN sku_id IS NULL THEN 0 ELSE 1 END,
+        sort_order
     `, [id]);
+
+    // Fetch SKU attributes
+    let skuAttributes = {};
+    try {
+      const attrResult = await pool.query(`
+        SELECT sa.sku_id, a.name, a.slug, sa.value, a.display_order
+        FROM sku_attributes sa
+        JOIN attributes a ON a.id = sa.attribute_id
+        JOIN skus s ON s.id = sa.sku_id
+        WHERE s.product_id = $1
+        ORDER BY a.display_order, a.name
+      `, [id]);
+      for (const row of attrResult.rows) {
+        if (!skuAttributes[row.sku_id]) skuAttributes[row.sku_id] = [];
+        skuAttributes[row.sku_id].push({ name: row.name, slug: row.slug, value: row.value });
+      }
+    } catch (attrErr) {
+      // sku_attributes table may not exist yet
+    }
+
+    // Attach attributes to each SKU
+    skus = skus.map(s => ({ ...s, attributes: skuAttributes[s.id] || [] }));
 
     res.json({ product: product.rows[0], skus, media: media.rows });
   } catch (err) {
@@ -580,7 +633,7 @@ app.get('/api/products/:id/recommendations', async (req, res) => {
          WHERE s.product_id = p.id LIMIT 1) as price,
         (SELECT ma.url FROM media_assets ma
          WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
-         ORDER BY ma.sort_order LIMIT 1) as primary_image,
+         ORDER BY CASE WHEN ma.sku_id IS NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image,
         (SELECT CASE
            WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand END) IS NULL THEN 'unknown'
            WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand ELSE 0 END) > 10 THEN 'in_stock'
@@ -681,8 +734,9 @@ app.get('/api/collections', async (req, res) => {
         COUNT(*)::int as product_count,
         (SELECT ma.url FROM media_assets ma
          JOIN products p2 ON p2.id = ma.product_id
-         WHERE p2.collection = p.collection AND p2.status = 'active' AND ma.asset_type = 'primary'
-         ORDER BY ma.sort_order LIMIT 1) as image
+         WHERE p2.collection = p.collection AND p2.status = 'active' AND ma.asset_type != 'spec_pdf'
+         ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
+           CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as image
       FROM products p
       WHERE p.status = 'active' AND p.collection IS NOT NULL AND p.collection != ''
       GROUP BY p.collection
@@ -742,6 +796,464 @@ app.get('/api/categories', async (req, res) => {
   }
 });
 
+// ==================== Storefront SKU Browse ====================
+
+app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
+  try {
+    const { category, collection, search, sort, q } = req.query;
+    const limit = Math.min(parseInt(req.query.limit) || 24, 100);
+    const offset = parseInt(req.query.offset) || 0;
+    const searchTerm = search || q;
+
+    let params = [];
+    let paramIndex = 1;
+    let whereClauses = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'", "COALESCE(s.variant_type, '') != 'accessory'"];
+
+    // Category filter (includes children)
+    if (category) {
+      params.push(category);
+      whereClauses.push(`(c.slug = $${paramIndex} OR c.parent_id IN (SELECT id FROM categories WHERE slug = $${paramIndex}))`);
+      paramIndex++;
+    }
+
+    // Collection filter
+    if (collection) {
+      params.push(collection);
+      whereClauses.push(`LOWER(p.collection) = LOWER($${paramIndex})`);
+      paramIndex++;
+    }
+
+    // Search
+    if (searchTerm) {
+      params.push('%' + searchTerm + '%');
+      whereClauses.push(`(p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR (p.collection || ' ' || p.name) ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex} OR s.variant_name ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex})`);
+      paramIndex++;
+    }
+
+    // Product IDs filter (for wishlist)
+    if (req.query.product_ids) {
+      const pids = req.query.product_ids.split(',').filter(Boolean);
+      if (pids.length > 0) {
+        const pidPlaceholders = pids.map(pid => { params.push(pid); return `$${paramIndex++}`; });
+        whereClauses.push(`p.id IN (${pidPlaceholders.join(',')})`);
+      }
+    }
+
+    // Attribute filters: any query param matching an attribute slug
+    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'product_ids'];
+    const attrFilters = {};
+    for (const [key, val] of Object.entries(req.query)) {
+      if (!reservedParams.includes(key) && val) {
+        attrFilters[key] = val.split(',').map(v => v.trim()).filter(Boolean);
+      }
+    }
+
+    for (const [slug, values] of Object.entries(attrFilters)) {
+      const slugParam = paramIndex++;
+      params.push(slug);
+      const valuePlaceholders = values.map(v => {
+        params.push(v);
+        return `$${paramIndex++}`;
+      });
+      whereClauses.push(`s.id IN (SELECT sa.sku_id FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE a.slug = $${slugParam} AND sa.value IN (${valuePlaceholders.join(',')}))`);
+    }
+
+    const whereSQL = whereClauses.join(' AND ');
+
+    // Sort
+    let orderBy = 'p.name ASC, s.variant_name ASC';
+    if (sort === 'price_asc') orderBy = 'retail_price ASC NULLS LAST, p.name ASC';
+    else if (sort === 'price_desc') orderBy = 'retail_price DESC NULLS LAST, p.name ASC';
+    else if (sort === 'newest') orderBy = 's.created_at DESC';
+    else if (sort === 'name_asc') orderBy = 'p.name ASC, s.variant_name ASC';
+    else if (sort === 'name_desc') orderBy = 'p.name DESC, s.variant_name DESC';
+
+    // Count query
+    const countSQL = `
+      SELECT COUNT(*) as total
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE ${whereSQL}
+    `;
+
+    // Main query
+    const mainSQL = `
+      SELECT
+        s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.sell_by,
+        p.name as product_name, p.collection, p.description_short,
+        v.name as vendor_name,
+        COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
+        c.name as category_name, c.slug as category_slug,
+        pr.retail_price, pr.price_basis,
+        pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
+        COALESCE(
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
+        ) as primary_image,
+        CASE
+          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+          ELSE 'out_of_stock'
+        END as stock_status
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      WHERE ${whereSQL}
+      ORDER BY ${orderBy}
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    params.push(limit, offset);
+
+    const [countResult, skuResult] = await Promise.all([
+      pool.query(countSQL, params.slice(0, paramIndex - 1)),
+      pool.query(mainSQL, params)
+    ]);
+
+    const total = parseInt(countResult.rows[0].total);
+    let skus = skuResult.rows;
+
+    // Batch-fetch attributes for returned SKUs
+    if (skus.length > 0) {
+      const skuIds = skus.map(s => s.sku_id);
+      const attrResult = await pool.query(`
+        SELECT sa.sku_id, a.name, a.slug, sa.value
+        FROM sku_attributes sa
+        JOIN attributes a ON a.id = sa.attribute_id
+        WHERE sa.sku_id = ANY($1)
+        ORDER BY a.display_order, a.name
+      `, [skuIds]);
+
+      const attrMap = {};
+      for (const row of attrResult.rows) {
+        if (!attrMap[row.sku_id]) attrMap[row.sku_id] = [];
+        attrMap[row.sku_id].push({ slug: row.slug, name: row.name, value: row.value });
+      }
+      skus = skus.map(s => ({ ...s, attributes: attrMap[s.sku_id] || [] }));
+    }
+
+    // Apply trade pricing if authenticated
+    if (req.tradeCustomer && req.tradeCustomer.discount_percent > 0) {
+      skus = skus.map(s => {
+        if (s.retail_price) {
+          const retail = parseFloat(s.retail_price);
+          return {
+            ...s,
+            trade_price: (retail * (1 - req.tradeCustomer.discount_percent / 100)).toFixed(2)
+          };
+        }
+        return s;
+      });
+    }
+
+    res.json({ skus, total });
+  } catch (err) {
+    console.error('Storefront SKU browse error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
+  try {
+    const { skuId } = req.params;
+
+    // Main SKU query with full details
+    const skuResult = await pool.query(`
+      SELECT
+        s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.variant_type,
+        p.name as product_name, p.collection, p.category_id, p.description_long, p.description_short,
+        v.name as vendor_name, v.code as vendor_code,
+        COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
+        c.name as category_name, c.slug as category_slug,
+        pr.retail_price, pr.cost, pr.price_basis,
+        pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class,
+        pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs,
+        inv.qty_on_hand, inv.qty_in_transit, inv.fresh_until,
+        CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_on_hand, 0) * pk.sqft_per_box) END as qty_on_hand_sqft,
+        CASE
+          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+          ELSE 'out_of_stock'
+        END as stock_status
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      WHERE s.id = $1
+    `, [skuId]);
+
+    if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
+    let sku = skuResult.rows[0];
+
+    // Accessories don't have their own page — redirect to parent product's first main SKU
+    if (sku.variant_type === 'accessory') {
+      const parentSku = await pool.query(`
+        SELECT s.id FROM skus s
+        WHERE s.product_id = $1 AND s.id != $2 AND COALESCE(s.variant_type, '') != 'accessory'
+          AND s.status = 'active' AND s.is_sample = false
+        ORDER BY s.created_at LIMIT 1
+      `, [sku.product_id, skuId]);
+      if (parentSku.rows.length) {
+        return res.json({ redirect_to_sku: parentSku.rows[0].id });
+      }
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // SKU attributes
+    const attrResult = await pool.query(`
+      SELECT a.name, a.slug, sa.value, a.display_order
+      FROM sku_attributes sa
+      JOIN attributes a ON a.id = sa.attribute_id
+      WHERE sa.sku_id = $1
+      ORDER BY a.display_order, a.name
+    `, [skuId]);
+
+    sku.attributes = attrResult.rows;
+
+    // Trade pricing
+    if (req.tradeCustomer && req.tradeCustomer.discount_percent > 0 && sku.retail_price) {
+      const retail = parseFloat(sku.retail_price);
+      sku.trade_price = (retail * (1 - req.tradeCustomer.discount_percent / 100)).toFixed(2);
+      sku.trade_tier = req.tradeCustomer.tier_name;
+    }
+
+    // Media: prefer SKU-specific images; only fall back to product-level if no SKU images exist
+    const skuMediaResult = await pool.query(`
+      SELECT id, asset_type, url, sort_order, sku_id
+      FROM media_assets
+      WHERE product_id = $2 AND sku_id = $1
+      ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END, sort_order
+    `, [skuId, sku.product_id]);
+
+    let mediaResult;
+    if (skuMediaResult.rows.length > 0) {
+      mediaResult = skuMediaResult;
+    } else {
+      mediaResult = await pool.query(`
+        SELECT id, asset_type, url, sort_order, sku_id
+        FROM media_assets
+        WHERE product_id = $1 AND sku_id IS NULL
+        ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END, sort_order
+      `, [sku.product_id]);
+    }
+
+    // Deduplicate media by URL
+    const seenUrls = new Set();
+    const dedupedMedia = [];
+    for (const row of mediaResult.rows) {
+      if (!seenUrls.has(row.url)) {
+        seenUrls.add(row.url);
+        dedupedMedia.push(row);
+      }
+    }
+
+    // Same-product siblings (other SKUs of the same product)
+    const siblingsResult = await pool.query(`
+      SELECT
+        s.id as sku_id, s.variant_name, s.internal_sku, s.variant_type, s.sell_by,
+        pr.retail_price, pr.price_basis,
+        COALESCE(
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
+        ) as primary_image,
+        CASE
+          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+          ELSE 'out_of_stock'
+        END as stock_status
+      FROM skus s
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      WHERE s.product_id = $1 AND s.id != $2 AND s.is_sample = false AND s.status = 'active'
+      ORDER BY s.variant_name
+    `, [sku.product_id, skuId]);
+
+    // Batch-fetch attributes for siblings
+    let sameSiblings = siblingsResult.rows;
+    if (sameSiblings.length > 0) {
+      const sibIds = sameSiblings.map(s => s.sku_id);
+      const sibAttrResult = await pool.query(`
+        SELECT sa.sku_id, a.name, a.slug, sa.value
+        FROM sku_attributes sa
+        JOIN attributes a ON a.id = sa.attribute_id
+        WHERE sa.sku_id = ANY($1)
+        ORDER BY a.display_order
+      `, [sibIds]);
+      const sibAttrMap = {};
+      for (const row of sibAttrResult.rows) {
+        if (!sibAttrMap[row.sku_id]) sibAttrMap[row.sku_id] = [];
+        sibAttrMap[row.sku_id].push({ slug: row.slug, name: row.name, value: row.value });
+      }
+      sameSiblings = sameSiblings.map(s => ({ ...s, attributes: sibAttrMap[s.sku_id] || [] }));
+    }
+
+    // Collection siblings (other products in same collection, same category, excluding mosaics/hexagons/bullnose)
+    let collectionSiblings = [];
+    if (sku.collection) {
+      const isMosaicProduct = /mosaic|hexagon|bullnose/i.test(sku.product_name);
+      const collResult = await pool.query(`
+        SELECT DISTINCT ON (p.id)
+          s.id as sku_id, s.variant_name, p.id as product_id, p.name as product_name, p.collection,
+          pr.retail_price, pr.price_basis,
+          COALESCE(
+            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+            (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
+          ) as primary_image
+        FROM products p
+        JOIN skus s ON s.product_id = p.id AND s.is_sample = false AND s.status = 'active'
+        LEFT JOIN pricing pr ON pr.sku_id = s.id
+        WHERE LOWER(p.collection) = LOWER($1) AND p.id != $2 AND p.status = 'active'
+          AND p.category_id = $3
+          AND (
+            ($4 = true AND p.name ~* '(mosaic|hexagon|bullnose)')
+            OR ($4 = false AND p.name !~* '(mosaic|hexagon|bullnose)')
+          )
+        ORDER BY p.id, s.created_at
+        LIMIT 50
+      `, [sku.collection, sku.product_id, sku.category_id, isMosaicProduct]);
+      collectionSiblings = collResult.rows;
+    }
+
+    // Collection-wide attribute values (all sizes/finishes across all colors)
+    // Used so variant pills don't disappear when current color has fewer options
+    let collectionAttributes = {};
+    if (sku.collection) {
+      const isMosaicProduct = /mosaic|hexagon|bullnose/i.test(sku.product_name);
+      const caResult = await pool.query(`
+        SELECT a.slug, a.name, ARRAY_AGG(DISTINCT sa.value) as values
+        FROM products p
+        JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+        JOIN sku_attributes sa ON sa.sku_id = s.id
+        JOIN attributes a ON a.id = sa.attribute_id
+        WHERE LOWER(p.collection) = LOWER($1) AND p.status = 'active'
+          AND p.category_id = $2
+          AND (
+            ($3 = true AND p.name ~* '(mosaic|hexagon|bullnose)')
+            OR ($3 = false AND p.name !~* '(mosaic|hexagon|bullnose)')
+          )
+        GROUP BY a.slug, a.name
+      `, [sku.collection, sku.category_id, isMosaicProduct]);
+      for (const row of caResult.rows) {
+        collectionAttributes[row.slug] = { name: row.name, values: row.values };
+      }
+    }
+
+    res.json({
+      sku,
+      media: dedupedMedia,
+      same_product_siblings: sameSiblings,
+      collection_siblings: collectionSiblings,
+      collection_attributes: collectionAttributes
+    });
+  } catch (err) {
+    console.error('Storefront SKU detail error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/storefront/facets', async (req, res) => {
+  try {
+    const { category, collection, search, q } = req.query;
+    const searchTerm = search || q;
+
+    // Build base WHERE for non-attribute filters
+    let params = [];
+    let paramIndex = 1;
+    let baseWhere = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'"];
+
+    if (category) {
+      params.push(category);
+      baseWhere.push(`(c.slug = $${paramIndex} OR c.parent_id IN (SELECT id FROM categories WHERE slug = $${paramIndex}))`);
+      paramIndex++;
+    }
+    if (collection) {
+      params.push(collection);
+      baseWhere.push(`LOWER(p.collection) = LOWER($${paramIndex})`);
+      paramIndex++;
+    }
+    if (searchTerm) {
+      params.push('%' + searchTerm + '%');
+      baseWhere.push(`(p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR (p.collection || ' ' || p.name) ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex} OR s.variant_name ILIKE $${paramIndex})`);
+      paramIndex++;
+    }
+
+    // Collect attribute filters from query params
+    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset'];
+    const attrFilters = {};
+    for (const [key, val] of Object.entries(req.query)) {
+      if (!reservedParams.includes(key) && val) {
+        attrFilters[key] = val.split(',').map(v => v.trim()).filter(Boolean);
+      }
+    }
+
+    // Get all filterable attributes
+    const attrsResult = await pool.query(
+      "SELECT id, name, slug FROM attributes WHERE is_filterable = true ORDER BY display_order, name"
+    );
+
+    // For each attribute group, compute disjunctive counts
+    // (apply all OTHER attribute filters, but not the current one)
+    const facetPromises = attrsResult.rows.map(async (attr) => {
+      let facetParams = [...params];
+      let facetParamIndex = paramIndex;
+      let facetWhere = [...baseWhere];
+
+      // Apply all attribute filters EXCEPT this one (disjunctive faceting)
+      for (const [slug, values] of Object.entries(attrFilters)) {
+        if (slug === attr.slug) continue; // skip self
+        const slugP = facetParamIndex++;
+        facetParams.push(slug);
+        const valPlaceholders = values.map(v => {
+          facetParams.push(v);
+          return `$${facetParamIndex++}`;
+        });
+        facetWhere.push(`s.id IN (SELECT sa2.sku_id FROM sku_attributes sa2 JOIN attributes a2 ON a2.id = sa2.attribute_id WHERE a2.slug = $${slugP} AND sa2.value IN (${valPlaceholders.join(',')}))`);
+      }
+
+      const facetSQL = `
+        SELECT sa.value, COUNT(DISTINCT s.id) as count
+        FROM sku_attributes sa
+        JOIN attributes a ON a.id = sa.attribute_id
+        JOIN skus s ON s.id = sa.sku_id
+        JOIN products p ON p.id = s.product_id
+        JOIN vendors v ON v.id = p.vendor_id
+        LEFT JOIN categories c ON c.id = p.category_id
+        WHERE a.slug = $${facetParamIndex} AND ${facetWhere.join(' AND ')}
+        GROUP BY sa.value
+        ORDER BY count DESC, sa.value ASC
+      `;
+      facetParams.push(attr.slug);
+
+      const result = await pool.query(facetSQL, facetParams);
+      return {
+        name: attr.name,
+        slug: attr.slug,
+        values: result.rows.map(r => ({ value: r.value, count: parseInt(r.count) }))
+      };
+    });
+
+    const facets = (await Promise.all(facetPromises)).filter(f => f.values.length > 0);
+
+    res.json({ facets });
+  } catch (err) {
+    console.error('Storefront facets error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/calculate', async (req, res) => {
   try {
     const { sqft_needed } = req.body;
@@ -789,7 +1301,7 @@ app.get('/api/cart', async (req, res) => {
 
 app.post('/api/cart', async (req, res) => {
   try {
-    const { session_id, product_id, sku_id, sqft_needed, num_boxes, include_overage, unit_price, subtotal, is_sample } = req.body;
+    const { session_id, product_id, sku_id, sqft_needed, num_boxes, include_overage, unit_price, subtotal, is_sample, sell_by } = req.body;
     if (!session_id || !num_boxes) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -821,10 +1333,10 @@ app.post('/api/cart', async (req, res) => {
     }
 
     const result = await pool.query(`
-      INSERT INTO cart_items (session_id, product_id, sku_id, sqft_needed, num_boxes, include_overage, unit_price, subtotal, is_sample)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO cart_items (session_id, product_id, sku_id, sqft_needed, num_boxes, include_overage, unit_price, subtotal, is_sample, sell_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
-    `, [session_id, product_id || null, sku_id || null, sqft_needed || null, num_boxes, include_overage || false, unit_price || 0, subtotal || 0, is_sample || false]);
+    `, [session_id, product_id || null, sku_id || null, sqft_needed || null, num_boxes, include_overage || false, unit_price || 0, subtotal || 0, is_sample || false, sell_by || null]);
 
     // Return with product info
     const item = result.rows[0];
@@ -1941,21 +2453,68 @@ app.get('/api/admin/analytics', staffAuth, async (req, res) => {
 // List all products (admin view - any status)
 app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT p.*, v.name as vendor_name, c.name as category_name,
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+    const { search, vendor_id, category_id, status, sort, sort_dir } = req.query;
+
+    const conditions = [];
+    const params = [];
+    let paramIdx = 1;
+
+    if (search) {
+      conditions.push(`(p.name ILIKE $${paramIdx} OR p.collection ILIKE $${paramIdx} OR (p.collection || ' ' || p.name) ILIKE $${paramIdx})`);
+      params.push(`%${search}%`);
+      paramIdx++;
+    }
+    if (vendor_id) {
+      conditions.push(`p.vendor_id = $${paramIdx}`);
+      params.push(vendor_id);
+      paramIdx++;
+    }
+    if (category_id) {
+      conditions.push(`p.category_id = $${paramIdx}`);
+      params.push(category_id);
+      paramIdx++;
+    }
+    if (status) {
+      conditions.push(`p.status = $${paramIdx}`);
+      params.push(status);
+      paramIdx++;
+    }
+
+    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    const allowedSorts = { name: 'p.name', vendor: 'v.name', category: 'c.name', price: 'price', skus: 'sku_count', status: 'p.status', created: 'p.created_at' };
+    const orderCol = allowedSorts[sort] || 'p.created_at';
+    const orderDir = sort_dir === 'asc' ? 'ASC' : 'DESC';
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*)::int as total FROM products p
+       LEFT JOIN vendors v ON v.id = p.vendor_id
+       LEFT JOIN categories c ON c.id = p.category_id
+       ${whereClause}`, params
+    );
+
+    const dataResult = await pool.query(
+      `SELECT p.*, v.name as vendor_name, c.name as category_name,
         (SELECT COUNT(*)::int FROM skus s WHERE s.product_id = p.id) as sku_count,
         (SELECT pr.retail_price FROM pricing pr
          JOIN skus s ON s.id = pr.sku_id
          WHERE s.product_id = p.id LIMIT 1) as price,
         (SELECT ma.url FROM media_assets ma
-         WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
-         ORDER BY ma.sort_order LIMIT 1) as primary_image
+         WHERE ma.product_id = p.id AND ma.asset_type != 'spec_pdf'
+         ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
+           CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN categories c ON c.id = p.category_id
-      ORDER BY p.created_at DESC
-    `);
-    res.json({ products: result.rows });
+      ${whereClause}
+      ORDER BY ${orderCol} ${orderDir} NULLS LAST
+      LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
+      [...params, limit, offset]
+    );
+
+    res.json({ products: dataResult.rows, total: countResult.rows[0].total });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2044,10 +2603,33 @@ app.get('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
       ORDER BY s.created_at
     `, [id]);
 
+    // Attach sku_attributes to each SKU
+    if (skus.rows.length > 0) {
+      const skuIds = skus.rows.map(s => s.id);
+      const attrs = await pool.query(`
+        SELECT sa.sku_id, a.slug, a.name, sa.value
+        FROM sku_attributes sa
+        JOIN attributes a ON a.id = sa.attribute_id
+        WHERE sa.sku_id = ANY($1)
+        ORDER BY a.display_order
+      `, [skuIds]);
+      const attrMap = {};
+      for (const a of attrs.rows) {
+        if (!attrMap[a.sku_id]) attrMap[a.sku_id] = [];
+        attrMap[a.sku_id].push({ slug: a.slug, name: a.name, value: a.value });
+      }
+      for (const sku of skus.rows) {
+        sku.attributes = attrMap[sku.id] || [];
+      }
+    }
+
     const media = await pool.query(`
-      SELECT id, asset_type, url, sort_order FROM media_assets
-      WHERE product_id = $1
-      ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 ELSE 2 END, sort_order
+      SELECT id, asset_type, url, sort_order, sku_id FROM media_assets
+      WHERE product_id = $1 AND asset_type != 'spec_pdf'
+      ORDER BY
+        CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
+        CASE WHEN sku_id IS NULL THEN 0 ELSE 1 END,
+        sort_order
     `, [id]);
 
     res.json({ product: product.rows[0], skus: skus.rows, media: media.rows });
@@ -2143,6 +2725,27 @@ app.get('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', '
       WHERE s.product_id = $1
       ORDER BY s.created_at
     `, [productId]);
+
+    // Attach sku_attributes
+    if (result.rows.length > 0) {
+      const skuIds = result.rows.map(s => s.id);
+      const attrs = await pool.query(`
+        SELECT sa.sku_id, a.slug, a.name, sa.value
+        FROM sku_attributes sa
+        JOIN attributes a ON a.id = sa.attribute_id
+        WHERE sa.sku_id = ANY($1)
+        ORDER BY a.display_order
+      `, [skuIds]);
+      const attrMap = {};
+      for (const a of attrs.rows) {
+        if (!attrMap[a.sku_id]) attrMap[a.sku_id] = [];
+        attrMap[a.sku_id].push({ slug: a.slug, name: a.name, value: a.value });
+      }
+      for (const sku of result.rows) {
+        sku.attributes = attrMap[sku.id] || [];
+      }
+    }
+
     res.json({ skus: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2260,6 +2863,53 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
 
     if (!full.rows.length) return res.status(404).json({ error: 'SKU not found' });
     res.json({ sku: full.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Update SKU attributes (batch upsert)
+app.put('/api/admin/skus/:id/attributes', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { attributes } = req.body; // [{ slug, value }, ...]
+    if (!Array.isArray(attributes)) return res.status(400).json({ error: 'attributes must be an array' });
+
+    await client.query('BEGIN');
+
+    for (const attr of attributes) {
+      if (!attr.slug) continue;
+      const attrRow = await client.query('SELECT id FROM attributes WHERE slug = $1', [attr.slug]);
+      if (!attrRow.rows.length) continue;
+      const attribute_id = attrRow.rows[0].id;
+
+      if (!attr.value || !attr.value.trim()) {
+        await client.query('DELETE FROM sku_attributes WHERE sku_id = $1 AND attribute_id = $2', [id, attribute_id]);
+      } else {
+        await client.query(`
+          INSERT INTO sku_attributes (sku_id, attribute_id, value)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (sku_id, attribute_id) DO UPDATE SET value = EXCLUDED.value
+        `, [id, attribute_id, attr.value.trim()]);
+      }
+    }
+
+    await client.query('COMMIT');
+
+    // Return updated attributes
+    const result = await pool.query(`
+      SELECT a.slug, a.name, sa.value
+      FROM sku_attributes sa
+      JOIN attributes a ON a.id = sa.attribute_id
+      WHERE sa.sku_id = $1
+      ORDER BY a.display_order
+    `, [id]);
+
+    res.json({ attributes: result.rows });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
@@ -3374,7 +4024,7 @@ app.get('/api/admin/skus/search', staffAuth, async (req, res) => {
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       WHERE p.status = 'active' AND s.status = 'active'
-        AND (p.name ILIKE $1 OR s.internal_sku ILIKE $1 OR s.vendor_sku ILIKE $1 OR s.variant_name ILIKE $1 OR p.collection ILIKE $1)
+        AND (p.name ILIKE $1 OR s.internal_sku ILIKE $1 OR s.vendor_sku ILIKE $1 OR s.variant_name ILIKE $1 OR p.collection ILIKE $1 OR (p.collection || ' ' || p.name) ILIKE $1)
       ORDER BY p.name, s.variant_name
       LIMIT 15
     `, ['%' + q + '%']);
@@ -3793,8 +4443,71 @@ app.delete('/api/admin/import/templates/:id', staffAuth, requireRole('admin', 'm
 
 // ==================== Scraper API ====================
 
+// --- Scraper orchestration: locking, concurrency, timeouts ---
+
+// Scrapers that launch a Puppeteer browser (high memory — need concurrency limits)
+const BROWSER_SCRAPERS = new Set([
+  'msi', 'bed', 'tradepro-pricebooks', 'tradepro-inventory', 'bosphorus-inventory',
+  'triwest-catalog', 'triwest-pricing', 'triwest-inventory',
+  'triwest-provenza', 'triwest-paradigm', 'triwest-quickstep', 'triwest-armstrong',
+  'triwest-metroflor', 'triwest-mirage', 'triwest-calclassics', 'triwest-grandpacific',
+  'triwest-bravada', 'triwest-hartco', 'triwest-truetouch', 'triwest-citywide',
+  'triwest-ahf', 'triwest-flexco', 'triwest-opulux',
+]);
+
+// Concurrency control for browser-based scrapers (max 2 simultaneous)
+const MAX_BROWSER_SCRAPERS = 2;
+let activeBrowserScrapers = 0;
+const browserQueue = []; // { resolve, source }
+
+function acquireBrowserSlot(source) {
+  if (!BROWSER_SCRAPERS.has(source.scraper_key)) return Promise.resolve(); // non-browser scrapers pass through
+  if (activeBrowserScrapers < MAX_BROWSER_SCRAPERS) {
+    activeBrowserScrapers++;
+    return Promise.resolve();
+  }
+  // Queue and wait for a slot
+  return new Promise(resolve => {
+    browserQueue.push({ resolve, source });
+    console.log(`[Scraper] ${source.scraper_key} queued — ${browserQueue.length} waiting, ${activeBrowserScrapers} active`);
+  });
+}
+
+function releaseBrowserSlot(source) {
+  if (!BROWSER_SCRAPERS.has(source.scraper_key)) return;
+  activeBrowserScrapers = Math.max(0, activeBrowserScrapers - 1);
+  if (browserQueue.length > 0) {
+    const next = browserQueue.shift();
+    activeBrowserScrapers++;
+    console.log(`[Scraper] Dequeued ${next.source.scraper_key} — ${browserQueue.length} still waiting`);
+    next.resolve();
+  }
+}
+
+// Global timeout for scraper jobs (default 4 hours)
+const SCRAPER_TIMEOUT_MS = parseInt(process.env.SCRAPER_TIMEOUT_MS || String(4 * 60 * 60 * 1000), 10);
+
+// Track running scraper jobs so they can be stopped
+// Map<jobId, AbortController>
+const activeScraperJobs = new Map();
+
 // Run a scraper for a given vendor source (async — does not await completion)
-async function runScraper(source) {
+async function runScraper(source, configOverride = null) {
+  // Merge config override into source config (for partial re-scrapes, direct URLs, etc.)
+  if (configOverride) {
+    source = { ...source, config: { ...(source.config || {}), ...configOverride } };
+  }
+  // --- Job locking: prevent duplicate concurrent runs per vendor_source ---
+  const runningCheck = await pool.query(
+    `SELECT id, started_at FROM scrape_jobs WHERE vendor_source_id = $1 AND status = 'running' LIMIT 1`,
+    [source.id]
+  );
+  if (runningCheck.rows.length > 0) {
+    const existing = runningCheck.rows[0];
+    console.log(`[Scraper] Skipping ${source.scraper_key} — job ${existing.id} already running since ${existing.started_at}`);
+    return { skipped: true, reason: 'already_running', existing_job_id: existing.id };
+  }
+
   // Create job row
   const jobResult = await pool.query(`
     INSERT INTO scrape_jobs (vendor_source_id, status, started_at)
@@ -3803,11 +4516,39 @@ async function runScraper(source) {
   `, [source.id]);
   const job = jobResult.rows[0];
 
+  // Create abort controller for this job so it can be stopped
+  const abortController = new AbortController();
+  activeScraperJobs.set(job.id, abortController);
+
   // Run in background
   (async () => {
+    // Wait for browser concurrency slot if needed
+    await acquireBrowserSlot(source);
+
+    // Wrap execution in a timeout
+    let timeoutHandle;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(new Error(`Scraper timed out after ${Math.round(SCRAPER_TIMEOUT_MS / 60000)} minutes`));
+      }, SCRAPER_TIMEOUT_MS);
+    });
+
+    // Wrap abort signal as a rejecting promise
+    const abortPromise = new Promise((_, reject) => {
+      abortController.signal.addEventListener('abort', () => {
+        reject(new Error('Scraper stopped by user'));
+      }, { once: true });
+    });
+
     try {
       const scraperModule = await import(`./scrapers/${source.scraper_key}.js`);
-      await scraperModule.run(pool, job, source);
+      await Promise.race([
+        scraperModule.run(pool, job, source),
+        timeoutPromise,
+        abortPromise
+      ]);
+      clearTimeout(timeoutHandle);
+
       await pool.query(`
         UPDATE scrape_jobs SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = $1
       `, [job.id]);
@@ -3815,17 +4556,214 @@ async function runScraper(source) {
         UPDATE vendor_sources SET last_scraped_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1
       `, [source.id]);
     } catch (err) {
-      console.error(`Scraper ${source.scraper_key} failed:`, err.message);
+      clearTimeout(timeoutHandle);
+      const wasStopped = abortController.signal.aborted;
+      const finalStatus = wasStopped ? 'cancelled' : 'failed';
+      console.error(`Scraper ${source.scraper_key} ${finalStatus}:`, err.message);
       await pool.query(`
-        UPDATE scrape_jobs SET status = 'failed', completed_at = CURRENT_TIMESTAMP,
-          errors = errors || $2::jsonb
+        UPDATE scrape_jobs SET status = $2, completed_at = CURRENT_TIMESTAMP,
+          errors = errors || $3::jsonb
         WHERE id = $1
-      `, [job.id, JSON.stringify([{ message: err.message, time: new Date().toISOString() }])]);
+      `, [job.id, finalStatus, JSON.stringify([{ message: err.message, time: new Date().toISOString() }])]).catch(() => {});
+
+      // Send failure notification email (not for user-initiated stops)
+      if (!wasStopped) {
+        const durationMin = job.started_at
+          ? Math.round((Date.now() - new Date(job.started_at).getTime()) / 60000)
+          : null;
+        sendScraperFailure({
+          source_name: source.name || source.scraper_key,
+          scraper_key: source.scraper_key,
+          job_id: job.id,
+          error: err.message,
+          started_at: job.started_at,
+          duration_minutes: durationMin
+        }).catch(emailErr => console.error('[Scraper] Failed to send failure alert email:', emailErr.message));
+      }
+    } finally {
+      activeScraperJobs.delete(job.id);
+      releaseBrowserSlot(source);
     }
   })();
 
   return job;
 }
+
+// List available scraper keys with defaults
+app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const scraperMeta = {
+    'bed': {
+      label: 'Bedrosians Catalog', source_type: 'website', base_url: 'https://www.bedrosians.com',
+      categories: [
+        '/en/product/list/porcelain/',
+        '/en/product/list/ceramic-tiles/',
+        '/en/product/list/marble-tiles/',
+        '/en/product/list/travertine-tiles/',
+        '/en/product/list/slate-tiles/',
+        '/en/product/list/granite-tiles/',
+        '/en/product/list/limestone-tiles/',
+        '/en/product/list/glass-tiles/',
+        '/en/product/list/mosaic/',
+        '/en/product/list/subway-tiles/',
+        '/en/product/list/decorative-tiles/',
+        '/en/product/list/large-format/',
+        '/en/product/list/zellige-tiles/',
+        '/en/product/list/vinyl-flooring/',
+        '/en/product/list/wood-look-tile/',
+        '/en/product/list/outdoor/',
+        '/en/product/list/pavers/',
+        '/en/product/list/slabs/',
+        '/en/product/list/trim-tiles/',
+      ]
+    },
+    'bed-pricing': {
+      label: 'Bedrosians Price List', source_type: 'pdf', base_url: '',
+      categories: []
+    },
+    'msi': {
+      label: 'MSI Catalog', source_type: 'website', base_url: 'https://www.msisurfaces.com',
+      categories: [
+        '/porcelain-tile/',
+        '/marble-tile/',
+        '/travertine-tile/',
+        '/granite-tile/',
+        '/quartzite-tile/',
+        '/slate-tile/',
+        '/sandstone-tile/',
+        '/limestone-tile/',
+        '/onyx-tile/',
+        '/wood-look-tile-and-planks/',
+        '/large-format-tile/',
+        '/commercial-tile/',
+        '/luxury-vinyl-flooring/',
+        '/waterproof-hybrid-rigid-core/',
+        '/w-luxury-genuine-hardwood/',
+        '/quartz-countertops/',
+        '/granite-countertops/',
+        '/marble-countertops/',
+        '/quartzite-countertops/',
+        '/stile/porcelain-slabs/',
+        '/prefabricated-countertops/',
+        '/soapstone-countertops/',
+        '/vanity-tops-countertops/',
+        '/backsplash-tile/',
+        '/mosaics/collections-mosaics/',
+        '/fluted-looks/',
+        '/hardscape/rockmount-stacked-stone/',
+        '/hardscape/arterra-porcelain-pavers/',
+        '/evergrass-turf/',
+        '/waterproof-wood-flooring/woodhills/',
+      ]
+    },
+    'msi-pricing-xlsx': {
+      label: 'MSI Price List (Excel)', source_type: 'pdf', base_url: '',
+      categories: []
+    },
+    'msi-inventory': {
+      label: 'MSI Inventory', source_type: 'website', base_url: 'https://www.msisurfaces.com',
+      categories: []
+    },
+    'daltile-pricing': {
+      label: 'Daltile Price List (PDF)', source_type: 'pdf', base_url: '',
+      categories: []
+    },
+    'ao-pricing': {
+      label: 'American Olean Price List (PDF)', source_type: 'pdf', base_url: '',
+      categories: []
+    },
+    'marazzi-pricing': {
+      label: 'Marazzi Price List (PDF)', source_type: 'pdf', base_url: '',
+      categories: []
+    },
+    'daltile-catalog': {
+      label: 'Daltile Catalog (Website)', source_type: 'website', base_url: 'https://www.daltile.com',
+      categories: []
+    },
+    'ao-catalog': {
+      label: 'American Olean Catalog (Website)', source_type: 'website', base_url: 'https://www.americanolean.com',
+      categories: []
+    },
+    'marazzi-catalog': {
+      label: 'Marazzi Catalog (Website)', source_type: 'website', base_url: 'https://www.marazziusa.com',
+      categories: []
+    },
+    'tradepro-pricebooks': {
+      label: 'TradePro Price Book Download', source_type: 'portal', base_url: 'https://www.tradeproexchange.com',
+      categories: []
+    },
+    'tradepro-inventory': {
+      label: 'TradePro Inventory Check', source_type: 'portal', base_url: 'https://www.tradeproexchange.com',
+      categories: []
+    },
+    'elysium': {
+      label: 'Elysium Tile Catalog', source_type: 'portal', base_url: 'http://elysiumtile.com',
+      categories: ['Mosaic', 'Porcelain Tile', 'SPC Vinyl', 'Marble Slab', 'Thin Porcelain Slab 6mm', 'Quartz, Quartzite, Granite', 'Ceramic Tile', 'Marble Tile']
+    },
+    'elysium-inventory': {
+      label: 'Elysium Tile Inventory', source_type: 'portal', base_url: 'http://elysiumtile.com',
+      categories: []
+    },
+    'elysium-pricelist': {
+      label: 'Elysium Tile Price List (PDF)', source_type: 'portal', base_url: 'http://elysiumtile.com',
+      categories: []
+    },
+    'arizona': {
+      label: 'Arizona Tile Catalog', source_type: 'website', base_url: 'https://www.arizonatile.com',
+      categories: ['Porcelain & Ceramic', 'Marble Tile', 'Mosaics', 'Granite Slab', 'Quartz', 'Quartzite', 'Marble Slab', 'Porcelain Slabs', 'Pavers']
+    },
+    'arizona-pricelist': {
+      label: 'Arizona Tile Price List (PDF)', source_type: 'portal', base_url: 'https://www.arizonatile.com',
+      categories: []
+    },
+    'emser-catalog': {
+      label: 'Emser Tile Catalog (API)', source_type: 'website', base_url: 'https://www.emser.com',
+      categories: ['Porcelain', 'Ceramic', 'Natural Stone', 'Mosaic', 'Glass', 'LVT']
+    },
+    'emser-pricelist': {
+      label: 'Emser Price List (PDF)', source_type: 'pdf', base_url: '',
+      categories: []
+    },
+    'bosphorus': {
+      label: 'Bosphorus Imports Catalog', source_type: 'website', base_url: 'https://www.bosphorusimports.com',
+      categories: []
+    },
+    'bosphorus-pricelist': {
+      label: 'Bosphorus Imports Price List (PDF)', source_type: 'pdf', base_url: '',
+      categories: []
+    },
+    'bosphorus-inventory': {
+      label: 'Bosphorus Imports Inventory', source_type: 'portal', base_url: 'https://www.bosphorusimports.com',
+      categories: []
+    },
+  };
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const dir = path.default.join(import.meta.dirname || '.', 'scrapers');
+    const files = fs.default.readdirSync(dir).filter(f => f.endsWith('.js') && f !== 'base.js');
+    const scrapers = [];
+    for (const f of files) {
+      const key = f.replace('.js', '');
+      try {
+        const mod = await import(`./scrapers/${key}.js`);
+        if (typeof mod.run === 'function') {
+          const meta = scraperMeta[key] || {};
+          scrapers.push({
+            key,
+            label: meta.label || key,
+            source_type: meta.source_type || 'website',
+            base_url: meta.base_url || '',
+            categories: meta.categories || []
+          });
+        }
+      } catch (e) { /* skip non-runnable */ }
+    }
+    res.json({ scrapers });
+  } catch (err) {
+    console.error('List scrapers error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // List vendor sources with last job info
 app.get('/api/admin/vendor-sources', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -3888,7 +4826,12 @@ app.put('/api/admin/vendor-sources/:id', staffAuth, requireRole('admin', 'manage
     `, [name, base_url, config ? JSON.stringify(config) : null, scraper_key,
         schedule !== undefined ? schedule : null, is_active, source_type, id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Source not found' });
-    res.json({ source: result.rows[0] });
+
+    // Reload cron schedule if schedule or is_active changed
+    const updated = result.rows[0];
+    rescheduleSource(updated);
+
+    res.json({ source: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -3923,8 +4866,94 @@ app.post('/api/admin/vendor-sources/:id/scrape', staffAuth, requireRole('admin',
     if (!source.scraper_key) {
       return res.status(400).json({ error: 'No scraper_key configured for this source' });
     }
-    const job = await runScraper(source);
-    res.json({ job });
+    // Optional config override from request body (onlyCategories, directUrls, etc.)
+    const configOverride = req.body.config || null;
+    const result = await runScraper(source, configOverride);
+    if (result.skipped) {
+      return res.status(409).json({ error: 'A job is already running for this source', existing_job_id: result.existing_job_id });
+    }
+    res.json({ job: result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Stop a running scrape job
+app.post('/api/admin/scrape-jobs/:id/stop', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const jobResult = await pool.query('SELECT id, status FROM scrape_jobs WHERE id = $1', [id]);
+    if (!jobResult.rows.length) return res.status(404).json({ error: 'Job not found' });
+    const job = jobResult.rows[0];
+    if (job.status !== 'running') {
+      return res.status(400).json({ error: 'Job is not currently running (status: ' + job.status + ')' });
+    }
+
+    const controller = activeScraperJobs.get(id);
+    if (controller) {
+      controller.abort();
+      res.json({ stopped: true, job_id: id });
+    } else {
+      // Job marked as running in DB but no active controller (e.g., server restarted)
+      await pool.query(`
+        UPDATE scrape_jobs SET status = 'cancelled', completed_at = CURRENT_TIMESTAMP,
+          errors = errors || $2::jsonb
+        WHERE id = $1
+      `, [id, JSON.stringify([{ message: 'Stopped by user (no active process — stale job)', time: new Date().toISOString() }])]);
+      res.json({ stopped: true, job_id: id, note: 'Stale job marked as cancelled' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upload price list PDF for a vendor source
+const pricelistUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(UPLOADS_DIR, 'pricelists', req.params.id);
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const timestamp = Date.now();
+      const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+      cb(null, `${timestamp}-${safeName}`);
+    }
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = file.originalname.toLowerCase().split('.').pop();
+    const allowed = ['pdf', 'xlsb', 'xlsx', 'xls'];
+    if (allowed.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF and Excel files are allowed'));
+    }
+  }
+});
+
+app.post('/api/admin/vendor-sources/:id/upload-pricelist', staffAuth, requireRole('admin', 'manager'), pricelistUpload.single('file'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const sourceResult = await pool.query('SELECT * FROM vendor_sources WHERE id = $1', [id]);
+    if (!sourceResult.rows.length) {
+      try { fs.unlinkSync(req.file.path); } catch (_) {}
+      return res.status(404).json({ error: 'Source not found' });
+    }
+
+    const pdfPath = req.file.path;
+    const existingConfig = sourceResult.rows[0].config || {};
+    const newConfig = { ...existingConfig, pdf_path: pdfPath };
+
+    const result = await pool.query(`
+      UPDATE vendor_sources SET config = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2 RETURNING *
+    `, [JSON.stringify(newConfig), id]);
+
+    res.json({ source: result.rows[0], pdf_path: pdfPath });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -5418,7 +6447,9 @@ app.get('/api/trade/favorites/:id/items', tradeAuth, async (req, res) => {
   try {
     const items = await pool.query(`
       SELECT tfi.*, p.name as product_name, p.collection,
-        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = tfi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = tfi.product_id AND ma.asset_type != 'spec_pdf'
+         ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
+           CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image,
         (SELECT pr.retail_price FROM pricing pr WHERE pr.sku_id = tfi.sku_id) as price
       FROM trade_favorite_items tfi
       LEFT JOIN products p ON p.id = tfi.product_id
@@ -5804,17 +6835,18 @@ app.get('/api/staff/orders/:id/packing-slip', async (req, res, next) => {
       </div>
       ${shipToBlock}
       <table>
-        <thead><tr><th>Product</th><th>Description</th><th style="text-align:right">Boxes</th><th style="text-align:right">SqFt/Box</th><th style="text-align:right">Total SqFt</th></tr></thead>
+        <thead><tr><th>Product</th><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">SqFt/Box</th><th style="text-align:right">Total SqFt</th></tr></thead>
         <tbody>
           ${items.rows.map(i => {
+            const isUnit = i.sell_by === 'unit';
             const sqftPerBox = i.sqft_per_box ? parseFloat(i.sqft_per_box) : null;
             const totalSqft = i.sqft_needed ? parseFloat(i.sqft_needed) : (sqftPerBox ? sqftPerBox * i.num_boxes : null);
             return `<tr>
               <td>${i.product_name || ''}</td>
               <td>${i.collection || i.description || ''}</td>
-              <td style="text-align:right">${i.num_boxes}</td>
-              <td style="text-align:right">${sqftPerBox ? sqftPerBox.toFixed(2) : '—'}</td>
-              <td style="text-align:right">${totalSqft ? totalSqft.toFixed(1) : '—'}</td>
+              <td style="text-align:right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
+              <td style="text-align:right">${isUnit ? '—' : (sqftPerBox ? sqftPerBox.toFixed(2) : '—')}</td>
+              <td style="text-align:right">${isUnit ? '—' : (totalSqft ? totalSqft.toFixed(1) : '—')}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -5881,18 +6913,20 @@ app.get('/api/staff/orders/:id/invoice', async (req, res, next) => {
       <table>
         <thead><tr>
           <th>Product</th><th>Description</th>
-          <th style="text-align:right">SqFt</th><th style="text-align:right">Boxes</th>
+          <th style="text-align:right">SqFt</th><th style="text-align:right">Qty</th>
           <th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th>
         </tr></thead>
         <tbody>
-          ${items.rows.map(i => `<tr>
+          ${items.rows.map(i => {
+            const isUnit = i.sell_by === 'unit';
+            return `<tr>
             <td>${i.product_name || ''}</td>
             <td>${i.collection || i.description || ''}</td>
-            <td style="text-align:right">${i.sqft_needed ? parseFloat(i.sqft_needed).toFixed(1) : '—'}</td>
-            <td style="text-align:right">${i.num_boxes}</td>
-            <td style="text-align:right">${i.unit_price ? '$' + parseFloat(i.unit_price).toFixed(2) : '—'}</td>
+            <td style="text-align:right">${isUnit ? '—' : (i.sqft_needed ? parseFloat(i.sqft_needed).toFixed(1) : '—')}</td>
+            <td style="text-align:right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
+            <td style="text-align:right">${i.unit_price ? '$' + parseFloat(i.unit_price).toFixed(2) + (isUnit ? '/ea' : '/sf') : '—'}</td>
             <td style="text-align:right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
-          </tr>`).join('')}
+          </tr>`;}).join('')}
         </tbody>
       </table>
       <div class="totals">
@@ -6483,7 +7517,7 @@ app.post('/api/visit-recap/:token/carted', async (req, res) => {
 app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { customer_name, customer_email, customer_phone, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, notes, items } = req.body;
+    const { customer_name, customer_email, customer_phone, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, delivery_method, notes, items } = req.body;
     if (!customer_name) return res.status(400).json({ error: 'Customer name is required' });
     if (!items || !items.length) return res.status(400).json({ error: 'At least one item is required' });
     if (items.length > 5) return res.status(400).json({ error: 'Maximum 5 items per sample request' });
@@ -6499,13 +7533,14 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
     const ts = Date.now().toString(36);
     const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
     const request_number = `SR-${ts}-${rand}`;
+    const dm = delivery_method === 'pickup' ? 'pickup' : 'shipping';
 
     const srRes = await client.query(`
       INSERT INTO sample_requests (request_number, rep_id, customer_name, customer_email, customer_phone,
-        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, notes, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'requested') RETURNING *
+        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, delivery_method, notes, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'requested') RETURNING *
     `, [request_number, req.rep.id, customer_name, customer_email || null, customer_phone || null,
-        shipping_address_line1 || null, shipping_address_line2 || null, shipping_city || null, shipping_state || null, shipping_zip || null, notes || null]);
+        shipping_address_line1 || null, shipping_address_line2 || null, shipping_city || null, shipping_state || null, shipping_zip || null, dm, notes || null]);
     const sample_request = srRes.rows[0];
 
     const resolvedItems = [];
@@ -6561,6 +7596,7 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
     if (customer_email) {
       setImmediate(() => sendSampleRequestConfirmation({
         customer_name, customer_email, request_number,
+        delivery_method: dm,
         items: resolvedItems,
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip
       }));
@@ -6628,7 +7664,7 @@ app.put('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
     if (srRes.rows[0].status !== 'requested') return res.status(400).json({ error: 'Can only edit requests in requested status' });
 
-    const { customer_name, customer_email, customer_phone, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, notes } = req.body;
+    const { customer_name, customer_email, customer_phone, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, delivery_method, notes } = req.body;
     const fields = [];
     const vals = [];
     let idx = 1;
@@ -6640,6 +7676,7 @@ app.put('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
     if (shipping_city !== undefined) { fields.push(`shipping_city = $${idx}`); vals.push(shipping_city || null); idx++; }
     if (shipping_state !== undefined) { fields.push(`shipping_state = $${idx}`); vals.push(shipping_state || null); idx++; }
     if (shipping_zip !== undefined) { fields.push(`shipping_zip = $${idx}`); vals.push(shipping_zip || null); idx++; }
+    if (delivery_method !== undefined) { fields.push(`delivery_method = $${idx}`); vals.push(delivery_method === 'pickup' ? 'pickup' : 'shipping'); idx++; }
     if (notes !== undefined) { fields.push(`notes = $${idx}`); vals.push(notes || null); idx++; }
 
     if (!fields.length) return res.status(400).json({ error: 'No fields to update' });
@@ -7737,7 +8774,7 @@ app.get('/api/rep/skus/search', repAuth, async (req, res) => {
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       WHERE p.status = 'active' AND s.status = 'active'
-        AND (p.name ILIKE $1 OR s.internal_sku ILIKE $1 OR s.vendor_sku ILIKE $1 OR s.variant_name ILIKE $1 OR p.collection ILIKE $1)
+        AND (p.name ILIKE $1 OR s.internal_sku ILIKE $1 OR s.vendor_sku ILIKE $1 OR s.variant_name ILIKE $1 OR p.collection ILIKE $1 OR (p.collection || ' ' || p.name) ILIKE $1)
       ORDER BY p.name, s.variant_name
       LIMIT 15
     `, ['%' + q + '%']);
@@ -7766,7 +8803,7 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
          WHERE s.product_id = p.id AND s.status = 'active' LIMIT 1) as cost,
         (SELECT ma.url FROM media_assets ma
          WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
-         ORDER BY ma.sort_order LIMIT 1) as primary_image,
+         ORDER BY CASE WHEN ma.sku_id IS NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image,
         (SELECT CASE
            WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand END) IS NULL THEN 'unknown'
            WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand ELSE 0 END) > 10 THEN 'in_stock'
@@ -7787,7 +8824,7 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
 
     if (search) {
       params.push('%' + search + '%');
-      query += ` AND (p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex})`;
+      query += ` AND (p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR (p.collection || ' ' || p.name) ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex})`;
       paramIndex++;
     }
 
@@ -9239,6 +10276,59 @@ app.get('/api/rep/customers/:id/timeline', repAuth, async (req, res) => {
       });
     }
 
+    // Showroom Visits
+    if (customerEmail) {
+      const visitsRes = await pool.query(`
+        SELECT id, customer_name, status, sent_at, opened_at, items_carted_at, created_at,
+          (SELECT COUNT(*)::int FROM showroom_visit_items WHERE visit_id = sv.id) as item_count
+        FROM showroom_visits sv WHERE LOWER(customer_email) = $1 ORDER BY created_at DESC
+      `, [customerEmail]);
+      for (const v of visitsRes.rows) {
+        const statusLabel = { draft: 'Draft', sent: 'Sent', opened: 'Opened', carted: 'Items Carted' };
+        timeline.push({
+          event_type: 'showroom_visit', entity_id: v.id, entity_type: 'visit',
+          title: 'Showroom visit \u2014 ' + (statusLabel[v.status] || v.status),
+          description: v.item_count + ' item' + (v.item_count !== 1 ? 's' : '') + (v.status === 'carted' ? ' \u2014 Customer added items to cart' : v.status === 'opened' ? ' \u2014 Customer viewed the visit' : ''),
+          timestamp: v.items_carted_at || v.opened_at || v.sent_at || v.created_at
+        });
+      }
+    }
+
+    // Standalone Sample Requests
+    if (customerEmail) {
+      const srRes = await pool.query(`
+        SELECT sr.id, sr.request_number, sr.status, sr.delivery_method,
+          sr.shipped_at, sr.delivered_at, sr.created_at,
+          (SELECT COUNT(*)::int FROM sample_request_items WHERE sample_request_id = sr.id) as item_count
+        FROM sample_requests sr WHERE LOWER(customer_email) = $1 ORDER BY created_at DESC
+      `, [customerEmail]);
+      for (const s of srRes.rows) {
+        timeline.push({
+          event_type: 'standalone_sample', entity_id: s.id, entity_type: 'sample',
+          title: 'Sample request ' + s.request_number + ' \u2014 ' + s.status,
+          description: s.item_count + ' sample' + (s.item_count !== 1 ? 's' : '') + (s.delivery_method === 'pickup' ? ' \u2014 In-store pickup' : '') + (s.shipped_at ? ' \u2014 Shipped' : '') + (s.delivered_at ? ', Delivered' : ''),
+          timestamp: s.delivered_at || s.shipped_at || s.created_at
+        });
+      }
+    }
+
+    // Installation Inquiries
+    if (customerEmail) {
+      const inquiryRes = await pool.query(`
+        SELECT id, status, product_name, collection, estimated_sqft, created_at
+        FROM installation_inquiries WHERE LOWER(customer_email) = $1 ORDER BY created_at DESC
+      `, [customerEmail]);
+      for (const inq of inquiryRes.rows) {
+        const sqftText = inq.estimated_sqft ? ' \u2014 ' + parseFloat(inq.estimated_sqft).toFixed(0) + ' sqft' : '';
+        timeline.push({
+          event_type: 'installation_inquiry', entity_id: inq.id, entity_type: 'inquiry',
+          title: 'Installation inquiry' + (inq.product_name ? ': ' + inq.product_name : ''),
+          description: (inq.collection || '') + sqftText + (inq.status !== 'new' ? ' \u2014 ' + inq.status : ''),
+          timestamp: inq.created_at
+        });
+      }
+    }
+
     // Sort by timestamp desc, limit to 100
     timeline.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     res.json({ timeline: timeline.slice(0, 100) });
@@ -10362,26 +11452,83 @@ app.post('/api/admin/customers/:id/notes', staffAuth, requireRole('admin', 'mana
 
 const scheduledTasks = new Map();
 
+/**
+ * Register or update the cron task for a single vendor source.
+ * Called on startup (initScheduler) and when a source is updated via PUT.
+ */
+function rescheduleSource(source) {
+  // Cancel existing task for this source
+  const existing = scheduledTasks.get(source.id);
+  if (existing) {
+    existing.stop();
+    scheduledTasks.delete(source.id);
+    console.log(`[Scheduler] Cancelled existing schedule for "${source.name}"`);
+  }
+
+  // Register new schedule if active + has valid cron + has scraper_key
+  if (source.is_active && source.schedule && source.scraper_key && cron.validate(source.schedule)) {
+    const task = cron.schedule(source.schedule, () => {
+      console.log(`[Scheduler] Scheduled scrape starting for: ${source.name}`);
+      runScraper(source).catch(err => console.error(`[Scheduler] Scheduled scrape failed for ${source.name}:`, err.message));
+    });
+    scheduledTasks.set(source.id, task);
+    console.log(`[Scheduler] Registered "${source.name}": ${source.schedule}`);
+  }
+}
+
 async function initScheduler() {
   try {
     const result = await pool.query(
       'SELECT * FROM vendor_sources WHERE is_active = true AND schedule IS NOT NULL'
     );
     for (const source of result.rows) {
-      if (cron.validate(source.schedule)) {
-        const task = cron.schedule(source.schedule, () => {
-          console.log(`Scheduled scrape starting for: ${source.name}`);
-          runScraper(source).catch(err => console.error(`Scheduled scrape failed for ${source.name}:`, err.message));
-        });
-        scheduledTasks.set(source.id, task);
-        console.log(`Scheduled scrape for "${source.name}": ${source.schedule}`);
+      rescheduleSource(source);
+    }
+    console.log(`[Scheduler] Initialized ${scheduledTasks.size} scheduled scraper(s)`);
+  } catch (err) {
+    // Tables may not exist yet on first run
+    console.log('[Scheduler] Init skipped (tables may not exist yet):', err.message);
+  }
+}
+
+// --- Stale job reaper: mark stuck jobs as failed every 15 minutes ---
+const STALE_JOB_HOURS = parseInt(process.env.STALE_JOB_HOURS || '4', 10);
+
+cron.schedule('*/15 * * * *', async () => {
+  try {
+    const result = await pool.query(`
+      UPDATE scrape_jobs SET
+        status = 'failed',
+        completed_at = CURRENT_TIMESTAMP,
+        errors = errors || $1::jsonb
+      WHERE status = 'running'
+        AND started_at < NOW() - INTERVAL '1 hour' * $2
+      RETURNING id, vendor_source_id, started_at
+    `, [
+      JSON.stringify([{ message: `Reaped: job exceeded ${STALE_JOB_HOURS}h time limit`, time: new Date().toISOString() }]),
+      STALE_JOB_HOURS
+    ]);
+
+    if (result.rows.length > 0) {
+      console.log(`[Reaper] Marked ${result.rows.length} stale job(s) as failed`);
+      for (const stale of result.rows) {
+        // Look up source name for the notification
+        const srcResult = await pool.query('SELECT name, scraper_key FROM vendor_sources WHERE id = $1', [stale.vendor_source_id]);
+        const src = srcResult.rows[0] || {};
+        sendScraperFailure({
+          source_name: src.name || 'Unknown',
+          scraper_key: src.scraper_key || 'unknown',
+          job_id: stale.id,
+          error: `Job exceeded ${STALE_JOB_HOURS}-hour time limit and was reaped`,
+          started_at: stale.started_at,
+          duration_minutes: STALE_JOB_HOURS * 60
+        }).catch(() => {});
       }
     }
   } catch (err) {
-    // Tables may not exist yet on first run
-    console.log('Scheduler init skipped (tables may not exist yet):', err.message);
+    console.error('[Reaper] Error checking for stale jobs:', err.message);
   }
-}
+});
 
 // ==================== Membership Lifecycle Cron Jobs ====================
 
@@ -10644,6 +11791,67 @@ app.post('/api/customer/reset-password', async (req, res) => {
   }
 });
 
+// ==================== Wishlist Endpoints ====================
+
+app.get('/api/wishlist', customerAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT product_id FROM wishlists WHERE customer_id = $1 ORDER BY created_at DESC',
+      [req.customer.id]
+    );
+    res.json({ product_ids: result.rows.map(r => r.product_id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/wishlist', customerAuth, async (req, res) => {
+  try {
+    const { product_id } = req.body;
+    if (!product_id) return res.status(400).json({ error: 'product_id is required' });
+    await pool.query(
+      'INSERT INTO wishlists (customer_id, product_id) VALUES ($1, $2) ON CONFLICT (customer_id, product_id) DO NOTHING',
+      [req.customer.id, product_id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/wishlist/:productId', customerAuth, async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM wishlists WHERE customer_id = $1 AND product_id = $2',
+      [req.customer.id, req.params.productId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/wishlist/sync', customerAuth, async (req, res) => {
+  try {
+    const { product_ids } = req.body;
+    if (Array.isArray(product_ids)) {
+      for (const pid of product_ids) {
+        await pool.query(
+          'INSERT INTO wishlists (customer_id, product_id) VALUES ($1, $2) ON CONFLICT (customer_id, product_id) DO NOTHING',
+          [req.customer.id, pid]
+        );
+      }
+    }
+    const result = await pool.query(
+      'SELECT product_id FROM wishlists WHERE customer_id = $1 ORDER BY created_at DESC',
+      [req.customer.id]
+    );
+    res.json({ product_ids: result.rows.map(r => r.product_id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/customer/orders', customerAuth, async (req, res) => {
   try {
     const result = await pool.query(
@@ -10756,6 +11964,106 @@ app.post('/api/installation-inquiries', async (req, res) => {
   } catch (err) {
     console.error('Installation inquiry error:', err);
     res.status(500).json({ error: 'Failed to submit inquiry' });
+  }
+});
+
+// ==================== Admin Installation Inquiries ====================
+
+app.get('/api/admin/installation-inquiries', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const { status, search, limit = 50, offset = 0 } = req.query;
+    const params = [];
+    const conditions = [];
+
+    if (status) {
+      params.push(status);
+      conditions.push(`ii.status = $${params.length}`);
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(ii.customer_name ILIKE $${params.length} OR ii.customer_email ILIKE $${params.length})`);
+    }
+
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*)::int as total FROM installation_inquiries ii ${where}`, params
+    );
+
+    params.push(parseInt(limit));
+    params.push(parseInt(offset));
+    const result = await pool.query(`
+      SELECT ii.*, sa.first_name || ' ' || sa.last_name as assigned_name
+      FROM installation_inquiries ii
+      LEFT JOIN staff_accounts sa ON sa.id = ii.assigned_to
+      ${where}
+      ORDER BY CASE WHEN ii.status = 'new' THEN 0 ELSE 1 END, ii.created_at DESC
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `, params);
+
+    res.json({ inquiries: result.rows, total: countResult.rows[0].total });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/installation-inquiries/:id', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT ii.*, sa.first_name || ' ' || sa.last_name as assigned_name
+      FROM installation_inquiries ii
+      LEFT JOIN staff_accounts sa ON sa.id = ii.assigned_to
+      WHERE ii.id = $1
+    `, [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Inquiry not found' });
+    res.json({ inquiry: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/installation-inquiries/:id', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const { status, staff_notes, assigned_to } = req.body;
+    const validStatuses = ['new', 'contacted', 'quoted', 'scheduled', 'completed', 'closed'];
+
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const sets = [];
+    const params = [];
+
+    if (status !== undefined) { params.push(status); sets.push(`status = $${params.length}`); }
+    if (staff_notes !== undefined) { params.push(staff_notes); sets.push(`staff_notes = $${params.length}`); }
+    if (assigned_to !== undefined) { params.push(assigned_to || null); sets.push(`assigned_to = $${params.length}`); }
+
+    if (!sets.length) return res.status(400).json({ error: 'No fields to update' });
+
+    params.push(req.params.id);
+    await pool.query(`UPDATE installation_inquiries SET ${sets.join(', ')} WHERE id = $${params.length}`, params);
+
+    const result = await pool.query(`
+      SELECT ii.*, sa.first_name || ' ' || sa.last_name as assigned_name
+      FROM installation_inquiries ii
+      LEFT JOIN staff_accounts sa ON sa.id = ii.assigned_to
+      WHERE ii.id = $1
+    `, [req.params.id]);
+
+    if (!result.rows.length) return res.status(404).json({ error: 'Inquiry not found' });
+    res.json({ inquiry: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/admin/installation-inquiries/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM installation_inquiries WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Inquiry not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -11102,7 +12410,259 @@ async function runMigrations() {
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
+
+  // Sample requests delivery_method column
+  try {
+    await pool.query(`ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS delivery_method VARCHAR(20) DEFAULT 'shipping'`);
+    console.log('Migrations: Sample requests delivery_method applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Wishlists table
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS wishlists (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(customer_id, product_id)
+      )
+    `);
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_wishlists_customer ON wishlists(customer_id)');
+    console.log('Migrations: Wishlists table applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Installation inquiries management columns
+  try {
+    await pool.query(`
+      ALTER TABLE installation_inquiries ADD COLUMN IF NOT EXISTS staff_notes TEXT;
+      ALTER TABLE installation_inquiries ADD COLUMN IF NOT EXISTS assigned_to UUID REFERENCES staff_accounts(id);
+    `);
+    console.log('Migrations: Installation inquiries management columns applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Products unique constraint: (vendor_id, name) → (vendor_id, collection, name)
+  try {
+    await pool.query(`UPDATE products SET collection = '' WHERE collection IS NULL`);
+    await pool.query(`ALTER TABLE products ALTER COLUMN collection SET DEFAULT ''`);
+    await pool.query(`ALTER TABLE products DROP CONSTRAINT IF EXISTS products_vendor_name_unique`);
+    await pool.query(`
+      ALTER TABLE products ADD CONSTRAINT products_vendor_collection_name_unique
+      UNIQUE (vendor_id, collection, name)
+    `);
+    console.log('Migrations: Products unique constraint updated to (vendor_id, collection, name)');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
 }
+
+// ==================== Email Template Preview (Dev Only) ====================
+
+import { generateOrderConfirmationHTML } from './templates/orderConfirmation.js';
+import { generateOrderStatusUpdateHTML } from './templates/orderStatusUpdate.js';
+import { generatePasswordResetHTML } from './templates/passwordReset.js';
+import { generateTradeApprovalHTML } from './templates/tradeApproval.js';
+import { generateTradeDenialHTML } from './templates/tradeDenial.js';
+import { generateTierPromotionHTML } from './templates/tierPromotion.js';
+import { generateRenewalReminderHTML } from './templates/renewalReminder.js';
+import { generateSubscriptionWarningHTML } from './templates/subscriptionWarning.js';
+import { generateSubscriptionLapsedHTML } from './templates/subscriptionLapsed.js';
+import { generateSubscriptionDeactivatedHTML } from './templates/subscriptionDeactivated.js';
+import { generateInstallationInquiryStaffHTML } from './templates/installationInquiryStaff.js';
+import { generateInstallationInquiryConfirmationHTML } from './templates/installationInquiryConfirmation.js';
+import { generateVisitRecapHTML } from './templates/visitRecap.js';
+import { generateSampleRequestConfirmationHTML } from './templates/sampleRequestConfirmation.js';
+import { generateSampleRequestShippedHTML } from './templates/sampleRequestShipped.js';
+
+const EMAIL_PREVIEW_TEMPLATES = {
+  orderConfirmation: () => generateOrderConfirmationHTML({
+    order_number: 'ORD-20260217-A1B2',
+    created_at: new Date().toISOString(),
+    customer_name: 'Maria Santos',
+    shipping_address_line1: '742 Evergreen Terrace',
+    shipping_address_line2: 'Suite 4',
+    shipping_city: 'Anaheim',
+    shipping_state: 'CA',
+    shipping_zip: '92806',
+    delivery_method: 'shipping',
+    subtotal: '1,247.50',
+    shipping: '89.00',
+    sample_shipping: '12.00',
+    total: '1,348.50',
+    items: [
+      { product_name: 'European White Oak', collection: 'Heritage Collection', num_boxes: 12, subtotal: '1,047.50', is_sample: false },
+      { product_name: 'Calacatta Gold Marble Mosaic', collection: 'Luxe Stone', num_boxes: 3, subtotal: '200.00', is_sample: false },
+      { product_name: 'Smoky Grey Porcelain', collection: 'Modern Edge', num_boxes: 1, subtotal: '0.00', is_sample: true },
+    ]
+  }),
+
+  orderStatusUpdate: () => generateOrderStatusUpdateHTML({
+    order_number: 'ORD-20260217-A1B2',
+    customer_name: 'Maria Santos',
+    tracking_number: '1Z999AA10123456784',
+    shipping_carrier: 'UPS',
+    shipped_at: new Date().toISOString()
+  }),
+
+  quoteSent: () => generateQuoteSentHTML({
+    quote_number: 'QT-20260217-X9Y8',
+    customer_name: 'James Chen',
+    customer_email: 'james@example.com',
+    subtotal: '3,450.00',
+    shipping: '175.00',
+    total: '3,625.00',
+    rep_first_name: 'Alex',
+    rep_last_name: 'Rivera',
+    rep_email: 'alex@romaflooringdesigns.com',
+    items: [
+      { product_name: 'French Oak Chevron', collection: 'Parisian Collection', description: '5" wide plank, natural finish', num_boxes: 24, subtotal: '2,400.00' },
+      { product_name: 'Carrara Hex Mosaic', collection: 'Classic Marble', description: '2" hexagon, honed', num_boxes: 8, subtotal: '1,050.00' },
+    ]
+  }),
+
+  tradeApproval: () => generateTradeApprovalHTML({
+    contact_name: 'David Park',
+    company_name: 'Park Interior Design Studio'
+  }),
+
+  tradeDenial: () => generateTradeDenialHTML({
+    contact_name: 'Sarah Johnson',
+    company_name: 'Johnson Renovations LLC',
+    denial_reason: 'We were unable to verify the business credentials provided. Please reapply with a valid EIN and resale certificate.'
+  }),
+
+  tierPromotion: () => generateTierPromotionHTML({
+    contact_name: 'Michael Torres',
+    tierName: 'Gold'
+  }),
+
+  renewalReminder: () => generateRenewalReminderHTML({
+    contact_name: 'Lisa Wang',
+    company_name: 'Wang & Associates Design',
+    days_until_expiry: 14
+  }),
+
+  subscriptionWarning: () => generateSubscriptionWarningHTML({
+    contact_name: 'Robert Kim',
+    company_name: 'Kim Contractors Inc.'
+  }),
+
+  subscriptionLapsed: () => generateSubscriptionLapsedHTML({
+    contact_name: 'Robert Kim',
+    company_name: 'Kim Contractors Inc.'
+  }),
+
+  subscriptionDeactivated: () => generateSubscriptionDeactivatedHTML({
+    contact_name: 'Robert Kim',
+    company_name: 'Kim Contractors Inc.'
+  }),
+
+  installationInquiryStaff: () => generateInstallationInquiryStaffHTML({
+    customer_name: 'Angela Martinez',
+    customer_email: 'angela@example.com',
+    phone: '(714) 555-0199',
+    zip_code: '92801',
+    estimated_sqft: '850',
+    product_name: 'European White Oak',
+    collection: 'Heritage Collection',
+    message: 'We are remodeling our kitchen and living room. Looking for installation in about 3 weeks. The subfloor is concrete slab.'
+  }),
+
+  installationInquiryConfirmation: () => generateInstallationInquiryConfirmationHTML({
+    customer_name: 'Angela Martinez',
+    product_name: 'European White Oak',
+    collection: 'Heritage Collection',
+    zip_code: '92801',
+    estimated_sqft: '850',
+    message: 'We are remodeling our kitchen and living room. Looking for installation in about 3 weeks.'
+  }),
+
+  passwordReset: () => generatePasswordResetHTML({
+    resetUrl: 'https://romaflooringdesigns.com/reset-password?token=abc123def456'
+  }),
+
+  visitRecap: () => generateVisitRecapHTML({
+    customer_name: 'Jennifer Lee',
+    message: 'It was wonderful meeting you today! Here are the products we discussed for your master bathroom renovation. The Calacatta Gold would pair beautifully with the warm oak accents you mentioned.',
+    rep_name: 'Alex Rivera',
+    recap_url: 'https://romaflooringdesigns.com/recap/abc123',
+    items: [
+      { product_name: 'Calacatta Gold Marble', collection: 'Luxe Stone', variant_name: '24x24 Polished', retail_price: '18.50', price_basis: 'per_sqft', rep_note: 'Perfect for the shower accent wall', primary_image: '' },
+      { product_name: 'European White Oak', collection: 'Heritage Collection', variant_name: '7" Wide Plank Natural', retail_price: '8.75', price_basis: 'per_sqft', rep_note: '', primary_image: '' },
+    ]
+  }),
+
+  sampleRequestConfirmation: () => generateSampleRequestConfirmationHTML({
+    customer_name: 'Jennifer Lee',
+    request_number: 'SR-20260217-X4K9',
+    delivery_method: 'shipping',
+    shipping_address_line1: '1500 Oak Street',
+    shipping_address_line2: '',
+    shipping_city: 'Irvine',
+    shipping_state: 'CA',
+    shipping_zip: '92614',
+    items: [
+      { product_name: 'European White Oak', collection: 'Heritage Collection', variant_name: '7" Wide Plank Natural', primary_image: '' },
+      { product_name: 'Calacatta Gold Marble', collection: 'Luxe Stone', variant_name: '24x24 Polished', primary_image: '' },
+    ]
+  }),
+
+  'sampleRequestConfirmation-pickup': () => generateSampleRequestConfirmationHTML({
+    customer_name: 'Jennifer Lee',
+    request_number: 'SR-20260217-X4K9',
+    delivery_method: 'pickup',
+    items: [
+      { product_name: 'Smoky Grey Porcelain', collection: 'Modern Edge', variant_name: '12x24 Matte', primary_image: '' },
+    ]
+  }),
+
+  sampleRequestShipped: () => generateSampleRequestShippedHTML({
+    customer_name: 'Jennifer Lee',
+    request_number: 'SR-20260217-X4K9',
+    tracking_number: '9400111899223033005282',
+    items: [
+      { product_name: 'European White Oak', collection: 'Heritage Collection', variant_name: '7" Wide Plank Natural', primary_image: '' },
+      { product_name: 'Calacatta Gold Marble', collection: 'Luxe Stone', variant_name: '24x24 Polished', primary_image: '' },
+    ]
+  }),
+
+  'sampleRequestShipped-noTracking': () => generateSampleRequestShippedHTML({
+    customer_name: 'Jennifer Lee',
+    request_number: 'SR-20260217-X4K9',
+    tracking_number: '',
+    items: [
+      { product_name: 'Smoky Grey Porcelain', collection: 'Modern Edge', variant_name: '12x24 Matte', primary_image: '' },
+    ]
+  }),
+};
+
+// Index page listing all templates
+app.get('/api/dev/email-preview', (req, res) => {
+  const names = Object.keys(EMAIL_PREVIEW_TEMPLATES);
+  const links = names.map(n => `<li style="margin:4px 0;"><a href="/api/dev/email-preview/${n}" target="_blank" style="color:#292524;font-size:15px;">${n}</a></li>`).join('');
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Email Template Preview</title>
+    <style>body{font-family:Inter,Arial,sans-serif;max-width:600px;margin:40px auto;padding:0 20px;color:#1c1917;}
+    h1{font-family:'Cormorant Garamond',Georgia,serif;font-weight:400;font-size:28px;margin-bottom:8px;}
+    p{color:#78716c;font-size:14px;}ul{list-style:none;padding:0;}a{text-decoration:none;}a:hover{text-decoration:underline;}</style>
+    </head><body><h1>Email Template Preview</h1><p>${names.length} templates available</p><ul>${links}</ul></body></html>`);
+});
+
+// Individual template render
+app.get('/api/dev/email-preview/:name', (req, res) => {
+  const generator = EMAIL_PREVIEW_TEMPLATES[req.params.name];
+  if (!generator) return res.status(404).send('Template not found. <a href="/api/dev/email-preview">View all templates</a>');
+  try {
+    res.send(generator());
+  } catch (err) {
+    res.status(500).send(`<pre>Error rendering template: ${err.message}\n\n${err.stack}</pre>`);
+  }
+});
 
 runMigrations().then(() => {
   app.listen(PORT, () => {
