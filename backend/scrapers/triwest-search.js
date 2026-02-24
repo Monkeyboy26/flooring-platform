@@ -124,6 +124,9 @@ export function parseResultRow(cells) {
   // Multi-line format:
   //   Line 1: "ACCLAIM-EUROPEAN OAK 7.5"" or "BORN READY 7.15"X60""
   //   Line 2: "AFFINITY COLLECTION     *34.36" or "UPTOWN CHIC WPF COLL    *35.96"
+  // Some brands have dimensions on line 2 instead of collection:
+  //   Line 1: "TIMBERCUTS HICKORY 1/2" ENG."
+  //   Line 2: "1/2"X(3.5",5.5",7.5")XRL*37.98"
   // Single-line format:
   //   "ACCLAIM-EUROPEAN OAK 7.5" / AFFINITY COLLECTION *34.36"
   const descLines = rawDescription.split(/\n/).map(l => l.trim()).filter(Boolean);
@@ -137,14 +140,20 @@ export function parseResultRow(cells) {
     collectionLine = slashParts[1] || '';
   }
 
+  // Detect if line 2 is dimensions/packaging rather than a collection name.
+  // Dimension patterns: starts with digits, fractions, or contains XRL, SF/, EA/, etc.
+  const isDimensionLine = collectionLine && /^[\d(]/.test(collectionLine.replace(/\*[\d.]+/, '').trim())
+    || (collectionLine && /\d+\/?CT\b|XRL|SF\/|EA\/|\bXXX\b|\bGAL\b|\bOZ\b/i.test(collectionLine.replace(/\*[\d.]+/, '')));
+
   // Extract full color name and product name from line 1
   // Formats: "COLOR-PRODUCT NAME SIZE" or "COLOR NAME SIZE" (no dash)
   let fullColor = '';
   let productName = '';
   let size = '';
 
-  // Size pattern at end of line: digits with optional decimals, quotes, and x-dimensions
-  const sizeRegex = /\s+(\d+(?:\.\d+)?["']?(?:\s*[xX×]\s*\d+(?:\.\d+)?["']?)*)$/;
+  // Size pattern: decimal or fractional dimensions, with optional quotes and x-dimensions
+  // Matches: 7.5", 1/2", 9"X72", 7.15"X60", 2 1/4"
+  const sizeRegex = /\s+((?:\d+\s+)?\d+(?:[\/\.]\d+)?["']?(?:\s*[xX×]\s*(?:\d+\s+)?\d+(?:[\/\.]\d+)?["']?)*)$/;
 
   const dashIdx = line1.indexOf('-');
   if (dashIdx > 0) {
@@ -168,6 +177,33 @@ export function parseResultRow(cells) {
       fullColor = line1;
     }
     productName = fullColor; // same as color when no dash separator
+  }
+
+  // If line 2 is dimensions (not a collection), extract size from it and use
+  // the product line name from line 1 as the collection instead.
+  if (isDimensionLine) {
+    // Extract size from line 2 if we didn't get one from line 1
+    if (!size) {
+      let dimStr = collectionLine.replace(/\*[\d.]+/, '').trim();
+      dimStr = dimStr.replace(/\s+\d+\/?CT$/i, '').replace(/\s+XXX$/i, '').trim();
+      if (dimStr) size = dimStr;
+    }
+    // Use line 1 product name as collection (e.g., "TIMBERCUTS" from "TIMBERCUTS HICKORY 1/2" ENG.")
+    // Extract the product line: first word(s) before species/material keywords
+    const speciesWords = /\b(OAK|HICKORY|MAPLE|WALNUT|CHERRY|BIRCH|ASH|ELM|PINE|ACACIA|WHITE|RED|EUROPEAN|FRENCH|ENG|SOLID|PLK|PLANK|STRIP)\b/i;
+    const speciesIdx = line1.search(speciesWords);
+    let productLine = '';
+    if (speciesIdx > 0) {
+      productLine = line1.slice(0, speciesIdx).trim();
+      // Remove trailing size fragments from product line
+      productLine = productLine.replace(/\s+\d+[\/.]?\d*["']?\s*$/, '').trim();
+    }
+    // Fall back to color cell if product line extraction failed
+    if (productLine.length >= 3 && productLine !== 'ZZ') {
+      collectionLine = productLine; // will be used as pattern below
+    } else {
+      collectionLine = ''; // will fall through to patternCell or brand-only
+    }
   }
 
   // Extract full collection/pattern from line 2 (before *sqft and "COLL"/"COLLECTION" suffix)

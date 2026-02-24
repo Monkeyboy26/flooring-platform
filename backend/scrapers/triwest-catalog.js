@@ -4,26 +4,12 @@ import {
   appendLog, addJobError, normalizeSize, buildVariantName
 } from './base.js';
 import { triwestLogin, triwestLoginFromCookies, PORTAL_BASE, screenshot } from './triwest-auth.js';
+import {
+  MANUFACTURER_NAMES, MFGR_CATEGORY,
+  searchByManufacturer, getAllManufacturerCodes, navigateToSearchForm,
+} from './triwest-search.js';
 
 const MAX_ERRORS = 50;
-
-/**
- * Maps DNav product categories to PIM category slugs.
- */
-const CATEGORY_MAP = {
-  'hardwood':     'engineered-hardwood',
-  'engineered':   'engineered-hardwood',
-  'solid':        'solid-hardwood',
-  'resilient':    'lvp-plank',
-  'lvt':          'lvp-plank',
-  'lvp':          'lvp-plank',
-  'vinyl':        'lvp-plank',
-  'waterproof':   'lvp-plank',
-  'hybrid':       'lvp-plank',
-  'laminate':     'laminate',
-  'carpet-tile':  'carpet-tile',
-  'carpet':       'carpet-tile',
-};
 
 /**
  * Tri-West DNav catalog scraper.
@@ -61,39 +47,33 @@ export async function run(pool, job, source) {
   }
 
   try {
-    // Step 1: Login
+    // Step 1: Login — returns authenticated browser + page (same session)
     let cookies;
+    let page;
     try {
-      cookies = await triwestLogin(pool, job.id);
+      const session = await triwestLogin(pool, job.id);
+      browser = session.browser;
+      page = session.page;
+      cookies = session.cookies;
     } catch (err) {
       await appendLog(pool, job.id, `Puppeteer login failed: ${err.message} — trying cookie fallback...`);
       cookies = await triwestLoginFromCookies(pool, job.id);
+      // Cookie fallback: need to open a new browser
+      browser = await launchBrowser();
+      page = await browser.newPage();
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      await page.setViewport({ width: 1440, height: 900 });
+      const cookiePairs = cookies.split('; ').map(pair => {
+        const [name, ...rest] = pair.split('=');
+        return { name, value: rest.join('='), domain: 'tri400.triwestltd.com' };
+      });
+      await page.setCookie(...cookiePairs);
+      await page.goto(`${PORTAL_BASE}/main/`, { waitUntil: 'networkidle2', timeout: 30000 });
+      await delay(3000);
     }
 
-    // Step 2: Launch browser for portal navigation
-    browser = await launchBrowser();
-    const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    await page.setViewport({ width: 1440, height: 900 });
-
-    // Set cookies in browser
-    const cookiePairs = cookies.split('; ').map(pair => {
-      const [name, ...rest] = pair.split('=');
-      return { name, value: rest.join('='), domain: 'tri400.triwestltd.com' };
-    });
-    await page.setCookie(...cookiePairs);
-
-    // Navigate to portal dashboard
-    await appendLog(pool, job.id, `Navigating to DNav portal...`);
-    await page.goto(PORTAL_BASE, { waitUntil: 'networkidle2', timeout: 30000 });
-    await delay(2000);
-
-    // Check if we're still logged in
+    // We should already be on the dashboard from triwestLogin
     const currentUrl = page.url();
-    if (currentUrl.includes('login') || currentUrl.includes('Login')) {
-      throw new Error('Session cookies not accepted — redirected to login');
-    }
-
     await appendLog(pool, job.id, `Portal loaded: ${currentUrl}`);
 
     // ─── DISCOVERY MODE ───
@@ -108,87 +88,228 @@ export async function run(pool, job, source) {
     // Look up category IDs
     const categoryLookup = await buildCategoryLookup(pool);
 
-    // Find product listings
-    const productListings = await scrapeProductListings(page, pool, job, maxProducts, delayMs);
-    productsFound = productListings.length;
-    await appendLog(pool, job.id, `Found ${productsFound} products in portal`);
+    // Determine which manufacturers to scrape
+    const configMfgrs = config.manufacturers; // optional filter: ["PRO", "PAF", ...]
+    let mfgrCodes;
 
-    // Upsert each product
-    for (let i = 0; i < productListings.length; i++) {
-      const item = productListings[i];
+    if (configMfgrs && Array.isArray(configMfgrs) && configMfgrs.length > 0) {
+      mfgrCodes = configMfgrs.map(c => ({ value: c.toUpperCase(), text: MANUFACTURER_NAMES[c.toUpperCase()] || c }));
+      await appendLog(pool, job.id, `Scraping ${mfgrCodes.length} specified manufacturers: ${configMfgrs.join(', ')}`);
+    } else {
+      mfgrCodes = await getAllManufacturerCodes(page);
+      await appendLog(pool, job.id, `Found ${mfgrCodes.length} manufacturers in dropdown`);
+    }
 
-      try {
-        // Determine category
-        const categorySlug = mapCategory(item.category);
-        const category_id = categorySlug ? (categoryLookup[categorySlug] || null) : null;
+    // Iterate through manufacturers and search each one
+    let totalItemsCollected = 0;
 
-        // Collection = "Brand - Collection Name"
-        const collection = item.brand && item.collection
-          ? `${item.brand} - ${item.collection}`
-          : item.brand || item.collection || '';
+    for (let m = 0; m < mfgrCodes.length && totalItemsCollected < maxProducts; m++) {
+      const mfgr = mfgrCodes[m];
+      const mfgrCode = mfgr.value;
+      const brandName = MANUFACTURER_NAMES[mfgrCode] || mfgr.text || mfgrCode;
+      const categorySlug = MFGR_CATEGORY[mfgrCode] || null;
+      const category_id = categorySlug ? (categoryLookup[categorySlug] || null) : null;
 
-        // Upsert product
-        const product = await upsertProduct(pool, {
-          vendor_id,
-          name: item.name || item.itemNumber,
-          collection,
-          category_id,
-          description_short: item.description || null,
-        });
+      await appendLog(pool, job.id, `[${m + 1}/${mfgrCodes.length}] Searching manufacturer: ${brandName} (${mfgrCode})`);
 
-        if (product.is_new) productsCreated++;
-        else productsUpdated++;
+      // Search this manufacturer (cap per-manufacturer to prevent session timeout)
+      const perMfgrCap = config.max_per_manufacturer || 3000;
+      const rows = await searchByManufacturer(page, mfgrCode, pool, job.id, {
+        maxRows: Math.min(perMfgrCap, maxProducts - totalItemsCollected),
+      });
 
-        // Build internal SKU: TW-<vendor_sku>
-        const vendorSku = item.itemNumber;
-        const internalSku = `TW-${vendorSku}`;
+      if (rows.length === 0) {
+        await appendLog(pool, job.id, `  ${brandName}: no results, skipping`);
+      }
 
-        // Determine sell_by
-        const sellBy = item.unit === 'PCS' || item.unit === 'EA' ? 'unit' : 'sqft';
+      // ── Two-pass upsert: flooring first, then accessories ──
+      // Accessory SKUs (stair noses, T-moldings, quarter rounds, reducers, end caps)
+      // share the parent's base SKU with a suffix (e.g., PRO2313 → PRO2313STN).
+      // We need flooring products in the DB first so we can link accessories to them.
 
-        // Build variant name from size
-        const variantName = buildVariantName(item.size, item.finish);
+      const ACCESSORY_SUFFIXES = /^(.+\d)(STN|STNSQ|SQSTN|TM|QTR|QR|RDC|RD|SQN|FSN|OSN|EC|END|LW|LZ|PADFSN|PADRD|PADEC|PADOSN|PADQR|PADTM|PAD|OSCV|SQSTNI?|STNI)$/i;
+      const ACCESSORY_NAME_RE = /\b(STAIR\s*NOSE|T[- ]?MOULD|QUARTER\s*ROUND|REDUCER|END\s*CAP|SQUARE\s*NOSE|OVERLAP|BULLNOSE|FLUSH|TRANSITION|RISER|THRESHOLD)\b/i;
 
-        // Upsert SKU
-        const sku = await upsertSku(pool, {
-          product_id: product.id,
-          vendor_sku: vendorSku,
-          internal_sku: internalSku,
-          variant_name: variantName,
-          sell_by: sellBy,
-        });
+      // Separate flooring rows from accessory rows
+      const flooringRows = [];
+      const accessoryRows = [];
+      for (const row of rows) {
+        const suffixMatch = row.itemNumber.match(ACCESSORY_SUFFIXES);
+        const isAccessoryName = ACCESSORY_NAME_RE.test(row.productName || row.color || '');
+        if (suffixMatch || isAccessoryName) {
+          accessoryRows.push({ ...row, baseSku: suffixMatch ? suffixMatch[1] : null });
+        } else {
+          flooringRows.push(row);
+        }
+      }
 
-        if (sku.is_new) skusCreated++;
+      // Pass 1: Upsert flooring products and build a baseSku → product_id lookup
+      const skuToProduct = new Map(); // vendorSku → { product_id, collection }
 
-        // Upsert packaging if available
-        if (item.sqftPerBox || item.piecesPerBox) {
-          await upsertPackaging(pool, sku.id, {
-            sqft_per_box: item.sqftPerBox || null,
-            pieces_per_box: item.piecesPerBox || null,
-            weight_per_box_lbs: item.weightPerBox || null,
-            boxes_per_pallet: item.boxesPerPallet || null,
+      for (let i = 0; i < flooringRows.length; i++) {
+        const row = flooringRows[i];
+
+        try {
+          const collection = row.pattern
+            ? `${brandName} - ${row.pattern}`
+            : brandName;
+
+          const productName = row.color || row.productName || row.itemNumber;
+
+          const product = await upsertProduct(pool, {
+            vendor_id,
+            name: productName,
+            collection,
+            category_id,
+            description_short: row.rawDescription || null,
           });
+
+          if (product.is_new) productsCreated++;
+          else productsUpdated++;
+
+          const vendorSku = row.itemNumber;
+          const internalSku = `TW-${vendorSku}`;
+          const sellBy = row.unit === 'EA' || row.unit === 'PC' ? 'unit' : 'sqft';
+          const variantName = buildVariantName(row.size);
+
+          const sku = await upsertSku(pool, {
+            product_id: product.id,
+            vendor_sku: vendorSku,
+            internal_sku: internalSku,
+            variant_name: variantName,
+            sell_by: sellBy,
+          });
+
+          if (sku.is_new) skusCreated++;
+
+          if (row.sqftPerBox) {
+            await upsertPackaging(pool, sku.id, { sqft_per_box: row.sqftPerBox });
+          }
+
+          if (row.size) await upsertSkuAttribute(pool, sku.id, 'size', normalizeSize(row.size));
+          if (row.color) await upsertSkuAttribute(pool, sku.id, 'color', row.color);
+
+          // Track for accessory linking
+          skuToProduct.set(vendorSku, { product_id: product.id, collection });
+
+        } catch (err) {
+          await logError(`Product ${row.itemNumber}: ${err.message}`);
         }
 
-        // Upsert attributes
-        if (item.size) await upsertSkuAttribute(pool, sku.id, 'size', normalizeSize(item.size));
-        if (item.finish) await upsertSkuAttribute(pool, sku.id, 'finish', item.finish);
-        if (item.color) await upsertSkuAttribute(pool, sku.id, 'color', item.color);
-        if (item.material) await upsertSkuAttribute(pool, sku.id, 'material', item.material);
-        if (item.thickness) await upsertSkuAttribute(pool, sku.id, 'thickness', item.thickness);
+        totalItemsCollected++;
 
-      } catch (err) {
-        await logError(`Product ${item.itemNumber}: ${err.message}`);
+        if (totalItemsCollected % 50 === 0) {
+          await appendLog(pool, job.id,
+            `Progress: ${totalItemsCollected} items — created: ${productsCreated}, updated: ${productsUpdated}, SKUs: ${skusCreated}`,
+            { products_found: totalItemsCollected, products_created: productsCreated, products_updated: productsUpdated, skus_created: skusCreated }
+          );
+        }
       }
 
-      // Progress logging every 25 products
-      if ((i + 1) % 25 === 0) {
+      // Pass 2: Upsert accessory SKUs linked to their parent product
+      let accessoriesLinked = 0;
+
+      for (const row of accessoryRows) {
+        try {
+          const vendorSku = row.itemNumber;
+          const internalSku = `TW-${vendorSku}`;
+
+          // Find parent product by base SKU
+          let parentInfo = row.baseSku ? skuToProduct.get(row.baseSku) : null;
+
+          // If parent not in this batch, try DB lookup
+          if (!parentInfo && row.baseSku) {
+            const dbResult = await pool.query(`
+              SELECT s.product_id FROM skus s
+              WHERE s.vendor_sku = $1 AND s.internal_sku = $2
+            `, [row.baseSku, `TW-${row.baseSku}`]);
+            if (dbResult.rows.length > 0) {
+              parentInfo = { product_id: dbResult.rows[0].product_id };
+            }
+          }
+
+          if (parentInfo) {
+            // Link as accessory SKU under parent product
+            const accessoryName = (row.productName || row.color || vendorSku).replace(/\s+/g, ' ').trim();
+            const sku = await upsertSku(pool, {
+              product_id: parentInfo.product_id,
+              vendor_sku: vendorSku,
+              internal_sku: internalSku,
+              variant_name: accessoryName,
+              sell_by: 'unit',
+              variant_type: 'accessory',
+            });
+            if (sku.is_new) skusCreated++;
+            accessoriesLinked++;
+          } else {
+            // No parent found — create as standalone product (fallback)
+            const collection = row.pattern
+              ? `${brandName} - ${row.pattern}`
+              : brandName;
+            const productName = row.color || row.productName || vendorSku;
+
+            const product = await upsertProduct(pool, {
+              vendor_id,
+              name: productName,
+              collection,
+              category_id,
+              description_short: row.rawDescription || null,
+            });
+
+            if (product.is_new) productsCreated++;
+            else productsUpdated++;
+
+            const sellBy = row.unit === 'EA' || row.unit === 'PC' ? 'unit' : 'sqft';
+            const sku = await upsertSku(pool, {
+              product_id: product.id,
+              vendor_sku: vendorSku,
+              internal_sku: internalSku,
+              variant_name: row.productName || row.color || null,
+              sell_by: sellBy,
+              variant_type: 'accessory',
+            });
+            if (sku.is_new) skusCreated++;
+          }
+        } catch (err) {
+          await logError(`Accessory ${row.itemNumber}: ${err.message}`);
+        }
+
+        totalItemsCollected++;
+
+        if (totalItemsCollected % 50 === 0) {
+          await appendLog(pool, job.id,
+            `Progress: ${totalItemsCollected} items — created: ${productsCreated}, updated: ${productsUpdated}, SKUs: ${skusCreated}, Accessories linked: ${accessoriesLinked}`,
+            { products_found: totalItemsCollected, products_created: productsCreated, products_updated: productsUpdated, skus_created: skusCreated }
+          );
+        }
+      }
+
+      if (accessoryRows.length > 0) {
         await appendLog(pool, job.id,
-          `Progress: ${i + 1}/${productsFound} — created: ${productsCreated}, updated: ${productsUpdated}, SKUs: ${skusCreated}`,
-          { products_found: productsFound, products_created: productsCreated, products_updated: productsUpdated, skus_created: skusCreated }
-        );
+          `  ${brandName}: ${accessoriesLinked}/${accessoryRows.length} accessories linked to parent products`);
+      }
+
+      // Navigate back to search form for next manufacturer
+      if (m < mfgrCodes.length - 1) {
+        const navResult = await navigateToSearchForm(page, PORTAL_BASE);
+        if (navResult === 'relogin' || !navResult) {
+          // Session expired or nav failed — re-login either way
+          await appendLog(pool, job.id, `Session expired after ${brandName}, re-logging in...`);
+          await browser.close().catch(() => {});
+          try {
+            const session = await triwestLogin(pool, job.id);
+            browser = session.browser;
+            page = session.page;
+          } catch (err) {
+            await appendLog(pool, job.id, `Re-login failed: ${err.message}`);
+            break;
+          }
+        }
+        await delay(delayMs);
       }
     }
+
+    productsFound = totalItemsCollected;
 
     // Bulk activate products
     if (productsCreated + productsUpdated > 0) {
@@ -216,282 +337,258 @@ export async function run(pool, job, source) {
 async function runDiscovery(page, pool, job) {
   await appendLog(pool, job.id, '=== DISCOVERY MODE START ===');
 
-  // Screenshot the dashboard/home page
+  // Screenshot the dashboard (we're already on it after login)
   await screenshot(page, 'triwest-dashboard');
   await appendLog(pool, job.id, `Dashboard URL: ${page.url()}`);
 
-  // Log page title and basic structure
-  const pageInfo = await page.evaluate(() => {
-    return {
-      title: document.title,
-      url: window.location.href,
-      bodyTextSnippet: document.body.innerText.slice(0, 1000),
-    };
-  });
-  await appendLog(pool, job.id, `Page title: ${pageInfo.title}`);
-  await appendLog(pool, job.id, `Body text: ${pageInfo.bodyTextSnippet}`);
+  // ─── TEST SEARCH: Do this FIRST while dashboard is in clean state ───
+  await appendLog(pool, job.id, '=== TEST SEARCH (Provenza) ===');
 
-  // Log all navigation links
-  const navLinks = await page.evaluate(() => {
-    const links = Array.from(document.querySelectorAll('a[href]'));
-    return links.map(a => ({
-      text: a.textContent.trim().slice(0, 80),
-      href: a.href,
-    })).filter(l => l.text && !l.href.startsWith('javascript'));
+  // Get manufacturer dropdown options
+  const mfgrOptions = await page.evaluate(() => {
+    const select = document.querySelector('select[name="d24_filter_mfgr"]');
+    if (!select) return null;
+    return Array.from(select.options).map(o => ({ value: o.value, text: o.text.trim() }));
   });
 
-  await appendLog(pool, job.id, `Found ${navLinks.length} links on dashboard:`);
-  for (const link of navLinks.slice(0, 50)) {
-    await appendLog(pool, job.id, `  [${link.text}] → ${link.href}`);
+  if (!mfgrOptions) {
+    await appendLog(pool, job.id, 'ERROR: Manufacturer dropdown not found on dashboard');
+    await appendLog(pool, job.id, `Page text: ${await page.evaluate(() => document.body.innerText.slice(0, 500))}`);
+    return;
   }
 
-  // Log all forms and input fields
-  const formInfo = await page.evaluate(() => {
-    const forms = Array.from(document.querySelectorAll('form'));
-    return forms.map(f => ({
-      action: f.action,
-      method: f.method,
-      inputs: Array.from(f.querySelectorAll('input, select, textarea')).map(i => ({
-        tag: i.tagName, type: i.type, name: i.name, id: i.id,
-        placeholder: i.placeholder, value: i.value?.slice(0, 50),
-      }))
-    }));
-  });
-  await appendLog(pool, job.id, `Forms: ${JSON.stringify(formInfo, null, 2)}`);
-
-  // Look for iframes (DNav sometimes uses frames)
-  const iframes = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('iframe, frame')).map(f => ({
-      src: f.src, name: f.name, id: f.id,
-    }));
-  });
-  if (iframes.length > 0) {
-    await appendLog(pool, job.id, `Frames found: ${JSON.stringify(iframes)}`);
+  await appendLog(pool, job.id, `Manufacturer dropdown has ${mfgrOptions.length} options:`);
+  for (const opt of mfgrOptions) {
+    await appendLog(pool, job.id, `  "${opt.text}" (value: "${opt.value}")`);
   }
 
-  // Explore common DNav paths
-  const pathsToTry = [
-    '/search', '/catalog', '/products', '/inventory',
-    '/itemsearch', '/item', '/pricelist', '/price',
-    '/order', '/orders', '/account',
-  ];
+  // Select "PROVENZA FLOORS INC."
+  const provenza = mfgrOptions.find(o => o.text.includes('PROVENZA'));
+  const testMfgr = provenza || mfgrOptions.find(o => o.value && o.value !== '');
 
-  for (const pathSuffix of pathsToTry) {
-    try {
-      const testUrl = `${PORTAL_BASE}${pathSuffix}`;
-      await appendLog(pool, job.id, `Trying path: ${testUrl}`);
-      const response = await page.goto(testUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+  if (!testMfgr) {
+    await appendLog(pool, job.id, 'No valid manufacturer to test');
+    return;
+  }
 
-      if (response && response.status() < 400) {
-        await screenshot(page, `triwest-path-${pathSuffix.replace(/\//g, '-')}`);
-        const text = await page.evaluate(() => document.body.innerText.slice(0, 500));
-        await appendLog(pool, job.id, `  Status: ${response.status()} — Content: ${text.slice(0, 200)}`);
-      } else {
-        await appendLog(pool, job.id, `  Status: ${response ? response.status() : 'no response'}`);
-      }
-    } catch (err) {
-      await appendLog(pool, job.id, `  Error: ${err.message}`);
+  await appendLog(pool, job.id, `Selecting manufacturer: "${testMfgr.text}" (value: "${testMfgr.value}")`);
+  await page.select('select[name="d24_filter_mfgr"]', testMfgr.value);
+  await delay(500);
+
+  // Intercept network responses BEFORE clicking search
+  const apiCalls = [];
+  page.on('response', async (response) => {
+    const url = response.url();
+    if (url.includes('danciko') && !url.includes('.css') && !url.includes('.js') && !url.includes('.png') && !url.includes('.jpg') && !url.includes('.gif')) {
+      try {
+        const contentType = response.headers()['content-type'] || '';
+        apiCalls.push({ url, status: response.status(), type: contentType });
+      } catch { }
     }
-
-    await delay(1000);
-  }
-
-  // Go back to dashboard and try searching
-  await page.goto(PORTAL_BASE, { waitUntil: 'networkidle2', timeout: 30000 });
-  await delay(1000);
-
-  // Try to find a search box and search for a known brand
-  const searchSelector = await page.evaluate(() => {
-    const candidates = Array.from(document.querySelectorAll('input[type="text"], input[type="search"], input[name*="search"], input[name*="item"], input[placeholder*="Search"], input[placeholder*="search"]'));
-    if (candidates.length > 0) {
-      return {
-        found: true,
-        selector: candidates[0].name ? `input[name="${candidates[0].name}"]` : (candidates[0].id ? `#${candidates[0].id}` : 'input[type="search"]'),
-        info: { type: candidates[0].type, name: candidates[0].name, placeholder: candidates[0].placeholder }
-      };
-    }
-    return { found: false };
   });
 
-  if (searchSelector.found) {
-    await appendLog(pool, job.id, `Search field found: ${JSON.stringify(searchSelector.info)}`);
-
-    // Try searching for "Provenza" as a test
-    try {
-      await page.click(searchSelector.selector, { clickCount: 3 });
-      await page.type(searchSelector.selector, 'Provenza', { delay: 50 });
-      await page.keyboard.press('Enter');
-      await delay(3000);
-      await screenshot(page, 'triwest-search-provenza');
-
-      const searchResults = await page.evaluate(() => document.body.innerText.slice(0, 2000));
-      await appendLog(pool, job.id, `Search results: ${searchResults.slice(0, 500)}`);
-    } catch (err) {
-      await appendLog(pool, job.id, `Search attempt failed: ${err.message}`);
-    }
-  } else {
-    await appendLog(pool, job.id, 'No search field found on dashboard');
-  }
-
-  // Log network requests made by the page (for API discovery)
-  await appendLog(pool, job.id, 'Discovery complete — review screenshots in uploads folder');
-}
-
-/**
- * Scrape product listings from the DNav portal.
- * This is a placeholder that will be refined after discovery mode reveals the portal structure.
- */
-async function scrapeProductListings(page, pool, job, maxProducts, delayMs) {
-  const allProducts = [];
-  let pageNum = 0;
-
-  // Try to navigate to a product listing or search page
-  // (Exact navigation will be refined after discovery mode)
-
-  // Attempt: search for all products
-  const searchInputs = await page.$$('input[type="text"], input[type="search"]');
-  if (searchInputs.length > 0) {
-    await searchInputs[0].click({ clickCount: 3 });
-    await searchInputs[0].type('*', { delay: 50 });
-    await page.keyboard.press('Enter');
-    await delay(3000);
-  }
-
-  // Paginate through results
-  while (allProducts.length < maxProducts) {
-    pageNum++;
-    const items = await extractProductsFromPage(page);
-
-    if (items.length === 0) {
-      await appendLog(pool, job.id, `No products found on page ${pageNum}, stopping`);
-      break;
-    }
-
-    allProducts.push(...items);
-    await appendLog(pool, job.id, `Page ${pageNum}: extracted ${items.length} items (total: ${allProducts.length})`);
-
-    // Try to navigate to next page
-    const hasNext = await clickNextPage(page);
-    if (!hasNext) break;
-
-    await delay(delayMs);
-  }
-
-  return allProducts;
-}
-
-/**
- * Extract product data from the current page.
- * Flexible extraction that handles tables, cards, and list layouts.
- */
-async function extractProductsFromPage(page) {
-  return page.evaluate(() => {
-    const results = [];
-
-    // Strategy 1: Look for table rows (DNav often uses data tables)
-    const tables = document.querySelectorAll('table');
-    for (const table of tables) {
-      const rows = Array.from(table.querySelectorAll('tr'));
-      // Skip header row
-      for (let i = 1; i < rows.length; i++) {
-        const cells = Array.from(rows[i].querySelectorAll('td'));
-        if (cells.length < 3) continue;
-
-        const text = rows[i].textContent;
-        // Look for item number pattern
-        const itemMatch = text.match(/\b([A-Z]{2,5}[-.]?[A-Z0-9]{3,}[-.]?[A-Z0-9]*)\b/);
-        if (!itemMatch) continue;
-
-        results.push({
-          itemNumber: itemMatch[1],
-          name: cells[1]?.textContent?.trim() || null,
-          description: cells[2]?.textContent?.trim() || null,
-          brand: null,
-          collection: null,
-          category: null,
-          size: null,
-          finish: null,
-          color: null,
-          material: null,
-          thickness: null,
-          unit: null,
-          sqftPerBox: null,
-          piecesPerBox: null,
-          weightPerBox: null,
-          boxesPerPallet: null,
-        });
+  // Submit the Advanced Item Search form
+  const searchBtnClicked = await page.evaluate(() => {
+    const forms = document.querySelectorAll('form');
+    for (const form of forms) {
+      if (form.action && form.action.includes('item_search_advanced')) {
+        const btn = form.querySelector('input[type="submit"]');
+        if (btn) { btn.click(); return true; }
       }
     }
-
-    // Strategy 2: Look for product cards/divs
-    if (results.length === 0) {
-      const cards = document.querySelectorAll('[class*="product"], [class*="item"], [class*="card"]');
-      for (const card of cards) {
-        const text = card.textContent;
-        const itemMatch = text.match(/\b([A-Z]{2,5}[-.]?[A-Z0-9]{3,}[-.]?[A-Z0-9]*)\b/);
-        if (!itemMatch) continue;
-
-        const nameEl = card.querySelector('h1, h2, h3, h4, h5, [class*="name"], [class*="title"]');
-
-        results.push({
-          itemNumber: itemMatch[1],
-          name: nameEl?.textContent?.trim() || null,
-          description: null,
-          brand: null,
-          collection: null,
-          category: null,
-          size: null,
-          finish: null,
-          color: null,
-          material: null,
-          thickness: null,
-          unit: null,
-          sqftPerBox: null,
-          piecesPerBox: null,
-          weightPerBox: null,
-          boxesPerPallet: null,
-        });
-      }
-    }
-
-    return results;
-  });
-}
-
-/**
- * Try to click "Next" or advance pagination.
- */
-async function clickNextPage(page) {
-  const clicked = await page.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll('a, button, input[type="button"]'));
-    const next = buttons.find(el => {
-      const text = (el.textContent || el.value || '').trim().toLowerCase();
-      const label = (el.getAttribute('aria-label') || '').toLowerCase();
-      return (text === 'next' || text === '>' || text === '>>' || text === '›' || label.includes('next'))
-        && el.offsetParent !== null;
-    });
-    if (next) { next.click(); return true; }
+    const btn = document.querySelector('input[type="submit"][value="Search"]');
+    if (btn) { btn.click(); return true; }
     return false;
   });
 
-  if (clicked) {
-    await delay(2000);
-    return true;
+  if (!searchBtnClicked) {
+    await appendLog(pool, job.id, 'Could not find Search button');
+    return;
   }
-  return false;
+
+  await appendLog(pool, job.id, 'Search submitted, waiting for results...');
+  await delay(8000);
+  await screenshot(page, 'triwest-search-results');
+
+  // Log intercepted API calls
+  if (apiCalls.length > 0) {
+    await appendLog(pool, job.id, `Intercepted ${apiCalls.length} API calls during search:`);
+    for (const call of apiCalls) {
+      await appendLog(pool, job.id, `  ${call.status} ${call.url} (${call.type})`);
+    }
+  }
+
+  // Capture full page text
+  const resultsText = await page.evaluate(() => document.body.innerText.slice(0, 5000));
+  await appendLog(pool, job.id, `Search results text:\n${resultsText}`);
+
+  // Analyze ALL tables on the page
+  const tableInfo = await page.evaluate(() => {
+    const tables = document.querySelectorAll('table');
+    const results = [];
+    for (let t = 0; t < tables.length; t++) {
+      const table = tables[t];
+      const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
+      const rows = Array.from(table.querySelectorAll('tr'));
+      const sampleRows = [];
+      for (let i = 0; i < Math.min(rows.length, 10); i++) {
+        const cells = Array.from(rows[i].querySelectorAll('td, th'));
+        sampleRows.push(cells.map(c => c.textContent.trim().slice(0, 100)));
+      }
+      if (headers.length > 0 || sampleRows.some(r => r.length > 2)) {
+        results.push({
+          index: t,
+          id: table.id || '',
+          class: (table.className || '').slice(0, 100),
+          headers,
+          rowCount: rows.length,
+          sampleRows
+        });
+      }
+    }
+    return results;
+  });
+
+  if (tableInfo.length > 0) {
+    await appendLog(pool, job.id, `Found ${tableInfo.length} data tables:`);
+    for (const ti of tableInfo) {
+      await appendLog(pool, job.id, `  Table #${ti.index} (id="${ti.id}" class="${ti.class}"): ${ti.rowCount} rows`);
+      await appendLog(pool, job.id, `    Headers: [${ti.headers.join(' | ')}]`);
+      for (const row of ti.sampleRows) {
+        await appendLog(pool, job.id, `    [${row.join(' | ')}]`);
+      }
+    }
+  } else {
+    await appendLog(pool, job.id, 'No data tables found in search results');
+  }
+
+  // Look for result items in any format (divs, cards, lists)
+  const resultContainers = await page.evaluate(() => {
+    const items = [];
+    const selectors = [
+      '[class*="result"]', '[class*="item-"]', '[class*="product"]',
+      '[class*="search"]', '[class*="d24"]', '[class*="listing"]',
+    ];
+    for (const sel of selectors) {
+      for (const el of document.querySelectorAll(sel)) {
+        const text = el.innerText?.trim().slice(0, 300) || '';
+        if (text.length > 20 && text.length < 300) {
+          items.push({
+            tag: el.tagName,
+            class: (el.className?.toString() || '').slice(0, 150),
+            id: el.id || '',
+            text,
+          });
+        }
+      }
+    }
+    return items.slice(0, 15);
+  });
+
+  if (resultContainers.length > 0) {
+    await appendLog(pool, job.id, `Found ${resultContainers.length} result containers:`);
+    for (const item of resultContainers) {
+      await appendLog(pool, job.id, `  <${item.tag}#${item.id} class="${item.class}">\n    "${item.text}"`);
+    }
+  }
+
+  // Look for clickable items (links, rows with onclick)
+  const clickableItems = await page.evaluate(() => {
+    const items = [];
+    // Links in the main content area
+    const allLinks = document.querySelectorAll('a');
+    for (const a of allLinks) {
+      const href = a.href || '';
+      const text = a.textContent.trim().slice(0, 80);
+      if (href.includes('#item') || href.includes('#detail') || href.includes('#product') || text.match(/^[A-Z0-9]{3,}/)) {
+        items.push({ tag: 'A', href, text, onclick: '' });
+      }
+    }
+    // Clickable table rows
+    const rows = document.querySelectorAll('tr[onclick], tr[style*="cursor"], td[onclick]');
+    for (const r of rows) {
+      items.push({
+        tag: r.tagName,
+        href: '',
+        text: r.textContent.trim().slice(0, 100),
+        onclick: (r.getAttribute('onclick') || '').slice(0, 150),
+      });
+    }
+    return items.slice(0, 10);
+  });
+
+  if (clickableItems.length > 0) {
+    await appendLog(pool, job.id, `Clickable items in results:`);
+    for (const ci of clickableItems) {
+      await appendLog(pool, job.id, `  <${ci.tag}> text="${ci.text}" href="${ci.href}" onclick="${ci.onclick}"`);
+    }
+
+    // Click the first item to see detail page
+    const first = clickableItems[0];
+    try {
+      if (first.tag === 'A' && first.href) {
+        await page.evaluate((href) => {
+          const link = Array.from(document.querySelectorAll('a')).find(a => a.href === href);
+          if (link) link.click();
+        }, first.href);
+      } else if (first.onclick) {
+        await page.evaluate((onclick) => {
+          const el = document.querySelector(`[onclick="${onclick}"]`);
+          if (el) el.click();
+        }, first.onclick);
+      }
+
+      await delay(5000);
+      await screenshot(page, 'triwest-item-detail');
+
+      const detailText = await page.evaluate(() => document.body.innerText.slice(0, 4000));
+      await appendLog(pool, job.id, `Item detail page:\n${detailText.slice(0, 3000)}`);
+
+      // Log forms on detail page
+      const detailForms = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('form')).map(f => ({
+          action: f.action, id: f.id,
+          inputs: Array.from(f.querySelectorAll('input, select')).map(i => ({
+            type: i.type, name: i.name, id: i.id, placeholder: i.placeholder, value: (i.value || '').slice(0, 50)
+          }))
+        }));
+      });
+      await appendLog(pool, job.id, `Detail forms: ${JSON.stringify(detailForms, null, 2)}`);
+    } catch (err) {
+      await appendLog(pool, job.id, `Item detail click failed: ${err.message}`);
+    }
+  } else {
+    await appendLog(pool, job.id, 'No clickable items found in search results');
+  }
+
+  // Also try the keyword search bar as a secondary test
+  await appendLog(pool, job.id, '=== KEYWORD SEARCH TEST ===');
+  try {
+    // Go back to dashboard via #home
+    await page.evaluate(() => {
+      const link = document.querySelector('a[href*="#home"]');
+      if (link) link.click();
+    });
+    await delay(3000);
+
+    const searchInput = await page.$('#d24_keywordsearch');
+    if (searchInput) {
+      await searchInput.click({ clickCount: 3 });
+      await searchInput.type('Provenza Moda', { delay: 50 });
+      await page.keyboard.press('Enter');
+      await delay(5000);
+      await screenshot(page, 'triwest-keyword-search');
+
+      const kwText = await page.evaluate(() => document.body.innerText.slice(0, 3000));
+      await appendLog(pool, job.id, `Keyword search results:\n${kwText.slice(0, 2000)}`);
+    }
+  } catch (err) {
+    await appendLog(pool, job.id, `Keyword search failed: ${err.message}`);
+  }
+
+  await appendLog(pool, job.id, 'Discovery complete — review screenshots in uploads folder');
 }
 
-/**
- * Map a DNav category string to a PIM category slug.
- */
-function mapCategory(rawCategory) {
-  if (!rawCategory) return null;
-  const lower = rawCategory.toLowerCase().trim();
-  for (const [key, slug] of Object.entries(CATEGORY_MAP)) {
-    if (lower.includes(key)) return slug;
-  }
-  return null;
-}
 
 /**
  * Build a lookup map of category slug → category ID.
