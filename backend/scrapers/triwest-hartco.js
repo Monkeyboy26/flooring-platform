@@ -12,7 +12,7 @@ const MAX_ERRORS = 30;
  *
  * Scrapes hartco.com for product images, descriptions, and specs.
  * Enriches EXISTING Tri-West SKUs — never creates new products.
- * Tech: Custom
+ * Tech: AEM CMS, Handlebars/Ractive templates
  *
  * Runs AFTER triwest-catalog.js populates SKUs in the DB.
  */
@@ -145,19 +145,56 @@ export async function run(pool, job, source) {
 }
 
 /**
- * Find a product on the brand website and extract images/specs.
+ * Find a product on hartco.com and extract images/specs.
  * Returns { images: string[], description: string, specs: object } or null.
  *
- * Placeholder — will be refined per brand after manual website review.
+ * Hartco is an AHF Products brand (sibling of Bruce/Armstrong).
+ * Same Handlebars/Ractive template system as Bruce.
+ * Product pages: /en-us/products/{category}/{collection}/{sku}.html
+ * Search: /en-us/search-results.html?searchTerm={term}
+ * Products rendered as .card elements with img.product.
+ * Image CDN: /cdn/content/sites/4/{file}?size=detail
+ * Specs in table rows with th/td pairs.
  */
 async function findProductOnSite(page, productGroup, delayMs) {
-  const searchTerm = productGroup.name;
+  const firstSku = productGroup.skus[0];
+  const vendorSku = firstSku.vendor_sku || '';
+  const colorName = productGroup.name;
+  const searchTerm = vendorSku || colorName;
 
   try {
-    await page.goto(`${BASE_URL}/search?q=${encodeURIComponent(searchTerm)}`, {
+    await page.goto(`${BASE_URL}/en-us/search-results.html?searchTerm=${encodeURIComponent(searchTerm)}`, {
       waitUntil: 'networkidle2',
-      timeout: 15000,
+      timeout: 20000,
     });
+    await delay(delayMs);
+
+    // Wait for client-side rendering of product cards
+    await page.waitForSelector('.card a, .browse-products .card', { timeout: 8000 }).catch(() => null);
+
+    // Find the best matching product detail link
+    const detailUrl = await page.evaluate((name, sku) => {
+      const cards = document.querySelectorAll('.card');
+      const nameLower = name.toLowerCase();
+      const skuLower = sku.toLowerCase();
+
+      for (const card of cards) {
+        const text = card.textContent.toLowerCase();
+        const link = card.querySelector('a[href*="/en-us/"]');
+        if (link && skuLower && text.includes(skuLower)) return link.href;
+      }
+      for (const card of cards) {
+        const text = card.textContent.toLowerCase();
+        const link = card.querySelector('a[href*="/en-us/"]');
+        if (link && text.includes(nameLower)) return link.href;
+      }
+      const firstLink = document.querySelector('.card a[href*="/en-us/products/"], .card a[href*=".html"]');
+      return firstLink ? firstLink.href : null;
+    }, colorName, vendorSku);
+
+    if (!detailUrl) return null;
+
+    await page.goto(detailUrl, { waitUntil: 'networkidle2', timeout: 20000 });
     await delay(delayMs);
   } catch {
     return null;
@@ -165,38 +202,74 @@ async function findProductOnSite(page, productGroup, delayMs) {
 
   const data = await page.evaluate(() => {
     const images = [];
-    const imgElements = document.querySelectorAll('img[src*="product"], img[src*="collection"], img.product-image, img[class*="product"]');
-    for (const img of imgElements) {
-      const src = img.src || img.dataset.src;
-      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon')) {
-        images.push(src);
+    const seen = new Set();
+    document.querySelectorAll('img[src*="/cdn/"], img[src*="?size="]').forEach(img => {
+      const src = img.src || img.dataset?.src || '';
+      if (src && !src.includes('logo') && !src.includes('icon') && !src.includes('nav')) {
+        const clean = src.replace(/\?size=\w+/, '?size=detail');
+        if (!seen.has(clean)) {
+          seen.add(clean);
+          images.push(clean);
+        }
       }
+    });
+    document.querySelectorAll('[data-src*="/cdn/"], [data-image*="/cdn/"]').forEach(el => {
+      const src = el.dataset.src || el.dataset.image || '';
+      if (src && !seen.has(src)) {
+        seen.add(src);
+        images.push(src.includes('?') ? src : src + '?size=detail');
+      }
+    });
+
+    let description = null;
+    document.querySelectorAll('script[type="application/ld+json"]').forEach(s => {
+      try {
+        const d = JSON.parse(s.textContent);
+        if (d['@type'] === 'Product' && d.description) {
+          description = d.description.trim().slice(0, 2000);
+        }
+      } catch { }
+    });
+    if (!description) {
+      const descEl = document.querySelector('.product-description, [class*="description"] p, .detail-content p');
+      if (descEl) description = descEl.textContent.trim().slice(0, 2000);
     }
 
-    const descEl = document.querySelector('[class*="description"], [class*="about"], .product-description, article p');
-    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
-
     const specs = {};
-    const specRows = document.querySelectorAll('[class*="spec"] tr, [class*="detail"] tr, dl dt');
-    for (const row of specRows) {
-      const cells = row.querySelectorAll('td, dd');
-      const label = (row.querySelector('th, dt')?.textContent || '').trim().toLowerCase();
-      const value = cells[0]?.textContent?.trim();
-      if (label && value) {
+    document.querySelectorAll('tr').forEach(row => {
+      const th = row.querySelector('th, td:first-child');
+      const td = row.querySelector('td:last-child');
+      if (th && td && th !== td) {
+        const label = th.textContent.trim().toLowerCase();
+        const value = td.textContent.trim();
+        if (!label || !value) return;
+        if (label.includes('thickness') && !label.includes('veneer')) specs.thickness = value;
+        if (label.includes('width') || label.includes('plank width')) specs.size = value;
+        if (label.includes('surface') || label.includes('finish') || label.includes('texture')) specs.finish = value;
+        if (label.includes('species') || label.includes('wood type')) specs.material = value;
+        if (label.includes('edge')) specs.edge = value;
+        if (label.includes('construction')) specs.construction = value;
+        if (label.includes('installation')) specs.installation = value;
+        if (label.includes('janka')) specs.janka_hardness = value;
+      }
+    });
+    document.querySelectorAll('dl').forEach(dl => {
+      const dts = dl.querySelectorAll('dt');
+      const dds = dl.querySelectorAll('dd');
+      for (let i = 0; i < Math.min(dts.length, dds.length); i++) {
+        const label = dts[i].textContent.trim().toLowerCase();
+        const value = dds[i].textContent.trim();
         if (label.includes('thickness')) specs.thickness = value;
         if (label.includes('width')) specs.size = value;
         if (label.includes('finish')) specs.finish = value;
-        if (label.includes('species') || label.includes('material')) specs.material = value;
+        if (label.includes('species')) specs.material = value;
         if (label.includes('edge')) specs.edge = value;
       }
-    }
+    });
 
     return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
   });
 
-  if (data.images.length === 0 && !data.description && !data.specs) {
-    return null;
-  }
-
+  if (data.images.length === 0 && !data.description && !data.specs) return null;
   return data;
 }

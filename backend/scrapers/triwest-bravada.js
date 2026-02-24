@@ -145,58 +145,131 @@ export async function run(pool, job, source) {
 }
 
 /**
- * Find a product on the brand website and extract images/specs.
+ * Find a product on bravadahardwood.com and extract images/specs.
  * Returns { images: string[], description: string, specs: object } or null.
  *
- * Placeholder — will be refined per brand after manual website review.
+ * Bravada is a Squarespace site with a JSON API at /store?format=json.
+ * Product URLs: /store/{slug} (e.g., /store/cayenne-bcew001)
+ * Images: images.squarespace-cdn.com with ?format=1500w sizing
+ * Specs in excerpt HTML: <strong>LABEL</strong> Value<br>
+ * Only ~14 products total — small catalog.
  */
 async function findProductOnSite(page, productGroup, delayMs) {
-  const searchTerm = productGroup.name;
+  const colorName = productGroup.name.toLowerCase();
+  const firstSku = productGroup.skus[0];
+  const vendorSku = (firstSku.vendor_sku || '').toLowerCase();
 
   try {
-    await page.goto(`${BASE_URL}/search?q=${encodeURIComponent(searchTerm)}`, {
+    // Navigate to the product store page and search for our product
+    await page.goto(`${BASE_URL}/store?format=json`, {
       waitUntil: 'networkidle2',
       timeout: 15000,
     });
     await delay(delayMs);
+
+    // Parse the JSON response from the Squarespace API
+    const jsonText = await page.evaluate(() => document.body?.innerText || '');
+    let storeData;
+    try {
+      storeData = JSON.parse(jsonText);
+    } catch {
+      // If JSON parse fails, try the HTML product page approach
+      return await findProductViaHtml(page, productGroup, delayMs);
+    }
+
+    if (!storeData?.items?.length) return await findProductViaHtml(page, productGroup, delayMs);
+
+    // Find matching product by SKU code or color name
+    const match = storeData.items.find(item => {
+      const title = (item.title || '').toLowerCase();
+      const urlId = (item.urlId || '').toLowerCase();
+      if (vendorSku && (title.includes(vendorSku) || urlId.includes(vendorSku))) return true;
+      if (colorName && title.includes(colorName)) return true;
+      return false;
+    });
+
+    if (!match) return await findProductViaHtml(page, productGroup, delayMs);
+
+    // Extract images from the Squarespace item
+    const images = [];
+    if (match.items) {
+      for (const img of match.items) {
+        if (img.assetUrl) {
+          images.push(img.assetUrl + '?format=1500w');
+        }
+      }
+    }
+
+    // Parse specs from the excerpt HTML (format: <strong>LABEL</strong> Value<br>)
+    const specs = {};
+    const excerpt = match.excerpt || '';
+    const specMatches = excerpt.matchAll(/<strong>([^<]+)<\/strong>\s*([^<]+)/gi);
+    for (const m of specMatches) {
+      const label = m[1].trim().toLowerCase();
+      const value = m[2].trim();
+      if (!value) continue;
+      if (label.includes('size')) specs.thickness = value;
+      if (label.includes('species')) specs.material = value;
+      if (label.includes('finish')) specs.finish = value;
+      if (label.includes('grade')) specs.grade = value;
+      if (label.includes('wear layer')) specs.wear_layer = value;
+      if (label.includes('sq ft')) specs.sqft_per_carton = value;
+    }
+
+    // Build a description from the title and category
+    const categories = match.categories || [];
+    const description = categories.length > 0
+      ? `${match.title} from the ${categories.join(', ')} collection by Bravada Hardwood.`
+      : null;
+
+    return {
+      images,
+      description,
+      specs: Object.keys(specs).length > 0 ? specs : null,
+    };
+  } catch {
+    return await findProductViaHtml(page, productGroup, delayMs);
+  }
+}
+
+/** Fallback: navigate to the store page as HTML and scrape the DOM */
+async function findProductViaHtml(page, productGroup, delayMs) {
+  const colorName = productGroup.name;
+  try {
+    await page.goto(`${BASE_URL}/store`, { waitUntil: 'networkidle2', timeout: 15000 });
+    await delay(delayMs);
+
+    // Look for a product link matching our color name
+    const productUrl = await page.evaluate((name) => {
+      const links = document.querySelectorAll('a[href*="/store/"]');
+      for (const a of links) {
+        if (a.textContent.toLowerCase().includes(name.toLowerCase())) {
+          return a.href;
+        }
+      }
+      return null;
+    }, colorName);
+
+    if (!productUrl) return null;
+
+    await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+    await delay(delayMs);
+
+    return page.evaluate(() => {
+      const images = [];
+      document.querySelectorAll('.ProductItem-gallery img, img[data-image]').forEach(img => {
+        const src = img.src || img.dataset?.src || img.dataset?.image;
+        if (src && src.includes('squarespace-cdn') && !src.includes('logo')) {
+          images.push(src.split('?')[0] + '?format=1500w');
+        }
+      });
+
+      const descEl = document.querySelector('.ProductItem-details-excerpt, .product-excerpt');
+      const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
+
+      return { images, description, specs: null };
+    });
   } catch {
     return null;
   }
-
-  const data = await page.evaluate(() => {
-    const images = [];
-    const imgElements = document.querySelectorAll('img[src*="product"], img[src*="collection"], img.product-image, img[class*="product"]');
-    for (const img of imgElements) {
-      const src = img.src || img.dataset.src;
-      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon')) {
-        images.push(src);
-      }
-    }
-
-    const descEl = document.querySelector('[class*="description"], [class*="about"], .product-description, article p');
-    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
-
-    const specs = {};
-    const specRows = document.querySelectorAll('[class*="spec"] tr, [class*="detail"] tr, dl dt');
-    for (const row of specRows) {
-      const cells = row.querySelectorAll('td, dd');
-      const label = (row.querySelector('th, dt')?.textContent || '').trim().toLowerCase();
-      const value = cells[0]?.textContent?.trim();
-      if (label && value) {
-        if (label.includes('thickness')) specs.thickness = value;
-        if (label.includes('width')) specs.size = value;
-        if (label.includes('finish')) specs.finish = value;
-        if (label.includes('species') || label.includes('material')) specs.material = value;
-        if (label.includes('edge')) specs.edge = value;
-      }
-    }
-
-    return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
-  });
-
-  if (data.images.length === 0 && !data.description && !data.specs) {
-    return null;
-  }
-
-  return data;
 }

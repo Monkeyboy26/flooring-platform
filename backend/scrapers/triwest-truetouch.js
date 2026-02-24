@@ -12,7 +12,7 @@ const MAX_ERRORS = 30;
  *
  * Scrapes truetouchfloors.com for product images, descriptions, and specs.
  * Enriches EXISTING Tri-West SKUs — never creates new products.
- * Tech: Custom
+ * Tech: Squarespace
  *
  * Runs AFTER triwest-catalog.js populates SKUs in the DB.
  */
@@ -145,58 +145,158 @@ export async function run(pool, job, source) {
 }
 
 /**
- * Find a product on the brand website and extract images/specs.
+ * Find a product on truetouchfloors.com and extract images/specs.
  * Returns { images: string[], description: string, specs: object } or null.
  *
- * Placeholder — will be refined per brand after manual website review.
+ * True Touch is a Squarespace site. Collection-based structure.
+ * Category pages: /wpc-flooring, /spc-flooring, /real-hardwood-flooring, etc.
+ * Collection URLs: /{collection-slug} (e.g., /evolv, /momentum, /longboard)
+ * Images: images.squarespace-cdn.com
  */
 async function findProductOnSite(page, productGroup, delayMs) {
-  const searchTerm = productGroup.name;
+  const colorName = productGroup.name;
+  const collection = productGroup.collection;
+
+  // Strip brand prefix from collection to get the collection slug
+  const collectionName = collection.replace(/^True\s*Touch\s*/i, '').trim();
+  const collectionSlug = collectionName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const colorSlug = colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
   try {
-    await page.goto(`${BASE_URL}/search?q=${encodeURIComponent(searchTerm)}`, {
-      waitUntil: 'networkidle2',
-      timeout: 15000,
-    });
-    await delay(delayMs);
+    // Strategy 1: Try direct color slug page
+    let found = await tryPage(page, `${BASE_URL}/${colorSlug}`, delayMs);
+    if (found) return found;
+
+    // Strategy 2: Try collection slug page (products may be shown on collection page)
+    found = await tryPage(page, `${BASE_URL}/${collectionSlug}`, delayMs);
+    if (found) return found;
+
+    // Strategy 3: Try combined collection-color slug
+    found = await tryPage(page, `${BASE_URL}/${collectionSlug}-${colorSlug}`, delayMs);
+    if (found) return found;
+
+    // Strategy 4: Browse category pages to find product links
+    return await findProductViaCategories(page, productGroup, delayMs);
   } catch {
     return null;
   }
+}
 
-  const data = await page.evaluate(() => {
-    const images = [];
-    const imgElements = document.querySelectorAll('img[src*="product"], img[src*="collection"], img.product-image, img[class*="product"]');
-    for (const img of imgElements) {
-      const src = img.src || img.dataset.src;
-      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon')) {
-        images.push(src);
-      }
-    }
+/** Try loading a specific page and extracting product data */
+async function tryPage(page, url, delayMs) {
+  try {
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
+    await delay(delayMs);
 
-    const descEl = document.querySelector('[class*="description"], [class*="about"], .product-description, article p');
-    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
+    const is404 = await page.evaluate(() => {
+      const body = document.body?.textContent || '';
+      return document.title.includes('Page Not Found') ||
+             body.includes('page not found') ||
+             document.querySelector('.sqs-error-page') !== null;
+    });
 
-    const specs = {};
-    const specRows = document.querySelectorAll('[class*="spec"] tr, [class*="detail"] tr, dl dt');
-    for (const row of specRows) {
-      const cells = row.querySelectorAll('td, dd');
-      const label = (row.querySelector('th, dt')?.textContent || '').trim().toLowerCase();
-      const value = cells[0]?.textContent?.trim();
-      if (label && value) {
-        if (label.includes('thickness')) specs.thickness = value;
-        if (label.includes('width')) specs.size = value;
-        if (label.includes('finish')) specs.finish = value;
-        if (label.includes('species') || label.includes('material')) specs.material = value;
-        if (label.includes('edge')) specs.edge = value;
-      }
-    }
+    if (is404) return null;
 
-    return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
-  });
-
-  if (data.images.length === 0 && !data.description && !data.specs) {
+    return await extractTrueTouchData(page);
+  } catch {
     return null;
   }
+}
 
+/** Extract product data from a True Touch page */
+async function extractTrueTouchData(page) {
+  const data = await page.evaluate(() => {
+    const images = [];
+
+    // Squarespace images
+    document.querySelectorAll('img[src*="squarespace-cdn"], img[data-src*="squarespace-cdn"]').forEach(img => {
+      const src = img.src || img.dataset.src || img.dataset.image;
+      if (src && !src.includes('logo') && !src.includes('favicon') && !src.includes('icon')) {
+        images.push(src.split('?')[0] + '?format=1500w');
+      }
+    });
+
+    // Background images in Squarespace blocks
+    document.querySelectorAll('[data-image], .sqs-image-shape-container-element').forEach(el => {
+      const bgUrl = el.dataset.image || el.dataset.src;
+      if (bgUrl && bgUrl.includes('squarespace-cdn')) {
+        images.push(bgUrl.split('?')[0] + '?format=1500w');
+      }
+    });
+
+    // Extract specs from text content
+    const specs = {};
+    const textContent = document.body?.innerText || '';
+    const lines = textContent.split('\n').map(l => l.trim()).filter(Boolean);
+
+    for (const line of lines) {
+      const lower = line.toLowerCase();
+      const match = line.match(/^(thickness|width|length|wear\s*layer|finish|edge|construction|warranty|species|material|size|plank\s*size)[:\s-]+(.+)/i);
+      if (match) {
+        const label = match[1].toLowerCase().trim();
+        const value = match[2].trim();
+        if (label.includes('thickness')) specs.thickness = value;
+        if (label.includes('width') || label.includes('size')) specs.size = value;
+        if (label.includes('wear')) specs.wear_layer = value;
+        if (label.includes('finish')) specs.finish = value;
+        if (label.includes('edge')) specs.edge = value;
+        if (label.includes('species') || label.includes('material')) specs.material = value;
+        if (label.includes('construction')) specs.construction = value;
+        if (label.includes('warranty')) specs.warranty = value;
+      }
+      // Also match dimension patterns like "7" x 48""
+      if (!specs.size && lower.match(/\d+["″]?\s*x\s*\d+["″]/)) {
+        const dimMatch = line.match(/(\d+["″]?\s*x\s*\d+["″]?[^,.\n]*)/i);
+        if (dimMatch) specs.size = dimMatch[1].trim();
+      }
+    }
+
+    // Description
+    const descEl = document.querySelector('.sqs-block-content p, .sqs-layout p, article p');
+    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
+
+    return {
+      images: [...new Set(images)],
+      description,
+      specs: Object.keys(specs).length > 0 ? specs : null,
+    };
+  });
+
+  if (data.images.length === 0 && !data.description && !data.specs) return null;
   return data;
+}
+
+/** Browse category pages to find product links */
+async function findProductViaCategories(page, productGroup, delayMs) {
+  const colorName = productGroup.name.toLowerCase();
+  const categoryPaths = ['/wpc-flooring', '/spc-flooring', '/real-hardwood-flooring', '/monotech-waterproof-wood-flooring', '/waterproof-laminate-flooring'];
+
+  for (const cat of categoryPaths) {
+    try {
+      await page.goto(`${BASE_URL}${cat}`, { waitUntil: 'networkidle2', timeout: 15000 });
+      await delay(delayMs);
+
+      const productUrl = await page.evaluate((name) => {
+        const links = document.querySelectorAll('a[href]');
+        for (const a of links) {
+          const text = (a.textContent || '').toLowerCase();
+          const href = (a.getAttribute('href') || '').toLowerCase();
+          if (text.includes(name) || href.includes(name.replace(/\s+/g, '-'))) {
+            return a.href;
+          }
+        }
+        return null;
+      }, colorName);
+
+      if (productUrl) {
+        await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+        await delay(delayMs);
+        return await extractTrueTouchData(page);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }

@@ -4452,7 +4452,12 @@ const BROWSER_SCRAPERS = new Set([
   'triwest-provenza', 'triwest-paradigm', 'triwest-quickstep', 'triwest-armstrong',
   'triwest-metroflor', 'triwest-mirage', 'triwest-calclassics', 'triwest-grandpacific',
   'triwest-bravada', 'triwest-hartco', 'triwest-truetouch', 'triwest-citywide',
-  'triwest-ahf', 'triwest-flexco', 'triwest-opulux',
+  'triwest-ahf', 'triwest-flexco', 'triwest-opulux', 'triwest-shaw', 'triwest-stanton',
+  'triwest-bruce', 'triwest-congoleum', 'triwest-kraus', 'triwest-sika',
+  'triwest-usrubber', 'triwest-tec', 'triwest-kenmark', 'triwest-bosphorus',
+  'triwest-babool', 'triwest-elysium', 'triwest-forester', 'triwest-hardwoodsspecialty',
+  'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit', 'triwest-traditions',
+  'triwest-wftaylor',
 ]);
 
 // Concurrency control for browser-based scrapers (max 2 simultaneous)

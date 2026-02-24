@@ -12,7 +12,7 @@ const MAX_ERRORS = 30;
  *
  * Scrapes miragefloors.com for product images, descriptions, and specs.
  * Enriches EXISTING Tri-West SKUs — never creates new products.
- * Tech: Custom
+ * Tech: Vue.js / Custom, WebP images
  *
  * Runs AFTER triwest-catalog.js populates SKUs in the DB.
  */
@@ -145,58 +145,171 @@ export async function run(pool, job, source) {
 }
 
 /**
- * Find a product on the brand website and extract images/specs.
+ * Find a product on miragefloors.com and extract images/specs.
  * Returns { images: string[], description: string, specs: object } or null.
  *
- * Placeholder — will be refined per brand after manual website review.
+ * Mirage Hardwood Floors — client-rendered site (Vue.js / custom).
+ * Product URLs: /en-us/hardwood-flooring-{species}-{color}-{finish}
+ * Collection pages: /en-us/hardwood-flooring (browse by species/collection)
+ * Images: WebP from miragefloors.com/static/vb/ CDN
+ * Vue Select dropdowns for color variant selection.
+ * Specs in structured sections on product detail pages.
+ *
+ * Strategy: Build a product URL slug from color name + collection,
+ * or search via site search, then extract from rendered detail page.
  */
 async function findProductOnSite(page, productGroup, delayMs) {
-  const searchTerm = productGroup.name;
+  const firstSku = productGroup.skus[0];
+  const vendorSku = firstSku.vendor_sku || '';
+  const colorName = productGroup.name;
+  // Strip brand prefix: "Mirage Sweet Memories" → "Sweet Memories"
+  const collection = productGroup.collection.replace(/^Mirage\s*/i, '').trim();
 
-  try {
-    await page.goto(`${BASE_URL}/search?q=${encodeURIComponent(searchTerm)}`, {
-      waitUntil: 'networkidle2',
-      timeout: 15000,
-    });
-    await delay(delayMs);
-  } catch {
-    return null;
+  // Try to build a URL slug from color name (Mirage uses kebab-case slugs)
+  const colorSlug = colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const collectionSlug = collection.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  let loaded = false;
+
+  // Attempt 1: Direct product URL with collection and color
+  const candidateUrls = [
+    `${BASE_URL}/en-us/hardwood-flooring-${collectionSlug}-${colorSlug}`,
+    `${BASE_URL}/en-us/engineered-hardwood-flooring-${collectionSlug}-${colorSlug}`,
+    `${BASE_URL}/en-us/${collectionSlug}-${colorSlug}`,
+  ];
+
+  for (const url of candidateUrls) {
+    try {
+      const response = await page.goto(url, { waitUntil: 'networkidle2', timeout: 12000 });
+      await delay(delayMs);
+      if (response && response.status() === 200 && !page.url().includes('/404') && !page.url().endsWith('/en-us/')) {
+        loaded = true;
+        break;
+      }
+    } catch { /* try next */ }
   }
 
-  const data = await page.evaluate(() => {
-    const images = [];
-    const imgElements = document.querySelectorAll('img[src*="product"], img[src*="collection"], img.product-image, img[class*="product"]');
-    for (const img of imgElements) {
-      const src = img.src || img.dataset.src;
-      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon')) {
-        images.push(src);
+  // Attempt 2: Browse collection page and find color link
+  if (!loaded) {
+    try {
+      await page.goto(`${BASE_URL}/en-us/hardwood-flooring`, { waitUntil: 'networkidle2', timeout: 15000 });
+      await delay(delayMs);
+
+      // Wait for client-side rendering
+      await page.waitForSelector('a[href*="/en-us/"]', { timeout: 8000 }).catch(() => null);
+
+      const productUrl = await page.evaluate((color, coll) => {
+        const colorLower = color.toLowerCase();
+        const collLower = coll.toLowerCase();
+        const links = document.querySelectorAll('a[href*="/en-us/"]');
+        // Match by color name in link text or href
+        for (const a of links) {
+          const href = a.getAttribute('href') || '';
+          const text = a.textContent.toLowerCase();
+          if ((text.includes(colorLower) || href.toLowerCase().includes(colorLower.replace(/\s+/g, '-'))) &&
+              !href.includes('blog') && !href.includes('faq') && !href.includes('dealer')) {
+            return href.startsWith('http') ? href : null;
+          }
+        }
+        // Match by collection in link text
+        for (const a of links) {
+          const text = a.textContent.toLowerCase();
+          const href = a.getAttribute('href') || '';
+          if (text.includes(collLower) && !href.includes('blog')) {
+            return href.startsWith('http') ? href : null;
+          }
+        }
+        return null;
+      }, colorName, collection);
+
+      if (productUrl) {
+        await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+        await delay(delayMs);
+        loaded = true;
       }
+    } catch { /* fall through */ }
+  }
+
+  if (!loaded) return null;
+
+  // Wait for images to load on the detail page
+  await page.waitForSelector('img[src*="/static/vb/"], img[src*="miragefloors"], img[src*=".webp"]', { timeout: 5000 }).catch(() => null);
+
+  const data = await page.evaluate(() => {
+    // 1. Images — Mirage serves WebP from /static/vb/ CDN
+    const images = [];
+    const seen = new Set();
+    document.querySelectorAll('img').forEach(img => {
+      const src = img.src || img.dataset?.src || img.dataset?.lazySrc || '';
+      if (src && (src.includes('/static/vb/') || src.includes('miragefloors.com')) &&
+          !src.includes('logo') && !src.includes('icon') && !src.includes('nav') &&
+          !src.includes('flag') && !src.includes('social')) {
+        const clean = src.split('?')[0];
+        if (!seen.has(clean)) {
+          seen.add(clean);
+          images.push(src);
+        }
+      }
+    });
+    // Background images in style attributes
+    document.querySelectorAll('[style*="/static/vb/"]').forEach(el => {
+      const match = el.style.backgroundImage?.match(/url\(['"]?(https?:\/\/[^'")]+)['"]?\)/);
+      if (match && !seen.has(match[1].split('?')[0])) {
+        seen.add(match[1].split('?')[0]);
+        images.push(match[1]);
+      }
+    });
+
+    // 2. Description
+    let description = null;
+    const descEl = document.querySelector('[class*="description"] p, .product-description, .product-info p, article p');
+    if (descEl) description = descEl.textContent.trim().slice(0, 2000);
+    // Fallback: meta description
+    if (!description) {
+      const meta = document.querySelector('meta[name="description"]');
+      if (meta?.content && meta.content.length > 30) description = meta.content.trim().slice(0, 2000);
     }
 
-    const descEl = document.querySelector('[class*="description"], [class*="about"], .product-description, article p');
-    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
-
+    // 3. Specs — Mirage uses structured spec sections
     const specs = {};
-    const specRows = document.querySelectorAll('[class*="spec"] tr, [class*="detail"] tr, dl dt');
-    for (const row of specRows) {
-      const cells = row.querySelectorAll('td, dd');
-      const label = (row.querySelector('th, dt')?.textContent || '').trim().toLowerCase();
-      const value = cells[0]?.textContent?.trim();
-      if (label && value) {
+    document.querySelectorAll('tr, li, .spec-row, [class*="spec"]').forEach(el => {
+      const text = el.textContent.trim().toLowerCase();
+      if (text.includes('thickness') && text.includes('"')) {
+        specs.thickness = el.textContent.replace(/.*thickness[:\s]*/i, '').trim();
+      }
+      if (text.includes('width') && (text.includes('"') || text.includes('mm'))) {
+        specs.size = el.textContent.replace(/.*width[:\s]*/i, '').trim();
+      }
+      if (text.includes('species') || text.includes('wood type')) {
+        specs.material = el.textContent.replace(/.*(?:species|wood type)[:\s]*/i, '').trim();
+      }
+      if (text.includes('finish') && !text.includes('unfinished')) {
+        specs.finish = el.textContent.replace(/.*finish[:\s]*/i, '').trim();
+      }
+      if (text.includes('edge')) {
+        specs.edge = el.textContent.replace(/.*edge[:\s]*/i, '').trim();
+      }
+      if (text.includes('construction')) {
+        specs.construction = el.textContent.replace(/.*construction[:\s]*/i, '').trim();
+      }
+    });
+    // Also try table-based specs
+    document.querySelectorAll('table tr').forEach(row => {
+      const cells = row.querySelectorAll('td, th');
+      if (cells.length >= 2) {
+        const label = cells[0].textContent.trim().toLowerCase();
+        const value = cells[1].textContent.trim();
         if (label.includes('thickness')) specs.thickness = value;
         if (label.includes('width')) specs.size = value;
+        if (label.includes('species')) specs.material = value;
         if (label.includes('finish')) specs.finish = value;
-        if (label.includes('species') || label.includes('material')) specs.material = value;
-        if (label.includes('edge')) specs.edge = value;
+        if (label.includes('grade')) specs.grade = value;
       }
-    }
+    });
 
     return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
   });
 
-  if (data.images.length === 0 && !data.description && !data.specs) {
-    return null;
-  }
-
+  if (data.images.length === 0 && !data.description && !data.specs) return null;
   return data;
 }

@@ -12,7 +12,7 @@ const MAX_ERRORS = 30;
  *
  * Scrapes opuluxfloors.com for product images, descriptions, and specs.
  * Enriches EXISTING Tri-West SKUs — never creates new products.
- * Tech: Custom
+ * Tech: WordPress + Elementor + WooCommerce, Cloudinary CDN
  *
  * Runs AFTER triwest-catalog.js populates SKUs in the DB.
  */
@@ -145,58 +145,159 @@ export async function run(pool, job, source) {
 }
 
 /**
- * Find a product on the brand website and extract images/specs.
+ * Find a product on opuluxfloors.com and extract images/specs.
  * Returns { images: string[], description: string, specs: object } or null.
  *
- * Placeholder — will be refined per brand after manual website review.
+ * Opulux is a WordPress + Elementor + WooCommerce site with Cloudinary CDN images.
+ * Product URLs: /product/{name}/ (e.g., /product/vogue/, /product/posh/)
+ * Shop page: /shop-2/
+ * Images: res.cloudinary.com/dm3lyhcdj (lazy loaded via data-cloudinary="lazy")
+ * Specs: Structured "Product Specifications" section with Size, Wear Layer, Texture, etc.
+ * ~10 products total: Vogue, Haute, Posh, Passion, Utopia, Craze, Flair, Aurora, Dazzle, Radiance
  */
 async function findProductOnSite(page, productGroup, delayMs) {
-  const searchTerm = productGroup.name;
+  const colorName = productGroup.name;
+  const slug = colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
   try {
-    await page.goto(`${BASE_URL}/search?q=${encodeURIComponent(searchTerm)}`, {
+    // Try direct WooCommerce product URL
+    await page.goto(`${BASE_URL}/product/${slug}/`, {
       waitUntil: 'networkidle2',
       timeout: 15000,
     });
     await delay(delayMs);
+
+    // Check if valid product page (WooCommerce adds body class)
+    const isProduct = await page.evaluate(() => {
+      return document.body?.classList.contains('single-product') ||
+             document.querySelector('.woocommerce-product-gallery') !== null ||
+             document.querySelector('.product_title') !== null;
+    });
+
+    if (isProduct) {
+      return await extractOpuluxData(page);
+    }
+
+    // Fallback: browse shop page for matching product
+    return await findProductViaShop(page, productGroup, delayMs);
   } catch {
-    return null;
+    return await findProductViaShop(page, productGroup, delayMs);
   }
+}
+
+/** Extract product data from an Opulux WooCommerce product page */
+async function extractOpuluxData(page) {
+  // Scroll to trigger lazy loading of Cloudinary images
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await delay(1500);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await delay(500);
 
   const data = await page.evaluate(() => {
     const images = [];
-    const imgElements = document.querySelectorAll('img[src*="product"], img[src*="collection"], img.product-image, img[class*="product"]');
-    for (const img of imgElements) {
-      const src = img.src || img.dataset.src;
-      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon')) {
+
+    // WooCommerce gallery images
+    document.querySelectorAll('.woocommerce-product-gallery img, .woocommerce-product-gallery__image img').forEach(img => {
+      const src = img.src || img.dataset.src || img.dataset.largeSrc;
+      if (src && src.startsWith('http') && !src.includes('placeholder')) {
         images.push(src);
       }
+    });
+
+    // Cloudinary lazy-loaded images
+    document.querySelectorAll('img[data-cloudinary], img[src*="cloudinary"], img[data-src*="cloudinary"]').forEach(img => {
+      const src = img.src || img.dataset.src || img.dataset.lazySrc;
+      if (src && src.includes('cloudinary') && !images.includes(src)) {
+        images.push(src);
+      }
+    });
+
+    // Elementor widget images
+    document.querySelectorAll('.elementor-widget-image img, .elementor-image img').forEach(img => {
+      const src = img.src || img.dataset.src;
+      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon') && !src.includes('placeholder')) {
+        if (!images.includes(src)) images.push(src);
+      }
+    });
+
+    // Extract specs from "Product Specifications" section
+    const specs = {};
+    const textContent = document.body?.innerText || '';
+
+    // Look for spec patterns in the page text
+    const specPatterns = [
+      { regex: /size[:\s]+([^\n]+)/i, key: 'size' },
+      { regex: /wear\s*layer[:\s]+([^\n]+)/i, key: 'wear_layer' },
+      { regex: /texture[:\s]+([^\n]+)/i, key: 'finish' },
+      { regex: /edge[:\s]+([^\n]+)/i, key: 'edge' },
+      { regex: /underlayment[:\s]+([^\n]+)/i, key: 'underlayment' },
+      { regex: /locking\s*system[:\s]+([^\n]+)/i, key: 'locking_system' },
+      { regex: /application[:\s]+([^\n]+)/i, key: 'application' },
+      { regex: /thickness[:\s]+([^\n]+)/i, key: 'thickness' },
+      { regex: /warranty[:\s]+([^\n]+)/i, key: 'warranty' },
+    ];
+
+    for (const { regex, key } of specPatterns) {
+      const match = textContent.match(regex);
+      if (match) specs[key] = match[1].trim();
     }
 
-    const descEl = document.querySelector('[class*="description"], [class*="about"], .product-description, article p');
-    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
-
-    const specs = {};
-    const specRows = document.querySelectorAll('[class*="spec"] tr, [class*="detail"] tr, dl dt');
-    for (const row of specRows) {
-      const cells = row.querySelectorAll('td, dd');
-      const label = (row.querySelector('th, dt')?.textContent || '').trim().toLowerCase();
-      const value = cells[0]?.textContent?.trim();
+    // Also try WooCommerce additional information table
+    document.querySelectorAll('.woocommerce-product-attributes tr, .shop_attributes tr').forEach(row => {
+      const label = (row.querySelector('th')?.textContent || '').trim().toLowerCase();
+      const value = (row.querySelector('td')?.textContent || '').trim();
       if (label && value) {
+        if (label.includes('size') || label.includes('dimension')) specs.size = value;
+        if (label.includes('wear')) specs.wear_layer = value;
         if (label.includes('thickness')) specs.thickness = value;
-        if (label.includes('width')) specs.size = value;
-        if (label.includes('finish')) specs.finish = value;
-        if (label.includes('species') || label.includes('material')) specs.material = value;
+        if (label.includes('finish') || label.includes('texture')) specs.finish = value;
         if (label.includes('edge')) specs.edge = value;
       }
-    }
+    });
 
-    return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
+    // Description from WooCommerce product description
+    const descEl = document.querySelector('.woocommerce-product-details__short-description, .product-description, .entry-summary .description');
+    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
+
+    return {
+      images: [...new Set(images)],
+      description,
+      specs: Object.keys(specs).length > 0 ? specs : null,
+    };
   });
 
-  if (data.images.length === 0 && !data.description && !data.specs) {
+  if (data.images.length === 0 && !data.description && !data.specs) return null;
+  return data;
+}
+
+/** Fallback: browse shop page to find matching product */
+async function findProductViaShop(page, productGroup, delayMs) {
+  const colorName = productGroup.name;
+  try {
+    await page.goto(`${BASE_URL}/shop-2/`, { waitUntil: 'networkidle2', timeout: 15000 });
+    await delay(delayMs);
+
+    const productUrl = await page.evaluate((name) => {
+      const nameLower = name.toLowerCase();
+      // WooCommerce product links
+      const links = document.querySelectorAll('a.woocommerce-LoopProduct-link, a[href*="/product/"], .products a');
+      for (const a of links) {
+        const text = (a.textContent || '').toLowerCase();
+        const href = (a.getAttribute('href') || '').toLowerCase();
+        if (text.includes(nameLower) || href.includes(nameLower.replace(/\s+/g, '-'))) {
+          return a.href;
+        }
+      }
+      return null;
+    }, colorName);
+
+    if (!productUrl) return null;
+
+    await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+    await delay(delayMs);
+
+    return await extractOpuluxData(page);
+  } catch {
     return null;
   }
-
-  return data;
 }

@@ -12,7 +12,7 @@ const MAX_ERRORS = 30;
  *
  * Scrapes paradigmflooring.net for product images, descriptions, and specs.
  * Enriches EXISTING Tri-West SKUs — never creates new products.
- * Tech: Wix
+ * Tech: Wix (Thunderbolt)
  *
  * Runs AFTER triwest-catalog.js populates SKUs in the DB.
  */
@@ -145,58 +145,167 @@ export async function run(pool, job, source) {
 }
 
 /**
- * Find a product on the brand website and extract images/specs.
+ * Find a product on paradigmflooring.net and extract images/specs.
  * Returns { images: string[], description: string, specs: object } or null.
  *
- * Placeholder — will be refined per brand after manual website review.
+ * Paradigm is a Wix (Thunderbolt) site.
+ * Product URLs: /items/{bird-name-slug} (e.g., /items/oriole, /items/falcon)
+ * Images: static.wixstatic.com/media/497d1e_{hash}~mv2.jpg with fill params
+ * Specs: rendered dynamically by Wix — extract from page text via keyword matching
+ * Collections: Performer, Performer 20mil, Paradigm Insignia, Conquest, Odyssey, Performer Painted Bevel
  */
 async function findProductOnSite(page, productGroup, delayMs) {
-  const searchTerm = productGroup.name;
+  const colorName = productGroup.name;
+  const slug = colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
   try {
-    await page.goto(`${BASE_URL}/search?q=${encodeURIComponent(searchTerm)}`, {
-      waitUntil: 'networkidle2',
-      timeout: 15000,
-    });
-    await delay(delayMs);
+    // Strategy 1: Try direct item page by color name slug
+    let found = await tryParadigmPage(page, `${BASE_URL}/items/${slug}`, delayMs);
+    if (found) return found;
+
+    // Strategy 2: Try without hyphens (single word slugs like /items/oriole)
+    const singleSlug = colorName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (singleSlug !== slug) {
+      found = await tryParadigmPage(page, `${BASE_URL}/items/${singleSlug}`, delayMs);
+      if (found) return found;
+    }
+
+    // Strategy 3: Try with first word only (for multi-word color names)
+    const firstWord = colorName.toLowerCase().split(/\s+/)[0];
+    if (firstWord !== slug && firstWord !== singleSlug) {
+      found = await tryParadigmPage(page, `${BASE_URL}/items/${firstWord}`, delayMs);
+      if (found) return found;
+    }
+
+    // Strategy 4: Browse homepage and find matching links in gallery
+    return await findParadigmViaGallery(page, productGroup, delayMs);
   } catch {
     return null;
   }
+}
+
+/** Try loading a Paradigm page and extracting data */
+async function tryParadigmPage(page, url, delayMs) {
+  try {
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 });
+    await delay(delayMs + 1000); // Extra delay for Wix dynamic rendering
+
+    const is404 = await page.evaluate(() => {
+      const body = document.body?.textContent || '';
+      return body.includes('Page not found') || body.includes("This page isn't available") ||
+             document.title.includes('404');
+    });
+
+    if (is404) return null;
+
+    return await extractParadigmData(page);
+  } catch {
+    return null;
+  }
+}
+
+/** Extract product data from a Paradigm Wix page */
+async function extractParadigmData(page) {
+  // Wait for Wix to render dynamic content
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await delay(1000);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await delay(500);
 
   const data = await page.evaluate(() => {
     const images = [];
-    const imgElements = document.querySelectorAll('img[src*="product"], img[src*="collection"], img.product-image, img[class*="product"]');
-    for (const img of imgElements) {
-      const src = img.src || img.dataset.src;
-      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon')) {
-        images.push(src);
+
+    // Wix-hosted images (static.wixstatic.com)
+    document.querySelectorAll('img[src*="wixstatic"], img[src*="wix.com"], wow-image img').forEach(img => {
+      let src = img.src || img.dataset.src || img.currentSrc;
+      if (src && src.includes('wixstatic') && !src.includes('logo') && !src.includes('icon') && !src.includes('favicon')) {
+        // Normalize Wix image URL — remove fill params and request a high-res version
+        const base = src.split('/v1/fill/')[0];
+        if (base.includes('wixstatic')) {
+          images.push(base);
+        } else {
+          images.push(src);
+        }
+      }
+    });
+
+    // Also check background images from Wix components
+    document.querySelectorAll('[data-bg], [style*="background-image"]').forEach(el => {
+      const bgUrl = el.dataset.bg || (el.style.backgroundImage || '').match(/url\(["']?([^"')]+)/)?.[1];
+      if (bgUrl && bgUrl.includes('wixstatic') && !bgUrl.includes('logo')) {
+        images.push(bgUrl.split('/v1/fill/')[0]);
+      }
+    });
+
+    // Extract specs from Wix page text (dynamically rendered)
+    const specs = {};
+    const textContent = document.body?.innerText || '';
+    const lines = textContent.split('\n').map(l => l.trim()).filter(Boolean);
+
+    for (const line of lines) {
+      const match = line.match(/^(thickness|width|length|wear\s*layer|finish|edge|species|material|construction|warranty|size|plank\s*size|sq\.?\s*ft)[:\s-]+(.+)/i);
+      if (match) {
+        const label = match[1].toLowerCase().trim();
+        const value = match[2].trim();
+        if (label.includes('thickness')) specs.thickness = value;
+        if (label.includes('width') || label.includes('size') || label.includes('plank')) specs.size = value;
+        if (label.includes('wear')) specs.wear_layer = value;
+        if (label.includes('finish')) specs.finish = value;
+        if (label.includes('edge')) specs.edge = value;
+        if (label.includes('species') || label.includes('material')) specs.material = value;
+        if (label.includes('construction')) specs.construction = value;
+        if (label.includes('warranty')) specs.warranty = value;
+        if (label.includes('sq')) specs.sqft_per_carton = value;
+      }
+      // Dimension pattern: 7" x 48" or 7 x 48
+      if (!specs.size && line.match(/\d+["″']?\s*x\s*\d+["″']?/)) {
+        const dimMatch = line.match(/(\d+["″']?\s*x\s*\d+["″']?)/);
+        if (dimMatch) specs.size = dimMatch[1];
       }
     }
 
-    const descEl = document.querySelector('[class*="description"], [class*="about"], .product-description, article p');
+    // Description
+    const descEl = document.querySelector('[data-testid="richTextElement"] p, p[class*="font"], article p');
     const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
 
-    const specs = {};
-    const specRows = document.querySelectorAll('[class*="spec"] tr, [class*="detail"] tr, dl dt');
-    for (const row of specRows) {
-      const cells = row.querySelectorAll('td, dd');
-      const label = (row.querySelector('th, dt')?.textContent || '').trim().toLowerCase();
-      const value = cells[0]?.textContent?.trim();
-      if (label && value) {
-        if (label.includes('thickness')) specs.thickness = value;
-        if (label.includes('width')) specs.size = value;
-        if (label.includes('finish')) specs.finish = value;
-        if (label.includes('species') || label.includes('material')) specs.material = value;
-        if (label.includes('edge')) specs.edge = value;
-      }
-    }
-
-    return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
+    return {
+      images: [...new Set(images)],
+      description,
+      specs: Object.keys(specs).length > 0 ? specs : null,
+    };
   });
 
-  if (data.images.length === 0 && !data.description && !data.specs) {
+  if (data.images.length === 0 && !data.description && !data.specs) return null;
+  return data;
+}
+
+/** Fallback: browse Paradigm homepage/gallery to find product links */
+async function findParadigmViaGallery(page, productGroup, delayMs) {
+  const colorName = productGroup.name;
+  try {
+    await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 20000 });
+    await delay(delayMs + 1000);
+
+    const productUrl = await page.evaluate((name) => {
+      const nameLower = name.toLowerCase();
+      const links = document.querySelectorAll('a[href*="/items/"]');
+      for (const a of links) {
+        const text = (a.textContent || '').toLowerCase();
+        const href = (a.getAttribute('href') || '').toLowerCase();
+        if (text.includes(nameLower) || href.includes(nameLower.replace(/\s+/g, '-'))) {
+          return a.href;
+        }
+      }
+      return null;
+    }, colorName);
+
+    if (!productUrl) return null;
+
+    await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 20000 });
+    await delay(delayMs + 1000);
+
+    return await extractParadigmData(page);
+  } catch {
     return null;
   }
-
-  return data;
 }

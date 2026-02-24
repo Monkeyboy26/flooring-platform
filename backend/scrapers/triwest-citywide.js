@@ -12,7 +12,7 @@ const MAX_ERRORS = 30;
  *
  * Scrapes citywidelvt.com for product images, descriptions, and specs.
  * Enriches EXISTING Tri-West SKUs — never creates new products.
- * Tech: Custom
+ * Tech: Squarespace Commerce
  *
  * Runs AFTER triwest-catalog.js populates SKUs in the DB.
  */
@@ -145,58 +145,199 @@ export async function run(pool, job, source) {
 }
 
 /**
- * Find a product on the brand website and extract images/specs.
+ * Find a product on citywidelvt.com and extract images/specs.
  * Returns { images: string[], description: string, specs: object } or null.
  *
- * Placeholder — will be refined per brand after manual website review.
+ * Citywide is a Squarespace Commerce site.
+ * Product URLs: /citywide-products/{name-slug}-{code} (e.g., /citywide-products/wilshireboulevard-cw12001)
+ * Pad variants: /citywide-pad/{name-slug}-{code}pad
+ * Images: images.squarespace-cdn.com
+ * Specs from description text: Dimensions, Gauge, Wear Layer, Finish, Coverage, etc.
  */
 async function findProductOnSite(page, productGroup, delayMs) {
-  const searchTerm = productGroup.name;
+  const colorName = productGroup.name;
+  const firstSku = productGroup.skus[0];
+  const vendorSku = (firstSku.vendor_sku || '').toLowerCase();
 
   try {
-    await page.goto(`${BASE_URL}/search?q=${encodeURIComponent(searchTerm)}`, {
+    // Try Squarespace Commerce JSON endpoint first
+    const jsonData = await trySquarespaceJson(page, productGroup, delayMs);
+    if (jsonData) return jsonData;
+
+    // Build slug: remove spaces, lowercase. E.g., "Wilshire Boulevard" → "wilshireboulevard"
+    const nameSlug = colorName.toLowerCase().replace(/[^a-z0-9]+/g, '');
+    // Extract code from vendor SKU (e.g., "CW12001")
+    const code = vendorSku.replace(/[^a-z0-9]/g, '');
+
+    // Try direct product URL with code
+    const productUrl = code
+      ? `${BASE_URL}/citywide-products/${nameSlug}-${code}`
+      : `${BASE_URL}/citywide-products/${nameSlug}`;
+
+    await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+    await delay(delayMs);
+
+    const is404 = await page.evaluate(() => {
+      return document.title.includes('Page Not Found') || document.querySelector('.sqs-error-page') !== null;
+    });
+
+    if (is404) {
+      return await findProductViaBrowse(page, productGroup, delayMs);
+    }
+
+    return await extractCitywideData(page, colorName);
+  } catch {
+    return await findProductViaBrowse(page, productGroup, delayMs);
+  }
+}
+
+/** Try Squarespace Commerce JSON API */
+async function trySquarespaceJson(page, productGroup, delayMs) {
+  const colorName = productGroup.name.toLowerCase();
+  const vendorSku = (productGroup.skus[0].vendor_sku || '').toLowerCase();
+
+  try {
+    await page.goto(`${BASE_URL}/citywide-products?format=json`, {
       waitUntil: 'networkidle2',
       timeout: 15000,
     });
     await delay(delayMs);
+
+    const jsonText = await page.evaluate(() => document.body?.innerText || '');
+    let data;
+    try { data = JSON.parse(jsonText); } catch { return null; }
+
+    if (!data?.items?.length) return null;
+
+    const match = data.items.find(item => {
+      const title = (item.title || '').toLowerCase();
+      const urlId = (item.urlId || '').toLowerCase();
+      if (vendorSku && (title.includes(vendorSku) || urlId.includes(vendorSku))) return true;
+      if (colorName && title.includes(colorName)) return true;
+      return false;
+    });
+
+    if (!match) return null;
+
+    const images = [];
+    if (match.assetUrl) images.push(match.assetUrl + '?format=1500w');
+    if (match.items) {
+      for (const img of match.items) {
+        if (img.assetUrl) images.push(img.assetUrl + '?format=1500w');
+      }
+    }
+
+    // Parse specs from excerpt/body
+    const specs = parseCitywideSpecs(match.excerpt || match.body || '');
+    const description = match.excerpt
+      ? match.excerpt.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000)
+      : null;
+
+    return {
+      images: [...new Set(images)],
+      description,
+      specs: Object.keys(specs).length > 0 ? specs : null,
+    };
   } catch {
     return null;
   }
+}
 
-  const data = await page.evaluate(() => {
-    const images = [];
-    const imgElements = document.querySelectorAll('img[src*="product"], img[src*="collection"], img.product-image, img[class*="product"]');
-    for (const img of imgElements) {
-      const src = img.src || img.dataset.src;
-      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon')) {
-        images.push(src);
-      }
+/** Parse Citywide spec text (HTML or plain) */
+function parseCitywideSpecs(html) {
+  const text = html.replace(/<[^>]+>/g, '\n').replace(/&[a-z]+;/g, ' ');
+  const specs = {};
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    if (lower.includes('item code') || lower.includes('item #')) {
+      const val = line.replace(/.*?[:#]\s*/i, '').trim();
+      if (val) specs.item_number = val;
     }
-
-    const descEl = document.querySelector('[class*="description"], [class*="about"], .product-description, article p');
-    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
-
-    const specs = {};
-    const specRows = document.querySelectorAll('[class*="spec"] tr, [class*="detail"] tr, dl dt');
-    for (const row of specRows) {
-      const cells = row.querySelectorAll('td, dd');
-      const label = (row.querySelector('th, dt')?.textContent || '').trim().toLowerCase();
-      const value = cells[0]?.textContent?.trim();
-      if (label && value) {
-        if (label.includes('thickness')) specs.thickness = value;
-        if (label.includes('width')) specs.size = value;
-        if (label.includes('finish')) specs.finish = value;
-        if (label.includes('species') || label.includes('material')) specs.material = value;
-        if (label.includes('edge')) specs.edge = value;
-      }
+    if (lower.includes('dimension') || lower.match(/\d+"\s*x\s*\d+"/)) {
+      const dimMatch = line.match(/(\d+["″]?\s*x\s*\d+["″]?)/i);
+      if (dimMatch) specs.size = dimMatch[1];
     }
-
-    return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
-  });
-
-  if (data.images.length === 0 && !data.description && !data.specs) {
-    return null;
+    if (lower.includes('gauge') || lower.includes('total thickness')) {
+      const val = line.replace(/.*?[:#]\s*/i, '').trim();
+      if (val) specs.thickness = val;
+    }
+    if (lower.includes('wear layer')) {
+      const val = line.replace(/.*?[:#]\s*/i, '').trim();
+      if (val) specs.wear_layer = val;
+    }
+    if (lower.includes('finish')) {
+      const val = line.replace(/.*?[:#]\s*/i, '').trim();
+      if (val) specs.finish = val;
+    }
+    if (lower.includes('coverage') || lower.includes('sq ft') || lower.includes('sqft')) {
+      const val = line.replace(/.*?[:#]\s*/i, '').trim();
+      if (val) specs.sqft_per_carton = val;
+    }
+    if (lower.includes('warranty')) {
+      const val = line.replace(/.*?[:#]\s*/i, '').trim();
+      if (val) specs.warranty = val;
+    }
   }
 
-  return data;
+  return specs;
+}
+
+/** Extract product data from a Citywide product page */
+async function extractCitywideData(page, colorName) {
+  const data = await page.evaluate(() => {
+    const images = [];
+    document.querySelectorAll('.ProductItem-gallery img, img[src*="squarespace-cdn"], img[data-src*="squarespace-cdn"]').forEach(img => {
+      const src = img.src || img.dataset.src;
+      if (src && src.includes('squarespace-cdn') && !src.includes('logo') && !src.includes('favicon')) {
+        images.push(src.split('?')[0] + '?format=1500w');
+      }
+    });
+
+    const descEl = document.querySelector('.ProductItem-details-excerpt, .product-description, .ProductItem-details');
+    const descText = descEl ? descEl.innerText.trim().slice(0, 2000) : null;
+
+    return { images: [...new Set(images)], descText };
+  });
+
+  const specs = parseCitywideSpecs(data.descText || '');
+
+  if (data.images.length === 0 && !data.descText) return null;
+  return {
+    images: data.images,
+    description: data.descText,
+    specs: Object.keys(specs).length > 0 ? specs : null,
+  };
+}
+
+/** Fallback: browse product listing to find matching product */
+async function findProductViaBrowse(page, productGroup, delayMs) {
+  const colorName = productGroup.name;
+  try {
+    await page.goto(`${BASE_URL}/citywide-products`, { waitUntil: 'networkidle2', timeout: 15000 });
+    await delay(delayMs);
+
+    const productUrl = await page.evaluate((name) => {
+      const nameLower = name.toLowerCase();
+      const links = document.querySelectorAll('a[href*="/citywide-products/"]');
+      for (const a of links) {
+        const text = (a.textContent || '').toLowerCase();
+        const href = (a.getAttribute('href') || '').toLowerCase();
+        if (text.includes(nameLower) || href.includes(nameLower.replace(/\s+/g, ''))) {
+          return a.href;
+        }
+      }
+      return null;
+    }, colorName);
+
+    if (!productUrl) return null;
+
+    await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+    await delay(delayMs);
+
+    return await extractCitywideData(page, colorName);
+  } catch {
+    return null;
+  }
 }

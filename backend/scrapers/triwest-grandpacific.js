@@ -12,7 +12,7 @@ const MAX_ERRORS = 30;
  *
  * Scrapes grandpacifichardwood.com for product images, descriptions, and specs.
  * Enriches EXISTING Tri-West SKUs — never creates new products.
- * Tech: Custom
+ * Tech: Squarespace
  *
  * Runs AFTER triwest-catalog.js populates SKUs in the DB.
  */
@@ -145,58 +145,127 @@ export async function run(pool, job, source) {
 }
 
 /**
- * Find a product on the brand website and extract images/specs.
+ * Find a product on grandpacifichardwood.com and extract images/specs.
  * Returns { images: string[], description: string, specs: object } or null.
  *
- * Placeholder — will be refined per brand after manual website review.
+ * Grand Pacific is a Squarespace site. Small catalog (~27 products).
+ * Product URLs: /{color-slug} (e.g., /stingray, /rip-tide, /beach-hut)
+ * Images: images.squarespace-cdn.com
+ * Specs: structured text — Species, Thickness, Width, Length, Veneer, Finish, etc.
  */
 async function findProductOnSite(page, productGroup, delayMs) {
-  const searchTerm = productGroup.name;
+  const colorName = productGroup.name;
+  const slug = colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
   try {
-    await page.goto(`${BASE_URL}/search?q=${encodeURIComponent(searchTerm)}`, {
+    // Try direct product page by slug
+    await page.goto(`${BASE_URL}/${slug}`, {
       waitUntil: 'networkidle2',
       timeout: 15000,
     });
     await delay(delayMs);
+
+    // Check if we landed on a valid product page (not 404)
+    const is404 = await page.evaluate(() => {
+      const body = document.body?.textContent || '';
+      return body.includes('page not found') || body.includes('404') || document.title.includes('Page Not Found');
+    });
+
+    if (is404) {
+      // Fallback: browse the homepage and find a matching product link
+      return await findProductViaNavigation(page, productGroup, delayMs);
+    }
+
+    return await extractProductData(page, colorName);
+  } catch {
+    return await findProductViaNavigation(page, productGroup, delayMs);
+  }
+}
+
+/** Extract product data from a Grand Pacific product page */
+async function extractProductData(page, colorName) {
+  const data = await page.evaluate((name) => {
+    const images = [];
+    // Squarespace product images
+    document.querySelectorAll('img[src*="squarespace-cdn"], img[data-src*="squarespace-cdn"]').forEach(img => {
+      const src = img.src || img.dataset.src || img.dataset.image;
+      if (src && !src.includes('logo') && !src.includes('favicon')) {
+        images.push(src.split('?')[0] + '?format=1500w');
+      }
+    });
+    // Also check noscript and background images
+    document.querySelectorAll('[data-image], [style*="background-image"]').forEach(el => {
+      const bgUrl = el.dataset.image || (el.style.backgroundImage || '').match(/url\(["']?([^"')]+)/)?.[1];
+      if (bgUrl && bgUrl.includes('squarespace-cdn') && !bgUrl.includes('logo')) {
+        images.push(bgUrl.split('?')[0] + '?format=1500w');
+      }
+    });
+
+    // Extract specs from page text — Grand Pacific uses structured text blocks
+    const specs = {};
+    const textContent = document.body?.innerText || '';
+    const lines = textContent.split('\n').map(l => l.trim()).filter(Boolean);
+
+    for (const line of lines) {
+      const lower = line.toLowerCase();
+      // Match "Label: Value" or "Label - Value" patterns
+      const match = line.match(/^(species|thickness|width|length|veneer|finish|construction|warranty|item\s*number|grade)[:\s-]+(.+)/i);
+      if (match) {
+        const label = match[1].toLowerCase().trim();
+        const value = match[2].trim();
+        if (label.includes('species')) specs.material = value;
+        if (label.includes('thickness')) specs.thickness = value;
+        if (label.includes('width')) specs.size = value;
+        if (label.includes('length')) specs.length = value;
+        if (label.includes('veneer')) specs.veneer = value;
+        if (label.includes('finish')) specs.finish = value;
+        if (label.includes('construction')) specs.construction = value;
+        if (label.includes('warranty')) specs.warranty = value;
+        if (label.includes('item')) specs.item_number = value;
+      }
+    }
+
+    // Extract description from the page
+    const descEl = document.querySelector('.sqs-block-content p, .sqs-layout p, article p');
+    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
+
+    // Deduplicate images
+    const unique = [...new Set(images)];
+    return { images: unique, description, specs: Object.keys(specs).length > 0 ? specs : null };
+  }, colorName);
+
+  if (data.images.length === 0 && !data.description && !data.specs) return null;
+  return data;
+}
+
+/** Fallback: navigate pages to find matching product */
+async function findProductViaNavigation(page, productGroup, delayMs) {
+  const colorName = productGroup.name;
+  try {
+    await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 15000 });
+    await delay(delayMs);
+
+    // Find a link whose text matches the color name
+    const productUrl = await page.evaluate((name) => {
+      const nameLower = name.toLowerCase();
+      const links = document.querySelectorAll('a[href]');
+      for (const a of links) {
+        const text = (a.textContent || '').trim().toLowerCase();
+        const href = a.getAttribute('href') || '';
+        if (text.includes(nameLower) || href.includes(nameLower.replace(/\s+/g, '-'))) {
+          return a.href;
+        }
+      }
+      return null;
+    }, colorName);
+
+    if (!productUrl) return null;
+
+    await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+    await delay(delayMs);
+
+    return await extractProductData(page, colorName);
   } catch {
     return null;
   }
-
-  const data = await page.evaluate(() => {
-    const images = [];
-    const imgElements = document.querySelectorAll('img[src*="product"], img[src*="collection"], img.product-image, img[class*="product"]');
-    for (const img of imgElements) {
-      const src = img.src || img.dataset.src;
-      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon')) {
-        images.push(src);
-      }
-    }
-
-    const descEl = document.querySelector('[class*="description"], [class*="about"], .product-description, article p');
-    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
-
-    const specs = {};
-    const specRows = document.querySelectorAll('[class*="spec"] tr, [class*="detail"] tr, dl dt');
-    for (const row of specRows) {
-      const cells = row.querySelectorAll('td, dd');
-      const label = (row.querySelector('th, dt')?.textContent || '').trim().toLowerCase();
-      const value = cells[0]?.textContent?.trim();
-      if (label && value) {
-        if (label.includes('thickness')) specs.thickness = value;
-        if (label.includes('width')) specs.size = value;
-        if (label.includes('finish')) specs.finish = value;
-        if (label.includes('species') || label.includes('material')) specs.material = value;
-        if (label.includes('edge')) specs.edge = value;
-      }
-    }
-
-    return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
-  });
-
-  if (data.images.length === 0 && !data.description && !data.specs) {
-    return null;
-  }
-
-  return data;
 }

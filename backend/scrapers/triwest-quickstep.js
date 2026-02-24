@@ -12,7 +12,7 @@ const MAX_ERRORS = 30;
  *
  * Scrapes us.quick-step.com for product images, descriptions, and specs.
  * Enriches EXISTING Tri-West SKUs — never creates new products.
- * Tech: Angular SPA
+ * Tech: Angular SPA (Mohawk/Unilin)
  *
  * Runs AFTER triwest-catalog.js populates SKUs in the DB.
  */
@@ -145,58 +145,198 @@ export async function run(pool, job, source) {
 }
 
 /**
- * Find a product on the brand website and extract images/specs.
+ * Find a product on us.quick-step.com and extract images/specs.
  * Returns { images: string[], description: string, specs: object } or null.
  *
- * Placeholder — will be refined per brand after manual website review.
+ * Quick-Step is an Angular SPA (Mohawk/Unilin).
+ * Product URLs: /en-us/laminate/{collection}/{color-name}--{sku}
+ * Heavy Angular SPA — needs waitForSelector + extra delay for client-side rendering.
+ * Specs: .two-column-compound__column sections, quickstep-rich-text components
  */
 async function findProductOnSite(page, productGroup, delayMs) {
-  const searchTerm = productGroup.name;
+  const colorName = productGroup.name;
+  const collection = productGroup.collection;
+  const firstSku = productGroup.skus[0];
+  const vendorSku = (firstSku.vendor_sku || '').toLowerCase();
+
+  // Strip brand prefix from collection
+  const collectionName = collection.replace(/^Quick-?Step\s*/i, '').trim();
+  const collectionSlug = collectionName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const colorSlug = colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
   try {
-    await page.goto(`${BASE_URL}/search?q=${encodeURIComponent(searchTerm)}`, {
-      waitUntil: 'networkidle2',
-      timeout: 15000,
-    });
-    await delay(delayMs);
+    // Strategy 1: Build direct URL with SKU suffix
+    if (vendorSku) {
+      const url = `${BASE_URL}/en-us/laminate/${collectionSlug}/${colorSlug}--${vendorSku}`;
+      const found = await tryQuickStepPage(page, url, delayMs);
+      if (found) return found;
+    }
+
+    // Strategy 2: Try URL without SKU suffix
+    const found = await tryQuickStepPage(page, `${BASE_URL}/en-us/laminate/${collectionSlug}/${colorSlug}`, delayMs);
+    if (found) return found;
+
+    // Strategy 3: Quick-Step also has vinyl and hardwood categories
+    for (const category of ['vinyl', 'hardwood']) {
+      const result = await tryQuickStepPage(page, `${BASE_URL}/en-us/${category}/${collectionSlug}/${colorSlug}`, delayMs);
+      if (result) return result;
+    }
+
+    // Strategy 4: Browse collection page and find the product
+    return await findQuickStepViaCollection(page, productGroup, delayMs, collectionSlug);
   } catch {
     return null;
   }
+}
 
-  const data = await page.evaluate(() => {
-    const images = [];
-    const imgElements = document.querySelectorAll('img[src*="product"], img[src*="collection"], img.product-image, img[class*="product"]');
-    for (const img of imgElements) {
-      const src = img.src || img.dataset.src;
-      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon')) {
-        images.push(src);
-      }
+/** Try loading a Quick-Step Angular page with extra wait time */
+async function tryQuickStepPage(page, url, delayMs) {
+  try {
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 25000 });
+    // Angular SPA needs extra time to render
+    await delay(delayMs + 2000);
+
+    // Wait for Angular to render product content
+    try {
+      await page.waitForSelector('img[src*="quick-step"], img[src*="floor"], .product-detail, quickstep-rich-text', { timeout: 8000 });
+    } catch {
+      // If no product elements found, this isn't a valid product page
     }
 
-    const descEl = document.querySelector('[class*="description"], [class*="about"], .product-description, article p');
-    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
+    const is404 = await page.evaluate(() => {
+      const body = document.body?.textContent || '';
+      return body.includes('Page not found') || body.includes('404') ||
+             document.title.toLowerCase().includes('not found');
+    });
 
-    const specs = {};
-    const specRows = document.querySelectorAll('[class*="spec"] tr, [class*="detail"] tr, dl dt');
-    for (const row of specRows) {
-      const cells = row.querySelectorAll('td, dd');
-      const label = (row.querySelector('th, dt')?.textContent || '').trim().toLowerCase();
-      const value = cells[0]?.textContent?.trim();
-      if (label && value) {
-        if (label.includes('thickness')) specs.thickness = value;
-        if (label.includes('width')) specs.size = value;
-        if (label.includes('finish')) specs.finish = value;
-        if (label.includes('species') || label.includes('material')) specs.material = value;
-        if (label.includes('edge')) specs.edge = value;
-      }
-    }
+    if (is404) return null;
 
-    return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
-  });
-
-  if (data.images.length === 0 && !data.description && !data.specs) {
+    return await extractQuickStepData(page);
+  } catch {
     return null;
   }
+}
 
+/** Extract product data from a Quick-Step Angular-rendered page */
+async function extractQuickStepData(page) {
+  const data = await page.evaluate(() => {
+    const images = [];
+
+    // Product images (Angular-rendered)
+    document.querySelectorAll('img').forEach(img => {
+      const src = img.src || img.dataset.src || img.currentSrc;
+      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon') &&
+          !src.includes('favicon') && !src.includes('sprite') && !src.includes('tracking')) {
+        // Filter for product-related images (not tiny icons)
+        if (img.naturalWidth > 100 || img.width > 100 || src.includes('floor') || src.includes('product') || src.includes('room')) {
+          images.push(src);
+        }
+      }
+    });
+
+    // Background images
+    document.querySelectorAll('[style*="background-image"]').forEach(el => {
+      const bgUrl = (el.style.backgroundImage || '').match(/url\(["']?([^"')]+)/)?.[1];
+      if (bgUrl && bgUrl.startsWith('http') && !bgUrl.includes('logo')) {
+        images.push(bgUrl);
+      }
+    });
+
+    // Extract specs from .two-column-compound__column and quickstep-rich-text
+    const specs = {};
+    const textContent = document.body?.innerText || '';
+    const lines = textContent.split('\n').map(l => l.trim()).filter(Boolean);
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lower = line.toLowerCase();
+
+      // Quick-Step specs often have label on one line, value on next
+      const nextLine = (lines[i + 1] || '').trim();
+
+      // Direct "Label: Value" patterns
+      const match = line.match(/^(thickness|width|length|wear\s*layer|finish|edge|bevel|material|species|plank\s*size|format|class|warranty|surface\s*structure|installation|bevels?)[:\s]+(.+)/i);
+      if (match) {
+        const label = match[1].toLowerCase();
+        const value = match[2].trim();
+        if (label.includes('thickness')) specs.thickness = value;
+        if (label.includes('width') || label.includes('size') || label.includes('format')) specs.size = value;
+        if (label.includes('length')) specs.length = value;
+        if (label.includes('wear')) specs.wear_layer = value;
+        if (label.includes('finish') || label.includes('surface')) specs.finish = value;
+        if (label.includes('edge') || label.includes('bevel')) specs.edge = value;
+        if (label.includes('material') || label.includes('species')) specs.material = value;
+        if (label.includes('class')) specs.grade = value;
+        if (label.includes('warranty')) specs.warranty = value;
+        if (label.includes('installation')) specs.installation = value;
+      }
+
+      // Label-only lines followed by value lines
+      if (lower === 'thickness' && nextLine) specs.thickness = nextLine;
+      if (lower === 'width' && nextLine) specs.size = nextLine;
+      if (lower === 'length' && nextLine) specs.length = nextLine;
+      if (lower === 'wear layer' && nextLine) specs.wear_layer = nextLine;
+      if ((lower === 'finish' || lower === 'surface structure') && nextLine) specs.finish = nextLine;
+      if ((lower === 'edge' || lower === 'bevels') && nextLine) specs.edge = nextLine;
+    }
+
+    // Also try spec table/list selectors
+    document.querySelectorAll('.two-column-compound__column, .specification-list li, .spec-row').forEach(el => {
+      const label = (el.querySelector('.label, .spec-label, dt')?.textContent || '').trim().toLowerCase();
+      const value = (el.querySelector('.value, .spec-value, dd')?.textContent || '').trim();
+      if (label && value) {
+        if (label.includes('thickness')) specs.thickness = value;
+        if (label.includes('width') || label.includes('format')) specs.size = value;
+        if (label.includes('wear')) specs.wear_layer = value;
+        if (label.includes('finish') || label.includes('surface')) specs.finish = value;
+        if (label.includes('edge') || label.includes('bevel')) specs.edge = value;
+      }
+    });
+
+    // Description
+    const descEl = document.querySelector('quickstep-rich-text p, .product-description p, [class*="description"] p, article p');
+    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
+
+    return {
+      images: [...new Set(images)],
+      description,
+      specs: Object.keys(specs).length > 0 ? specs : null,
+    };
+  });
+
+  if (data.images.length === 0 && !data.description && !data.specs) return null;
   return data;
+}
+
+/** Browse collection listing to find product */
+async function findQuickStepViaCollection(page, productGroup, delayMs, collectionSlug) {
+  const colorName = productGroup.name;
+  try {
+    // Try laminate collection page
+    await page.goto(`${BASE_URL}/en-us/laminate/${collectionSlug}`, {
+      waitUntil: 'networkidle2',
+      timeout: 25000,
+    });
+    await delay(delayMs + 2000);
+
+    const productUrl = await page.evaluate((name) => {
+      const nameLower = name.toLowerCase();
+      const links = document.querySelectorAll('a[href]');
+      for (const a of links) {
+        const text = (a.textContent || '').toLowerCase();
+        const href = (a.getAttribute('href') || '').toLowerCase();
+        if ((text.includes(nameLower) || href.includes(nameLower.replace(/\s+/g, '-'))) &&
+            href.includes('/en-us/')) {
+          return a.href;
+        }
+      }
+      return null;
+    }, colorName);
+
+    if (!productUrl) return null;
+
+    return await tryQuickStepPage(page, productUrl, delayMs);
+  } catch {
+    return null;
+  }
 }

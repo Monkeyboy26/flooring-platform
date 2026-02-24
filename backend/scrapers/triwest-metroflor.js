@@ -12,7 +12,7 @@ const MAX_ERRORS = 30;
  *
  * Scrapes metroflor.com for product images, descriptions, and specs.
  * Enriches EXISTING Tri-West SKUs — never creates new products.
- * Tech: Shopify
+ * Tech: Shopify (FloorTitan theme)
  *
  * Runs AFTER triwest-catalog.js populates SKUs in the DB.
  */
@@ -145,58 +145,169 @@ export async function run(pool, job, source) {
 }
 
 /**
- * Find a product on the brand website and extract images/specs.
+ * Find a product on metroflor.com and extract images/specs.
  * Returns { images: string[], description: string, specs: object } or null.
  *
- * Placeholder — will be refined per brand after manual website review.
+ * Metroflor is a Shopify store (FloorTitan theme).
+ * Product URLs: /products/metroflor-in-{collection}-in-{color}
+ * Images: cdn.shopify.com/s/files/1/0628/9073/7734/
+ * Key insight: Shopify /{handle}.json endpoint returns structured product data.
  */
 async function findProductOnSite(page, productGroup, delayMs) {
-  const searchTerm = productGroup.name;
+  const colorName = productGroup.name;
+  const collection = productGroup.collection;
+  const collectionName = collection.replace(/^Metroflor\s*/i, '').trim();
+
+  // Build Shopify handle: "metroflor-in-{collection}-in-{color}"
+  const collectionSlug = collectionName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const colorSlug = colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
   try {
-    await page.goto(`${BASE_URL}/search?q=${encodeURIComponent(searchTerm)}`, {
+    // Strategy 1: Try Shopify JSON API with constructed handle
+    const handle = `metroflor-in-${collectionSlug}-in-${colorSlug}`;
+    let result = await tryShopifyJson(page, handle, delayMs);
+    if (result) return result;
+
+    // Strategy 2: Try simpler handle without "metroflor-in-" prefix
+    result = await tryShopifyJson(page, `${collectionSlug}-${colorSlug}`, delayMs);
+    if (result) return result;
+
+    // Strategy 3: Try just the color name
+    result = await tryShopifyJson(page, colorSlug, delayMs);
+    if (result) return result;
+
+    // Strategy 4: Fallback to searching the Shopify site
+    return await findMetroflorViaSearch(page, productGroup, delayMs);
+  } catch {
+    return null;
+  }
+}
+
+/** Try fetching product data via Shopify .json endpoint */
+async function tryShopifyJson(page, handle, delayMs) {
+  try {
+    await page.goto(`${BASE_URL}/products/${handle}.json`, {
+      waitUntil: 'networkidle2',
+      timeout: 10000,
+    });
+    await delay(delayMs / 2);
+
+    const jsonText = await page.evaluate(() => document.body?.innerText || '');
+    let data;
+    try { data = JSON.parse(jsonText); } catch { return null; }
+
+    if (!data?.product) return null;
+
+    const product = data.product;
+
+    // Extract images
+    const images = (product.images || []).map(img => img.src).filter(Boolean);
+
+    // Extract specs from body_html
+    const specs = parseMetroflorSpecs(product.body_html || '');
+
+    // Description from body_html (strip HTML)
+    const description = product.body_html
+      ? product.body_html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000)
+      : null;
+
+    if (images.length === 0 && !description && !specs) return null;
+
+    return {
+      images,
+      description,
+      specs: Object.keys(specs).length > 0 ? specs : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Parse specs from Shopify product body HTML */
+function parseMetroflorSpecs(html) {
+  const text = html.replace(/<[^>]+>/g, '\n').replace(/&[a-z]+;/g, ' ').replace(/&#\d+;/g, ' ');
+  const specs = {};
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  for (const line of lines) {
+    const match = line.match(/^(thickness|width|length|wear\s*layer|finish|edge|material|species|size|dimensions?|construction|sqft|sq\s*ft|warranty)[:\s-]+(.+)/i);
+    if (match) {
+      const label = match[1].toLowerCase().trim();
+      const value = match[2].trim();
+      if (label.includes('thickness')) specs.thickness = value;
+      if (label.includes('width') || label.includes('size') || label.includes('dimension')) specs.size = value;
+      if (label.includes('length')) specs.length = value;
+      if (label.includes('wear')) specs.wear_layer = value;
+      if (label.includes('finish')) specs.finish = value;
+      if (label.includes('edge')) specs.edge = value;
+      if (label.includes('material') || label.includes('species')) specs.material = value;
+      if (label.includes('construction')) specs.construction = value;
+      if (label.includes('sqft') || label.includes('sq ft')) specs.sqft_per_carton = value;
+      if (label.includes('warranty')) specs.warranty = value;
+    }
+  }
+
+  return specs;
+}
+
+/** Fallback: search Shopify store for the product */
+async function findMetroflorViaSearch(page, productGroup, delayMs) {
+  const colorName = productGroup.name;
+  try {
+    // Shopify search endpoint
+    await page.goto(`${BASE_URL}/search?q=${encodeURIComponent(colorName)}&type=product`, {
       waitUntil: 'networkidle2',
       timeout: 15000,
     });
     await delay(delayMs);
+
+    const productUrl = await page.evaluate((name) => {
+      const nameLower = name.toLowerCase();
+      const links = document.querySelectorAll('a[href*="/products/"]');
+      for (const a of links) {
+        const text = (a.textContent || '').toLowerCase();
+        const href = (a.getAttribute('href') || '').toLowerCase();
+        if (text.includes(nameLower) || href.includes(nameLower.replace(/\s+/g, '-'))) {
+          return a.href;
+        }
+      }
+      // If no text match, return the first product link from search results
+      const first = document.querySelector('a[href*="/products/"]');
+      return first ? first.href : null;
+    }, colorName);
+
+    if (!productUrl) return null;
+
+    // Extract handle from URL and try JSON API
+    const handleMatch = productUrl.match(/\/products\/([^?#/]+)/);
+    if (handleMatch) {
+      const result = await tryShopifyJson(page, handleMatch[1], delayMs);
+      if (result) return result;
+    }
+
+    // Fallback: scrape DOM
+    await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+    await delay(delayMs);
+
+    return page.evaluate(() => {
+      const images = [];
+      document.querySelectorAll('.product__media img, .product-single__photo img, img[src*="cdn.shopify"]').forEach(img => {
+        const src = img.src || img.dataset.src;
+        if (src && src.includes('cdn.shopify') && !src.includes('logo')) {
+          images.push(src);
+        }
+      });
+
+      const descEl = document.querySelector('.product-single__description, .product__description, [class*="product-description"]');
+      const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
+
+      return {
+        images: [...new Set(images)],
+        description,
+        specs: null,
+      };
+    });
   } catch {
     return null;
   }
-
-  const data = await page.evaluate(() => {
-    const images = [];
-    const imgElements = document.querySelectorAll('img[src*="product"], img[src*="collection"], img.product-image, img[class*="product"]');
-    for (const img of imgElements) {
-      const src = img.src || img.dataset.src;
-      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon')) {
-        images.push(src);
-      }
-    }
-
-    const descEl = document.querySelector('[class*="description"], [class*="about"], .product-description, article p');
-    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
-
-    const specs = {};
-    const specRows = document.querySelectorAll('[class*="spec"] tr, [class*="detail"] tr, dl dt');
-    for (const row of specRows) {
-      const cells = row.querySelectorAll('td, dd');
-      const label = (row.querySelector('th, dt')?.textContent || '').trim().toLowerCase();
-      const value = cells[0]?.textContent?.trim();
-      if (label && value) {
-        if (label.includes('thickness')) specs.thickness = value;
-        if (label.includes('width')) specs.size = value;
-        if (label.includes('finish')) specs.finish = value;
-        if (label.includes('species') || label.includes('material')) specs.material = value;
-        if (label.includes('edge')) specs.edge = value;
-      }
-    }
-
-    return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
-  });
-
-  if (data.images.length === 0 && !data.description && !data.specs) {
-    return null;
-  }
-
-  return data;
 }

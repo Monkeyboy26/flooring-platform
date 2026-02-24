@@ -12,7 +12,7 @@ const MAX_ERRORS = 30;
  *
  * Scrapes flexcofloors.com for product images, descriptions, and specs.
  * Enriches EXISTING Tri-West SKUs — never creates new products.
- * Tech: WooCommerce
+ * Tech: WordPress + Divi + WooCommerce
  *
  * Runs AFTER triwest-catalog.js populates SKUs in the DB.
  */
@@ -145,58 +145,179 @@ export async function run(pool, job, source) {
 }
 
 /**
- * Find a product on the brand website and extract images/specs.
+ * Find a product on flexcofloors.com and extract images/specs.
  * Returns { images: string[], description: string, specs: object } or null.
  *
- * Placeholder — will be refined per brand after manual website review.
+ * Flexco is a WordPress + Divi + WooCommerce site.
+ * Product URLs: /{product-slug}/ (e.g., /distinct-designs-rubber-flooring/)
+ * Images: self-hosted at /wp-content/uploads/{year}/{month}/{filename}.jpg
+ * Selectors: .et_pb_image (Divi images), .woocommerce-product-gallery,
+ *            .fl-dd-spec-table (spec tables), .et_pb_text (text blocks)
+ * Note: Flexco is primarily commercial — pages are often collection-level, not individual SKU pages.
  */
 async function findProductOnSite(page, productGroup, delayMs) {
-  const searchTerm = productGroup.name;
+  const colorName = productGroup.name;
+  const collection = productGroup.collection;
+  const collectionName = collection.replace(/^Flexco\s*/i, '').trim();
+
+  // Build possible slugs from collection name and color name
+  const collectionSlug = collectionName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const colorSlug = colorName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
   try {
-    await page.goto(`${BASE_URL}/search?q=${encodeURIComponent(searchTerm)}`, {
+    // Strategy 1: Try WooCommerce product URL by color name
+    let found = await tryFlexcoPage(page, `${BASE_URL}/product/${colorSlug}/`, delayMs);
+    if (found) return found;
+
+    // Strategy 2: Try collection slug as a page
+    found = await tryFlexcoPage(page, `${BASE_URL}/${collectionSlug}/`, delayMs);
+    if (found) return found;
+
+    // Strategy 3: Try combined collection-color slug
+    found = await tryFlexcoPage(page, `${BASE_URL}/${collectionSlug}-${colorSlug}/`, delayMs);
+    if (found) return found;
+
+    // Strategy 4: WordPress search
+    return await findFlexcoViaSearch(page, productGroup, delayMs);
+  } catch {
+    return null;
+  }
+}
+
+/** Try loading a Flexco page and extracting data */
+async function tryFlexcoPage(page, url, delayMs) {
+  try {
+    const resp = await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
+    if (!resp || resp.status() === 404) return null;
+    await delay(delayMs);
+
+    const is404 = await page.evaluate(() => {
+      return document.body?.classList.contains('error404') ||
+             document.title.toLowerCase().includes('page not found');
+    });
+
+    if (is404) return null;
+
+    return await extractFlexcoData(page);
+  } catch {
+    return null;
+  }
+}
+
+/** Extract product data from a Flexco page */
+async function extractFlexcoData(page) {
+  const data = await page.evaluate(() => {
+    const images = [];
+
+    // WooCommerce gallery images
+    document.querySelectorAll('.woocommerce-product-gallery img, .woocommerce-product-gallery__image img').forEach(img => {
+      const src = img.src || img.dataset.src || img.dataset.largeSrc;
+      if (src && src.includes('wp-content/uploads') && !src.includes('placeholder')) {
+        images.push(src);
+      }
+    });
+
+    // Divi builder images
+    document.querySelectorAll('.et_pb_image img, .et_pb_image_wrap img').forEach(img => {
+      const src = img.src || img.dataset.src;
+      if (src && src.includes('wp-content/uploads') && !src.includes('logo') && !src.includes('icon')) {
+        if (!images.includes(src)) images.push(src);
+      }
+    });
+
+    // Regular content images
+    document.querySelectorAll('.entry-content img, article img').forEach(img => {
+      const src = img.src || img.dataset.src;
+      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon') && !src.includes('placeholder')) {
+        if (!images.includes(src)) images.push(src);
+      }
+    });
+
+    // Extract specs from Flexco spec table
+    const specs = {};
+    document.querySelectorAll('.fl-dd-spec-table tr, table tr').forEach(row => {
+      const cells = row.querySelectorAll('td, th');
+      if (cells.length >= 2) {
+        const label = (cells[0].textContent || '').trim().toLowerCase();
+        const value = (cells[1].textContent || '').trim();
+        if (label && value) {
+          if (label.includes('thickness') || label.includes('gauge')) specs.thickness = value;
+          if (label.includes('width') || label.includes('size') || label.includes('dimension')) specs.size = value;
+          if (label.includes('finish') || label.includes('surface')) specs.finish = value;
+          if (label.includes('material') || label.includes('composition')) specs.material = value;
+          if (label.includes('edge')) specs.edge = value;
+          if (label.includes('wear')) specs.wear_layer = value;
+          if (label.includes('color') || label.includes('colour')) specs.color = value;
+          if (label.includes('warranty')) specs.warranty = value;
+        }
+      }
+    });
+
+    // Also parse from Divi text blocks
+    document.querySelectorAll('.et_pb_text, .et_pb_cta').forEach(block => {
+      const text = block.innerText || '';
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      for (const line of lines) {
+        const match = line.match(/^(thickness|gauge|size|dimensions?|material|finish|wear\s*layer|edge)[:\s-]+(.+)/i);
+        if (match) {
+          const label = match[1].toLowerCase();
+          const value = match[2].trim();
+          if (label.includes('thickness') || label.includes('gauge')) specs.thickness = specs.thickness || value;
+          if (label.includes('size') || label.includes('dimension')) specs.size = specs.size || value;
+          if (label.includes('material')) specs.material = specs.material || value;
+          if (label.includes('finish')) specs.finish = specs.finish || value;
+          if (label.includes('wear')) specs.wear_layer = specs.wear_layer || value;
+          if (label.includes('edge')) specs.edge = specs.edge || value;
+        }
+      }
+    });
+
+    // Description
+    const descEl = document.querySelector('.woocommerce-product-details__short-description, .et_pb_text .description, .entry-content p');
+    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
+
+    return {
+      images: [...new Set(images)],
+      description,
+      specs: Object.keys(specs).length > 0 ? specs : null,
+    };
+  });
+
+  if (data.images.length === 0 && !data.description && !data.specs) return null;
+  return data;
+}
+
+/** Fallback: use WordPress search to find the product */
+async function findFlexcoViaSearch(page, productGroup, delayMs) {
+  const colorName = productGroup.name;
+  try {
+    await page.goto(`${BASE_URL}/?s=${encodeURIComponent(colorName)}`, {
       waitUntil: 'networkidle2',
       timeout: 15000,
     });
     await delay(delayMs);
+
+    const productUrl = await page.evaluate((name) => {
+      const nameLower = name.toLowerCase();
+      const links = document.querySelectorAll('a[href]');
+      for (const a of links) {
+        const text = (a.textContent || '').toLowerCase();
+        const href = a.getAttribute('href') || '';
+        if ((text.includes(nameLower) || href.toLowerCase().includes(nameLower.replace(/\s+/g, '-'))) &&
+            !href.includes('?s=') && !href.includes('/page/')) {
+          return a.href;
+        }
+      }
+      return null;
+    }, colorName);
+
+    if (!productUrl) return null;
+
+    await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+    await delay(delayMs);
+
+    return await extractFlexcoData(page);
   } catch {
     return null;
   }
-
-  const data = await page.evaluate(() => {
-    const images = [];
-    const imgElements = document.querySelectorAll('img[src*="product"], img[src*="collection"], img.product-image, img[class*="product"]');
-    for (const img of imgElements) {
-      const src = img.src || img.dataset.src;
-      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon')) {
-        images.push(src);
-      }
-    }
-
-    const descEl = document.querySelector('[class*="description"], [class*="about"], .product-description, article p');
-    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
-
-    const specs = {};
-    const specRows = document.querySelectorAll('[class*="spec"] tr, [class*="detail"] tr, dl dt');
-    for (const row of specRows) {
-      const cells = row.querySelectorAll('td, dd');
-      const label = (row.querySelector('th, dt')?.textContent || '').trim().toLowerCase();
-      const value = cells[0]?.textContent?.trim();
-      if (label && value) {
-        if (label.includes('thickness')) specs.thickness = value;
-        if (label.includes('width')) specs.size = value;
-        if (label.includes('finish')) specs.finish = value;
-        if (label.includes('species') || label.includes('material')) specs.material = value;
-        if (label.includes('edge')) specs.edge = value;
-      }
-    }
-
-    return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
-  });
-
-  if (data.images.length === 0 && !data.description && !data.specs) {
-    return null;
-  }
-
-  return data;
 }

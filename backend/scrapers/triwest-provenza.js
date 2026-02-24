@@ -145,58 +145,134 @@ export async function run(pool, job, source) {
 }
 
 /**
- * Find a product on the brand website and extract images/specs.
+ * Find a product on provenzafloors.com and extract images/specs.
  * Returns { images: string[], description: string, specs: object } or null.
  *
- * Placeholder — will be refined per brand after manual website review.
+ * Provenza product detail URL pattern:
+ *   /hardwood/detail?sku={SKU}&color={Color}&collection={Collection}
+ *   /waterprooflvp/detail?sku={SKU}&color={Color}&collection={Collection}
+ *
+ * Images hosted on Google Cloud Storage:
+ *   storage.googleapis.com/provenza-web/images/products/hardwood/{collection-slug}/detail/
+ *   Provenza-{Collection}-{SKU}-{Color}.jpg, _04.jpg, _05.jpg, _06.jpg
+ *
+ * jQuery-based site; detail pages load product data client-side.
+ * Description in narrative form, no structured spec table.
  */
 async function findProductOnSite(page, productGroup, delayMs) {
-  const searchTerm = productGroup.name;
+  const firstSku = productGroup.skus[0];
+  const vendorSku = firstSku.vendor_sku || '';
+  // Strip brand prefix from collection: "Provenza Old World" → "Old World"
+  const collection = productGroup.collection.replace(/^Provenza\s*/i, '').trim();
+  const colorName = productGroup.name;
 
-  try {
-    await page.goto(`${BASE_URL}/search?q=${encodeURIComponent(searchTerm)}`, {
-      waitUntil: 'networkidle2',
-      timeout: 15000,
-    });
-    await delay(delayMs);
-  } catch {
-    return null;
+  if (!vendorSku) return null;
+
+  // Determine flooring category for URL path
+  const categories = ['hardwood', 'waterprooflvp', 'maxcorelaminate', 'wallchic', 'colournation'];
+
+  let loaded = false;
+  for (const category of categories) {
+    try {
+      const url = `${BASE_URL}/${category}/detail?sku=${encodeURIComponent(vendorSku)}&color=${encodeURIComponent(colorName)}&collection=${encodeURIComponent(collection)}`;
+      const response = await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
+      await delay(delayMs);
+
+      // Check if the page loaded a real product (not a 404 or redirect to homepage)
+      const pageUrl = page.url();
+      if (pageUrl.includes('/detail') && response && response.status() === 200) {
+        loaded = true;
+        break;
+      }
+    } catch { /* try next category */ }
   }
 
+  if (!loaded) {
+    // Fallback: try without color param (some URLs omit it)
+    try {
+      const url = `${BASE_URL}/hardwood/detail?sku=${encodeURIComponent(vendorSku)}&collection=${encodeURIComponent(collection)}`;
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
+      await delay(delayMs);
+      loaded = page.url().includes('/detail');
+    } catch { /* give up */ }
+  }
+
+  if (!loaded) return null;
+
+  // Wait for client-side rendering (jQuery + Angular-style templates)
+  // Detail pages use {{ selectTile.tileDetail.description }} expressions
+  await page.waitForSelector('img[src*="storage.googleapis.com"], img[src*="provenza"]', { timeout: 5000 }).catch(() => null);
+  // Extra delay for Angular template rendering
+  await delay(1500);
+
   const data = await page.evaluate(() => {
+    // 1. Images from Google Cloud Storage
     const images = [];
-    const imgElements = document.querySelectorAll('img[src*="product"], img[src*="collection"], img.product-image, img[class*="product"]');
-    for (const img of imgElements) {
-      const src = img.src || img.dataset.src;
-      if (src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon')) {
-        images.push(src);
+    const seen = new Set();
+    document.querySelectorAll('img').forEach(img => {
+      const src = img.src || img.dataset?.src || '';
+      if (src.includes('storage.googleapis.com/provenza-web') && !src.includes('emblem') && !src.includes('logo')) {
+        // Prefer detail images over lightbox
+        const clean = src.replace('/lightbox/', '/detail/').replace('_lb.jpg', '.jpg');
+        if (!seen.has(clean)) {
+          seen.add(clean);
+          images.push(clean);
+        }
+      }
+    });
+    // Also look for background images in style attributes
+    document.querySelectorAll('[style*="storage.googleapis.com"]').forEach(el => {
+      const match = el.style.backgroundImage?.match(/url\(['"]?(https:\/\/storage[^'")\s]+)['"]?\)/);
+      if (match && !seen.has(match[1])) {
+        seen.add(match[1]);
+        images.push(match[1]);
+      }
+    });
+
+    // 2. Description — rendered from Angular template {{ selectTile.tileDetail.description }}
+    //    Located in #tabs-1 (Details tab) after client-side rendering
+    let description = null;
+    const descEl = document.querySelector('#tabs-1 p, .tabs-1 p, [class*="detail"] p, [class*="description"] p');
+    if (descEl) {
+      const text = descEl.textContent.trim();
+      // Skip if still an unrendered template expression
+      if (text.length > 20 && !text.includes('{{')) {
+        description = text.slice(0, 2000);
       }
     }
+    // Fallback: grab any substantial paragraph near the product info
+    if (!description) {
+      document.querySelectorAll('p').forEach(p => {
+        const text = p.textContent.trim();
+        if (text.length > 50 && !text.includes('cookie') && !text.includes('©') && !text.includes('{{') && !description) {
+          description = text.slice(0, 2000);
+        }
+      });
+    }
 
-    const descEl = document.querySelector('[class*="description"], [class*="about"], .product-description, article p');
-    const description = descEl ? descEl.textContent.trim().slice(0, 2000) : null;
-
+    // 3. Specs — Provenza does NOT display specs on detail pages (only in PDFs).
+    //    Best-effort extraction in case any page has inline spec data.
     const specs = {};
-    const specRows = document.querySelectorAll('[class*="spec"] tr, [class*="detail"] tr, dl dt');
-    for (const row of specRows) {
-      const cells = row.querySelectorAll('td, dd');
-      const label = (row.querySelector('th, dt')?.textContent || '').trim().toLowerCase();
-      const value = cells[0]?.textContent?.trim();
-      if (label && value) {
-        if (label.includes('thickness')) specs.thickness = value;
-        if (label.includes('width')) specs.size = value;
-        if (label.includes('finish')) specs.finish = value;
-        if (label.includes('species') || label.includes('material')) specs.material = value;
-        if (label.includes('edge')) specs.edge = value;
+    document.querySelectorAll('li, .spec-item, [class*="spec"]').forEach(el => {
+      const text = el.textContent.trim().toLowerCase();
+      if (text.includes('{{')) return; // Skip unrendered templates
+      if (text.includes('thickness') && text.includes('"')) {
+        specs.thickness = el.textContent.replace(/.*thickness[:\s]*/i, '').trim();
       }
-    }
+      if (text.includes('width') && text.includes('"')) {
+        specs.size = el.textContent.replace(/.*width[:\s]*/i, '').trim();
+      }
+      if (text.includes('species') || text.includes('wood type')) {
+        specs.material = el.textContent.replace(/.*(?:species|wood type)[:\s]*/i, '').trim();
+      }
+      if (text.includes('finish') && !text.includes('finish warranty')) {
+        specs.finish = el.textContent.replace(/.*finish[:\s]*/i, '').trim();
+      }
+    });
 
     return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
   });
 
-  if (data.images.length === 0 && !data.description && !data.specs) {
-    return null;
-  }
-
+  if (data.images.length === 0 && !data.description && !data.specs) return null;
   return data;
 }
