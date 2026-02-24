@@ -128,7 +128,24 @@ export async function run(pool, job, source) {
       // We need flooring products in the DB first so we can link accessories to them.
 
       const ACCESSORY_SUFFIXES = /^(.+\d)(STN|STNSQ|SQSTN|TM|QTR|QR|RDC|RD|SQN|FSN|OSN|EC|END|LW|LZ|PADFSN|PADRD|PADEC|PADOSN|PADQR|PADTM|PAD|OSCV|SQSTNI?|STNI)$/i;
-      const ACCESSORY_NAME_RE = /\b(STAIR\s*NOSE|T[- ]?MOULD|QUARTER\s*ROUND|REDUCER|END\s*CAP|SQUARE\s*NOSE|OVERLAP|BULLNOSE|FLUSH|TRANSITION|RISER|THRESHOLD)\b/i;
+      const ACCESSORY_NAME_RE = /\b(STAIR\s*NOSE|T[- ]?MOULD|QUARTER\s*ROUND|REDUCER|END\s*CAP|SQUARE\s*NOSE|OVERLAP|BULLNOSE|FLUSH\s*(STAIR|STR)|TRANSITION|RISER|THRESHOLD|NOSING|COVE\s*CAP|EDGE\s*GUARD|CARPET\s*EDGE|SNAP\s*DOWN|DIVIDER|JOINER|TUB\s*MOLD)\b/i;
+
+      // ── Installation product detection ──
+      // Products like screws, adhesives, grout, tape, underlayment from flooring
+      // brands (Paradigm, Shaw, Bruce, Armstrong) need to be recategorized into
+      // Installation & Sundries subcategories instead of the brand default.
+      const INSTALL_PRODUCT_RE = /\b(ADHESIVE|GLUE|MORTAR|SEALANT|GROUT|CAULK|SEAM\s*SEALER|SEALER|SCREW|DRILL\s*BIT|TROWEL|ROLLER|SPACER|BLADE|UNDERLAYMENT|MEMBRANE|LEVELER|SELF[- ]LEVEL|PATCH\s*COMPOUND|PRIMER)\b/i;
+      const INSTALL_TAPE_RE = /\b(TAPE)\b/i;
+      const INSTALL_TAPE_EXCLUDE = /TAPESTRY/i;
+
+      function resolveInstallCategory(name) {
+        if (/\b(ADHESIVE|GLUE|MORTAR|SEALANT|GROUT|CAULK|SEAM\s*SEALER|SEALER)\b/i.test(name)) return 'adhesives-sealants';
+        if (/\b(UNDERLAYMENT|MEMBRANE)\b/i.test(name)) return 'underlayment';
+        if (/\b(LEVELER|SELF[- ]LEVEL|PATCH\s*COMPOUND|PRIMER)\b/i.test(name)) return 'surface-prep-levelers';
+        if (/\b(SCREW|DRILL\s*BIT|TROWEL|ROLLER|SPACER|BLADE)\b/i.test(name)) return 'tools-trowels';
+        if (INSTALL_TAPE_RE.test(name) && !INSTALL_TAPE_EXCLUDE.test(name)) return 'tools-trowels';
+        return null;
+      }
 
       // Separate flooring rows from accessory rows
       const flooringRows = [];
@@ -156,11 +173,17 @@ export async function run(pool, job, source) {
 
           const productName = row.color || row.productName || row.itemNumber;
 
+          // Check if this is an installation product misplaced under a flooring brand
+          const installSlug = resolveInstallCategory(productName) || resolveInstallCategory(row.productName || '');
+          const effectiveCategoryId = installSlug
+            ? (categoryLookup[installSlug] || category_id)
+            : category_id;
+
           const product = await upsertProduct(pool, {
             vendor_id,
             name: productName,
             collection,
-            category_id,
+            category_id: effectiveCategoryId,
             description_short: row.rawDescription || null,
           });
 
@@ -248,11 +271,16 @@ export async function run(pool, job, source) {
               : brandName;
             const productName = row.color || row.productName || vendorSku;
 
+            const accInstallSlug = resolveInstallCategory(productName) || resolveInstallCategory(row.productName || '');
+            const accCategoryId = accInstallSlug
+              ? (categoryLookup[accInstallSlug] || category_id)
+              : category_id;
+
             const product = await upsertProduct(pool, {
               vendor_id,
               name: productName,
               collection,
-              category_id,
+              category_id: accCategoryId,
               description_short: row.rawDescription || null,
             });
 

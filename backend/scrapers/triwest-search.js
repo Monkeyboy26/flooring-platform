@@ -74,22 +74,22 @@ export const MFGR_CATEGORY = {
   'KRA': 'lvp-plank',
   'STX': 'carpet-tile',
   'SHA': 'engineered-hardwood',
-  // Specialty brands — no default category
-  'FXO': null,
-  'SIK': null,
-  'USR': null,
-  'TEC': null,
-  'WFT': null,
-  'KEN': null,
-  'BOS': null,
-  'BBL': null,
-  'ELT': null,
-  'FOS': null,
-  'HDS': null,
-  'JMC': null,
-  'RCG': null,
-  'SUM': null,
-  'TDT': null,
+  // Installation & specialty brands
+  'SIK': 'adhesives-sealants',
+  'TEC': 'adhesives-sealants',
+  'WFT': 'adhesives-sealants',
+  'USR': 'underlayment',
+  'FXO': 'wall-base',           // primary product type; also has rubber tile + stair treads
+  'FOS': 'engineered-hardwood',  // Forester = solid hardwood (Paramount)
+  'BBL': 'lvp-plank',           // Babool = SPC/WPC vinyl plank
+  'SUM': 'lvp-plank',           // Summit = vinyl plank
+  'BOS': 'natural-stone',       // Bosphorus = marble/travertine
+  'ELT': 'porcelain-tile',      // Elysium = tile
+  'JMC': 'engineered-hardwood', // JM Cork = cork flooring
+  'RCG': 'lvp-plank',           // RC Global = vinyl
+  'HDS': 'engineered-hardwood', // Hardwoods Specialty
+  'TDT': 'engineered-hardwood', // Traditions
+  'KEN': 'lvp-plank',           // Kenmark
   'OPX': 'lvp-plank',
 };
 

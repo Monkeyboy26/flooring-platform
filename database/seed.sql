@@ -59,7 +59,17 @@ INSERT INTO categories (id, parent_id, name, slug, sort_order) VALUES
 -- ── Laminate ──
 ('650e8400-e29b-41d4-a716-446655440090', NULL, 'Laminate', 'laminate', 9),
 -- ── Carpet Tile ──
-('650e8400-e29b-41d4-a716-446655440100', NULL, 'Carpet Tile', 'carpet-tile', 10);
+('650e8400-e29b-41d4-a716-446655440100', NULL, 'Carpet Tile', 'carpet-tile', 10),
+-- ── Installation & Sundries ──
+('650e8400-e29b-41d4-a716-446655440110', NULL, 'Installation & Sundries', 'installation-sundries', 11),
+('650e8400-e29b-41d4-a716-446655440111', '650e8400-e29b-41d4-a716-446655440110', 'Adhesives & Sealants', 'adhesives-sealants', 1),
+('650e8400-e29b-41d4-a716-446655440112', '650e8400-e29b-41d4-a716-446655440110', 'Underlayment', 'underlayment', 2),
+('650e8400-e29b-41d4-a716-446655440113', '650e8400-e29b-41d4-a716-446655440110', 'Surface Prep & Levelers', 'surface-prep-levelers', 3),
+('650e8400-e29b-41d4-a716-446655440114', '650e8400-e29b-41d4-a716-446655440110', 'Transitions & Moldings', 'transitions-moldings', 4),
+('650e8400-e29b-41d4-a716-446655440115', '650e8400-e29b-41d4-a716-446655440110', 'Wall Base', 'wall-base', 5),
+('650e8400-e29b-41d4-a716-446655440116', '650e8400-e29b-41d4-a716-446655440110', 'Rubber Flooring', 'rubber-flooring', 6),
+('650e8400-e29b-41d4-a716-446655440117', '650e8400-e29b-41d4-a716-446655440110', 'Stair Treads & Nosing', 'stair-treads-nosing', 7),
+('650e8400-e29b-41d4-a716-446655440118', '650e8400-e29b-41d4-a716-446655440110', 'Tools & Trowels', 'tools-trowels', 8);
 
 -- Products: 8 products across categories, both vendors
 -- 3 Tile (Natural Stone + Porcelain)
