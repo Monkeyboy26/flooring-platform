@@ -12230,10 +12230,11 @@ function generateSlugBackend(text) {
 
 app.get('/api/sitemap.xml', async (req, res) => {
   try {
-    const baseUrl = 'https://romaflooringdesigns.com';
+    const baseUrl = 'https://www.romaflooringdesigns.com';
+    const today = new Date().toISOString().split('T')[0];
 
-    const [productsResult, categoriesResult, collectionsResult] = await Promise.all([
-      pool.query(`SELECT id, name FROM products WHERE status = 'active' ORDER BY name`),
+    const [skusResult, categoriesResult, collectionsResult] = await Promise.all([
+      pool.query(`SELECT s.id, p.name as product_name, s.updated_at FROM skus s JOIN products p ON s.product_id = p.id WHERE p.status = 'active' ORDER BY s.id`),
       pool.query(`SELECT slug FROM categories WHERE is_active = true ORDER BY slug`),
       pool.query(`SELECT DISTINCT collection as name FROM products WHERE status = 'active' AND collection IS NOT NULL AND collection != '' ORDER BY collection`)
     ]);
@@ -12244,24 +12245,25 @@ app.get('/api/sitemap.xml', async (req, res) => {
     // Static pages
     const staticPages = ['/', '/shop', '/collections', '/trade'];
     for (const page of staticPages) {
-      xml += `  <url><loc>${baseUrl}${page}</loc><changefreq>weekly</changefreq><priority>${page === '/' ? '1.0' : '0.8'}</priority></url>\n`;
+      xml += `  <url><loc>${baseUrl}${page}</loc><lastmod>${today}</lastmod><changefreq>weekly</changefreq><priority>${page === '/' ? '1.0' : '0.8'}</priority></url>\n`;
     }
 
     // Category pages
     for (const row of categoriesResult.rows) {
-      xml += `  <url><loc>${baseUrl}/shop?category=${encodeURIComponent(row.slug)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>\n`;
+      xml += `  <url><loc>${baseUrl}/shop?category=${encodeURIComponent(row.slug)}</loc><lastmod>${today}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>\n`;
     }
 
     // Collection pages
     for (const row of collectionsResult.rows) {
       const slug = generateSlugBackend(row.name);
-      xml += `  <url><loc>${baseUrl}/collections/${encodeURIComponent(slug)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>\n`;
+      xml += `  <url><loc>${baseUrl}/collections/${encodeURIComponent(slug)}</loc><lastmod>${today}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>\n`;
     }
 
-    // Product pages
-    for (const row of productsResult.rows) {
-      const slug = generateSlugBackend(row.name);
-      xml += `  <url><loc>${baseUrl}/product/${row.id}/${encodeURIComponent(slug)}</loc><changefreq>daily</changefreq><priority>0.9</priority></url>\n`;
+    // SKU pages
+    for (const row of skusResult.rows) {
+      const slug = generateSlugBackend(row.product_name);
+      const lastmod = row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : today;
+      xml += `  <url><loc>${baseUrl}/shop/sku/${row.id}/${encodeURIComponent(slug)}</loc><lastmod>${lastmod}</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>\n`;
     }
 
     xml += '</urlset>';

@@ -828,8 +828,17 @@
       setMeta('meta[property="og:description"]', description);
       setMeta('meta[property="og:url"]', url);
       if (image) setMeta('meta[property="og:image"]', image);
+      setMeta('meta[name="twitter:title"]', title);
+      setMeta('meta[name="twitter:description"]', description);
+      if (image) setMeta('meta[name="twitter:image"]', image);
       const canonical = document.querySelector('link[rel="canonical"]');
       if (canonical && url) canonical.setAttribute('href', url);
+    }
+
+    function setDynamicJsonLd(data) {
+      let el = document.getElementById('dynamic-jsonld');
+      if (!el) { el = document.createElement('script'); el.type = 'application/ld+json'; el.id = 'dynamic-jsonld'; document.head.appendChild(el); }
+      el.textContent = JSON.stringify(data);
     }
 
     function isSoldPerUnit(sku) {
@@ -1533,13 +1542,53 @@
           'bulk-order': { title: 'Bulk Order | Roma Flooring Designs', description: 'Place a bulk order.', url: SITE_URL + '/trade/bulk-order' },
           'reset-password': { title: 'Reset Password | Roma Flooring Designs', description: 'Reset your password.', url: SITE_URL + '/reset-password' },
         };
-        if (seoMap[view]) updateSEO(seoMap[view]);
-        if (view !== 'detail') {
+
+        // Dynamic SEO for filtered browse views
+        if (view === 'browse' && selectedCategory) {
+          const catObj = categories.find(c => c.slug === selectedCategory);
+          const catName = catObj ? catObj.name : selectedCategory.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          updateSEO({ title: catName + ' Flooring | Roma Flooring Designs', description: 'Browse premium ' + catName.toLowerCase() + ' flooring products at Roma Flooring Designs.', url: SITE_URL + '/shop?category=' + encodeURIComponent(selectedCategory) });
+        } else if (view === 'browse' && selectedCollection) {
+          const collName = selectedCollection.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          updateSEO({ title: collName + ' | Roma Flooring Designs', description: 'Explore the ' + collName + ' collection at Roma Flooring Designs.', url: SITE_URL + '/collections/' + encodeURIComponent(selectedCollection) });
+        } else if (seoMap[view]) {
+          updateSEO(seoMap[view]);
+        }
+
+        // JSON-LD structured data per view
+        if (view === 'browse') {
+          const crumbs = [{ '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' }, { '@type': 'ListItem', position: 2, name: 'Shop', item: SITE_URL + '/shop' }];
+          if (selectedCategory) {
+            const catObj = categories.find(c => c.slug === selectedCategory);
+            const catName = catObj ? catObj.name : selectedCategory.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            crumbs.push({ '@type': 'ListItem', position: 3, name: catName, item: SITE_URL + '/shop?category=' + encodeURIComponent(selectedCategory) });
+          }
+          setDynamicJsonLd({ '@context': 'https://schema.org', '@graph': [
+            { '@type': 'CollectionPage', name: selectedCategory ? (categories.find(c => c.slug === selectedCategory) || {}).name || 'Shop' : 'Shop All', url: selectedCategory ? SITE_URL + '/shop?category=' + encodeURIComponent(selectedCategory) : SITE_URL + '/shop' },
+            { '@type': 'BreadcrumbList', itemListElement: crumbs }
+          ]});
+        } else if (view === 'collections') {
+          setDynamicJsonLd({ '@context': 'https://schema.org', '@graph': [
+            { '@type': 'CollectionPage', name: 'Collections', url: SITE_URL + '/collections' },
+            { '@type': 'BreadcrumbList', itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+              { '@type': 'ListItem', position: 2, name: 'Collections', item: SITE_URL + '/collections' }
+            ]}
+          ]});
+        } else if (view === 'trade') {
+          setDynamicJsonLd({ '@context': 'https://schema.org', '@graph': [
+            { '@type': 'WebPage', name: 'Trade Program', url: SITE_URL + '/trade', description: 'Join our trade program for exclusive pricing and dedicated support.' },
+            { '@type': 'BreadcrumbList', itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+              { '@type': 'ListItem', position: 2, name: 'Trade Program', item: SITE_URL + '/trade' }
+            ]}
+          ]});
+        } else if (view !== 'detail') {
           const ldEl = document.getElementById('dynamic-jsonld');
           if (ldEl) ldEl.remove();
         }
         // Lock body scroll when cart drawer is open
-      }, [view]);
+      }, [view, selectedCategory, selectedCollection, categories]);
 
       return (
         <>
@@ -2671,9 +2720,11 @@
               const skuImage = (data.media && data.media[0]) ? data.media[0].url : null;
               updateSEO({ title: skuTitle, description: skuDesc, url: SITE_URL + '/shop/sku/' + skuId, image: skuImage });
               // Dynamic JSON-LD Product schema
-              const jsonLd = {
+              setDynamicJsonLd({
                 '@context': 'https://schema.org', '@graph': [
                   { '@type': 'Product', name: data.sku.product_name, description: skuDesc, image: skuImage,
+                    sku: data.sku.sku_code || String(data.sku.sku_id),
+                    mpn: data.sku.sku_code || '',
                     brand: { '@type': 'Brand', name: data.sku.vendor_name || 'Roma Flooring Designs' },
                     category: data.sku.category_name || '',
                     offers: { '@type': 'Offer', url: SITE_URL + '/shop/sku/' + skuId, priceCurrency: 'USD',
@@ -2687,10 +2738,7 @@
                     { '@type': 'ListItem', position: data.sku.category_name ? 4 : 3, name: data.sku.product_name, item: SITE_URL + '/shop/sku/' + skuId }
                   ].filter(Boolean) }
                 ]
-              };
-              let ldEl = document.getElementById('dynamic-jsonld');
-              if (!ldEl) { ldEl = document.createElement('script'); ldEl.type = 'application/ld+json'; ldEl.id = 'dynamic-jsonld'; document.head.appendChild(ldEl); }
-              ldEl.textContent = JSON.stringify(jsonLd);
+              });
             }
           })
           .catch(err => {

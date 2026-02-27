@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="theme-color" content="#1c1917">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Roma Flooring">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>Roma Flooring Designs | Premium Flooring &amp; Tile in Anaheim, CA</title>
   <meta name="description" content="Roma Flooring Designs offers premium flooring, tile, stone, and countertop products in Anaheim, CA. Shop our curated collections of hardwood, porcelain, marble, and more.">
   <link rel="canonical" href="https://romaflooringdesigns.com/">
@@ -54,7 +60,7 @@
   </script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
   <script src="https://js.stripe.com/v3/"></script>
   <style>
@@ -93,10 +99,14 @@
       z-index: 100;
     }
     .logo {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.75rem;
-      color: var(--stone-900);
       cursor: pointer;
+      display: flex;
+      align-items: center;
+    }
+    .logo img {
+      height: 50px;
+      width: auto;
+      display: block;
     }
     nav { display: flex; gap: 2rem; }
     nav a {
@@ -243,23 +253,31 @@
 
     /* Product Detail Page */
     .product-detail {
-      max-width: 1400px;
+      max-width: 1100px;
       margin: 3rem auto;
-      padding: 0 3rem;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4rem;
+      padding: 0 2rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3rem;
+    }
+    .product-detail-gallery {
+      width: 420px;
+      flex-shrink: 0;
+      align-self: flex-start;
+    }
+    .product-detail-info {
+      flex: 1;
+      min-width: 280px;
     }
     .product-detail-image {
       width: 100%;
-      aspect-ratio: 1;
+      max-width: 420px;
       background: #e7e5e4;
       overflow: hidden;
     }
     .product-detail-image img {
       width: 100%;
-      height: 100%;
-      object-fit: cover;
+      height: auto;
       display: block;
     }
     .product-gallery-thumbs {
@@ -284,10 +302,25 @@
       object-fit: cover;
       display: block;
     }
+    .product-detail-collection {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--stone-500);
+      margin-bottom: 0.375rem;
+    }
     .product-detail-info h1 {
       font-family: 'Cormorant Garamond', serif;
       font-size: 3rem;
       font-weight: 300;
+      margin-bottom: 0.25rem;
+    }
+    .product-detail-variant {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9375rem;
+      color: var(--stone-500);
       margin-bottom: 1rem;
     }
     .product-detail-meta {
@@ -863,8 +896,14 @@
 
     @media (max-width: 768px) {
       .product-detail {
-        grid-template-columns: 1fr;
-        gap: 2rem;
+        gap: 1.5rem;
+        padding: 0 1.5rem;
+      }
+      .product-detail-gallery {
+        width: 100%;
+      }
+      .product-detail-image {
+        max-width: 100%;
       }
       .calc-input-row {
         grid-template-columns: 1fr;
@@ -2072,11 +2111,360 @@
       .trade-dash-tab { padding: 0.6rem 0.75rem; font-size: 0.7rem; }
       .trade-dash-tab svg { width: 14px; height: 14px; }
     }
+
+    /* Sort Dropdown */
+    .shop-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    .shop-toolbar-count {
+      font-size: 0.8125rem;
+      color: var(--stone-500);
+    }
+    .sort-select {
+      padding: 0.5rem 2rem 0.5rem 0.75rem;
+      border: 1px solid var(--stone-200);
+      background: white;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8125rem;
+      color: var(--stone-800);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2357534e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+    }
+    .sort-select:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+
+    /* Load More Button */
+    .load-more-wrap {
+      text-align: center;
+      margin-top: 2.5rem;
+    }
+    .load-more-btn {
+      display: inline-block;
+      padding: 0.875rem 2.5rem;
+      background: white;
+      color: var(--stone-900);
+      border: 1px solid var(--stone-300);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .load-more-btn:hover {
+      background: var(--stone-100);
+      border-color: var(--stone-600);
+    }
+
+    /* Breadcrumbs */
+    .breadcrumbs {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8125rem;
+      color: var(--stone-500);
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    .breadcrumbs a {
+      color: var(--stone-500);
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .breadcrumbs a:hover {
+      color: var(--stone-900);
+      text-decoration: underline;
+    }
+    .breadcrumbs .breadcrumb-separator {
+      color: var(--stone-300);
+    }
+    .breadcrumbs .breadcrumb-current {
+      color: var(--stone-400);
+    }
+
+    /* Specifications Section */
+    .specs-section {
+      background: var(--stone-50);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .specs-section h4 {
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .specs-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--stone-200);
+      font-size: 0.875rem;
+    }
+    .specs-row:last-child {
+      border-bottom: none;
+    }
+    .specs-row-label {
+      color: var(--stone-600);
+    }
+    .specs-row-value {
+      font-weight: 500;
+      color: var(--stone-800);
+    }
+
+    /* Wishlist Heart */
+    .wishlist-heart {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.25rem;
+      color: var(--stone-400);
+      transition: color 0.2s, transform 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .wishlist-heart:hover {
+      color: #e11d48;
+      transform: scale(1.1);
+    }
+    .wishlist-heart.active {
+      color: #e11d48;
+    }
+    .wishlist-heart svg {
+      width: 22px;
+      height: 22px;
+    }
+    .product-card .wishlist-heart {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      z-index: 3;
+      background: rgba(255,255,255,0.85);
+      border-radius: 50%;
+      width: 34px;
+      height: 34px;
+    }
+    .wishlist-header-wrap {
+      position: relative;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      color: var(--stone-600);
+    }
+    .wishlist-header-wrap:hover { color: #e11d48; }
+    .wishlist-header-wrap svg { width: 20px; height: 20px; }
+    .wishlist-badge {
+      position: absolute;
+      top: -6px;
+      right: -10px;
+      background: #e11d48;
+      color: white;
+      font-size: 0.65rem;
+      font-weight: 600;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Wishlist Page */
+    .wishlist-page {
+      max-width: 1400px;
+      margin: 3rem auto;
+      padding: 0 3rem;
+    }
+    .wishlist-page h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.5rem;
+      font-weight: 300;
+      margin-bottom: 2rem;
+    }
+    .wishlist-empty {
+      text-align: center;
+      padding: 4rem 0;
+      color: var(--stone-600);
+    }
+    .wishlist-empty p {
+      margin-bottom: 1.5rem;
+      font-size: 1rem;
+    }
+
+    /* Recently Viewed */
+    .recently-viewed-section {
+      margin-bottom: 2rem;
+    }
+    .recently-viewed-section h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem;
+      font-weight: 400;
+      margin-bottom: 1rem;
+    }
+    .recently-viewed-scroll {
+      display: flex;
+      gap: 1.25rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+      scrollbar-width: thin;
+      scrollbar-color: var(--stone-300) transparent;
+    }
+    .recently-viewed-scroll::-webkit-scrollbar {
+      height: 4px;
+    }
+    .recently-viewed-scroll::-webkit-scrollbar-thumb {
+      background: var(--stone-300);
+      border-radius: 2px;
+    }
+    .recently-viewed-card {
+      flex: 0 0 200px;
+      cursor: pointer;
+      transition: transform 0.3s;
+    }
+    .recently-viewed-card:hover { transform: translateY(-4px); }
+    .recently-viewed-card .rv-image {
+      width: 200px;
+      height: 200px;
+      background: var(--stone-200);
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+    .recently-viewed-card .rv-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .recently-viewed-card .rv-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .recently-viewed-card .rv-price {
+      font-size: 0.8125rem;
+      font-weight: 500;
+    }
+
+    /* Unit Quantity Picker */
+    .unit-qty-picker {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .unit-qty-btn {
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--stone-300);
+      background: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.125rem;
+      color: var(--stone-800);
+      transition: all 0.2s;
+    }
+    .unit-qty-btn:hover {
+      background: var(--stone-100);
+      border-color: var(--stone-400);
+    }
+
+    /* Accessories Section */
+    .accessories-section {
+      border-top: 1px solid var(--stone-200);
+      margin-top: 2rem;
+      padding-top: 2rem;
+    }
+    .accessories-section h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem;
+      font-weight: 400;
+      margin-bottom: 0.25rem;
+    }
+    .accessories-subtitle {
+      font-size: 0.8125rem;
+      color: var(--stone-600);
+      margin-bottom: 1.25rem;
+    }
+    .accessories-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+    .accessory-card {
+      background: var(--stone-50);
+      border: 1px solid var(--stone-200);
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .accessory-name {
+      font-weight: 500;
+      font-size: 0.9375rem;
+    }
+    .accessory-price {
+      font-size: 0.875rem;
+      color: var(--stone-600);
+    }
+    .accessory-qty-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-top: 0.25rem;
+    }
+    .accessory-qty-row .unit-qty-picker {
+      margin-bottom: 0;
+      gap: 0.5rem;
+    }
+    .accessory-qty-row .unit-qty-btn {
+      width: 32px;
+      height: 32px;
+      font-size: 0.875rem;
+    }
+
+    @media (max-width: 480px) {
+      .accessory-qty-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .accessory-qty-row .unit-qty-picker {
+        justify-content: center;
+      }
+    }
+
+    /* aspect-ratio fallback for Safari <15 */
+    @supports not (aspect-ratio: 1) {
+      .product-image { height: 0; padding-bottom: 100%; position: relative; }
+      .product-image img { position: absolute; top: 0; left: 0; }
+    }
+
+    /* flexbox gap fallback for Safari <14.1 */
+    @supports not (gap: 1rem) {
+      nav > * + * { margin-left: 2rem; }
+      .filter-option > * + * { margin-left: 0.5rem; }
+    }
   </style>
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel">
+  <script type="text/babel" data-presets="env,react">
     const { useState, useEffect, useRef } = React;
 
         const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -2133,11 +2521,13 @@
         case 'trade': return '/trade';
         case 'trade-dashboard': return '/trade/dashboard';
         case 'bulk-order': return '/trade/bulk-order';
+        case 'wishlist': return '/wishlist';
         case 'account': return '/account';
         case 'cart': return '/cart';
         case 'checkout': return '/checkout';
         case 'confirmation': return '/order-confirmation';
         case 'reset-password': return '/reset-password';
+        case 'visit-recap': return '/visit/' + (params.token || '');
         default: return '/';
       }
     }
@@ -2175,11 +2565,16 @@
       if (path === '/trade') return { view: 'trade', params: {} };
       if (path === '/trade/dashboard') return { view: 'trade-dashboard', params: {} };
       if (path === '/trade/bulk-order') return { view: 'bulk-order', params: {} };
+      if (path === '/wishlist') return { view: 'wishlist', params: {} };
       if (path === '/account') return { view: 'account', params: {} };
       if (path === '/cart') return { view: 'cart', params: {} };
       if (path === '/checkout') return { view: 'checkout', params: {} };
       if (path === '/order-confirmation') return { view: 'confirmation', params: {} };
       if (path === '/reset-password') return { view: 'reset-password', params: {} };
+      if (path.startsWith('/visit/')) {
+        const token = path.replace('/visit/', '');
+        return { view: 'visit-recap', params: { token } };
+      }
       return { view: 'home', params: {} };
     }
 
@@ -2213,9 +2608,9 @@
         case 'product': {
           const p = params.product;
           if (p) {
-            title = p.name + (p.collection ? ' — ' + p.collection : '') + ' | ' + SITE_NAME;
-            description = p.description_short || (p.name + ' by ' + (p.vendor_name || SITE_NAME) + '. Premium flooring available at Roma Flooring Designs.');
-            canonical = SITE_URL + '/product/' + p.id + '/' + generateSlug(p.name);
+            title = [p.collection, p.name].filter(Boolean).join(' ') + ' | ' + SITE_NAME;
+            description = p.description_short || ([p.collection, p.name].filter(Boolean).join(' ') + ' by ' + (p.vendor_name || SITE_NAME) + '. Premium flooring available at Roma Flooring Designs.');
+            canonical = SITE_URL + '/product/' + p.id + '/' + generateSlug([p.collection, p.name].filter(Boolean).join(' '));
             image = params.primaryImage || DEFAULT_IMAGE;
           } else {
             title = 'Product | ' + SITE_NAME;
@@ -2272,8 +2667,8 @@
           '@graph': [
             {
               '@type': 'Product',
-              name: p.name,
-              description: p.description_short || p.description_long || (p.name + ' by ' + (p.vendor_name || SITE_NAME)),
+              name: [p.collection, p.name].filter(Boolean).join(' '),
+              description: p.description_short || p.description_long || ([p.collection, p.name].filter(Boolean).join(' ') + ' by ' + (p.vendor_name || SITE_NAME)),
               image: params.primaryImage || DEFAULT_IMAGE,
               brand: { '@type': 'Brand', name: p.vendor_name || SITE_NAME },
               category: p.category_name || '',
@@ -2347,6 +2742,16 @@
       const [showAuthModal, setShowAuthModal] = useState(false);
       const [authModalMode, setAuthModalMode] = useState('login');
       const [appliedPromoCode, setAppliedPromoCode] = useState(null);
+      const [visitRecapToken, setVisitRecapToken] = useState(null);
+      const [sortBy, setSortBy] = useState('name_asc');
+      const [totalProducts, setTotalProducts] = useState(0);
+      const [loadingMore, setLoadingMore] = useState(false);
+      const [wishlist, setWishlist] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('wishlist') || '[]'); } catch { return []; }
+      });
+      const [recentlyViewed, setRecentlyViewed] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('recently_viewed') || '[]'); } catch { return []; }
+      });
       const sessionId = useRef(getSessionId());
 
       const tradeHeaders = () => {
@@ -2354,7 +2759,7 @@
         return t ? { 'X-Trade-Token': t } : {};
       };
 
-      const fetchProducts = (categorySlug, activeFilters, searchTerm, collectionName) => {
+      const fetchProducts = (categorySlug, activeFilters, searchTerm, collectionName, sortOverride, append) => {
         const f = activeFilters || {};
         let url = API + '/api/products';
         const params = new URLSearchParams();
@@ -2366,12 +2771,29 @@
             params.set(slug, f[slug].join(','));
           }
         });
+        const sort = sortOverride || sortBy;
+        params.set('sort', sort);
+        params.set('limit', '24');
+        if (append) {
+          params.set('offset', products.length.toString());
+          setLoadingMore(true);
+        } else {
+          params.set('offset', '0');
+        }
         const qs = params.toString();
         if (qs) url += '?' + qs;
         fetch(url, { headers: tradeHeaders() })
           .then(r => r.json())
-          .then(data => setProducts(data.products))
-          .catch(err => console.error(err));
+          .then(data => {
+            if (append) {
+              setProducts(prev => [...prev, ...data.products]);
+            } else {
+              setProducts(data.products);
+            }
+            setTotalProducts(data.total || data.products.length);
+            setLoadingMore(false);
+          })
+          .catch(err => { console.error(err); setLoadingMore(false); });
       };
 
       const fetchAttributes = (categorySlug) => {
@@ -2418,7 +2840,7 @@
         if (savedCustToken) {
           fetch(API + '/api/customer/me', { headers: { 'X-Customer-Token': savedCustToken } })
             .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-            .then(data => { setCustomer(data.customer); setCustomerToken(savedCustToken); })
+            .then(data => { setCustomer(data.customer); setCustomerToken(savedCustToken); syncWishlistOnLogin(savedCustToken); })
             .catch(() => { localStorage.removeItem('customer_token'); setCustomerToken(null); });
         }
 
@@ -2466,6 +2888,9 @@
           updateMeta('shop', parsed.params);
         } else if (parsed.view === 'reset-password') {
           setView('reset-password');
+        } else if (parsed.view === 'visit-recap') {
+          setView('visit-recap');
+          setVisitRecapToken(parsed.params.token);
         } else if (parsed.view !== 'home') {
           setView(parsed.view);
           fetchProducts();
@@ -2525,6 +2950,7 @@
             // No state — parse URL
             const reparsed = parseUrl(window.location.pathname, window.location.search);
             setView(reparsed.view);
+            if (reparsed.view === 'visit-recap') setVisitRecapToken(reparsed.params.token);
             updateMeta(reparsed.view, reparsed.params);
           }
         };
@@ -2567,6 +2993,7 @@
         setCustomerToken(token);
         setCustomer(cust);
         setShowAuthModal(false);
+        syncWishlistOnLogin(token);
       };
 
       const handleCustomerLogout = () => {
@@ -2586,6 +3013,100 @@
       const goAccount = () => { setView('account'); navigateTo('account', {}, {}); window.scrollTo(0, 0); };
       const openCustomerLogin = () => { setAuthModalMode('login'); setShowAuthModal(true); };
       const openCustomerRegister = () => { setAuthModalMode('register'); setShowAuthModal(true); };
+
+      // Sort handler
+      const handleSortChange = (newSort) => {
+        setSortBy(newSort);
+        fetchProducts(selectedCategory, filters, searchQuery, selectedCollection, newSort);
+      };
+
+      // Load More handler
+      const handleLoadMore = () => {
+        fetchProducts(selectedCategory, filters, searchQuery, selectedCollection, sortBy, true);
+      };
+
+      // Wishlist helpers
+      const customerHeaders = () => {
+        const t = localStorage.getItem('customer_token');
+        return t ? { 'X-Customer-Token': t } : {};
+      };
+
+      const toggleWishlist = (productId) => {
+        const isWished = wishlist.includes(productId);
+        let updated;
+        if (isWished) {
+          updated = wishlist.filter(id => id !== productId);
+        } else {
+          updated = [productId, ...wishlist];
+        }
+        setWishlist(updated);
+        localStorage.setItem('wishlist', JSON.stringify(updated));
+
+        // Sync to API if logged in
+        const custToken = localStorage.getItem('customer_token');
+        if (custToken) {
+          if (isWished) {
+            fetch(API + '/api/wishlist/' + productId, { method: 'DELETE', headers: { 'X-Customer-Token': custToken } }).catch(() => {});
+          } else {
+            fetch(API + '/api/wishlist', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Customer-Token': custToken },
+              body: JSON.stringify({ product_id: productId })
+            }).catch(() => {});
+          }
+        }
+      };
+
+      // Sync wishlist on customer login
+      const syncWishlistOnLogin = (token) => {
+        const localWishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+        if (localWishlist.length > 0) {
+          fetch(API + '/api/wishlist/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Customer-Token': token },
+            body: JSON.stringify({ product_ids: localWishlist })
+          })
+          .then(r => r.json())
+          .then(data => {
+            if (data.product_ids) {
+              setWishlist(data.product_ids);
+              localStorage.setItem('wishlist', JSON.stringify(data.product_ids));
+            }
+          })
+          .catch(() => {});
+        } else {
+          fetch(API + '/api/wishlist', { headers: { 'X-Customer-Token': token } })
+          .then(r => r.json())
+          .then(data => {
+            if (data.product_ids) {
+              setWishlist(data.product_ids);
+              localStorage.setItem('wishlist', JSON.stringify(data.product_ids));
+            }
+          })
+          .catch(() => {});
+        }
+      };
+
+      // Recently viewed helper
+      const addToRecentlyViewed = (product) => {
+        const entry = {
+          id: product.id,
+          name: product.name,
+          primary_image: product.primary_image || null,
+          price: product.price || null,
+          collection: product.collection || '',
+          category_slug: product.category_slug || ''
+        };
+        setRecentlyViewed(prev => {
+          const filtered = prev.filter(p => p.id !== product.id);
+          const updated = [entry, ...filtered].slice(0, 20);
+          localStorage.setItem('recently_viewed', JSON.stringify(updated));
+          return updated;
+        });
+      };
+
+      // Wishlist page navigation
+      const goWishlist = () => { setView('wishlist'); navigateTo('wishlist', {}, {}); window.scrollTo(0, 0); };
 
       const addToCart = (item) => {
         fetch(API + '/api/cart', {
@@ -2640,6 +3161,7 @@
         setView('product');
         navigateTo('product', { product }, { id: product.id, name: product.name });
         window.scrollTo(0, 0);
+        addToRecentlyViewed(product);
       };
 
       const handleSearch = (query) => {
@@ -2794,12 +3316,16 @@
             removeFromCart={removeFromCart} goCart={goCart} cartFlash={cartFlash}
             searchQuery={searchQuery} onSearch={handleSearch}
             tradeCustomer={tradeCustomer} onTradeClick={tradeCustomer ? goTradeDashboard : goTrade} onTradeLogout={handleTradeLogout}
-            customer={customer} onAccountClick={customer ? goAccount : openCustomerLogin} onCustomerLogout={handleCustomerLogout} />
+            customer={customer} onAccountClick={customer ? goAccount : openCustomerLogin} onCustomerLogout={handleCustomerLogout}
+            wishlist={wishlist} goWishlist={goWishlist} />
 
           {view === 'home' && (
             <>
               <Hero goShop={goShop} />
               <ProductGrid products={products.slice(0, 6)} viewProduct={viewProduct} />
+              {recentlyViewed.length > 0 && (
+                <RecentlyViewed items={recentlyViewed} viewProduct={viewProduct} />
+              )}
             </>
           )}
           {view === 'collections' && (
@@ -2818,10 +3344,20 @@
               onFilterToggle={handleFilterToggle}
               onClearFilters={handleClearFilters}
               searchQuery={searchQuery}
+              sortBy={sortBy}
+              onSortChange={handleSortChange}
+              totalProducts={totalProducts}
+              onLoadMore={handleLoadMore}
+              loadingMore={loadingMore}
+              wishlist={wishlist}
+              toggleWishlist={toggleWishlist}
+              recentlyViewed={recentlyViewed}
             />
           )}
           {view === 'product' && (
-            <ProductDetail product={selectedProduct} goBack={goBack} addToCart={addToCart} cart={cart} onRequestInstall={handleRequestInstall} viewProduct={viewProduct} />
+            <ProductDetail product={selectedProduct} goBack={goBack} addToCart={addToCart} cart={cart} onRequestInstall={handleRequestInstall} viewProduct={viewProduct}
+              goHome={goHome} handleCategorySelect={handleCategorySelect}
+              wishlist={wishlist} toggleWishlist={toggleWishlist} />
           )}
           {view === 'cart' && (
             <CartPage cart={cart} goHome={goHome} removeFromCart={removeFromCart}
@@ -2841,11 +3377,17 @@
           {view === 'confirmation' && (
             <ConfirmationPage order={completedOrder} goHome={goHome} />
           )}
+          {view === 'wishlist' && (
+            <WishlistPage wishlist={wishlist} toggleWishlist={toggleWishlist} viewProduct={viewProduct} goShop={goShop} />
+          )}
           {view === 'account' && customer && (
             <AccountPage customer={customer} customerToken={customerToken} setCustomer={setCustomer} goHome={goHome} />
           )}
           {view === 'reset-password' && (
             <ResetPasswordPage goHome={goHome} openLogin={openCustomerLogin} />
+          )}
+          {view === 'visit-recap' && visitRecapToken && (
+            <VisitRecapPage token={visitRecapToken} viewProduct={viewProduct} />
           )}
           {view === 'trade' && (
             <TradePage onApplyClick={openTradeRegister} onSignInClick={openTradeLogin} />
@@ -2867,7 +3409,7 @@
       );
     }
 
-    function Header({ goHome, goShop, goCollections, cart, cartOpen, setCartOpen, removeFromCart, goCart, cartFlash, searchQuery, onSearch, tradeCustomer, onTradeClick, onTradeLogout, customer, onAccountClick, onCustomerLogout }) {
+    function Header({ goHome, goShop, goCollections, cart, cartOpen, setCartOpen, removeFromCart, goCart, cartFlash, searchQuery, onSearch, tradeCustomer, onTradeClick, onTradeLogout, customer, onAccountClick, onCustomerLogout, wishlist, goWishlist }) {
       const [searchInput, setSearchInput] = useState('');
       const itemCount = cart.length;
       const productItems = cart.filter(i => !i.is_sample);
@@ -2879,7 +3421,7 @@
         e.preventDefault();
         const q = searchInput.trim();
         if (q) {
-          onSearch(q);
+          window.location.href = '/shop?q=' + encodeURIComponent(q);
         }
       };
 
@@ -2890,10 +3432,10 @@
 
       return (
         <header>
-          <div className="logo" onClick={goHome}>Roma Flooring Designs</div>
+          <div className="logo" onClick={goHome}><img src="/assets/logo/roma-transparent.png" alt="Roma Flooring Designs" /></div>
           <nav>
-            <a onClick={goShop}>Products</a>
-            <a onClick={goCollections}>Collections</a>
+            <a href="/shop">Shop</a>
+            <a href="/shop?view=collections">Collections</a>
             {tradeCustomer ? (
               <span className="trade-header-info">
                 <a onClick={onTradeClick} style={{ cursor: 'pointer' }} className="trade-header-label">Trade: {tradeCustomer.company_name} ({tradeCustomer.tier_name || 'No Tier'})</a>
@@ -2933,6 +3475,12 @@
                 onChange={(e) => setSearchInput(e.target.value)}
               />
             </form>
+            <div className="wishlist-header-wrap" onClick={goWishlist}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+              </svg>
+              {wishlist.length > 0 && <span className="wishlist-badge">{wishlist.length}</span>}
+            </div>
             <div style={{ position: 'relative' }}>
               <div className={'cart-icon-wrap' + (cartFlash ? ' cart-flash' : '')} onClick={() => setCartOpen(!cartOpen)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -2963,7 +3511,10 @@
                                   <div className="cart-dropdown-item-meta">FREE SAMPLE</div>
                                 ) : (
                                   <div className="cart-dropdown-item-meta">
-                                    {item.num_boxes} box{item.num_boxes !== 1 ? 'es' : ''} &middot; {parseFloat(item.sqft_needed || 0).toFixed(0)} sqft
+                                    {item.sell_by === 'unit'
+                                      ? `${item.num_boxes} piece${item.num_boxes != 1 ? 's' : ''}`
+                                      : `${item.num_boxes} box${item.num_boxes != 1 ? 'es' : ''} \u00b7 ${parseFloat(item.sqft_needed || 0).toFixed(0)} sqft`
+                                    }
                                   </div>
                                 )}
                               </div>
@@ -2998,7 +3549,7 @@
           <div>
             <h1>Premium Flooring Materials</h1>
             <p>Curated surfaces from the world's finest makers</p>
-            <button className="btn" onClick={goShop}>Explore Collection</button>
+            <a className="btn" href="/shop" style={{ display: 'inline-block', textDecoration: 'none' }}>Explore Collection</a>
           </div>
         </div>
       );
@@ -3011,12 +3562,11 @@
           <div className="product-grid">
             {products.map(p => (
               <div key={p.id} className="product-card" onClick={() => viewProduct(p)}>
-                <StockBadge status={p.stock_status} />
                 <div className="product-image">
                   {p.primary_image && <img src={p.primary_image} alt={p.name} loading="lazy" />}
                 </div>
-                <div className="product-name">{p.name}</div>
-                <div className="product-meta">{p.collection} • {p.vendor_name}</div>
+                <div className="product-name">{[p.collection, p.name].filter(Boolean).join(' ')}</div>
+                <div className="product-meta">{p.vendor_name}</div>
                 <div className="product-price">
                       {p.price ? (
                         p.trade_price ? (
@@ -3185,7 +3735,9 @@
     }
 
     function ShopPage({ products, categories, selectedCategory, selectedCollection, onCategorySelect, viewProduct,
-      availableAttributes, filters, onFilterToggle, onClearFilters, searchQuery }) {
+      availableAttributes, filters, onFilterToggle, onClearFilters, searchQuery,
+      sortBy, onSortChange, totalProducts, onLoadMore, loadingMore,
+      wishlist, toggleWishlist, recentlyViewed }) {
       // Determine heading from selected collection, category, or search
       let heading = 'All Products';
       if (selectedCollection) {
@@ -3210,10 +3762,12 @@
         });
       });
 
+      const hasMore = products.length < totalProducts;
+
       return (
         <div className="shop-page">
           <div className="shop-page-header">
-            <h1>{heading} <span style={{ fontSize: '1.25rem', color: 'var(--stone-600)', fontWeight: 300 }}>({products.length} product{products.length !== 1 ? 's' : ''})</span></h1>
+            <h1>{heading}</h1>
           </div>
           <div>
             <CategorySidebar
@@ -3229,6 +3783,21 @@
             />
           </div>
           <div>
+            {recentlyViewed && recentlyViewed.length > 0 && (
+              <RecentlyViewed items={recentlyViewed} viewProduct={viewProduct} />
+            )}
+            <div className="shop-toolbar">
+              <span className="shop-toolbar-count">
+                Showing {products.length} of {totalProducts} product{totalProducts !== 1 ? 's' : ''}
+              </span>
+              <select className="sort-select" value={sortBy} onChange={e => onSortChange(e.target.value)}>
+                <option value="name_asc">Name A–Z</option>
+                <option value="name_desc">Name Z–A</option>
+                <option value="price_asc">Price: Low to High</option>
+                <option value="price_desc">Price: High to Low</option>
+                <option value="newest">Newest</option>
+              </select>
+            </div>
             {activePills.length > 0 && (
               <div className="active-filters">
                 {activePills.map(pill => (
@@ -3242,38 +3811,54 @@
             {products.length === 0 ? (
               <div className="shop-empty">No products found matching your filters.</div>
             ) : (
-              <div className="product-grid">
-                {products.map(p => (
-                  <div key={p.id} className="product-card" onClick={() => viewProduct(p)}>
-                    <StockBadge status={p.stock_status} />
-                    <div className="product-image">
-                      {p.primary_image && <img src={p.primary_image} alt={p.name} loading="lazy" />}
+              <>
+                <div className="product-grid">
+                  {products.map(p => (
+                    <div key={p.id} className="product-card" onClick={() => viewProduct(p)}>
+                      <button
+                        className={'wishlist-heart' + (wishlist.includes(p.id) ? ' active' : '')}
+                        onClick={(e) => { e.stopPropagation(); toggleWishlist(p.id); }}
+                      >
+                        <svg viewBox="0 0 24 24" fill={wishlist.includes(p.id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+                        </svg>
+                      </button>
+                      <div className="product-image">
+                        {p.primary_image && <img src={p.primary_image} alt={p.name} loading="lazy" />}
+                      </div>
+                      <div className="product-name">{[p.collection, p.name].filter(Boolean).join(' ')}</div>
+                      <div className="product-meta">{p.vendor_name}</div>
+                      <div className="product-price">
+                        {p.price ? (
+                          p.trade_price ? (
+                            <>
+                              <span className="price-strike">${parseFloat(p.price).toFixed(2)}</span>
+                              {' '}
+                              <span className="trade-price">${parseFloat(p.trade_price).toFixed(2)}{priceLabel(p)}</span>
+                            </>
+                          ) : (
+                            `$${parseFloat(p.price).toFixed(2)}${priceLabel(p)}`
+                          )
+                        ) : 'Contact for pricing'}
+                      </div>
                     </div>
-                    <div className="product-name">{p.name}</div>
-                    <div className="product-meta">{p.collection} &bull; {p.vendor_name}</div>
-                    <div className="product-price">
-                      {p.price ? (
-                        p.trade_price ? (
-                          <>
-                            <span className="price-strike">${parseFloat(p.price).toFixed(2)}</span>
-                            {' '}
-                            <span className="trade-price">${parseFloat(p.trade_price).toFixed(2)}{priceLabel(p)}</span>
-                          </>
-                        ) : (
-                          `$${parseFloat(p.price).toFixed(2)}${priceLabel(p)}`
-                        )
-                      ) : 'Contact for pricing'}
-                    </div>
+                  ))}
+                </div>
+                {hasMore && (
+                  <div className="load-more-wrap">
+                    <button className="load-more-btn" onClick={onLoadMore} disabled={loadingMore}>
+                      {loadingMore ? 'Loading...' : 'Load More'}
+                    </button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
         </div>
       );
     }
 
-    function ProductDetail({ product, goBack, addToCart, cart, onRequestInstall, viewProduct }) {
+    function ProductDetail({ product, goBack, addToCart, cart, onRequestInstall, viewProduct, goHome, handleCategorySelect, wishlist, toggleWishlist }) {
       // Calculator state - Elysium style where boxes and sqft sync
       const [sqftNeeded, setSqftNeeded] = useState('');
       const [numBoxes, setNumBoxes] = useState('');
@@ -3286,6 +3871,8 @@
       const [media, setMedia] = useState([]);
       const [selectedImage, setSelectedImage] = useState(null);
       const [recommendations, setRecommendations] = useState([]);
+      const [unitQty, setUnitQty] = useState(1);
+      const [accessoryQtys, setAccessoryQtys] = useState({});
 
       useEffect(() => {
         if (!product) return;
@@ -3298,17 +3885,28 @@
             setFullProduct(data.product);
             const allSkus = data.skus || [];
             setSkus(allSkus);
-            // Determine variant type groups
-            const types = [...new Set(allSkus.map(s => s.variant_type || null))];
+            // Separate main SKUs from accessories
+            const mainSkusInit = allSkus.filter(s => s.variant_type !== 'accessory');
+            const skusForInit = mainSkusInit.length > 0 ? mainSkusInit : allSkus;
+            const types = [...new Set(skusForInit.map(s => s.variant_type || null))];
             const initialType = types.length > 1 ? types[0] : types[0] || null;
             setActiveVariantType(initialType);
-            const typeSkus = types.length > 1 ? allSkus.filter(s => (s.variant_type || null) === initialType) : allSkus;
+            const typeSkus = types.length > 1 ? skusForInit.filter(s => (s.variant_type || null) === initialType) : skusForInit;
             const defaultSku = typeSkus.find(s => s.status === 'active') || typeSkus[0] || null;
             setSelectedSku(defaultSku);
+            setUnitQty(1);
+            setAccessoryQtys({});
             const mediaList = data.media || [];
-            setMedia(mediaList);
-            const primary = mediaList.find(m => m.asset_type === 'primary');
-            const primaryUrl = primary ? primary.url : (mediaList.length > 0 ? mediaList[0].url : null);
+            // Separate product shots from lifestyle/room photos
+            const productShots = mediaList.filter(m => m.asset_type === 'primary' || m.asset_type === 'alternate');
+            const lifestyleShots = mediaList.filter(m => m.asset_type === 'lifestyle');
+            // Show product shots first in gallery, lifestyle at the end
+            const orderedMedia = [...productShots, ...lifestyleShots];
+            setMedia(orderedMedia);
+            // Default to the first product-level primary (curated product shot, not room photo)
+            const productPrimary = mediaList.find(m => m.asset_type === 'primary' && !m.sku_id);
+            const anyPrimary = mediaList.find(m => m.asset_type === 'primary');
+            const primaryUrl = (productPrimary || anyPrimary || mediaList[0])?.url || null;
             setSelectedImage(primaryUrl);
             setLoading(false);
             // Update structured data with full product info
@@ -3333,12 +3931,17 @@
 
       const displayProduct = fullProduct || product;
 
-      // Group SKUs by variant_type
-      const variantTypes = [...new Set(skus.map(s => s.variant_type || null))];
+      // Separate main SKUs from accessories
+      const mainSkus = skus.filter(s => s.variant_type !== 'accessory');
+      const accessorySkus = mainSkus.length > 0 ? skus.filter(s => s.variant_type === 'accessory') : [];
+      const isAccessoryOnly = mainSkus.length === 0 && skus.length > 0;
+
+      // Group main SKUs by variant_type
+      const variantTypes = [...new Set(mainSkus.map(s => s.variant_type || null))];
       const hasMultipleTypes = variantTypes.length > 1;
       const activeSkus = hasMultipleTypes
-        ? skus.filter(s => (s.variant_type || null) === activeVariantType)
-        : skus;
+        ? mainSkus.filter(s => (s.variant_type || null) === activeVariantType)
+        : mainSkus;
 
       const VARIANT_TYPE_LABELS = {
         tile: 'Tile', mosaic: 'Mosaic', slab: 'Slab',
@@ -3347,11 +3950,12 @@
 
       const handleVariantTypeChange = (type) => {
         setActiveVariantType(type);
-        const typeSkus = skus.filter(s => (s.variant_type || null) === type);
+        const typeSkus = mainSkus.filter(s => (s.variant_type || null) === type);
         const first = typeSkus.find(s => s.status === 'active') || typeSkus[0] || null;
         setSelectedSku(first);
         setSqftNeeded('');
         setNumBoxes('');
+        setUnitQty(1);
       };
 
       const handleSkuChange = (skuId) => {
@@ -3360,8 +3964,12 @@
           setSelectedSku(sku);
           setSqftNeeded('');
           setNumBoxes('');
+          setUnitQty(1);
         }
       };
+
+      const isSqftBased = !selectedSku || selectedSku.sell_by !== 'unit';
+      const isUnitBased = !isSqftBased;
 
       const sqftPerBox = selectedSku ? parseFloat(selectedSku.sqft_per_box) || 0 : 0;
       const piecesPerBox = selectedSku ? parseInt(selectedSku.pieces_per_box) || 0 : 0;
@@ -3404,25 +4012,38 @@
         }
       };
 
-      // Calculate results
-      const boxes = numBoxes ? parseInt(numBoxes) : 0;
-      const actualSqft = boxes * sqftPerBox;
+      // Calculate results — dual mode (sqft vs unit)
+      const boxes = isSqftBased ? (numBoxes ? parseInt(numBoxes) : 0) : unitQty;
+      const actualSqft = isSqftBased ? boxes * sqftPerBox : 0;
       const requestedSqft = sqftNeeded ? parseFloat(sqftNeeded) : 0;
-      const totalWeight = boxes * weightPerBox;
-      const totalPrice = actualSqft * displayPrice;
+      const totalWeight = isSqftBased ? boxes * weightPerBox : unitQty * weightPerBox;
+      const totalPrice = isSqftBased ? actualSqft * displayPrice : unitQty * displayPrice;
       const pricePerBox = sqftPerBox * displayPrice;
 
       return (
         <>
         <div>
           <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem 3rem' }}>
-            <a className="back-btn" onClick={goBack}>
-              ← Back to Products
-            </a>
+            <div className="breadcrumbs">
+              <a onClick={goHome}>Home</a>
+              <span className="breadcrumb-separator">/</span>
+              {displayProduct.category_name ? (
+                <>
+                  <a onClick={() => handleCategorySelect(displayProduct.category_slug)}>{displayProduct.category_name}</a>
+                  <span className="breadcrumb-separator">/</span>
+                </>
+              ) : (
+                <>
+                  <a onClick={goBack}>Shop</a>
+                  <span className="breadcrumb-separator">/</span>
+                </>
+              )}
+              <span className="breadcrumb-current">{[displayProduct.collection, displayProduct.name].filter(Boolean).join(' ')}</span>
+            </div>
           </div>
 
           <div className="product-detail">
-            <div>
+            <div className="product-detail-gallery">
               <div className="product-detail-image">
                 {selectedImage && <img src={selectedImage} alt={displayProduct.name} />}
               </div>
@@ -3442,9 +4063,28 @@
             </div>
 
             <div className="product-detail-info">
-              <h1>{displayProduct.name}</h1>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
+                <div style={{ flex: 1 }}>
+                  {displayProduct.collection && (
+                    <div className="product-detail-collection">{displayProduct.collection}</div>
+                  )}
+                  <h1>{displayProduct.name}</h1>
+                  {selectedSku && selectedSku.variant_name && (
+                    <div className="product-detail-variant">{selectedSku.variant_name}</div>
+                  )}
+                </div>
+                <button
+                  className={'wishlist-heart' + (wishlist.includes(product.id) ? ' active' : '')}
+                  onClick={() => toggleWishlist(product.id)}
+                  style={{ marginTop: '0.75rem' }}
+                >
+                  <svg viewBox="0 0 24 24" fill={wishlist.includes(product.id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 28, height: 28 }}>
+                    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+                  </svg>
+                </button>
+              </div>
               <div className="product-detail-meta">
-                {displayProduct.collection} • {displayProduct.vendor_name}
+                {displayProduct.vendor_name}
               </div>
               <div className="product-detail-price">
                 {tradePrice ? (
@@ -3452,12 +4092,12 @@
                     <span className="price-strike">${pricePerSqft.toFixed(2)}</span>
                     {' '}
                     <span className="trade-price">${tradePrice.toFixed(2)}</span>
-                    {priceLabel(displayProduct) && <span> Per SqFt</span>}
+                    <span> {isSqftBased ? 'Per SqFt' : 'Each'}</span>
                     <span className="trade-tier-badge">{selectedSku.trade_tier}</span>
                   </>
                 ) : (
                   <>
-                    ${pricePerSqft.toFixed(2)} {priceLabel(displayProduct) && <span>Per SqFt</span>}
+                    ${pricePerSqft.toFixed(2)} <span>{isSqftBased ? 'Per SqFt' : 'Each'}</span>
                   </>
                 )}
               </div>
@@ -3472,13 +4112,13 @@
                 <div className="stock-status-detail">
                   <StockBadge status={selectedSku.stock_status} />
                   {selectedSku.stock_status === 'in_stock' && (
-                    <span className="stock-qty">{parseInt(selectedSku.qty_on_hand)} boxes available</span>
+                    <span className="stock-qty">{parseInt(selectedSku.qty_on_hand)} {isSqftBased ? 'boxes' : 'units'} available</span>
                   )}
                   {selectedSku.stock_status === 'low_stock' && (
-                    <span className="stock-qty stock-qty--low">Only {parseInt(selectedSku.qty_on_hand)} boxes left</span>
+                    <span className="stock-qty stock-qty--low">Only {parseInt(selectedSku.qty_on_hand)} {isSqftBased ? 'boxes' : 'units'} left</span>
                   )}
                   {selectedSku.stock_status === 'out_of_stock' && parseInt(selectedSku.qty_in_transit) > 0 && (
-                    <span className="stock-qty stock-qty--transit">{parseInt(selectedSku.qty_in_transit)} boxes in transit</span>
+                    <span className="stock-qty stock-qty--transit">{parseInt(selectedSku.qty_in_transit)} {isSqftBased ? 'boxes' : 'units'} in transit</span>
                   )}
                 </div>
               )}
@@ -3492,7 +4132,7 @@
                       onClick={() => handleVariantTypeChange(type)}
                     >
                       {type ? (VARIANT_TYPE_LABELS[type] || type) : 'Other'}
-                      {' '}({skus.filter(s => (s.variant_type || null) === type).length})
+                      {' '}({mainSkus.filter(s => (s.variant_type || null) === type).length})
                     </button>
                   ))}
                 </div>
@@ -3512,68 +4152,122 @@
                 </select>
               )}
 
-              <div className="packaging-info">
-                <h4>Packaging Information</h4>
-                {piecesPerBox > 0 && <div>SqFt Per Piece: {(sqftPerBox / piecesPerBox).toFixed(2)}</div>}
-                <div>Pieces Per Box: {piecesPerBox}</div>
-                <div>SqFt Per Box: {sqftPerBox}</div>
-                <div>Weight Per Box: {weightPerBox} lbs</div>
-                <div>Price Per Box: ${pricePerBox.toFixed(2)}</div>
-              </div>
-
-              <div className="calculator-widget">
-                <h3>Coverage Calculator</h3>
-
-                <div className="calc-input-row">
-                  <div className="calc-input-group">
-                    <label>SqFt Needed</label>
-                    <input
-                      className="calc-input"
-                      type="number"
-                      placeholder="0"
-                      value={sqftNeeded}
-                      onChange={(e) => handleSqftChange(e.target.value)}
-                      step="0.01"
-                    />
-                  </div>
-
-                  <div className="calc-input-group">
-                    <label>Number of Boxes</label>
-                    <input
-                      className="calc-input"
-                      type="number"
-                      placeholder="0"
-                      value={numBoxes}
-                      onChange={(e) => handleBoxesChange(e.target.value)}
-                      step="1"
-                    />
-                  </div>
+              {isSqftBased ? (
+                <div className="packaging-info">
+                  <h4>Packaging Information</h4>
+                  {piecesPerBox > 0 && <div>SqFt Per Piece: {(sqftPerBox / piecesPerBox).toFixed(2)}</div>}
+                  <div>Pieces Per Box: {piecesPerBox}</div>
+                  <div>SqFt Per Box: {sqftPerBox}</div>
+                  <div>Weight Per Box: {weightPerBox} lbs</div>
+                  <div>Price Per Box: ${pricePerBox.toFixed(2)}</div>
                 </div>
+              ) : (
+                <div className="packaging-info">
+                  <h4>Product Information</h4>
+                  {weightPerBox > 0 && <div>Weight: {weightPerBox} lbs</div>}
+                  <div>Price Per Piece: ${displayPrice.toFixed(2)}</div>
+                </div>
+              )}
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer', marginBottom: '1rem' }}>
-                  <input
-                    type="checkbox"
-                    checked={includeOverage}
-                    onChange={handleOverageToggle}
-                    style={{ width: '1rem', height: '1rem', cursor: 'pointer' }}
-                  />
-                  Add 10% overage for breakage &amp; cuts
-                </label>
+              {selectedSku && selectedSku.attributes && selectedSku.attributes.length > 0 && (
+                <div className="specs-section">
+                  <h4>Specifications</h4>
+                  {selectedSku.attributes.map(attr => (
+                    <div key={attr.slug} className="specs-row">
+                      <span className="specs-row-label">{attr.name}</span>
+                      <span className="specs-row-value">{attr.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-                {boxes > 0 && (
+              {isSqftBased ? (
+                <div className="calculator-widget">
+                  <h3>Coverage Calculator</h3>
+
+                  <div className="calc-input-row">
+                    <div className="calc-input-group">
+                      <label>SqFt Needed</label>
+                      <input
+                        className="calc-input"
+                        type="number"
+                        placeholder="0"
+                        value={sqftNeeded}
+                        onChange={(e) => handleSqftChange(e.target.value)}
+                        step="0.01"
+                      />
+                    </div>
+
+                    <div className="calc-input-group">
+                      <label>Number of Boxes</label>
+                      <input
+                        className="calc-input"
+                        type="number"
+                        placeholder="0"
+                        value={numBoxes}
+                        onChange={(e) => handleBoxesChange(e.target.value)}
+                        step="1"
+                      />
+                    </div>
+                  </div>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer', marginBottom: '1rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={includeOverage}
+                      onChange={handleOverageToggle}
+                      style={{ width: '1rem', height: '1rem', cursor: 'pointer' }}
+                    />
+                    Add 10% overage for breakage &amp; cuts
+                  </label>
+
+                  {boxes > 0 && (
+                    <div className="calc-summary">
+                      <div className="calc-summary-row">
+                        <span>Number of Boxes:</span>
+                        <strong>{boxes} bx ({totalWeight.toFixed(1)} lbs)</strong>
+                      </div>
+                      <div className="calc-summary-row">
+                        <span>Total Coverage:</span>
+                        <strong>{actualSqft.toFixed(2)} SqFt</strong>
+                      </div>
+                      {requestedSqft > 0 && actualSqft > requestedSqft && (
+                        <div className="calc-summary-row">
+                          <span>Overage:</span>
+                          <strong>{(actualSqft - requestedSqft).toFixed(2)} SqFt</strong>
+                        </div>
+                      )}
+                      <div className="calc-summary-total">
+                        <span>Total Price</span>
+                        <strong>${totalPrice.toFixed(2)}</strong>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="calculator-widget">
+                  <h3>Quantity</h3>
+                  <div className="unit-qty-picker">
+                    <button className="unit-qty-btn" onClick={() => setUnitQty(prev => Math.max(1, prev - 1))}>−</button>
+                    <input
+                      className="calc-input"
+                      type="number"
+                      min="1"
+                      value={unitQty}
+                      onChange={(e) => setUnitQty(Math.max(1, parseInt(e.target.value) || 1))}
+                      style={{ width: '80px' }}
+                    />
+                    <button className="unit-qty-btn" onClick={() => setUnitQty(prev => prev + 1)}>+</button>
+                  </div>
                   <div className="calc-summary">
                     <div className="calc-summary-row">
-                      <span>Number of Boxes:</span>
-                      <strong>{boxes} bx ({totalWeight} lbs)</strong>
+                      <span>Quantity:</span>
+                      <strong>{unitQty} pc</strong>
                     </div>
-                    <div className="calc-summary-row">
-                      <span>Total Coverage:</span>
-                      <strong>{actualSqft.toFixed(2)} SqFt</strong>
-                    </div>
-                    {requestedSqft > 0 && actualSqft > requestedSqft && (
+                    {weightPerBox > 0 && (
                       <div className="calc-summary-row">
-                        <span>Overage:</span>
-                        <strong>{(actualSqft - requestedSqft).toFixed(2)} SqFt</strong>
+                        <span>Total Weight:</span>
+                        <strong>{(unitQty * weightPerBox).toFixed(1)} lbs</strong>
                       </div>
                     )}
                     <div className="calc-summary-total">
@@ -3581,8 +4275,8 @@
                       <strong>${totalPrice.toFixed(2)}</strong>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {selectedSku && (selectedSku.variant_type === 'slab' ||
                 ['RSL','VSL','CSL','PSL'].some(p => (selectedSku.vendor_sku || '').toUpperCase().startsWith(p)) ||
@@ -3594,49 +4288,116 @@
 
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button className="btn" style={{flex: 1}} onClick={() => {
-                  if (boxes <= 0) {
-                    alert('Please enter the square footage you need above.');
-                    return;
+                  if (isSqftBased) {
+                    if (boxes <= 0) {
+                      alert('Please enter the square footage you need above.');
+                      return;
+                    }
+                    addToCart({
+                      product_id: product.id,
+                      sku_id: selectedSku ? selectedSku.id : null,
+                      sqft_needed: actualSqft,
+                      num_boxes: boxes,
+                      include_overage: includeOverage,
+                      unit_price: displayPrice,
+                      subtotal: totalPrice.toFixed(2),
+                      sell_by: 'sqft'
+                    });
+                  } else {
+                    addToCart({
+                      product_id: product.id,
+                      sku_id: selectedSku ? selectedSku.id : null,
+                      sqft_needed: 0,
+                      num_boxes: unitQty,
+                      include_overage: false,
+                      unit_price: displayPrice,
+                      subtotal: (unitQty * displayPrice).toFixed(2),
+                      sell_by: 'unit'
+                    });
                   }
-                  addToCart({
-                    product_id: product.id,
-                    sku_id: selectedSku ? selectedSku.id : null,
-                    sqft_needed: actualSqft,
-                    num_boxes: boxes,
-                    include_overage: includeOverage,
-                    unit_price: displayPrice,
-                    subtotal: totalPrice.toFixed(2)
-                  });
                 }}>
                   Add to Cart
                 </button>
-                <button className="btn btn-secondary" style={{flex: 1}} onClick={() => {
-                  const sampleCount = cart.filter(i => i.is_sample).length;
-                  if (sampleCount >= 5) {
-                    alert('Sample limit reached (max 5)');
-                    return;
-                  }
-                  if (cart.some(i => i.is_sample && i.product_id === product.id)) {
-                    alert('You already have a sample of this product in your cart');
-                    return;
-                  }
-                  addToCart({
-                    product_id: product.id,
-                    sku_id: selectedSku ? selectedSku.id : null,
-                    sqft_needed: 0,
-                    num_boxes: 1,
-                    include_overage: false,
-                    unit_price: 0,
-                    subtotal: 0,
-                    is_sample: true
-                  });
-                }}>
-                  Request Sample
-                </button>
+                {!isAccessoryOnly && (
+                  <button className="btn btn-secondary" style={{flex: 1}} onClick={() => {
+                    const sampleCount = cart.filter(i => i.is_sample).length;
+                    if (sampleCount >= 5) {
+                      alert('Sample limit reached (max 5)');
+                      return;
+                    }
+                    if (cart.some(i => i.is_sample && i.product_id === product.id)) {
+                      alert('You already have a sample of this product in your cart');
+                      return;
+                    }
+                    addToCart({
+                      product_id: product.id,
+                      sku_id: selectedSku ? selectedSku.id : null,
+                      sqft_needed: 0,
+                      num_boxes: 1,
+                      include_overage: false,
+                      unit_price: 0,
+                      subtotal: 0,
+                      is_sample: true
+                    });
+                  }}>
+                    Request Sample
+                  </button>
+                )}
               </div>
               <button className="btn-install-cta" onClick={() => onRequestInstall(fullProduct || product)}>
                 Request Installation Quote
               </button>
+
+              {accessorySkus.length > 0 && (
+                <div className="accessories-section">
+                  <h3>Matching Accessories</h3>
+                  <p className="accessories-subtitle">Complete your installation with coordinating trim and transitions</p>
+                  <div className="accessories-grid">
+                    {accessorySkus.map(acc => {
+                      const accPrice = parseFloat(acc.retail_price) || 0;
+                      const accTradePrice = acc.trade_price ? parseFloat(acc.trade_price) : null;
+                      const accDisplayPrice = accTradePrice || accPrice;
+                      const accQty = accessoryQtys[acc.id] || 1;
+                      return (
+                        <div key={acc.id} className="accessory-card">
+                          <div className="accessory-name">{acc.variant_name || acc.vendor_sku}</div>
+                          <div className="accessory-price">
+                            {accTradePrice ? (
+                              <>
+                                <span style={{ textDecoration: 'line-through', color: 'var(--stone-400)', marginRight: '0.5rem' }}>${accPrice.toFixed(2)}</span>
+                                <span className="trade-price">${accTradePrice.toFixed(2)}</span> /ea
+                              </>
+                            ) : (
+                              <>${accPrice.toFixed(2)} /ea</>
+                            )}
+                          </div>
+                          <div className="accessory-qty-row">
+                            <div className="unit-qty-picker">
+                              <button className="unit-qty-btn" onClick={() => setAccessoryQtys(prev => ({ ...prev, [acc.id]: Math.max(1, (prev[acc.id] || 1) - 1) }))}>−</button>
+                              <span style={{ width: '40px', textAlign: 'center', fontWeight: 500 }}>{accQty}</span>
+                              <button className="unit-qty-btn" onClick={() => setAccessoryQtys(prev => ({ ...prev, [acc.id]: (prev[acc.id] || 1) + 1 }))}>+</button>
+                            </div>
+                            <button className="btn" style={{ padding: '0.5rem 1.5rem', fontSize: '0.8125rem' }} onClick={() => {
+                              addToCart({
+                                product_id: product.id,
+                                sku_id: acc.id,
+                                sqft_needed: 0,
+                                num_boxes: accQty,
+                                include_overage: false,
+                                unit_price: accDisplayPrice,
+                                subtotal: (accQty * accDisplayPrice).toFixed(2),
+                                sell_by: 'unit'
+                              });
+                            }}>
+                              Add — ${(accQty * accDisplayPrice).toFixed(2)}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {displayProduct.description_long && (
                 <div style={{ borderTop: '1px solid var(--stone-200)', marginTop: '1.5rem', paddingTop: '1.5rem' }}>
@@ -3660,8 +4421,8 @@
                   <div className="product-image">
                     {p.primary_image && <img src={p.primary_image} alt={p.name} loading="lazy" />}
                   </div>
-                  <div className="product-name">{p.name}</div>
-                  <div className="product-meta">{p.collection}{p.collection && p.vendor_name ? ' \u2022 ' : ''}{p.vendor_name}</div>
+                  <div className="product-name">{[p.collection, p.name].filter(Boolean).join(' ')}</div>
+                  <div className="product-meta">{p.vendor_name}</div>
                   <div className="product-price">
                     {p.price ? `$${parseFloat(p.price).toFixed(2)}${priceLabel(p)}` : 'Contact for pricing'}
                   </div>
@@ -3743,7 +4504,7 @@
 
                 {product && (
                   <div className="install-inquiry-product-context">
-                    <strong>{product.name}</strong>{product.collection ? ` — ${product.collection}` : ''}
+                    <strong>{[product.collection, product.name].filter(Boolean).join(' ')}</strong>
                   </div>
                 )}
 
@@ -3907,12 +4668,17 @@
       const handleQtyChange = (item, delta) => {
         const newBoxes = Math.max(1, (parseInt(item.num_boxes) || 0) + delta);
         const unitPrice = parseFloat(item.unit_price) || 0;
-        const sqftPerBox = item.sqft_needed && item.num_boxes
-          ? parseFloat(item.sqft_needed) / parseInt(item.num_boxes)
-          : 17.11;
-        const newSqft = (newBoxes * sqftPerBox).toFixed(2);
-        const newSubtotal = (newBoxes * sqftPerBox * unitPrice).toFixed(2);
-        updateCartItem(item.id, { num_boxes: newBoxes, sqft_needed: newSqft, subtotal: newSubtotal });
+        if (item.sell_by === 'unit') {
+          const newSubtotal = (newBoxes * unitPrice).toFixed(2);
+          updateCartItem(item.id, { num_boxes: newBoxes, sqft_needed: 0, subtotal: newSubtotal });
+        } else {
+          const sqftPerBox = item.sqft_needed && item.num_boxes
+            ? parseFloat(item.sqft_needed) / parseInt(item.num_boxes)
+            : 17.11;
+          const newSqft = (newBoxes * sqftPerBox).toFixed(2);
+          const newSubtotal = (newBoxes * sqftPerBox * unitPrice).toFixed(2);
+          updateCartItem(item.id, { num_boxes: newBoxes, sqft_needed: newSqft, subtotal: newSubtotal });
+        }
         // Clear shipping estimate since cart changed
         setShippingEstimate(null);
         setSelectedShippingOption(null);
@@ -3945,15 +4711,14 @@
                       <div key={item.id} className={'cart-table-row' + (item.is_sample ? ' sample-item' : '')}>
                         <div>
                           <div className="cart-table-product-name">
-                            {item.product_name || 'Product'}
+                            {[item.collection, item.product_name].filter(Boolean).join(' ') || 'Product'}
                             {item.is_sample && <span className="sample-tag">Sample</span>}
                           </div>
                           {item.is_sample ? (
                             <div className="cart-table-product-meta">Free sample</div>
                           ) : (
                             <div className="cart-table-product-meta">
-                              {item.collection && <span>{item.collection} &middot; </span>}
-                              ${parseFloat(item.unit_price).toFixed(2)}/sqft
+                              ${parseFloat(item.unit_price).toFixed(2)}{item.sell_by === 'unit' ? '/ea' : '/sqft'}
                             </div>
                           )}
                         </div>
@@ -3968,12 +4733,12 @@
                                 <button className="cart-qty-btn" onClick={() => handleQtyChange(item, 1)}>+</button>
                               </div>
                               <div style={{ fontSize: '0.75rem', color: 'var(--stone-600)', marginTop: '0.25rem' }}>
-                                box{item.num_boxes !== 1 ? 'es' : ''}
+                                {item.sell_by === 'unit' ? (item.num_boxes != 1 ? 'pcs' : 'pc') : ('box' + (item.num_boxes != 1 ? 'es' : ''))}
                               </div>
                             </>
                           )}
                         </div>
-                        <div>{item.is_sample ? '—' : sqft.toFixed(1) + ' sqft'}</div>
+                        <div>{item.is_sample ? '—' : (item.sell_by === 'unit' ? item.num_boxes + ' pc' : sqft.toFixed(1) + ' sqft')}</div>
                         <div style={{ fontWeight: 500 }}>{item.is_sample ? 'FREE' : '$' + parseFloat(item.subtotal).toFixed(2)}</div>
                         <div>
                           <button className="cart-remove-btn" onClick={() => removeFromCart(item.id)} title="Remove">
@@ -3992,7 +4757,10 @@
                 <h3>Order Summary</h3>
                 {productItems.length > 0 && (
                   <div className="order-summary-row">
-                    <span>Products Subtotal ({totalBoxes} box{totalBoxes !== 1 ? 'es' : ''})</span>
+                    <span>Products Subtotal ({productItems.some(i => i.sell_by === 'unit')
+                      ? `${totalBoxes} item${totalBoxes !== 1 ? 's' : ''}`
+                      : `${totalBoxes} box${totalBoxes !== 1 ? 'es' : ''}`
+                    })</span>
                     <span>${productSubtotal.toFixed(2)}</span>
                   </div>
                 )}
@@ -6357,6 +7125,34 @@
                             </div>
                           )}
 
+                          {/* Pickup readiness banner */}
+                          {orderDetail.order.delivery_method === 'pickup' && orderDetail.fulfillment_summary && orderDetail.fulfillment_summary.total > 0 && ['confirmed', 'shipped', 'delivered'].includes(orderDetail.order.status) && (() => {
+                            const { total, received } = orderDetail.fulfillment_summary;
+                            const allReady = received >= total;
+                            return (
+                              <div style={{
+                                background: allReady ? '#f0fdf4' : '#fffbeb', border: '1px solid ' + (allReady ? '#bbf7d0' : '#fde68a'),
+                                padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem',
+                                color: allReady ? '#166534' : '#92400e', display: 'flex', alignItems: 'center', gap: '0.75rem'
+                              }}>
+                                <div style={{ flex: 1 }}>
+                                  <strong>{allReady ? 'All items ready for pickup!' : `${received} of ${total} items ready for pickup`}</strong>
+                                  {!allReady && <div style={{ marginTop: '0.35rem', fontSize: '0.75rem', opacity: 0.8 }}>Remaining items are still being received from suppliers</div>}
+                                </div>
+                                <div style={{ width: 48, height: 48, borderRadius: '50%', background: allReady ? '#22c55e' : '#f59e0b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.8125rem', flexShrink: 0 }}>
+                                  {received}/{total}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Shipping fulfillment note */}
+                          {orderDetail.order.delivery_method !== 'pickup' && orderDetail.fulfillment_summary && orderDetail.fulfillment_summary.total > 0 && orderDetail.fulfillment_summary.received > 0 && orderDetail.fulfillment_summary.received < orderDetail.fulfillment_summary.total && (
+                            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
+                              Your order is being prepared — {orderDetail.fulfillment_summary.received} of {orderDetail.fulfillment_summary.total} items received from suppliers
+                            </div>
+                          )}
+
                           {/* Status timeline */}
                           <div style={{ display: 'flex', gap: '0', marginBottom: '1.25rem', fontSize: '0.75rem' }}>
                             {['pending', 'confirmed', 'shipped', 'delivered'].map((s, i) => {
@@ -6381,12 +7177,26 @@
                           {/* Items */}
                           <div style={{ marginBottom: '1rem' }}>
                             <h4 style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem' }}>Items</h4>
-                            {orderDetail.items.map(item => (
-                              <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
-                                <span>{item.product_name || 'Product'} {item.is_sample ? '(Sample)' : `x${item.num_boxes} box${item.num_boxes !== 1 ? 'es' : ''}`}</span>
-                                <span style={{ fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
-                              </div>
-                            ))}
+                            {orderDetail.items.map(item => {
+                              const fStatus = item.fulfillment_status;
+                              const isPickup = orderDetail.order.delivery_method === 'pickup';
+                              const badgeMap = {
+                                'received': { label: isPickup ? 'Ready' : 'Received', bg: '#f0fdf4', color: '#166534' },
+                                'shipped': { label: 'In Transit', bg: '#dbeafe', color: '#1e40af' },
+                                'ordered': { label: 'Ordered', bg: '#fffbeb', color: '#92400e' },
+                                'pending': { label: 'Processing', bg: 'var(--stone-100)', color: 'var(--stone-500)' }
+                              };
+                              const badge = !item.is_sample ? (badgeMap[fStatus] || badgeMap['pending']) : null;
+                              return (
+                                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                                    {item.product_name || 'Product'} {item.is_sample ? '(Sample)' : `x${item.num_boxes} box${item.num_boxes !== 1 ? 'es' : ''}`}
+                                    {badge && <span style={{ display: 'inline-block', padding: '1px 6px', fontSize: '0.6875rem', fontWeight: 600, background: badge.bg, color: badge.color, borderRadius: '3px', whiteSpace: 'nowrap' }}>{badge.label}</span>}
+                                  </span>
+                                  <span style={{ fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                                </div>
+                              );
+                            })}
                           </div>
 
                           {/* Balance/Credit status */}
@@ -6500,6 +7310,119 @@
       );
     }
 
+    // ==================== Visit Recap Page ====================
+    function VisitRecapPage({ token, viewProduct }) {
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+
+      useEffect(() => {
+        fetch(API + '/api/visit-recap/' + token)
+          .then(r => {
+            if (r.status === 410) throw new Error('expired');
+            if (!r.ok) throw new Error('not_found');
+            return r.json();
+          })
+          .then(d => { setData(d); setLoading(false); })
+          .catch(err => { setError(err.message); setLoading(false); });
+      }, [token]);
+
+      if (loading) return (
+        <div style={{ maxWidth: 800, margin: '4rem auto', padding: '0 1.5rem', textAlign: 'center' }}>
+          <p style={{ color: '#78716c' }}>Loading your visit recap...</p>
+        </div>
+      );
+
+      if (error) return (
+        <div style={{ maxWidth: 800, margin: '4rem auto', padding: '0 1.5rem', textAlign: 'center' }}>
+          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '2rem', fontWeight: 400, color: '#1c1917', marginBottom: '1rem' }}>
+            {error === 'expired' ? 'Recap Expired' : 'Not Found'}
+          </h2>
+          <p style={{ color: '#78716c', fontSize: '1rem' }}>
+            {error === 'expired'
+              ? 'This visit recap has expired and is no longer available.'
+              : 'This recap could not be found. Please check the link and try again.'}
+          </p>
+          <p style={{ color: '#a8a29e', fontSize: '0.875rem', marginTop: '1.5rem' }}>
+            Questions? Contact us at (714) 999-0009
+          </p>
+        </div>
+      );
+
+      const { visit, items } = data;
+      const visitDate = new Date(visit.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      const handleViewProduct = (item) => {
+        if (!item.product_id) return;
+        viewProduct({ id: item.product_id, name: item.product_name });
+      };
+
+      return (
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '3rem 1.5rem' }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '2.5rem', fontWeight: 400, color: '#1c1917', marginBottom: '0.5rem' }}>
+              Your Showroom Visit
+            </h1>
+            <p style={{ color: '#78716c', fontSize: '0.9375rem' }}>
+              Prepared by {visit.rep_name} &middot; {visitDate}
+            </p>
+          </div>
+
+          {/* Message */}
+          {visit.message && (
+            <div style={{ maxWidth: 600, margin: '0 auto 3rem', padding: '1.5rem 2rem', background: '#fafaf9', borderLeft: '3px solid #c9a668' }}>
+              <p style={{ margin: 0, fontSize: '0.9375rem', color: '#57534e', fontStyle: 'italic', lineHeight: 1.6 }}>
+                {visit.message}
+              </p>
+            </div>
+          )}
+
+          {/* Products Grid */}
+          <div className="product-grid" style={{ marginBottom: '3rem' }}>
+            {items.map((item, idx) => (
+              <div key={item.id || idx} className="product-card" style={{ cursor: item.product_id ? 'pointer' : 'default' }}
+                onClick={() => handleViewProduct(item)}>
+                <div className="product-image">
+                  {item.primary_image && <img src={item.primary_image} alt={item.product_name} loading="lazy" />}
+                </div>
+                <div className="product-name">{[item.collection, item.product_name].filter(Boolean).join(' ')}</div>
+                <div className="product-meta">
+                  {item.variant_name || ''}
+                </div>
+                <div className="product-price">
+                  {item.retail_price
+                    ? '$' + parseFloat(item.retail_price).toFixed(2) + (item.price_basis === 'per_sqft' ? '/sqft' : '')
+                    : ''}
+                </div>
+                {item.rep_note && (
+                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.8125rem', fontStyle: 'italic', color: '#a8a29e', lineHeight: 1.4 }}>
+                    "{item.rep_note}"
+                  </p>
+                )}
+                {item.product_id && (
+                  <button className="btn" style={{ width: '100%', marginTop: '0.75rem', fontSize: '0.8125rem', padding: '0.6rem' }}
+                    onClick={(e) => { e.stopPropagation(); handleViewProduct(item); }}>
+                    View Details
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Footer */}
+          <div style={{ textAlign: 'center', paddingTop: '2rem', borderTop: '1px solid #e7e5e4' }}>
+            <p style={{ color: '#78716c', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+              Questions? Contact us at (714) 999-0009
+            </p>
+            <p style={{ color: '#a8a29e', fontSize: '0.8125rem' }}>
+              Roma Flooring Designs &middot; 1440 S. State College Blvd #6m, Anaheim, CA 92806
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     // ==================== Reset Password Page ====================
     function ResetPasswordPage({ goHome, openLogin }) {
       const [newPassword, setNewPassword] = useState('');
@@ -6572,6 +7495,89 @@
                 {loading ? 'Resetting...' : 'Reset Password'}
               </button>
             </form>
+          )}
+        </div>
+      );
+    }
+
+    function RecentlyViewed({ items, viewProduct }) {
+      if (!items || items.length === 0) return null;
+      const display = items.slice(0, 8);
+      return (
+        <div className="section recently-viewed-section">
+          <h3>Recently Viewed</h3>
+          <div className="recently-viewed-scroll">
+            {display.map(p => (
+              <div key={p.id} className="recently-viewed-card" onClick={() => viewProduct(p)}>
+                <div className="rv-image">
+                  {p.primary_image && <img src={p.primary_image} alt={p.name} loading="lazy" />}
+                </div>
+                <div className="rv-name">{[p.collection, p.name].filter(Boolean).join(' ')}</div>
+                <div className="rv-price">
+                  {p.price ? `$${parseFloat(p.price).toFixed(2)}${priceLabel(p)}` : 'Contact for pricing'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function WishlistPage({ wishlist, toggleWishlist, viewProduct, goShop }) {
+      const [wishlistProducts, setWishlistProducts] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        if (wishlist.length === 0) {
+          setWishlistProducts([]);
+          setLoading(false);
+          return;
+        }
+        // Fetch all products and filter to wishlisted ones
+        fetch(API + '/api/products?limit=1000')
+          .then(r => r.json())
+          .then(data => {
+            const all = data.products || [];
+            const wishlisted = wishlist.map(id => all.find(p => p.id === id)).filter(Boolean);
+            setWishlistProducts(wishlisted);
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      }, [wishlist]);
+
+      return (
+        <div className="wishlist-page">
+          <h1>Wishlist <span style={{ fontSize: '1.25rem', color: 'var(--stone-600)', fontWeight: 300 }}>({wishlist.length})</span></h1>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--stone-500)' }}>Loading...</div>
+          ) : wishlistProducts.length === 0 ? (
+            <div className="wishlist-empty">
+              <p>Your wishlist is empty</p>
+              <button className="btn" onClick={goShop}>Browse Products</button>
+            </div>
+          ) : (
+            <div className="product-grid">
+              {wishlistProducts.map(p => (
+                <div key={p.id} className="product-card" onClick={() => viewProduct(p)}>
+                  <button
+                    className="wishlist-heart active"
+                    onClick={(e) => { e.stopPropagation(); toggleWishlist(p.id); }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+                    </svg>
+                  </button>
+                  <div className="product-image">
+                    {p.primary_image && <img src={p.primary_image} alt={p.name} loading="lazy" />}
+                  </div>
+                  <div className="product-name">{[p.collection, p.name].filter(Boolean).join(' ')}</div>
+                  <div className="product-meta">{p.vendor_name}</div>
+                  <div className="product-price">
+                    {p.price ? `$${parseFloat(p.price).toFixed(2)}${priceLabel(p)}` : 'Contact for pricing'}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       );
