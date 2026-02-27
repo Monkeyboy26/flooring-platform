@@ -1,0 +1,14 @@
+{
+  "name": "Roma Flooring Designs",
+  "short_name": "Roma Flooring",
+  "description": "Premium flooring, tile, stone, and countertop products.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafaf9",
+  "theme_color": "#1c1917",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "/icons/icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "/icons/icon-512.png", "type": "image/png", "sizes": "512x512" }
+  ]
+}

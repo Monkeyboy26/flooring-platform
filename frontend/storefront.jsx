@@ -130,6 +130,39 @@
 
     const stripeInstance = (typeof Stripe !== 'undefined') ? Stripe('pk_test_51SzdrRAASarADPs5BQucZOHBLTPXAaFpGajCToKwXCjdVCasoYHDm3guDjMoEeQhhLr71AWiFPgq91BE2ggj2wNf004DucWYlf') : null;
 
+    // ==================== Error Boundary ====================
+
+    class ErrorBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { hasError: false };
+      }
+      static getDerivedStateFromError() {
+        return { hasError: true };
+      }
+      componentDidCatch(error, info) {
+        console.error('ErrorBoundary caught:', error, info);
+      }
+      render() {
+        if (this.state.hasError) {
+          return React.createElement('div', {
+            style: { maxWidth: 600, margin: '6rem auto', textAlign: 'center', padding: '2rem', fontFamily: "'Inter', system-ui, sans-serif" }
+          },
+            React.createElement('div', { style: { fontSize: '4rem', marginBottom: '1rem', color: '#a8a29e' } }, '\u26A0'),
+            React.createElement('h1', { style: { fontFamily: "'Cormorant Garamond', serif", fontSize: '2rem', fontWeight: 300, marginBottom: '0.75rem' } }, 'Something Went Wrong'),
+            React.createElement('p', { style: { color: '#78716c', marginBottom: '2rem', lineHeight: 1.6 } },
+              'We\u2019re sorry, an unexpected error occurred. Please refresh the page to try again.'
+            ),
+            React.createElement('button', {
+              onClick: () => window.location.reload(),
+              style: { display: 'inline-block', padding: '1rem 3rem', background: '#1c1917', color: 'white', border: 'none', fontSize: '0.8125rem', textTransform: 'uppercase', letterSpacing: '0.1em', cursor: 'pointer', fontFamily: "'Inter', system-ui, sans-serif" }
+            }, 'Refresh Page')
+          );
+        }
+        return this.props.children;
+      }
+    }
+
     // ==================== Main App ====================
 
     function StorefrontApp() {
@@ -184,6 +217,18 @@
 
       // Order
       const [completedOrder, setCompletedOrder] = useState(null);
+
+      // Toast notifications
+      const [toasts, setToasts] = useState([]);
+      const toastIdRef = useRef(0);
+      const showToast = useCallback((message, type = 'info', duration = 3500) => {
+        const id = ++toastIdRef.current;
+        setToasts(prev => [...prev, { id, message, type, leaving: false }]);
+        setTimeout(() => {
+          setToasts(prev => prev.map(t => t.id === id ? { ...t, leaving: true } : t));
+          setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 350);
+        }, duration);
+      }, []);
 
       // Wishlist
       const [wishlist, setWishlist] = useState(() => {
@@ -307,7 +352,7 @@
         })
           .then(r => r.json())
           .then(data => {
-            if (data.error) { alert(data.error); return; }
+            if (data.error) { showToast(data.error, 'error'); return; }
             if (data.item) {
               setCart(prev => {
                 const existing = prev.findIndex(i => i.id === data.item.id);
@@ -320,6 +365,7 @@
               });
               setCartFlash(true);
               setTimeout(() => setCartFlash(false), 600);
+              showToast('Added to cart', 'success');
               setCartDrawerOpen(true);
             }
           })
@@ -386,8 +432,10 @@
         let updated;
         if (isWished) {
           updated = wishlist.filter(id => id !== productId);
+          showToast('Removed from wishlist', 'info');
         } else {
           updated = [productId, ...wishlist];
+          showToast('Added to wishlist', 'success');
         }
         setWishlist(updated);
         localStorage.setItem('wishlist', JSON.stringify(updated));
@@ -867,6 +915,7 @@
               wishlist={wishlist} toggleWishlist={toggleWishlist}
               setQuickViewSku={setQuickViewSku}
               filterDrawerOpen={filterDrawerOpen} setFilterDrawerOpen={setFilterDrawerOpen}
+              goHome={goHome}
             />
           )}
 
@@ -882,6 +931,7 @@
               recentlyViewed={recentlyViewed} addRecentlyViewed={addRecentlyViewed}
               customer={customer} customerToken={customerToken}
               onShowAuth={() => { setAuthModalMode('login'); setShowAuthModal(true); }}
+              showToast={showToast} categories={categories}
             />
           )}
 
@@ -889,7 +939,8 @@
             <CartPage cart={cart} goBrowse={goBrowse} removeFromCart={removeFromCart}
               updateCartItem={updateCartItem} goCheckout={goCheckout}
               deliveryMethod={deliveryMethod} setDeliveryMethod={setDeliveryMethod}
-              sessionId={sessionId.current} appliedPromoCode={appliedPromoCode} setAppliedPromoCode={setAppliedPromoCode} />
+              sessionId={sessionId.current} appliedPromoCode={appliedPromoCode} setAppliedPromoCode={setAppliedPromoCode}
+              goHome={goHome} />
           )}
 
           {view === 'checkout' && (
@@ -919,11 +970,11 @@
           )}
 
           {view === 'wishlist' && (
-            <WishlistPage wishlist={wishlist} toggleWishlist={toggleWishlist} onSkuClick={goSkuDetail} goBrowse={goBrowse} />
+            <WishlistPage wishlist={wishlist} toggleWishlist={toggleWishlist} onSkuClick={goSkuDetail} goBrowse={goBrowse} recentlyViewed={recentlyViewed} goHome={goHome} />
           )}
 
           {view === 'collections' && (
-            <CollectionsPage onCollectionClick={handleCollectionClick} />
+            <CollectionsPage onCollectionClick={handleCollectionClick} goHome={goHome} />
           )}
 
           {view === 'trade' && (
@@ -932,7 +983,7 @@
 
           {view === 'trade-dashboard' && (
             tradeCustomer ? (
-              <TradeDashboard tradeCustomer={tradeCustomer} tradeToken={tradeToken} addToCart={addToCart} goBrowse={goBrowse} setTradeCustomer={setTradeCustomer} handleTradeLogout={handleTradeLogout} goBulkOrder={goBulkOrder} />
+              <TradeDashboard tradeCustomer={tradeCustomer} tradeToken={tradeToken} addToCart={addToCart} goBrowse={goBrowse} setTradeCustomer={setTradeCustomer} handleTradeLogout={handleTradeLogout} goBulkOrder={goBulkOrder} showToast={showToast} />
             ) : (
               <div style={{ maxWidth: 600, margin: '4rem auto', textAlign: 'center', padding: '0 2rem' }}>
                 <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, marginBottom: '1rem' }}>Trade Login Required</h2>
@@ -943,7 +994,7 @@
           )}
 
           {view === 'bulk-order' && (
-            <BulkOrderPage tradeToken={tradeToken} addToCart={addToCart} goTradeDashboard={goTradeDashboard} />
+            <BulkOrderPage tradeToken={tradeToken} addToCart={addToCart} goTradeDashboard={goTradeDashboard} showToast={showToast} />
           )}
 
           {view === 'visit-recap' && visitRecapToken && (
@@ -986,6 +1037,9 @@
 
           <SiteFooter goHome={goHome} goBrowse={goBrowse} goCollections={goCollections} goTrade={goTrade}
             onInstallClick={() => { setInstallModalProduct(null); setShowInstallModal(true); }} />
+
+          <BackToTop />
+          <ToastContainer toasts={toasts} />
         </>
       );
     }
@@ -1496,7 +1550,19 @@
               ))}
             </div>
           )}
-          {loading && <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-400)' }}>Searching...</div>}
+          {loading && (
+            <div style={{ padding: '0.5rem 1rem' }}>
+              {[0, 1, 2].map(i => (
+                <div key={i} className="skeleton-search-result">
+                  <div className="skeleton-search-img" />
+                  <div className="skeleton-search-lines">
+                    <div className="skeleton-bar skeleton-bar-short" style={{ marginTop: 0 }} />
+                    <div className="skeleton-bar skeleton-bar-medium" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : null;
     }
@@ -1598,24 +1664,33 @@
 
     // ==================== Browse View ====================
 
-    function BrowseView({ skus, totalSkus, loading, categories, selectedCategory, selectedCollection, searchQuery, onCategorySelect, facets, filters, onFilterToggle, onClearFilters, sortBy, onSortChange, onSkuClick, currentPage, onPageChange, wishlist, toggleWishlist, setQuickViewSku, filterDrawerOpen, setFilterDrawerOpen }) {
+    function BrowseView({ skus, totalSkus, loading, categories, selectedCategory, selectedCollection, searchQuery, onCategorySelect, facets, filters, onFilterToggle, onClearFilters, sortBy, onSortChange, onSkuClick, currentPage, onPageChange, wishlist, toggleWishlist, setQuickViewSku, filterDrawerOpen, setFilterDrawerOpen, goHome }) {
       const totalPages = Math.ceil(totalSkus / 72);
       const hasFilters = Object.keys(filters).length > 0;
 
       let title = 'Shop All';
+      let categoryName = null;
       if (searchQuery) title = 'Search: "' + searchQuery + '"';
       else if (selectedCollection) title = selectedCollection;
       else if (selectedCategory) {
         const flat = [];
         categories.forEach(c => { flat.push(c); (c.children || []).forEach(ch => flat.push(ch)); });
         const found = flat.find(c => c.slug === selectedCategory);
-        if (found) title = found.name;
+        if (found) { title = found.name; categoryName = found.name; }
       }
+
+      const crumbs = [{ label: 'Home', onClick: goHome }, { label: 'Shop', onClick: !selectedCategory && !selectedCollection && !searchQuery ? undefined : () => onCategorySelect(null) }];
+      if (categoryName) crumbs.push({ label: categoryName });
+      else if (selectedCollection) crumbs.push({ label: selectedCollection });
+      else if (searchQuery) crumbs.push({ label: 'Search Results' });
 
       return (
         <div className="browse-layout">
           <div className="browse-header">
-            <h1>{title}</h1>
+            <div>
+              <Breadcrumbs items={crumbs} />
+              <h1>{title}</h1>
+            </div>
           </div>
 
           <div className="sidebar">
@@ -1635,7 +1710,7 @@
               </button>
             </div>
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--stone-500)' }}>Loading...</div>
+              <SkeletonGrid count={8} />
             ) : skus.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--stone-600)' }}>
                 <p style={{ fontSize: '1.125rem', marginBottom: '1rem' }}>No products found</p>
@@ -1814,6 +1889,20 @@
       );
     }
 
+    function SkeletonGrid({ count = 8 }) {
+      return (
+        <div className="skeleton-grid">
+          {Array.from({ length: count }, (_, i) => (
+            <div key={i}>
+              <div className="skeleton-card-img" />
+              <div className="skeleton-bar skeleton-bar-short" />
+              <div className="skeleton-bar skeleton-bar-medium" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     function SkuGrid({ skus, onSkuClick, wishlist, toggleWishlist, setQuickViewSku }) {
       return (
         <div className="sku-grid">
@@ -1892,7 +1981,7 @@
 
     // ==================== SKU Detail View ====================
 
-    function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, tradeCustomer, wishlist, toggleWishlist, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth }) {
+    function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, tradeCustomer, wishlist, toggleWishlist, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth, showToast, categories }) {
       const [sku, setSku] = useState(null);
       const [media, setMedia] = useState([]);
       const [siblings, setSiblings] = useState([]);
@@ -1925,6 +2014,9 @@
       const [reviewBody, setReviewBody] = useState('');
       const [reviewSubmitting, setReviewSubmitting] = useState(false);
       const [reviewSubmitted, setReviewSubmitted] = useState(false);
+
+      // 404 search state
+      const [notFoundSearch, setNotFoundSearch] = useState('');
 
       // Stock alert state
       const [alertEmail, setAlertEmail] = useState('');
@@ -2202,19 +2294,55 @@
       };
 
       if (fetchError) return (
-        <div style={{ maxWidth: 600, margin: '6rem auto', textAlign: 'center', padding: '0 2rem' }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem', color: 'var(--stone-300)' }}>
-            {fetchError === 'not_found' ? '404' : 'Oops'}
+        <div className="not-found-page">
+          <div className="not-found-hero">
+            <div style={{ fontSize: '5rem', fontWeight: 200, color: 'var(--stone-300)', lineHeight: 1, fontFamily: 'var(--font-heading)' }}>
+              {fetchError === 'not_found' ? '404' : 'Oops'}
+            </div>
+            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 300, margin: '0.75rem 0' }}>
+              {fetchError === 'not_found' ? 'Product Not Found' : 'Something Went Wrong'}
+            </h1>
+            <p style={{ color: 'var(--stone-600)', marginBottom: '1.5rem', lineHeight: 1.6, maxWidth: 420, margin: '0 auto 1.5rem' }}>
+              {fetchError === 'not_found'
+                ? 'This product may have been removed or the link may be incorrect. Try searching for what you need.'
+                : 'We had trouble loading this product. Please try again.'}
+            </p>
+            {fetchError === 'not_found' && (
+              <form className="not-found-search" onSubmit={e => { e.preventDefault(); if (notFoundSearch.trim()) { goBack(); setTimeout(() => window.dispatchEvent(new CustomEvent('storefront-search', { detail: notFoundSearch.trim() })), 50); } }}>
+                <input type="text" placeholder="Search for products..." value={notFoundSearch} onChange={e => setNotFoundSearch(e.target.value)} />
+                <button type="submit" className="btn">Search</button>
+              </form>
+            )}
+            <button className="btn btn-secondary" onClick={goBack} style={{ marginTop: '1rem' }}>Back to Shop</button>
           </div>
-          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '2rem', marginBottom: '0.75rem' }}>
-            {fetchError === 'not_found' ? 'Product Not Found' : 'Something Went Wrong'}
-          </h1>
-          <p style={{ color: 'var(--stone-600)', marginBottom: '2rem', lineHeight: 1.6 }}>
-            {fetchError === 'not_found'
-              ? 'This product may have been removed or the link may be incorrect.'
-              : 'We had trouble loading this product. Please try again.'}
-          </p>
-          <button className="btn" onClick={goBack}>Back to Shop</button>
+
+          {recentlyViewed && recentlyViewed.length > 0 && (
+            <div style={{ marginTop: '3rem' }}>
+              <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 300, marginBottom: '1rem' }}>Recently Viewed</h2>
+              <div className="siblings-strip">
+                {recentlyViewed.slice(0, 6).map(rv => (
+                  <div key={rv.sku_id} className="sibling-card" onClick={() => onSkuClick(rv.sku_id, rv.product_name)}>
+                    <div className="sibling-card-image">
+                      {rv.primary_image && <img src={rv.primary_image} alt={rv.product_name} loading="lazy" />}
+                    </div>
+                    <div className="sibling-card-name">{rv.product_name}</div>
+                    {rv.retail_price && <div className="sibling-card-price">${parseFloat(rv.retail_price).toFixed(2)}{rv.price_basis === 'per_unit' ? '/ea' : '/sqft'}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {fetchError === 'not_found' && categories && categories.length > 0 && (
+            <div style={{ marginTop: '2.5rem' }}>
+              <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 300, marginBottom: '1rem' }}>Popular Categories</h2>
+              <div className="not-found-cats">
+                {categories.slice(0, 8).map(cat => (
+                  <a key={cat.slug} className="not-found-cat-link" onClick={() => { goBack(); }}>{cat.name}</a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       );
 
@@ -2889,7 +3017,7 @@
 
     // ==================== Cart Page ====================
 
-    function CartPage({ cart, goBrowse, removeFromCart, updateCartItem, goCheckout, deliveryMethod, setDeliveryMethod, sessionId, appliedPromoCode, setAppliedPromoCode }) {
+    function CartPage({ cart, goBrowse, removeFromCart, updateCartItem, goCheckout, deliveryMethod, setDeliveryMethod, sessionId, appliedPromoCode, setAppliedPromoCode, goHome }) {
       const [shippingZip, setShippingZip] = useState('');
       const [shippingEstimate, setShippingEstimate] = useState(null);
       const [shippingLoading, setShippingLoading] = useState(false);
@@ -3022,6 +3150,10 @@
 
       return (
         <div className="cart-page">
+          <Breadcrumbs items={[
+            { label: 'Home', onClick: goHome },
+            { label: 'Cart' }
+          ]} />
           <a className="back-btn" onClick={goBrowse}>&larr; Continue Shopping</a>
           <h1>Your Cart</h1>
 
@@ -3808,7 +3940,7 @@
 
     // ==================== Wishlist Page ====================
 
-    function WishlistPage({ wishlist, toggleWishlist, onSkuClick, goBrowse }) {
+    function WishlistPage({ wishlist, toggleWishlist, onSkuClick, goBrowse, recentlyViewed, goHome }) {
       const [skus, setSkus] = useState([]);
       const [loading, setLoading] = useState(true);
 
@@ -3841,13 +3973,37 @@
 
       return (
         <div className="wishlist-page">
+          <Breadcrumbs items={[
+            { label: 'Home', onClick: goHome },
+            { label: 'Wishlist' }
+          ]} />
           <h1>Wishlist <span style={{ fontSize: '1.25rem', color: 'var(--stone-600)', fontWeight: 300 }}>({wishlist.length})</span></h1>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--stone-500)' }}>Loading...</div>
+            <SkeletonGrid count={4} />
           ) : skus.length === 0 ? (
             <div className="wishlist-empty">
-              <p>Your wishlist is empty</p>
-              <button className="btn" onClick={goBrowse}>Browse Products</button>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 56, height: 56, color: 'var(--stone-300)', marginBottom: '1rem' }}>
+                <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+              </svg>
+              <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.75rem', fontWeight: 300, marginBottom: '0.5rem' }}>Your Wishlist is Empty</h2>
+              <p>Save your favorite products by clicking the heart icon while you browse.</p>
+              <button className="btn" onClick={goBrowse} style={{ marginTop: '0.5rem' }}>Browse Products</button>
+              {recentlyViewed && recentlyViewed.length > 0 && (
+                <div style={{ marginTop: '3rem', textAlign: 'left' }}>
+                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 300, marginBottom: '1rem', textAlign: 'center' }}>Recently Viewed</h3>
+                  <div className="siblings-strip">
+                    {recentlyViewed.slice(0, 6).map(rv => (
+                      <div key={rv.sku_id} className="sibling-card" onClick={() => onSkuClick(rv.sku_id, rv.product_name)}>
+                        <div className="sibling-card-image">
+                          {rv.primary_image && <img src={rv.primary_image} alt={rv.product_name} loading="lazy" />}
+                        </div>
+                        <div className="sibling-card-name">{rv.product_name}</div>
+                        {rv.retail_price && <div className="sibling-card-price">${parseFloat(rv.retail_price).toFixed(2)}{rv.price_basis === 'per_unit' ? '/ea' : '/sqft'}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="sku-grid">
@@ -3864,7 +4020,7 @@
 
     // ==================== Trade Dashboard ====================
 
-    function TradeDashboard({ tradeCustomer, tradeToken, addToCart, goBrowse, setTradeCustomer, handleTradeLogout, goBulkOrder }) {
+    function TradeDashboard({ tradeCustomer, tradeToken, addToCart, goBrowse, setTradeCustomer, handleTradeLogout, goBulkOrder, showToast }) {
       const [tab, setTab] = useState('overview');
       const [dashData, setDashData] = useState(null);
       const [orders, setOrders] = useState([]);
@@ -3967,8 +4123,8 @@
       const acceptQuote = async (quoteId) => {
         if (!confirm('Accept this quote and convert it to an order?')) return;
         const resp = await fetch(API + '/api/trade/quotes/' + quoteId + '/accept', { method: 'POST', headers: authHeaders });
-        if (resp.ok) { alert('Quote accepted! Order has been created.'); loadTab('quotes'); }
-        else { const d = await resp.json(); alert(d.error || 'Failed to accept quote'); }
+        if (resp.ok) { showToast('Quote accepted! Order has been created.', 'success'); loadTab('quotes'); }
+        else { const d = await resp.json(); showToast(d.error || 'Failed to accept quote', 'error'); }
       };
 
       const downloadQuotePdf = (quoteId) => {
@@ -3993,12 +4149,12 @@
       };
 
       const changePassword = async () => {
-        if (passwordForm.new_password !== passwordForm.confirm) { alert('Passwords do not match'); return; }
+        if (passwordForm.new_password !== passwordForm.confirm) { showToast('Passwords do not match', 'error'); return; }
         const resp = await fetch(API + '/api/trade/change-password', {
           method: 'POST', headers, body: JSON.stringify({ current_password: passwordForm.current, new_password: passwordForm.new_password })
         });
-        if (resp.ok) { alert('Password updated'); setShowPwForm(false); setPasswordForm({ current: '', new_password: '', confirm: '' }); }
-        else { const d = await resp.json(); alert(d.error || 'Failed to change password'); }
+        if (resp.ok) { showToast('Password updated', 'success'); setShowPwForm(false); setPasswordForm({ current: '', new_password: '', confirm: '' }); }
+        else { const d = await resp.json(); showToast(d.error || 'Failed to change password', 'error'); }
       };
 
       const tabs = ['overview', 'orders', 'quotes', 'projects', 'favorites', 'account'];
@@ -4030,7 +4186,16 @@
             ))}
           </div>
 
-          {loading ? <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--stone-400)' }}>Loading...</div> : (
+          {loading ? (
+            <div>
+              <div className="skeleton-stat-grid">
+                {[0, 1, 2, 3].map(i => <div key={i} className="skeleton-stat-card" />)}
+              </div>
+              <div style={{ marginTop: '2rem' }}>
+                {[0, 1, 2].map(i => <div key={i} className="skeleton-table-row" />)}
+              </div>
+            </div>
+          ) : (
             <>
               {/* Overview */}
               {tab === 'overview' && dashData && (
@@ -4386,7 +4551,7 @@
 
     // ==================== Collections Page ====================
 
-    function CollectionsPage({ onCollectionClick }) {
+    function CollectionsPage({ onCollectionClick, goHome }) {
       const [collections, setCollections] = useState([]);
       const [loading, setLoading] = useState(true);
 
@@ -4399,10 +4564,22 @@
 
       return (
         <div className="collections-page">
+          <Breadcrumbs items={[
+            { label: 'Home', onClick: goHome },
+            { label: 'Collections' }
+          ]} />
           <h1>Collections</h1>
           <p className="subtitle">Explore our curated flooring collections from premium vendors worldwide.</p>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--stone-500)' }}>Loading collections...</div>
+            <div className="collections-grid">
+              {[0, 1, 2].map(i => (
+                <div key={i}>
+                  <div className="skeleton-collection-img" />
+                  <div className="skeleton-bar skeleton-bar-short" />
+                  <div className="skeleton-bar skeleton-bar-medium" />
+                </div>
+              ))}
+            </div>
           ) : collections.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--stone-600)' }}>
               <p>No collections available yet.</p>
@@ -5013,7 +5190,7 @@
 
     // ==================== Bulk Order Page ====================
 
-    function BulkOrderPage({ tradeToken, addToCart, goTradeDashboard }) {
+    function BulkOrderPage({ tradeToken, addToCart, goTradeDashboard, showToast }) {
       const [rows, setRows] = useState([{ sku_code: '', quantity: '' }]);
       const [preview, setPreview] = useState(null);
       const [error, setError] = useState('');
@@ -5050,7 +5227,7 @@
           });
           const data = await resp.json();
           if (!resp.ok) { setError(data.error); setLoading(false); return; }
-          alert('Bulk order placed successfully!');
+          showToast('Bulk order placed successfully!', 'success');
           goTradeDashboard();
         } catch (err) { setError('Failed to place order.'); }
         setLoading(false);
@@ -5253,6 +5430,66 @@
       );
     }
 
+    // ==================== Toast Container ====================
+
+    function ToastContainer({ toasts }) {
+      if (toasts.length === 0) return null;
+      return (
+        <div className="toast-container">
+          {toasts.map(t => (
+            <div key={t.id} className={`toast toast-${t.type}${t.leaving ? ' toast-leaving' : ''}`}>
+              {t.type === 'success' && (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><path d="M20 6L9 17l-5-5"/></svg>
+              )}
+              {t.type === 'error' && (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              )}
+              {t.type === 'info' && (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              )}
+              <span>{t.message}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // ==================== Back to Top ====================
+
+    function BackToTop() {
+      const [visible, setVisible] = useState(false);
+      useEffect(() => {
+        const onScroll = () => setVisible(window.scrollY > 600);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+      }, []);
+      if (!visible) return null;
+      return (
+        <button className="back-to-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Back to top">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
+      );
+    }
+
+    // ==================== Breadcrumbs ====================
+
+    function Breadcrumbs({ items }) {
+      return (
+        <nav className="breadcrumbs" aria-label="Breadcrumb">
+          {items.map((item, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <span aria-hidden="true">/</span>}
+              {item.onClick ? (
+                <a onClick={item.onClick}>{item.label}</a>
+              ) : (
+                <span style={{ color: 'var(--stone-800)' }}>{item.label}</span>
+              )}
+            </React.Fragment>
+          ))}
+        </nav>
+      );
+    }
+
     // ==================== Footer (Redesigned) ====================
 
     function SiteFooter({ goHome, goBrowse, goCollections, goTrade, onInstallClick }) {
@@ -5290,4 +5527,4 @@
 
     // ==================== Render ====================
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<StorefrontApp />);
+    ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><StorefrontApp /></ErrorBoundary>);

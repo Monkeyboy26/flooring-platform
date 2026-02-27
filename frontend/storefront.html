@@ -9,6 +9,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Roma Flooring">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://js.stripe.com">
   <title>Roma Flooring Designs | Premium Flooring &amp; Tile in Anaheim, CA</title>
   <meta name="description" content="Roma Flooring Designs offers premium flooring, tile, stone, and countertop products in Anaheim, CA. Shop our curated collections of hardwood, porcelain, marble, and more.">
   <link rel="canonical" href="https://www.romaflooringdesigns.com/">
@@ -65,5 +71,10 @@
 <body>
   <div id="root"></div>
   <script src="/storefront-app.js"></script>
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+  </script>
 </body>
 </html>
