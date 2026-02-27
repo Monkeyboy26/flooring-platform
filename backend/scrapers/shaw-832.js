@@ -1,10 +1,9 @@
 /**
- * Engineered Floors — EDI 832 SFTP Importer
+ * Shaw Floors — EDI 832 SFTP Importer
  *
- * Connects to ftp.engfloors.org via SFTP, downloads the latest 832 (Price/Sales Catalog)
- * file, parses EDI segments, and upserts products/SKUs/pricing/packaging into the database.
- *
- * Unlike web scrapers, this module uses SFTP + EDI parsing — no Puppeteer needed.
+ * Connects to shawedi.shawfloors.com via SFTP, downloads the latest 832
+ * (Price/Sales Catalog) file, parses EDI segments, and upserts
+ * products/SKUs/pricing/packaging/attributes into the database.
  *
  * Config (vendor_sources.config):
  *   sftp_host, sftp_port, sftp_user, sftp_pass — connection credentials
@@ -26,33 +25,47 @@ import {
 // Constants
 // ---------------------------------------------------------------------------
 
-const VENDOR_CODE = 'EF';
+const VENDOR_CODE = 'SHAW';
 
-// Default SFTP credentials (overridden by vendor_sources.config or env vars)
 const DEFAULT_SFTP = {
-  host: 'ftp.engfloors.org',
+  host: 'shawedi.shawfloors.com',
   port: 22,
-  username: '18110',
-  password: 'wSQiFrDM',
+  username: 'edi07408',
+  password: 'ef6049',
 };
 
-// Directories to scan on the remote server (OpenAS2 + standard EDI paths)
+// Directories to scan on the remote server
+// Shaw's SFTP uses /Inbox, /Outbox with /Archive subdirectories
 const REMOTE_DIRS = [
-  '/opt/OpenAS2/data', '/opt/OpenAS2/data/toAny',
-  '/opt/OpenAS2/data/fromAny', '/opt/OpenAS2',
-  '/outbound', '/inbound', '/out', '/in', '/832',
-  '/Outbound', '/Inbound', '/OUT', '/IN',
+  '/Outbox', '/Outbox/Archive',
+  '/Inbox', '/Inbox/Archive',
+  '/outbound', '/outbound/832', '/outbound/catalog',
+  '/inbound', '/inbound/832',
+  '/832', '/catalog', '/pricelist',
+  '/out', '/in', '/OUT', '/IN',
+  '/Outbound', '/Inbound',
   '/data', '/data/outbound', '/data/inbound',
-  '/edi', '/edi/outbound', '/edi/inbound',
-  '/export', '/import',
-  '/var/data', '/var/edi', '/var/spool',
-  '/opt', '/tmp',
-  '/home/18110', '/sftpusers/18110',
+  '/edi', '/edi/outbound', '/edi/inbound', '/edi/832',
+  '/export', '/home', '/home/edi07408',
   '/',
 ];
 
 // Map EDI category text → category slugs in our DB
 const CATEGORY_MAP = {
+  // Carpet
+  'carpet':              'carpet-tile',
+  'carpet tile':         'carpet-tile',
+  'broadloom':           'carpet-tile',
+  'tuftex':              'carpet-tile',
+  'anso nylon':          'carpet-tile',
+  'caress':              'carpet-tile',
+  'lifeguard':           'carpet-tile',
+  // Hardwood
+  'engineered hardwood': 'engineered-hardwood',
+  'hardwood':            'hardwood',
+  'solid hardwood':      'solid-hardwood',
+  'epic hardwood':       'engineered-hardwood',
+  // LVP / LVT
   'luxury vinyl plank':  'luxury-vinyl',
   'luxury vinyl tile':   'luxury-vinyl',
   'lvp':                 'luxury-vinyl',
@@ -61,21 +74,26 @@ const CATEGORY_MAP = {
   'wpc':                 'luxury-vinyl',
   'vinyl plank':         'luxury-vinyl',
   'vinyl tile':          'luxury-vinyl',
-  'engineered hardwood': 'hardwood',
-  'hardwood':            'hardwood',
+  'floorte':             'luxury-vinyl',
+  'floorte pro':         'luxury-vinyl',
+  'floorte elite':       'luxury-vinyl',
+  'resilient':           'luxury-vinyl',
+  // Laminate
   'laminate':            'laminate',
-  'carpet':              'carpet-tile',
-  'carpet tile':         'carpet-tile',
-  'broadloom':           'carpet-tile',
+  'repel laminate':      'laminate',
+  // Tile
   'tile':                'tile',
-  'porcelain':           'tile',
-  'ceramic':             'tile',
+  'porcelain':           'porcelain-tile',
+  'ceramic':             'ceramic-tile',
+  'stone':               'natural-stone',
+  // Accessories
   'accessory':           'installation-sundries',
   'accessories':         'installation-sundries',
-  'trim':                'installation-sundries',
-  'molding':             'installation-sundries',
-  'underlayment':        'installation-sundries',
-  'adhesive':            'installation-sundries',
+  'trim':                'transitions-moldings',
+  'molding':             'transitions-moldings',
+  'transition':          'transitions-moldings',
+  'underlayment':        'underlayment',
+  'adhesive':            'adhesives-sealants',
 };
 
 // PID characteristic codes → human-readable
@@ -115,7 +133,7 @@ const MEA_CODES = { TH: 'thickness', WD: 'width', LN: 'length', WT: 'weight', WL
 
 
 // ---------------------------------------------------------------------------
-// EDI 832 Parser (same logic as import-engfloors-832.cjs)
+// EDI 832 Parser
 // ---------------------------------------------------------------------------
 
 function tokenizeSegments(raw) {
@@ -284,21 +302,17 @@ function finalizeItem(item) {
   }
 
   // Carpet pricing: extract cut (MSRP/retail) and roll (contract/volume) prices
-  const isCarpetCat = /carpet|broadloom/i.test(item.category || '');
+  const isCarpetCat = /carpet|broadloom|tuftex|caress|anso/i.test(item.category || '');
   if (isCarpetCat && item.pricing.length > 0) {
-    // Cut price = retail/MSRP (higher, default)
     const msrpPrice = item.pricing.find(p => p.price_type === 'MSR') || item.pricing.find(p => p.class_of_trade === 'RS');
-    // Roll price = contract/volume (lower, discount for full rolls)
     const contractPrice = item.pricing.find(p => p.price_type === 'CON') || item.pricing.find(p => p.class_of_trade === 'CT');
 
     if (msrpPrice) item.cut_price = msrpPrice.unit_price;
     if (contractPrice) item.roll_price = contractPrice.unit_price;
 
-    // If only one price tier, set both to the same
     if (item.cut_price && !item.roll_price) item.roll_price = item.cut_price;
     if (item.roll_price && !item.cut_price) item.cut_price = item.roll_price;
 
-    // Cost tiers: wholesale/dealer net for cut, distributor for roll
     const cutCostPrice = item.pricing.find(p => p.price_type === 'NET') || item.pricing.find(p => p.class_of_trade === 'WS');
     const rollCostPrice = item.pricing.find(p => p.class_of_trade === 'DI') || item.pricing.find(p => p.class_of_trade === 'DE');
 
@@ -307,17 +321,15 @@ function finalizeItem(item) {
     if (item.cut_cost && !item.roll_cost) item.roll_cost = item.cut_cost;
     if (item.roll_cost && !item.cut_cost) item.cut_cost = item.roll_cost;
 
-    // Roll width from measurements (WD qualifier)
+    // Roll width from measurements
     const widthMea = item.measurements.find(m => m.qualifier === 'WD');
     if (widthMea && widthMea.value) {
-      // Width may be in inches — convert to feet if > 24 (likely inches)
       const w = widthMea.value;
       const uom = (widthMea.unit_of_measure || '').toUpperCase();
       item.roll_width_ft = (uom === 'IN' || w > 24) ? w / 12 : w;
     }
 
-    // Roll min sqft: calculate from packaging roll length * roll width
-    // PO4 size_per_pack for carpet often represents linear feet per roll
+    // Roll min sqft
     if (item.roll_width_ft && item.packaging && item.packaging.size_per_pack) {
       const uom = (item.packaging.unit_of_measure || '').toUpperCase();
       if (uom === 'LF' || uom === 'FT') {
@@ -335,10 +347,10 @@ function finalizeItem(item) {
 function getSftpConfig(source) {
   const cfg = source.config || {};
   return {
-    host: cfg.sftp_host || process.env.ENGFLOORS_SFTP_HOST || DEFAULT_SFTP.host,
-    port: parseInt(cfg.sftp_port || process.env.ENGFLOORS_SFTP_PORT || DEFAULT_SFTP.port, 10),
-    username: cfg.sftp_user || process.env.ENGFLOORS_SFTP_USER || DEFAULT_SFTP.username,
-    password: cfg.sftp_pass || process.env.ENGFLOORS_SFTP_PASS || DEFAULT_SFTP.password,
+    host: cfg.sftp_host || process.env.SHAW_SFTP_HOST || DEFAULT_SFTP.host,
+    port: parseInt(cfg.sftp_port || process.env.SHAW_SFTP_PORT || DEFAULT_SFTP.port, 10),
+    username: cfg.sftp_user || process.env.SHAW_SFTP_USER || DEFAULT_SFTP.username,
+    password: cfg.sftp_pass || process.env.SHAW_SFTP_PASS || DEFAULT_SFTP.password,
   };
 }
 
@@ -348,22 +360,33 @@ function getSftpConfig(source) {
  */
 async function findRemote832Files(sftp, log) {
   const allFiles = [];
+  const unmatchedSample = [];
 
   for (const dir of REMOTE_DIRS) {
     try {
       const listing = await sftp.list(dir);
-      const matching = listing
-        .filter(f => f.type === '-')
+      const files = listing.filter(f => f.type === '-');
+      const matching = files
         .filter(f => {
           const name = f.name.toLowerCase();
           return name.includes('832') || name.includes('catalog') || name.includes('pricelist')
-            || name.includes('price_catalog') || name.endsWith('.edi') || name.endsWith('.x12');
+            || name.includes('price_catalog') || name.endsWith('.edi') || name.endsWith('.x12')
+            || name.endsWith('.dat') || name.endsWith('.txt');
         })
         .map(f => ({ ...f, dir, remotePath: `${dir}/${f.name}`.replace('//', '/') }));
       allFiles.push(...matching);
+      // Collect unmatched files for debugging on empty results
+      for (const f of files.filter(ff => !matching.some(m => m.name === ff.name)).slice(0, 5)) {
+        unmatchedSample.push(`${dir}/${f.name} (${(f.size / 1024).toFixed(1)}KB)`);
+      }
     } catch {
       // Directory doesn't exist or no access — skip
     }
+  }
+
+  // Log unmatched files if nothing was found (helps debug naming conventions)
+  if (allFiles.length === 0 && unmatchedSample.length > 0 && log) {
+    for (const entry of unmatchedSample) log(`  [unmatched file] ${entry}`);
   }
 
   // Sort newest first
@@ -373,7 +396,7 @@ async function findRemote832Files(sftp, log) {
 
 
 // ---------------------------------------------------------------------------
-// Product grouping (same logic as import script)
+// Product grouping
 // ---------------------------------------------------------------------------
 
 function groupIntoProducts(items) {
@@ -410,10 +433,10 @@ function groupIntoProducts(items) {
 
 function makeInternalSku(vendorSku, productName) {
   if (vendorSku) {
-    return vendorSku.toUpperCase().startsWith('EF-') ? vendorSku : `EF-${vendorSku}`;
+    return vendorSku.toUpperCase().startsWith('SHAW-') ? vendorSku : `SHAW-${vendorSku}`;
   }
   const slug = (productName || 'UNKNOWN').toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 30);
-  return `EF-${slug}`;
+  return `SHAW-${slug}`;
 }
 
 
@@ -436,7 +459,8 @@ export async function run(pool, job, source) {
     await sftp.connect(sftpConfig);
     await appendLog(pool, job.id, 'SFTP connected. Scanning for 832 files...');
 
-    const remoteFiles = await findRemote832Files(sftp);
+    const logLine = (msg) => appendLog(pool, job.id, msg);
+    const remoteFiles = await findRemote832Files(sftp, logLine);
     await appendLog(pool, job.id, `Found ${remoteFiles.length} 832 candidate file(s)`);
 
     if (remoteFiles.length === 0) {
@@ -464,7 +488,7 @@ export async function run(pool, job, source) {
     await appendLog(pool, job.id, `Downloading: ${target.remotePath} (${(target.size / 1024).toFixed(1)}KB)`);
 
     // ── Step 2: Download ──
-    localPath = `/tmp/engfloors_832_${Date.now()}.edi`;
+    localPath = `/tmp/shaw_832_${Date.now()}.edi`;
     await sftp.fastGet(target.remotePath, localPath);
     await appendLog(pool, job.id, `Downloaded to ${localPath}`);
 
@@ -514,7 +538,6 @@ export async function run(pool, job, source) {
   for (const group of productGroups) {
     const categoryId = resolveCatId(group.category);
 
-    // Upsert product using base.js helper
     const productRow = await upsertProduct(pool, {
       vendor_id: vendorId,
       name: group.baseName,
@@ -525,7 +548,6 @@ export async function run(pool, job, source) {
     const productId = productRow.id;
     if (productRow.is_new) productsCreated++; else productsUpdated++;
 
-    // Upsert each SKU
     for (const item of group.items) {
       const internalSku = makeInternalSku(item.vendor_sku, item.product_name);
       const vendorSku = item.vendor_sku || internalSku;

@@ -4891,6 +4891,10 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
       label: 'Engineered Floors EDI 832 (SFTP)', source_type: 'edi_sftp', base_url: 'sftp://ftp.engfloors.org',
       categories: []
     },
+    'shaw-832': {
+      label: 'Shaw Floors EDI 832 (SFTP)', source_type: 'edi_sftp', base_url: 'sftp://shawedi.shawfloors.com',
+      categories: []
+    },
   };
   try {
     const fs = await import('fs');

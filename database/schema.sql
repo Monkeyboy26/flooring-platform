@@ -73,6 +73,7 @@ CREATE TABLE pricing (
     cut_cost DECIMAL(10,2),
     roll_cost DECIMAL(10,2),
     roll_min_sqft DECIMAL(10,2),
+    map_price DECIMAL(10,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

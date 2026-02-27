@@ -168,10 +168,10 @@ export async function upsertPackaging(pool, sku_id, { sqft_per_box, pieces_per_b
 /**
  * Upsert pricing by sku_id (PK). Returns nothing.
  */
-export async function upsertPricing(pool, sku_id, { cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft }) {
+export async function upsertPricing(pool, sku_id, { cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price }) {
   await pool.query(`
-    INSERT INTO pricing (sku_id, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    INSERT INTO pricing (sku_id, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     ON CONFLICT (sku_id) DO UPDATE SET
       cost = COALESCE(EXCLUDED.cost, pricing.cost),
       retail_price = COALESCE(EXCLUDED.retail_price, pricing.retail_price),
@@ -180,8 +180,9 @@ export async function upsertPricing(pool, sku_id, { cost, retail_price, price_ba
       roll_price = COALESCE(EXCLUDED.roll_price, pricing.roll_price),
       cut_cost = COALESCE(EXCLUDED.cut_cost, pricing.cut_cost),
       roll_cost = COALESCE(EXCLUDED.roll_cost, pricing.roll_cost),
-      roll_min_sqft = COALESCE(EXCLUDED.roll_min_sqft, pricing.roll_min_sqft)
-  `, [sku_id, cost || 0, retail_price || 0, price_basis || 'per_sqft', cut_price || null, roll_price || null, cut_cost || null, roll_cost || null, roll_min_sqft || null]);
+      roll_min_sqft = COALESCE(EXCLUDED.roll_min_sqft, pricing.roll_min_sqft),
+      map_price = COALESCE(EXCLUDED.map_price, pricing.map_price)
+  `, [sku_id, cost || 0, retail_price || 0, price_basis || 'per_sqft', cut_price || null, roll_price || null, cut_cost || null, roll_cost || null, roll_min_sqft || null, map_price || null]);
 }
 
 /**
