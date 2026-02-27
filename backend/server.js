@@ -761,7 +761,7 @@ app.get('/api/categories', async (req, res) => {
         LEFT JOIN products p ON p.category_id = c.id AND p.status = 'active'
         GROUP BY c.id
       )
-      SELECT c.id, c.name, c.slug, c.parent_id, c.sort_order,
+      SELECT c.id, c.name, c.slug, c.parent_id, c.sort_order, c.image_url,
         COALESCE(cc.product_count, 0) as product_count
       FROM categories c
       LEFT JOIN category_counts cc ON cc.id = c.id
@@ -785,6 +785,7 @@ app.get('/api/categories', async (req, res) => {
         id: p.id,
         name: p.name,
         slug: p.slug,
+        image_url: p.image_url || null,
         product_count: parent_count,
         children
       };
@@ -860,17 +861,17 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
 
     const whereSQL = whereClauses.join(' AND ');
 
-    // Sort
-    let orderBy = 'p.name ASC, s.variant_name ASC';
-    if (sort === 'price_asc') orderBy = 'retail_price ASC NULLS LAST, p.name ASC';
-    else if (sort === 'price_desc') orderBy = 'retail_price DESC NULLS LAST, p.name ASC';
-    else if (sort === 'newest') orderBy = 's.created_at DESC';
-    else if (sort === 'name_asc') orderBy = 'p.name ASC, s.variant_name ASC';
-    else if (sort === 'name_desc') orderBy = 'p.name DESC, s.variant_name DESC';
+    // Sort — column names without table prefixes (used in outer query over subquery)
+    let orderBy = 'product_name ASC, variant_name ASC';
+    if (sort === 'price_asc') orderBy = 'retail_price ASC NULLS LAST, product_name ASC';
+    else if (sort === 'price_desc') orderBy = 'retail_price DESC NULLS LAST, product_name ASC';
+    else if (sort === 'newest') orderBy = 'created_at DESC';
+    else if (sort === 'name_asc') orderBy = 'product_name ASC, variant_name ASC';
+    else if (sort === 'name_desc') orderBy = 'product_name DESC, variant_name DESC';
 
-    // Count query
+    // Count query — count distinct products, not individual SKUs
     const countSQL = `
-      SELECT COUNT(*) as total
+      SELECT COUNT(DISTINCT p.id) as total
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
@@ -878,35 +879,56 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       WHERE ${whereSQL}
     `;
 
-    // Main query
+    // Main query — CTEs pre-compute images & variant counts (avoids correlated subqueries)
     const mainSQL = `
-      SELECT
-        s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.sell_by,
-        p.name as product_name, p.collection, p.description_short,
-        v.name as vendor_name,
-        COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
-        c.name as category_name, c.slug as category_slug,
-        pr.retail_price, pr.price_basis,
-        pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-        COALESCE(
-          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
-        ) as primary_image,
-        CASE
-          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
-          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
-          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
-          ELSE 'out_of_stock'
-        END as stock_status
-      FROM skus s
-      JOIN products p ON p.id = s.product_id
-      JOIN vendors v ON v.id = p.vendor_id
-      LEFT JOIN categories c ON c.id = p.category_id
-      LEFT JOIN pricing pr ON pr.sku_id = s.id
-      LEFT JOIN packaging pk ON pk.sku_id = s.id
-      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
-      WHERE ${whereSQL}
+      WITH sku_images AS (
+        SELECT DISTINCT ON (sku_id) sku_id, url
+        FROM media_assets
+        WHERE asset_type = 'primary' AND sku_id IS NOT NULL
+        ORDER BY sku_id, sort_order
+      ),
+      product_images AS (
+        SELECT DISTINCT ON (product_id) product_id, url
+        FROM media_assets
+        WHERE asset_type = 'primary' AND sku_id IS NULL
+        ORDER BY product_id, sort_order
+      ),
+      variant_counts AS (
+        SELECT product_id, COUNT(*) as variant_count
+        FROM skus
+        WHERE status = 'active' AND is_sample = false AND COALESCE(variant_type, '') != 'accessory'
+        GROUP BY product_id
+      )
+      SELECT * FROM (
+        SELECT DISTINCT ON (p.id)
+          s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.sell_by, s.created_at,
+          p.name as product_name, p.collection, p.description_short,
+          v.name as vendor_name,
+          COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
+          c.name as category_name, c.slug as category_slug,
+          pr.retail_price, pr.price_basis,
+          pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
+          COALESCE(si.url, pi.url) as primary_image,
+          CASE
+            WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+            WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+            WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+            ELSE 'out_of_stock'
+          END as stock_status,
+          COALESCE(vc.variant_count, 0) as variant_count
+        FROM skus s
+        JOIN products p ON p.id = s.product_id
+        JOIN vendors v ON v.id = p.vendor_id
+        LEFT JOIN categories c ON c.id = p.category_id
+        LEFT JOIN pricing pr ON pr.sku_id = s.id
+        LEFT JOIN packaging pk ON pk.sku_id = s.id
+        LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+        LEFT JOIN sku_images si ON si.sku_id = s.id
+        LEFT JOIN product_images pi ON pi.product_id = p.id
+        LEFT JOIN variant_counts vc ON vc.product_id = p.id
+        WHERE ${whereSQL}
+        ORDER BY p.id, s.created_at
+      ) grouped
       ORDER BY ${orderBy}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
@@ -974,8 +996,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.cost, pr.price_basis,
+        pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class,
         pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs,
+        pk.roll_width_ft,
         inv.qty_on_hand, inv.qty_in_transit, inv.fresh_until,
         CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_on_hand, 0) * pk.sqft_per_box) END as qty_on_hand_sqft,
         CASE
@@ -1151,12 +1175,66 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       }
     }
 
+    // Grouped products (e.g. matching cabinets, mirrors for vanities via group_number + color)
+    let groupedProducts = [];
+    const groupAttr = sku.attributes.find(a => a.slug === 'group_number');
+    const groupNumber = groupAttr ? groupAttr.value : null;
+    const colorAttr = sku.attributes.find(a => a.slug === 'color');
+    const skuColor = colorAttr ? colorAttr.value : null;
+    if (groupNumber) {
+      const gpParams = [groupNumber, sku.category_id, sku.product_id];
+      let colorFilter = '';
+      if (skuColor) {
+        colorFilter = `AND (
+          EXISTS (
+            SELECT 1 FROM sku_attributes sa_c
+            JOIN attributes a_c ON a_c.id = sa_c.attribute_id AND a_c.slug = 'color'
+            WHERE sa_c.sku_id = s.id AND sa_c.value = $4
+          )
+          OR (
+            NOT EXISTS (
+              SELECT 1 FROM sku_attributes sa_c2
+              JOIN attributes a_c2 ON a_c2.id = sa_c2.attribute_id AND a_c2.slug = 'color'
+              WHERE sa_c2.sku_id = s.id
+            )
+            AND s.variant_name ILIKE '%' || $4 || '%'
+          )
+        )`;
+        gpParams.push(skuColor);
+      }
+      const gpResult = await pool.query(`
+        SELECT DISTINCT ON (p.id)
+          s.id as sku_id, s.variant_name, s.variant_type, s.sell_by,
+          p.id as product_id, p.name as product_name, p.collection,
+          c.name as category_name, c.slug as category_slug,
+          pr.retail_price, pr.price_basis,
+          COALESCE(
+            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' LIMIT 1),
+            (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' LIMIT 1)
+          ) as primary_image
+        FROM sku_attributes sa
+        JOIN skus s ON s.id = sa.sku_id AND s.status = 'active' AND s.is_sample = false
+        JOIN products p ON p.id = s.product_id AND p.status = 'active'
+        LEFT JOIN categories c ON c.id = p.category_id
+        LEFT JOIN pricing pr ON pr.sku_id = s.id
+        WHERE sa.attribute_id = (SELECT id FROM attributes WHERE slug = 'group_number')
+          AND sa.value = $1
+          AND p.category_id != $2
+          AND p.id != $3
+          ${colorFilter}
+        ORDER BY p.id, pr.retail_price DESC NULLS LAST
+        LIMIT 20
+      `, gpParams);
+      groupedProducts = gpResult.rows;
+    }
+
     res.json({
       sku,
       media: dedupedMedia,
       same_product_siblings: sameSiblings,
       collection_siblings: collectionSiblings,
-      collection_attributes: collectionAttributes
+      collection_attributes: collectionAttributes,
+      grouped_products: groupedProducts
     });
   } catch (err) {
     console.error('Storefront SKU detail error:', err);
@@ -1281,11 +1359,13 @@ app.get('/api/cart', async (req, res) => {
 
     const result = await pool.query(`
       SELECT ci.*, p.name as product_name, p.collection,
-        s.sell_by, s.variant_type, s.vendor_sku, c.slug as category_slug
+        s.sell_by, s.variant_type, s.vendor_sku, c.slug as category_slug,
+        pr.cut_price, pr.roll_price, pr.roll_min_sqft
       FROM cart_items ci
       LEFT JOIN products p ON p.id = ci.product_id
       LEFT JOIN skus s ON s.id = ci.sku_id
       LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = ci.sku_id
       WHERE ci.session_id = $1
       ORDER BY ci.created_at
     `, [session_id]);
@@ -1301,7 +1381,7 @@ app.get('/api/cart', async (req, res) => {
 
 app.post('/api/cart', async (req, res) => {
   try {
-    const { session_id, product_id, sku_id, sqft_needed, num_boxes, include_overage, unit_price, subtotal, is_sample, sell_by } = req.body;
+    const { session_id, product_id, sku_id, sqft_needed, num_boxes, include_overage, unit_price, subtotal, is_sample, sell_by, price_tier } = req.body;
     if (!session_id || !num_boxes) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -1333,10 +1413,10 @@ app.post('/api/cart', async (req, res) => {
     }
 
     const result = await pool.query(`
-      INSERT INTO cart_items (session_id, product_id, sku_id, sqft_needed, num_boxes, include_overage, unit_price, subtotal, is_sample, sell_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      INSERT INTO cart_items (session_id, product_id, sku_id, sqft_needed, num_boxes, include_overage, unit_price, subtotal, is_sample, sell_by, price_tier)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
-    `, [session_id, product_id || null, sku_id || null, sqft_needed || null, num_boxes, include_overage || false, unit_price || 0, subtotal || 0, is_sample || false, sell_by || null]);
+    `, [session_id, product_id || null, sku_id || null, sqft_needed || null, num_boxes, include_overage || false, unit_price || 0, subtotal || 0, is_sample || false, sell_by || null, price_tier || null]);
 
     // Return with product info
     const item = result.rows[0];
@@ -1356,17 +1436,19 @@ app.post('/api/cart', async (req, res) => {
 app.put('/api/cart/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { num_boxes, sqft_needed, subtotal } = req.body;
+    const { num_boxes, sqft_needed, subtotal, unit_price, price_tier } = req.body;
 
     const result = await pool.query(`
       UPDATE cart_items
       SET num_boxes = COALESCE($1, num_boxes),
           sqft_needed = COALESCE($2, sqft_needed),
           subtotal = COALESCE($3, subtotal),
+          unit_price = COALESCE($4, unit_price),
+          price_tier = COALESCE($5, price_tier),
           updated_at = CURRENT_TIMESTAMP
-      WHERE id = $4
+      WHERE id = $6
       RETURNING *
-    `, [num_boxes, sqft_needed, subtotal, id]);
+    `, [num_boxes, sqft_needed, subtotal, unit_price, price_tier, id]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Cart item not found' });
 
@@ -1939,11 +2021,12 @@ async function generatePurchaseOrders(orderId, client) {
   // Get order items with vendor and cost info (exclude samples and custom items)
   const itemsResult = await client.query(`
     SELECT oi.id as order_item_id, oi.product_name, oi.num_boxes as qty, oi.unit_price,
-           oi.sqft_needed, oi.sell_by, oi.description,
+           oi.sqft_needed, oi.sell_by, oi.description, oi.price_tier,
            p.vendor_id, v.code as vendor_code, v.name as vendor_name,
            s.id as sku_id, s.vendor_sku,
            COALESCE(pr.cost, 0) as vendor_cost,
            COALESCE(pr.price_basis, 'per_sqft') as price_basis,
+           pr.cut_cost, pr.roll_cost,
            pk.sqft_per_box
     FROM order_items oi
     JOIN products p ON p.id = oi.product_id
@@ -1982,7 +2065,13 @@ async function generatePurchaseOrders(orderId, client) {
     let poSubtotal = 0;
     for (const item of group.items) {
       const sqftPerBox = parseFloat(item.sqft_per_box || 1);
-      const vendorCost = parseFloat(item.vendor_cost);
+      // For carpet items, use cut_cost or roll_cost based on price_tier
+      let vendorCost = parseFloat(item.vendor_cost);
+      if (item.price_tier === 'roll' && item.roll_cost != null) {
+        vendorCost = parseFloat(item.roll_cost);
+      } else if (item.price_tier === 'cut' && item.cut_cost != null) {
+        vendorCost = parseFloat(item.cut_cost);
+      }
       const costPerBox = item.price_basis === 'per_sqft' ? vendorCost * sqftPerBox : vendorCost;
       poSubtotal += costPerBox * item.qty;
     }
@@ -1999,7 +2088,12 @@ async function generatePurchaseOrders(orderId, client) {
     // Create purchase order items — all prices normalized to per-box
     for (const item of group.items) {
       const sqftPerBox = parseFloat(item.sqft_per_box || 1);
-      const vendorCost = parseFloat(item.vendor_cost);
+      let vendorCost = parseFloat(item.vendor_cost);
+      if (item.price_tier === 'roll' && item.roll_cost != null) {
+        vendorCost = parseFloat(item.roll_cost);
+      } else if (item.price_tier === 'cut' && item.cut_cost != null) {
+        vendorCost = parseFloat(item.cut_cost);
+      }
       const costPerBox = item.price_basis === 'per_sqft' ? vendorCost * sqftPerBox : vendorCost;
       const retailPerBox = item.unit_price
         ? (item.price_basis === 'per_sqft' ? parseFloat(item.unit_price) * sqftPerBox : parseFloat(item.unit_price))
@@ -2156,12 +2250,13 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     for (const item of items) {
       await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
-          sqft_needed, num_boxes, unit_price, subtotal, is_sample)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, price_tier)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       `, [order.id, item.product_id || null, item.sku_id || null,
           item.product_name || null, item.collection || null,
           item.sqft_needed || null, item.num_boxes,
-          item.unit_price || null, item.subtotal || null, item.is_sample || false]);
+          item.unit_price || null, item.subtotal || null, item.is_sample || false,
+          item.sell_by || null, item.price_tier || null]);
     }
 
     // Record initial charge in order_payments ledger
@@ -2717,8 +2812,8 @@ app.get('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', '
   try {
     const { productId } = req.params;
     const result = await pool.query(`
-      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs,
-        pr.cost, pr.retail_price, pr.price_basis
+      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft,
+        pr.cost, pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
@@ -2757,7 +2852,7 @@ app.post('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', 
   const client = await pool.connect();
   try {
     const { productId } = req.params;
-    const { vendor_sku, internal_sku, variant_name, sell_by, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, cost, retail_price, price_basis } = req.body;
+    const { vendor_sku, internal_sku, variant_name, sell_by, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, roll_width_ft } = req.body;
     if (!vendor_sku || !internal_sku) return res.status(400).json({ error: 'vendor_sku and internal_sku are required' });
 
     await client.query('BEGIN');
@@ -2770,26 +2865,26 @@ app.post('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', 
 
     const skuId = sku.rows[0].id;
 
-    if (sqft_per_box || pieces_per_box || weight_per_box_lbs || boxes_per_pallet) {
+    if (sqft_per_box || pieces_per_box || weight_per_box_lbs || boxes_per_pallet || roll_width_ft) {
       await client.query(`
-        INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [skuId, sqft_per_box || null, pieces_per_box || null, weight_per_box_lbs || null, freight_class || 70, boxes_per_pallet || null, sqft_per_pallet || null, weight_per_pallet_lbs || null]);
+        INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `, [skuId, sqft_per_box || null, pieces_per_box || null, weight_per_box_lbs || null, freight_class || 70, boxes_per_pallet || null, sqft_per_pallet || null, weight_per_pallet_lbs || null, roll_width_ft || null]);
     }
 
     if (cost != null && retail_price != null) {
       await client.query(`
-        INSERT INTO pricing (sku_id, cost, retail_price, price_basis)
-        VALUES ($1, $2, $3, $4)
-      `, [skuId, cost, retail_price, price_basis || 'per_sqft']);
+        INSERT INTO pricing (sku_id, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `, [skuId, cost, retail_price, price_basis || 'per_sqft', cut_price || null, roll_price || null, cut_cost || null, roll_cost || null, roll_min_sqft || null]);
     }
 
     await client.query('COMMIT');
 
     // Return full SKU with joins
     const full = await pool.query(`
-      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs,
-        pr.cost, pr.retail_price, pr.price_basis
+      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft,
+        pr.cost, pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
@@ -2810,7 +2905,7 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { vendor_sku, internal_sku, variant_name, sell_by, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, cost, retail_price, price_basis } = req.body;
+    const { vendor_sku, internal_sku, variant_name, sell_by, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, roll_width_ft } = req.body;
 
     await client.query('BEGIN');
 
@@ -2826,8 +2921,8 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
 
     // Upsert packaging
     await client.query(`
-      INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ON CONFLICT (sku_id) DO UPDATE SET
         sqft_per_box = COALESCE($2, packaging.sqft_per_box),
         pieces_per_box = COALESCE($3, packaging.pieces_per_box),
@@ -2835,26 +2930,32 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
         freight_class = COALESCE($5, packaging.freight_class),
         boxes_per_pallet = COALESCE($6, packaging.boxes_per_pallet),
         sqft_per_pallet = COALESCE($7, packaging.sqft_per_pallet),
-        weight_per_pallet_lbs = COALESCE($8, packaging.weight_per_pallet_lbs)
-    `, [id, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs]);
+        weight_per_pallet_lbs = COALESCE($8, packaging.weight_per_pallet_lbs),
+        roll_width_ft = COALESCE($9, packaging.roll_width_ft)
+    `, [id, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft]);
 
     // Upsert pricing
     if (cost != null && retail_price != null) {
       await client.query(`
-        INSERT INTO pricing (sku_id, cost, retail_price, price_basis)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO pricing (sku_id, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (sku_id) DO UPDATE SET
           cost = COALESCE($2, pricing.cost),
           retail_price = COALESCE($3, pricing.retail_price),
-          price_basis = COALESCE($4, pricing.price_basis)
-      `, [id, cost, retail_price, price_basis]);
+          price_basis = COALESCE($4, pricing.price_basis),
+          cut_price = $5,
+          roll_price = $6,
+          cut_cost = $7,
+          roll_cost = $8,
+          roll_min_sqft = $9
+      `, [id, cost, retail_price, price_basis, cut_price || null, roll_price || null, cut_cost || null, roll_cost || null, roll_min_sqft || null]);
     }
 
     await client.query('COMMIT');
 
     const full = await pool.query(`
-      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs,
-        pr.cost, pr.retail_price, pr.price_basis
+      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft,
+        pr.cost, pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
@@ -4460,31 +4561,77 @@ const BROWSER_SCRAPERS = new Set([
   'triwest-wftaylor',
 ]);
 
-// Concurrency control for browser-based scrapers (max 2 simultaneous)
+// Enrichment scrapers (triwest-* brand scrapers) — separate pool so they don't block catalog/inventory
+const ENRICHMENT_SCRAPERS = new Set([
+  'triwest-provenza', 'triwest-paradigm', 'triwest-quickstep', 'triwest-armstrong',
+  'triwest-metroflor', 'triwest-mirage', 'triwest-calclassics', 'triwest-grandpacific',
+  'triwest-bravada', 'triwest-hartco', 'triwest-truetouch', 'triwest-citywide',
+  'triwest-ahf', 'triwest-flexco', 'triwest-opulux', 'triwest-shaw', 'triwest-stanton',
+  'triwest-bruce', 'triwest-congoleum', 'triwest-kraus', 'triwest-sika',
+  'triwest-usrubber', 'triwest-tec', 'triwest-kenmark', 'triwest-bosphorus',
+  'triwest-babool', 'triwest-elysium', 'triwest-forester', 'triwest-hardwoodsspecialty',
+  'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit', 'triwest-traditions',
+  'triwest-wftaylor',
+]);
+
+// Concurrency control — two separate pools:
+//   Catalog/pricing scrapers: max 2 (high memory, critical operations)
+//   Enrichment scrapers: max 3 (separate pool, won't block catalog imports)
 const MAX_BROWSER_SCRAPERS = 2;
+const MAX_ENRICHMENT_SCRAPERS = 3;
 let activeBrowserScrapers = 0;
+let activeEnrichmentScrapers = 0;
 const browserQueue = []; // { resolve, source }
+const enrichmentQueue = []; // { resolve, source }
+
+function isEnrichmentScraper(source) {
+  return ENRICHMENT_SCRAPERS.has(source.scraper_key);
+}
 
 function acquireBrowserSlot(source) {
   if (!BROWSER_SCRAPERS.has(source.scraper_key)) return Promise.resolve(); // non-browser scrapers pass through
+
+  if (isEnrichmentScraper(source)) {
+    if (activeEnrichmentScrapers < MAX_ENRICHMENT_SCRAPERS) {
+      activeEnrichmentScrapers++;
+      return Promise.resolve();
+    }
+    return new Promise(resolve => {
+      enrichmentQueue.push({ resolve, source });
+      console.log(`[Scraper] ${source.scraper_key} queued (enrichment) — ${enrichmentQueue.length} waiting, ${activeEnrichmentScrapers} active`);
+    });
+  }
+
+  // Catalog/pricing/inventory scrapers
   if (activeBrowserScrapers < MAX_BROWSER_SCRAPERS) {
     activeBrowserScrapers++;
     return Promise.resolve();
   }
-  // Queue and wait for a slot
   return new Promise(resolve => {
     browserQueue.push({ resolve, source });
-    console.log(`[Scraper] ${source.scraper_key} queued — ${browserQueue.length} waiting, ${activeBrowserScrapers} active`);
+    console.log(`[Scraper] ${source.scraper_key} queued (browser) — ${browserQueue.length} waiting, ${activeBrowserScrapers} active`);
   });
 }
 
 function releaseBrowserSlot(source) {
   if (!BROWSER_SCRAPERS.has(source.scraper_key)) return;
+
+  if (isEnrichmentScraper(source)) {
+    activeEnrichmentScrapers = Math.max(0, activeEnrichmentScrapers - 1);
+    if (enrichmentQueue.length > 0) {
+      const next = enrichmentQueue.shift();
+      activeEnrichmentScrapers++;
+      console.log(`[Scraper] Dequeued ${next.source.scraper_key} (enrichment) — ${enrichmentQueue.length} still waiting`);
+      next.resolve();
+    }
+    return;
+  }
+
   activeBrowserScrapers = Math.max(0, activeBrowserScrapers - 1);
   if (browserQueue.length > 0) {
     const next = browserQueue.shift();
     activeBrowserScrapers++;
-    console.log(`[Scraper] Dequeued ${next.source.scraper_key} — ${browserQueue.length} still waiting`);
+    console.log(`[Scraper] Dequeued ${next.source.scraper_key} (browser) — ${browserQueue.length} still waiting`);
     next.resolve();
   }
 }
@@ -4738,6 +4885,10 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
     },
     'bosphorus-inventory': {
       label: 'Bosphorus Imports Inventory', source_type: 'portal', base_url: 'https://www.bosphorusimports.com',
+      categories: []
+    },
+    'engfloors-832': {
+      label: 'Engineered Floors EDI 832 (SFTP)', source_type: 'edi_sftp', base_url: 'sftp://ftp.engfloors.org',
       categories: []
     },
   };

@@ -3,10 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="theme-color" content="#1c1917">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Roma Admin">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>Admin - Roma Flooring Designs</title>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -95,11 +101,13 @@
       flex-direction: column;
     }
     .sidebar-logo {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.5rem;
-      font-weight: 300;
       padding: 0 1.5rem;
       margin-bottom: 0.25rem;
+    }
+    .sidebar-logo img {
+      width: 100px;
+      height: auto;
+      display: block;
     }
     .sidebar-subtitle {
       font-size: 0.6875rem;
@@ -254,6 +262,12 @@
     .badge-running { background: #fef3c7; color: #d97706; }
     .badge-completed { background: var(--green-light); color: var(--green); }
     .badge-failed { background: var(--red-light); color: var(--red); }
+    .badge-cancelled { background: #fef3c7; color: #92400e; }
+    .badge-contacted { background: #dbeafe; color: #2563eb; }
+    .badge-quoted { background: #f3e8ff; color: #9333ea; }
+    .badge-scheduled { background: #ccfbf1; color: #0d9488; }
+    .badge-closed { background: var(--stone-100); color: var(--stone-500); }
+    .badge-new { background: #fef3c7; color: #d97706; }
     .badge-sent { background: #dbeafe; color: #2563eb; }
     .badge-acknowledged { background: #fef3c7; color: #d97706; }
     .badge-fulfilled { background: var(--green-light); color: #15803d; }
@@ -599,18 +613,6 @@
       font-size: 0.875rem;
     }
 
-    /* Import file zone */
-    .import-file-zone {
-      border: 2px dashed var(--stone-300);
-      border-radius: 8px;
-      padding: 2rem;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-    }
-    .import-file-zone:hover { border-color: var(--gold); background: var(--stone-50); }
-    .import-file-zone.has-file { border-color: var(--green); border-style: solid; }
-
     /* Bulk actions toolbar */
     .bulk-toolbar {
       display: flex;
@@ -831,16 +833,89 @@
       background: var(--gold);
       border-radius: 4px;
     }
+    /* Mobile Top Bar */
+    .mobile-topbar {
+      display: none;
+      position: sticky; top: 0; z-index: 90;
+      height: 56px; background: var(--stone-900); color: white;
+      padding: 0 1rem; align-items: center; justify-content: space-between;
+    }
+    .mobile-topbar .hamburger-btn {
+      background: none; border: none; color: white;
+      cursor: pointer; padding: 0.5rem;
+    }
+    /* Sidebar Backdrop */
+    .sidebar-backdrop {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 98;
+    }
+    .sidebar-backdrop.visible { display: block; }
+    /* Table Scroll Wrapper */
+    .table-scroll-wrapper {
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+    }
+    /* Responsive Grid Utilities */
+    .resp-grid-2 { display: grid; grid-template-columns: 1fr 1fr; }
+    .resp-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+
+    @media (max-width: 1024px) {
+      .admin-content { padding: 1.5rem; }
+      .stat-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
+      .filter-bar input[type="text"] { min-width: 160px; }
+    }
+
     @media (max-width: 900px) {
       .analytics-grid { grid-template-columns: repeat(2, 1fr); }
       .analytics-two-col { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .mobile-topbar { display: flex; }
+      .admin-layout { grid-template-columns: 1fr; }
+      .admin-sidebar {
+        position: fixed; top: 0; left: -260px; width: 260px;
+        height: 100vh; z-index: 99; transition: left 0.3s ease;
+      }
+      .admin-sidebar.open { left: 0; }
+      .admin-content { padding: 1rem; }
+      .content-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+      .content-header h1 { font-size: 1.5rem; }
+      .stat-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; }
+      .form-grid { grid-template-columns: 1fr; }
+      .order-info-grid { grid-template-columns: 1fr; }
+      .resp-grid-2, .resp-grid-3 { grid-template-columns: 1fr !important; }
+      .admin-table, .data-table { min-width: 600px; }
+      .filter-bar { flex-direction: column; align-items: stretch; }
+      .filter-bar input[type="text"] { min-width: unset; width: 100%; }
+      .filter-bar select { width: 100%; }
+      .bulk-toolbar { flex-wrap: wrap; gap: 0.5rem; }
+      .bulk-toolbar .bulk-count { width: 100%; }
+      .form-card { padding: 1.25rem; }
+      .modal-box { padding: 1.25rem; max-height: 90vh; }
+      .sidebar-item { padding: 0.875rem 1.5rem; }
+      .order-stepper { flex-wrap: wrap; gap: 0.5rem; }
+      .stepper-connector { display: none; }
+      .analytics-grid { grid-template-columns: 1fr !important; }
+      .analytics-two-col { grid-template-columns: 1fr !important; }
+      .media-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    }
+
+    @media (max-width: 480px) {
+      .admin-content { padding: 0.75rem; }
+      .content-header h1 { font-size: 1.25rem; }
+      .stat-grid { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+      .form-card { padding: 1rem; }
+      .auth-box { padding: 1.5rem; }
+      .filter-bar input, .filter-bar select,
+      .form-group input, .form-group select, .form-group textarea { font-size: 1rem; }
+      .media-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
     }
   </style>
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel">
-    const { useState, useEffect, useCallback } = React;
+  <script type="text/babel" data-presets="env,react">
+    const { useState, useEffect, useCallback, useRef } = React;
 
         const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'http://localhost:3001'
@@ -892,42 +967,6 @@
         }
         return r.json();
       });
-    }
-
-    function autoMapHeaders(headers, pimFields) {
-      const mapping = {};
-      const aliases = {
-        'code': 'vendor_sku', 'product code': 'vendor_sku', 'item#': 'vendor_sku', 'item #': 'vendor_sku',
-        'item': 'vendor_sku', 'sku': 'vendor_sku', 'product sku': 'vendor_sku', 'item name': 'name',
-        'stock name': 'name', 'product name': 'name', 'product': 'name', 'title': 'name', 'description': 'name',
-        'collection': 'collection', 'series': 'collection',
-        'price per sq.ft': 'cost', 'price per sqft': 'cost', 'price sqft/piece/sheet': 'cost',
-        'price': 'cost', 'standard cost': 'cost', 'preferred': 'cost',
-        'msrp': 'retail_price', 'retail': 'retail_price', 'retail price': 'retail_price',
-        'price per box/slab': 'retail_price', 'price per box': 'retail_price',
-        'sq.ft per box': 'sqft_per_box', 'sqft per box': 'sqft_per_box', 'sqftper box': 'sqft_per_box',
-        'sf/ctn': 'sqft_per_box', 'sf/ct': 'sqft_per_box', 'sqft/box': 'sqft_per_box',
-        'pieces per box': 'pieces_per_box', 'pcs per box': 'pieces_per_box', 'pcs/box': 'pieces_per_box',
-        'weight per box': 'weight_per_box_lbs', 'lbs/ctn': 'weight_per_box_lbs', 'box weight': 'weight_per_box_lbs',
-        'weight per box(lb)': 'weight_per_box_lbs',
-        'finish': 'finish', 'color': 'color', 'color family': 'color', 'material': 'material',
-        'size': 'size', 'size (inch)': 'size', 'thickness': 'thickness',
-        'short description': 'description_short', 'long description': 'description_long',
-        'variant': 'variant_name', 'variant name': 'variant_name',
-      };
-      const fieldValues = new Set(pimFields.map(f => f.value).filter(Boolean));
-      const usedFields = new Set();
-      headers.forEach((header, i) => {
-        const norm = String(header).toLowerCase().trim();
-        if (aliases[norm] && !usedFields.has(aliases[norm])) {
-          mapping[String(i)] = aliases[norm];
-          usedFields.add(aliases[norm]);
-        } else if (fieldValues.has(norm) && !usedFields.has(norm)) {
-          mapping[String(i)] = norm;
-          usedFields.add(norm);
-        }
-      });
-      return mapping;
     }
 
     // ========== AdminApp ==========
@@ -1159,9 +1198,18 @@
       const scrollPositions = React.useRef({});
       const pendingScroll = React.useRef(null);
       const staffRole = staffData ? staffData.role : 'admin';
+      const [sidebarOpen, setSidebarOpen] = useState(false);
+
+      useEffect(() => {
+        const mq = window.matchMedia('(min-width: 769px)');
+        const handler = (e) => { if (e.matches) setSidebarOpen(false); };
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+      }, []);
 
       const navigate = (v, id) => {
         scrollPositions.current[view] = window.scrollY;
+        setSidebarOpen(false);
         setView(v);
         setEditId(id || null);
         if (scrollPositions.current[v] != null) {
@@ -1186,22 +1234,22 @@
         { key: 'products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', roles: ['admin', 'manager'] },
         { key: 'vendors', label: 'Vendors', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', roles: ['admin', 'manager'] },
         { key: 'categories', label: 'Categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z', roles: ['admin', 'manager'] },
-        { key: 'import', label: 'Import', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12', roles: ['admin', 'manager'] },
         { key: 'scrapers', label: 'Scrapers', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9', roles: ['admin', 'manager'] },
         { key: 'trade', label: 'Trade', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'promos', label: 'Promo Codes', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4zM17 3h2a2 2 0 012 2v2', roles: ['admin', 'manager'] },
+        { key: 'inquiries', label: 'Inquiries', icon: 'M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'staff', label: 'Staff', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', roles: ['admin', 'manager'] },
         { key: 'audit', label: 'Audit Log', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4', roles: ['admin', 'manager'] },
       ];
 
       const navItems = allNavItems.filter(item => item.roles.includes(staffRole));
 
-      const activeBase = view.split('-')[0] === 'product' ? 'products' :
+      const activeBase = view === 'inquiry-detail' ? 'inquiries' :
+                          view.split('-')[0] === 'product' ? 'products' :
                           view.split('-')[0] === 'vendor' ? 'vendors' :
                           view.split('-')[0] === 'category' ? 'categories' :
                           view.split('-')[0] === 'customer' ? 'customers' :
                           view.split('-')[0] === 'order' ? 'orders' :
-                          view.split('-')[0] === 'import' ? 'import' :
                           view.split('-')[0] === 'scraper' || view === 'scrapers' ? 'scrapers' :
                           view.split('-')[0] === 'promo' || view === 'promos' ? 'promos' :
                           view.split('-')[0] === 'trade' ? 'trade' :
@@ -1210,8 +1258,16 @@
 
       return (
         <div className="admin-layout">
-          <div className="admin-sidebar">
-            <div className="sidebar-logo">Roma Flooring</div>
+          <div className="mobile-topbar">
+            <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+            </button>
+            <img src="/assets/logo/roma-square.png" alt="Roma" style={{ height: 32 }} />
+            <div style={{ width: 40 }}></div>
+          </div>
+          <div className={'sidebar-backdrop' + (sidebarOpen ? ' visible' : '')} onClick={() => setSidebarOpen(false)}></div>
+          <div className={'admin-sidebar' + (sidebarOpen ? ' open' : '')}>
+            <div className="sidebar-logo"><img src="/assets/logo/roma-square.png" alt="Roma Flooring Designs" /></div>
             <div className="sidebar-subtitle">Admin Panel</div>
             <div className="sidebar-nav">
               {navItems.map(item => (
@@ -1255,12 +1311,13 @@
             {view === 'categories' && <CategoriesListView navigate={navigate} />}
             {view === 'category-create' && <CategoryFormView navigate={navigate} />}
             {view === 'category-edit' && <CategoryFormView navigate={navigate} editId={editId} />}
-            {view === 'import' && <ImportView navigate={navigate} />}
             {view === 'scrapers' && <ScrapersView navigate={navigate} />}
             {view === 'scraper-source-create' && <ScraperSourceFormView navigate={navigate} />}
             {view === 'scraper-source-edit' && <ScraperSourceFormView navigate={navigate} editId={editId} />}
             {view === 'scraper-jobs' && <ScraperJobsView navigate={navigate} editId={editId} />}
             {view === 'scraper-job-detail' && <ScraperJobDetailView navigate={navigate} editId={editId} />}
+            {view === 'inquiries' && <InquiriesListView navigate={navigate} />}
+            {view === 'inquiry-detail' && <InquiryDetailView navigate={navigate} editId={editId} staffRole={staffRole} />}
             {view === 'trade' && <TradeManagementView navigate={navigate} />}
             {view === 'staff' && <StaffListView navigate={navigate} />}
             {view === 'staff-create' && <StaffFormView navigate={navigate} />}
@@ -1456,6 +1513,7 @@
                   {(analytics.top_products || []).length === 0 ? (
                     <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No data for this period</div>
                   ) : (
+                    <div className="table-scroll-wrapper">
                     <table className="admin-table">
                       <thead>
                         <tr>
@@ -1476,6 +1534,7 @@
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   )}
                 </div>
                 <div className="chart-container" style={{ marginBottom: 0 }}>
@@ -1493,6 +1552,7 @@
               {(analytics.vendor_performance || []).length > 0 && (
                 <div className="chart-container">
                   <h3>Vendor Performance</h3>
+                  <div className="table-scroll-wrapper">
                   <table className="admin-table">
                     <thead>
                       <tr>
@@ -1519,6 +1579,7 @@
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
             </React.Fragment>
@@ -1545,6 +1606,7 @@
           {/* Recent Orders */}
           <div className="form-card">
             <h3>Recent Orders</h3>
+            <div className="table-scroll-wrapper">
             <table className="admin-table">
               <thead>
                 <tr>
@@ -1570,11 +1632,13 @@
                 )}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Recent Products */}
           <div className="form-card">
             <h3>Recent Products</h3>
+            <div className="table-scroll-wrapper">
             <table className="admin-table">
               <thead>
                 <tr>
@@ -1595,15 +1659,20 @@
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       );
     }
 
     // ========== ProductsListView ==========
+    const PAGE_SIZE = 50;
+
     function ProductsListView({ navigate, onReady }) {
       const [products, setProducts] = useState([]);
+      const [total, setTotal] = useState(0);
       const [loading, setLoading] = useState(true);
+      const [loadingMore, setLoadingMore] = useState(false);
       const [deleteTarget, setDeleteTarget] = useState(null);
       const [selected, setSelected] = useState(new Set());
       const [categories, setCategories] = useState([]);
@@ -1618,23 +1687,69 @@
 
       const clearSelection = () => { setSelected(new Set()); setBulkCategory(''); };
 
-      const load = () => {
+      const searchTimerRef = useRef(null);
+
+      const buildQuery = (offset = 0) => {
+        const params = new URLSearchParams();
+        params.set('limit', PAGE_SIZE);
+        params.set('offset', offset);
+        if (searchTerm) params.set('search', searchTerm);
+        if (filterVendor) params.set('vendor_id', filterVendor);
+        if (filterCategory) params.set('category_id', filterCategory);
+        if (filterStatus) params.set('status', filterStatus);
+        params.set('sort', sortCol);
+        params.set('sort_dir', sortDir);
+        return params.toString();
+      };
+
+      const loadFresh = () => {
         setLoading(true);
         clearSelection();
-        adminFetch('/api/admin/products')
-          .then(data => { setProducts(data.products || []); setLoading(false); if (onReady) requestAnimationFrame(onReady); })
+        adminFetch(`/api/admin/products?${buildQuery(0)}`)
+          .then(data => {
+            setProducts(data.products || []);
+            setTotal(data.total || 0);
+            setLoading(false);
+            if (onReady) requestAnimationFrame(onReady);
+          })
           .catch(() => setLoading(false));
       };
+
+      const loadMore = () => {
+        setLoadingMore(true);
+        adminFetch(`/api/admin/products?${buildQuery(products.length)}`)
+          .then(data => {
+            setProducts(prev => [...prev, ...(data.products || [])]);
+            setTotal(data.total || 0);
+            setLoadingMore(false);
+          })
+          .catch(() => setLoadingMore(false));
+      };
+
       useEffect(() => {
-        load();
+        loadFresh();
         adminFetch('/api/admin/categories').then(d => setCategories(d.flat || [])).catch(() => {});
         adminFetch('/api/admin/vendors').then(d => setVendors(d.vendors || [])).catch(() => {});
       }, []);
 
+      // Reload when filters or sort change
+      useEffect(() => {
+        if (loading) return; // skip initial mount
+        loadFresh();
+      }, [filterVendor, filterCategory, filterStatus, sortCol, sortDir]);
+
+      // Debounced search
+      useEffect(() => {
+        if (loading) return;
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = setTimeout(() => loadFresh(), 300);
+        return () => clearTimeout(searchTimerRef.current);
+      }, [searchTerm]);
+
       const handleDelete = () => {
         if (!deleteTarget) return;
         adminFetch('/api/admin/products/' + deleteTarget.id, { method: 'DELETE' })
-          .then(() => { setDeleteTarget(null); load(); })
+          .then(() => { setDeleteTarget(null); loadFresh(); })
           .catch(() => {});
       };
 
@@ -1645,29 +1760,6 @@
           return next;
         });
       };
-      const filteredProducts = products.filter(p => {
-        if (searchTerm && !p.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-        if (filterVendor && String(p.vendor_id) !== filterVendor) return false;
-        if (filterCategory && String(p.category_id) !== filterCategory) return false;
-        if (filterStatus && (p.status || 'draft') !== filterStatus) return false;
-        return true;
-      });
-
-      const sortedProducts = [...filteredProducts].sort((a, b) => {
-        let av, bv;
-        switch (sortCol) {
-          case 'name': av = (a.name || '').toLowerCase(); bv = (b.name || '').toLowerCase(); break;
-          case 'vendor': av = (a.vendor_name || '').toLowerCase(); bv = (b.vendor_name || '').toLowerCase(); break;
-          case 'category': av = (a.category_name || '').toLowerCase(); bv = (b.category_name || '').toLowerCase(); break;
-          case 'price': av = parseFloat(a.price) || 0; bv = parseFloat(b.price) || 0; break;
-          case 'skus': av = parseInt(a.sku_count) || 0; bv = parseInt(b.sku_count) || 0; break;
-          case 'status': av = (a.status || 'draft'); bv = (b.status || 'draft'); break;
-          default: return 0;
-        }
-        if (av < bv) return sortDir === 'asc' ? -1 : 1;
-        if (av > bv) return sortDir === 'asc' ? 1 : -1;
-        return 0;
-      });
 
       const toggleSort = (col) => {
         if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -1680,10 +1772,10 @@
         </th>
       );
 
-      const allSelected = selected.size === sortedProducts.length && sortedProducts.length > 0;
+      const allSelected = selected.size === products.length && products.length > 0;
       const toggleAll = () => {
         if (allSelected) setSelected(new Set());
-        else setSelected(new Set(sortedProducts.map(p => p.id)));
+        else setSelected(new Set(products.map(p => p.id)));
       };
 
       const bulkSetStatus = (status) => {
@@ -1691,7 +1783,7 @@
         adminFetch('/api/admin/products/bulk/status', {
           method: 'PATCH',
           body: JSON.stringify({ ids, status })
-        }).then(() => load()).catch(() => {});
+        }).then(() => loadFresh()).catch(() => {});
       };
 
       const bulkSetCategory = () => {
@@ -1699,7 +1791,7 @@
         adminFetch('/api/admin/products/bulk/category', {
           method: 'PATCH',
           body: JSON.stringify({ ids, category_id: bulkCategory || null })
-        }).then(() => load()).catch(() => {});
+        }).then(() => loadFresh()).catch(() => {});
       };
 
       const bulkDelete = () => {
@@ -1708,8 +1800,10 @@
         adminFetch('/api/admin/products/bulk', {
           method: 'DELETE',
           body: JSON.stringify({ ids })
-        }).then(() => load()).catch(() => {});
+        }).then(() => loadFresh()).catch(() => {});
       };
+
+      const hasMore = products.length < total;
 
       if (loading) return <div className="loading">Loading products...</div>;
 
@@ -1735,7 +1829,7 @@
               <option value="active">active</option>
               <option value="draft">draft</option>
             </select>
-            <span className="filter-count">{filteredProducts.length} of {products.length} products</span>
+            <span className="filter-count">Showing {products.length} of {total} products</span>
           </div>
 
           {selected.size > 0 && (
@@ -1752,6 +1846,7 @@
             </div>
           )}
 
+          <div className="table-scroll-wrapper">
           <table className="admin-table">
             <thead>
               <tr>
@@ -1766,7 +1861,7 @@
               </tr>
             </thead>
             <tbody>
-              {sortedProducts.map(p => (
+              {products.map(p => (
                 <tr key={p.id}>
                   <td><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} /></td>
                   <td>{p.vendor_name || '—'}</td>
@@ -1788,11 +1883,26 @@
                   </td>
                 </tr>
               ))}
-              {sortedProducts.length === 0 && (
+              {products.length === 0 && (
                 <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No products found</td></tr>
               )}
             </tbody>
           </table>
+          </div>
+
+          {hasMore && (
+            <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={loadMore}
+                disabled={loadingMore}
+                style={{ minWidth: '200px' }}
+              >
+                {loadingMore ? 'Loading...' : `Load More (${total - products.length} remaining)`}
+              </button>
+            </div>
+          )}
+
           {deleteTarget && (
             <DeleteConfirmModal
               title="Delete Product"
@@ -1865,7 +1975,8 @@
           vendor_sku: '', internal_sku: '', variant_name: '', sell_by: 'sqft',
           sqft_per_box: '', pieces_per_box: '', weight_per_box_lbs: '', freight_class: '70',
           boxes_per_pallet: '', sqft_per_pallet: '', weight_per_pallet_lbs: '',
-          cost: '', retail_price: '', price_basis: 'per_sqft'
+          cost: '', retail_price: '', price_basis: 'per_sqft',
+          cut_price: '', roll_price: '', cut_cost: '', roll_cost: '', roll_min_sqft: '', roll_width_ft: ''
         }]);
       };
 
@@ -1918,7 +2029,13 @@
               weight_per_pallet_lbs: sku.weight_per_pallet_lbs ? parseFloat(sku.weight_per_pallet_lbs) : null,
               cost: sku.cost ? parseFloat(sku.cost) : null,
               retail_price: sku.retail_price ? parseFloat(sku.retail_price) : null,
-              price_basis: sku.price_basis || 'per_sqft'
+              price_basis: sku.price_basis || 'per_sqft',
+              cut_price: sku.cut_price ? parseFloat(sku.cut_price) : null,
+              roll_price: sku.roll_price ? parseFloat(sku.roll_price) : null,
+              cut_cost: sku.cut_cost ? parseFloat(sku.cut_cost) : null,
+              roll_cost: sku.roll_cost ? parseFloat(sku.roll_cost) : null,
+              roll_min_sqft: sku.roll_min_sqft ? parseFloat(sku.roll_min_sqft) : null,
+              roll_width_ft: sku.roll_width_ft ? parseFloat(sku.roll_width_ft) : null
             };
 
             if (sku._existing && sku.id) {
@@ -2022,7 +2139,41 @@
 
     // ========== SkuCard ==========
     function SkuCard({ sku, index, updateSku, removeSku }) {
+      const { useState } = React;
       const u = (field, value) => updateSku(index, field, value);
+      const [attrsOpen, setAttrsOpen] = useState(false);
+      const [attrEdits, setAttrEdits] = useState(null);
+      const [attrSaving, setAttrSaving] = useState(false);
+
+      const attrs = sku.attributes || [];
+
+      const startEditAttrs = () => {
+        const edits = {};
+        for (const a of attrs) edits[a.slug] = a.value;
+        setAttrEdits(edits);
+        setAttrsOpen(true);
+      };
+
+      const saveAttrs = async () => {
+        if (!sku.id || !attrEdits) return;
+        setAttrSaving(true);
+        try {
+          const payload = Object.entries(attrEdits).map(([slug, value]) => ({ slug, value }));
+          const data = await adminFetch('/api/admin/skus/' + sku.id + '/attributes', {
+            method: 'PUT',
+            body: JSON.stringify({ attributes: payload })
+          });
+          if (data.attributes) {
+            updateSku(index, 'attributes', data.attributes);
+          }
+          setAttrEdits(null);
+        } catch (err) {
+          alert('Failed to save attributes: ' + err.message);
+        } finally {
+          setAttrSaving(false);
+        }
+      };
+
       return (
         <div className="sku-card">
           <div className="sku-card-header">
@@ -2046,6 +2197,7 @@
               <label>Sell By</label>
               <select value={sku.sell_by || 'sqft'} onChange={e => u('sell_by', e.target.value)}>
                 <option value="sqft">Per SqFt</option>
+                <option value="box">Per Box</option>
                 <option value="unit">Per Unit</option>
               </select>
             </div>
@@ -2103,6 +2255,91 @@
               </select>
             </div>
           </div>
+
+          {/* Carpet Pricing Fields — shown when cut_price has a value or can be toggled */}
+          {(sku.cut_price || sku.roll_price) ? (
+            <div style={{ borderTop: '1px solid var(--stone-200)', paddingTop: '0.75rem', marginTop: '0.5rem' }}>
+              <div style={{ fontSize: '0.8125rem', fontWeight: '600', color: 'var(--stone-600)', marginBottom: '0.5rem' }}>Carpet Pricing (Cut / Roll)</div>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Cut Price (retail /sqft)</label>
+                  <input type="number" step="0.01" value={sku.cut_price || ''} onChange={e => u('cut_price', e.target.value)} placeholder="0.00" />
+                </div>
+                <div className="form-group">
+                  <label>Roll Price (retail /sqft)</label>
+                  <input type="number" step="0.01" value={sku.roll_price || ''} onChange={e => u('roll_price', e.target.value)} placeholder="0.00" />
+                </div>
+                <div className="form-group">
+                  <label>Cut Cost (dealer /sqft)</label>
+                  <input type="number" step="0.01" value={sku.cut_cost || ''} onChange={e => u('cut_cost', e.target.value)} placeholder="0.00" />
+                </div>
+                <div className="form-group">
+                  <label>Roll Cost (dealer /sqft)</label>
+                  <input type="number" step="0.01" value={sku.roll_cost || ''} onChange={e => u('roll_cost', e.target.value)} placeholder="0.00" />
+                </div>
+                <div className="form-group">
+                  <label>Roll Minimum (sqft)</label>
+                  <input type="number" step="1" value={sku.roll_min_sqft || ''} onChange={e => u('roll_min_sqft', e.target.value)} placeholder="e.g. 600" />
+                </div>
+                <div className="form-group">
+                  <label>Roll Width (ft)</label>
+                  <input type="number" step="0.5" value={sku.roll_width_ft || ''} onChange={e => u('roll_width_ft', e.target.value)} placeholder="e.g. 12" />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ marginTop: '0.5rem' }}>
+              <button className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}
+                onClick={() => { u('cut_price', '0'); u('roll_price', '0'); }}>
+                + Add Carpet Pricing
+              </button>
+            </div>
+          )}
+
+          {/* Attributes Section */}
+          {sku._existing && attrs.length > 0 && (
+            <div style={{ marginTop: '1rem', borderTop: '1px solid var(--stone-200)', paddingTop: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', cursor: 'pointer' }}
+                onClick={() => attrEdits ? null : setAttrsOpen(!attrsOpen)}>
+                <span style={{ fontSize: '0.8125rem', fontWeight: '600', color: 'var(--stone-600)' }}>
+                  Attributes ({attrs.length})
+                </span>
+                {!attrEdits && (
+                  <button className="btn btn-secondary btn-sm" onClick={e => { e.stopPropagation(); startEditAttrs(); }} style={{ fontSize: '0.75rem', padding: '2px 8px' }}>Edit</button>
+                )}
+              </div>
+              {(attrsOpen || attrEdits) && (
+                <div className="form-grid" style={{ gap: '0.5rem' }}>
+                  {attrEdits ? (
+                    <>
+                      {Object.entries(attrEdits).map(([slug, value]) => {
+                        const label = (attrs.find(a => a.slug === slug) || {}).name || slug;
+                        return (
+                          <div className="form-group" key={slug}>
+                            <label style={{ fontSize: '0.75rem' }}>{label}</label>
+                            <input value={value} onChange={e => setAttrEdits(prev => ({ ...prev, [slug]: e.target.value }))} style={{ fontSize: '0.8125rem' }} />
+                          </div>
+                        );
+                      })}
+                      <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setAttrEdits(null)} disabled={attrSaving}>Cancel</button>
+                        <button className="btn btn-primary btn-sm" onClick={saveAttrs} disabled={attrSaving}>
+                          {attrSaving ? 'Saving...' : 'Save Attributes'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    attrs.map(a => (
+                      <div className="form-group" key={a.slug}>
+                        <label style={{ fontSize: '0.75rem' }}>{a.name}</label>
+                        <div style={{ fontSize: '0.8125rem', padding: '0.375rem 0', color: 'var(--stone-700)' }}>{a.value}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       );
     }
@@ -2341,6 +2578,7 @@
             <h1>Vendors</h1>
             <button className="btn btn-primary" onClick={() => navigate('vendor-create')}>+ Add Vendor</button>
           </div>
+          <div className="table-scroll-wrapper">
           <table className="admin-table">
             <thead>
               <tr>
@@ -2372,6 +2610,7 @@
               )}
             </tbody>
           </table>
+          </div>
         </div>
       );
     }
@@ -2668,6 +2907,7 @@
             )}
             <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>{filtered.length} order{filtered.length !== 1 ? 's' : ''}</span>
           </div>
+          <div className="table-scroll-wrapper">
           <table className="admin-table">
             <thead>
               <tr>
@@ -2712,6 +2952,7 @@
               )}
             </tbody>
           </table>
+          </div>
         </div>
       );
     }
@@ -2776,6 +3017,47 @@
       const [addItemBoxes, setAddItemBoxes] = useState(1);
       const [skuSearchResults, setSkuSearchResults] = useState([]);
       const [skuSearching, setSkuSearching] = useState(false);
+      const [addItemMode, setAddItemMode] = useState('sku');
+      const [customItemName, setCustomItemName] = useState('');
+      const [customItemPrice, setCustomItemPrice] = useState('');
+      const [customItemVendor, setCustomItemVendor] = useState('');
+      const [customItemDesc, setCustomItemDesc] = useState('');
+      const [customItemBoxes, setCustomItemBoxes] = useState(1);
+      const [addItemVendors, setAddItemVendors] = useState([]);
+      const [orderActivity, setOrderActivity] = useState(null);
+
+      const orderActionLabel = (action) => {
+        const labels = {
+          status_changed: 'Status Changed', delivery_method_changed: 'Delivery Changed',
+          refund_issued: 'Refund Issued', item_added: 'Item Added', item_removed: 'Item Removed',
+          payment_request_sent: 'Payment Request Sent', payment_request_cancelled: 'Payment Request Cancelled',
+          rep_assigned: 'Rep Assigned', price_adjusted: 'Price Adjusted'
+        };
+        return labels[action] || action;
+      };
+
+      const orderActivityDetail = (entry) => {
+        const d = entry.details || {};
+        switch (entry.action) {
+          case 'status_changed': return (d.from || '?') + ' → ' + (d.to || '?') + (d.tracking_number ? ' (tracking: ' + d.tracking_number + ')' : '');
+          case 'delivery_method_changed': return (d.from || '?') + ' → ' + (d.to || '?') + (d.shipping_cost ? ' ($' + d.shipping_cost + ')' : '');
+          case 'refund_issued': return '$' + (d.amount || '0') + (d.is_full ? ' (full)' : ' (partial)') + (d.reason ? ' — ' + d.reason : '');
+          case 'item_added': return (d.product_name || '?') + (d.is_custom ? ' (custom)' : '') + ' × ' + (d.num_boxes || '?') + ' — $' + (d.subtotal || '0');
+          case 'item_removed': return (d.product_name || '?') + ' × ' + (d.num_boxes || '?') + ' — $' + (d.subtotal || '0');
+          case 'payment_request_sent': return '$' + (d.amount || '0') + ' to ' + (d.sent_to || '?');
+          case 'payment_request_cancelled': return '$' + (d.amount || '0');
+          case 'rep_assigned': return d.unassigned ? 'Unassigned' : (d.rep_name || '?');
+          case 'price_adjusted': return (d.product_name || '?') + ': $' + (d.previous_price || '?') + ' → $' + (d.new_price || '?') + (d.reason ? ' — ' + d.reason : '');
+          default: return JSON.stringify(d);
+        }
+      };
+
+      const loadOrderActivity = async () => {
+        try {
+          const data = await adminFetch('/api/admin/orders/' + editId + '/activity');
+          setOrderActivity(data.activity || []);
+        } catch (err) { console.error('Failed to load order activity:', err); }
+      };
 
       const loadPOs = () => {
         if (!editId) return;
@@ -2924,6 +3206,7 @@
         })
           .then(data => {
             if (data.order) setOrder(data.order);
+            loadPOs();
             setShowTrackingForm(false);
             setTrackingData({ tracking_number: '', carrier: '', shipped_at: new Date().toISOString().slice(0, 10) });
             setUpdating(false);
@@ -3048,7 +3331,7 @@
                 {showTrackingForm && (
                   <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)' }}>
                     <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--stone-700)' }}>Shipment Details</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                    <div className="resp-grid-3" style={{ gap: '0.75rem' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Carrier *</label>
                         <select className="form-control" value={trackingData.carrier} onChange={e => setTrackingData({ ...trackingData, carrier: e.target.value })} style={{ fontSize: '0.8125rem' }}>
@@ -3204,7 +3487,7 @@
                 {showDeliveryForm && (
                   <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '6px' }}>
                     <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--stone-700)' }}>Shipping Address</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div className="resp-grid-2" style={{ gap: '0.75rem' }}>
                       <div style={{ gridColumn: '1 / -1' }}>
                         <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Address Line 1 *</label>
                         <input className="form-control" value={deliveryAddress.line1} onChange={e => setDeliveryAddress({ ...deliveryAddress, line1: e.target.value })} style={{ fontSize: '0.8125rem' }} />
@@ -3217,7 +3500,7 @@
                         <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>City *</label>
                         <input className="form-control" value={deliveryAddress.city} onChange={e => setDeliveryAddress({ ...deliveryAddress, city: e.target.value })} style={{ fontSize: '0.8125rem' }} />
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div className="resp-grid-2" style={{ gap: '0.75rem' }}>
                         <div>
                           <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>State *</label>
                           <input className="form-control" value={deliveryAddress.state} onChange={e => setDeliveryAddress({ ...deliveryAddress, state: e.target.value })} maxLength={2} style={{ fontSize: '0.8125rem' }} />
@@ -3356,6 +3639,7 @@
 
           <div className="form-card">
             <h3>Order Items</h3>
+            <div className="table-scroll-wrapper">
             <table className="admin-table">
               <thead>
                 <tr>
@@ -3394,6 +3678,7 @@
                                 if (data.order) setOrder(data.order);
                                 if (data.items) setItems(data.items);
                                 if (data.balance) setBalanceInfo(data.balance);
+                                loadPOs();
                               } catch (err) { alert(err.message); }
                             }}>Remove</button>
                         )}
@@ -3403,60 +3688,146 @@
                 ))}
               </tbody>
             </table>
+            </div>
             {['pending', 'confirmed'].includes(order.status) && ['admin', 'manager'].includes(staffRole) && (
               <div style={{ marginTop: '0.75rem' }}>
                 {!addingItem ? (
-                  <button className="btn btn-sm btn-secondary" onClick={() => { setAddingItem(true); setAddItemSku(''); setAddItemBoxes(1); setSkuSearchResults([]); }}>
+                  <button className="btn btn-sm btn-secondary" onClick={() => {
+                    setAddingItem(true); setAddItemMode('sku'); setAddItemSku(''); setAddItemBoxes(1);
+                    setSkuSearchResults([]); setCustomItemName(''); setCustomItemPrice('');
+                    setCustomItemVendor(''); setCustomItemDesc(''); setCustomItemBoxes(1);
+                    if (addItemVendors.length === 0) {
+                      adminFetch('/api/admin/vendors').then(d => setAddItemVendors(d.vendors || [])).catch(() => {});
+                    }
+                  }}>
                     + Add Item
                   </button>
                 ) : (
                   <div style={{ padding: '1rem', border: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
-                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                      <div style={{ flex: 2, minWidth: '200px' }}>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Search SKU</label>
-                        <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
-                          onChange={async (e) => {
-                            const q = e.target.value; setAddItemSku(q);
-                            if (q.length >= 2) {
-                              setSkuSearching(true);
-                              try {
-                                const data = await adminFetch('/api/admin/skus/search?q=' + encodeURIComponent(q));
-                                setSkuSearchResults((data.results || []).map(r => ({
-                                  sku_id: r.sku_id, label: r.product_name + ' — ' + (r.variant_name || r.internal_sku), price: r.retail_price || 0
-                                })));
-                              } catch (e) {}
-                              setSkuSearching(false);
-                            } else { setSkuSearchResults([]); }
-                          }}
-                          style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
-                        {skuSearchResults.length > 0 && (
-                          <div style={{ border: '1px solid var(--stone-200)', maxHeight: '150px', overflow: 'auto', background: '#fff' }}>
-                            {skuSearchResults.map((r, i) => (
-                              <div key={i} style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}
-                                onClick={async () => {
-                                  try {
-                                    const data = await adminFetch('/api/admin/orders/' + editId + '/add-item', {
-                                      method: 'POST', body: JSON.stringify({ sku_id: r.sku_id, num_boxes: addItemBoxes })
-                                    });
-                                    if (data.order) setOrder(data.order);
-                                    if (data.items) setItems(data.items);
-                                    if (data.balance) setBalanceInfo(data.balance);
-                                    setAddingItem(false); setSkuSearchResults([]);
-                                  } catch (err) { alert(err.message); }
-                                }}>
-                                {r.label} — ${parseFloat(r.price).toFixed(2)}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ width: '80px' }}>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Boxes</label>
-                        <input type="number" min="1" value={addItemBoxes} onChange={e => setAddItemBoxes(parseInt(e.target.value) || 1)}
-                          style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
-                      </div>
+                    {/* Mode toggle */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <button className={addItemMode === 'sku' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary'}
+                        onClick={() => { setAddItemMode('sku'); setCustomItemName(''); setCustomItemPrice(''); setCustomItemVendor(''); setCustomItemDesc(''); setCustomItemBoxes(1); }}>
+                        Search SKU
+                      </button>
+                      <button className={addItemMode === 'custom' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary'}
+                        onClick={() => { setAddItemMode('custom'); setAddItemSku(''); setSkuSearchResults([]); setAddItemBoxes(1); }}>
+                        Custom Item
+                      </button>
+                      <div style={{ flex: 1 }}></div>
                       <button className="btn btn-sm btn-secondary" onClick={() => setAddingItem(false)}>Cancel</button>
                     </div>
+
+                    {addItemMode === 'sku' ? (
+                      /* SKU search mode */
+                      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 2, minWidth: '0' }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Search SKU</label>
+                          <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
+                            onChange={async (e) => {
+                              const q = e.target.value; setAddItemSku(q);
+                              if (q.length >= 2) {
+                                setSkuSearching(true);
+                                try {
+                                  const data = await adminFetch('/api/admin/skus/search?q=' + encodeURIComponent(q));
+                                  setSkuSearchResults((data.results || []).map(r => ({
+                                    sku_id: r.sku_id,
+                                    label: r.product_name + ' — ' + (r.variant_name || r.internal_sku),
+                                    price: r.retail_price || 0,
+                                    vendor_name: r.vendor_name
+                                  })));
+                                } catch (e) {}
+                                setSkuSearching(false);
+                              } else { setSkuSearchResults([]); }
+                            }}
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                          {skuSearchResults.length > 0 && (
+                            <div style={{ border: '1px solid var(--stone-200)', maxHeight: '150px', overflow: 'auto', background: '#fff' }}>
+                              {skuSearchResults.map((r, i) => (
+                                <div key={i} style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}
+                                  onClick={async () => {
+                                    try {
+                                      const data = await adminFetch('/api/admin/orders/' + editId + '/add-item', {
+                                        method: 'POST', body: JSON.stringify({ sku_id: r.sku_id, num_boxes: addItemBoxes })
+                                      });
+                                      if (data.order) setOrder(data.order);
+                                      if (data.items) setItems(data.items);
+                                      if (data.balance) setBalanceInfo(data.balance);
+                                      loadPOs();
+                                      setAddingItem(false); setSkuSearchResults([]);
+                                    } catch (err) { alert(err.message); }
+                                  }}>
+                                  {r.label}{r.vendor_name ? ' (' + r.vendor_name + ')' : ''} — ${parseFloat(r.price).toFixed(2)}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ width: '80px' }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Boxes</label>
+                          <input type="number" min="1" value={addItemBoxes} onChange={e => setAddItemBoxes(parseInt(e.target.value) || 1)}
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                        </div>
+                      </div>
+                    ) : (
+                      /* Custom item mode */
+                      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                        <div style={{ minWidth: '160px', flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Vendor *</label>
+                          <select value={customItemVendor} onChange={e => setCustomItemVendor(e.target.value)}
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }}>
+                            <option value="">Select vendor...</option>
+                            {addItemVendors.map(v => (
+                              <option key={v.id} value={v.id}>{v.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div style={{ minWidth: '160px', flex: 2 }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Product Name *</label>
+                          <input type="text" value={customItemName} onChange={e => setCustomItemName(e.target.value)}
+                            placeholder="e.g. Custom transition strip"
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                        </div>
+                        <div style={{ width: '100px' }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Unit Price *</label>
+                          <input type="number" min="0" step="0.01" value={customItemPrice} onChange={e => setCustomItemPrice(e.target.value)}
+                            placeholder="0.00"
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                        </div>
+                        <div style={{ width: '70px' }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Boxes *</label>
+                          <input type="number" min="1" value={customItemBoxes} onChange={e => setCustomItemBoxes(parseInt(e.target.value) || 1)}
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                        </div>
+                        <div style={{ minWidth: '140px', flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Description</label>
+                          <input type="text" value={customItemDesc} onChange={e => setCustomItemDesc(e.target.value)}
+                            placeholder="Optional notes"
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                        </div>
+                        <button className="btn btn-sm btn-primary" disabled={!customItemVendor || !customItemName.trim() || !customItemPrice}
+                          onClick={async () => {
+                            try {
+                              const data = await adminFetch('/api/admin/orders/' + editId + '/add-item', {
+                                method: 'POST', body: JSON.stringify({
+                                  product_name: customItemName.trim(),
+                                  unit_price: parseFloat(customItemPrice),
+                                  vendor_id: customItemVendor,
+                                  num_boxes: customItemBoxes,
+                                  description: customItemDesc || undefined
+                                })
+                              });
+                              if (data.order) setOrder(data.order);
+                              if (data.items) setItems(data.items);
+                              if (data.balance) setBalanceInfo(data.balance);
+                              loadPOs();
+                              setAddingItem(false);
+                            } catch (err) { alert(err.message); }
+                          }}>
+                          Add
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -3538,6 +3909,7 @@
                     )}
 
                     {/* PO Items Table */}
+                    <div className="table-scroll-wrapper">
                     <table className="admin-table" style={{ fontSize: '0.8125rem' }}>
                       <thead>
                         <tr>
@@ -3633,6 +4005,7 @@
                         )}
                       </tbody>
                     </table>
+                    </div>
                     <div style={{ textAlign: 'right', marginTop: '0.75rem', fontWeight: 600, fontSize: '0.9rem' }}>
                       PO Total: ${parseFloat(po.subtotal).toFixed(2)}
                     </div>
@@ -3683,6 +4056,33 @@
               })}
             </div>
           )}
+
+          {/* Order Activity */}
+          <div className="form-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Order Activity</h3>
+              <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
+                onClick={loadOrderActivity}>{orderActivity ? 'Refresh' : 'Load Activity'}</button>
+            </div>
+            {orderActivity === null ? (
+              <p style={{ fontSize: '0.8125rem', color: 'var(--stone-400)' }}>Click "Load Activity" to view order history</p>
+            ) : orderActivity.length === 0 ? (
+              <p style={{ fontSize: '0.8125rem', color: 'var(--stone-400)' }}>No activity recorded yet</p>
+            ) : (
+              <div>
+                {orderActivity.map(entry => (
+                  <div key={entry.id} style={{ fontSize: '0.8125rem', padding: '0.5rem 0', borderBottom: '1px solid var(--stone-100)', display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                    <div>
+                      <strong>{orderActionLabel(entry.action)}</strong>
+                      <span style={{ color: 'var(--stone-500)', marginLeft: '0.5rem' }}>{orderActivityDetail(entry)}</span>
+                      {entry.performer_name && <span style={{ color: 'var(--stone-400)', marginLeft: '0.5rem' }}>— {entry.performer_name}</span>}
+                    </div>
+                    <span style={{ color: 'var(--stone-400)', whiteSpace: 'nowrap', fontSize: '0.75rem' }}>{new Date(entry.created_at).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="form-card">
             <h3>Order Totals</h3>
@@ -3757,6 +4157,7 @@
           {payments.length > 0 && (
             <div className="form-card">
               <h3>Payment History</h3>
+              <div className="table-scroll-wrapper">
               <table className="admin-table" style={{ fontSize: '0.8125rem' }}>
                 <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Description</th><th>By</th></tr></thead>
                 <tbody>
@@ -3777,12 +4178,14 @@
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
           {paymentRequests.length > 0 && (
             <div className="form-card">
               <h3>Payment Requests</h3>
+              <div className="table-scroll-wrapper">
               <table className="admin-table" style={{ fontSize: '0.8125rem' }}>
                 <thead><tr><th>Date</th><th>Amount</th><th>Sent To</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
@@ -3812,6 +4215,7 @@
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>
@@ -3927,445 +4331,13 @@
       );
     }
 
-    // ========== ImportView ==========
-    function ImportView({ navigate }) {
-      const [step, setStep] = useState(1);
-
-      // Step 1 state
-      const [vendors, setVendors] = useState([]);
-      const [categories, setCategories] = useState([]);
-      const [vendorId, setVendorId] = useState('');
-      const [categoryId, setCategoryId] = useState('');
-      const [file, setFile] = useState(null);
-      const [uploading, setUploading] = useState(false);
-      const [defaultStatus, setDefaultStatus] = useState('draft');
-      const [defaultSellBy, setDefaultSellBy] = useState('sqft');
-      const [defaultPriceBasis, setDefaultPriceBasis] = useState('per_sqft');
-
-      // Step 2 state
-      const [importSessionId, setImportSessionId] = useState(null);
-      const [headers, setHeaders] = useState([]);
-      const [previewRows, setPreviewRows] = useState([]);
-      const [totalRows, setTotalRows] = useState(0);
-      const [pimFields, setPimFields] = useState([]);
-      const [mapping, setMapping] = useState({});
-      const [templates, setTemplates] = useState([]);
-
-      // Step 3 state
-      const [validationResult, setValidationResult] = useState(null);
-      const [validating, setValidating] = useState(false);
-      const [reviewFilter, setReviewFilter] = useState('all');
-      const [reviewPage, setReviewPage] = useState(0);
-
-      // Step 4 state
-      const [importResult, setImportResult] = useState(null);
-      const [importing, setImporting] = useState(false);
-
-      useEffect(() => {
-        adminFetch('/api/admin/vendors').then(d => setVendors(d.vendors || [])).catch(() => {});
-        adminFetch('/api/admin/categories').then(d => setCategories(d.flat || [])).catch(() => {});
-        adminFetch('/api/admin/import/fields').then(d => setPimFields(d.fields || [])).catch(() => {});
-      }, []);
-
-      useEffect(() => {
-        if (vendorId) {
-          adminFetch('/api/admin/import/templates?vendor_id=' + vendorId)
-            .then(d => setTemplates(d.templates || [])).catch(() => {});
-        } else {
-          setTemplates([]);
-        }
-      }, [vendorId]);
-
-      const handleUpload = async () => {
-        if (!vendorId) return alert('Please select a vendor');
-        if (!categoryId) return alert('Please select a category');
-        if (!file) return alert('Please select a file');
-        setUploading(true);
-        try {
-          const data = await adminUpload('/api/admin/import/upload', file);
-          if (data.error) { alert(data.error); return; }
-          setImportSessionId(data.import_session_id);
-          setHeaders(data.headers);
-          setPreviewRows(data.preview_rows);
-          setTotalRows(data.total_rows);
-          const initialMapping = {};
-          data.headers.forEach((_, i) => { initialMapping[String(i)] = ''; });
-          const autoMap = autoMapHeaders(data.headers, pimFields);
-          setMapping({ ...initialMapping, ...autoMap });
-          setStep(2);
-        } catch (err) {
-          alert('Upload failed: ' + err.message);
-        } finally {
-          setUploading(false);
-        }
-      };
-
-      const handleValidate = async () => {
-        setValidating(true);
-        try {
-          const data = await adminFetch('/api/admin/import/validate', {
-            method: 'POST',
-            body: JSON.stringify({
-              import_session_id: importSessionId,
-              vendor_id: vendorId,
-              category_id: categoryId,
-              mapping,
-              defaults: { status: defaultStatus, sell_by: defaultSellBy, price_basis: defaultPriceBasis }
-            })
-          });
-          if (data.error) { alert(data.error); return; }
-          setValidationResult(data);
-          setReviewFilter('all');
-          setReviewPage(0);
-          setStep(3);
-        } catch (err) {
-          alert('Validation failed: ' + err.message);
-        } finally {
-          setValidating(false);
-        }
-      };
-
-      const handleImport = async () => {
-        setImporting(true);
-        try {
-          const data = await adminFetch('/api/admin/import/execute', {
-            method: 'POST',
-            body: JSON.stringify({
-              import_session_id: importSessionId,
-              vendor_id: vendorId,
-              category_id: categoryId,
-              mapping,
-              defaults: { status: defaultStatus, sell_by: defaultSellBy, price_basis: defaultPriceBasis }
-            })
-          });
-          if (data.error && !data.results) { alert(data.error); return; }
-          setImportResult(data);
-          setStep(4);
-        } catch (err) {
-          alert('Import failed: ' + err.message);
-        } finally {
-          setImporting(false);
-        }
-      };
-
-      const handleSaveTemplate = () => {
-        const name = prompt('Template name (e.g., "MSI Porcelain 2025"):');
-        if (!name) return;
-        adminFetch('/api/admin/import/templates', {
-          method: 'POST',
-          body: JSON.stringify({ vendor_id: vendorId, name, mapping })
-        }).then(d => {
-          if (d.template) setTemplates(prev => [d.template, ...prev]);
-          alert('Template saved!');
-        }).catch(() => alert('Failed to save template'));
-      };
-
-      const handleReset = () => {
-        setStep(1); setFile(null); setImportSessionId(null);
-        setHeaders([]); setPreviewRows([]); setTotalRows(0);
-        setMapping({}); setValidationResult(null); setImportResult(null);
-      };
-
-      // Grouped options for mapping dropdowns
-      const renderFieldOptions = () => {
-        const groups = {};
-        pimFields.forEach(f => {
-          const g = f.group || 'Other';
-          if (!groups[g]) groups[g] = [];
-          groups[g].push(f);
-        });
-        return Object.entries(groups).map(([group, fields]) => {
-          if (!group) return fields.map(f => <option key={f.value} value={f.value}>{f.label}</option>);
-          return (
-            <optgroup key={group} label={group}>
-              {fields.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-            </optgroup>
-          );
-        });
-      };
-
-      // ---- STEP 1: Setup ----
-      if (step === 1) return (
-        <div>
-          <div className="content-header">
-            <h1>Import Spreadsheet</h1>
-          </div>
-          <div className="form-card">
-            <h3>Setup</h3>
-            <div className="form-grid">
-              <div className="form-group">
-                <label>Vendor *</label>
-                <select value={vendorId} onChange={e => setVendorId(e.target.value)}>
-                  <option value="">Select vendor...</option>
-                  {vendors.filter(v => v.is_active).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Category *</label>
-                <select value={categoryId} onChange={e => setCategoryId(e.target.value)}>
-                  <option value="">Select category...</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.parent_id ? '\u00A0\u00A0\u00A0' : ''}{c.name}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Default Status</label>
-                <select value={defaultStatus} onChange={e => setDefaultStatus(e.target.value)}>
-                  <option value="draft">Draft</option>
-                  <option value="active">Active</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Sell By</label>
-                <select value={defaultSellBy} onChange={e => setDefaultSellBy(e.target.value)}>
-                  <option value="sqft">Per SqFt</option>
-                  <option value="unit">Per Unit</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Price Basis</label>
-                <select value={defaultPriceBasis} onChange={e => setDefaultPriceBasis(e.target.value)}>
-                  <option value="per_sqft">Per SqFt</option>
-                  <option value="per_unit">Per Unit</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          <div className="form-card" style={{ marginTop: '1.5rem' }}>
-            <h3>File</h3>
-            <div
-              className={'import-file-zone' + (file ? ' has-file' : '')}
-              onClick={() => document.getElementById('import-file-input').click()}
-            >
-              <input
-                id="import-file-input"
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                style={{ display: 'none' }}
-                onChange={e => setFile(e.target.files[0] || null)}
-              />
-              {file ? (
-                <div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 500 }}>{file.name}</div>
-                  <div style={{ color: 'var(--stone-500)', marginTop: '0.25rem' }}>{(file.size / 1024).toFixed(1)} KB — Click to change</div>
-                </div>
-              ) : (
-                <div>
-                  <div style={{ fontSize: '1.25rem', color: 'var(--stone-400)' }}>Click to select a file</div>
-                  <div style={{ color: 'var(--stone-400)', marginTop: '0.25rem' }}>XLSX, XLS, or CSV (max 20MB)</div>
-                </div>
-              )}
-            </div>
-          </div>
-          <div style={{ marginTop: '1.5rem' }}>
-            <button className="btn btn-primary" onClick={handleUpload} disabled={uploading}>
-              {uploading ? 'Uploading...' : 'Upload & Parse'}
-            </button>
-          </div>
-        </div>
-      );
-
-      // ---- STEP 2: Map Columns ----
-      if (step === 2) return (
-        <div>
-          <div className="content-header">
-            <h1>Map Columns</h1>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button className="btn btn-secondary" onClick={() => setStep(1)}>Back</button>
-              <button className="btn btn-primary" onClick={handleValidate} disabled={validating}>
-                {validating ? 'Validating...' : 'Validate & Preview'}
-              </button>
-            </div>
-          </div>
-
-          {templates.length > 0 && (
-            <div className="form-card" style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--stone-600)', whiteSpace: 'nowrap' }}>Load Template:</label>
-                <select onChange={e => {
-                  const t = templates.find(t => t.id === e.target.value);
-                  if (t) setMapping(typeof t.mapping === 'string' ? JSON.parse(t.mapping) : t.mapping);
-                }} style={{ flex: 1 }}>
-                  <option value="">Select a saved template...</option>
-                  {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-              </div>
-            </div>
-          )}
-
-          <div className="form-card">
-            <h3>Column Mapping ({totalRows} rows in file)</h3>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Spreadsheet Column</th>
-                    <th>Sample Values</th>
-                    <th>Map To</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {headers.map((header, i) => (
-                    <tr key={i} style={{ background: mapping[String(i)] ? 'rgba(201,166,104,0.06)' : undefined }}>
-                      <td style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{header || '(empty)'}</td>
-                      <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {previewRows.slice(0, 3).map(row => row[i]).filter(v => v != null && v !== '').join(' | ') || '—'}
-                      </td>
-                      <td>
-                        <select
-                          value={mapping[String(i)] || ''}
-                          onChange={e => setMapping(prev => ({ ...prev, [String(i)]: e.target.value }))}
-                          style={{ width: '100%', minWidth: '180px' }}
-                        >
-                          {renderFieldOptions()}
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button className="btn btn-secondary" onClick={handleSaveTemplate}>Save Mapping as Template</button>
-          </div>
-        </div>
-      );
-
-      // ---- STEP 3: Review ----
-      if (step === 3 && validationResult) {
-        const filtered = validationResult.rows.filter(r => {
-          if (reviewFilter === 'valid') return r.status === 'valid';
-          if (reviewFilter === 'error') return r.status === 'error';
-          return true;
-        });
-        const pageSize = 50;
-        const totalPages = Math.ceil(filtered.length / pageSize);
-        const paged = filtered.slice(reviewPage * pageSize, (reviewPage + 1) * pageSize);
-        const mappedFields = Object.entries(mapping)
-          .filter(([_, v]) => v)
-          .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
-          .map(([_, field]) => field);
-
-        return (
-          <div>
-            <div className="content-header">
-              <h1>Review Import</h1>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button className="btn btn-secondary" onClick={() => setStep(2)}>Back</button>
-                <button className="btn btn-primary" onClick={handleImport} disabled={importing || validationResult.valid_count === 0}>
-                  {importing ? 'Importing...' : 'Import ' + validationResult.valid_count + ' Rows'}
-                </button>
-              </div>
-            </div>
-
-            <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
-              <div className="stat-card" onClick={() => { setReviewFilter('all'); setReviewPage(0); }} style={{ cursor: 'pointer', outline: reviewFilter === 'all' ? '2px solid var(--gold)' : 'none' }}>
-                <div className="stat-card-label">Total Rows</div>
-                <div className="stat-card-value">{validationResult.total_rows}</div>
-              </div>
-              <div className="stat-card" onClick={() => { setReviewFilter('valid'); setReviewPage(0); }} style={{ cursor: 'pointer', outline: reviewFilter === 'valid' ? '2px solid var(--green)' : 'none' }}>
-                <div className="stat-card-label">Valid</div>
-                <div className="stat-card-value" style={{ color: 'var(--green)' }}>{validationResult.valid_count}</div>
-              </div>
-              <div className="stat-card" onClick={() => { setReviewFilter('error'); setReviewPage(0); }} style={{ cursor: 'pointer', outline: reviewFilter === 'error' ? '2px solid var(--red)' : 'none' }}>
-                <div className="stat-card-label">Errors</div>
-                <div className="stat-card-value" style={{ color: 'var(--red)' }}>{validationResult.error_count}</div>
-              </div>
-            </div>
-
-            <div className="form-card" style={{ overflowX: 'auto' }}>
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Row</th>
-                    <th>Status</th>
-                    {mappedFields.map(f => <th key={f}>{f}</th>)}
-                    <th>Errors</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paged.map(row => (
-                    <tr key={row.row_number} style={{ background: row.status === 'error' ? 'rgba(220,38,38,0.06)' : undefined }}>
-                      <td>{row.row_number}</td>
-                      <td>
-                        <span className={'badge badge-' + (row.status === 'valid' ? 'active' : 'cancelled')}>
-                          {row.status}
-                        </span>
-                      </td>
-                      {mappedFields.map(f => (
-                        <td key={f} style={{ fontSize: '0.8125rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {row.data[f] || ''}
-                        </td>
-                      ))}
-                      <td style={{ color: 'var(--red)', fontSize: '0.8125rem' }}>{row.errors.join('; ')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {totalPages > 1 && (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', padding: '1rem' }}>
-                  <button className="btn btn-secondary btn-sm" disabled={reviewPage === 0} onClick={() => setReviewPage(p => p - 1)}>Prev</button>
-                  <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>Page {reviewPage + 1} of {totalPages}</span>
-                  <button className="btn btn-secondary btn-sm" disabled={reviewPage >= totalPages - 1} onClick={() => setReviewPage(p => p + 1)}>Next</button>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      }
-
-      // ---- STEP 4: Results ----
-      if (step === 4 && importResult) return (
-        <div>
-          <div className="content-header">
-            <h1>Import Complete</h1>
-          </div>
-
-          <div className="stat-grid">
-            <div className="stat-card">
-              <div className="stat-card-label">Imported</div>
-              <div className="stat-card-value" style={{ color: 'var(--green)' }}>{importResult.results.imported}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-card-label">Skipped</div>
-              <div className="stat-card-value" style={{ color: 'var(--stone-500)' }}>{importResult.results.skipped}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-card-label">Errors</div>
-              <div className="stat-card-value" style={{ color: 'var(--red)' }}>{importResult.results.errors.length}</div>
-            </div>
-          </div>
-
-          {importResult.results.errors.length > 0 && (
-            <div className="form-card" style={{ marginTop: '1.5rem' }}>
-              <h3>Error Details</h3>
-              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                {importResult.results.errors.map((err, i) => (
-                  <div key={i} style={{ padding: '0.5rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.875rem' }}>
-                    <strong>Row {err.row}:</strong> {err.error}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
-            <button className="btn btn-secondary" onClick={handleReset}>Import Another File</button>
-            <button className="btn btn-primary" onClick={() => navigate('products')}>View Products</button>
-          </div>
-        </div>
-      );
-
-      return <div className="loading">Loading...</div>;
-    }
-
     // ========== ScrapersView ==========
     function ScrapersView({ navigate }) {
       const [sources, setSources] = useState([]);
       const [loading, setLoading] = useState(true);
       const [deleteTarget, setDeleteTarget] = useState(null);
       const [deleteError, setDeleteError] = useState('');
+      const [uploadingId, setUploadingId] = useState(null);
 
       const loadSources = () => {
         adminFetch('/api/admin/vendor-sources')
@@ -4384,6 +4356,36 @@
           loadSources();
         } catch (err) {
           alert('Failed to start scrape: ' + err.message);
+        }
+      };
+
+      const handleStopScrape = async (source) => {
+        const jobId = source.last_job && source.last_job.id;
+        if (!jobId) return;
+        if (!confirm('Stop the running scrape for "' + source.name + '"?')) return;
+        try {
+          const d = await adminFetch('/api/admin/scrape-jobs/' + jobId + '/stop', { method: 'POST' });
+          if (d.error) { alert(d.error); return; }
+          loadSources();
+        } catch (err) {
+          alert('Failed to stop scrape: ' + err.message);
+        }
+      };
+
+      const handleUploadPriceList = async (source, file) => {
+        setUploadingId(source.id);
+        try {
+          const d = await adminUpload('/api/admin/vendor-sources/' + source.id + '/upload-pricelist', file);
+          if (d.error) { alert('Upload failed: ' + d.error); return; }
+          if (confirm('PDF uploaded successfully. Run pricing scraper now?')) {
+            await handleScrapeNow(source);
+          } else {
+            loadSources();
+          }
+        } catch (err) {
+          alert('Upload failed: ' + err.message);
+        } finally {
+          setUploadingId(null);
         }
       };
 
@@ -4433,6 +4435,7 @@
             <button className="btn btn-primary" onClick={() => navigate('scraper-source-create')}>Add Source</button>
           </div>
 
+          <div className="table-scroll-wrapper">
           <table className="admin-table">
             <thead>
               <tr>
@@ -4458,7 +4461,14 @@
                 return (
                   <tr key={s.id}>
                     <td>{s.vendor_name}</td>
-                    <td><strong>{s.name}</strong></td>
+                    <td>
+                      <strong>{s.name}</strong>
+                      {s.source_type === 'pdf' && s.config && s.config.pdf_path && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', marginTop: '2px' }}>
+                          {s.config.pdf_path.split('/').pop()}
+                        </div>
+                      )}
+                    </td>
                     <td>{s.source_type}</td>
                     <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>{s.scraper_key || '—'}</td>
                     <td>{scheduleLabel(s.schedule)}</td>
@@ -4472,7 +4482,33 @@
                       <div className={'toggle' + (s.is_active ? ' on' : '')} onClick={() => handleToggleActive(s)} />
                     </td>
                     <td className="actions">
-                      <button className="btn btn-sm btn-primary" onClick={() => handleScrapeNow(s)}>Scrape Now</button>
+                      {s.source_type === 'pdf' && (
+                        <React.Fragment>
+                          <input
+                            type="file"
+                            accept=".pdf,.xlsb,.xlsx,.xls"
+                            id={'pdf-upload-' + s.id}
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              if (file) handleUploadPriceList(s, file);
+                              e.target.value = '';
+                            }}
+                          />
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            disabled={uploadingId === s.id}
+                            onClick={() => document.getElementById('pdf-upload-' + s.id).click()}
+                          >
+                            {uploadingId === s.id ? 'Uploading...' : 'Upload File'}
+                          </button>
+                        </React.Fragment>
+                      )}
+                      {lastJob && lastJob.status === 'running' ? (
+                        <button className="btn btn-sm btn-danger" onClick={() => handleStopScrape(s)}>Stop</button>
+                      ) : (
+                        <button className="btn btn-sm btn-primary" onClick={() => handleScrapeNow(s)}>Scrape Now</button>
+                      )}
                       <button className="btn btn-sm btn-secondary" onClick={() => navigate('scraper-jobs', s.id)}>Jobs</button>
                       <button className="btn btn-sm btn-secondary" onClick={() => navigate('scraper-source-edit', s.id)}>Edit</button>
                       <button className="btn btn-sm btn-danger" onClick={() => { setDeleteError(''); setDeleteTarget(s); }}>Delete</button>
@@ -4482,6 +4518,7 @@
               })}
             </tbody>
           </table>
+          </div>
 
           {deleteTarget && (
             <DeleteConfirmModal
@@ -4504,9 +4541,13 @@
         scraper_key: '', schedule: '', categories: '', is_active: true
       });
       const [saving, setSaving] = useState(false);
+      const [pdfFile, setPdfFile] = useState(null);
+      const [uploading, setUploading] = useState(false);
+      const [scraperKeys, setScraperKeys] = useState([]);
 
       useEffect(() => {
         adminFetch('/api/admin/vendors').then(d => setVendors(d.vendors || [])).catch(() => {});
+        adminFetch('/api/admin/scrapers').then(d => setScraperKeys(d.scrapers || [])).catch(() => {});
         if (editId) {
           adminFetch('/api/admin/vendor-sources').then(d => {
             const source = (d.sources || []).find(s => s.id === editId);
@@ -4530,8 +4571,14 @@
       const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
       const handleSave = async () => {
-        if (!form.vendor_id || !form.name || !form.base_url) {
-          return alert('Vendor, name, and base URL are required');
+        if (!form.vendor_id || !form.name) {
+          return alert('Vendor and name are required');
+        }
+        if (form.source_type !== 'pdf' && !form.base_url) {
+          return alert('Base URL is required for this source type');
+        }
+        if (form.source_type === 'pdf' && !editId && !pdfFile) {
+          return alert('Please select a file to upload');
         }
         setSaving(true);
         try {
@@ -4543,7 +4590,7 @@
             vendor_id: form.vendor_id,
             name: form.name,
             source_type: form.source_type,
-            base_url: form.base_url,
+            base_url: form.base_url || (form.source_type === 'pdf' ? 'pdf-upload' : ''),
             scraper_key: form.scraper_key || null,
             schedule: form.schedule || null,
             config,
@@ -4561,6 +4608,22 @@
             });
           }
           if (d.error) { alert('Server error: ' + d.error); return; }
+
+          // Upload PDF if one was selected
+          const sourceId = d.source ? d.source.id : editId;
+          if (pdfFile && sourceId) {
+            setUploading(true);
+            try {
+              const uploadResult = await adminUpload('/api/admin/vendor-sources/' + sourceId + '/upload-pricelist', pdfFile);
+              if (uploadResult.error) {
+                alert('Source saved but PDF upload failed: ' + uploadResult.error);
+              }
+            } catch (uploadErr) {
+              alert('Source saved but PDF upload failed: ' + uploadErr.message);
+            }
+            setUploading(false);
+          }
+
           navigate('scrapers');
         } catch (err) {
           alert('Save failed: ' + err.message);
@@ -4604,19 +4667,74 @@
                   <option value="website">Website</option>
                   <option value="portal">Dealer Portal</option>
                   <option value="api">API</option>
+                  <option value="pdf">File Upload (PDF/Excel)</option>
                 </select>
               </div>
               <div className="form-group">
-                <label>Scraper Key</label>
-                <input value={form.scraper_key} onChange={e => set('scraper_key', e.target.value)} placeholder="e.g., msi" />
-                <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', marginTop: '0.25rem' }}>
-                  Maps to backend/scrapers/[key].js
+                <label>Scraper</label>
+                <select value={form.scraper_key} onChange={e => {
+                  const key = e.target.value;
+                  const meta = scraperKeys.find(s => s.key === key);
+                  if (meta) {
+                    setForm(prev => ({
+                      ...prev,
+                      scraper_key: key,
+                      name: meta.label,
+                      source_type: meta.source_type || prev.source_type,
+                      base_url: meta.base_url || prev.base_url,
+                      categories: (meta.categories || []).join('\n')
+                    }));
+                  } else {
+                    set('scraper_key', '');
+                  }
+                }}>
+                  <option value="">None (manual only)</option>
+                  {scraperKeys.map(s => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+              {form.source_type !== 'pdf' && (
+                <div className="form-group full">
+                  <label>Base URL *</label>
+                  <input value={form.base_url} onChange={e => set('base_url', e.target.value)} placeholder="https://www.msisurfaces.com" />
                 </div>
-              </div>
-              <div className="form-group full">
-                <label>Base URL *</label>
-                <input value={form.base_url} onChange={e => set('base_url', e.target.value)} placeholder="https://www.msisurfaces.com" />
-              </div>
+              )}
+              {form.source_type === 'pdf' && (
+                <div className="form-group full">
+                  <label>Price List File {!editId && '*'}</label>
+                  <div
+                    style={{
+                      border: '2px dashed ' + (pdfFile ? 'var(--green)' : 'var(--stone-300)'),
+                      borderStyle: pdfFile ? 'solid' : 'dashed',
+                      borderRadius: '8px', padding: '1.5rem', textAlign: 'center',
+                      cursor: 'pointer', transition: 'border-color 0.2s, background 0.2s'
+                    }}
+                    onClick={() => document.getElementById('source-pdf-input').click()}
+                    onMouseOver={e => { if (!pdfFile) e.currentTarget.style.borderColor = 'var(--gold)'; }}
+                    onMouseOut={e => { if (!pdfFile) e.currentTarget.style.borderColor = 'var(--stone-300)'; }}
+                  >
+                    <input
+                      id="source-pdf-input"
+                      type="file"
+                      accept=".pdf,.xlsb,.xlsx,.xls"
+                      style={{ display: 'none' }}
+                      onChange={e => setPdfFile(e.target.files[0] || null)}
+                    />
+                    {pdfFile ? (
+                      <div>
+                        <div style={{ fontSize: '1.125rem', fontWeight: 500 }}>{pdfFile.name}</div>
+                        <div style={{ color: 'var(--stone-500)', marginTop: '0.25rem', fontSize: '0.875rem' }}>{(pdfFile.size / 1024).toFixed(1)} KB — Click to change</div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ fontSize: '1.125rem', color: 'var(--stone-400)' }}>Click to select a file</div>
+                        <div style={{ color: 'var(--stone-400)', marginTop: '0.25rem', fontSize: '0.875rem' }}>Vendor price list (PDF or Excel)</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="form-group">
                 <label>Schedule</label>
                 <select value={form.schedule} onChange={e => set('schedule', e.target.value)}>
@@ -4638,8 +4756,8 @@
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving...' : (editId ? 'Update Source' : 'Create Source')}
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving || uploading}>
+                {uploading ? 'Uploading PDF...' : saving ? 'Saving...' : (editId ? 'Update Source' : 'Create Source')}
               </button>
               <button className="btn btn-secondary" onClick={() => navigate('scrapers')}>Cancel</button>
             </div>
@@ -4653,14 +4771,27 @@
       const [jobs, setJobs] = useState([]);
       const [loading, setLoading] = useState(true);
 
-      useEffect(() => {
+      const loadJobs = () => {
         const url = sourceId
           ? '/api/admin/scrape-jobs?vendor_source_id=' + sourceId + '&limit=50'
           : '/api/admin/scrape-jobs?limit=50';
         adminFetch(url)
           .then(d => { setJobs(d.jobs || []); setLoading(false); })
           .catch(() => setLoading(false));
-      }, [sourceId]);
+      };
+
+      useEffect(() => { loadJobs(); }, [sourceId]);
+
+      const handleStopJob = async (jobId) => {
+        if (!confirm('Stop this running scrape job?')) return;
+        try {
+          const d = await adminFetch('/api/admin/scrape-jobs/' + jobId + '/stop', { method: 'POST' });
+          if (d.error) { alert(d.error); return; }
+          loadJobs();
+        } catch (err) {
+          alert('Failed to stop job: ' + err.message);
+        }
+      };
 
       const formatDate = (d) => {
         if (!d) return '—';
@@ -4683,6 +4814,7 @@
             <button className="btn btn-secondary" onClick={() => navigate('scrapers')}>Back to Sources</button>
           </div>
 
+          <div className="table-scroll-wrapper">
           <table className="admin-table">
             <thead>
               <tr>
@@ -4716,12 +4848,16 @@
                   <td>{j.skus_created}</td>
                   <td>{formatDuration(j.started_at, j.completed_at)}</td>
                   <td className="actions">
+                    {j.status === 'running' && (
+                      <button className="btn btn-sm btn-danger" onClick={() => handleStopJob(j.id)}>Stop</button>
+                    )}
                     <button className="btn btn-sm btn-secondary" onClick={() => navigate('scraper-job-detail', j.id)}>Details</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       );
     }
@@ -4739,6 +4875,17 @@
       };
 
       useEffect(() => { loadJob(); }, [jobId]);
+
+      const handleStopJob = async () => {
+        if (!confirm('Stop this running scrape job?')) return;
+        try {
+          const d = await adminFetch('/api/admin/scrape-jobs/' + jobId + '/stop', { method: 'POST' });
+          if (d.error) { alert(d.error); return; }
+          loadJob();
+        } catch (err) {
+          alert('Failed to stop job: ' + err.message);
+        }
+      };
 
       // Auto-refresh if running
       useEffect(() => {
@@ -4762,6 +4909,9 @@
           <div className="content-header">
             <h1>Job Detail</h1>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
+              {job.status === 'running' && (
+                <button className="btn btn-danger" onClick={handleStopJob}>Stop Job</button>
+              )}
               <button className="btn btn-secondary" onClick={() => { setRefreshing(true); loadJob(); }}>
                 {refreshing ? 'Refreshing...' : 'Refresh'}
               </button>
@@ -4847,6 +4997,205 @@
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
               <button className="btn btn-danger" onClick={onConfirm}>Delete</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== Installation Inquiries ==========
+    function InquiriesListView({ navigate }) {
+      const [inquiries, setInquiries] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [statusFilter, setStatusFilter] = useState('');
+      const [search, setSearch] = useState('');
+      const [total, setTotal] = useState(0);
+
+      const load = () => {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (statusFilter) params.set('status', statusFilter);
+        if (search) params.set('search', search);
+        params.set('limit', '50');
+        adminFetch(`/api/admin/installation-inquiries?${params}`)
+          .then(data => { setInquiries(data.inquiries || []); setTotal(data.total || 0); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      useEffect(load, [statusFilter]);
+
+      const statusTabs = ['', 'new', 'contacted', 'quoted', 'scheduled', 'completed', 'closed'];
+      const statusLabels = { '': 'All', new: 'New', contacted: 'Contacted', quoted: 'Quoted', scheduled: 'Scheduled', completed: 'Completed', closed: 'Closed' };
+
+      const fmtDate = (d) => {
+        if (!d) return '';
+        const dt = new Date(d);
+        return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      };
+
+      if (loading) return <div className="loading">Loading inquiries...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Installation Inquiries</h1>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--stone-400)' }}>{total} total</span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            {statusTabs.map(s => (
+              <button key={s} className={statusFilter === s ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setStatusFilter(s)}>{statusLabels[s]}</button>
+            ))}
+          </div>
+          <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
+            <input type="text" className="form-input" placeholder="Search name or email..." value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 300 }} onKeyDown={e => e.key === 'Enter' && load()} />
+            <button className="btn btn-secondary btn-sm" onClick={load}>Search</button>
+          </div>
+          <div className="table-scroll-wrapper">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Product</th>
+                <th>Zip</th>
+                <th>Sqft</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inquiries.length === 0 && <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>No inquiries found</td></tr>}
+              {inquiries.map(inq => (
+                <tr key={inq.id}>
+                  <td style={{ fontWeight: 500 }}>{inq.customer_name}</td>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{inq.customer_email}</td>
+                  <td style={{ fontSize: '0.8125rem' }}>{inq.phone || '—'}</td>
+                  <td style={{ fontSize: '0.8125rem' }}>{[inq.collection, inq.product_name].filter(Boolean).join(' — ') || '—'}</td>
+                  <td>{inq.zip_code || '—'}</td>
+                  <td>{inq.estimated_sqft ? parseFloat(inq.estimated_sqft).toFixed(0) : '—'}</td>
+                  <td><span className={`badge badge-${inq.status}`}>{inq.status}</span></td>
+                  <td style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{fmtDate(inq.created_at)}</td>
+                  <td><button className="btn btn-secondary btn-sm" onClick={() => navigate('inquiry-detail', inq.id)}>View</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
+        </div>
+      );
+    }
+
+    function InquiryDetailView({ navigate, editId, staffRole }) {
+      const [inquiry, setInquiry] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [saving, setSaving] = useState(false);
+      const [staffList, setStaffList] = useState([]);
+      const [form, setForm] = useState({ status: '', staff_notes: '', assigned_to: '' });
+
+      useEffect(() => {
+        adminFetch(`/api/admin/installation-inquiries/${editId}`)
+          .then(data => {
+            setInquiry(data.inquiry);
+            setForm({ status: data.inquiry.status || 'new', staff_notes: data.inquiry.staff_notes || '', assigned_to: data.inquiry.assigned_to || '' });
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+        adminFetch('/api/admin/staff')
+          .then(data => setStaffList((data.staff || []).filter(s => s.is_active)))
+          .catch(() => {});
+      }, [editId]);
+
+      const handleSave = async () => {
+        setSaving(true);
+        try {
+          const data = await adminFetch(`/api/admin/installation-inquiries/${editId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(form)
+          });
+          setInquiry(data.inquiry);
+          setSaving(false);
+        } catch { setSaving(false); }
+      };
+
+      const handleDelete = async () => {
+        if (!confirm('Delete this inquiry permanently?')) return;
+        try {
+          await adminFetch(`/api/admin/installation-inquiries/${editId}`, { method: 'DELETE' });
+          navigate('inquiries');
+        } catch {}
+      };
+
+      const fmtDate = (d) => {
+        if (!d) return '';
+        const dt = new Date(d);
+        return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      };
+
+      if (loading) return <div className="loading">Loading inquiry...</div>;
+      if (!inquiry) return <div className="loading">Inquiry not found</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <button className="btn btn-secondary btn-sm" onClick={() => navigate('inquiries')}>&larr; Back</button>
+            <h1 style={{ marginLeft: '1rem' }}>Inquiry from {inquiry.customer_name}</h1>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
+            <div className="detail-card">
+              <h3>Customer Info</h3>
+              <div className="detail-grid">
+                <div className="detail-label">Name</div><div className="detail-value">{inquiry.customer_name}</div>
+                <div className="detail-label">Email</div><div className="detail-value"><a href={`mailto:${inquiry.customer_email}`} style={{ color: 'var(--gold)' }}>{inquiry.customer_email}</a></div>
+                <div className="detail-label">Phone</div><div className="detail-value">{inquiry.phone ? <a href={`tel:${inquiry.phone}`} style={{ color: 'var(--gold)' }}>{inquiry.phone}</a> : '—'}</div>
+                <div className="detail-label">Zip Code</div><div className="detail-value">{inquiry.zip_code || '—'}</div>
+              </div>
+            </div>
+
+            <div className="detail-card">
+              <h3>Inquiry Details</h3>
+              <div className="detail-grid">
+                <div className="detail-label">Product</div><div className="detail-value">{[inquiry.collection, inquiry.product_name].filter(Boolean).join(' — ') || '—'}</div>
+                <div className="detail-label">Est. Sqft</div><div className="detail-value">{inquiry.estimated_sqft ? parseFloat(inquiry.estimated_sqft).toFixed(0) + ' sqft' : '—'}</div>
+                <div className="detail-label">Message</div><div className="detail-value">{inquiry.message || '—'}</div>
+                <div className="detail-label">Submitted</div><div className="detail-value">{fmtDate(inquiry.created_at)}</div>
+              </div>
+            </div>
+
+            <div className="detail-card" style={{ gridColumn: '1 / -1' }}>
+              <h3>Manage</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label className="form-label">Status</label>
+                  <select className="form-input" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+                    <option value="new">New</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="quoted">Quoted</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="completed">Completed</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Assign To</label>
+                  <select className="form-input" value={form.assigned_to} onChange={e => setForm({ ...form, assigned_to: e.target.value })}>
+                    <option value="">Unassigned</option>
+                    {staffList.map(s => <option key={s.id} value={s.id}>{s.first_name} {s.last_name} ({s.role})</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Staff Notes</label>
+                <textarea className="form-input" rows="4" value={form.staff_notes} onChange={e => setForm({ ...form, staff_notes: e.target.value })} placeholder="Internal notes about this inquiry..." />
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+                {(staffRole === 'admin' || staffRole === 'manager') && (
+                  <button className="btn btn-secondary" style={{ color: 'var(--red)' }} onClick={handleDelete}>Delete</button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -4969,6 +5318,7 @@
             </div>
           )}
 
+          <div className="table-scroll-wrapper">
           <table className="data-table">
             <thead>
               <tr>
@@ -4996,6 +5346,7 @@
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       );
     }
@@ -5134,6 +5485,7 @@
             </select>
           </div>
 
+          <div className="table-scroll-wrapper">
           <table className="data-table">
             <thead>
               <tr>
@@ -5188,7 +5540,7 @@
                   </tr>
                   {expandedId === c.id && (
                     <tr><td colSpan="8" style={{ background: 'var(--stone-50)', padding: '1.5rem' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                      <div className="resp-grid-2" style={{ gap: '1.5rem' }}>
                         <div>
                           <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem' }}>Documents</h4>
                           {docsLoading ? <div>Loading documents...</div> : docs.length === 0 ? <div style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>No documents uploaded</div> : (
@@ -5257,6 +5609,7 @@
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       );
     }
@@ -5304,6 +5657,7 @@
             <h1>Staff Accounts</h1>
             <button className="btn btn-primary" onClick={() => navigate('staff-create')}>Add Staff</button>
           </div>
+          <div className="table-scroll-wrapper">
           <table className="data-table">
             <thead>
               <tr>
@@ -5340,6 +5694,7 @@
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       );
     }
@@ -5436,6 +5791,7 @@
           {editId && assignedCustomers.length > 0 && (
             <div style={{ marginTop: '2rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Assigned Trade Customers ({assignedCustomers.length})</h3>
+              <div className="table-scroll-wrapper">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -5458,6 +5814,7 @@
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>
@@ -5495,6 +5852,7 @@
             <h1>Promo Codes</h1>
             <button className="btn btn-primary" onClick={() => navigate('promo-create')}>+ Create Promo Code</button>
           </div>
+          <div className="table-scroll-wrapper">
           <table className="admin-table">
             <thead>
               <tr>
@@ -5543,6 +5901,7 @@
               )}
             </tbody>
           </table>
+          </div>
         </div>
       );
     }
@@ -5821,6 +6180,7 @@
           {editId && usages.length > 0 && (
             <div className="form-card" style={{ marginTop: '1.5rem' }}>
               <h3>Usage History ({usages.length})</h3>
+              <div className="table-scroll-wrapper">
               <table className="admin-table">
                 <thead>
                   <tr>
@@ -5844,6 +6204,7 @@
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>
@@ -5909,7 +6270,7 @@
             React.createElement('input', {
               type: 'text', value: searchInput, onChange: e => setSearchInput(e.target.value),
               placeholder: 'Search name, email, phone, company...',
-              style: { padding: '0.5rem 0.75rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', width: '300px' }
+              style: { padding: '0.5rem 0.75rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', maxWidth: '300px', width: '100%' }
             }),
             React.createElement('button', { type: 'submit', className: 'btn btn-secondary btn-sm' }, 'Search'),
             searchTerm && React.createElement('button', { type: 'button', className: 'btn btn-secondary btn-sm', onClick: () => { setSearchInput(''); setSearchTerm(''); setPage(1); } }, 'Clear'),
@@ -6080,7 +6441,7 @@
 
         // Customer Information
         React.createElement(CollapsibleSection, { title: 'Customer Information', defaultOpen: true },
-          React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' } },
+          React.createElement('div', { className: 'resp-grid-2', style: { gap: '1.5rem' } },
             React.createElement('div', null,
               React.createElement('div', { style: { marginBottom: '0.75rem' } },
                 React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' } }, 'Name'),
@@ -6279,10 +6640,11 @@
             <label style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>Filter action:</label>
             <input type="text" value={actionFilter} onChange={e => { setActionFilter(e.target.value); setPage(1); }}
               placeholder="e.g. staff.login, trade.approve"
-              style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', width: '250px' }} />
+              style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', maxWidth: '250px', width: '100%' }} />
             <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>Page {page} of {totalPages}</span>
           </div>
           {loading ? <div className="loading">Loading...</div> : (
+            <div className="table-scroll-wrapper">
             <table className="admin-table">
               <thead>
                 <tr>
@@ -6312,6 +6674,7 @@
                 )}
               </tbody>
             </table>
+            </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
             <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</button>

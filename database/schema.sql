@@ -15,6 +15,7 @@ CREATE TABLE categories (
     parent_id UUID REFERENCES categories(id),
     name TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
+    image_url TEXT,
     sort_order INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -25,7 +26,7 @@ CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vendor_id UUID REFERENCES vendors(id),
     name TEXT NOT NULL,
-    collection TEXT,
+    collection TEXT NOT NULL DEFAULT '',
     category_id UUID REFERENCES categories(id),
     status VARCHAR(20) DEFAULT 'draft',
     description_long TEXT,
@@ -58,6 +59,7 @@ CREATE TABLE packaging (
     boxes_per_pallet INTEGER,
     sqft_per_pallet DECIMAL(10,2),
     weight_per_pallet_lbs DECIMAL(10,2),
+    roll_width_ft DECIMAL(5,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -66,6 +68,11 @@ CREATE TABLE pricing (
     cost DECIMAL(10,2) NOT NULL,
     retail_price DECIMAL(10,2) NOT NULL,
     price_basis VARCHAR(20),
+    cut_price DECIMAL(10,2),
+    roll_price DECIMAL(10,2),
+    cut_cost DECIMAL(10,2),
+    roll_cost DECIMAL(10,2),
+    roll_min_sqft DECIMAL(10,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -105,7 +112,8 @@ CREATE TABLE order_items (
     unit_price DECIMAL(10,2),
     subtotal DECIMAL(10,2),
     sell_by VARCHAR(20),
-    is_sample BOOLEAN DEFAULT false
+    is_sample BOOLEAN DEFAULT false,
+    price_tier VARCHAR(10)
 );
 
 CREATE TABLE cart_items (
@@ -119,6 +127,8 @@ CREATE TABLE cart_items (
     unit_price DECIMAL(10,2) NOT NULL,
     subtotal DECIMAL(10,2) NOT NULL,
     is_sample BOOLEAN DEFAULT false,
+    sell_by TEXT,
+    price_tier VARCHAR(10),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -148,7 +158,7 @@ CREATE TABLE import_mapping_templates (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE products ADD CONSTRAINT products_vendor_name_unique UNIQUE (vendor_id, name);
+ALTER TABLE products ADD CONSTRAINT products_vendor_collection_name_unique UNIQUE (vendor_id, collection, name);
 
 CREATE INDEX idx_products_vendor ON products(vendor_id);
 CREATE INDEX idx_skus_product ON skus(product_id);
@@ -200,9 +210,15 @@ CREATE TABLE media_assets (
     url TEXT NOT NULL,
     original_url TEXT,
     sort_order INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT media_assets_unique UNIQUE (product_id, asset_type, sort_order)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- Separate unique indexes for SKU-level and product-level images
+CREATE UNIQUE INDEX IF NOT EXISTS media_assets_unique_sku
+    ON media_assets (product_id, sku_id, asset_type, sort_order)
+    WHERE sku_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS media_assets_unique_product
+    ON media_assets (product_id, asset_type, sort_order)
+    WHERE sku_id IS NULL;
 CREATE INDEX idx_media_assets_product ON media_assets(product_id);
 CREATE INDEX idx_media_assets_type ON media_assets(product_id, asset_type);
 
@@ -669,6 +685,7 @@ ALTER TABLE purchase_order_items ALTER COLUMN order_item_id DROP NOT NULL;
 -- ==================== Vendor Email + PO Activity Log ====================
 
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS has_public_inventory BOOLEAN DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS po_activity_log (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -842,6 +859,7 @@ CREATE TABLE IF NOT EXISTS sample_requests (
   shipping_city TEXT,
   shipping_state TEXT,
   shipping_zip TEXT,
+  delivery_method VARCHAR(20) DEFAULT 'shipping',
   status VARCHAR(20) DEFAULT 'requested',
   tracking_number TEXT,
   notes TEXT,
@@ -866,3 +884,18 @@ CREATE TABLE IF NOT EXISTS sample_request_items (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_sample_request_items_request ON sample_request_items(sample_request_id);
+
+-- ==================== Wishlists ====================
+
+CREATE TABLE IF NOT EXISTS wishlists (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(customer_id, product_id)
+);
+CREATE INDEX IF NOT EXISTS idx_wishlists_customer ON wishlists(customer_id);
+
+-- ==================== Storefront SKU Browse ====================
+
+CREATE INDEX IF NOT EXISTS idx_media_assets_sku ON media_assets(sku_id) WHERE sku_id IS NOT NULL;
