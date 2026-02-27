@@ -1240,6 +1240,7 @@
         { key: 'inquiries', label: 'Inquiries', icon: 'M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'staff', label: 'Staff', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', roles: ['admin', 'manager'] },
         { key: 'audit', label: 'Audit Log', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4', roles: ['admin', 'manager'] },
+        { key: 'edi', label: 'EDI', icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4', roles: ['admin', 'manager'] },
       ];
 
       const navItems = allNavItems.filter(item => item.roles.includes(staffRole));
@@ -1326,6 +1327,7 @@
             {view === 'promo-create' && <PromoCodeFormView navigate={navigate} />}
             {view === 'promo-edit' && <PromoCodeFormView navigate={navigate} editId={editId} />}
             {view === 'audit' && <AuditLogView navigate={navigate} />}
+            {view === 'edi' && <EDIView navigate={navigate} />}
           </div>
         </div>
       );
@@ -3149,12 +3151,15 @@
         } catch (err) { console.error('Failed to load PO activity:', err); }
       };
 
-      const sendPOToVendor = async (poId) => {
-        if (!confirm('Send this PO to the vendor via email?')) return;
+      const sendPOToVendor = async (poId, ediEnabled) => {
+        const method = ediEnabled ? 'EDI' : 'email';
+        if (!confirm('Send this PO to the vendor via ' + method + '?')) return;
         setPoUpdating(true);
         try {
           const result = await adminFetch('/api/admin/purchase-orders/' + poId + '/send', { method: 'POST' });
-          if (result.email_sent === false) {
+          if (result.sent_via === 'edi') {
+            alert('PO sent via EDI successfully (' + (result.edi?.docs_sent || 1) + ' document(s))');
+          } else if (result.email_sent === false) {
             alert('PO status updated but email could not be sent. Check server SMTP configuration.');
           }
           loadPOs();
@@ -3164,7 +3169,7 @@
       };
 
       const actionLabel = (action) => {
-        const labels = { sent: 'Sent', resent: 'Resent', revised_and_sent: 'Revised & Sent', acknowledged: 'Acknowledged', fulfilled: 'Fulfilled', cancelled: 'Cancelled', reverted: 'Reverted to Draft', created: 'Created', notes_updated: 'Notes Updated' };
+        const labels = { sent: 'Sent', resent: 'Resent', revised_and_sent: 'Revised & Sent', acknowledged: 'Acknowledged', fulfilled: 'Fulfilled', cancelled: 'Cancelled', reverted: 'Reverted to Draft', created: 'Created', notes_updated: 'Notes Updated', edi_sent: 'Sent via EDI', edi_acknowledged: 'EDI Acknowledged', edi_shipped: 'EDI Ship Notice', edi_invoiced: 'EDI Invoice Received' };
         return labels[action] || action;
       };
 
@@ -3859,6 +3864,15 @@
                         {po.is_revised && (
                           <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>REVISED</span>
                         )}
+                        {po.edi_ack_status && (
+                          <span className="badge" style={{
+                            background: po.edi_ack_status === 'accepted' ? '#dcfce7' : po.edi_ack_status === 'rejected' ? '#fef2f2' : '#fef9c3',
+                            color: po.edi_ack_status === 'accepted' ? '#166534' : po.edi_ack_status === 'rejected' ? '#991b1b' : '#854d0e'
+                          }}>EDI: {po.edi_ack_status === 'accepted' ? 'Accepted' : po.edi_ack_status === 'rejected' ? 'Rejected' : 'Partial'}</span>
+                        )}
+                        {po.edi_interchange_id && !po.edi_ack_status && (
+                          <span className="badge" style={{ background: '#dbeafe', color: '#1e40af' }}>EDI Sent</span>
+                        )}
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                         {revertTarget && (
@@ -3869,8 +3883,10 @@
                         )}
                         {(po.status === 'draft' || po.status === 'sent') && (
                           <button className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
-                            onClick={() => sendPOToVendor(po.id)} disabled={poUpdating}>
-                            {po.status === 'sent' ? 'Resend to Vendor' : 'Send to Vendor'}
+                            onClick={() => sendPOToVendor(po.id, po.edi_config?.enabled)} disabled={poUpdating}>
+                            {po.edi_config?.enabled
+                              ? (po.status === 'sent' ? 'Resend via EDI' : 'Send via EDI')
+                              : (po.status === 'sent' ? 'Resend to Vendor' : 'Send to Vendor')}
                           </button>
                         )}
                         {actions.map(a => (
@@ -3920,6 +3936,8 @@
                           <th>Cost</th>
                           <th>Margin</th>
                           {isSentOrLater && <th>Status</th>}
+                          {po.items?.some(i => i.dye_lot) && <th>Dye Lot</th>}
+                          {po.items?.some(i => i.qty_shipped != null) && <th>Shipped</th>}
                           <th style={{ textAlign: 'right' }}>Subtotal</th>
                           {isDraft && <th></th>}
                         </tr>
@@ -3959,8 +3977,15 @@
                                     <option value="received">Received</option>
                                     <option value="cancelled">Cancelled</option>
                                   </select>
+                                  {item.edi_line_status && (
+                                    <span style={{ fontSize: '0.625rem', marginLeft: '0.25rem', color: item.edi_line_status === 'accepted' ? '#166534' : item.edi_line_status === 'rejected' ? '#991b1b' : '#854d0e' }}>
+                                      ({item.edi_line_status})
+                                    </span>
+                                  )}
                                 </td>
                               )}
+                              {po.items?.some(i => i.dye_lot) && <td style={{ fontSize: '0.75rem' }}>{item.dye_lot || '—'}</td>}
+                              {po.items?.some(i => i.qty_shipped != null) && <td>{item.qty_shipped != null ? item.qty_shipped : '—'}</td>}
                               <td style={{ textAlign: 'right' }}>${parseFloat(item.subtotal).toFixed(2)}</td>
                               {isDraft && (
                                 <td>
@@ -6680,6 +6705,289 @@
             <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</button>
             <button className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
           </div>
+        </div>
+      );
+    }
+
+    // ========== EDI View ==========
+    function EDIView({ navigate }) {
+      const [tab, setTab] = useState('transactions');
+      const [transactions, setTransactions] = useState([]);
+      const [invoices, setInvoices] = useState([]);
+      const [txnTotal, setTxnTotal] = useState(0);
+      const [invTotal, setInvTotal] = useState(0);
+      const [loading, setLoading] = useState(true);
+      const [selectedTxn, setSelectedTxn] = useState(null);
+      const [selectedInvoice, setSelectedInvoice] = useState(null);
+      const [invoiceItems, setInvoiceItems] = useState([]);
+      const [filters, setFilters] = useState({ document_type: '', direction: '', status: '' });
+      const [polling, setPolling] = useState(false);
+
+      const loadTransactions = async () => {
+        setLoading(true);
+        try {
+          const params = new URLSearchParams();
+          if (filters.document_type) params.set('document_type', filters.document_type);
+          if (filters.direction) params.set('direction', filters.direction);
+          if (filters.status) params.set('status', filters.status);
+          params.set('limit', '50');
+          const data = await adminFetch('/api/admin/edi/transactions?' + params.toString());
+          setTransactions(data.transactions || []);
+          setTxnTotal(data.total || 0);
+        } catch (err) { console.error(err); }
+        setLoading(false);
+      };
+
+      const loadInvoices = async () => {
+        setLoading(true);
+        try {
+          const data = await adminFetch('/api/admin/edi/invoices?limit=50');
+          setInvoices(data.invoices || []);
+          setInvTotal(data.total || 0);
+        } catch (err) { console.error(err); }
+        setLoading(false);
+      };
+
+      React.useEffect(() => {
+        if (tab === 'transactions') loadTransactions();
+        else loadInvoices();
+      }, [tab, filters]);
+
+      const pollNow = async () => {
+        setPolling(true);
+        try {
+          const result = await adminFetch('/api/admin/edi/poll-now', { method: 'POST' });
+          alert('EDI poll triggered (Job ID: ' + result.job_id + '). Refresh in a few minutes to see results.');
+          setTimeout(() => { loadTransactions(); loadInvoices(); }, 5000);
+        } catch (err) { alert('Poll failed: ' + err.message); }
+        setPolling(false);
+      };
+
+      const viewTxnDetail = async (id) => {
+        try {
+          const data = await adminFetch('/api/admin/edi/transactions/' + id);
+          setSelectedTxn(data.transaction);
+        } catch (err) { alert(err.message); }
+      };
+
+      const viewInvoiceDetail = async (id) => {
+        try {
+          const data = await adminFetch('/api/admin/edi/invoices/' + id);
+          setSelectedInvoice(data.invoice);
+          setInvoiceItems(data.items || []);
+        } catch (err) { alert(err.message); }
+      };
+
+      const updateInvoiceStatus = async (id, status) => {
+        try {
+          await adminFetch('/api/admin/edi/invoices/' + id + '/status', {
+            method: 'PUT', body: JSON.stringify({ status })
+          });
+          loadInvoices();
+          if (selectedInvoice?.id === id) setSelectedInvoice(prev => ({ ...prev, status }));
+        } catch (err) { alert(err.message); }
+      };
+
+      const statusColor = (status) => {
+        const map = { sent: '#dbeafe', received: '#dbeafe', processed: '#dcfce7', failed: '#fef2f2',
+          pending: '#f5f5f4', matched: '#dbeafe', approved: '#dcfce7', paid: '#dcfce7', disputed: '#fef2f2' };
+        return map[status] || '#f5f5f4';
+      };
+      const statusTextColor = (status) => {
+        const map = { sent: '#1e40af', received: '#1e40af', processed: '#166534', failed: '#991b1b',
+          pending: '#57534e', matched: '#1e40af', approved: '#166534', paid: '#166534', disputed: '#991b1b' };
+        return map[status] || '#57534e';
+      };
+
+      // Transaction detail modal
+      if (selectedTxn) {
+        return (
+          <div>
+            <button className="btn btn-secondary btn-sm" onClick={() => setSelectedTxn(null)} style={{ marginBottom: '1rem' }}>
+              {'\u2190'} Back to Transactions
+            </button>
+            <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 400 }}>EDI Transaction Detail</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem', fontSize: '0.8125rem' }}>
+              <div><strong>Type:</strong> {selectedTxn.document_type}</div>
+              <div><strong>Direction:</strong> {selectedTxn.direction}</div>
+              <div><strong>Vendor:</strong> {selectedTxn.vendor_name}</div>
+              <div><strong>Status:</strong> <span style={{ background: statusColor(selectedTxn.status), color: statusTextColor(selectedTxn.status), padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}>{selectedTxn.status}</span></div>
+              <div><strong>Filename:</strong> {selectedTxn.filename || '—'}</div>
+              <div><strong>ICN:</strong> {selectedTxn.interchange_control_number || '—'}</div>
+              <div><strong>PO:</strong> {selectedTxn.po_number || '—'}</div>
+              <div><strong>Created:</strong> {new Date(selectedTxn.created_at).toLocaleString()}</div>
+              {selectedTxn.processed_at && <div><strong>Processed:</strong> {new Date(selectedTxn.processed_at).toLocaleString()}</div>}
+              {selectedTxn.error_message && <div style={{ gridColumn: '1/3', color: '#991b1b' }}><strong>Error:</strong> {selectedTxn.error_message}</div>}
+            </div>
+            {selectedTxn.raw_content && (
+              <div>
+                <strong style={{ fontSize: '0.8125rem' }}>Raw X12 Content:</strong>
+                <pre style={{ background: 'var(--stone-100)', padding: '1rem', fontSize: '0.6875rem', overflow: 'auto', maxHeight: '400px', marginTop: '0.5rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                  {selectedTxn.raw_content}
+                </pre>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // Invoice detail modal
+      if (selectedInvoice) {
+        return (
+          <div>
+            <button className="btn btn-secondary btn-sm" onClick={() => { setSelectedInvoice(null); setInvoiceItems([]); }} style={{ marginBottom: '1rem' }}>
+              {'\u2190'} Back to Invoices
+            </button>
+            <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 400 }}>EDI Invoice #{selectedInvoice.invoice_number}</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem', fontSize: '0.8125rem' }}>
+              <div><strong>Vendor:</strong> {selectedInvoice.vendor_name}</div>
+              <div><strong>Date:</strong> {selectedInvoice.invoice_date ? new Date(selectedInvoice.invoice_date).toLocaleDateString() : '—'}</div>
+              <div><strong>PO:</strong> {selectedInvoice.po_number || '—'}</div>
+              <div><strong>Total:</strong> ${parseFloat(selectedInvoice.total_amount || 0).toFixed(2)}</div>
+              <div><strong>Status:</strong>
+                <select value={selectedInvoice.status} onChange={e => updateInvoiceStatus(selectedInvoice.id, e.target.value)}
+                  style={{ fontSize: '0.75rem', padding: '0.2rem 0.3rem', border: '1px solid var(--stone-300)', marginLeft: '0.5rem' }}>
+                  <option value="pending">Pending</option>
+                  <option value="matched">Matched</option>
+                  <option value="approved">Approved</option>
+                  <option value="paid">Paid</option>
+                  <option value="disputed">Disputed</option>
+                </select>
+              </div>
+            </div>
+            {invoiceItems.length > 0 && (
+              <div className="table-scroll-wrapper">
+                <table className="admin-table" style={{ fontSize: '0.8125rem' }}>
+                  <thead>
+                    <tr><th>#</th><th>Vendor SKU</th><th>Description</th><th>Qty</th><th>UoM</th><th style={{ textAlign: 'right' }}>Unit Price</th><th style={{ textAlign: 'right' }}>Subtotal</th></tr>
+                  </thead>
+                  <tbody>
+                    {invoiceItems.map((item, idx) => (
+                      <tr key={item.id}>
+                        <td>{item.line_number || idx + 1}</td>
+                        <td>{item.vendor_sku || '—'}</td>
+                        <td>{item.description || '—'}</td>
+                        <td>{item.qty}</td>
+                        <td>{item.unit_of_measure || '—'}</td>
+                        <td style={{ textAlign: 'right' }}>${parseFloat(item.unit_price || 0).toFixed(2)}</td>
+                        <td style={{ textAlign: 'right' }}>${parseFloat(item.subtotal || 0).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      return (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 400, margin: 0 }}>EDI</h2>
+            <button className="btn btn-primary btn-sm" onClick={pollNow} disabled={polling}>
+              {polling ? 'Polling...' : 'Poll Now'}
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+            <button className={tab === 'transactions' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+              onClick={() => setTab('transactions')}>Transactions ({txnTotal})</button>
+            <button className={tab === 'invoices' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+              onClick={() => setTab('invoices')}>Invoices ({invTotal})</button>
+          </div>
+
+          {tab === 'transactions' && (
+            <div>
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                <select value={filters.document_type} onChange={e => setFilters(f => ({ ...f, document_type: e.target.value }))}
+                  style={{ fontSize: '0.75rem', padding: '0.3rem', border: '1px solid var(--stone-300)' }}>
+                  <option value="">All Types</option>
+                  <option value="850">850 (PO)</option>
+                  <option value="855">855 (Ack)</option>
+                  <option value="856">856 (ASN)</option>
+                  <option value="810">810 (Invoice)</option>
+                </select>
+                <select value={filters.direction} onChange={e => setFilters(f => ({ ...f, direction: e.target.value }))}
+                  style={{ fontSize: '0.75rem', padding: '0.3rem', border: '1px solid var(--stone-300)' }}>
+                  <option value="">All Directions</option>
+                  <option value="outbound">Outbound</option>
+                  <option value="inbound">Inbound</option>
+                </select>
+                <select value={filters.status} onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}
+                  style={{ fontSize: '0.75rem', padding: '0.3rem', border: '1px solid var(--stone-300)' }}>
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="sent">Sent</option>
+                  <option value="received">Received</option>
+                  <option value="processed">Processed</option>
+                  <option value="failed">Failed</option>
+                </select>
+              </div>
+
+              {loading ? <p>Loading...</p> : (
+                <div className="table-scroll-wrapper">
+                  <table className="admin-table" style={{ fontSize: '0.8125rem' }}>
+                    <thead>
+                      <tr><th>Date</th><th>Type</th><th>Dir</th><th>Vendor</th><th>PO</th><th>Filename</th><th>Status</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                      {transactions.map(t => (
+                        <tr key={t.id}>
+                          <td style={{ whiteSpace: 'nowrap' }}>{new Date(t.created_at).toLocaleString()}</td>
+                          <td><strong>{t.document_type}</strong></td>
+                          <td>{t.direction === 'outbound' ? '\u2191' : '\u2193'} {t.direction}</td>
+                          <td>{t.vendor_name}</td>
+                          <td>{t.po_number || '—'}</td>
+                          <td style={{ fontSize: '0.6875rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.filename || '—'}</td>
+                          <td><span style={{ background: statusColor(t.status), color: statusTextColor(t.status), padding: '0.15rem 0.5rem', fontSize: '0.6875rem' }}>{t.status}</span></td>
+                          <td><button className="btn btn-secondary" style={{ fontSize: '0.6875rem', padding: '0.15rem 0.4rem' }} onClick={() => viewTxnDetail(t.id)}>View</button></td>
+                        </tr>
+                      ))}
+                      {!transactions.length && <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>No EDI transactions found</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'invoices' && (
+            <div>
+              {loading ? <p>Loading...</p> : (
+                <div className="table-scroll-wrapper">
+                  <table className="admin-table" style={{ fontSize: '0.8125rem' }}>
+                    <thead>
+                      <tr><th>Date</th><th>Invoice #</th><th>Vendor</th><th>PO</th><th>Total</th><th>Status</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                      {invoices.map(inv => (
+                        <tr key={inv.id}>
+                          <td>{inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString() : '—'}</td>
+                          <td><strong>{inv.invoice_number}</strong></td>
+                          <td>{inv.vendor_name}</td>
+                          <td>{inv.po_number || '—'}</td>
+                          <td>${parseFloat(inv.total_amount || 0).toFixed(2)}</td>
+                          <td>
+                            <select value={inv.status} onChange={e => updateInvoiceStatus(inv.id, e.target.value)}
+                              style={{ fontSize: '0.75rem', padding: '0.2rem 0.3rem', border: '1px solid var(--stone-300)' }}>
+                              <option value="pending">Pending</option>
+                              <option value="matched">Matched</option>
+                              <option value="approved">Approved</option>
+                              <option value="paid">Paid</option>
+                              <option value="disputed">Disputed</option>
+                            </select>
+                          </td>
+                          <td><button className="btn btn-secondary" style={{ fontSize: '0.6875rem', padding: '0.15rem 0.4rem' }} onClick={() => viewInvoiceDetail(inv.id)}>Detail</button></td>
+                        </tr>
+                      ))}
+                      {!invoices.length && <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>No EDI invoices found</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       );
     }

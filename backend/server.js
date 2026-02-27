@@ -14,6 +14,8 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert } from './services/emailService.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import healthRoutes from './routes/health.js';
+import { generate850 } from './services/ediGenerator.js';
+import { createSftpConnection, uploadFile } from './services/ediSftp.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 const easypost = process.env.EASYPOST_API_KEY ? new EasyPostClient(process.env.EASYPOST_API_KEY) : null;
@@ -4893,6 +4895,10 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
     },
     'shaw-832': {
       label: 'Shaw Floors EDI 832 (SFTP)', source_type: 'edi_sftp', base_url: 'sftp://shawedi.shawfloors.com',
+      categories: []
+    },
+    'shaw-edi-poller': {
+      label: 'Shaw EDI Poller (855/856/810)', source_type: 'edi_sftp', base_url: 'sftp://shawedi.shawfloors.com',
       categories: []
     },
   };
@@ -10741,7 +10747,7 @@ app.get('/api/admin/orders/:id/purchase-orders', staffAuth, async (req, res) => 
   try {
     const { id } = req.params;
     const pos = await pool.query(`
-      SELECT po.*, v.name as vendor_name, v.code as vendor_code,
+      SELECT po.*, v.name as vendor_name, v.code as vendor_code, v.edi_config,
         sr.first_name || ' ' || sr.last_name as approved_by_name
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
@@ -10849,14 +10855,14 @@ app.put('/api/admin/purchase-orders/:poId', staffAuth, requireRole('admin', 'man
   }
 });
 
-// Send PO to vendor via email
+// Send PO to vendor via EDI (if configured) or email
 app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { poId } = req.params;
 
-    // Fetch PO with vendor email
+    // Fetch PO with vendor email and EDI config
     const poResult = await pool.query(`
-      SELECT po.*, v.name as vendor_name, v.email as vendor_email
+      SELECT po.*, v.name as vendor_name, v.email as vendor_email, v.edi_config
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
       WHERE po.id = $1
@@ -10864,23 +10870,21 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
     if (!poResult.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
     const po = poResult.rows[0];
 
-    if (!po.vendor_email) {
-      return res.status(400).json({ error: 'Vendor has no email configured. Edit the vendor to add an email address.' });
+    const ediConfig = po.edi_config;
+    const ediEnabled = ediConfig && ediConfig.enabled;
+
+    if (!ediEnabled && !po.vendor_email) {
+      return res.status(400).json({ error: 'Vendor has no email configured and EDI is not enabled. Edit the vendor to add an email address.' });
     }
 
     if (!['draft', 'sent'].includes(po.status)) {
       return res.status(400).json({ error: 'Only draft or sent POs can be sent to vendors' });
     }
 
-    // Generate PO HTML + PDF
-    const poData = await generatePOHtml(poId);
-    if (!poData) return res.status(404).json({ error: 'Purchase order not found' });
-
     let action = 'sent';
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
 
     if (po.status === 'draft') {
-      // Draft → Sent: increment revision, set approved_by/at
       const newRevision = (po.revision || 0) + 1;
       const isRevised = newRevision > 1;
       await pool.query(`
@@ -10890,23 +10894,93 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
       `, [newRevision, isRevised, req.staff.id, poId]);
       action = isRevised ? 'revised_and_sent' : 'sent';
     } else {
-      // Already sent: resend
       action = 'resent';
     }
 
-    // Regenerate HTML after status update for accurate PDF
+    let sentVia = 'email';
+    let emailResult = { sent: false };
+    let ediDetails = null;
+
+    // EDI path: generate 850 and upload to SFTP
+    if (ediEnabled) {
+      let ediSuccess = false;
+      try {
+        const docs = await generate850(pool, poId, ediConfig);
+        const sftp = await createSftpConnection(ediConfig);
+        const inboxDir = ediConfig.inbox_dir || '/Inbox';
+
+        try {
+          for (const doc of docs) {
+            // Record transaction
+            const txnResult = await pool.query(
+              `INSERT INTO edi_transactions
+               (vendor_id, document_type, direction, filename, interchange_control_number, purchase_order_id, order_id, status, raw_content)
+               VALUES ($1, '850', 'outbound', $2, $3, $4, $5, 'pending', $6)
+               RETURNING id`,
+              [po.vendor_id, doc.filename, doc.icn, poId, po.order_id, doc.content]
+            );
+            const txnId = txnResult.rows[0].id;
+
+            // Upload to SFTP
+            await uploadFile(sftp, `${inboxDir}/${doc.filename}`, doc.content);
+
+            // Mark as sent
+            await pool.query(
+              `UPDATE edi_transactions SET status = 'sent', processed_at = CURRENT_TIMESTAMP WHERE id = $1`,
+              [txnId]
+            );
+
+            // Store interchange ID on PO
+            await pool.query(
+              `UPDATE purchase_orders SET edi_interchange_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+              [poId, doc.icn]
+            );
+          }
+
+          ediSuccess = true;
+          sentVia = 'edi';
+          ediDetails = { docs_sent: docs.length, filenames: docs.map(d => d.filename) };
+          console.log(`[PO Send] EDI 850 sent for ${po.po_number}: ${docs.map(d => d.filename).join(', ')}`);
+        } finally {
+          try { await sftp.end(); } catch (_) {}
+        }
+      } catch (ediErr) {
+        console.error(`[PO Send] EDI failed for ${po.po_number}, falling back to email:`, ediErr.message);
+        ediDetails = { edi_error: ediErr.message, fallback: 'email' };
+        // Fall through to email
+      }
+
+      if (ediSuccess) {
+        // Log activity and return
+        const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+        await pool.query(
+          `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, revision, details)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [poId, 'edi_sent', req.staff.id, staffName, updatedPO.rows[0].revision || 0,
+           JSON.stringify(ediDetails)]
+        );
+        return res.json({ purchase_order: updatedPO.rows[0], sent_via: 'edi', edi: ediDetails });
+      }
+    }
+
+    // Email path (default or EDI fallback)
+    if (!po.vendor_email) {
+      return res.status(400).json({ error: 'EDI send failed and vendor has no email configured for fallback.' });
+    }
+
+    const poData = await generatePOHtml(poId);
+    if (!poData) return res.status(404).json({ error: 'Purchase order not found' });
+
     const updatedData = await generatePOHtml(poId);
     let pdfBuffer;
     try {
       pdfBuffer = await generatePDFBuffer(updatedData.html);
     } catch (pdfErr) {
-      // If Puppeteer unavailable, send HTML as fallback (no attachment)
       console.error('[PO Send] PDF generation failed:', pdfErr.message);
       return res.status(500).json({ error: 'PDF generation failed. Puppeteer may not be available.' });
     }
 
-    // Send email
-    const emailResult = await sendPurchaseOrderToVendor({
+    emailResult = await sendPurchaseOrderToVendor({
       vendor_email: po.vendor_email,
       vendor_name: po.vendor_name,
       po_number: po.po_number,
@@ -10920,10 +10994,187 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
       `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, recipient_email, revision, details)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [poId, action, req.staff.id, staffName, po.vendor_email, updatedPO.rows[0].revision || 0,
-       JSON.stringify({ email_sent: emailResult.sent })]
+       JSON.stringify({ email_sent: emailResult.sent, ...(ediDetails || {}) })]
     );
 
-    res.json({ purchase_order: updatedPO.rows[0], email_sent: emailResult.sent });
+    res.json({ purchase_order: updatedPO.rows[0], sent_via: sentVia, email_sent: emailResult.sent });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== EDI Admin Endpoints ====================
+
+// List EDI transactions with filtering
+app.get('/api/admin/edi/transactions', staffAuth, async (req, res) => {
+  try {
+    const { vendor_id, document_type, direction, status, limit = 50, offset = 0 } = req.query;
+    const conditions = [];
+    const params = [];
+    let paramIdx = 1;
+
+    if (vendor_id) { conditions.push(`et.vendor_id = $${paramIdx++}`); params.push(vendor_id); }
+    if (document_type) { conditions.push(`et.document_type = $${paramIdx++}`); params.push(document_type); }
+    if (direction) { conditions.push(`et.direction = $${paramIdx++}`); params.push(direction); }
+    if (status) { conditions.push(`et.status = $${paramIdx++}`); params.push(status); }
+
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const result = await pool.query(`
+      SELECT et.id, et.vendor_id, v.name as vendor_name, et.document_type, et.direction,
+        et.filename, et.interchange_control_number, et.purchase_order_id, po.po_number,
+        et.order_id, et.status, et.error_message, et.processed_at, et.created_at
+      FROM edi_transactions et
+      JOIN vendors v ON v.id = et.vendor_id
+      LEFT JOIN purchase_orders po ON po.id = et.purchase_order_id
+      ${where}
+      ORDER BY et.created_at DESC
+      LIMIT $${paramIdx++} OFFSET $${paramIdx}
+    `, [...params, parseInt(limit), parseInt(offset)]);
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM edi_transactions et ${where}`, params
+    );
+
+    res.json({ transactions: result.rows, total: parseInt(countResult.rows[0].count) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get single EDI transaction with raw content
+app.get('/api/admin/edi/transactions/:id', staffAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT et.*, v.name as vendor_name, po.po_number
+      FROM edi_transactions et
+      JOIN vendors v ON v.id = et.vendor_id
+      LEFT JOIN purchase_orders po ON po.id = et.purchase_order_id
+      WHERE et.id = $1
+    `, [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'EDI transaction not found' });
+    res.json({ transaction: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List EDI invoices
+app.get('/api/admin/edi/invoices', staffAuth, async (req, res) => {
+  try {
+    const { vendor_id, status, limit = 50, offset = 0 } = req.query;
+    const conditions = [];
+    const params = [];
+    let paramIdx = 1;
+
+    if (vendor_id) { conditions.push(`ei.vendor_id = $${paramIdx++}`); params.push(vendor_id); }
+    if (status) { conditions.push(`ei.status = $${paramIdx++}`); params.push(status); }
+
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const result = await pool.query(`
+      SELECT ei.*, v.name as vendor_name, po.po_number
+      FROM edi_invoices ei
+      JOIN vendors v ON v.id = ei.vendor_id
+      LEFT JOIN purchase_orders po ON po.id = ei.purchase_order_id
+      ${where}
+      ORDER BY ei.created_at DESC
+      LIMIT $${paramIdx++} OFFSET $${paramIdx}
+    `, [...params, parseInt(limit), parseInt(offset)]);
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM edi_invoices ei ${where}`, params
+    );
+
+    res.json({ invoices: result.rows, total: parseInt(countResult.rows[0].count) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get single EDI invoice with line items
+app.get('/api/admin/edi/invoices/:id', staffAuth, async (req, res) => {
+  try {
+    const invoiceResult = await pool.query(`
+      SELECT ei.*, v.name as vendor_name, po.po_number
+      FROM edi_invoices ei
+      JOIN vendors v ON v.id = ei.vendor_id
+      LEFT JOIN purchase_orders po ON po.id = ei.purchase_order_id
+      WHERE ei.id = $1
+    `, [req.params.id]);
+    if (!invoiceResult.rows.length) return res.status(404).json({ error: 'EDI invoice not found' });
+
+    const itemsResult = await pool.query(
+      `SELECT * FROM edi_invoice_items WHERE edi_invoice_id = $1 ORDER BY line_number`,
+      [req.params.id]
+    );
+
+    res.json({ invoice: invoiceResult.rows[0], items: itemsResult.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update EDI invoice status
+app.put('/api/admin/edi/invoices/:id/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { status } = req.body;
+    const validStatuses = ['pending', 'matched', 'approved', 'paid', 'disputed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status. Allowed: ' + validStatuses.join(', ') });
+    }
+    const result = await pool.query(
+      `UPDATE edi_invoices SET status = $2 WHERE id = $1 RETURNING *`,
+      [req.params.id, status]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'EDI invoice not found' });
+    res.json({ invoice: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trigger immediate EDI poll for a vendor
+app.post('/api/admin/edi/poll-now', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    // Find Shaw EDI poller vendor source
+    const sourceResult = await pool.query(
+      `SELECT vs.*, v.edi_config FROM vendor_sources vs
+       JOIN vendors v ON v.id = vs.vendor_id
+       WHERE vs.scraper_key = 'shaw-edi-poller' AND vs.is_active = true
+       LIMIT 1`
+    );
+    if (!sourceResult.rows.length) {
+      return res.status(404).json({ error: 'Shaw EDI poller source not found or inactive' });
+    }
+    const source = sourceResult.rows[0];
+
+    // Dynamic import of poller
+    const pollerModule = await import('./scrapers/shaw-edi-poller.js');
+
+    // Create a job record
+    const jobResult = await pool.query(
+      `INSERT INTO scrape_jobs (vendor_source_id, status, started_at)
+       VALUES ($1, 'running', CURRENT_TIMESTAMP) RETURNING id`,
+      [source.id]
+    );
+
+    // Run poller asynchronously
+    const jobId = jobResult.rows[0].id;
+    pollerModule.run(pool, { id: jobId }, source).then(async (stats) => {
+      await pool.query(
+        `UPDATE scrape_jobs SET status = 'completed', completed_at = CURRENT_TIMESTAMP,
+         products_found = $2, products_created = $3
+         WHERE id = $1`,
+        [jobId, stats.files_found || 0, stats.processed || 0]
+      );
+    }).catch(async (err) => {
+      console.error('[EDI Poll Now] Error:', err.message);
+      await pool.query(
+        `UPDATE scrape_jobs SET status = 'failed', completed_at = CURRENT_TIMESTAMP, error = $2 WHERE id = $1`,
+        [jobId, err.message]
+      );
+    });
+
+    res.json({ message: 'EDI poll triggered', job_id: jobId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

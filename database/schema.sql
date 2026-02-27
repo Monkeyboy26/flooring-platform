@@ -929,3 +929,78 @@ CREATE TABLE IF NOT EXISTS stock_alerts (
 );
 CREATE INDEX IF NOT EXISTS idx_stock_alerts_sku ON stock_alerts(sku_id);
 CREATE INDEX IF NOT EXISTS idx_stock_alerts_status ON stock_alerts(status) WHERE status = 'active';
+
+-- ==================== EDI Integration ====================
+
+-- Audit log for all EDI documents sent/received
+CREATE TABLE IF NOT EXISTS edi_transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vendor_id UUID NOT NULL REFERENCES vendors(id),
+    document_type VARCHAR(10) NOT NULL,
+    direction VARCHAR(10) NOT NULL,
+    filename TEXT,
+    interchange_control_number BIGINT,
+    purchase_order_id UUID REFERENCES purchase_orders(id) ON DELETE SET NULL,
+    order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+    status VARCHAR(30) DEFAULT 'pending',
+    raw_content TEXT,
+    error_message TEXT,
+    processed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_edi_transactions_vendor ON edi_transactions(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_edi_transactions_type ON edi_transactions(document_type);
+CREATE INDEX IF NOT EXISTS idx_edi_transactions_po ON edi_transactions(purchase_order_id);
+CREATE INDEX IF NOT EXISTS idx_edi_transactions_filename ON edi_transactions(filename);
+
+-- Parsed 810 invoice headers
+CREATE TABLE IF NOT EXISTS edi_invoices (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vendor_id UUID NOT NULL REFERENCES vendors(id),
+    edi_transaction_id UUID REFERENCES edi_transactions(id),
+    invoice_number TEXT NOT NULL,
+    invoice_date DATE,
+    po_number TEXT,
+    purchase_order_id UUID REFERENCES purchase_orders(id),
+    total_amount DECIMAL(12,2),
+    status VARCHAR(30) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_edi_invoices_vendor ON edi_invoices(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_edi_invoices_po ON edi_invoices(purchase_order_id);
+
+-- Line items from 810 invoices
+CREATE TABLE IF NOT EXISTS edi_invoice_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    edi_invoice_id UUID NOT NULL REFERENCES edi_invoices(id) ON DELETE CASCADE,
+    line_number INTEGER,
+    vendor_sku TEXT,
+    description TEXT,
+    qty DECIMAL(12,4),
+    unit_of_measure VARCHAR(10),
+    unit_price DECIMAL(12,4),
+    subtotal DECIMAL(12,2)
+);
+CREATE INDEX IF NOT EXISTS idx_edi_invoice_items_invoice ON edi_invoice_items(edi_invoice_id);
+
+-- Auto-incrementing ISA/GS/ST control numbers per vendor
+CREATE TABLE IF NOT EXISTS edi_control_numbers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vendor_id UUID NOT NULL REFERENCES vendors(id),
+    number_type VARCHAR(20) NOT NULL,
+    last_number BIGINT NOT NULL DEFAULT 0,
+    UNIQUE(vendor_id, number_type)
+);
+
+-- Purchase orders: EDI tracking columns
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS edi_interchange_id BIGINT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS edi_ack_status VARCHAR(30);
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS edi_ack_received_at TIMESTAMP;
+
+-- Purchase order items: line-level EDI data
+ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS edi_line_status VARCHAR(30);
+ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS dye_lot TEXT;
+ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS qty_shipped INTEGER;
+
+-- Vendors: EDI config
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS edi_config JSONB;
