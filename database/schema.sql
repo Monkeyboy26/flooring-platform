@@ -899,3 +899,32 @@ CREATE INDEX IF NOT EXISTS idx_wishlists_customer ON wishlists(customer_id);
 -- ==================== Storefront SKU Browse ====================
 
 CREATE INDEX IF NOT EXISTS idx_media_assets_sku ON media_assets(sku_id) WHERE sku_id IS NOT NULL;
+
+-- ==================== Product Reviews ====================
+
+CREATE TABLE IF NOT EXISTS product_reviews (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  title VARCHAR(200),
+  body TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(product_id, customer_id)
+);
+CREATE INDEX IF NOT EXISTS idx_product_reviews_product ON product_reviews(product_id);
+
+-- ==================== Stock Alerts ====================
+
+CREATE TABLE IF NOT EXISTS stock_alerts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  sku_id UUID NOT NULL REFERENCES skus(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  notified_at TIMESTAMP,
+  UNIQUE(sku_id, email)
+);
+CREATE INDEX IF NOT EXISTS idx_stock_alerts_sku ON stock_alerts(sku_id);
+CREATE INDEX IF NOT EXISTS idx_stock_alerts_status ON stock_alerts(status) WHERE status = 'active';

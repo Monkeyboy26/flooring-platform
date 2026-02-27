@@ -390,6 +390,41 @@
       .accessory-card-sf-actions .unit-qty-stepper { align-self: center; }
     }
 
+    /* ── PRODUCT REVIEWS ── */
+    .reviews-section { border-top: 1px solid var(--stone-200); margin-top: 2rem; padding-top: 2rem; }
+    .reviews-section h2 { font-family: var(--font-heading); font-size: 1.75rem; font-weight: 400; margin-bottom: 1.5rem; }
+    .reviews-summary { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--stone-200); }
+    .reviews-summary-rating { font-size: 2rem; font-weight: 500; color: var(--stone-900); }
+    .reviews-summary-stars { display: flex; align-items: center; gap: 2px; }
+    .reviews-summary-count { font-size: 0.875rem; color: var(--stone-500); }
+    .review-card { padding: 1.25rem 0; border-bottom: 1px solid var(--stone-100); }
+    .review-card:last-child { border-bottom: none; }
+    .review-card-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+    .review-card-author { font-weight: 500; font-size: 0.875rem; }
+    .review-card-date { font-size: 0.75rem; color: var(--stone-400); }
+    .review-card-title { font-weight: 500; margin: 0.5rem 0 0.25rem; }
+    .review-card-body { font-size: 0.875rem; color: var(--stone-600); line-height: 1.6; }
+    .review-form { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--stone-200); }
+    .review-form h3 { font-family: var(--font-heading); font-size: 1.25rem; font-weight: 400; margin-bottom: 1rem; }
+    .star-picker { display: flex; gap: 4px; margin-bottom: 1rem; }
+    .star-picker button { background: none; border: none; padding: 0; cursor: pointer; color: var(--stone-300); font-size: 1.5rem; transition: color 0.15s; }
+    .star-picker button.active, .star-picker button.hover { color: #c8a97e; }
+    .review-form input, .review-form textarea { width: 100%; padding: 0.625rem 0.75rem; border: 1px solid var(--stone-300); font-family: inherit; font-size: 0.875rem; margin-bottom: 0.75rem; box-sizing: border-box; }
+    .review-form textarea { min-height: 80px; resize: vertical; }
+    .review-form .btn { margin-top: 0.25rem; }
+    .review-login-prompt { font-size: 0.875rem; color: var(--stone-500); margin-top: 1.5rem; }
+    .review-login-prompt a { color: var(--stone-900); text-decoration: underline; cursor: pointer; }
+
+    /* ── STOCK ALERTS ── */
+    .stock-alert-box { background: var(--stone-50); border: 1px solid var(--stone-200); padding: 1rem 1.25rem; margin-top: 1rem; }
+    .stock-alert-box p { font-size: 0.875rem; color: var(--stone-600); margin: 0 0 0.75rem; }
+    .stock-alert-form { display: flex; gap: 0.5rem; }
+    .stock-alert-form input { flex: 1; padding: 0.5rem 0.75rem; border: 1px solid var(--stone-300); font-family: inherit; font-size: 0.875rem; }
+    .stock-alert-btn { background: var(--stone-900); color: white; border: none; padding: 0.5rem 1.25rem; font-family: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
+    .stock-alert-btn:hover { background: var(--stone-800); }
+    .stock-alert-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .stock-alert-success { font-size: 0.8125rem; color: #166534; display: flex; align-items: center; gap: 0.5rem; }
+
     /* ── QUICK VIEW MODAL ── */
     .quick-view-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 600; display: flex; align-items: center; justify-content: center; }
     .quick-view { background: white; max-width: 900px; width: 92%; max-height: 90vh; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; position: relative; border-radius: 8px; }
@@ -914,6 +949,17 @@
       };
       const info = map[status] || { label: 'Check Availability', cls: 'unknown' };
       return React.createElement('span', { className: `stock-badge stock-badge--${info.cls}` }, info.label);
+    }
+
+    function StarDisplay({ rating, size = 16, color = '#c8a97e' }) {
+      const stars = [];
+      for (let i = 1; i <= 5; i++) {
+        const fill = i <= Math.round(rating) ? color : '#d6d3d1';
+        stars.push(React.createElement('svg', { key: i, width: size, height: size, viewBox: '0 0 24 24', fill: fill, xmlns: 'http://www.w3.org/2000/svg' },
+          React.createElement('path', { d: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' })
+        ));
+      }
+      return React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '2px' } }, stars);
     }
 
     const stripeInstance = (typeof Stripe !== 'undefined') ? Stripe('pk_test_51SzdrRAASarADPs5BQucZOHBLTPXAaFpGajCToKwXCjdVCasoYHDm3guDjMoEeQhhLr71AWiFPgq91BE2ggj2wNf004DucWYlf') : null;
@@ -1587,8 +1633,23 @@
           const ldEl = document.getElementById('dynamic-jsonld');
           if (ldEl) ldEl.remove();
         }
+
+        // Paginated browse pages: noindex to prevent duplicate content
+        if (view === 'browse' && currentPage > 1) {
+          let robotsMeta = document.querySelector('meta[data-paginated="true"]');
+          if (!robotsMeta) {
+            robotsMeta = document.createElement('meta');
+            robotsMeta.setAttribute('name', 'robots');
+            robotsMeta.setAttribute('data-paginated', 'true');
+            document.head.appendChild(robotsMeta);
+          }
+          robotsMeta.setAttribute('content', 'noindex,follow');
+        } else {
+          const robotsMeta = document.querySelector('meta[data-paginated="true"]');
+          if (robotsMeta) robotsMeta.remove();
+        }
         // Lock body scroll when cart drawer is open
-      }, [view, selectedCategory, selectedCollection, categories]);
+      }, [view, selectedCategory, selectedCollection, categories, currentPage]);
 
       return (
         <>
@@ -1653,6 +1714,8 @@
               tradeCustomer={tradeCustomer}
               wishlist={wishlist} toggleWishlist={toggleWishlist}
               recentlyViewed={recentlyViewed} addRecentlyViewed={addRecentlyViewed}
+              customer={customer} customerToken={customerToken}
+              onShowAuth={() => { setAuthModalMode('login'); setShowAuthModal(true); }}
             />
           )}
 
@@ -2663,7 +2726,7 @@
 
     // ==================== SKU Detail View ====================
 
-    function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, tradeCustomer, wishlist, toggleWishlist, recentlyViewed, addRecentlyViewed }) {
+    function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, tradeCustomer, wishlist, toggleWishlist, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth }) {
       const [sku, setSku] = useState(null);
       const [media, setMedia] = useState([]);
       const [siblings, setSiblings] = useState([]);
@@ -2685,6 +2748,23 @@
       const [roomWidth, setRoomWidth] = useState('');
       const [roomLength, setRoomLength] = useState('');
       const [linearFeet, setLinearFeet] = useState('');
+
+      // Review state
+      const [reviews, setReviews] = useState([]);
+      const [avgRating, setAvgRating] = useState(0);
+      const [reviewCount, setReviewCount] = useState(0);
+      const [reviewRating, setReviewRating] = useState(0);
+      const [reviewHover, setReviewHover] = useState(0);
+      const [reviewTitle, setReviewTitle] = useState('');
+      const [reviewBody, setReviewBody] = useState('');
+      const [reviewSubmitting, setReviewSubmitting] = useState(false);
+      const [reviewSubmitted, setReviewSubmitted] = useState(false);
+
+      // Stock alert state
+      const [alertEmail, setAlertEmail] = useState('');
+      const [alertSubscribed, setAlertSubscribed] = useState(false);
+      const [alertLoading, setAlertLoading] = useState(false);
+      const [alertSuccess, setAlertSuccess] = useState(false);
 
       useEffect(() => {
         setLoading(true);
@@ -2719,26 +2799,35 @@
               const skuDesc = cleanDescription(data.sku.description_short, data.sku.vendor_name) || ('Premium ' + data.sku.product_name + ' from Roma Flooring Designs');
               const skuImage = (data.media && data.media[0]) ? data.media[0].url : null;
               updateSEO({ title: skuTitle, description: skuDesc, url: SITE_URL + '/shop/sku/' + skuId, image: skuImage });
-              // Dynamic JSON-LD Product schema
-              setDynamicJsonLd({
-                '@context': 'https://schema.org', '@graph': [
-                  { '@type': 'Product', name: data.sku.product_name, description: skuDesc, image: skuImage,
-                    sku: data.sku.sku_code || String(data.sku.sku_id),
-                    mpn: data.sku.sku_code || '',
-                    brand: { '@type': 'Brand', name: data.sku.vendor_name || 'Roma Flooring Designs' },
-                    category: data.sku.category_name || '',
-                    offers: { '@type': 'Offer', url: SITE_URL + '/shop/sku/' + skuId, priceCurrency: 'USD',
-                      price: parseFloat(data.sku.retail_price || 0).toFixed(2),
-                      availability: data.sku.stock_status === 'in_stock' ? 'https://schema.org/InStock' : 'https://schema.org/PreOrder',
-                      seller: { '@type': 'Organization', name: 'Roma Flooring Designs' } } },
-                  { '@type': 'BreadcrumbList', itemListElement: [
-                    { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
-                    { '@type': 'ListItem', position: 2, name: 'Shop', item: SITE_URL + '/shop' },
-                    data.sku.category_name ? { '@type': 'ListItem', position: 3, name: data.sku.category_name, item: SITE_URL + '/shop?category=' + (data.sku.category_slug || '') } : null,
-                    { '@type': 'ListItem', position: data.sku.category_name ? 4 : 3, name: data.sku.product_name, item: SITE_URL + '/shop/sku/' + skuId }
-                  ].filter(Boolean) }
-                ]
-              });
+              // Fetch reviews for this product
+              fetch(API + '/api/storefront/products/' + data.sku.product_id + '/reviews')
+                .then(r => r.json())
+                .then(revData => {
+                  setReviews(revData.reviews || []);
+                  setAvgRating(revData.average_rating || 0);
+                  setReviewCount(revData.review_count || 0);
+                  // Pre-fill form if customer already reviewed
+                  if (customer) {
+                    const existing = (revData.reviews || []).find(r => r.first_name === customer.first_name);
+                    if (existing) {
+                      setReviewRating(existing.rating);
+                      setReviewTitle(existing.title || '');
+                      setReviewBody(existing.body || '');
+                      setReviewSubmitted(true);
+                    }
+                  }
+                })
+                .catch(() => {});
+              // Check stock alert subscription for out-of-stock items
+              if (data.sku.stock_status === 'out_of_stock' && data.sku.vendor_has_inventory !== false) {
+                const alertEmail = customer ? customer.email : '';
+                if (alertEmail) {
+                  fetch(API + '/api/storefront/stock-alerts/check?sku_id=' + data.sku.sku_id + '&email=' + encodeURIComponent(alertEmail))
+                    .then(r => r.json())
+                    .then(d => { if (d.subscribed) setAlertSubscribed(true); })
+                    .catch(() => {});
+                }
+              }
             }
           })
           .catch(err => {
@@ -2747,6 +2836,36 @@
             setLoading(false);
           });
       }, [skuId]);
+
+      // JSON-LD Product schema with aggregateRating
+      useEffect(() => {
+        if (!sku) return;
+        const skuDesc = cleanDescription(sku.description_short, sku.vendor_name) || ('Premium ' + sku.product_name + ' from Roma Flooring Designs');
+        const skuImage = (media && media[0]) ? media[0].url : null;
+        const product = {
+          '@type': 'Product', name: sku.product_name, description: skuDesc, image: skuImage,
+          sku: sku.sku_code || String(sku.sku_id),
+          mpn: sku.sku_code || '',
+          brand: { '@type': 'Brand', name: sku.vendor_name || 'Roma Flooring Designs' },
+          category: sku.category_name || '',
+          offers: { '@type': 'Offer', url: SITE_URL + '/shop/sku/' + skuId, priceCurrency: 'USD',
+            price: parseFloat(sku.retail_price || 0).toFixed(2),
+            availability: sku.stock_status === 'in_stock' ? 'https://schema.org/InStock' : 'https://schema.org/PreOrder',
+            seller: { '@type': 'Organization', name: 'Roma Flooring Designs' } }
+        };
+        if (reviewCount > 0) {
+          product.aggregateRating = { '@type': 'AggregateRating', ratingValue: avgRating.toFixed(1), reviewCount: reviewCount, bestRating: 5, worstRating: 1 };
+        }
+        setDynamicJsonLd({ '@context': 'https://schema.org', '@graph': [
+          product,
+          { '@type': 'BreadcrumbList', itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Shop', item: SITE_URL + '/shop' },
+            sku.category_name ? { '@type': 'ListItem', position: 3, name: sku.category_name, item: SITE_URL + '/shop?category=' + (sku.category_slug || '') } : null,
+            { '@type': 'ListItem', position: sku.category_name ? 4 : 3, name: sku.product_name, item: SITE_URL + '/shop/sku/' + skuId }
+          ].filter(Boolean) }
+        ]});
+      }, [sku, media, avgRating, reviewCount]);
 
       // Sync sqft <-> boxes
       const sqftPerBox = sku ? parseFloat(sku.sqft_per_box) || 0 : 0;
@@ -2814,6 +2933,43 @@
       const isSqftNoBox = !isPerUnit && sqftPerBox <= 0;
       const unitSubtotal = unitQty * effectivePrice;
       const sqftOnlySubtotal = (parseFloat(sqftInput) || 0) * effectivePrice;
+
+      const handleReviewSubmit = async () => {
+        if (!customer || !customerToken || reviewRating < 1) return;
+        setReviewSubmitting(true);
+        try {
+          const resp = await fetch(API + '/api/storefront/products/' + sku.product_id + '/reviews', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Customer-Token': customerToken },
+            body: JSON.stringify({ rating: reviewRating, title: reviewTitle, body: reviewBody })
+          });
+          if (resp.ok) {
+            setReviewSubmitted(true);
+            // Refresh reviews
+            const revData = await (await fetch(API + '/api/storefront/products/' + sku.product_id + '/reviews')).json();
+            setReviews(revData.reviews || []);
+            setAvgRating(revData.average_rating || 0);
+            setReviewCount(revData.review_count || 0);
+          }
+        } catch (err) { console.error('Review submit error:', err); }
+        setReviewSubmitting(false);
+      };
+
+      const handleStockAlertSubmit = async () => {
+        const email = customer ? customer.email : alertEmail;
+        if (!email || !sku) return;
+        setAlertLoading(true);
+        try {
+          const headers = { 'Content-Type': 'application/json' };
+          if (customerToken) headers['X-Customer-Token'] = customerToken;
+          const resp = await fetch(API + '/api/storefront/stock-alerts', {
+            method: 'POST', headers,
+            body: JSON.stringify({ sku_id: sku.sku_id, email })
+          });
+          if (resp.ok) { setAlertSuccess(true); setAlertSubscribed(true); }
+        } catch (err) { console.error('Stock alert error:', err); }
+        setAlertLoading(false);
+      };
 
       const handleAddToCart = () => {
         if (!sku) return;
@@ -3101,6 +3257,35 @@
               })()}
 
               <StockBadge status={sku.stock_status} vendorHasInventory={sku.vendor_has_inventory} />
+
+              {/* Stock Alert — Notify Me */}
+              {sku.stock_status === 'out_of_stock' && sku.vendor_has_inventory !== false && (
+                <div className="stock-alert-box">
+                  {alertSuccess || alertSubscribed ? (
+                    <div className="stock-alert-success">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+                      We'll notify you when this item is back in stock
+                    </div>
+                  ) : customer ? (
+                    <>
+                      <p>Get notified when this item is back in stock</p>
+                      <button className="stock-alert-btn" onClick={handleStockAlertSubmit} disabled={alertLoading}>
+                        {alertLoading ? 'Subscribing...' : 'Notify Me When Available'}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p>Get notified when this item is back in stock</p>
+                      <div className="stock-alert-form">
+                        <input type="email" placeholder="Enter your email" value={alertEmail} onChange={e => setAlertEmail(e.target.value)} />
+                        <button className="stock-alert-btn" onClick={handleStockAlertSubmit} disabled={alertLoading || !alertEmail}>
+                          {alertLoading ? 'Subscribing...' : 'Notify Me'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Matching Accessories */}
               {accessorySiblings.length > 0 && (
@@ -3481,6 +3666,56 @@
                 </div>
               </div>
             )}
+
+            {/* Customer Reviews */}
+            <div className="reviews-section">
+              <h2>Customer Reviews</h2>
+              {reviewCount > 0 && (
+                <div className="reviews-summary">
+                  <div className="reviews-summary-rating">{avgRating.toFixed(1)}</div>
+                  <div className="reviews-summary-stars"><StarDisplay rating={avgRating} size={20} /></div>
+                  <div className="reviews-summary-count">{reviewCount} review{reviewCount !== 1 ? 's' : ''}</div>
+                </div>
+              )}
+              {reviews.length > 0 ? reviews.map(r => (
+                <div key={r.id} className="review-card">
+                  <div className="review-card-header">
+                    <StarDisplay rating={r.rating} size={14} />
+                    <span className="review-card-author">{r.first_name}</span>
+                    <span className="review-card-date">{new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                  </div>
+                  {r.title && <div className="review-card-title">{r.title}</div>}
+                  {r.body && <div className="review-card-body">{r.body}</div>}
+                </div>
+              )) : (
+                <p style={{ color: 'var(--stone-400)', fontSize: '0.875rem' }}>No reviews yet. Be the first to share your experience.</p>
+              )}
+
+              {customer ? (
+                <div className="review-form">
+                  <h3>{reviewSubmitted ? 'Update Your Review' : 'Write a Review'}</h3>
+                  <div className="star-picker">
+                    {[1,2,3,4,5].map(i => (
+                      <button key={i}
+                        className={(i <= (reviewHover || reviewRating) ? 'active' : '') + (i <= reviewHover ? ' hover' : '')}
+                        onMouseEnter={() => setReviewHover(i)}
+                        onMouseLeave={() => setReviewHover(0)}
+                        onClick={() => setReviewRating(i)}
+                      >&#9733;</button>
+                    ))}
+                  </div>
+                  <input type="text" placeholder="Review title (optional)" value={reviewTitle} onChange={e => setReviewTitle(e.target.value)} maxLength={200} />
+                  <textarea placeholder="Share your experience with this product..." value={reviewBody} onChange={e => setReviewBody(e.target.value)} />
+                  <button className="btn" onClick={handleReviewSubmit} disabled={reviewSubmitting || reviewRating < 1}>
+                    {reviewSubmitting ? 'Submitting...' : reviewSubmitted ? 'Update Review' : 'Submit Review'}
+                  </button>
+                </div>
+              ) : (
+                <p className="review-login-prompt">
+                  <a onClick={onShowAuth}>Sign in</a> to write a review
+                </p>
+              )}
+            </div>
           </div>
         </>
       );

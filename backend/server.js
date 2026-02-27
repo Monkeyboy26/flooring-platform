@@ -11,7 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert } from './services/emailService.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import healthRoutes from './routes/health.js';
 
@@ -11686,6 +11686,62 @@ cron.schedule('*/15 * * * *', async () => {
   }
 });
 
+// ==================== Stock Alert Helper + Cron ====================
+
+async function checkAndSendStockAlerts(skuId, newQtyOnHand) {
+  if (newQtyOnHand <= 0) return;
+  try {
+    const alerts = await pool.query(`
+      SELECT sa.id, sa.email,
+        p.name as product_name, s.variant_name, s.internal_sku as sku_code, s.id as sku_id,
+        (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+      FROM stock_alerts sa
+      JOIN skus s ON s.id = sa.sku_id
+      JOIN products p ON p.id = s.product_id
+      WHERE sa.sku_id = $1 AND sa.status = 'active'
+    `, [skuId]);
+    for (const alert of alerts.rows) {
+      const productUrl = (process.env.SITE_URL || 'https://www.romaflooringdesigns.com') + '/shop/sku/' + alert.sku_id;
+      await sendStockAlert({
+        product_name: alert.product_name,
+        variant_name: alert.variant_name,
+        sku_code: alert.sku_code,
+        primary_image: alert.primary_image,
+        product_url: productUrl,
+        email: alert.email
+      });
+      await pool.query("UPDATE stock_alerts SET status = 'notified', notified_at = CURRENT_TIMESTAMP WHERE id = $1", [alert.id]);
+    }
+    if (alerts.rows.length > 0) {
+      console.log(`[StockAlerts] Notified ${alerts.rows.length} subscriber(s) for SKU ${skuId}`);
+    }
+  } catch (err) {
+    console.error('[StockAlerts] Error sending alerts:', err.message);
+  }
+}
+
+// Check stock alerts every 30 minutes
+cron.schedule('*/30 * * * *', async () => {
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT sa.sku_id, inv.qty_on_hand
+      FROM stock_alerts sa
+      JOIN inventory_snapshots inv ON inv.sku_id = sa.sku_id
+      WHERE sa.status = 'active'
+        AND inv.qty_on_hand > 0
+        AND inv.fresh_until > NOW()
+    `);
+    for (const row of result.rows) {
+      await checkAndSendStockAlerts(row.sku_id, row.qty_on_hand);
+    }
+    if (result.rows.length > 0) {
+      console.log(`[StockAlerts Cron] Checked ${result.rows.length} SKU(s) with active alerts and fresh inventory`);
+    }
+  } catch (err) {
+    console.error('[StockAlerts Cron] Error:', err.message);
+  }
+});
+
 // ==================== Membership Lifecycle Cron Jobs ====================
 
 // Run daily at 6 AM UTC
@@ -12005,6 +12061,96 @@ app.post('/api/wishlist/sync', customerAuth, async (req, res) => {
     res.json({ product_ids: result.rows.map(r => r.product_id) });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Product Reviews ====================
+
+app.get('/api/storefront/products/:productId/reviews', async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const reviews = await pool.query(`
+      SELECT pr.id, pr.rating, pr.title, pr.body, pr.created_at, c.first_name
+      FROM product_reviews pr
+      JOIN customers c ON c.id = pr.customer_id
+      WHERE pr.product_id = $1
+      ORDER BY pr.created_at DESC
+    `, [productId]);
+    const stats = await pool.query(`
+      SELECT COALESCE(AVG(rating), 0) as average_rating, COUNT(*)::int as review_count
+      FROM product_reviews WHERE product_id = $1
+    `, [productId]);
+    res.json({
+      reviews: reviews.rows,
+      average_rating: parseFloat(parseFloat(stats.rows[0].average_rating).toFixed(1)),
+      review_count: stats.rows[0].review_count
+    });
+  } catch (err) {
+    console.error('Get reviews error:', err);
+    res.status(500).json({ error: 'Failed to fetch reviews' });
+  }
+});
+
+app.post('/api/storefront/products/:productId/reviews', customerAuth, async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { rating, title, body } = req.body;
+    if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be 1-5' });
+    const result = await pool.query(`
+      INSERT INTO product_reviews (product_id, customer_id, rating, title, body)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (product_id, customer_id)
+      DO UPDATE SET rating = EXCLUDED.rating, title = EXCLUDED.title, body = EXCLUDED.body, created_at = CURRENT_TIMESTAMP
+      RETURNING id, rating, title, body, created_at
+    `, [productId, req.customer.id, rating, title || null, body || null]);
+    res.json({ review: { ...result.rows[0], first_name: req.customer.first_name } });
+  } catch (err) {
+    console.error('Submit review error:', err);
+    res.status(500).json({ error: 'Failed to submit review' });
+  }
+});
+
+// ==================== Stock Alerts ====================
+
+app.post('/api/storefront/stock-alerts', optionalCustomerAuth, async (req, res) => {
+  try {
+    const { sku_id, email } = req.body;
+    if (!sku_id || !email) return res.status(400).json({ error: 'sku_id and email required' });
+    const customerId = req.customer ? req.customer.id : null;
+    await pool.query(`
+      INSERT INTO stock_alerts (sku_id, email, customer_id)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (sku_id, email) DO UPDATE SET status = 'active', customer_id = COALESCE(EXCLUDED.customer_id, stock_alerts.customer_id)
+    `, [sku_id, email, customerId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Stock alert subscribe error:', err);
+    res.status(500).json({ error: 'Failed to subscribe' });
+  }
+});
+
+app.delete('/api/storefront/stock-alerts/:id', async (req, res) => {
+  try {
+    await pool.query("UPDATE stock_alerts SET status = 'cancelled' WHERE id = $1", [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Stock alert cancel error:', err);
+    res.status(500).json({ error: 'Failed to cancel alert' });
+  }
+});
+
+app.get('/api/storefront/stock-alerts/check', optionalCustomerAuth, async (req, res) => {
+  try {
+    const { sku_id, email } = req.query;
+    if (!sku_id || !email) return res.json({ subscribed: false });
+    const result = await pool.query(
+      "SELECT id FROM stock_alerts WHERE sku_id = $1 AND email = $2 AND status = 'active'",
+      [sku_id, email]
+    );
+    res.json({ subscribed: result.rows.length > 0, alert_id: result.rows[0]?.id });
+  } catch (err) {
+    console.error('Stock alert check error:', err);
+    res.status(500).json({ error: 'Failed to check alert' });
   }
 });
 

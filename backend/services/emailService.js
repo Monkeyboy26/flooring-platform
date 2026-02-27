@@ -15,6 +15,7 @@ import { generatePasswordResetHTML } from '../templates/passwordReset.js';
 import { generateVisitRecapHTML } from '../templates/visitRecap.js';
 import { generateSampleRequestConfirmationHTML } from '../templates/sampleRequestConfirmation.js';
 import { generateSampleRequestShippedHTML } from '../templates/sampleRequestShipped.js';
+import { generateStockAlertHTML } from '../templates/stockAlert.js';
 
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
@@ -578,5 +579,68 @@ export async function sendSampleRequestShipped(data) {
     console.log(`[Email] Sample request shipped sent to ${data.customer_email} for ${data.request_number}`);
   } catch (err) {
     console.error(`[Email] Failed to send sample request shipped for ${data.request_number}:`, err.message);
+  }
+}
+
+/**
+ * Send scraper failure notification to admin staff.
+ * Notifies SCRAPER_ALERT_EMAIL (or SMTP_FROM as fallback) when a scrape job fails.
+ */
+export async function sendScraperFailure({ source_name, scraper_key, job_id, error, started_at, duration_minutes }) {
+  const alertEmail = process.env.SCRAPER_ALERT_EMAIL || SMTP_FROM;
+  if (!transporter) {
+    console.log(`[Email] Skipping scraper failure alert for ${scraper_key} — SMTP not configured`);
+    return;
+  }
+  try {
+    const html = `
+      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #c0392b; margin-bottom: 16px;">Scraper Failed: ${source_name}</h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr><td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #666;">Scraper</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #eee; font-weight: 600;">${scraper_key}</td></tr>
+          <tr><td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #666;">Job ID</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #eee; font-family: monospace; font-size: 12px;">${job_id}</td></tr>
+          <tr><td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #666;">Started</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #eee;">${started_at ? new Date(started_at).toLocaleString() : 'N/A'}</td></tr>
+          ${duration_minutes != null ? `<tr><td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #666;">Duration</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #eee;">${duration_minutes} min</td></tr>` : ''}
+          <tr><td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #666;">Error</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #c0392b;">${error}</td></tr>
+        </table>
+        <p style="margin-top: 20px; font-size: 13px; color: #888;">Check the admin panel for full job logs.</p>
+      </div>
+    `;
+    await transporter.sendMail({
+      from: `"${BRAND_NAME} Alerts" <${SMTP_FROM}>`,
+      to: alertEmail,
+      subject: `[Scraper Alert] ${source_name} failed`,
+      html
+    });
+    console.log(`[Email] Scraper failure alert sent for ${scraper_key} (job ${job_id})`);
+  } catch (err) {
+    console.error(`[Email] Failed to send scraper failure alert for ${scraper_key}:`, err.message);
+  }
+}
+
+/**
+ * Send back-in-stock alert email.
+ */
+export async function sendStockAlert(data) {
+  if (!transporter) {
+    console.log(`[Email] Skipping stock alert for ${data.email} — SMTP not configured`);
+    return;
+  }
+  try {
+    const html = generateStockAlertHTML(data);
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: data.email,
+      subject: `Back in Stock — ${data.product_name}`,
+      html
+    });
+    console.log(`[Email] Stock alert sent to ${data.email} for ${data.product_name}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send stock alert to ${data.email}:`, err.message);
   }
 }
