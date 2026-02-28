@@ -895,6 +895,18 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         WHERE asset_type = 'primary' AND sku_id IS NULL
         ORDER BY product_id, sort_order
       ),
+      sku_alt_images AS (
+        SELECT DISTINCT ON (sku_id) sku_id, url
+        FROM media_assets
+        WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NOT NULL
+        ORDER BY sku_id, sort_order
+      ),
+      product_alt_images AS (
+        SELECT DISTINCT ON (product_id) product_id, url
+        FROM media_assets
+        WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NULL
+        ORDER BY product_id, sort_order
+      ),
       variant_counts AS (
         SELECT product_id, COUNT(*) as variant_count
         FROM skus
@@ -911,6 +923,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
           pr.retail_price, pr.price_basis,
           pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
           COALESCE(si.url, pi.url) as primary_image,
+          COALESCE(sai.url, pai.url) as alternate_image,
           CASE
             WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
             WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -927,6 +940,8 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
         LEFT JOIN sku_images si ON si.sku_id = s.id
         LEFT JOIN product_images pi ON pi.product_id = p.id
+        LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
+        LEFT JOIN product_alt_images pai ON pai.product_id = p.id
         LEFT JOIN variant_counts vc ON vc.product_id = p.id
         WHERE ${whereSQL}
         ORDER BY p.id, s.created_at
