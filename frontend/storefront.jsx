@@ -533,14 +533,16 @@
       // ---- Navigation ----
       const goBrowse = () => {
         setView('browse');
-        setSelectedCategory(null);
         setSelectedCollection(null);
         setSearchQuery('');
         setFilters({});
         setCurrentPage(1);
-        fetchSkus({ cat: null, coll: null, search: '', activeFilters: {}, page: 1 });
-        fetchFacets({ cat: null, coll: null, search: '', activeFilters: {} });
-        pushShopUrl(null, null, '', {});
+        // Auto-select first category instead of showing "Shop All"
+        const firstCat = categories.length > 0 ? categories[0].slug : null;
+        setSelectedCategory(firstCat);
+        fetchSkus({ cat: firstCat, coll: null, search: '', activeFilters: {}, page: 1 });
+        fetchFacets({ cat: firstCat, coll: null, search: '', activeFilters: {} });
+        pushShopUrl(firstCat, null, '', {});
         window.scrollTo(0, 0);
       };
 
@@ -786,6 +788,19 @@
         window.addEventListener('popstate', handlePop);
         return () => window.removeEventListener('popstate', handlePop);
       }, []);
+
+      // Auto-select first category on bare /shop when categories load
+      useEffect(() => {
+        if (view === 'browse' && categories.length > 0 && !selectedCategory && !selectedCollection && !searchQuery) {
+          const firstParent = categories[0];
+          if (firstParent && firstParent.slug) {
+            setSelectedCategory(firstParent.slug);
+            fetchSkus({ cat: firstParent.slug, coll: null, search: '', activeFilters: filters, page: 1 });
+            fetchFacets({ cat: firstParent.slug, coll: null, search: '', activeFilters: filters });
+            pushShopUrl(firstParent.slug, null, '', filters, true);
+          }
+        }
+      }, [view, categories]);
 
       // SEO updates on view change
       useEffect(() => {
@@ -1165,6 +1180,7 @@
                           {col.children.map(child => (
                             <a key={child.slug} onClick={() => onCategorySelect(child.slug)}>{child.name}</a>
                           ))}
+                          {col.children.length > 0 && <a className="mega-menu-view-all" onClick={() => onCategorySelect(col.slug)}>View All {col.name} &rarr;</a>}
                         </div>
                       ))}
                     </div>
@@ -1662,21 +1678,44 @@
       );
     }
 
+    // ==================== Category Hero ====================
+
+    function CategoryHero({ category, crumbs, searchQuery }) {
+      if (searchQuery) {
+        return (
+          <div className="category-hero" style={{ height: '160px' }}>
+            <Breadcrumbs items={crumbs} />
+            <h1>Search: "{searchQuery}"</h1>
+          </div>
+        );
+      }
+
+      const bgImage = category ? (category.banner_image || category.image_url) : null;
+      const style = bgImage ? { backgroundImage: 'url(' + bgImage + ')' } : {};
+
+      return (
+        <div className="category-hero" style={style}>
+          <Breadcrumbs items={crumbs} />
+          <h1>{category ? category.name : 'Shop All'}</h1>
+          {category && category.description && <p>{category.description}</p>}
+        </div>
+      );
+    }
+
     // ==================== Browse View ====================
 
     function BrowseView({ skus, totalSkus, loading, categories, selectedCategory, selectedCollection, searchQuery, onCategorySelect, facets, filters, onFilterToggle, onClearFilters, sortBy, onSortChange, onSkuClick, currentPage, onPageChange, wishlist, toggleWishlist, setQuickViewSku, filterDrawerOpen, setFilterDrawerOpen, goHome }) {
       const totalPages = Math.ceil(totalSkus / 72);
       const hasFilters = Object.keys(filters).length > 0;
 
-      let title = 'Shop All';
+      // Find the current category object (with description, banner_image, etc.)
+      let currentCategory = null;
       let categoryName = null;
-      if (searchQuery) title = 'Search: "' + searchQuery + '"';
-      else if (selectedCollection) title = selectedCollection;
-      else if (selectedCategory) {
+      if (selectedCategory) {
         const flat = [];
         categories.forEach(c => { flat.push(c); (c.children || []).forEach(ch => flat.push(ch)); });
-        const found = flat.find(c => c.slug === selectedCategory);
-        if (found) { title = found.name; categoryName = found.name; }
+        currentCategory = flat.find(c => c.slug === selectedCategory) || null;
+        if (currentCategory) categoryName = currentCategory.name;
       }
 
       const crumbs = [{ label: 'Home', onClick: goHome }, { label: 'Shop', onClick: !selectedCategory && !selectedCollection && !searchQuery ? undefined : () => onCategorySelect(null) }];
@@ -1686,12 +1725,7 @@
 
       return (
         <div className="browse-layout">
-          <div className="browse-header">
-            <div>
-              <Breadcrumbs items={crumbs} />
-              <h1>{title}</h1>
-            </div>
-          </div>
+          <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} />
 
           <div className="sidebar">
             <CategoryNav categories={categories} selectedCategory={selectedCategory} onCategorySelect={onCategorySelect} />

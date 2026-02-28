@@ -2773,7 +2773,7 @@
 
     // ========== CategoryFormView ==========
     function CategoryFormView({ navigate, editId }) {
-      const [form, setForm] = useState({ name: '', slug: '', parent_id: '', sort_order: 0 });
+      const [form, setForm] = useState({ name: '', slug: '', parent_id: '', sort_order: 0, description: '', banner_image: '' });
       const [categories, setCategories] = useState([]);
       const [loading, setLoading] = useState(!!editId);
       const [saving, setSaving] = useState(false);
@@ -2785,7 +2785,7 @@
           if (editId) {
             const cat = (data.flat || []).find(c => c.id === editId);
             if (cat) {
-              setForm({ name: cat.name || '', slug: cat.slug || '', parent_id: cat.parent_id || '', sort_order: cat.sort_order || 0 });
+              setForm({ name: cat.name || '', slug: cat.slug || '', parent_id: cat.parent_id || '', sort_order: cat.sort_order || 0, description: cat.description || '', banner_image: cat.banner_image || '' });
               setAutoSlug(false);
             }
             setLoading(false);
@@ -2857,6 +2857,15 @@
                 <label>Sort Order</label>
                 <input type="number" value={form.sort_order} onChange={e => setForm(prev => ({ ...prev, sort_order: e.target.value }))} />
               </div>
+            </div>
+            <div className="form-group" style={{ marginTop: '1.5rem' }}>
+              <label>Description</label>
+              <textarea rows="3" value={form.description} onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))} placeholder="Category description shown on the shop page hero banner" style={{ width: '100%', resize: 'vertical' }} />
+            </div>
+            <div className="form-group" style={{ marginTop: '1rem' }}>
+              <label>Banner Image URL</label>
+              <input value={form.banner_image} onChange={e => setForm(prev => ({ ...prev, banner_image: e.target.value }))} placeholder="https://... (hero banner background image)" />
+              {form.banner_image && <img src={form.banner_image} alt="Banner preview" style={{ marginTop: '0.5rem', maxHeight: '120px', borderRadius: '4px', objectFit: 'cover' }} />}
             </div>
           </div>
         </div>

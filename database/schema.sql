@@ -16,6 +16,8 @@ CREATE TABLE categories (
     name TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
     image_url TEXT,
+    description TEXT,
+    banner_image TEXT,
     sort_order INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

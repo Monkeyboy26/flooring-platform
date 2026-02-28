@@ -763,7 +763,7 @@ app.get('/api/categories', async (req, res) => {
         LEFT JOIN products p ON p.category_id = c.id AND p.status = 'active'
         GROUP BY c.id
       )
-      SELECT c.id, c.name, c.slug, c.parent_id, c.sort_order, c.image_url,
+      SELECT c.id, c.name, c.slug, c.parent_id, c.sort_order, c.image_url, c.description, c.banner_image,
         COALESCE(cc.product_count, 0) as product_count
       FROM categories c
       LEFT JOIN category_counts cc ON cc.id = c.id
@@ -780,7 +780,9 @@ app.get('/api/categories', async (req, res) => {
           id: ch.id,
           name: ch.name,
           slug: ch.slug,
-          product_count: ch.product_count
+          product_count: ch.product_count,
+          description: ch.description || null,
+          banner_image: ch.banner_image || null
         }));
       const parent_count = p.product_count + children.reduce((sum, ch) => sum + ch.product_count, 0);
       return {
@@ -788,6 +790,8 @@ app.get('/api/categories', async (req, res) => {
         name: p.name,
         slug: p.slug,
         image_url: p.image_url || null,
+        description: p.description || null,
+        banner_image: p.banner_image || null,
         product_count: parent_count,
         children
       };
@@ -3333,14 +3337,14 @@ app.get('/api/admin/categories', staffAuth, requireRole('admin', 'manager'), asy
 // Create category
 app.post('/api/admin/categories', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    const { name, slug, parent_id, sort_order } = req.body;
+    const { name, slug, parent_id, sort_order, description, banner_image } = req.body;
     if (!name || !slug) return res.status(400).json({ error: 'Name and slug are required' });
 
     const result = await pool.query(`
-      INSERT INTO categories (name, slug, parent_id, sort_order)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO categories (name, slug, parent_id, sort_order, description, banner_image)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
-    `, [name, slug, parent_id || null, sort_order || 0]);
+    `, [name, slug, parent_id || null, sort_order || 0, description || null, banner_image || null]);
     res.json({ category: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -3351,7 +3355,7 @@ app.post('/api/admin/categories', staffAuth, requireRole('admin', 'manager'), as
 app.put('/api/admin/categories/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, slug, parent_id, sort_order } = req.body;
+    const { name, slug, parent_id, sort_order, description, banner_image } = req.body;
 
     const result = await pool.query(`
       UPDATE categories SET
@@ -3359,10 +3363,12 @@ app.put('/api/admin/categories/:id', staffAuth, requireRole('admin', 'manager'),
         slug = COALESCE($2, slug),
         parent_id = COALESCE($3, parent_id),
         sort_order = COALESCE($4, sort_order),
+        description = $5,
+        banner_image = $6,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $5
+      WHERE id = $7
       RETURNING *
-    `, [name, slug, parent_id, sort_order, id]);
+    `, [name, slug, parent_id, sort_order, description || null, banner_image || null, id]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Category not found' });
     res.json({ category: result.rows[0] });
