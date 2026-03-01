@@ -780,6 +780,7 @@ app.get('/api/categories', async (req, res) => {
           id: ch.id,
           name: ch.name,
           slug: ch.slug,
+          image_url: ch.image_url || null,
           product_count: ch.product_count,
           description: ch.description || null,
           banner_image: ch.banner_image || null
