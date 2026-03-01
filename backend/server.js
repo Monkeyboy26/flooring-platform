@@ -11,11 +11,12 @@ import fs from 'fs';
 import path from 'path';
 import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder } from './services/emailService.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import healthRoutes from './routes/health.js';
 import { generate850 } from './services/ediGenerator.js';
 import { createSftpConnection, uploadFile } from './services/ediSftp.js';
+import { createRequire } from 'module';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 const easypost = process.env.EASYPOST_API_KEY ? new EasyPostClient(process.env.EASYPOST_API_KEY) : null;
@@ -23,6 +24,20 @@ const easypost = process.env.EASYPOST_API_KEY ? new EasyPostClient(process.env.E
 // Shipping configuration
 const WEIGHT_THRESHOLD_LBS = 150; // parcel vs LTL cutoff
 const SHIP_FROM = { zip: '92806', city: 'Anaheim', state: 'CA', country: 'US' };
+
+// ==================== Sales Tax (CA Static Rates) ====================
+
+const __require = createRequire(import.meta.url);
+const CA_TAX_RATES = __require('./data/ca-tax-rates.json');
+
+function calculateSalesTax(subtotal, shippingZip, isTaxExempt) {
+  if (isTaxExempt) return { rate: 0, amount: 0 };
+  if (!shippingZip || !shippingZip.startsWith('9')) return { rate: 0, amount: 0 };
+  const prefix = shippingZip.substring(0, 3);
+  const rate = CA_TAX_RATES[prefix] || 0.0725;
+  const amount = parseFloat((subtotal * rate).toFixed(2));
+  return { rate, amount };
+}
 
 // ==================== Document Helpers ====================
 
@@ -1499,6 +1514,24 @@ app.delete('/api/cart/:id', async (req, res) => {
   }
 });
 
+// Tax estimate for checkout
+app.get('/api/cart/tax-estimate', async (req, res) => {
+  try {
+    const { zip, session_id } = req.query;
+    if (!session_id) return res.status(400).json({ error: 'session_id is required' });
+
+    const result = await pool.query(
+      `SELECT COALESCE(SUM(subtotal), 0) as subtotal FROM cart_items WHERE session_id = $1 AND is_sample = false`,
+      [session_id]
+    );
+    const subtotal = parseFloat(result.rows[0].subtotal) || 0;
+    const { rate, amount } = calculateSalesTax(subtotal, zip, false);
+    res.json({ rate, amount, subtotal });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==================== Shipping API ====================
 
 async function getParcelRates(weightLbs, destination) {
@@ -1516,90 +1549,258 @@ async function getParcelRates(weightLbs, destination) {
   return { amount: parseFloat(sorted[0].rate), carrier: sorted[0].carrier, service: sorted[0].service };
 }
 
-// FreightView v2 OAuth2 token cache
-const FV_BASE = 'https://api.freightview.com';
-let fvToken = null;
-let fvTokenExpiry = 0;
+// ==================== Direct Carrier LTL Rate APIs ====================
+// Calls R+L Carriers, FedEx Freight, and Estes Express in parallel.
+// Each carrier is independent — missing env vars or API errors cause
+// that carrier to be silently skipped while others still return quotes.
 
-async function getFreightViewToken() {
-  if (fvToken && Date.now() < fvTokenExpiry) return fvToken;
+const LTL_TIMEOUT_MS = 5000;
 
-  const clientId = process.env.FREIGHTVIEW_CLIENT_ID;
-  const clientSecret = process.env.FREIGHTVIEW_CLIENT_SECRET;
-  if (!clientId || !clientSecret) throw new Error('FreightView credentials not configured');
+// --- FedEx Freight OAuth2 token cache ---
+let fedexToken = null;
+let fedexTokenExpiry = 0;
 
-  const resp = await fetch(FV_BASE + '/v2.0/auth/token', {
+async function getFedExToken() {
+  if (fedexToken && Date.now() < fedexTokenExpiry) return fedexToken;
+  const clientId = process.env.FEDEX_CLIENT_ID;
+  const clientSecret = process.env.FEDEX_CLIENT_SECRET;
+  if (!clientId || !clientSecret) throw new Error('FedEx credentials not configured');
+
+  const resp = await fetch('https://apis.fedex.com/oauth/token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'client_credentials',
-      client_id: clientId,
-      client_secret: clientSecret
-    })
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`,
+    signal: AbortSignal.timeout(LTL_TIMEOUT_MS)
   });
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error('FreightView auth failed (' + resp.status + '): ' + text);
-  }
-
+  if (!resp.ok) throw new Error('FedEx auth failed (' + resp.status + ')');
   const data = await resp.json();
-  fvToken = data.access_token;
-  // Token valid for 24hrs (86400s) — refresh 60s early
-  fvTokenExpiry = Date.now() + ((data.expires_in || 86400) - 60) * 1000;
-  return fvToken;
+  fedexToken = data.access_token;
+  fedexTokenExpiry = Date.now() + ((data.expires_in || 3600) - 60) * 1000;
+  return fedexToken;
 }
 
-async function getLTLRates(freightItems, destination, options = {}) {
-  const token = await getFreightViewToken();
-  const pickupDate = getNextBusinessDay();
-  const residential = options.residential !== false; // default true
-  const liftgate = options.liftgate !== false; // default true
+// --- Estes Express auth (API key + bearer token) ---
+let estesToken = null;
+let estesTokenExpiry = 0;
 
-  const resp = await fetch(FV_BASE + '/v2.0/shipments/ltl?returnQuotes=true&waitDuration=15', {
+async function getEstesAuth() {
+  if (estesToken && Date.now() < estesTokenExpiry) return estesToken;
+  const clientId = process.env.ESTES_CLIENT_ID;
+  const clientSecret = process.env.ESTES_CLIENT_SECRET;
+  const username = process.env.ESTES_USERNAME;
+  const password = process.env.ESTES_PASSWORD;
+  if (!clientId || !clientSecret || !username || !password) throw new Error('Estes credentials not configured');
+
+  const resp = await fetch('https://cloudapi.estes-express.com/authenticate', {
     method: 'POST',
     headers: {
-      'Authorization': 'Bearer ' + token,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'apikey': clientId,
+      'client_secret': clientSecret
     },
-    body: JSON.stringify({
-      pickupDate,
-      origin: {
-        postalCode: SHIP_FROM.zip,
-        country: 'us'
-      },
-      destination: {
-        postalCode: destination.zip,
-        country: 'us'
-      },
-      items: freightItems
-    })
+    body: JSON.stringify({ username, password }),
+    signal: AbortSignal.timeout(LTL_TIMEOUT_MS)
   });
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error('FreightView rate request failed (' + resp.status + '): ' + text);
-  }
-
+  if (!resp.ok) throw new Error('Estes auth failed (' + resp.status + ')');
   const data = await resp.json();
-  console.log('[FreightView] Response keys:', Object.keys(data), 'quotes count:', (data.quotes || []).length);
-  if (data.quotes && data.quotes.length > 0) {
-    console.log('[FreightView] First quote keys:', Object.keys(data.quotes[0]), JSON.stringify(data.quotes[0]));
+  estesToken = { apiKey: clientId, bearer: data.access_token || data.token };
+  estesTokenExpiry = Date.now() + ((data.expires_in || 3600) - 60) * 1000;
+  return estesToken;
+}
+
+// --- R+L Carriers rate quote ---
+async function getRLCRate(freightItems, destinationZip, options) {
+  const apiKey = process.env.RLC_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const resp = await fetch('https://api.rlc.com/RateQuote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apiKey': apiKey },
+      body: JSON.stringify({
+        Origin: { City: SHIP_FROM.city, StateOrProvince: SHIP_FROM.state, ZipOrPostalCode: SHIP_FROM.zip, CountryCode: 'USA' },
+        Destination: { ZipOrPostalCode: destinationZip, CountryCode: 'USA' },
+        Items: freightItems.map(item => ({
+          Class: String(item.freightClass),
+          Weight: String(item.weight)
+        })),
+        DeclaredValue: 0,
+        Accessorials: [
+          ...(options.residential ? ['ResidentialDelivery'] : []),
+          ...(options.liftgate ? ['LiftgateDelivery'] : [])
+        ],
+        PickupDate: getNextBusinessDay()
+      }),
+      signal: AbortSignal.timeout(LTL_TIMEOUT_MS)
+    });
+    if (!resp.ok) throw new Error('R+L rate failed (' + resp.status + ')');
+    const data = await resp.json();
+    const levels = data.ServiceLevels || data.serviceLevels || [];
+    if (levels.length === 0) return null;
+    // Pick the cheapest service level
+    const best = levels.reduce((a, b) => parseFloat(a.NetCharge || a.netCharge) < parseFloat(b.NetCharge || b.netCharge) ? a : b);
+    return {
+      carrier: 'R+L Carriers',
+      amount: parseFloat(parseFloat(best.NetCharge || best.netCharge).toFixed(2)),
+      service: best.Title || best.title || 'LTL Freight',
+      transit_days: parseInt(best.ServiceDays || best.serviceDays) || null
+    };
+  } catch (err) {
+    console.error('[LTL] R+L Carriers error:', err.message);
+    return null;
   }
-  const quotes = data.quotes || [];
+}
+
+// --- FedEx Freight rate quote ---
+async function getFedExFreightRate(freightItems, destinationZip, options) {
+  if (!process.env.FEDEX_CLIENT_ID || !process.env.FEDEX_CLIENT_SECRET) return null;
+  try {
+    const token = await getFedExToken();
+    const accountNumber = process.env.FEDEX_FREIGHT_ACCOUNT;
+    if (!accountNumber) return null;
+
+    const resp = await fetch('https://apis.fedex.com/rate/v1/rates/quotes', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'X-locale': 'en_US'
+      },
+      body: JSON.stringify({
+        accountNumber: { value: accountNumber },
+        rateRequestControlParameters: { returnTransitTimes: true },
+        requestedShipment: {
+          shipper: { address: { postalCode: SHIP_FROM.zip, countryCode: 'US' } },
+          recipient: { address: { postalCode: destinationZip, countryCode: 'US', residential: options.residential } },
+          serviceType: 'FEDEX_FREIGHT_ECONOMY',
+          freightShipmentDetail: {
+            role: 'SHIPPER',
+            accountNumber: { value: accountNumber },
+            lineItems: freightItems.map((item, i) => ({
+              id: String(i + 1),
+              freightClass: 'CLASS_' + item.freightClass,
+              weight: { value: item.weight, units: 'LB' },
+              pieces: item.quantity || 1,
+              packaging: 'PALLET',
+              description: 'Flooring materials'
+            }))
+          },
+          requestedPackageLineItems: [{ weight: { value: freightItems.reduce((s, i) => s + i.weight, 0), units: 'LB' } }],
+          pickupType: 'USE_SCHEDULED_PICKUP',
+          shipDateStamp: getNextBusinessDay()
+        }
+      }),
+      signal: AbortSignal.timeout(LTL_TIMEOUT_MS)
+    });
+    if (!resp.ok) throw new Error('FedEx Freight rate failed (' + resp.status + ')');
+    const data = await resp.json();
+    const details = (data.output && data.output.rateReplyDetails) || [];
+    if (details.length === 0) return null;
+    // Find the cheapest reply
+    let best = null;
+    for (const detail of details) {
+      for (const rated of (detail.ratedShipmentDetails || [])) {
+        const charge = parseFloat(rated.totalNetCharge || rated.totalNetFedExCharge || 0);
+        if (charge > 0 && (!best || charge < best.amount)) {
+          best = {
+            carrier: 'FedEx Freight',
+            amount: parseFloat(charge.toFixed(2)),
+            service: detail.serviceDescription?.description || detail.serviceType || 'FedEx Freight Economy',
+            transit_days: detail.commit?.dateDetail?.dayCount ? parseInt(detail.commit.dateDetail.dayCount) : null
+          };
+        }
+      }
+    }
+    return best;
+  } catch (err) {
+    console.error('[LTL] FedEx Freight error:', err.message);
+    return null;
+  }
+}
+
+// --- Estes Express rate quote ---
+async function getEstesRate(freightItems, destinationZip, options) {
+  if (!process.env.ESTES_CLIENT_ID || !process.env.ESTES_USERNAME) return null;
+  try {
+    const auth = await getEstesAuth();
+    const resp = await fetch('https://cloudapi.estes-express.com/v1/rate-quotes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': auth.apiKey,
+        'Authorization': 'Bearer ' + auth.bearer
+      },
+      body: JSON.stringify({
+        origin: { postalCode: SHIP_FROM.zip, countryCode: 'US' },
+        destination: { postalCode: destinationZip, countryCode: 'US' },
+        pickupDate: getNextBusinessDay(),
+        handlingUnits: [{
+          count: 1,
+          type: 'PLT',
+          weight: { value: freightItems.reduce((s, i) => s + i.weight, 0), unit: 'Pounds' }
+        }],
+        lineItems: freightItems.map(item => ({
+          classification: String(item.freightClass),
+          weight: { value: item.weight, unit: 'Pounds' },
+          pieces: item.quantity || 1,
+          description: 'Flooring materials'
+        })),
+        accessorials: [
+          ...(options.residential ? [{ code: 'RESDEL' }] : []),
+          ...(options.liftgate ? [{ code: 'LFGDEL' }] : [])
+        ]
+      }),
+      signal: AbortSignal.timeout(LTL_TIMEOUT_MS)
+    });
+    if (!resp.ok) throw new Error('Estes rate failed (' + resp.status + ')');
+    const data = await resp.json();
+    const quote = data.data || data;
+    const charges = parseFloat(quote.totalCharges || quote.total_charges || 0);
+    if (charges <= 0) return null;
+    return {
+      carrier: 'Estes Express',
+      amount: parseFloat(charges.toFixed(2)),
+      service: quote.serviceLevel || 'LTL Freight',
+      transit_days: parseInt(quote.transitDays || quote.transit_days) || null
+    };
+  } catch (err) {
+    console.error('[LTL] Estes Express error:', err.message);
+    return null;
+  }
+}
+
+// --- Multi-carrier LTL rate shop ---
+async function getLTLRates(freightItems, destination, options = {}) {
+  const residential = options.residential !== false;
+  const liftgate = options.liftgate !== false;
+  const opts = { residential, liftgate };
+
+  const results = await Promise.allSettled([
+    getRLCRate(freightItems, destination.zip, opts),
+    getFedExFreightRate(freightItems, destination.zip, opts),
+    getEstesRate(freightItems, destination.zip, opts)
+  ]);
+
+  const quotes = results
+    .filter(r => r.status === 'fulfilled' && r.value)
+    .map(r => r.value);
+
   if (quotes.length === 0) {
-    throw new Error('No LTL freight rates available for this destination');
+    throw new Error('No LTL freight rates available');
   }
-  const sorted = quotes.sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount));
-  return sorted.slice(0, 3).map((q, idx) => ({
-    id: 'fv-' + idx,
-    amount: parseFloat(parseFloat(q.amount).toFixed(2)),
-    carrier: q.providerName || 'LTL Carrier',
-    service: q.serviceType || 'LTL Freight',
-    transit_days: q.transitDays || q.transitTime || null,
-    is_cheapest: idx === 0,
-    is_fallback: false
-  }));
+
+  const sorted = quotes.sort((a, b) => a.amount - b.amount);
+  return {
+    shipmentId: null,
+    quotes: sorted.slice(0, 3).map((q, idx) => ({
+      id: 'ltl-' + idx,
+      amount: parseFloat(q.amount.toFixed(2)),
+      carrier: q.carrier,
+      service: q.service,
+      transit_days: q.transit_days,
+      is_cheapest: idx === 0,
+      is_fallback: false
+    }))
+  };
 }
 
 function getFallbackLTLEstimate(totalWeightLbs, destinationZip) {
@@ -1678,19 +1879,18 @@ async function calculateShipping(sessionId, destination, shippingOptions = {}) {
     }];
   } else {
     method = 'ltl_freight';
-    // Build one FreightView item per freight class
+    // Build one item per freight class for carrier rate APIs
     const freightItems = Object.entries(byFreightClass).map(([fc, weight]) => ({
       quantity: 1,
       weight: Math.ceil(weight),
-      weightUOM: 'lbs',
       freightClass: parseInt(fc),
-      description: 'Flooring materials',
-      type: 'pallet'
+      description: 'Flooring materials'
     }));
     try {
-      options = await getLTLRates(freightItems, destination, { residential, liftgate });
-    } catch (fvErr) {
-      console.error('FreightView API failed, using fallback:', fvErr.message);
+      const ltlResult = await getLTLRates(freightItems, destination, { residential, liftgate });
+      options = ltlResult.quotes;
+    } catch (ltlErr) {
+      console.error('LTL carrier APIs failed, using fallback:', ltlErr.message);
       options = getFallbackLTLEstimate(totalWeightLbs, destination.zip);
     }
   }
@@ -1756,15 +1956,14 @@ async function calculateShippingForOrder(orderId, destination, shippingOptions =
     const freightItems = Object.entries(byFreightClass).map(([fc, weight]) => ({
       quantity: 1,
       weight: Math.ceil(weight),
-      weightUOM: 'lbs',
       freightClass: parseInt(fc),
-      description: 'Flooring materials',
-      type: 'pallet'
+      description: 'Flooring materials'
     }));
     try {
-      options = await getLTLRates(freightItems, destination, { residential, liftgate });
-    } catch (fvErr) {
-      console.error('FreightView API failed, using fallback:', fvErr.message);
+      const ltlResult = await getLTLRates(freightItems, destination, { residential, liftgate });
+      options = ltlResult.quotes;
+    } catch (ltlErr) {
+      console.error('LTL carrier APIs failed, using fallback:', ltlErr.message);
       options = getFallbackLTLEstimate(totalWeightLbs, destination.zip);
     }
   }
@@ -2011,7 +2210,11 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
       promoCodeStr = promoResult.promo.code;
     }
 
-    const total = productSubtotal + shippingCost + sampleShipping - discountAmount;
+    // Calculate sales tax
+    const destZip = (delivery_method === 'pickup') ? SHIP_FROM.zip : (destination ? destination.zip : null);
+    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(productSubtotal, destZip, false);
+
+    const total = productSubtotal + shippingCost + sampleShipping + taxAmount - discountAmount;
 
     if (total <= 0) {
       return res.status(400).json({ error: 'Order total must be greater than zero' });
@@ -2030,7 +2233,9 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
       shipping: shippingCost,
       shipping_method: shippingMethod,
       discount_amount: discountAmount,
-      promo_code: promoCodeStr
+      promo_code: promoCodeStr,
+      tax_rate: taxRate,
+      tax_amount: taxAmount
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2241,7 +2446,11 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       promoCodeStr = promoResult.promo.code;
     }
 
-    const total = productSubtotal + shippingCost + sampleShipping - discountAmount;
+    // Calculate sales tax
+    const destZip = isPickup ? SHIP_FROM.zip : (shipping ? shipping.zip : null);
+    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(productSubtotal, destZip, is_tax_exempt);
+
+    const total = productSubtotal + shippingCost + sampleShipping + taxAmount - discountAmount;
     const tradeCustomerId = req.tradeCustomer ? req.tradeCustomer.id : null;
     const existingCustomerId = req.customer ? req.customer.id : null;
 
@@ -2255,8 +2464,9 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         subtotal, shipping, shipping_method, sample_shipping, total, stripe_payment_intent_id, delivery_method, status,
         trade_customer_id, po_number, is_tax_exempt, project_id,
         shipping_carrier, shipping_transit_days, shipping_residential, shipping_liftgate, shipping_is_fallback,
-        customer_id, promo_code_id, promo_code, discount_amount, amount_paid)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'confirmed', $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
+        customer_id, promo_code_id, promo_code, discount_amount, amount_paid,
+        tax_rate, tax_amount)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'confirmed', $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
       RETURNING *
     `, [orderNumber, session_id, customer_email, customer_name, phone || null,
         isPickup ? null : shipping.line1, isPickup ? null : (shipping.line2 || null),
@@ -2265,7 +2475,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         payment_intent_id, isPickup ? 'pickup' : 'shipping',
         tradeCustomerId, po_number || null, is_tax_exempt || false, project_id || null,
         selectedCarrier, selectedTransitDays, isResidential, isLiftgate, isFallback,
-        existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2), total.toFixed(2)]);
+        existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2), total.toFixed(2),
+        taxRate, taxAmount.toFixed(2)]);
 
     const order = orderResult.rows[0];
 
@@ -2451,7 +2662,7 @@ app.get('/api/admin/analytics', staffAuth, async (req, res) => {
     const dateFilter = sinceDate ? `AND o.created_at >= $1` : '';
     const params = sinceDate ? [sinceDate.toISOString()] : [];
 
-    const [summaryRes, costRes, revenueRes, topProductsRes, vendorRes, statusRes] = await Promise.all([
+    const [summaryRes, costRes, revenueRes, topProductsRes, vendorRes, statusRes, arRes, commRes] = await Promise.all([
       // 1. Summary stats
       pool.query(`
         SELECT COALESCE(SUM(total), 0) as revenue,
@@ -2525,7 +2736,22 @@ app.get('/api/admin/analytics', staffAuth, async (req, res) => {
         WHERE 1=1 ${dateFilter}
         GROUP BY status
         ORDER BY count DESC
-      `, params)
+      `, params),
+
+      // 7. Outstanding AR balance
+      pool.query(`
+        SELECT COALESCE(SUM(balance), 0) as outstanding_balance,
+               COUNT(*) FILTER (WHERE status = 'overdue')::int as overdue_count,
+               COUNT(*)::int as open_count
+        FROM invoices WHERE status IN ('sent', 'partial', 'overdue')
+      `),
+
+      // 8. Pending commissions
+      pool.query(`
+        SELECT COALESCE(SUM(commission_amount), 0) as pending_commissions,
+               COUNT(*)::int as pending_count
+        FROM rep_commissions WHERE status IN ('pending', 'earned')
+      `)
     ]);
 
     const revenue = parseFloat(summaryRes.rows[0].revenue);
@@ -2560,7 +2786,16 @@ app.get('/api/admin/analytics', staffAuth, async (req, res) => {
           ? parseFloat((((parseFloat(r.revenue) - parseFloat(r.cost)) / parseFloat(r.revenue)) * 100).toFixed(1))
           : 0
       })),
-      order_status: statusRes.rows
+      order_status: statusRes.rows,
+      outstanding_ar: {
+        balance: parseFloat(arRes.rows[0].outstanding_balance),
+        overdue_count: arRes.rows[0].overdue_count,
+        open_count: arRes.rows[0].open_count
+      },
+      pending_commissions: {
+        total: parseFloat(commRes.rows[0].pending_commissions),
+        count: commRes.rows[0].pending_count
+      }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -3579,6 +3814,11 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
 
     // Fire-and-forget: send status update email for shipped/delivered/cancelled
     setImmediate(() => sendOrderStatusUpdate(updatedOrder, status));
+
+    // Auto-generate and send invoice when order ships
+    if (status === 'shipped') {
+      setImmediate(() => autoGenerateAndSendInvoice(id));
+    }
 
     // Notify assigned rep about admin status change
     if (updatedOrder.sales_rep_id) {
@@ -6256,6 +6496,9 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [order_id]);
           if (orderResult.rows.length) {
             setImmediate(() => sendPaymentReceived(orderResult.rows[0], paidAmount));
+
+            // Auto-generate invoice on payment completion
+            setImmediate(() => autoGenerateAndSendInvoice(order_id));
 
             // Notify assigned rep about payment received
             if (orderResult.rows[0].sales_rep_id) {
@@ -11533,11 +11776,11 @@ app.get('/api/admin/trade-customers', staffAuth, requireRole('admin', 'manager',
 
 app.put('/api/admin/trade-customers/:id', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
   try {
-    const { status, margin_tier_id, notes } = req.body;
+    const { status, margin_tier_id, notes, payment_terms } = req.body;
     const result = await pool.query(
       `UPDATE trade_customers SET status = COALESCE($1, status), margin_tier_id = COALESCE($2, margin_tier_id),
-       notes = COALESCE($3, notes), updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *`,
-      [status, margin_tier_id, notes, req.params.id]
+       notes = COALESCE($3, notes), payment_terms = COALESCE($4, payment_terms), updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *`,
+      [status, margin_tier_id, notes, payment_terms, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Trade customer not found' });
 
@@ -11885,6 +12128,982 @@ app.post('/api/admin/customers/:id/notes', staffAuth, requireRole('admin', 'mana
   }
 });
 
+// ==================== Accounting Module ====================
+
+// --- Receipt upload multer ---
+const receiptUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, allowed.includes(ext));
+  }
+});
+
+// --- Expense Categories ---
+app.get('/api/admin/accounting/expense-categories', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM expense_categories ORDER BY sort_order, name');
+    res.json({ categories: result.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/accounting/expense-categories', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { name, expense_type, parent_id } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const maxSort = await pool.query('SELECT COALESCE(MAX(sort_order), 0) + 1 as next FROM expense_categories');
+    const result = await pool.query(
+      `INSERT INTO expense_categories (name, slug, expense_type, parent_id, sort_order)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [name, slug, expense_type || 'operating', parent_id || null, maxSort.rows[0].next]
+    );
+    res.json({ category: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/accounting/expense-categories/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { name, expense_type, is_active } = req.body;
+    const result = await pool.query(
+      `UPDATE expense_categories SET name = COALESCE($1, name), expense_type = COALESCE($2, expense_type),
+       is_active = COALESCE($3, is_active) WHERE id = $4 RETURNING *`,
+      [name, expense_type, is_active, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json({ category: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// --- Expenses CRUD ---
+app.get('/api/admin/accounting/expenses', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { category_id, from, to, search, limit = 50, offset = 0 } = req.query;
+    const conditions = [];
+    const params = [];
+    if (category_id) { params.push(category_id); conditions.push(`e.category_id = $${params.length}`); }
+    if (from) { params.push(from); conditions.push(`e.expense_date >= $${params.length}`); }
+    if (to) { params.push(to); conditions.push(`e.expense_date <= $${params.length}`); }
+    if (search) { params.push(`%${search}%`); conditions.push(`(e.vendor_name ILIKE $${params.length} OR e.description ILIKE $${params.length})`); }
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const countResult = await pool.query(`SELECT COUNT(*) FROM expenses e ${where}`, params);
+    params.push(parseInt(limit)); params.push(parseInt(offset));
+    const result = await pool.query(
+      `SELECT e.*, ec.name as category_name, ec.expense_type,
+        sa.first_name || ' ' || sa.last_name as created_by_name
+       FROM expenses e
+       LEFT JOIN expense_categories ec ON ec.id = e.category_id
+       LEFT JOIN staff_accounts sa ON sa.id = e.created_by
+       ${where} ORDER BY e.expense_date DESC, e.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`, params
+    );
+    res.json({ expenses: result.rows, total: parseInt(countResult.rows[0].count) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/accounting/expenses', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { expense_date, category_id, vendor_name, description, amount, payment_method, reference_number, is_recurring, notes } = req.body;
+    if (!category_id || !amount) return res.status(400).json({ error: 'Category and amount are required' });
+    const result = await pool.query(
+      `INSERT INTO expenses (expense_date, category_id, vendor_name, description, amount, payment_method, reference_number, is_recurring, notes, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [expense_date || new Date(), category_id, vendor_name, description, amount, payment_method, reference_number, is_recurring || false, notes, req.staff.id]
+    );
+    res.json({ expense: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/accounting/expenses/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { expense_date, category_id, vendor_name, description, amount, payment_method, reference_number, is_recurring, notes } = req.body;
+    const result = await pool.query(
+      `UPDATE expenses SET expense_date = COALESCE($1, expense_date), category_id = COALESCE($2, category_id),
+       vendor_name = $3, description = $4, amount = COALESCE($5, amount), payment_method = $6,
+       reference_number = $7, is_recurring = COALESCE($8, is_recurring), notes = $9, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $10 RETURNING *`,
+      [expense_date, category_id, vendor_name, description, amount, payment_method, reference_number, is_recurring, notes, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json({ expense: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/admin/accounting/expenses/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM expenses WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json({ deleted: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/accounting/expenses/:id/receipt', staffAuth, requireRole('admin', 'manager'), receiptUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const fileKey = `receipts/${req.params.id}-${Date.now()}${ext}`;
+    await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
+    const url = await getSignedUrlFromS3(fileKey);
+    await pool.query('UPDATE expenses SET receipt_url = $1 WHERE id = $2', [fileKey, req.params.id]);
+    res.json({ receipt_url: url, file_key: fileKey });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/accounting/expenses/summary', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const conditions = [];
+    const params = [];
+    if (from) { params.push(from); conditions.push(`e.expense_date >= $${params.length}`); }
+    if (to) { params.push(to); conditions.push(`e.expense_date <= $${params.length}`); }
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const result = await pool.query(
+      `SELECT ec.id as category_id, ec.name as category_name, ec.expense_type,
+        COUNT(e.id)::int as count, COALESCE(SUM(e.amount), 0) as total
+       FROM expense_categories ec
+       LEFT JOIN expenses e ON e.category_id = ec.id ${where ? 'AND ' + conditions.join(' AND ') : ''}
+       WHERE ec.is_active = true
+       GROUP BY ec.id, ec.name, ec.expense_type
+       ORDER BY total DESC`, params
+    );
+    const grandTotal = result.rows.reduce((s, r) => s + parseFloat(r.total), 0);
+    res.json({ categories: result.rows, grand_total: grandTotal });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// --- Invoices (AR) ---
+async function getNextInvoiceNumber() {
+  const result = await pool.query("SELECT invoice_number FROM invoices ORDER BY created_at DESC LIMIT 1");
+  if (!result.rows.length) return 'INV-0001';
+  const last = result.rows[0].invoice_number;
+  const num = parseInt(last.replace(/\D/g, '')) || 0;
+  return 'INV-' + String(num + 1).padStart(4, '0');
+}
+
+function calculateDueDate(issueDate, terms) {
+  const d = new Date(issueDate);
+  switch (terms) {
+    case 'net_15': d.setDate(d.getDate() + 15); break;
+    case 'net_30': d.setDate(d.getDate() + 30); break;
+    case 'net_60': d.setDate(d.getDate() + 60); break;
+    default: break; // due_on_receipt = same day
+  }
+  return d.toISOString().split('T')[0];
+}
+
+// Auto-generate and send invoice for an order (idempotent)
+async function autoGenerateAndSendInvoice(orderId) {
+  try {
+    // Check if invoice already exists for this order
+    const existing = await pool.query('SELECT id, invoice_number FROM invoices WHERE order_id = $1 AND status != $2', [orderId, 'void']);
+    if (existing.rows.length) {
+      console.log(`[AutoInvoice] Invoice ${existing.rows[0].invoice_number} already exists for order ${orderId}, skipping`);
+      return;
+    }
+
+    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+    if (!order.rows.length) return;
+    const o = order.rows[0];
+
+    const orderItems = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [orderId]);
+
+    // Determine payment terms from trade customer
+    let terms = 'due_on_receipt';
+    if (o.trade_customer_id) {
+      const tc = await pool.query('SELECT payment_terms FROM trade_customers WHERE id = $1', [o.trade_customer_id]);
+      if (tc.rows.length && tc.rows[0].payment_terms) terms = tc.rows[0].payment_terms;
+    }
+
+    const invoice_number = await getNextInvoiceNumber();
+    const iDate = new Date().toISOString().split('T')[0];
+    const due_date = calculateDueDate(iDate, terms);
+    const subtotal = parseFloat(o.subtotal) || 0;
+    const shipping = parseFloat(o.shipping) || 0;
+    const discount = parseFloat(o.discount_amount) || 0;
+    const taxAmount = parseFloat(o.tax_amount) || 0;
+    const total = parseFloat(o.total) || 0;
+    const amountPaid = parseFloat(o.amount_paid) || 0;
+
+    const result = await pool.query(
+      `INSERT INTO invoices (invoice_number, order_id, customer_email, customer_name, trade_customer_id,
+        billing_address, payment_terms, issue_date, due_date, subtotal, shipping, discount_amount, tax_rate, tax_amount, total, amount_paid, notes, created_by,
+        status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
+      [invoice_number, orderId, o.customer_email, o.customer_name, o.trade_customer_id,
+       [o.shipping_address_line1, o.shipping_address_line2, o.shipping_city, o.shipping_state, o.shipping_zip].filter(Boolean).join(', '),
+       terms, iDate, due_date, subtotal, shipping, discount, parseFloat(o.tax_rate) || 0, taxAmount, total, amountPaid,
+       `Auto-generated from order ${o.order_number}`, null,
+       amountPaid >= total ? 'paid' : amountPaid > 0 ? 'partial' : 'sent']
+    );
+    const invoice = result.rows[0];
+
+    // Create invoice items from order items
+    for (let i = 0; i < orderItems.rows.length; i++) {
+      const oi = orderItems.rows[i];
+      const desc = [oi.product_name, oi.collection, oi.description].filter(Boolean).join(' — ');
+      await pool.query(
+        `INSERT INTO invoice_items (invoice_id, order_item_id, sku_id, description, qty, unit_price, subtotal, sort_order)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [invoice.id, oi.id, oi.sku_id, desc, oi.num_boxes, parseFloat(oi.unit_price) || 0, parseFloat(oi.subtotal) || 0, i]
+      );
+    }
+
+    // Link existing payments
+    if (amountPaid > 0) {
+      const orderPayments = await pool.query('SELECT * FROM order_payments WHERE order_id = $1 AND status = $2', [orderId, 'completed']);
+      for (const op of orderPayments.rows) {
+        await pool.query(
+          `INSERT INTO invoice_payments (invoice_id, order_payment_id, amount, payment_method, reference_number, payment_date)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [invoice.id, op.id, parseFloat(op.amount), op.payment_type || 'stripe', op.stripe_payment_intent_id, new Date(op.created_at).toISOString().split('T')[0]]
+        );
+      }
+      if (amountPaid >= total) {
+        await pool.query('UPDATE invoices SET paid_at = CURRENT_TIMESTAMP WHERE id = $1', [invoice.id]);
+      }
+    }
+
+    // Send invoice email with PDF
+    const items = await pool.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order', [invoice.id]);
+    try {
+      await sendInvoiceSent({ ...invoice, items: items.rows });
+    } catch (e) { console.log('[AutoInvoice] Email send skipped:', e.message); }
+
+    await pool.query('UPDATE invoices SET sent_at = CURRENT_TIMESTAMP WHERE id = $1', [invoice.id]);
+    console.log(`[AutoInvoice] Generated and sent ${invoice_number} for order ${o.order_number}`);
+  } catch (err) {
+    console.error('[AutoInvoice] Error for order', orderId, ':', err.message);
+  }
+}
+
+app.get('/api/admin/accounting/invoices', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { status, search, from, to, limit = 50, offset = 0 } = req.query;
+    const conditions = [];
+    const params = [];
+    if (status) { params.push(status); conditions.push(`i.status = $${params.length}`); }
+    if (search) { params.push(`%${search}%`); conditions.push(`(i.invoice_number ILIKE $${params.length} OR i.customer_name ILIKE $${params.length} OR i.customer_email ILIKE $${params.length})`); }
+    if (from) { params.push(from); conditions.push(`i.issue_date >= $${params.length}`); }
+    if (to) { params.push(to); conditions.push(`i.issue_date <= $${params.length}`); }
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const countResult = await pool.query(`SELECT COUNT(*) FROM invoices i ${where}`, params);
+    params.push(parseInt(limit)); params.push(parseInt(offset));
+    const result = await pool.query(
+      `SELECT i.*, o.order_number FROM invoices i
+       LEFT JOIN orders o ON o.id = i.order_id
+       ${where} ORDER BY i.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`, params
+    );
+    res.json({ invoices: result.rows, total: parseInt(countResult.rows[0].count) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/accounting/invoices/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const inv = await pool.query(
+      `SELECT i.*, o.order_number FROM invoices i LEFT JOIN orders o ON o.id = i.order_id WHERE i.id = $1`, [req.params.id]
+    );
+    if (!inv.rows.length) return res.status(404).json({ error: 'Invoice not found' });
+    const items = await pool.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order', [req.params.id]);
+    const payments = await pool.query(
+      `SELECT ip.*, sa.first_name || \' \' || sa.last_name as recorded_by_name
+       FROM invoice_payments ip LEFT JOIN staff_accounts sa ON sa.id = ip.recorded_by
+       WHERE ip.invoice_id = $1 ORDER BY ip.payment_date DESC`, [req.params.id]
+    );
+    res.json({ invoice: inv.rows[0], items: items.rows, payments: payments.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/accounting/invoices', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { customer_email, customer_name, trade_customer_id, billing_address, payment_terms, issue_date, notes, items } = req.body;
+    if (!items || !items.length) return res.status(400).json({ error: 'At least one line item is required' });
+    const invoice_number = await getNextInvoiceNumber();
+    const iDate = issue_date || new Date().toISOString().split('T')[0];
+    const terms = payment_terms || 'due_on_receipt';
+    const due_date = calculateDueDate(iDate, terms);
+    const subtotal = items.reduce((s, it) => s + (parseFloat(it.qty) * parseFloat(it.unit_price)), 0);
+    const total = subtotal;
+
+    const result = await pool.query(
+      `INSERT INTO invoices (invoice_number, customer_email, customer_name, trade_customer_id, billing_address,
+        payment_terms, issue_date, due_date, subtotal, total, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [invoice_number, customer_email, customer_name, trade_customer_id || null, billing_address, terms, iDate, due_date, subtotal, total, notes, req.staff.id]
+    );
+    const invoice = result.rows[0];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const itemSubtotal = parseFloat(it.qty) * parseFloat(it.unit_price);
+      await pool.query(
+        `INSERT INTO invoice_items (invoice_id, sku_id, description, qty, unit_price, subtotal, sort_order)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [invoice.id, it.sku_id || null, it.description, it.qty, it.unit_price, itemSubtotal, i]
+      );
+    }
+    res.json({ invoice });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/accounting/invoices/from-order/:orderId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    // Check no existing invoice for this order
+    const existing = await pool.query('SELECT id, invoice_number FROM invoices WHERE order_id = $1 AND status != $2', [orderId, 'void']);
+    if (existing.rows.length) return res.status(400).json({ error: `Invoice ${existing.rows[0].invoice_number} already exists for this order` });
+
+    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const o = order.rows[0];
+
+    const orderItems = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [orderId]);
+
+    // Determine payment terms from trade customer
+    let terms = 'due_on_receipt';
+    if (o.trade_customer_id) {
+      const tc = await pool.query('SELECT payment_terms FROM trade_customers WHERE id = $1', [o.trade_customer_id]);
+      if (tc.rows.length && tc.rows[0].payment_terms) terms = tc.rows[0].payment_terms;
+    }
+
+    const invoice_number = await getNextInvoiceNumber();
+    const iDate = new Date().toISOString().split('T')[0];
+    const due_date = calculateDueDate(iDate, terms);
+    const subtotal = parseFloat(o.subtotal) || 0;
+    const shipping = parseFloat(o.shipping) || 0;
+    const discount = parseFloat(o.discount_amount) || 0;
+    const total = parseFloat(o.total) || 0;
+    const amountPaid = parseFloat(o.amount_paid) || 0;
+
+    const result = await pool.query(
+      `INSERT INTO invoices (invoice_number, order_id, customer_email, customer_name, trade_customer_id,
+        billing_address, payment_terms, issue_date, due_date, subtotal, shipping, discount_amount, total, amount_paid, notes, created_by,
+        status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+      [invoice_number, orderId, o.customer_email, o.customer_name, o.trade_customer_id,
+       [o.shipping_address_line1, o.shipping_address_line2, o.shipping_city, o.shipping_state, o.shipping_zip].filter(Boolean).join(', '),
+       terms, iDate, due_date, subtotal, shipping, discount, total, amountPaid,
+       `Auto-generated from order ${o.order_number}`, req.staff.id,
+       amountPaid >= total ? 'paid' : amountPaid > 0 ? 'partial' : 'draft']
+    );
+    const invoice = result.rows[0];
+
+    // Create invoice items from order items
+    for (let i = 0; i < orderItems.rows.length; i++) {
+      const oi = orderItems.rows[i];
+      const desc = [oi.product_name, oi.collection, oi.description].filter(Boolean).join(' — ');
+      await pool.query(
+        `INSERT INTO invoice_items (invoice_id, order_item_id, sku_id, description, qty, unit_price, subtotal, sort_order)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [invoice.id, oi.id, oi.sku_id, desc, oi.num_boxes, parseFloat(oi.unit_price) || 0, parseFloat(oi.subtotal) || 0, i]
+      );
+    }
+
+    // If there are existing payments, link them
+    if (amountPaid > 0) {
+      const orderPayments = await pool.query('SELECT * FROM order_payments WHERE order_id = $1 AND status = $2', [orderId, 'completed']);
+      for (const op of orderPayments.rows) {
+        await pool.query(
+          `INSERT INTO invoice_payments (invoice_id, order_payment_id, amount, payment_method, reference_number, payment_date, recorded_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [invoice.id, op.id, parseFloat(op.amount), op.payment_type || 'stripe', op.stripe_payment_intent_id, new Date(op.created_at).toISOString().split('T')[0], req.staff.id]
+        );
+      }
+      if (amountPaid >= total) {
+        await pool.query('UPDATE invoices SET paid_at = CURRENT_TIMESTAMP WHERE id = $1', [invoice.id]);
+      }
+    }
+
+    res.json({ invoice });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/accounting/invoices/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { customer_email, customer_name, billing_address, payment_terms, issue_date, due_date, tax_rate, tax_amount, shipping, discount_amount, notes, items } = req.body;
+    // Recalculate total if items provided
+    let subtotal, total;
+    if (items && items.length) {
+      subtotal = items.reduce((s, it) => s + (parseFloat(it.qty) * parseFloat(it.unit_price)), 0);
+      total = subtotal + (parseFloat(tax_amount) || 0) + (parseFloat(shipping) || 0) - (parseFloat(discount_amount) || 0);
+      await pool.query('DELETE FROM invoice_items WHERE invoice_id = $1', [req.params.id]);
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        const itemSubtotal = parseFloat(it.qty) * parseFloat(it.unit_price);
+        await pool.query(
+          `INSERT INTO invoice_items (invoice_id, sku_id, description, qty, unit_price, subtotal, sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [req.params.id, it.sku_id || null, it.description, it.qty, it.unit_price, itemSubtotal, i]
+        );
+      }
+    }
+    const result = await pool.query(
+      `UPDATE invoices SET customer_email = COALESCE($1, customer_email), customer_name = COALESCE($2, customer_name),
+       billing_address = COALESCE($3, billing_address), payment_terms = COALESCE($4, payment_terms),
+       issue_date = COALESCE($5, issue_date), due_date = COALESCE($6, due_date),
+       tax_rate = COALESCE($7, tax_rate), tax_amount = COALESCE($8, tax_amount),
+       shipping = COALESCE($9, shipping), discount_amount = COALESCE($10, discount_amount),
+       subtotal = COALESCE($11, subtotal), total = COALESCE($12, total),
+       notes = COALESCE($13, notes), updated_at = CURRENT_TIMESTAMP
+       WHERE id = $14 AND status = 'draft' RETURNING *`,
+      [customer_email, customer_name, billing_address, payment_terms, issue_date, due_date,
+       tax_rate, tax_amount, shipping, discount_amount, subtotal, total, notes, req.params.id]
+    );
+    if (!result.rows.length) return res.status(400).json({ error: 'Invoice not found or not in draft status' });
+    res.json({ invoice: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/accounting/invoices/:id/send', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const inv = await pool.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
+    if (!inv.rows.length) return res.status(404).json({ error: 'Invoice not found' });
+    const invoice = inv.rows[0];
+    if (invoice.status === 'void') return res.status(400).json({ error: 'Cannot send a voided invoice' });
+    const items = await pool.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order', [req.params.id]);
+
+    // Send email
+    try {
+      await sendInvoiceSent({ ...invoice, items: items.rows });
+    } catch (e) { console.log('[Accounting] Invoice email skipped:', e.message); }
+
+    const newStatus = invoice.status === 'draft' ? 'sent' : invoice.status;
+    await pool.query('UPDATE invoices SET status = $1, sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newStatus, req.params.id]);
+    res.json({ sent: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/accounting/invoices/:id/payments', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { amount, payment_method, reference_number, payment_date, notes } = req.body;
+    if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ error: 'Valid amount is required' });
+
+    await pool.query(
+      `INSERT INTO invoice_payments (invoice_id, amount, payment_method, reference_number, payment_date, notes, recorded_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [req.params.id, amount, payment_method || 'check', reference_number, payment_date || new Date().toISOString().split('T')[0], notes, req.staff.id]
+    );
+
+    // Update amount_paid on invoice
+    const totals = await pool.query('SELECT COALESCE(SUM(amount), 0) as total_paid FROM invoice_payments WHERE invoice_id = $1', [req.params.id]);
+    const totalPaid = parseFloat(totals.rows[0].total_paid);
+    const inv = await pool.query('SELECT total FROM invoices WHERE id = $1', [req.params.id]);
+    const invoiceTotal = parseFloat(inv.rows[0].total);
+    const newStatus = totalPaid >= invoiceTotal ? 'paid' : totalPaid > 0 ? 'partial' : 'sent';
+
+    await pool.query(
+      `UPDATE invoices SET amount_paid = $1, status = $2, paid_at = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
+      [totalPaid, newStatus, newStatus === 'paid' ? new Date() : null, req.params.id]
+    );
+    res.json({ amount_paid: totalPaid, status: newStatus });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/accounting/invoices/:id/void', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE invoices SET status = 'void', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`, [req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json({ invoice: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/accounting/invoices/:id/pdf', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const inv = await pool.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
+    if (!inv.rows.length) return res.status(404).json({ error: 'Not found' });
+    const invoice = inv.rows[0];
+    const items = await pool.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order', [req.params.id]);
+    const payments = await pool.query('SELECT * FROM invoice_payments WHERE invoice_id = $1 ORDER BY payment_date', [req.params.id]);
+
+    const itemRows = items.rows.map(it =>
+      `<tr><td>${it.description}</td><td style="text-align:center">${parseFloat(it.qty)}</td>
+       <td style="text-align:right">$${parseFloat(it.unit_price).toFixed(2)}</td>
+       <td style="text-align:right">$${parseFloat(it.subtotal).toFixed(2)}</td></tr>`
+    ).join('');
+
+    const paymentRows = payments.rows.length ? payments.rows.map(p =>
+      `<tr><td>${new Date(p.payment_date).toLocaleDateString()}</td><td>${p.payment_method}</td>
+       <td>${p.reference_number || '—'}</td><td style="text-align:right">$${parseFloat(p.amount).toFixed(2)}</td></tr>`
+    ).join('') : '';
+
+    const html = `<!DOCTYPE html><html><head><style>${getDocumentBaseCSS()}</style></head><body>
+      ${getDocumentHeader('Invoice')}
+      <div class="info-columns">
+        <div class="info-block"><h3>Bill To</h3><p>${invoice.customer_name || ''}<br>${invoice.customer_email || ''}<br>${invoice.billing_address || ''}</p></div>
+        <div class="info-block"><h3>Invoice Details</h3>
+          <p>Invoice #: <strong>${invoice.invoice_number}</strong><br>
+          Issue Date: ${new Date(invoice.issue_date).toLocaleDateString()}<br>
+          Due Date: ${new Date(invoice.due_date).toLocaleDateString()}<br>
+          Terms: ${(invoice.payment_terms || '').replace(/_/g, ' ')}<br>
+          Status: <span class="badge badge-${invoice.status}">${invoice.status}</span></p></div>
+      </div>
+      <table><thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Amount</th></tr></thead>
+      <tbody>${itemRows}</tbody></table>
+      <div class="totals">
+        <div class="line"><span>Subtotal:</span><span>$${parseFloat(invoice.subtotal).toFixed(2)}</span></div>
+        ${parseFloat(invoice.tax_amount) > 0 ? `<div class="line"><span>Tax:</span><span>$${parseFloat(invoice.tax_amount).toFixed(2)}</span></div>` : ''}
+        ${parseFloat(invoice.shipping) > 0 ? `<div class="line"><span>Shipping:</span><span>$${parseFloat(invoice.shipping).toFixed(2)}</span></div>` : ''}
+        ${parseFloat(invoice.discount_amount) > 0 ? `<div class="line"><span>Discount:</span><span>-$${parseFloat(invoice.discount_amount).toFixed(2)}</span></div>` : ''}
+        <div class="line total-line"><span>Total:</span><span>$${parseFloat(invoice.total).toFixed(2)}</span></div>
+        <div class="line"><span>Amount Paid:</span><span>$${parseFloat(invoice.amount_paid).toFixed(2)}</span></div>
+        <div class="line total-line"><span>Balance Due:</span><span>$${parseFloat(invoice.balance).toFixed(2)}</span></div>
+      </div>
+      ${paymentRows ? `<h3 style="margin-top:2rem;font-size:0.875rem;">Payment History</h3>
+        <table><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th style="text-align:right">Amount</th></tr></thead>
+        <tbody>${paymentRows}</tbody></table>` : ''}
+      ${invoice.notes ? `<div class="info-block"><h3>Notes</h3><p>${invoice.notes}</p></div>` : ''}
+      ${getDocumentFooter()}
+    </body></html>`;
+
+    await generatePDF(html, `${invoice.invoice_number}.pdf`, req, res);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/accounting/ar/aging', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN due_date >= CURRENT_DATE THEN balance ELSE 0 END), 0) as current,
+        COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date BETWEEN 1 AND 30 THEN balance ELSE 0 END), 0) as days_1_30,
+        COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date BETWEEN 31 AND 60 THEN balance ELSE 0 END), 0) as days_31_60,
+        COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date BETWEEN 61 AND 90 THEN balance ELSE 0 END), 0) as days_61_90,
+        COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date > 90 THEN balance ELSE 0 END), 0) as days_90_plus,
+        COALESCE(SUM(balance), 0) as total_outstanding
+      FROM invoices WHERE status NOT IN ('void', 'paid', 'draft')
+    `);
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/accounting/invoices/send-reminders', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const overdue = await pool.query(
+      `SELECT * FROM invoices WHERE status = 'overdue' AND balance > 0`
+    );
+    let sent = 0;
+    for (const inv of overdue.rows) {
+      try {
+        await sendInvoiceReminder(inv);
+        sent++;
+      } catch (e) { console.log('[Accounting] Reminder skipped for', inv.invoice_number, e.message); }
+    }
+    res.json({ reminders_sent: sent, total_overdue: overdue.rows.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// --- Daily overdue invoice cron (8am) ---
+cron.schedule('0 8 * * *', async () => {
+  try {
+    const result = await pool.query(`
+      UPDATE invoices SET status = 'overdue', updated_at = CURRENT_TIMESTAMP
+      WHERE status IN ('sent', 'partial') AND due_date < CURRENT_DATE
+      RETURNING id, invoice_number
+    `);
+    if (result.rowCount > 0) {
+      console.log(`[Accounting] Marked ${result.rowCount} invoice(s) as overdue: ${result.rows.map(r => r.invoice_number).join(', ')}`);
+    }
+  } catch (err) { console.error('[Accounting] Overdue cron error:', err.message); }
+});
+
+// --- Bills (AP) ---
+async function getNextBillNumber() {
+  const result = await pool.query("SELECT internal_bill_number FROM bills ORDER BY created_at DESC LIMIT 1");
+  if (!result.rows.length) return 'BILL-0001';
+  const last = result.rows[0].internal_bill_number;
+  const num = parseInt(last.replace(/\D/g, '')) || 0;
+  return 'BILL-' + String(num + 1).padStart(4, '0');
+}
+
+app.get('/api/admin/accounting/bills', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { status, vendor_id, from, to, limit = 50, offset = 0 } = req.query;
+    const conditions = [];
+    const params = [];
+    if (status) { params.push(status); conditions.push(`b.status = $${params.length}`); }
+    if (vendor_id) { params.push(vendor_id); conditions.push(`b.vendor_id = $${params.length}`); }
+    if (from) { params.push(from); conditions.push(`b.bill_date >= $${params.length}`); }
+    if (to) { params.push(to); conditions.push(`b.bill_date <= $${params.length}`); }
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const countResult = await pool.query(`SELECT COUNT(*) FROM bills b ${where}`, params);
+    params.push(parseInt(limit)); params.push(parseInt(offset));
+    const result = await pool.query(
+      `SELECT b.*, v.name as vendor_name, po.po_number
+       FROM bills b
+       JOIN vendors v ON v.id = b.vendor_id
+       LEFT JOIN purchase_orders po ON po.id = b.purchase_order_id
+       ${where} ORDER BY b.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`, params
+    );
+    res.json({ bills: result.rows, total: parseInt(countResult.rows[0].count) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/accounting/bills/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const bill = await pool.query(
+      `SELECT b.*, v.name as vendor_name, po.po_number
+       FROM bills b JOIN vendors v ON v.id = b.vendor_id LEFT JOIN purchase_orders po ON po.id = b.purchase_order_id
+       WHERE b.id = $1`, [req.params.id]
+    );
+    if (!bill.rows.length) return res.status(404).json({ error: 'Bill not found' });
+    const items = await pool.query('SELECT * FROM bill_items WHERE bill_id = $1', [req.params.id]);
+    const payments = await pool.query(
+      `SELECT bp.*, sa.first_name || \' \' || sa.last_name as recorded_by_name
+       FROM bill_payments bp LEFT JOIN staff_accounts sa ON sa.id = bp.recorded_by
+       WHERE bp.bill_id = $1 ORDER BY bp.payment_date DESC`, [req.params.id]
+    );
+    res.json({ bill: bill.rows[0], items: items.rows, payments: payments.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/accounting/bills', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { bill_number, vendor_id, bill_date, due_date, payment_terms, tax_amount, shipping, notes, items } = req.body;
+    if (!vendor_id) return res.status(400).json({ error: 'Vendor is required' });
+    if (!items || !items.length) return res.status(400).json({ error: 'At least one line item is required' });
+    const internal_bill_number = await getNextBillNumber();
+    const subtotal = items.reduce((s, it) => s + (parseFloat(it.qty) * parseFloat(it.unit_price)), 0);
+    const total = subtotal + (parseFloat(tax_amount) || 0) + (parseFloat(shipping) || 0);
+
+    const result = await pool.query(
+      `INSERT INTO bills (bill_number, internal_bill_number, vendor_id, bill_date, due_date, payment_terms,
+        subtotal, tax_amount, shipping, total, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [bill_number, internal_bill_number, vendor_id, bill_date || new Date(), due_date || new Date(),
+       payment_terms || 'net_30', subtotal, tax_amount || 0, shipping || 0, total, notes, req.staff.id]
+    );
+    const bill = result.rows[0];
+    for (const it of items) {
+      const itemSubtotal = parseFloat(it.qty) * parseFloat(it.unit_price);
+      await pool.query(
+        `INSERT INTO bill_items (bill_id, sku_id, description, qty, unit_price, subtotal)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [bill.id, it.sku_id || null, it.description, it.qty, it.unit_price, itemSubtotal]
+      );
+    }
+    res.json({ bill });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/accounting/bills/from-po/:poId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { poId } = req.params;
+    const existing = await pool.query('SELECT id, internal_bill_number FROM bills WHERE purchase_order_id = $1 AND status != $2', [poId, 'void']);
+    if (existing.rows.length) return res.status(400).json({ error: `Bill ${existing.rows[0].internal_bill_number} already exists for this PO` });
+
+    const po = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'PO not found' });
+    const p = po.rows[0];
+
+    const poItems = await pool.query('SELECT * FROM purchase_order_items WHERE purchase_order_id = $1', [poId]);
+    const internal_bill_number = await getNextBillNumber();
+    const subtotal = parseFloat(p.subtotal) || poItems.rows.reduce((s, it) => s + parseFloat(it.subtotal), 0);
+    const total = subtotal;
+
+    const result = await pool.query(
+      `INSERT INTO bills (internal_bill_number, vendor_id, purchase_order_id, bill_date, due_date,
+        payment_terms, subtotal, total, status, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'received',$9,$10) RETURNING *`,
+      [internal_bill_number, p.vendor_id, poId, new Date(), calculateDueDate(new Date().toISOString().split('T')[0], 'net_30'),
+       'net_30', subtotal, total, `Auto-generated from PO ${p.po_number}`, req.staff.id]
+    );
+    const bill = result.rows[0];
+    for (const it of poItems.rows) {
+      await pool.query(
+        `INSERT INTO bill_items (bill_id, purchase_order_item_id, sku_id, description, qty, unit_price, subtotal)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [bill.id, it.id, it.sku_id, [it.product_name, it.vendor_sku, it.description].filter(Boolean).join(' — '),
+         it.qty, parseFloat(it.cost), parseFloat(it.subtotal)]
+      );
+    }
+    res.json({ bill });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/accounting/bills/from-edi/:ediInvoiceId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { ediInvoiceId } = req.params;
+    const existing = await pool.query('SELECT id, internal_bill_number FROM bills WHERE edi_invoice_id = $1 AND status != $2', [ediInvoiceId, 'void']);
+    if (existing.rows.length) return res.status(400).json({ error: `Bill ${existing.rows[0].internal_bill_number} already exists for this EDI invoice` });
+
+    const edi = await pool.query('SELECT * FROM edi_invoices WHERE id = $1', [ediInvoiceId]);
+    if (!edi.rows.length) return res.status(404).json({ error: 'EDI invoice not found' });
+    const e = edi.rows[0];
+
+    const ediItems = await pool.query('SELECT * FROM edi_invoice_items WHERE edi_invoice_id = $1 ORDER BY line_number', [ediInvoiceId]);
+    const internal_bill_number = await getNextBillNumber();
+    const subtotal = ediItems.rows.reduce((s, it) => s + parseFloat(it.subtotal || 0), 0);
+    const total = parseFloat(e.total_amount) || subtotal;
+
+    const result = await pool.query(
+      `INSERT INTO bills (bill_number, internal_bill_number, vendor_id, purchase_order_id, edi_invoice_id,
+        bill_date, due_date, payment_terms, subtotal, total, status, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'received',$11,$12) RETURNING *`,
+      [e.invoice_number, internal_bill_number, e.vendor_id, e.purchase_order_id, ediInvoiceId,
+       e.invoice_date || new Date(), calculateDueDate((e.invoice_date || new Date().toISOString()).split('T')[0], 'net_30'),
+       'net_30', subtotal, total, `Auto-generated from EDI invoice ${e.invoice_number}`, req.staff.id]
+    );
+    const bill = result.rows[0];
+    for (const it of ediItems.rows) {
+      await pool.query(
+        `INSERT INTO bill_items (bill_id, sku_id, description, qty, unit_price, subtotal)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [bill.id, null, [it.vendor_sku, it.description].filter(Boolean).join(' — '),
+         parseFloat(it.qty) || 1, parseFloat(it.unit_price) || 0, parseFloat(it.subtotal) || 0]
+      );
+    }
+    res.json({ bill });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/accounting/bills/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { bill_number, bill_date, due_date, payment_terms, tax_amount, shipping, notes } = req.body;
+    const result = await pool.query(
+      `UPDATE bills SET bill_number = COALESCE($1, bill_number), bill_date = COALESCE($2, bill_date),
+       due_date = COALESCE($3, due_date), payment_terms = COALESCE($4, payment_terms),
+       tax_amount = COALESCE($5, tax_amount), shipping = COALESCE($6, shipping),
+       notes = COALESCE($7, notes), updated_at = CURRENT_TIMESTAMP
+       WHERE id = $8 RETURNING *`,
+      [bill_number, bill_date, due_date, payment_terms, tax_amount, shipping, notes, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json({ bill: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/accounting/bills/:id/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['approved', 'void'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    const result = await pool.query(
+      `UPDATE bills SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`,
+      [status, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json({ bill: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/accounting/bills/:id/payments', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { amount, payment_method, reference_number, payment_date, notes } = req.body;
+    if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ error: 'Valid amount is required' });
+
+    await pool.query(
+      `INSERT INTO bill_payments (bill_id, amount, payment_method, reference_number, payment_date, notes, recorded_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [req.params.id, amount, payment_method || 'check', reference_number, payment_date || new Date().toISOString().split('T')[0], notes, req.staff.id]
+    );
+
+    const totals = await pool.query('SELECT COALESCE(SUM(amount), 0) as total_paid FROM bill_payments WHERE bill_id = $1', [req.params.id]);
+    const totalPaid = parseFloat(totals.rows[0].total_paid);
+    const bill = await pool.query('SELECT total FROM bills WHERE id = $1', [req.params.id]);
+    const billTotal = parseFloat(bill.rows[0].total);
+    const newStatus = totalPaid >= billTotal ? 'paid' : totalPaid > 0 ? 'partial' : 'approved';
+
+    await pool.query(
+      `UPDATE bills SET amount_paid = $1, status = $2, payment_method = $3, payment_reference = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5`,
+      [totalPaid, newStatus, payment_method || 'check', reference_number, req.params.id]
+    );
+    res.json({ amount_paid: totalPaid, status: newStatus });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/accounting/ap/aging', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN due_date >= CURRENT_DATE THEN balance ELSE 0 END), 0) as current,
+        COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date BETWEEN 1 AND 30 THEN balance ELSE 0 END), 0) as days_1_30,
+        COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date BETWEEN 31 AND 60 THEN balance ELSE 0 END), 0) as days_31_60,
+        COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date BETWEEN 61 AND 90 THEN balance ELSE 0 END), 0) as days_61_90,
+        COALESCE(SUM(CASE WHEN CURRENT_DATE - due_date > 90 THEN balance ELSE 0 END), 0) as days_90_plus,
+        COALESCE(SUM(balance), 0) as total_outstanding
+      FROM bills WHERE status NOT IN ('void', 'paid', 'draft')
+    `);
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// --- P&L / Reports ---
+app.get('/api/admin/accounting/reports/pnl', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { period = 'monthly', from, to } = req.query;
+    let dateFrom, dateTo;
+    const now = new Date();
+    if (from && to) { dateFrom = from; dateTo = to; }
+    else if (period === 'monthly') {
+      dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      dateTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    } else if (period === 'quarterly') {
+      const qStart = Math.floor(now.getMonth() / 3) * 3;
+      dateFrom = new Date(now.getFullYear(), qStart, 1).toISOString().split('T')[0];
+      dateTo = new Date(now.getFullYear(), qStart + 3, 0).toISOString().split('T')[0];
+    } else {
+      dateFrom = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+      dateTo = new Date(now.getFullYear(), 11, 31).toISOString().split('T')[0];
+    }
+
+    // Revenue from orders
+    const revenue = await pool.query(
+      `SELECT COALESCE(SUM(total), 0) as total_revenue, COALESCE(SUM(shipping), 0) as shipping_revenue,
+        COUNT(*)::int as order_count
+       FROM orders WHERE status IN ('confirmed','shipped','delivered')
+         AND created_at >= $1 AND created_at <= ($2::date + interval '1 day')`, [dateFrom, dateTo]
+    );
+
+    // COGS from PO items
+    const cogs_po = await pool.query(
+      `SELECT COALESCE(SUM(poi.subtotal), 0) as po_cost
+       FROM purchase_order_items poi
+       JOIN purchase_orders po ON po.id = poi.purchase_order_id
+       WHERE po.status NOT IN ('cancelled','draft')
+         AND po.created_at >= $1 AND po.created_at <= ($2::date + interval '1 day')`, [dateFrom, dateTo]
+    );
+
+    // COGS expenses
+    const cogs_expenses = await pool.query(
+      `SELECT COALESCE(SUM(e.amount), 0) as total
+       FROM expenses e JOIN expense_categories ec ON ec.id = e.category_id
+       WHERE ec.expense_type = 'cogs' AND e.expense_date >= $1 AND e.expense_date <= $2`, [dateFrom, dateTo]
+    );
+
+    // Operating expenses by category
+    const operating = await pool.query(
+      `SELECT ec.name, COALESCE(SUM(e.amount), 0) as total
+       FROM expenses e JOIN expense_categories ec ON ec.id = e.category_id
+       WHERE ec.expense_type = 'operating' AND e.expense_date >= $1 AND e.expense_date <= $2
+       GROUP BY ec.name ORDER BY total DESC`, [dateFrom, dateTo]
+    );
+
+    // Overhead expenses by category
+    const overhead = await pool.query(
+      `SELECT ec.name, COALESCE(SUM(e.amount), 0) as total
+       FROM expenses e JOIN expense_categories ec ON ec.id = e.category_id
+       WHERE ec.expense_type = 'overhead' AND e.expense_date >= $1 AND e.expense_date <= $2
+       GROUP BY ec.name ORDER BY total DESC`, [dateFrom, dateTo]
+    );
+
+    const totalRevenue = parseFloat(revenue.rows[0].total_revenue);
+    const totalCOGS = parseFloat(cogs_po.rows[0].po_cost) + parseFloat(cogs_expenses.rows[0].total);
+    const grossProfit = totalRevenue - totalCOGS;
+    const totalOperating = operating.rows.reduce((s, r) => s + parseFloat(r.total), 0);
+    const totalOverhead = overhead.rows.reduce((s, r) => s + parseFloat(r.total), 0);
+    const netIncome = grossProfit - totalOperating - totalOverhead;
+
+    res.json({
+      period: { from: dateFrom, to: dateTo, type: period },
+      revenue: { total: totalRevenue, shipping: parseFloat(revenue.rows[0].shipping_revenue), order_count: revenue.rows[0].order_count },
+      cogs: { po_cost: parseFloat(cogs_po.rows[0].po_cost), expenses: parseFloat(cogs_expenses.rows[0].total), total: totalCOGS },
+      gross_profit: grossProfit,
+      gross_margin_pct: totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0.0',
+      operating_expenses: { categories: operating.rows.map(r => ({ name: r.name, total: parseFloat(r.total) })), total: totalOperating },
+      overhead: { categories: overhead.rows.map(r => ({ name: r.name, total: parseFloat(r.total) })), total: totalOverhead },
+      net_income: netIncome,
+      net_margin_pct: totalRevenue > 0 ? ((netIncome / totalRevenue) * 100).toFixed(1) : '0.0'
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/accounting/reports/pnl/csv', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    // Reuse PNL logic
+    const pnlRes = await fetch(`http://localhost:${PORT}/api/admin/accounting/reports/pnl?${new URLSearchParams(req.query)}`, {
+      headers: { 'x-staff-token': req.headers['x-staff-token'] }
+    });
+    const pnl = await pnlRes.json();
+
+    const lines = [
+      `Profit & Loss Statement`,
+      `Period: ${pnl.period.from} to ${pnl.period.to}`,
+      '',
+      'Category,Amount',
+      `Revenue,$${pnl.revenue.total.toFixed(2)}`,
+      '',
+      'Cost of Goods Sold,',
+      `  PO Costs,$${pnl.cogs.po_cost.toFixed(2)}`,
+      `  COGS Expenses,$${pnl.cogs.expenses.toFixed(2)}`,
+      `Total COGS,$${pnl.cogs.total.toFixed(2)}`,
+      '',
+      `Gross Profit,$${pnl.gross_profit.toFixed(2)}`,
+      `Gross Margin,${pnl.gross_margin_pct}%`,
+      '',
+      'Operating Expenses,',
+      ...pnl.operating_expenses.categories.map(c => `  ${c.name},$${c.total.toFixed(2)}`),
+      `Total Operating,$${pnl.operating_expenses.total.toFixed(2)}`,
+      '',
+      'Overhead,',
+      ...pnl.overhead.categories.map(c => `  ${c.name},$${c.total.toFixed(2)}`),
+      `Total Overhead,$${pnl.overhead.total.toFixed(2)}`,
+      '',
+      `Net Income,$${pnl.net_income.toFixed(2)}`,
+      `Net Margin,${pnl.net_margin_pct}%`
+    ];
+
+    res.set({ 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="pnl-${pnl.period.from}-to-${pnl.period.to}.csv"` });
+    res.send(lines.join('\n'));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/accounting/reports/dashboard', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const yearStart = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+    const today = now.toISOString().split('T')[0];
+
+    const [arAging, apAging, invoiceStats, billStats, expenseMonth, expenseYear, revenueByMonth] = await Promise.all([
+      pool.query(`SELECT COALESCE(SUM(balance), 0) as total, COUNT(*)::int as count FROM invoices WHERE status IN ('sent','partial','overdue')`),
+      pool.query(`SELECT COALESCE(SUM(balance), 0) as total, COUNT(*)::int as count FROM bills WHERE status IN ('received','approved','partial')`),
+      pool.query(`SELECT
+        COALESCE(SUM(CASE WHEN status = 'overdue' THEN 1 ELSE 0 END), 0)::int as overdue_count,
+        COALESCE(SUM(CASE WHEN status = 'paid' AND paid_at >= $1 THEN total ELSE 0 END), 0) as paid_this_month
+        FROM invoices`, [monthStart]),
+      pool.query(`SELECT
+        COALESCE(SUM(CASE WHEN status IN ('received','draft') THEN 1 ELSE 0 END), 0)::int as pending_approval,
+        COALESCE(SUM(CASE WHEN status = 'paid' AND updated_at >= $1 THEN total ELSE 0 END), 0) as paid_this_month
+        FROM bills`, [monthStart]),
+      pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE expense_date >= $1`, [monthStart]),
+      pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE expense_date >= $1`, [yearStart]),
+      pool.query(`SELECT DATE_TRUNC('month', created_at) as month,
+        COALESCE(SUM(total), 0) as revenue
+        FROM orders WHERE status IN ('confirmed','shipped','delivered') AND created_at >= $1
+        GROUP BY month ORDER BY month`, [yearStart])
+    ]);
+
+    // Revenue vs COGS by month
+    const cogsQuery = await pool.query(`SELECT DATE_TRUNC('month', po.created_at) as month,
+      COALESCE(SUM(poi.subtotal), 0) as cogs
+      FROM purchase_order_items poi JOIN purchase_orders po ON po.id = poi.purchase_order_id
+      WHERE po.status NOT IN ('cancelled','draft') AND po.created_at >= $1
+      GROUP BY month ORDER BY month`, [yearStart]);
+
+    const months = {};
+    for (const r of revenueByMonth.rows) {
+      const key = new Date(r.month).toISOString().split('T')[0].substring(0, 7);
+      months[key] = { month: key, revenue: parseFloat(r.revenue), cogs: 0 };
+    }
+    for (const r of cogsQuery.rows) {
+      const key = new Date(r.month).toISOString().split('T')[0].substring(0, 7);
+      if (!months[key]) months[key] = { month: key, revenue: 0, cogs: 0 };
+      months[key].cogs = parseFloat(r.cogs);
+    }
+
+    res.json({
+      ar: { outstanding: parseFloat(arAging.rows[0].total), count: arAging.rows[0].count,
+        overdue_count: invoiceStats.rows[0].overdue_count, paid_this_month: parseFloat(invoiceStats.rows[0].paid_this_month) },
+      ap: { outstanding: parseFloat(apAging.rows[0].total), count: apAging.rows[0].count,
+        pending_approval: billStats.rows[0].pending_approval, paid_this_month: parseFloat(billStats.rows[0].paid_this_month) },
+      expenses: { this_month: parseFloat(expenseMonth.rows[0].total), this_year: parseFloat(expenseYear.rows[0].total) },
+      revenue_vs_cogs: Object.values(months).sort((a, b) => a.month.localeCompare(b.month))
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ==================== Scheduler Init ====================
 
 const scheduledTasks = new Map();
@@ -12090,6 +13309,161 @@ cron.schedule('0 6 * * *', async () => {
     console.log('[Cron] Membership lifecycle checks complete');
   } catch (err) {
     console.error('[Cron] Membership lifecycle error:', err.message);
+  }
+});
+
+// ==================== Carrier Tracking ====================
+
+const CARRIER_TRACKING_URLS = {
+  'R+L Carriers': 'https://www2.rlcarriers.com/freight/shipping/shipment-tracing?pro=',
+  'FedEx Freight': 'https://www.fedex.com/fedextrack/?trknbr=',
+  'FedEx': 'https://www.fedex.com/fedextrack/?trknbr=',
+  'ABF Freight': 'https://arcb.com/tools/tracking.html?RefNum=',
+  'UPS': 'https://www.ups.com/track?tracknum=',
+  'UPS Freight': 'https://www.ups.com/track?tracknum=',
+  'USPS': 'https://tools.usps.com/go/TrackConfirmAction?tLabels=',
+  'XPO Logistics': 'https://app.xpo.com/tracking/',
+  'SAIA': 'https://www.saia.com/track/details;pro=',
+  'Old Dominion': 'https://www.odfl.com/Trace/standardResult.faces?pro=',
+  'Estes Express': 'https://www.estes-express.com/myestes/shipment-tracking/?query=',
+  'YRC Freight': 'https://my.yrc.com/tools/track/shipments?referenceNumber='
+};
+
+function getTrackingUrl(carrier, trackingNumber) {
+  if (!carrier || !trackingNumber) return null;
+  const baseUrl = CARRIER_TRACKING_URLS[carrier];
+  if (baseUrl) return baseUrl + encodeURIComponent(trackingNumber);
+  return null;
+}
+
+// Poll EasyPost tracker for parcel and LTL orders (tracks any carrier by tracking number)
+async function pollEasyPostTracking(orderId, trackingNumber, carrier) {
+  if (!easypost) return null;
+  try {
+    const tracker = await easypost.Tracker.create({ tracking_code: trackingNumber, carrier: carrier || undefined });
+    const status = tracker.status || null;
+
+    // Store tracking events
+    for (const detail of (tracker.tracking_details || [])) {
+      const eventTime = detail.datetime ? new Date(detail.datetime) : null;
+      const existing = await pool.query(
+        'SELECT id FROM tracking_events WHERE order_id = $1 AND status = $2 AND event_time = $3 LIMIT 1',
+        [orderId, detail.status || 'update', eventTime]
+      );
+      if (existing.rows.length === 0) {
+        const loc = detail.tracking_location
+          ? [detail.tracking_location.city, detail.tracking_location.state].filter(Boolean).join(', ')
+          : null;
+        await pool.query(
+          `INSERT INTO tracking_events (order_id, status, description, location, event_time, source)
+           VALUES ($1, $2, $3, $4, $5, 'easypost')`,
+          [orderId, detail.status || 'update', detail.message || null, loc, eventTime]
+        );
+      }
+    }
+
+    await pool.query(
+      'UPDATE orders SET tracking_status = $1, tracking_last_checked = NOW() WHERE id = $2',
+      [status, orderId]
+    );
+
+    // Auto-mark delivered
+    if (status === 'delivered') {
+      const orderCheck = await pool.query('SELECT status FROM orders WHERE id = $1', [orderId]);
+      if (orderCheck.rows.length && orderCheck.rows[0].status === 'shipped') {
+        await pool.query('UPDATE orders SET status = $1, delivered_at = NOW() WHERE id = $2', ['delivered', orderId]);
+        console.log(`[Tracking] Auto-marked order ${orderId} as delivered (EasyPost)`);
+        const fullOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+        if (fullOrder.rows.length) {
+          setImmediate(() => sendOrderStatusUpdate(fullOrder.rows[0], 'delivered'));
+          setImmediate(() => recalculateCommission(pool, orderId));
+        }
+      }
+    }
+
+    return status;
+  } catch (err) {
+    console.error('[Tracking] EasyPost poll error:', err.message);
+    return null;
+  }
+}
+
+// Admin API: get tracking events for an order
+app.get('/api/admin/orders/:id/tracking', staffAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await pool.query(
+      'SELECT tracking_number, shipping_carrier, tracking_status, tracking_last_checked, shipping_method FROM orders WHERE id = $1',
+      [id]
+    );
+    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
+
+    const events = await pool.query(
+      'SELECT * FROM tracking_events WHERE order_id = $1 ORDER BY event_time DESC NULLS LAST, created_at DESC',
+      [id]
+    );
+
+    const o = order.rows[0];
+    res.json({
+      tracking_number: o.tracking_number,
+      carrier: o.shipping_carrier,
+      tracking_status: o.tracking_status,
+      last_checked: o.tracking_last_checked,
+      tracking_url: getTrackingUrl(o.shipping_carrier, o.tracking_number),
+      events: events.rows
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Admin API: manually refresh tracking for an order
+app.post('/api/admin/orders/:id/tracking/refresh', staffAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await pool.query(
+      'SELECT tracking_number, shipping_carrier, shipping_method FROM orders WHERE id = $1',
+      [id]
+    );
+    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const o = order.rows[0];
+
+    let status = null;
+    if (o.tracking_number && easypost) {
+      status = await pollEasyPostTracking(id, o.tracking_number, o.shipping_carrier);
+    }
+
+    const events = await pool.query(
+      'SELECT * FROM tracking_events WHERE order_id = $1 ORDER BY event_time DESC NULLS LAST, created_at DESC',
+      [id]
+    );
+
+    res.json({
+      tracking_status: status,
+      tracking_url: getTrackingUrl(o.shipping_carrier, o.tracking_number),
+      events: events.rows
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Cron: poll tracking for shipped orders every 4 hours
+cron.schedule('0 */4 * * *', async () => {
+  console.log('[Cron] Polling tracking for shipped orders...');
+  try {
+    const shipped = await pool.query(`
+      SELECT id, tracking_number, shipping_carrier, shipping_method
+      FROM orders WHERE status = 'shipped' AND tracking_number IS NOT NULL
+      ORDER BY shipped_at DESC LIMIT 50
+    `);
+
+    let polled = 0;
+    for (const order of shipped.rows) {
+      if (order.tracking_number && easypost) {
+        await pollEasyPostTracking(order.id, order.tracking_number, order.shipping_carrier);
+        polled++;
+      }
+    }
+    console.log(`[Cron] Tracking poll complete: ${polled} orders checked`);
+  } catch (err) {
+    console.error('[Cron] Tracking poll error:', err.message);
   }
 });
 
