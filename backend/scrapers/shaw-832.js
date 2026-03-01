@@ -218,6 +218,10 @@ function cleanEdiText(text) {
   // Restore contractions: "THAT S" → "THAT'S", "IT S" → "IT'S", "DON T" → "DON'T", etc.
   s = s.replace(/\b(THAT|IT|DON|CAN|WON|ISN|AIN|COULDN|WOULDN|SHOULDN|DIDN|WASN|WEREN|HASN|HAVEN|LET|WHAT|WHO|WHERE|THERE|HERE) (S|T|RE|VE|LL|D|M)\b/gi, "$1'$2");
 
+  // Restore possessives: "NATURE S MARK" → "NATURE'S MARK", "BABY S BREATH" → "BABY'S BREATH"
+  // Match word(3+ chars) + standalone S (not followed by another letter that would make it a real word)
+  s = s.replace(/\b([A-Z]{3,}) S\b/gi, "$1'S");
+
   // Restore ampersands: "LOUD CLEAR" where & was stripped — harder to detect generically
   // We handle this via known patterns
   s = s.replace(/\bLOUD CLEAR\b/gi, 'LOUD & CLEAR');
@@ -611,9 +615,11 @@ function finalizeItem(item) {
     else if (uom === 'EA' || uom === 'BX' || uom === 'PC') { item.sell_by = 'unit'; }
   }
 
-  // Shipping weight from MEA**SW
+  // Shipping weight from MEA**SW (Shaw EDI reports weight per sqft for box products)
   const swMea = item.measurements.find(m => m.qualifier === 'SW');
   if (swMea && swMea.value) item.shipping_weight = swMea.value;
+  // Store raw weight-per-sqft for later conversion
+  item._weight_per_sqft = swMea && swMea.value ? swMea.value : null;
 
   // Cases per carton (CF*n*CT) and cartons per pallet (CF*n*PL)
   const cfMeas = item.measurements.filter(m => m.qualifier === 'CF');
@@ -1178,20 +1184,25 @@ export async function run(pool, job, source) {
 
       // --- Packaging (shared across all sub-lines from parent LIN) ---
       const isBroadloom = item.material_class === 'CARIND';
-      const bpp = isBroadloom ? null : (item.cartons_per_pallet || item.packaging?.packs_per_pallet || null);
+      // Shaw EDI packs_per_pallet values are container/truckload quantities, not actual pallet counts
+      // (produces 30,000-50,000 lb calculated pallet weights). Don't store for box products.
       const hasPackaging = item.sqft_per_box || item.pieces_per_box || item.weight_per_box_lbs
-        || item.roll_width_ft || item.roll_length_ft || bpp || item.shipping_weight
+        || item.roll_width_ft || item.roll_length_ft || item.shipping_weight
         || item.freight_class || item.sqft_per_pallet || item.weight_per_pallet_lbs;
       if (hasPackaging) {
-        // For hard surface: sqft_per_pallet = boxes_per_pallet * sqft_per_box
-        // For broadloom: sqft_per_pallet = roll area (already set), no box fields
-        const sqftPerPallet = item.sqft_per_pallet || ((bpp && item.sqft_per_box) ? bpp * item.sqft_per_box : null);
-        const weightPerPallet = item.weight_per_pallet_lbs || null;
+        // For broadloom: sqft_per_pallet = roll area, weight_per_pallet = roll weight
+        const sqftPerPallet = isBroadloom ? (item.sqft_per_pallet || null) : null;
+        const weightPerPallet = isBroadloom ? (item.weight_per_pallet_lbs || null) : null;
         await upsertPackaging(pool, skuId, {
           sqft_per_box: item.sqft_per_box || null,
           pieces_per_box: isBroadloom ? null : (item.pieces_per_box || item.pieces_per_carton || null),
-          weight_per_box_lbs: isBroadloom ? null : (item.weight_per_box_lbs || item.shipping_weight || null),
-          boxes_per_pallet: bpp,
+          weight_per_box_lbs: isBroadloom ? null : (() => {
+            const rawWt = item.weight_per_box_lbs || item.shipping_weight || null;
+            // Shaw EDI reports weight per sqft for box products — multiply by sqft_per_box
+            if (rawWt && item.sqft_per_box && rawWt < 10) return Math.round(rawWt * item.sqft_per_box * 10) / 10;
+            return rawWt;
+          })(),
+          boxes_per_pallet: null,
           sqft_per_pallet: sqftPerPallet,
           weight_per_pallet_lbs: weightPerPallet,
           roll_width_ft: item.roll_width_ft || null,
@@ -1216,6 +1227,28 @@ export async function run(pool, job, source) {
       if (item.material_class) { await upsertSkuAttribute(pool, skuId, 'material_class', item.material_class); attrsUpserted++; }
       if (item.subcategory) { await upsertSkuAttribute(pool, skuId, 'subcategory', cleanConstruction(item.subcategory)); attrsUpserted++; }
       if (item.price_list) { await upsertSkuAttribute(pool, skuId, 'price_list', cleanAndTitle(item.price_list)); attrsUpserted++; }
+
+      // Application type derived from EDI price list (CTP qualifier 19)
+      if (item.price_list) {
+        const pl = item.price_list.toUpperCase();
+        const appMap = {
+          'PHILADELPHIA CONTRACT': 'Commercial',
+          'MAINSTREET COMMERCIAL': 'Commercial',
+          'PHILADELPHIA MAINSTREET': 'Commercial / Residential',
+          'SHAW RESIL T P': 'Residential / Commercial',
+          'SHAW RESIL ROLL': 'Residential / Commercial',
+          'SHAW FLOORS RETAIL': 'Residential',
+          'SHAW FLOORS VALUE': 'Residential',
+          'USF RESIDENTIAL': 'Residential',
+          'BUILDER HARD SURFACE': 'Residential',
+          'TUFTEX': 'Residential',
+          'ANDERSON WOOD': 'Residential',
+          'SHAW WOOD': 'Residential',
+          'SHAW TILE STONE': 'Residential',
+        };
+        const appType = Object.entries(appMap).find(([k]) => pl.includes(k));
+        if (appType) { await upsertSkuAttribute(pool, skuId, 'application', appType[1]); attrsUpserted++; }
+      }
 
       // Fiber / material from PID*F*37
       const materialPid = item.descriptions.find(d => d.characteristic_code === '37');
