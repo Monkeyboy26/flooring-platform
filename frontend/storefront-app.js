@@ -461,14 +461,15 @@ function StorefrontApp() {
   };
   const goBrowse = () => {
     setView("browse");
-    setSelectedCategory(null);
     setSelectedCollection(null);
     setSearchQuery("");
     setFilters({});
     setCurrentPage(1);
-    fetchSkus({ cat: null, coll: null, search: "", activeFilters: {}, page: 1 });
-    fetchFacets({ cat: null, coll: null, search: "", activeFilters: {} });
-    pushShopUrl(null, null, "", {});
+    const firstCat = categories.length > 0 ? categories[0].slug : null;
+    setSelectedCategory(firstCat);
+    fetchSkus({ cat: firstCat, coll: null, search: "", activeFilters: {}, page: 1 });
+    fetchFacets({ cat: firstCat, coll: null, search: "", activeFilters: {} });
+    pushShopUrl(firstCat, null, "", {});
     window.scrollTo(0, 0);
   };
   const goSkuDetail = (skuId, productName) => {
@@ -698,6 +699,17 @@ function StorefrontApp() {
     window.addEventListener("popstate", handlePop);
     return () => window.removeEventListener("popstate", handlePop);
   }, []);
+  useEffect(() => {
+    if (view === "browse" && categories.length > 0 && !selectedCategory && !selectedCollection && !searchQuery) {
+      const firstParent = categories[0];
+      if (firstParent && firstParent.slug) {
+        setSelectedCategory(firstParent.slug);
+        fetchSkus({ cat: firstParent.slug, coll: null, search: "", activeFilters: filters, page: 1 });
+        fetchFacets({ cat: firstParent.slug, coll: null, search: "", activeFilters: filters });
+        pushShopUrl(firstParent.slug, null, "", filters, true);
+      }
+    }
+  }, [view, categories]);
   useEffect(() => {
     const seoMap = {
       home: { title: "Roma Flooring Designs | Premium Flooring & Tile in Anaheim, CA", description: "Roma Flooring Designs offers premium flooring, tile, stone, and countertop products in Anaheim, CA.", url: SITE_URL + "/" },
@@ -1038,7 +1050,7 @@ function Header({ goHome, goBrowse, cart, cartDrawerOpen, setCartDrawerOpen, car
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
   const parentCats = categories.filter((c) => !c.parent_id && c.product_count > 0);
-  const megaCols = parentCats.slice(0, 4).map((parent) => ({
+  const megaCols = parentCats.map((parent) => ({
     name: parent.name,
     slug: parent.slug,
     children: categories.filter((c) => c.parent_id === parent.id)
@@ -1058,7 +1070,7 @@ function Header({ goHome, goBrowse, cart, cartDrawerOpen, setCartDrawerOpen, car
     setShowSuggestions(false);
     setSearchInput("");
   } }, "View all results")));
-  return /* @__PURE__ */ React.createElement("header", null, /* @__PURE__ */ React.createElement("div", { className: "header-row-1" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "0.75rem" } }, /* @__PURE__ */ React.createElement("button", { className: "mobile-menu-btn", onClick: () => setMobileNavOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "6", x2: "21", y2: "6" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "12", x2: "21", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "18", x2: "21", y2: "18" }))), /* @__PURE__ */ React.createElement("div", { className: "logo", onClick: goHome }, /* @__PURE__ */ React.createElement("img", { src: "/assets/logo/roma-transparent.png", alt: "Roma Flooring Designs", width: "120", height: "44", decoding: "async" }))), searchForm, /* @__PURE__ */ React.createElement("div", { className: "header-actions" }, /* @__PURE__ */ React.createElement("button", { className: "mobile-search-btn", onClick: () => setMobileSearchOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "8" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" }))), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn", onClick: onAccountClick, title: customer ? customer.first_name : "Account" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "7", r: "4" }))), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn wishlist-header-wrap", onClick: goWishlist }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" })), wishlistCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "wishlist-badge" }, wishlistCount)), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn" + (cartFlash ? " cart-flash" : ""), onClick: () => setCartDrawerOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "6", x2: "21", y2: "6" }), /* @__PURE__ */ React.createElement("path", { d: "M16 10a4 4 0 01-8 0" })), itemCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "cart-badge" }, itemCount)))), /* @__PURE__ */ React.createElement("div", { className: "header-row-2" }, /* @__PURE__ */ React.createElement("nav", { className: "header-nav" }, /* @__PURE__ */ React.createElement("div", { className: "header-nav-item" }, /* @__PURE__ */ React.createElement("button", { className: "header-nav-link" + (view === "browse" ? " active" : ""), onClick: goBrowse }, "Shop"), megaCols.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mega-menu" }, /* @__PURE__ */ React.createElement("div", { className: "mega-menu-grid" }, megaCols.map((col) => /* @__PURE__ */ React.createElement("div", { key: col.slug, className: "mega-menu-col" }, /* @__PURE__ */ React.createElement("h4", null, /* @__PURE__ */ React.createElement("a", { onClick: () => onCategorySelect(col.slug) }, col.name)), col.children.map((child) => /* @__PURE__ */ React.createElement("a", { key: child.slug, onClick: () => onCategorySelect(child.slug) }, child.name))))))), /* @__PURE__ */ React.createElement("div", { className: "header-nav-item" }, /* @__PURE__ */ React.createElement("button", { className: "header-nav-link" + (view === "collections" ? " active" : ""), onClick: goCollections }, "Collections")), /* @__PURE__ */ React.createElement("div", { className: "header-nav-item" }, /* @__PURE__ */ React.createElement("button", { className: "header-nav-link" + (view === "trade" || view === "trade-dashboard" ? " active" : ""), onClick: onTradeClick }, tradeCustomer ? `Trade: ${tradeCustomer.company_name}` : "Trade")))));
+  return /* @__PURE__ */ React.createElement("header", null, /* @__PURE__ */ React.createElement("div", { className: "header-row-1" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "0.75rem" } }, /* @__PURE__ */ React.createElement("button", { className: "mobile-menu-btn", onClick: () => setMobileNavOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "6", x2: "21", y2: "6" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "12", x2: "21", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "18", x2: "21", y2: "18" }))), /* @__PURE__ */ React.createElement("div", { className: "logo", onClick: goHome }, /* @__PURE__ */ React.createElement("img", { src: "/assets/logo/roma-transparent.png", alt: "Roma Flooring Designs", width: "120", height: "44", decoding: "async" }))), searchForm, /* @__PURE__ */ React.createElement("div", { className: "header-actions" }, /* @__PURE__ */ React.createElement("button", { className: "mobile-search-btn", onClick: () => setMobileSearchOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "8" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" }))), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn", onClick: onAccountClick, title: customer ? customer.first_name : "Account" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "7", r: "4" }))), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn wishlist-header-wrap", onClick: goWishlist }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" })), wishlistCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "wishlist-badge" }, wishlistCount)), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn" + (cartFlash ? " cart-flash" : ""), onClick: () => setCartDrawerOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "6", x2: "21", y2: "6" }), /* @__PURE__ */ React.createElement("path", { d: "M16 10a4 4 0 01-8 0" })), itemCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "cart-badge" }, itemCount)))), /* @__PURE__ */ React.createElement("div", { className: "header-row-2" }, /* @__PURE__ */ React.createElement("nav", { className: "header-nav" }, /* @__PURE__ */ React.createElement("div", { className: "header-nav-item" }, /* @__PURE__ */ React.createElement("button", { className: "header-nav-link" + (view === "browse" ? " active" : ""), onClick: goBrowse }, "Shop"), megaCols.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mega-menu" }, /* @__PURE__ */ React.createElement("div", { className: "mega-menu-grid" }, megaCols.map((col) => /* @__PURE__ */ React.createElement("div", { key: col.slug, className: "mega-menu-col" }, /* @__PURE__ */ React.createElement("h4", null, /* @__PURE__ */ React.createElement("a", { onClick: () => onCategorySelect(col.slug) }, col.name)), col.children.map((child) => /* @__PURE__ */ React.createElement("a", { key: child.slug, onClick: () => onCategorySelect(child.slug) }, child.name)), col.children.length > 0 && /* @__PURE__ */ React.createElement("a", { className: "mega-menu-view-all", onClick: () => onCategorySelect(col.slug) }, "View All " + col.name + " \u2192")))))), /* @__PURE__ */ React.createElement("div", { className: "header-nav-item" }, /* @__PURE__ */ React.createElement("button", { className: "header-nav-link" + (view === "collections" ? " active" : ""), onClick: goCollections }, "Collections")), /* @__PURE__ */ React.createElement("div", { className: "header-nav-item" }, /* @__PURE__ */ React.createElement("button", { className: "header-nav-link" + (view === "trade" || view === "trade-dashboard" ? " active" : ""), onClick: onTradeClick }, tradeCustomer ? `Trade: ${tradeCustomer.company_name}` : "Trade")))));
 }
 function CartDrawer({ cart, open, onClose, removeFromCart, goCart }) {
   const itemCount = cart.length;
@@ -1299,65 +1311,73 @@ function HomePage({ featuredSkus, categories, onSkuClick, onCategorySelect, goBr
   const parentCats = categories.filter((c) => !c.parent_id && c.product_count > 0);
   return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("section", { className: "hero" }, /* @__PURE__ */ React.createElement("div", { className: "hero-bg", style: { backgroundImage: "url(/uploads/hero-bg.jpg)" } }), /* @__PURE__ */ React.createElement("div", { className: "hero-content" }, /* @__PURE__ */ React.createElement("h1", null, "Surfaces Crafted for Living"), /* @__PURE__ */ React.createElement("p", null, "Premium flooring, tile, and stone from the world's finest manufacturers. Discover materials that transform spaces."), /* @__PURE__ */ React.createElement("button", { className: "hero-cta", onClick: goBrowse }, "Shop Now"))), parentCats.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "homepage-section" }, /* @__PURE__ */ React.createElement("h2", null, "Shop by Category"), /* @__PURE__ */ React.createElement("p", { className: "subtitle" }, "Explore our curated selection of premium surfaces"), /* @__PURE__ */ React.createElement(CategoryCarousel, { categories: parentCats, onCategorySelect })), featuredSkus.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "homepage-section" }, /* @__PURE__ */ React.createElement("h2", null, "New Arrivals"), /* @__PURE__ */ React.createElement("p", { className: "subtitle" }, "The latest additions to our collection"), /* @__PURE__ */ React.createElement(SkuGrid, { skus: featuredSkus, onSkuClick, wishlist, toggleWishlist, setQuickViewSku })));
 }
+function CategoryHero({ category, crumbs, searchQuery }) {
+  if (searchQuery) {
+    return /* @__PURE__ */ React.createElement("div", { className: "category-hero", style: { height: "160px" } }, /* @__PURE__ */ React.createElement(Breadcrumbs, { items: crumbs }), /* @__PURE__ */ React.createElement("h1", null, 'Search: "' + searchQuery + '"'));
+  }
+  const bgImage = category ? (category.banner_image || category.image_url) : null;
+  const style = bgImage ? { backgroundImage: "url(" + bgImage + ")" } : {};
+  return /* @__PURE__ */ React.createElement("div", { className: "category-hero", style }, /* @__PURE__ */ React.createElement(Breadcrumbs, { items: crumbs }), /* @__PURE__ */ React.createElement("h1", null, category ? category.name : "Shop All"), category && category.description && /* @__PURE__ */ React.createElement("p", null, category.description));
+}
 function BrowseView({ skus, totalSkus, loading, categories, selectedCategory, selectedCollection, searchQuery, onCategorySelect, facets, filters, onFilterToggle, onClearFilters, sortBy, onSortChange, onSkuClick, currentPage, onPageChange, wishlist, toggleWishlist, setQuickViewSku, filterDrawerOpen, setFilterDrawerOpen, goHome }) {
   const totalPages = Math.ceil(totalSkus / 72);
   const hasFilters = Object.keys(filters).length > 0;
-  let title = "Shop All";
+  let currentCategory = null;
   let categoryName = null;
-  if (searchQuery) title = 'Search: "' + searchQuery + '"';
-  else if (selectedCollection) title = selectedCollection;
-  else if (selectedCategory) {
+  if (selectedCategory) {
     const flat = [];
     categories.forEach((c) => {
       flat.push(c);
       (c.children || []).forEach((ch) => flat.push(ch));
     });
-    const found = flat.find((c) => c.slug === selectedCategory);
-    if (found) {
-      title = found.name;
-      categoryName = found.name;
-    }
+    currentCategory = flat.find((c) => c.slug === selectedCategory) || null;
+    if (currentCategory) categoryName = currentCategory.name;
   }
   const crumbs = [{ label: "Home", onClick: goHome }, { label: "Shop", onClick: !selectedCategory && !selectedCollection && !searchQuery ? void 0 : () => onCategorySelect(null) }];
   if (categoryName) crumbs.push({ label: categoryName });
   else if (selectedCollection) crumbs.push({ label: selectedCollection });
   else if (searchQuery) crumbs.push({ label: "Search Results" });
-  return /* @__PURE__ */ React.createElement("div", { className: "browse-layout" }, /* @__PURE__ */ React.createElement("div", { className: "browse-header" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Breadcrumbs, { items: crumbs }), /* @__PURE__ */ React.createElement("h1", null, title))), /* @__PURE__ */ React.createElement("div", { className: "sidebar" }, /* @__PURE__ */ React.createElement(CategoryNav, { categories, selectedCategory, onCategorySelect }), /* @__PURE__ */ React.createElement(FacetPanel, { facets, filters, onFilterToggle, onClearFilters })), /* @__PURE__ */ React.createElement("div", null, hasFilters && /* @__PURE__ */ React.createElement(ActiveFilterPills, { filters, facets, onFilterToggle, onClearFilters }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" } }, /* @__PURE__ */ React.createElement(BrowseToolbar, { totalSkus, sortBy, onSortChange }), /* @__PURE__ */ React.createElement("button", { className: "mobile-filter-btn", onClick: () => setFilterDrawerOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("line", { x1: "4", y1: "6", x2: "20", y2: "6" }), /* @__PURE__ */ React.createElement("line", { x1: "8", y1: "12", x2: "20", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "18", x2: "20", y2: "18" })), "Filters")), loading ? /* @__PURE__ */ React.createElement(SkeletonGrid, { count: 8 }) : skus.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "4rem", color: "var(--stone-600)" } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "1.125rem", marginBottom: "1rem" } }, "No products found"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.875rem" } }, "Try adjusting your filters or search terms")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SkuGrid, { skus, onSkuClick, wishlist, toggleWishlist, setQuickViewSku }), totalPages > 1 && /* @__PURE__ */ React.createElement(Pagination, { currentPage, totalPages, onPageChange })), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-overlay" + (filterDrawerOpen ? " open" : ""), onClick: () => setFilterDrawerOpen(false) }), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer" + (filterDrawerOpen ? " open" : "") }, /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-head" }, /* @__PURE__ */ React.createElement("h3", null, "Filters"), /* @__PURE__ */ React.createElement("button", { className: "cart-drawer-close", onClick: () => setFilterDrawerOpen(false) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "18", y2: "18" })))), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-body" }, /* @__PURE__ */ React.createElement(CategoryNav, { categories, selectedCategory, onCategorySelect: (s) => {
-    onCategorySelect(s);
-    setFilterDrawerOpen(false);
-  } }), /* @__PURE__ */ React.createElement(FacetPanel, { facets, filters, onFilterToggle, onClearFilters })), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn", style: { width: "100%" }, onClick: () => setFilterDrawerOpen(false) }, "Apply Filters")))));
+  const isParentLanding = currentCategory && !currentCategory.parent_id && !searchQuery && !selectedCollection;
+  const landingChildren = isParentLanding ? (currentCategory.children || []).filter((ch) => ch.product_count > 0) : [];
+  if (isParentLanding && landingChildren.length > 0) {
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(CategoryHero, { category: currentCategory, crumbs, searchQuery }), /* @__PURE__ */ React.createElement("section", { className: "category-landing" }, /* @__PURE__ */ React.createElement("h2", null, "Browse ", currentCategory.name), /* @__PURE__ */ React.createElement("p", { className: "subtitle" }, "Explore our ", currentCategory.name.toLowerCase(), " collections"), /* @__PURE__ */ React.createElement("div", { className: "category-landing-grid" }, landingChildren.map(function(child) { return /* @__PURE__ */ React.createElement("div", { key: child.slug, className: "category-tile", onClick: function() { onCategorySelect(child.slug); } }, child.image_url ? /* @__PURE__ */ React.createElement("img", { src: child.image_url, alt: child.name, loading: "lazy", decoding: "async" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-200)" } }), /* @__PURE__ */ React.createElement("div", { className: "category-tile-overlay" }, /* @__PURE__ */ React.createElement("span", { className: "category-tile-name" }, child.name), /* @__PURE__ */ React.createElement("span", { className: "category-tile-count" }, child.product_count + " products"))); }))));
+  }
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(CategoryHero, { category: currentCategory, crumbs, searchQuery }), /* @__PURE__ */ React.createElement("div", { className: "browse-layout" }, /* @__PURE__ */ React.createElement("div", { className: "sidebar" }, /* @__PURE__ */ React.createElement(FacetPanel, { facets, filters, onFilterToggle, onClearFilters })), /* @__PURE__ */ React.createElement("div", null, hasFilters && /* @__PURE__ */ React.createElement(ActiveFilterPills, { filters, facets, onFilterToggle, onClearFilters }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" } }, /* @__PURE__ */ React.createElement(BrowseToolbar, { totalSkus, sortBy, onSortChange }), /* @__PURE__ */ React.createElement("button", { className: "mobile-filter-btn", onClick: () => setFilterDrawerOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("line", { x1: "4", y1: "6", x2: "20", y2: "6" }), /* @__PURE__ */ React.createElement("line", { x1: "8", y1: "12", x2: "20", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "18", x2: "20", y2: "18" })), "Filters")), loading ? /* @__PURE__ */ React.createElement(SkeletonGrid, { count: 8 }) : skus.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "4rem", color: "var(--stone-600)" } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "1.125rem", marginBottom: "1rem" } }, "No products found"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.875rem" } }, "Try adjusting your filters or search terms")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SkuGrid, { skus, onSkuClick, wishlist, toggleWishlist, setQuickViewSku }), totalPages > 1 && /* @__PURE__ */ React.createElement(Pagination, { currentPage, totalPages, onPageChange })), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-overlay" + (filterDrawerOpen ? " open" : ""), onClick: () => setFilterDrawerOpen(false) }), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer" + (filterDrawerOpen ? " open" : "") }, /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-head" }, /* @__PURE__ */ React.createElement("h3", null, "Filters"), /* @__PURE__ */ React.createElement("button", { className: "cart-drawer-close", onClick: () => setFilterDrawerOpen(false) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "18", y2: "18" })))), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-body" }, /* @__PURE__ */ React.createElement(FacetPanel, { facets, filters, onFilterToggle, onClearFilters })), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn", style: { width: "100%" }, onClick: () => setFilterDrawerOpen(false) }, "Apply Filters"))))));
 }
 function CategoryNav({ categories, selectedCategory, onCategorySelect }) {
-  const [expanded, setExpanded] = useState({});
-  useEffect(() => {
-    if (selectedCategory) {
-      categories.forEach((parent) => {
-        if ((parent.children || []).some((ch) => ch.slug === selectedCategory) || parent.slug === selectedCategory) {
-          setExpanded((prev) => ({ ...prev, [parent.slug]: true }));
-        }
+  var activeParent = null;
+  if (selectedCategory) {
+    activeParent = categories.find(function(c) { return c.slug === selectedCategory; });
+    if (!activeParent) {
+      categories.forEach(function(p) {
+        if ((p.children || []).some(function(ch) { return ch.slug === selectedCategory; })) activeParent = p;
       });
     }
-  }, [selectedCategory]);
-  const totalProducts = categories.reduce((sum, c) => {
-    const children = c.children || [];
-    if (children.length > 0) return sum + children.reduce((s, ch) => s + (ch.product_count || 0), 0);
-    return sum + (c.product_count || 0);
-  }, 0);
-  return /* @__PURE__ */ React.createElement("div", { className: "category-sidebar" }, /* @__PURE__ */ React.createElement("h3", null, "Categories"), /* @__PURE__ */ React.createElement("div", { className: "category-item" + (!selectedCategory ? " active" : ""), onClick: () => onCategorySelect(null) }, /* @__PURE__ */ React.createElement("span", null, "All Products"), /* @__PURE__ */ React.createElement("span", { className: "category-count" }, totalProducts)), categories.map((parent) => /* @__PURE__ */ React.createElement("div", { key: parent.slug }, /* @__PURE__ */ React.createElement("div", { className: "category-item" + (selectedCategory === parent.slug ? " active" : ""), onClick: () => onCategorySelect(parent.slug) }, /* @__PURE__ */ React.createElement("div", { className: "category-parent-label" }, /* @__PURE__ */ React.createElement("button", { className: "category-expand", onClick: (e) => {
-    e.stopPropagation();
-    setExpanded((prev) => ({ ...prev, [parent.slug]: !prev[parent.slug] }));
-  } }, expanded[parent.slug] ? "\u2212" : "+"), /* @__PURE__ */ React.createElement("span", null, parent.name)), /* @__PURE__ */ React.createElement("span", { className: "category-count" }, parent.product_count)), expanded[parent.slug] && /* @__PURE__ */ React.createElement("div", { className: "category-children" }, (parent.children || []).map((child) => /* @__PURE__ */ React.createElement("div", { key: child.slug, className: "category-item" + (selectedCategory === child.slug ? " active" : ""), onClick: () => onCategorySelect(child.slug) }, /* @__PURE__ */ React.createElement("span", null, child.name), /* @__PURE__ */ React.createElement("span", { className: "category-count" }, child.product_count)))))));
+  }
+  if (!activeParent || !(activeParent.children || []).length) return null;
+  return /* @__PURE__ */ React.createElement("div", { className: "category-sidebar" }, /* @__PURE__ */ React.createElement("h3", null, activeParent.name), /* @__PURE__ */ React.createElement("div", { className: "category-item" + (selectedCategory === activeParent.slug ? " active" : ""), onClick: () => onCategorySelect(activeParent.slug) }, /* @__PURE__ */ React.createElement("span", null, "All ", activeParent.name), /* @__PURE__ */ React.createElement("span", { className: "category-count" }, activeParent.product_count)), (activeParent.children || []).map((child) => /* @__PURE__ */ React.createElement("div", { key: child.slug, className: "category-item" + (selectedCategory === child.slug ? " active" : ""), onClick: () => onCategorySelect(child.slug) }, /* @__PURE__ */ React.createElement("span", null, child.name), /* @__PURE__ */ React.createElement("span", { className: "category-count" }, child.product_count))));
 }
 function FacetPanel({ facets, filters, onFilterToggle, onClearFilters }) {
   const hasActive = Object.keys(filters).length > 0;
-  const [collapsed, setCollapsed] = useState({});
+  const [collapsed, setCollapsed] = useState(null);
   const [showAll, setShowAll] = useState({});
-  if (!facets || facets.length === 0) return null;
-  return /* @__PURE__ */ React.createElement("div", { className: "filter-panel" }, /* @__PURE__ */ React.createElement("div", { className: "filter-panel-header" }, /* @__PURE__ */ React.createElement("h3", null, "Filter By"), hasActive && /* @__PURE__ */ React.createElement("button", { className: "filter-clear", onClick: onClearFilters }, "Clear All")), facets.map((group) => {
+  var hiddenFacets = ["pei_rating", "water_absorption", "dcof"];
+  var visibleFacets = facets.filter(function(g) { return hiddenFacets.indexOf(g.slug) === -1; });
+  if (!visibleFacets || visibleFacets.length === 0) return null;
+  if (collapsed === null) {
+    var init = {};
+    visibleFacets.forEach(function(g) { init[g.slug] = true; });
+    setCollapsed(init);
+    return null;
+  }
+  const chevron = function(isOpen) {
+    return /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", style: { width: 14, height: 14, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" } }, /* @__PURE__ */ React.createElement("polyline", { points: "6 9 12 15 18 9" }));
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "filter-panel" }, hasActive && /* @__PURE__ */ React.createElement("div", { style: { paddingBottom: "0.75rem", borderBottom: "1px solid var(--stone-200)", marginBottom: "0.25rem", display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "0.8125rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--stone-900)" } }, "Filters"), /* @__PURE__ */ React.createElement("button", { className: "filter-clear", onClick: onClearFilters }, "Clear All")), visibleFacets.map((group) => {
     const isCollapsed = collapsed[group.slug];
     const showAllValues = showAll[group.slug];
     const values = showAllValues ? group.values : group.values.slice(0, 8);
-    return /* @__PURE__ */ React.createElement("div", { key: group.slug, className: "filter-group" }, /* @__PURE__ */ React.createElement("div", { className: "filter-group-title", onClick: () => setCollapsed((prev) => ({ ...prev, [group.slug]: !prev[group.slug] })) }, /* @__PURE__ */ React.createElement("span", null, group.name), /* @__PURE__ */ React.createElement("span", null, isCollapsed ? "+" : "\u2212")), !isCollapsed && /* @__PURE__ */ React.createElement(React.Fragment, null, values.map((v) => {
+    return /* @__PURE__ */ React.createElement("div", { key: group.slug, className: "filter-group" }, /* @__PURE__ */ React.createElement("div", { className: "filter-group-title", onClick: () => setCollapsed((prev) => ({ ...prev, [group.slug]: !prev[group.slug] })) }, /* @__PURE__ */ React.createElement("span", null, group.name), chevron(!isCollapsed)), !isCollapsed && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.625rem" } }, values.map((v) => {
       const checked = (filters[group.slug] || []).includes(v.value);
       return /* @__PURE__ */ React.createElement("div", { key: v.value, className: "filter-option" }, /* @__PURE__ */ React.createElement(
         "input",
@@ -1367,8 +1387,8 @@ function FacetPanel({ facets, filters, onFilterToggle, onClearFilters }) {
           checked,
           onChange: () => onFilterToggle(group.slug, v.value)
         }
-      ), /* @__PURE__ */ React.createElement("label", { htmlFor: "f-" + group.slug + "-" + v.value }, v.value), /* @__PURE__ */ React.createElement("span", { className: "filter-count" }, v.count));
-    }), group.values.length > 8 && !showAllValues && /* @__PURE__ */ React.createElement("button", { className: "show-more-btn", onClick: () => setShowAll((prev) => ({ ...prev, [group.slug]: true })) }, "Show ", group.values.length - 8, " more")));
+      ), /* @__PURE__ */ React.createElement("label", { htmlFor: "f-" + group.slug + "-" + v.value }, v.value), /* @__PURE__ */ React.createElement("span", { className: "filter-count" }, "(", v.count, ")"));
+    }), group.values.length > 8 && !showAllValues && /* @__PURE__ */ React.createElement("button", { className: "show-more-btn", onClick: () => setShowAll((prev) => ({ ...prev, [group.slug]: true })) }, "+ ", group.values.length - 8, " more")));
   }));
 }
 function ActiveFilterPills({ filters, facets, onFilterToggle, onClearFilters }) {

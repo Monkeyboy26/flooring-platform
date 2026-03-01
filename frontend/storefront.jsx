@@ -1105,7 +1105,7 @@
 
       // Build mega menu columns from categories (exclude empty categories)
       const parentCats = categories.filter(c => !c.parent_id && c.product_count > 0);
-      const megaCols = parentCats.slice(0, 4).map(parent => ({
+      const megaCols = parentCats.map(parent => ({
         name: parent.name,
         slug: parent.slug,
         children: categories.filter(c => c.parent_id === parent.id)
@@ -1723,12 +1723,44 @@
       else if (selectedCollection) crumbs.push({ label: selectedCollection });
       else if (searchQuery) crumbs.push({ label: 'Search Results' });
 
+      // Check if this is a parent category with subcategories → show landing page
+      const isParentLanding = currentCategory && !currentCategory.parent_id && !searchQuery && !selectedCollection;
+      const landingChildren = isParentLanding
+        ? (currentCategory.children || []).filter(ch => ch.product_count > 0)
+        : [];
+
+      if (isParentLanding && landingChildren.length > 0) {
+        return (
+          <>
+            <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} />
+            <section className="category-landing">
+              <h2>Browse {currentCategory.name}</h2>
+              <p className="subtitle">Explore our {currentCategory.name.toLowerCase()} collections</p>
+              <div className="category-landing-grid">
+                {landingChildren.map(child => (
+                  <div key={child.slug} className="category-tile" onClick={() => onCategorySelect(child.slug)}>
+                    {child.image_url
+                      ? <img src={child.image_url} alt={child.name} loading="lazy" decoding="async" />
+                      : <div style={{ width: '100%', height: '100%', background: 'var(--stone-200)' }} />
+                    }
+                    <div className="category-tile-overlay">
+                      <span className="category-tile-name">{child.name}</span>
+                      <span className="category-tile-count">{child.product_count} products</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </>
+        );
+      }
+
       return (
-        <div className="browse-layout">
+        <>
           <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} />
+          <div className="browse-layout">
 
           <div className="sidebar">
-            <CategoryNav categories={categories} selectedCategory={selectedCategory} onCategorySelect={onCategorySelect} />
             <FacetPanel facets={facets} filters={filters} onFilterToggle={onFilterToggle} onClearFilters={onClearFilters} />
           </div>
 
@@ -1768,7 +1800,6 @@
                 </button>
               </div>
               <div className="filter-drawer-body">
-                <CategoryNav categories={categories} selectedCategory={selectedCategory} onCategorySelect={(s) => { onCategorySelect(s); setFilterDrawerOpen(false); }} />
                 <FacetPanel facets={facets} filters={filters} onFilterToggle={onFilterToggle} onClearFilters={onClearFilters} />
               </div>
               <div className="filter-drawer-footer">
@@ -1777,57 +1808,36 @@
             </div>
           </div>
         </div>
+        </>
       );
     }
 
     function CategoryNav({ categories, selectedCategory, onCategorySelect }) {
-      const [expanded, setExpanded] = useState({});
-
-      useEffect(() => {
-        if (selectedCategory) {
-          categories.forEach(parent => {
-            if ((parent.children || []).some(ch => ch.slug === selectedCategory) || parent.slug === selectedCategory) {
-              setExpanded(prev => ({ ...prev, [parent.slug]: true }));
-            }
+      // Find the active parent category
+      let activeParent = null;
+      if (selectedCategory) {
+        activeParent = categories.find(c => c.slug === selectedCategory);
+        if (!activeParent) {
+          categories.forEach(p => {
+            if ((p.children || []).some(ch => ch.slug === selectedCategory)) activeParent = p;
           });
         }
-      }, [selectedCategory]);
+      }
 
-      const totalProducts = categories.reduce((sum, c) => {
-        // Only sum leaf-level counts to avoid double-counting
-        const children = c.children || [];
-        if (children.length > 0) return sum + children.reduce((s, ch) => s + (ch.product_count || 0), 0);
-        return sum + (c.product_count || 0);
-      }, 0);
+      // Only show subcategory nav if the active parent has children
+      if (!activeParent || !(activeParent.children || []).length) return null;
 
       return (
         <div className="category-sidebar">
-          <h3>Categories</h3>
-          <div className={'category-item' + (!selectedCategory ? ' active' : '')} onClick={() => onCategorySelect(null)}>
-            <span>All Products</span>
-            <span className="category-count">{totalProducts}</span>
+          <h3>{activeParent.name}</h3>
+          <div className={'category-item' + (selectedCategory === activeParent.slug ? ' active' : '')} onClick={() => onCategorySelect(activeParent.slug)}>
+            <span>All {activeParent.name}</span>
+            <span className="category-count">{activeParent.product_count}</span>
           </div>
-          {categories.map(parent => (
-            <div key={parent.slug}>
-              <div className={'category-item' + (selectedCategory === parent.slug ? ' active' : '')} onClick={() => onCategorySelect(parent.slug)}>
-                <div className="category-parent-label">
-                  <button className="category-expand" onClick={(e) => { e.stopPropagation(); setExpanded(prev => ({ ...prev, [parent.slug]: !prev[parent.slug] })); }}>
-                    {expanded[parent.slug] ? '\u2212' : '+'}
-                  </button>
-                  <span>{parent.name}</span>
-                </div>
-                <span className="category-count">{parent.product_count}</span>
-              </div>
-              {expanded[parent.slug] && (
-                <div className="category-children">
-                  {(parent.children || []).map(child => (
-                    <div key={child.slug} className={'category-item' + (selectedCategory === child.slug ? ' active' : '')} onClick={() => onCategorySelect(child.slug)}>
-                      <span>{child.name}</span>
-                      <span className="category-count">{child.product_count}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+          {(activeParent.children || []).map(child => (
+            <div key={child.slug} className={'category-item' + (selectedCategory === child.slug ? ' active' : '')} onClick={() => onCategorySelect(child.slug)}>
+              <span>{child.name}</span>
+              <span className="category-count">{child.product_count}</span>
             </div>
           ))}
         </div>
@@ -1836,18 +1846,34 @@
 
     function FacetPanel({ facets, filters, onFilterToggle, onClearFilters }) {
       const hasActive = Object.keys(filters).length > 0;
-      const [collapsed, setCollapsed] = useState({});
+      const [collapsed, setCollapsed] = useState(null);
       const [showAll, setShowAll] = useState({});
 
-      if (!facets || facets.length === 0) return null;
+      const hiddenFacets = ['pei_rating', 'water_absorption', 'dcof'];
+      const visibleFacets = facets.filter(g => !hiddenFacets.includes(g.slug));
+      if (!visibleFacets || visibleFacets.length === 0) return null;
+      if (collapsed === null) {
+        const init = {};
+        visibleFacets.forEach(g => { init[g.slug] = true; });
+        setCollapsed(init);
+        return null;
+      }
+
+      const chevron = (isOpen) => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      );
 
       return (
         <div className="filter-panel">
-          <div className="filter-panel-header">
-            <h3>Filter By</h3>
-            {hasActive && <button className="filter-clear" onClick={onClearFilters}>Clear All</button>}
-          </div>
-          {facets.map(group => {
+          {hasActive && (
+            <div style={{ paddingBottom: '0.75rem', borderBottom: '1px solid var(--stone-200)', marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--stone-900)' }}>Filters</span>
+              <button className="filter-clear" onClick={onClearFilters}>Clear All</button>
+            </div>
+          )}
+          {visibleFacets.map(group => {
             const isCollapsed = collapsed[group.slug];
             const showAllValues = showAll[group.slug];
             const values = showAllValues ? group.values : group.values.slice(0, 8);
@@ -1856,10 +1882,10 @@
               <div key={group.slug} className="filter-group">
                 <div className="filter-group-title" onClick={() => setCollapsed(prev => ({ ...prev, [group.slug]: !prev[group.slug] }))}>
                   <span>{group.name}</span>
-                  <span>{isCollapsed ? '+' : '\u2212'}</span>
+                  {chevron(!isCollapsed)}
                 </div>
                 {!isCollapsed && (
-                  <>
+                  <div style={{ marginTop: '0.625rem' }}>
                     {values.map(v => {
                       const checked = (filters[group.slug] || []).includes(v.value);
                       return (
@@ -1867,16 +1893,16 @@
                           <input type="checkbox" id={'f-' + group.slug + '-' + v.value} checked={checked}
                             onChange={() => onFilterToggle(group.slug, v.value)} />
                           <label htmlFor={'f-' + group.slug + '-' + v.value}>{v.value}</label>
-                          <span className="filter-count">{v.count}</span>
+                          <span className="filter-count">({v.count})</span>
                         </div>
                       );
                     })}
                     {group.values.length > 8 && !showAllValues && (
                       <button className="show-more-btn" onClick={() => setShowAll(prev => ({ ...prev, [group.slug]: true }))}>
-                        Show {group.values.length - 8} more
+                        + {group.values.length - 8} more
                       </button>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
             );

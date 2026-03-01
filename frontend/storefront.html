@@ -66,14 +66,16 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
   <script src="https://js.stripe.com/v3/"></script>
-  <link rel="stylesheet" href="/storefront.css">
+  <link rel="stylesheet" href="/storefront.css?v=13">
 </head>
 <body>
   <div id="root"></div>
-  <script src="/storefront-app.js"></script>
+  <script src="/storefront-app.js?v=13"></script>
   <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+      regs.forEach(function(r) { r.unregister(); });
+    });
   }
   </script>
 </body>
