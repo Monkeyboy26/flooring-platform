@@ -46,15 +46,136 @@
       if (!sku) return false;
       return sku.sell_by === 'unit' || sku.price_basis === 'per_unit';
     }
+    function isSoldPerSqyd(sku) {
+      if (!sku) return false;
+      return sku.sell_by === 'sqyd' || sku.price_basis === 'per_sqyd';
+    }
     function isCarpet(sku) {
       return sku && sku.cut_price != null;
     }
-    function carpetSqydPrice(sqftPrice) {
-      return (parseFloat(sqftPrice) * 9).toFixed(2);
+    function carpetSqftPrice(sqydPrice) {
+      return (parseFloat(sqydPrice) / 9).toFixed(2);
+    }
+    function formatCarpetValue(val) {
+      if (!val || typeof val !== 'string') return val;
+      // Fiber format: "PILE 100 NYLON" → "100% Nylon"
+      const fiberMatch = val.match(/^(?:PILE\s+)?(\d+)\s+(.+)$/i);
+      if (fiberMatch && /^[A-Z0-9\s]+$/.test(val) && /NYLON|POLYESTER|PET|OLEFIN|WOOL|TRIEXTA|POLYPROPYLENE/i.test(val)) {
+        const fiber = fiberMatch[2].trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+          .replace(/\bPet\b/g, 'PET Polyester').replace(/\bBcf\b/g, 'BCF');
+        return fiberMatch[1] + '% ' + fiber;
+      }
+      // Title-case ALL-CAPS EDI values
+      if (val === val.toUpperCase() && val.length > 2) {
+        return val.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+          .replace(/\b(That|It|Don|Can|Won|Isn|Ain|Couldn|Wouldn|Shouldn|Didn|Wasn|Weren|Hasn|Haven|Let|What|Who|Where|There|Here) (S|T|Re|Ve|Ll|D|M)\b/g, (m, w, c) => w + "'" + c.toLowerCase())
+          .replace(/\bBcf\b/g, 'BCF').replace(/\bPet\b/g, 'PET')
+          .replace(/\bSd\b/g, 'SD').replace(/\bP\.e\.t\b/gi, 'PET')
+          .replace(/\bIii\b/g, 'III').replace(/\bIi\b/g, 'II').replace(/\bIv\b/g, 'IV')
+          .replace(/\bViii\b/g, 'VIII').replace(/\bVii\b/g, 'VII').replace(/\bVi\b/g, 'VI');
+      }
+      return val;
     }
     function priceSuffix(sku) {
       if (isSoldPerUnit(sku)) return '/ea';
+      if (isSoldPerSqyd(sku)) return '/sqyd';
       return '/sqft';
+    }
+
+    // ==================== Mega Menu Data Maps ====================
+
+    const COLOR_HEX_MAP = {
+      'White': '#ffffff', 'Bright White': '#f8f8ff', 'Glossy White': '#f5f5f5',
+      'Ivory': '#fffff0', 'Cream': '#fffdd0', 'Beige': '#f5f0e1',
+      'Tan': '#d2b48c', 'Sand': '#c2b280', 'Taupe': '#a89080', 'Brown': '#6b4226',
+      'Dark Brown': '#3e2723', 'Chocolate': '#3e1c00', 'Espresso': '#3c1414',
+      'Walnut': '#5c3a1e', 'Mid-Century Walnut': '#6b4830', 'Honey Oak': '#c8923e',
+      'Light Natural Oak': '#c9ad7c', 'Honey': '#c08b3e', 'Gold': '#c9a668', 'Amber': '#b8860b',
+      'Gray': '#9e9e9e', 'Grey': '#9e9e9e', 'Light Gray': '#c8c8c8', 'Dark Gray': '#4a4a4a', 'Charcoal': '#36454f',
+      'Black': '#1c1917', 'Black Onyx': '#0c0a08', 'Silver': '#b0b0b0', 'Greige': '#b5a999',
+      'Blue': '#4a6fa5', 'Navy': '#1b2a4a', 'Green': '#5c7a5c', 'Sage': '#6b9080',
+      'Teal': '#367588', 'Celadon': '#ace1af', 'Smokey Celadon': '#8baa8b',
+      'Red': '#8b3a3a', 'Terracotta': '#c67b5c', 'Rust': '#a0522d',
+      'Orange': '#cc7722', 'Yellow': '#d4a843', 'Pink': '#c4868b', 'Blush': '#d4a5a5',
+      'Pecan': '#8b6914', 'Multi': '#a8a29e', 'Natural': '#c2a878', 'Oak': '#b08550', 'Ash': '#bfbcb6',
+      'Slate': '#6d7b7b', 'Pewter': '#8a8d8f', 'Copper': '#b87333', 'Bronze': '#8a6642',
+      'Pearl': '#eae6df', 'Caramel': '#a56630'
+    };
+
+    function getColorHex(colorName) {
+      if (!colorName) return '#a8a29e';
+      const name = colorName.trim();
+      if (COLOR_HEX_MAP[name]) return COLOR_HEX_MAP[name];
+      const lower = name.toLowerCase();
+      for (const [key, val] of Object.entries(COLOR_HEX_MAP)) {
+        if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower)) return val;
+      }
+      return '#a8a29e';
+    }
+
+    function isLightColor(hex) {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return (r * 0.299 + g * 0.587 + b * 0.114) > 200;
+    }
+
+    const LOOK_GRADIENT_MAP = {
+      'Marble': 'linear-gradient(135deg, #f0ece4 0%, #e8e0d4 25%, #f5f0ea 50%, #ddd5c8 75%, #ebe6de 100%)',
+      'Wood': 'linear-gradient(160deg, #a67c52 0%, #8b6238 30%, #c09a6b 55%, #7a5530 80%, #b8925a 100%)',
+      'Concrete': 'linear-gradient(135deg, #b0aba3 0%, #9e9890 35%, #c2bdb5 60%, #a8a299 100%)',
+      'Stone': 'linear-gradient(145deg, #c4b8a8 0%, #b0a492 30%, #d4c8b8 60%, #a89882 100%)',
+      'Slate': 'linear-gradient(140deg, #6d7b7b 0%, #5a6868 40%, #7d8b8b 70%, #4a5858 100%)',
+      'Travertine': 'linear-gradient(130deg, #e8d8c4 0%, #d4c4ae 35%, #f0e0cc 65%, #c8b8a0 100%)',
+      'Limestone': 'linear-gradient(135deg, #e0d8cc 0%, #d0c8ba 40%, #ece4d8 70%, #c8c0b2 100%)',
+      'Terrazzo': 'linear-gradient(135deg, #e8e0d4 0%, #d0c8bc 30%, #f0e8dc 50%, #c4bcb0 70%, #dcd4c8 100%)',
+      'Cement': 'linear-gradient(145deg, #a8a098 0%, #989088 40%, #b8b0a8 70%, #908880 100%)',
+      'Onyx': 'linear-gradient(135deg, #2c2826 0%, #1c1917 30%, #3c3834 55%, #0c0a08 80%, #2c2826 100%)',
+      'Encaustic': 'linear-gradient(135deg, #5c7a5c 0%, #4a6848 25%, #7c9a7c 50%, #3a5838 75%, #6b8a6b 100%)',
+      'Geometric': 'linear-gradient(135deg, #4a6fa5 0%, #3a5f95 30%, #5a7fb5 60%, #2a4f85 100%)',
+      'Metallic': 'linear-gradient(145deg, #b0b0b0 0%, #8a8a8a 25%, #d0d0d0 50%, #a0a0a0 75%, #c0c0c0 100%)',
+      'Fabric': 'linear-gradient(135deg, #c2b8aa 0%, #b0a698 35%, #d2c8ba 65%, #a49888 100%)',
+      'Brick': 'linear-gradient(140deg, #8b4513 0%, #a0522d 35%, #7a3b10 65%, #b8652a 100%)'
+    };
+
+    function getLookGradient(lookName) {
+      if (!lookName) return 'linear-gradient(135deg, #c2b8aa, #a49888)';
+      if (LOOK_GRADIENT_MAP[lookName]) return LOOK_GRADIENT_MAP[lookName];
+      const lower = lookName.toLowerCase();
+      for (const [key, val] of Object.entries(LOOK_GRADIENT_MAP)) {
+        if (lower.includes(key.toLowerCase())) return val;
+      }
+      return 'linear-gradient(135deg, #c2b8aa, #a49888)';
+    }
+
+    function parseSizeDimensions(sizeStr) {
+      if (!sizeStr) return { width: 16, height: 16 };
+      const s = sizeStr.trim().replace(/"/g, '').replace(/\u201d/g, '');
+      // "24 x 48", "12x24", "12 X 24", "4x1/8"
+      const xyMatch = s.match(/^(\d+(?:[.\-\/]\d+)?)\s*[xX×]\s*(\d+(?:[.\-\/]\d+)?)/);
+      if (xyMatch) {
+        const parse = (v) => { if (v.includes('/')) { const p = v.split('/'); return parseFloat(p[0]) / parseFloat(p[1]); } return parseFloat(v); };
+        const w = parse(xyMatch[1]);
+        const h = parse(xyMatch[2]);
+        const max = Math.max(w, h);
+        return { width: Math.max(8, Math.round((w / max) * 22)), height: Math.max(8, Math.round((h / max) * 22)) };
+      }
+      // "9 in." or "12in" — single dimension
+      const singleMatch = s.match(/^(\d+(?:\.\d+)?)\s*(?:in\.?)?$/);
+      if (singleMatch) {
+        const d = parseFloat(singleMatch[1]);
+        if (d <= 12) return { width: Math.max(10, Math.round((d / 12) * 20)), height: 22 };
+        return { width: 10, height: 22 };
+      }
+      // Pure numbers or decimals (84, 96, 94.48) — lengths in inches, narrow plank
+      const numMatch = s.match(/^(\d+(?:\.\d+)?)$/);
+      if (numMatch) {
+        const n = parseFloat(numMatch[1]);
+        if (n > 48) return { width: 8, height: 22 };
+        if (n > 24) return { width: 10, height: 22 };
+        return { width: 14, height: 22 };
+      }
+      return { width: 16, height: 16 };
     }
 
     function formatVariantName(name) {
@@ -178,6 +299,7 @@
       const [searchQuery, setSearchQuery] = useState('');
       const [filters, setFilters] = useState({});
       const [facets, setFacets] = useState([]);
+      const [globalFacets, setGlobalFacets] = useState([]);
       const [sortBy, setSortBy] = useState('name_asc');
       const [loadingSkus, setLoadingSkus] = useState(false);
       const [currentPage, setCurrentPage] = useState(1);
@@ -599,6 +721,20 @@
         pushShopUrl(slug, null, searchQuery, {});
       };
 
+      const handleAxisSelect = (attrSlug, value) => {
+        setSelectedCategory(null);
+        setSelectedCollection(null);
+        setSearchQuery('');
+        setFilters({ [attrSlug]: [value] });
+        setCurrentPage(1);
+        setView('browse');
+        const af = { [attrSlug]: [value] };
+        fetchSkus({ cat: null, coll: null, search: '', activeFilters: af, page: 1 });
+        fetchFacets({ cat: null, coll: null, search: '', activeFilters: af });
+        pushShopUrl(null, null, '', af);
+        window.scrollTo(0, 0);
+      };
+
       const handleFilterToggle = (slug, value) => {
         setFilters(prev => {
           const current = prev[slug] || [];
@@ -678,6 +814,12 @@
           .then(r => r.json())
           .then(data => setFeaturedSkus(data.skus || []))
           .catch(() => {});
+
+        // Fetch global facets for axis navigation (By Look, By Color, By Size)
+        fetch(API + '/api/storefront/facets')
+          .then(r => r.json())
+          .then(data => setGlobalFacets(data.facets || []))
+          .catch(console.error);
 
         // Parse URL
         const path = window.location.pathname;
@@ -791,7 +933,7 @@
 
       // Auto-select first category on bare /shop when categories load
       useEffect(() => {
-        if (view === 'browse' && categories.length > 0 && !selectedCategory && !selectedCollection && !searchQuery) {
+        if (view === 'browse' && categories.length > 0 && !selectedCategory && !selectedCollection && !searchQuery && Object.keys(filters).length === 0) {
           const firstParent = categories[0];
           if (firstParent && firstParent.slug) {
             setSelectedCategory(firstParent.slug);
@@ -898,6 +1040,8 @@
             goCollections={goCollections}
             categories={categories}
             onCategorySelect={(slug) => { handleCategorySelect(slug); setView('browse'); }}
+            globalFacets={globalFacets}
+            onAxisSelect={handleAxisSelect}
             mobileNavOpen={mobileNavOpen} setMobileNavOpen={setMobileNavOpen}
             mobileSearchOpen={mobileSearchOpen} setMobileSearchOpen={setMobileSearchOpen}
             view={view}
@@ -1034,6 +1178,7 @@
           {/* Mobile Nav Drawer */}
           <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)}
             categories={categories} onCategorySelect={(slug) => { handleCategorySelect(slug); setView('browse'); }}
+            globalFacets={globalFacets} onAxisSelect={handleAxisSelect}
             goHome={goHome} goBrowse={goBrowse} goCollections={goCollections} goTrade={goTrade}
             goAccount={() => { if (customer) goAccount(); else { setAuthModalMode('login'); setShowAuthModal(true); } }}
             customer={customer} tradeCustomer={tradeCustomer}
@@ -1061,14 +1206,19 @@
 
     // ==================== Header (Two-Row) ====================
 
-    function Header({ goHome, goBrowse, cart, cartDrawerOpen, setCartDrawerOpen, cartFlash, onSearch, onSkuClick, tradeCustomer, onTradeClick, onTradeLogout, customer, onAccountClick, onCustomerLogout, wishlistCount, goWishlist, goCollections, categories, onCategorySelect, mobileNavOpen, setMobileNavOpen, mobileSearchOpen, setMobileSearchOpen, view }) {
+    function Header({ goHome, goBrowse, cart, cartDrawerOpen, setCartDrawerOpen, cartFlash, onSearch, onSkuClick, tradeCustomer, onTradeClick, onTradeLogout, customer, onAccountClick, onCustomerLogout, wishlistCount, goWishlist, goCollections, categories, onCategorySelect, globalFacets, onAxisSelect, mobileNavOpen, setMobileNavOpen, mobileSearchOpen, setMobileSearchOpen, view }) {
       const [searchInput, setSearchInput] = useState('');
       const [suggestions, setSuggestions] = useState([]);
       const [showSuggestions, setShowSuggestions] = useState(false);
       const [activeIdx, setActiveIdx] = useState(-1);
+      const [megaMenuHover, setMegaMenuHover] = useState(false);
       const suggestTimerRef = useRef(null);
       const searchWrapRef = useRef(null);
+      const megaMenuTimerRef = useRef(null);
       const itemCount = cart.length;
+
+      const handleMegaEnter = () => { clearTimeout(megaMenuTimerRef.current); setMegaMenuHover(true); };
+      const handleMegaLeave = () => { megaMenuTimerRef.current = setTimeout(() => setMegaMenuHover(false), 100); };
 
       const fetchSuggestions = (q) => {
         if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
@@ -1111,6 +1261,11 @@
         children: categories.filter(c => c.parent_id === parent.id)
       }));
 
+      // Axis navigation facet values
+      const lookValues = (((globalFacets || []).find(f => f.slug === 'look') || {}).values || []).slice(0, 15);
+      const colorValues = (((globalFacets || []).find(f => f.slug === 'color') || {}).values || []).slice(0, 12);
+      const sizeValues = (((globalFacets || []).find(f => f.slug === 'size') || {}).values || []).slice(0, 16);
+
       const searchForm = (
         <form className="header-search" ref={searchWrapRef} onSubmit={(e) => { e.preventDefault(); const q = searchInput.trim(); if (q) { onSearch(q); setShowSuggestions(false); setSearchInput(''); } }}>
           <span className="header-search-icon">
@@ -1126,7 +1281,7 @@
                     <div className="search-suggestion-name">{sku.product_name}</div>
                     <div className="search-suggestion-variant">{formatVariantName(sku.variant_name)}</div>
                   </div>
-                  <span className="search-suggestion-price">${parseFloat(sku.retail_price || 0).toFixed(2)}{sku.price_basis === 'per_sqft' ? '/sf' : ''}</span>
+                  <span className="search-suggestion-price">${parseFloat(sku.retail_price || 0).toFixed(2)}{sku.price_basis === 'per_sqyd' ? '/sqyd' : sku.price_basis === 'per_sqft' ? '/sf' : ''}</span>
                 </div>
               ))}
               <div className="search-view-all" onClick={() => { onSearch(searchInput.trim()); setShowSuggestions(false); setSearchInput(''); }}>View all results</div>
@@ -1169,7 +1324,7 @@
           {/* Row 2: Navigation */}
           <div className="header-row-2">
             <nav className="header-nav">
-              <div className="header-nav-item">
+              <div className="header-nav-item" onMouseEnter={handleMegaEnter} onMouseLeave={handleMegaLeave}>
                 <button className={'header-nav-link' + (view === 'browse' ? ' active' : '')} onClick={goBrowse}>Shop</button>
                 {megaCols.length > 0 && (
                   <div className="mega-menu">
@@ -1187,6 +1342,65 @@
                   </div>
                 )}
               </div>
+              {lookValues.length > 0 && (
+                <div className="header-nav-item" onMouseEnter={handleMegaEnter} onMouseLeave={handleMegaLeave}>
+                  <button className="header-nav-link">By Look</button>
+                  <div className="mega-menu mega-menu--axis mega-menu--look">
+                    <div className="mega-menu-axis-title">Shop by Look</div>
+                    <div className="mega-menu-axis-grid">
+                      {lookValues.map(v => (
+                        <a key={v.value} className="mega-menu-look-tile" onClick={() => onAxisSelect('look', v.value)}>
+                          <div className="mega-menu-look-tile-bg" style={{ background: getLookGradient(v.value) }} />
+                          <div className="mega-menu-look-tile-label">
+                            <span>{v.value}</span>
+                            <span>{v.count} products</span>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {colorValues.length > 0 && (
+                <div className="header-nav-item" onMouseEnter={handleMegaEnter} onMouseLeave={handleMegaLeave}>
+                  <button className="header-nav-link">By Color</button>
+                  <div className="mega-menu mega-menu--axis mega-menu--color">
+                    <div className="mega-menu-axis-title">Shop by Color</div>
+                    <div className="mega-menu-axis-grid">
+                      {colorValues.map(v => {
+                        const hex = getColorHex(v.value);
+                        return (
+                          <a key={v.value} className="mega-menu-color-link" onClick={() => onAxisSelect('color', v.value)}>
+                            <span className={'mega-menu-color-dot' + (isLightColor(hex) ? ' mega-menu-color-dot--bordered' : '')} style={{ background: hex }} />
+                            <span>{v.value}</span>
+                            <span className="mega-menu-axis-count">{v.count}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {sizeValues.length > 0 && (
+                <div className="header-nav-item" onMouseEnter={handleMegaEnter} onMouseLeave={handleMegaLeave}>
+                  <button className="header-nav-link">By Size</button>
+                  <div className="mega-menu mega-menu--axis">
+                    <div className="mega-menu-axis-title">Shop by Size</div>
+                    <div className="mega-menu-axis-grid">
+                      {sizeValues.map(v => {
+                        const dims = parseSizeDimensions(v.value);
+                        return (
+                          <a key={v.value} className="mega-menu-size-link" onClick={() => onAxisSelect('size', v.value)}>
+                            <span className="mega-menu-size-icon" style={{ width: dims.width + 'px', height: dims.height + 'px' }} />
+                            <span>{v.value}</span>
+                            <span className="mega-menu-axis-count">{v.count}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="header-nav-item">
                 <button className={'header-nav-link' + (view === 'collections' ? ' active' : '')} onClick={goCollections}>Collections</button>
               </div>
@@ -1197,6 +1411,7 @@
               </div>
             </nav>
           </div>
+          <div className={'mega-menu-scrim' + (megaMenuHover ? ' visible' : '')} />
         </header>
       );
     }
@@ -1433,9 +1648,14 @@
 
     // ==================== Mobile Nav Drawer ====================
 
-    function MobileNav({ open, onClose, categories, onCategorySelect, goHome, goBrowse, goCollections, goTrade, goAccount, customer, tradeCustomer, onTradeClick, onCustomerLogout, onTradeLogout }) {
+    function MobileNav({ open, onClose, categories, onCategorySelect, globalFacets, onAxisSelect, goHome, goBrowse, goCollections, goTrade, goAccount, customer, tradeCustomer, onTradeClick, onCustomerLogout, onTradeLogout }) {
       const [expandedCat, setExpandedCat] = useState(null);
       const parentCats = categories.filter(c => !c.parent_id && c.product_count > 0);
+
+      // Axis navigation facet values for mobile
+      const lookValues = (((globalFacets || []).find(f => f.slug === 'look') || {}).values || []).slice(0, 15);
+      const colorValues = (((globalFacets || []).find(f => f.slug === 'color') || {}).values || []).slice(0, 12);
+      const sizeValues = (((globalFacets || []).find(f => f.slug === 'size') || {}).values || []).slice(0, 16);
 
       useEffect(() => {
         document.body.style.overflow = open ? 'hidden' : '';
@@ -1481,6 +1701,57 @@
                   </div>
                 )}
               </div>
+              {lookValues.length > 0 && (
+                <div className="mobile-nav-accordion">
+                  <div className="mobile-nav-accordion-header" onClick={() => setExpandedCat(expandedCat === 'look' ? null : 'look')}>
+                    <span>By Look</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, transform: expandedCat === 'look' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  {expandedCat === 'look' && (
+                    <div className="mobile-nav-accordion-body">
+                      {lookValues.map(v => (
+                        <a key={v.value} onClick={() => { onAxisSelect('look', v.value); onClose(); }}>{v.value} <span style={{ color: 'var(--stone-400)', fontSize: '0.75rem' }}>({v.count})</span></a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {colorValues.length > 0 && (
+                <div className="mobile-nav-accordion">
+                  <div className="mobile-nav-accordion-header" onClick={() => setExpandedCat(expandedCat === 'color' ? null : 'color')}>
+                    <span>By Color</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, transform: expandedCat === 'color' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  {expandedCat === 'color' && (
+                    <div className="mobile-nav-accordion-body">
+                      {colorValues.map(v => {
+                        const hex = getColorHex(v.value);
+                        return (
+                          <a key={v.value} onClick={() => { onAxisSelect('color', v.value); onClose(); }} style={{ display: 'flex', alignItems: 'center' }}>
+                            <span className={'mobile-color-dot' + (isLightColor(hex) ? ' mobile-color-dot--bordered' : '')} style={{ background: hex }} />
+                            {v.value} <span style={{ color: 'var(--stone-400)', fontSize: '0.75rem', marginLeft: '0.25rem' }}>({v.count})</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+              {sizeValues.length > 0 && (
+                <div className="mobile-nav-accordion">
+                  <div className="mobile-nav-accordion-header" onClick={() => setExpandedCat(expandedCat === 'size' ? null : 'size')}>
+                    <span>By Size</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, transform: expandedCat === 'size' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  {expandedCat === 'size' && (
+                    <div className="mobile-nav-accordion-body">
+                      {sizeValues.map(v => (
+                        <a key={v.value} onClick={() => { onAxisSelect('size', v.value); onClose(); }}>{v.value} <span style={{ color: 'var(--stone-400)', fontSize: '0.75rem' }}>({v.count})</span></a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <a onClick={() => { goCollections(); onClose(); }}>Collections</a>
               <a onClick={() => { goTrade(); onClose(); }}>Trade Program</a>
             </div>
@@ -1728,6 +1999,18 @@
       const landingChildren = isParentLanding
         ? (currentCategory.children || []).filter(ch => ch.product_count > 0)
         : [];
+
+      if (isParentLanding && landingChildren.length === 0 && (currentCategory.children || []).length > 0) {
+        return (
+          <>
+            <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} />
+            <section className="category-landing">
+              <h2>{currentCategory.name}</h2>
+              <p className="subtitle">Products coming soon. Check back later!</p>
+            </section>
+          </>
+        );
+      }
 
       if (isParentLanding && landingChildren.length > 0) {
         return (
@@ -2063,6 +2346,7 @@
       const [roomWidth, setRoomWidth] = useState('');
       const [roomLength, setRoomLength] = useState('');
       const [linearFeet, setLinearFeet] = useState('');
+      const [includeCarpetOverage, setIncludeCarpetOverage] = useState(false);
 
       // Review state
       const [reviews, setReviews] = useState([]);
@@ -2194,21 +2478,36 @@
       const rollPrice = isCarpetSku ? parseFloat(sku.roll_price) : 0;
       const rollMinSqft = isCarpetSku && sku.roll_min_sqft ? parseFloat(sku.roll_min_sqft) : 0;
       const rollWidthFt = isCarpetSku && sku.roll_width_ft ? parseFloat(sku.roll_width_ft) : 0;
+      const rollLengthFt = isCarpetSku && sku.roll_length_ft ? parseFloat(sku.roll_length_ft) : 0;
       // Auto-fallback: if linear mode but no roll width, use dimensions
       const effectiveCarpetMode = (carpetInputMode === 'linear' && rollWidthFt <= 0) ? 'dimensions' : carpetInputMode;
       // For carpet, compute sqft from linear feet, room dimensions, or manual input
-      const carpetSqft = isCarpetSku
+      const carpetRawSqft = isCarpetSku
         ? (effectiveCarpetMode === 'linear'
           ? (rollWidthFt * (parseFloat(linearFeet) || 0))
           : effectiveCarpetMode === 'dimensions'
             ? ((parseFloat(roomWidth) || 0) * (parseFloat(roomLength) || 0))
             : (parseFloat(sqftInput) || 0))
         : 0;
+      const carpetSqft = includeCarpetOverage ? Math.ceil(carpetRawSqft * 1.1) : carpetRawSqft;
       const carpetPriceTier = isCarpetSku && rollMinSqft > 0 && carpetSqft >= rollMinSqft ? 'roll' : 'cut';
       const carpetActivePrice = isCarpetSku ? (carpetPriceTier === 'roll' ? rollPrice : cutPrice) : 0;
-      const carpetSubtotal = carpetSqft * carpetActivePrice;
+      const carpetSqyd = carpetSqft / 9;
+      const carpetSubtotal = carpetSqyd * carpetActivePrice;
       const carpetSqftToRoll = isCarpetSku && rollMinSqft > 0 && carpetSqft > 0 && carpetSqft < rollMinSqft ? rollMinSqft - carpetSqft : 0;
-      const carpetRollSavings = isCarpetSku && carpetSqftToRoll > 0 ? ((cutPrice - rollPrice) * rollMinSqft).toFixed(2) : '0';
+      const carpetRollSavings = isCarpetSku && carpetSqftToRoll > 0 ? ((cutPrice - rollPrice) * (rollMinSqft / 9)).toFixed(2) : '0';
+      // Carpet weight estimation from weight_per_sqyd attribute or weight_per_pallet_lbs / sqft_per_pallet
+      const carpetWeightPerSqyd = isCarpetSku ? (() => {
+        const wAttr = (sku.attributes || []).find(a => a.slug === 'weight_per_sqyd');
+        if (wAttr) return parseFloat(wAttr.value) || 0;
+        if (sku.weight_per_pallet_lbs && sku.sqft_per_pallet) {
+          return (parseFloat(sku.weight_per_pallet_lbs) / (parseFloat(sku.sqft_per_pallet) / 9)) || 0;
+        }
+        return 0;
+      })() : 0;
+      const carpetEstWeight = carpetWeightPerSqyd > 0 ? carpetSqyd * carpetWeightPerSqyd : 0;
+      // Room wider than roll — seam needed
+      const carpetNeedsSeam = isCarpetSku && effectiveCarpetMode === 'dimensions' && rollWidthFt > 0 && (parseFloat(roomWidth) || 0) > rollWidthFt;
       const effectivePrice = isCarpetSku ? carpetActivePrice : (tradePrice || retailPrice);
 
       const handleSqftChange = (val) => {
@@ -2300,7 +2599,7 @@
             num_boxes: 1,
             unit_price: carpetActivePrice,
             subtotal: carpetSubtotal.toFixed(2),
-            sell_by: 'sqft',
+            sell_by: 'sqyd',
             price_tier: carpetPriceTier
           });
         } else if (isPerUnit) {
@@ -2386,7 +2685,7 @@
                       {rv.primary_image && <img src={rv.primary_image} alt={rv.product_name} loading="lazy" />}
                     </div>
                     <div className="sibling-card-name">{rv.product_name}</div>
-                    {rv.retail_price && <div className="sibling-card-price">${parseFloat(rv.retail_price).toFixed(2)}{rv.price_basis === 'per_unit' ? '/ea' : '/sqft'}</div>}
+                    {rv.retail_price && <div className="sibling-card-price">${parseFloat(rv.retail_price).toFixed(2)}{rv.price_basis === 'per_unit' ? '/ea' : rv.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft'}</div>}
                   </div>
                 ))}
               </div>
@@ -2464,8 +2763,8 @@
 
             <div className="sku-detail-info">
               <a className="back-btn" onClick={goBack}>&larr; Back to Shop</a>
-              <h1>{sku.collection && sku.collection.toLowerCase() !== sku.product_name.toLowerCase() ? `${sku.collection} ${sku.product_name}` : sku.product_name}</h1>
-              {sku.variant_name && <div className="sku-detail-variant">{formatVariantName(sku.variant_name)}</div>}
+              <h1>{isCarpetSku && sku.collection && sku.collection.toLowerCase() !== sku.product_name.toLowerCase() ? `${formatCarpetValue(sku.collection)} ${formatCarpetValue(sku.product_name)}` : formatCarpetValue(sku.product_name)}</h1>
+              {sku.variant_name && <div className="sku-detail-variant">{formatCarpetValue(sku.variant_name)}</div>}
               <div className="sku-detail-meta">
                 {sku.vendor_name}
               </div>
@@ -2475,14 +2774,14 @@
                   <>
                     <div>
                       <span style={{ fontSize: '1.75rem', fontWeight: 600 }}>${parseFloat(sku.cut_price).toFixed(2)}</span>
-                      <span>/sqft</span>
+                      <span>/sqyd</span>
                       <span style={{ color: 'var(--stone-500)', fontSize: '0.9375rem', marginLeft: '0.5rem' }}>
-                        (${carpetSqydPrice(sku.cut_price)}/sqyd)
+                        (${carpetSqftPrice(sku.cut_price)}/sqft)
                       </span>
                     </div>
                     {sku.roll_price && parseFloat(sku.roll_price) < parseFloat(sku.cut_price) && (
                       <div style={{ fontSize: '0.875rem', color: 'var(--sage)', marginTop: '0.375rem' }}>
-                        Roll Price: ${parseFloat(sku.roll_price).toFixed(2)}/sqft (${carpetSqydPrice(sku.roll_price)}/sqyd)
+                        Roll Price: ${parseFloat(sku.roll_price).toFixed(2)}/sqyd (${carpetSqftPrice(sku.roll_price)}/sqft)
                         {sku.roll_min_sqft && <span> — orders over {parseFloat(sku.roll_min_sqft).toFixed(0)} sqft</span>}
                       </div>
                     )}
@@ -2503,6 +2802,29 @@
                   <>${retailPrice.toFixed(2)}<span>{priceSuffix(sku)}</span></>
                 ) : 'Contact for pricing'}
               </div>
+
+              {/* Carpet Details Band */}
+              {isCarpetSku && (() => {
+                const attrMap = {};
+                (sku.attributes || []).forEach(a => { attrMap[a.slug] = a.value; });
+                const specs = [
+                  attrMap.collection && { label: 'Collection', value: formatCarpetValue(attrMap.collection) },
+                  attrMap.fiber && { label: 'Fiber', value: formatCarpetValue(attrMap.fiber) },
+                  attrMap.construction && { label: 'Construction', value: formatCarpetValue(attrMap.construction) },
+                  rollWidthFt > 0 && { label: 'Roll Width', value: rollWidthFt + ' ft' },
+                ].filter(Boolean);
+                if (specs.length === 0) return null;
+                return (
+                  <div className="carpet-specs-band">
+                    {specs.map((s, i) => (
+                      <div key={i} className="carpet-spec-card">
+                        <div className="carpet-spec-card-label">{s.label}</div>
+                        <div className="carpet-spec-card-value">{s.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
 
               {/* Variant Selectors */}
               {(() => {
@@ -2525,7 +2847,7 @@
                     attrMap[a.slug].values.add(a.value);
                   });
                 });
-                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'country', 'application', 'edge', 'look', 'color']);
+                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory']);
                 // Only show pills when this color/product actually has multiple options
                 const localAttrCounts = {};
                 allSiblings.forEach(s => {
@@ -2582,13 +2904,13 @@
                       };
                       return (
                         <div key={slug} className="variant-selector-group">
-                          <div className="variant-selector-label">{attrMap[slug].name}<span>{currentVal || ''}</span></div>
+                          <div className="variant-selector-label">{attrMap[slug].name}<span>{formatCarpetValue(currentVal || '')}</span></div>
                           {values.length > 8 ? (
                             <select className="attr-select" value={currentVal || ''} onChange={(e) => {
                               const best = findBest(e.target.value);
                               if (best) onSkuClick(best.sku_id);
                             }}>
-                              {values.map(val => <option key={val} value={val}>{val}</option>)}
+                              {values.map(val => <option key={val} value={val}>{formatCarpetValue(val)}</option>)}
                             </select>
                           ) : (
                             <div className="attr-pills">
@@ -2597,7 +2919,7 @@
                                 const best = findBest(val);
                                 return (
                                   <button key={val} className={'attr-pill' + (isActive ? ' active' : '')} onClick={() => { if (!isActive && best) onSkuClick(best.sku_id); }}>
-                                    {val}
+                                    {formatCarpetValue(val)}
                                   </button>
                                 );
                               })}
@@ -2682,8 +3004,8 @@
                 </div>
               )}
 
-              {/* Packaging Info */}
-              {sqftPerBox > 0 && (
+              {/* Packaging Info (box-based products) */}
+              {!isCarpetSku && sqftPerBox > 0 && (
                 <div className="packaging-info">
                   <h4>Packaging Details</h4>
                   <div>Coverage: {sqftPerBox} sqft/box</div>
@@ -2693,14 +3015,47 @@
                 </div>
               )}
 
+              {/* Roll Specifications (carpet products) */}
+              {isCarpetSku && (rollWidthFt > 0 || rollLengthFt > 0 || sku.sqft_per_pallet || sku.weight_per_pallet_lbs) && (
+                <div className="carpet-roll-info">
+                  <h4>Roll Specifications</h4>
+                  <div className="carpet-roll-info-grid">
+                    {rollWidthFt > 0 && (
+                      <div className="carpet-roll-info-row">
+                        <span className="carpet-roll-info-label">Roll Width</span>
+                        <span className="carpet-roll-info-value">{rollWidthFt} ft</span>
+                      </div>
+                    )}
+                    {rollLengthFt > 0 && (
+                      <div className="carpet-roll-info-row">
+                        <span className="carpet-roll-info-label">Roll Length</span>
+                        <span className="carpet-roll-info-value">{rollLengthFt} ft</span>
+                      </div>
+                    )}
+                    {sku.sqft_per_pallet && parseFloat(sku.sqft_per_pallet) > 0 && (
+                      <div className="carpet-roll-info-row">
+                        <span className="carpet-roll-info-label">Roll Area</span>
+                        <span className="carpet-roll-info-value">{parseFloat(sku.sqft_per_pallet).toLocaleString()} sqft</span>
+                      </div>
+                    )}
+                    {sku.weight_per_pallet_lbs && parseFloat(sku.weight_per_pallet_lbs) > 0 && (
+                      <div className="carpet-roll-info-row">
+                        <span className="carpet-roll-info-label">Roll Weight</span>
+                        <span className="carpet-roll-info-value">{parseFloat(sku.weight_per_pallet_lbs).toLocaleString()} lbs</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Carpet Calculator */}
               {isCarpetSku && cutPrice > 0 && (
                 <div className="calculator-widget">
                   <h3>Carpet Calculator</h3>
                   {rollWidthFt > 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', padding: '0.5rem 0.75rem', background: 'var(--stone-50)', borderRadius: '0.375rem', fontSize: '0.875rem' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="var(--stone-500)" strokeWidth="1.5" style={{ width: 16, height: 16, flexShrink: 0 }}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
-                      <span>Roll Width: <strong>{rollWidthFt} ft</strong></span>
+                    <div className="carpet-roll-width-header">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 20, height: 20 }}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+                      {rollWidthFt}' Wide Roll
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '1rem' }}>
@@ -2733,13 +3088,13 @@
                   ) : carpetInputMode === 'dimensions' ? (
                     <div className="calc-input-row">
                       <div className="calc-input-group">
-                        <label>Width (ft)</label>
+                        <label>Room Width (ft)</label>
                         <input className="calc-input" type="number" min="0" step="0.5" placeholder="0"
                           value={roomWidth} onChange={(e) => setRoomWidth(e.target.value)} />
                       </div>
                       <div style={{ display: 'flex', alignItems: 'flex-end', padding: '0 0.25rem 0.5rem', fontSize: '1.25rem', color: 'var(--stone-400)' }}>&times;</div>
                       <div className="calc-input-group">
-                        <label>Length (ft)</label>
+                        <label>Room Length (ft)</label>
                         <input className="calc-input" type="number" min="0" step="0.5" placeholder="0"
                           value={roomLength} onChange={(e) => setRoomLength(e.target.value)} />
                       </div>
@@ -2753,25 +3108,47 @@
                       </div>
                     </div>
                   )}
+                  <label className="carpet-overage-label">
+                    <input type="checkbox" checked={includeCarpetOverage} onChange={(e) => setIncludeCarpetOverage(e.target.checked)} />
+                    Add 10% overage for seams &amp; pattern matching
+                  </label>
+                  {carpetNeedsSeam && (
+                    <div className="carpet-seam-note">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                      Room width ({parseFloat(roomWidth).toFixed(0)}') exceeds roll width ({rollWidthFt}') — a seam will be required
+                    </div>
+                  )}
                   {carpetSqft > 0 && (
                     <div className="calc-summary">
                       {carpetInputMode === 'linear' && rollWidthFt > 0 && (
                         <div className="calc-summary-row">
-                          <span>Cut</span><span>{rollWidthFt} ft &times; {parseFloat(linearFeet).toFixed(1)} ft</span>
+                          <span>Cut Size</span><span>{rollWidthFt} ft &times; {parseFloat(linearFeet).toFixed(1)} ft = {carpetRawSqft.toFixed(1)} sqft ({(carpetRawSqft / 9).toFixed(1)} sqyd)</span>
                         </div>
                       )}
-                      <div className="calc-summary-row">
-                        <span>Area</span><span>{carpetSqft.toFixed(1)} sqft ({(carpetSqft / 9).toFixed(1)} sqyd)</span>
-                      </div>
+                      {includeCarpetOverage && (
+                        <div className="calc-summary-row">
+                          <span>+ 10% Overage</span><span>{carpetSqft.toFixed(1)} sqft</span>
+                        </div>
+                      )}
+                      {!includeCarpetOverage && (
+                        <div className="calc-summary-row">
+                          <span>Area</span><span>{carpetSqft.toFixed(1)} sqft ({carpetSqyd.toFixed(1)} sqyd)</span>
+                        </div>
+                      )}
                       <div className="calc-summary-row">
                         <span>Price Tier</span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
                           <span style={{ display: 'inline-block', padding: '0.125rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 600, background: carpetPriceTier === 'roll' ? 'var(--sage)' : 'var(--stone-200)', color: carpetPriceTier === 'roll' ? 'white' : 'var(--stone-700)' }}>
                             {carpetPriceTier === 'roll' ? 'Roll Price' : 'Cut Price'}
                           </span>
-                          ${carpetActivePrice.toFixed(2)}/sqft
+                          ${carpetActivePrice.toFixed(2)}/sqyd
                         </span>
                       </div>
+                      {carpetEstWeight > 0 && (
+                        <div className="calc-summary-row">
+                          <span>Est. Weight</span><span>{carpetEstWeight.toFixed(0)} lbs</span>
+                        </div>
+                      )}
                       <div className="calc-summary-total"><span>Subtotal</span><span>${carpetSubtotal.toFixed(2)}</span></div>
                     </div>
                   )}
@@ -2889,15 +3266,60 @@
               </div>
 
               {/* Specs Table */}
-              {(sku.attributes && sku.attributes.length > 0) && (
-                <table className="specs-table">
-                  <tbody>
-                    {sku.attributes.map((a, i) => (
-                      <tr key={i}><td>{a.name}</td><td>{a.value}</td></tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+              {(sku.attributes && sku.attributes.length > 0) && (() => {
+                const HIDDEN_SLUGS = new Set(['price_list', 'material_class', 'style_code', 'companion_skus', 'subcategory']);
+                const ORDER = ['collection', 'species', 'color', 'color_code', 'fiber', 'material', 'construction', 'finish', 'style', 'pattern', 'size', 'thickness', 'width', 'wear_layer', 'weight', 'weight_per_sqyd', 'roll_width', 'roll_length'];
+                const visible = sku.attributes.filter(a => !HIDDEN_SLUGS.has(a.slug) && !(a.slug === 'species' && /^\d+$/.test(a.value)));
+                // Remove duplicate values (e.g. fiber=material, construction=subcategory)
+                const seenVals = new Map();
+                const deduped = visible.filter(a => {
+                  const norm = (a.value || '').toUpperCase().replace(/\s+/g, ' ').trim();
+                  if (seenVals.has(norm)) return false;
+                  seenVals.set(norm, true);
+                  return true;
+                });
+                const sorted = deduped.sort((a, b) => {
+                  const ai = ORDER.indexOf(a.slug), bi = ORDER.indexOf(b.slug);
+                  if (ai >= 0 && bi >= 0) return ai - bi;
+                  if (ai >= 0) return -1;
+                  if (bi >= 0) return 1;
+                  return a.name.localeCompare(b.name);
+                });
+                // Inject style (product name) after collection
+                if (sku.product_name) {
+                  const collIdx = sorted.findIndex(a => a.slug === 'collection');
+                  sorted.splice(collIdx >= 0 ? collIdx + 1 : 0, 0, { slug: '_style', name: 'Style', value: sku.product_name });
+                }
+                // Inject brand line from price_list after color_code
+                const priceListAttr = (sku.attributes || []).find(a => a.slug === 'price_list');
+                if (priceListAttr && priceListAttr.value) {
+                  const brandLine = priceListAttr.value.replace(/\s+\d+$/, '');
+                  const ccIdx = sorted.findIndex(a => a.slug === 'color_code');
+                  sorted.splice(ccIdx >= 0 ? ccIdx + 1 : sorted.length, 0, { slug: '_brand', name: 'Brand', value: brandLine });
+                  // Inject application type derived from price_list
+                  const pl = priceListAttr.value.toUpperCase();
+                  let appType = null;
+                  if (/CONTRACT/.test(pl)) appType = 'Commercial';
+                  else if (/MAINSTREET/.test(pl) && /COMMERCIAL/.test(pl)) appType = 'Commercial';
+                  else if (/MAINSTREET/.test(pl)) appType = 'Commercial / Residential';
+                  else if (/BUILDER/.test(pl)) appType = 'Builder / Residential';
+                  else if (/RETAIL|VALUE|RESIDENTIAL/.test(pl)) appType = 'Residential';
+                  if (appType) {
+                    const brandIdx = sorted.findIndex(a => a.slug === '_brand');
+                    sorted.splice(brandIdx >= 0 ? brandIdx + 1 : sorted.length, 0, { slug: '_application', name: 'Application', value: appType });
+                  }
+                }
+                if (sorted.length === 0) return null;
+                return (
+                  <table className="specs-table">
+                    <tbody>
+                      {sorted.map((a, i) => (
+                        <tr key={i}><td>{a.name}</td><td>{formatCarpetValue(a.value)}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
 
               {/* Description */}
               {(sku.description_long || sku.description_short) && (() => {
@@ -2953,7 +3375,7 @@
                               {s.primary_image && <img src={s.primary_image} alt={s.product_name} loading="lazy" decoding="async" />}
                             </div>
                             <div className="sibling-card-name">{s.product_name}</div>
-                            {s.retail_price && <div className="sibling-card-price">from ${parseFloat(s.retail_price).toFixed(2)}{s.sell_by === 'sqft' ? '/sf' : s.price_basis === 'per_sqft' ? '/sf' : ''}</div>}
+                            {s.retail_price && <div className="sibling-card-price">from ${parseFloat(s.retail_price).toFixed(2)}{s.sell_by === 'sqyd' ? '/sqyd' : s.sell_by === 'sqft' ? '/sf' : s.price_basis === 'per_sqyd' ? '/sqyd' : s.price_basis === 'per_sqft' ? '/sf' : ''}</div>}
                           </div>
                         ))}
                       </div>
@@ -2973,10 +3395,16 @@
                       <div className="sibling-card-image">
                         {s.primary_image && <img src={s.primary_image} alt={formatVariantName(s.variant_name)} loading="lazy" decoding="async" />}
                       </div>
-                      <div className="sibling-card-name">{formatVariantName(s.variant_name) || 'Variant'}</div>
-                      {s.attributes && s.attributes.length > 0 && (
-                        <div className="sibling-card-meta">{s.attributes.map(a => a.value).join(' \u00B7 ')}</div>
-                      )}
+                      <div className="sibling-card-name">{formatCarpetValue(s.variant_name) || 'Variant'}</div>
+                      {s.attributes && s.attributes.length > 0 && (() => {
+                        const SKIP = new Set(['price_list', 'material_class', 'style_code', 'subcategory', 'upc', 'color', 'color_code', 'collection', 'material']);
+                        const useful = s.attributes.filter(a => !SKIP.has(a.slug));
+                        // Only show attrs that differ from the current SKU
+                        const currentVals = (sku.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
+                        const differing = useful.filter(a => currentVals[a.slug] !== a.value);
+                        if (differing.length === 0) return null;
+                        return <div className="sibling-card-meta">{differing.map(a => formatCarpetValue(a.value)).join(' \u00B7 ')}</div>;
+                      })()}
                       {s.retail_price && <div className="sibling-card-price">${parseFloat(s.retail_price).toFixed(2)}{priceSuffix(s)}</div>}
                     </div>
                   ))}
@@ -3014,7 +3442,7 @@
                       </div>
                       <div className="sibling-card-name">{s.product_name}</div>
                       {s.variant_name && <div className="sibling-card-meta">{formatVariantName(s.variant_name)}</div>}
-                      {s.retail_price && <div className="sibling-card-price">${parseFloat(s.retail_price).toFixed(2)}{s.price_basis === 'per_sqft' ? '/sf' : ''}</div>}
+                      {s.retail_price && <div className="sibling-card-price">${parseFloat(s.retail_price).toFixed(2)}{s.price_basis === 'per_sqyd' ? '/sqyd' : s.price_basis === 'per_sqft' ? '/sf' : ''}</div>}
                     </div>
                   ))}
                 </div>
@@ -3240,7 +3668,7 @@
                           {item.is_sample ? 'Free sample' : (
                             <>
                               {item.collection && <span>{item.collection} &middot; </span>}
-                              ${parseFloat(item.unit_price).toFixed(2)}{item.sell_by === 'unit' ? '/ea' : '/sqft'}
+                              ${parseFloat(item.unit_price).toFixed(2)}{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'sqyd' ? '/sqyd' : '/sqft'}
                               {item.price_tier && (
                                 <span style={{ display: 'inline-block', marginLeft: '0.375rem', padding: '0.0625rem 0.375rem', borderRadius: '0.1875rem', fontSize: '0.6875rem', fontWeight: 600, background: item.price_tier === 'roll' ? 'var(--sage, #6b9080)' : 'var(--stone-200)', color: item.price_tier === 'roll' ? 'white' : 'var(--stone-600)' }}>
                                   {item.price_tier === 'roll' ? 'Roll Price' : 'Cut Price'}
@@ -3462,15 +3890,17 @@
       const [zip, setZip] = useState(customer ? (customer.zip || '') : '');
       const [error, setError] = useState('');
       const [processing, setProcessing] = useState(false);
+      const [taxEstimate, setTaxEstimate] = useState({ rate: 0, amount: 0 });
       const cardRef = useRef(null);
       const cardMounted = useRef(false);
+      const taxDebounce = useRef(null);
 
       const isPickup = deliveryMethod === 'pickup';
       const productItems = cart.filter(i => !i.is_sample);
       const sampleItems = cart.filter(i => i.is_sample);
       const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
       const sampleShipping = sampleItems.length > 0 ? 12 : 0;
-      const cartTotal = productSubtotal + sampleShipping;
+      const cartTotal = productSubtotal + sampleShipping + taxEstimate.amount;
 
       const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'];
 
@@ -3485,6 +3915,21 @@
         cardMounted.current = true;
         return () => { if (cardRef.current) { cardRef.current.unmount(); cardMounted.current = false; } };
       }, []);
+
+      // Fetch tax estimate when ZIP changes
+      useEffect(() => {
+        const taxZip = isPickup ? '92806' : zip;
+        if (!taxZip || taxZip.length < 5) { setTaxEstimate({ rate: 0, amount: 0 }); return; }
+        clearTimeout(taxDebounce.current);
+        taxDebounce.current = setTimeout(async () => {
+          try {
+            const resp = await fetch(API + '/api/cart/tax-estimate?zip=' + encodeURIComponent(taxZip) + '&session_id=' + encodeURIComponent(sessionId));
+            const data = await resp.json();
+            setTaxEstimate({ rate: data.rate || 0, amount: data.amount || 0 });
+          } catch { setTaxEstimate({ rate: 0, amount: 0 }); }
+        }, 400);
+        return () => clearTimeout(taxDebounce.current);
+      }, [zip, isPickup, sessionId]);
 
       const handleSubmit = async (e) => {
         e.preventDefault();
@@ -3596,6 +4041,7 @@
             ))}
             {productItems.length > 0 && <div className="order-summary-row" style={{ borderTop: '1px solid var(--stone-200)', marginTop: '0.5rem', paddingTop: '0.75rem' }}><span>Subtotal</span><span>${productSubtotal.toFixed(2)}</span></div>}
             {sampleItems.length > 0 && <div className="order-summary-row muted"><span>Sample Shipping</span><span>$12.00</span></div>}
+            {taxEstimate.amount > 0 && <div className="order-summary-row muted"><span>Estimated Tax ({(taxEstimate.rate * 100).toFixed(2)}%)</span><span>${taxEstimate.amount.toFixed(2)}</span></div>}
             <div className="order-summary-total"><span>Total</span><span>${cartTotal.toFixed(2)}</span></div>
             <a className="back-btn" onClick={goCart} style={{ marginTop: '1rem', display: 'inline-block' }}>&larr; Back to Cart</a>
           </div>
@@ -4058,7 +4504,7 @@
                           {rv.primary_image && <img src={rv.primary_image} alt={rv.product_name} loading="lazy" />}
                         </div>
                         <div className="sibling-card-name">{rv.product_name}</div>
-                        {rv.retail_price && <div className="sibling-card-price">${parseFloat(rv.retail_price).toFixed(2)}{rv.price_basis === 'per_unit' ? '/ea' : '/sqft'}</div>}
+                        {rv.retail_price && <div className="sibling-card-price">${parseFloat(rv.retail_price).toFixed(2)}{rv.price_basis === 'per_unit' ? '/ea' : rv.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft'}</div>}
                       </div>
                     ))}
                   </div>
@@ -5415,7 +5861,7 @@
                 <div className="sku-card-name">{[item.collection, item.product_name].filter(Boolean).join(' ')}</div>
                 {item.variant_name && <div className="sku-card-variant">{item.variant_name}</div>}
                 <div className="sku-card-price">
-                  {item.retail_price ? '$' + parseFloat(item.retail_price).toFixed(2) + (item.price_basis === 'per_sqft' ? '/sqft' : '') : ''}
+                  {item.retail_price ? '$' + parseFloat(item.retail_price).toFixed(2) + (item.price_basis === 'per_sqyd' ? '/sqyd' : item.price_basis === 'per_sqft' ? '/sqft' : '') : ''}
                 </div>
                 {item.rep_note && (
                   <p style={{ margin: '0.5rem 0 0', fontSize: '0.8125rem', fontStyle: 'italic', color: 'var(--stone-400)', lineHeight: 1.4 }}>"{item.rep_note}"</p>
