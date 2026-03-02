@@ -11,7 +11,8 @@ import fs from 'fs';
 import path from 'path';
 import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail } from './services/emailService.js';
+import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import healthRoutes from './routes/health.js';
 import { generate850 } from './services/ediGenerator.js';
@@ -278,6 +279,66 @@ async function notifyAllActiveReps(queryable, type, title, message, entityType, 
   } catch (err) {
     console.error('Failed to notify all reps:', err.message);
   }
+}
+
+// ==================== Find-or-Create Customer Helper ====================
+
+async function findOrCreateCustomer(client, { email, firstName, lastName, phone, repId, createdVia }) {
+  const normalEmail = email.toLowerCase().trim();
+
+  // 1. Check if customer exists by email
+  const existing = await client.query('SELECT * FROM customers WHERE email = $1', [normalEmail]);
+
+  if (existing.rows.length > 0) {
+    const cust = existing.rows[0];
+    // Backfill missing fields (phone, name, rep) if they were empty
+    const updates = [];
+    const vals = [];
+    let idx = 1;
+    if (!cust.phone && phone) { updates.push(`phone = $${idx++}`); vals.push(phone); }
+    if (!cust.first_name && firstName) { updates.push(`first_name = $${idx++}`); vals.push(firstName); }
+    if (!cust.last_name && lastName) { updates.push(`last_name = $${idx++}`); vals.push(lastName); }
+    if (!cust.assigned_rep_id && repId) {
+      updates.push(`assigned_rep_id = $${idx++}`); vals.push(repId);
+      updates.push(`assigned_at = NOW()`);
+    }
+    if (updates.length > 0) {
+      vals.push(cust.id);
+      await client.query(`UPDATE customers SET ${updates.join(', ')} WHERE id = $${idx}`, vals);
+    }
+    return { customer: cust, created: false };
+  }
+
+  // 2. Create new customer with random placeholder password
+  const placeholder = crypto.randomBytes(32).toString('hex');
+  const { hash, salt } = hashPassword(placeholder);
+
+  const result = await client.query(
+    `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, password_set, assigned_rep_id, assigned_at, created_via)
+     VALUES ($1, $2, $3, $4, $5, $6, false, $7, NOW(), $8)
+     RETURNING *`,
+    [normalEmail, hash, salt, firstName || '', lastName || '', phone || null, repId || null, createdVia || 'rep']
+  );
+
+  const newCustomer = result.rows[0];
+
+  // 3. Generate password-set token (7-day expiry)
+  const token = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await client.query(
+    'UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3',
+    [token, expires, newCustomer.id]
+  );
+
+  // 4. Send welcome email asynchronously (fire after transaction commits)
+  const resetUrl = `${process.env.FRONTEND_URL || 'https://romaflooringdesigns.com'}/account?action=set-password&token=${token}`;
+  setImmediate(() => {
+    sendWelcomeSetPassword(newCustomer.email, newCustomer.first_name, resetUrl).catch(err => {
+      console.error('Failed to send welcome email:', err);
+    });
+  });
+
+  return { customer: newCustomer, created: true };
 }
 
 // ==================== Commission Recalculation Helper ====================
@@ -1036,7 +1097,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class,
         pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs,
-        pk.roll_width_ft,
+        pk.roll_width_ft, pk.roll_length_ft,
         inv.qty_on_hand, inv.qty_in_transit, inv.fresh_until,
         CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_on_hand, 0) * pk.sqft_per_box) END as qty_on_hand_sqft,
         CASE
@@ -2288,7 +2349,7 @@ async function generatePurchaseOrders(orderId, client) {
     const random = Math.random().toString(36).substr(2, 4).toUpperCase();
     const poNumber = `PO-${group.vendor_code}-${timestamp}-${random}`;
 
-    // Calculate subtotal — cost per box * qty (boxes)
+    // Calculate subtotal — cost per box * qty (boxes), or cost per sqyd * sqyd for carpet
     let poSubtotal = 0;
     for (const item of group.items) {
       const sqftPerBox = parseFloat(item.sqft_per_box || 1);
@@ -2299,8 +2360,17 @@ async function generatePurchaseOrders(orderId, client) {
       } else if (item.price_tier === 'cut' && item.cut_cost != null) {
         vendorCost = parseFloat(item.cut_cost);
       }
-      const costPerBox = item.price_basis === 'per_sqft' ? vendorCost * sqftPerBox : vendorCost;
-      poSubtotal += costPerBox * item.qty;
+      let itemCost;
+      if (item.price_basis === 'per_sqyd') {
+        // Carpet: cost/sqyd * sqyd (sqft_needed is in sqft, convert to sqyd)
+        const sqyd = parseFloat(item.sqft_needed || 0) / 9;
+        itemCost = vendorCost * sqyd;
+      } else if (item.price_basis === 'per_sqft') {
+        itemCost = vendorCost * sqftPerBox * item.qty;
+      } else {
+        itemCost = vendorCost * item.qty;
+      }
+      poSubtotal += itemCost;
     }
 
     // Create purchase order
@@ -2312,7 +2382,7 @@ async function generatePurchaseOrders(orderId, client) {
 
     const po = poResult.rows[0];
 
-    // Create purchase order items — all prices normalized to per-box
+    // Create purchase order items
     for (const item of group.items) {
       const sqftPerBox = parseFloat(item.sqft_per_box || 1);
       let vendorCost = parseFloat(item.vendor_cost);
@@ -2321,11 +2391,21 @@ async function generatePurchaseOrders(orderId, client) {
       } else if (item.price_tier === 'cut' && item.cut_cost != null) {
         vendorCost = parseFloat(item.cut_cost);
       }
-      const costPerBox = item.price_basis === 'per_sqft' ? vendorCost * sqftPerBox : vendorCost;
-      const retailPerBox = item.unit_price
-        ? (item.price_basis === 'per_sqft' ? parseFloat(item.unit_price) * sqftPerBox : parseFloat(item.unit_price))
-        : null;
-      const itemSubtotal = costPerBox * item.qty;
+      let costPerBox, retailPerBox, itemSubtotal;
+      if (item.price_basis === 'per_sqyd') {
+        const sqyd = parseFloat(item.sqft_needed || 0) / 9;
+        costPerBox = vendorCost; // cost per sqyd
+        retailPerBox = item.unit_price ? parseFloat(item.unit_price) : null; // retail per sqyd
+        itemSubtotal = vendorCost * sqyd;
+      } else if (item.price_basis === 'per_sqft') {
+        costPerBox = vendorCost * sqftPerBox;
+        retailPerBox = item.unit_price ? parseFloat(item.unit_price) * sqftPerBox : null;
+        itemSubtotal = costPerBox * item.qty;
+      } else {
+        costPerBox = vendorCost;
+        retailPerBox = item.unit_price ? parseFloat(item.unit_price) : null;
+        itemSubtotal = costPerBox * item.qty;
+      }
       await client.query(`
         INSERT INTO purchase_order_items
           (purchase_order_id, order_item_id, sku_id, product_name, vendor_sku, description, qty, sell_by, cost, original_cost, retail_price, subtotal)
@@ -3069,7 +3149,7 @@ app.get('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', '
   try {
     const { productId } = req.params;
     const result = await pool.query(`
-      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft,
+      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft, pk.roll_length_ft,
         pr.cost, pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -3109,7 +3189,7 @@ app.post('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', 
   const client = await pool.connect();
   try {
     const { productId } = req.params;
-    const { vendor_sku, internal_sku, variant_name, sell_by, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, roll_width_ft } = req.body;
+    const { vendor_sku, internal_sku, variant_name, sell_by, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, roll_width_ft, roll_length_ft } = req.body;
     if (!vendor_sku || !internal_sku) return res.status(400).json({ error: 'vendor_sku and internal_sku are required' });
 
     await client.query('BEGIN');
@@ -3122,11 +3202,11 @@ app.post('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', 
 
     const skuId = sku.rows[0].id;
 
-    if (sqft_per_box || pieces_per_box || weight_per_box_lbs || boxes_per_pallet || roll_width_ft) {
+    if (sqft_per_box || pieces_per_box || weight_per_box_lbs || boxes_per_pallet || roll_width_ft || roll_length_ft) {
       await client.query(`
-        INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      `, [skuId, sqft_per_box || null, pieces_per_box || null, weight_per_box_lbs || null, freight_class || 70, boxes_per_pallet || null, sqft_per_pallet || null, weight_per_pallet_lbs || null, roll_width_ft || null]);
+        INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft, roll_length_ft)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, [skuId, sqft_per_box || null, pieces_per_box || null, weight_per_box_lbs || null, freight_class || 70, boxes_per_pallet || null, sqft_per_pallet || null, weight_per_pallet_lbs || null, roll_width_ft || null, roll_length_ft || null]);
     }
 
     if (cost != null && retail_price != null) {
@@ -3140,7 +3220,7 @@ app.post('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', 
 
     // Return full SKU with joins
     const full = await pool.query(`
-      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft,
+      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft, pk.roll_length_ft,
         pr.cost, pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -3162,7 +3242,7 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { vendor_sku, internal_sku, variant_name, sell_by, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, roll_width_ft } = req.body;
+    const { vendor_sku, internal_sku, variant_name, sell_by, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, roll_width_ft, roll_length_ft } = req.body;
 
     await client.query('BEGIN');
 
@@ -3178,8 +3258,8 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
 
     // Upsert packaging
     await client.query(`
-      INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft, roll_length_ft)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       ON CONFLICT (sku_id) DO UPDATE SET
         sqft_per_box = COALESCE($2, packaging.sqft_per_box),
         pieces_per_box = COALESCE($3, packaging.pieces_per_box),
@@ -3188,8 +3268,9 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
         boxes_per_pallet = COALESCE($6, packaging.boxes_per_pallet),
         sqft_per_pallet = COALESCE($7, packaging.sqft_per_pallet),
         weight_per_pallet_lbs = COALESCE($8, packaging.weight_per_pallet_lbs),
-        roll_width_ft = COALESCE($9, packaging.roll_width_ft)
-    `, [id, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft]);
+        roll_width_ft = COALESCE($9, packaging.roll_width_ft),
+        roll_length_ft = COALESCE($10, packaging.roll_length_ft)
+    `, [id, sqft_per_box, pieces_per_box, weight_per_box_lbs, freight_class, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft, roll_length_ft]);
 
     // Upsert pricing
     if (cost != null && retail_price != null) {
@@ -3211,7 +3292,7 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
     await client.query('COMMIT');
 
     const full = await pool.query(`
-      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft,
+      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft, pk.roll_length_ft,
         pr.cost, pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -3688,7 +3769,7 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
   try {
     const { id } = req.params;
     const { status, tracking_number, carrier, shipped_at } = req.body;
-    const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled', 'refunded'];
+    const validStatuses = ['pending', 'confirmed', 'ready_for_pickup', 'shipped', 'delivered', 'cancelled', 'refunded'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status. Must be one of: ' + validStatuses.join(', ') });
     }
@@ -3728,6 +3809,11 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
         WHERE id = $2
         RETURNING *
       `, [status, id]);
+    } else if (status === 'ready_for_pickup') {
+      result = await client.query(
+        'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
+        [status, id]
+      );
     } else if (status === 'confirmed') {
       result = await client.query(
         'UPDATE orders SET status = $1, confirmed_at = NOW() WHERE id = $2 RETURNING *',
@@ -3996,6 +4082,15 @@ app.post('/api/admin/orders/:id/refund', staffAuth, requireRole('admin', 'manage
 
     await logOrderActivity(pool, id, 'refund_issued', req.staff.id, staffName,
       { amount: refundAmount.toFixed(2), reason: reason || null, is_full: isFullRefund });
+
+    // Notify assigned rep about refund
+    if (o.sales_rep_id) {
+      setImmediate(() => createRepNotification(pool, o.sales_rep_id, 'refund_issued',
+        `Refund issued on ${o.order_number}`,
+        `${staffName} refunded $${refundAmount.toFixed(2)}${isFullRefund ? ' (full)' : ' (partial)'}${reason ? ' — ' + reason : ''}`,
+        'order', id));
+    }
+
     const balanceInfo = await recalculateBalance(id);
     res.json({ order: result.rows[0], balance: balanceInfo });
   } catch (err) {
@@ -4011,12 +4106,12 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description } = req.body;
+    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description, as_sample } = req.body;
 
     const isCustom = !sku_id;
     if (isCustom) {
       if (!product_name || !product_name.trim()) return res.status(400).json({ error: 'product_name is required for custom items' });
-      if (unit_price == null || parseFloat(unit_price) < 0) return res.status(400).json({ error: 'unit_price >= 0 is required for custom items' });
+      if (!as_sample && (unit_price == null || parseFloat(unit_price) < 0)) return res.status(400).json({ error: 'unit_price >= 0 is required for custom items' });
       if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required for custom items' });
       if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'num_boxes >= 1 is required' });
     } else {
@@ -4049,8 +4144,8 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
       sku = skuResult.rows[0];
 
-      unitPrice = parseFloat(sku.retail_price || 0);
-      isSample = sku.is_sample || false;
+      unitPrice = as_sample ? 0 : parseFloat(sku.retail_price || 0);
+      isSample = as_sample ? true : (sku.is_sample || false);
       sqftPerBox = parseFloat(sku.sqft_per_box || 1);
       isPerSqft = sku.price_basis === 'per_sqft';
       computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
@@ -4058,9 +4153,9 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       itemVendorId = sku.vendor_id;
     } else {
       // Custom mode
-      unitPrice = parseFloat(unit_price);
-      isSample = false;
-      itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
+      unitPrice = as_sample ? 0 : parseFloat(unit_price);
+      isSample = as_sample ? true : false;
+      itemSubtotal = isSample ? 0 : parseFloat((unitPrice * num_boxes).toFixed(2));
       itemVendorId = vendor_id;
 
       // Validate vendor exists
@@ -4340,6 +4435,14 @@ app.post('/api/admin/orders/:id/payment-request', staffAuth, requireRole('admin'
 
     await logOrderActivity(pool, id, 'payment_request_sent', req.staff.id, staffName,
       { amount: amountDue.toFixed(2), sent_to: o.customer_email });
+
+    // Notify assigned rep about admin-sent payment request
+    if (o.sales_rep_id) {
+      setImmediate(() => createRepNotification(pool, o.sales_rep_id, 'payment_request_sent',
+        `Payment request sent for ${o.order_number}`,
+        `${staffName} sent $${amountDue.toFixed(2)} payment request to ${o.customer_email}`,
+        'order', id));
+    }
 
     // Send email
     setImmediate(() => sendPaymentRequest({ order: o, amount: amountDue, checkout_url: session.url, message: message || null }));
@@ -6468,6 +6571,16 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       }
       case 'checkout.session.completed': {
         const session = event.data.object;
+        // Handle sample shipping payment
+        if (session.metadata && session.metadata.type === 'sample_shipping') {
+          const { sample_request_id } = session.metadata;
+          if (sample_request_id) {
+            await pool.query(
+              'UPDATE sample_requests SET shipping_payment_collected = true, shipping_payment_collected_at = NOW() WHERE id = $1',
+              [sample_request_id]
+            );
+          }
+        }
         if (session.metadata && session.metadata.type === 'payment_request') {
           const { order_id, payment_request_id } = session.metadata;
           const paidAmount = (session.amount_total || 0) / 100;
@@ -7225,7 +7338,155 @@ app.get('/api/trade/quotes/:id/pdf', (req, res, next) => {
   }
 });
 
-// ==================== Packing Slip & Order Filters (Phase 7) ====================
+// ==================== Packing Slip & Invoice Helpers ====================
+
+async function generateOrderPackingSlipHtml(orderId) {
+  const order = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+  if (!order.rows.length) return null;
+  const items = await pool.query(`
+    SELECT oi.*, p.sqft_per_box
+    FROM order_items oi
+    LEFT JOIN packaging p ON p.sku_id = oi.sku_id
+    WHERE oi.order_id = $1 ORDER BY oi.id
+  `, [orderId]);
+  const o = order.rows[0];
+
+  const isPickup = o.delivery_method === 'pickup';
+  const shipToBlock = isPickup
+    ? `<div class="info-block">
+        <h3>Store Pickup</h3>
+        <strong>Roma Flooring Designs</strong><br/>
+        1440 S. State College Blvd., Suite 6M<br/>
+        Anaheim, CA 92806
+      </div>`
+    : `<div class="info-block">
+        <h3>Ship To</h3>
+        <strong>${o.customer_name}</strong><br/>
+        ${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>
+        ${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}
+      </div>`;
+
+  return { html: `<!DOCTYPE html><html><head><style>
+    ${getDocumentBaseCSS()}
+  </style></head><body>
+    ${getDocumentHeader('Packing Slip')}
+    <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
+      <strong>${o.order_number}</strong><br/>
+      Date: ${new Date(o.created_at).toLocaleDateString()}
+    </div>
+    ${shipToBlock}
+    <table>
+      <thead><tr><th>Product</th><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">SqFt/Box</th><th style="text-align:right">Total SqFt</th></tr></thead>
+      <tbody>
+        ${items.rows.map(i => {
+          const isUnit = i.sell_by === 'unit';
+          const sqftPerBox = i.sqft_per_box ? parseFloat(i.sqft_per_box) : null;
+          const totalSqft = i.sqft_needed ? parseFloat(i.sqft_needed) : (sqftPerBox ? sqftPerBox * i.num_boxes : null);
+          return `<tr>
+            <td>${i.product_name || ''}${i.is_sample ? ' <span style="color:#c8a97e;font-size:0.75rem;">(Sample)</span>' : ''}</td>
+            <td>${i.collection || i.description || ''}</td>
+            <td style="text-align:right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
+            <td style="text-align:right">${isUnit ? '—' : (sqftPerBox ? sqftPerBox.toFixed(2) : '—')}</td>
+            <td style="text-align:right">${isUnit ? '—' : (totalSqft ? totalSqft.toFixed(1) : '—')}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    ${getDocumentFooter()}
+  </body></html>`, filename: `packing-slip-${o.order_number}.pdf` };
+}
+
+async function generateOrderInvoiceHtml(orderId) {
+  const order = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+  if (!order.rows.length) return null;
+  const items = await pool.query(`
+    SELECT oi.*, p.sqft_per_box
+    FROM order_items oi
+    LEFT JOIN packaging p ON p.sku_id = oi.sku_id
+    WHERE oi.order_id = $1 ORDER BY oi.id
+  `, [orderId]);
+  const o = order.rows[0];
+
+  const isPickup = o.delivery_method === 'pickup';
+  const total = parseFloat(o.total || 0);
+  const amountPaid = parseFloat(o.amount_paid || 0);
+  const balanceDue = parseFloat((total - amountPaid).toFixed(2));
+  const taxAmount = parseFloat(o.tax_amount || 0);
+
+  const billToBlock = `<div class="info-block">
+    <h3>Bill To</h3>
+    <strong>${o.customer_name}</strong><br/>
+    ${o.customer_email}${o.phone ? '<br/>' + o.phone : ''}
+  </div>`;
+  const shipToBlock = isPickup
+    ? `<div class="info-block">
+        <h3>Store Pickup</h3>
+        <strong>Roma Flooring Designs</strong><br/>
+        1440 S. State College Blvd., Suite 6M<br/>
+        Anaheim, CA 92806
+      </div>`
+    : `<div class="info-block">
+        <h3>Ship To</h3>
+        <strong>${o.customer_name}</strong><br/>
+        ${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>
+        ${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}
+      </div>`;
+
+  return { html: `<!DOCTYPE html><html><head><style>
+    ${getDocumentBaseCSS()}
+  </style></head><body>
+    ${getDocumentHeader('Invoice')}
+    <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
+      <strong>${o.order_number}</strong><br/>
+      Date: ${new Date(o.created_at).toLocaleDateString()}
+      ${o.po_number ? '<br/>PO: ' + o.po_number : ''}
+    </div>
+    <div class="info-columns">
+      ${billToBlock}
+      ${shipToBlock}
+    </div>
+    <table>
+      <thead><tr>
+        <th>Product</th><th>Description</th>
+        <th style="text-align:right">SqFt</th><th style="text-align:right">Qty</th>
+        <th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th>
+      </tr></thead>
+      <tbody>
+        ${items.rows.map(i => {
+          const isUnit = i.sell_by === 'unit';
+          return `<tr>
+          <td>${i.product_name || ''}${i.is_sample ? ' <span style="color:#c8a97e;font-size:0.75rem;font-weight:600;">(Sample)</span>' : ''}</td>
+          <td>${i.collection || i.description || ''}</td>
+          <td style="text-align:right">${isUnit ? '—' : (i.sqft_needed ? parseFloat(i.sqft_needed).toFixed(1) : '—')}</td>
+          <td style="text-align:right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
+          <td style="text-align:right">${i.is_sample ? '<span style="color:#78716c;">$0.00</span>' : (i.unit_price ? '$' + parseFloat(i.unit_price).toFixed(2) + (isUnit ? '/ea' : '/sf') : '—')}</td>
+          <td style="text-align:right">${i.is_sample ? '<span style="color:#78716c;">$0.00</span>' : '$' + parseFloat(i.subtotal || 0).toFixed(2)}</td>
+        </tr>`;}).join('')}
+      </tbody>
+    </table>
+    <div class="totals">
+      <div class="line"><span>Subtotal:</span><span>$${parseFloat(o.subtotal || 0).toFixed(2)}</span></div>
+      ${parseFloat(o.shipping || 0) > 0 ? `<div class="line"><span>Shipping${o.shipping_method ? ' (' + (o.shipping_method === 'ltl_freight' ? 'LTL Freight' : 'Parcel') + ')' : ''}:</span><span>$${parseFloat(o.shipping).toFixed(2)}</span></div>` : ''}
+      ${isPickup ? '<div class="line"><span>Shipping (Store Pickup):</span><span style="color:#16a34a">FREE</span></div>' : ''}
+      ${parseFloat(o.sample_shipping || 0) > 0 ? `<div class="line"><span>Sample Shipping:</span><span>$${parseFloat(o.sample_shipping).toFixed(2)}</span></div>` : ''}
+      ${parseFloat(o.discount_amount || 0) > 0 ? `<div class="line"><span>Discount${o.promo_code ? ' (' + o.promo_code + ')' : ''}:</span><span style="color:#16a34a">-$${parseFloat(o.discount_amount).toFixed(2)}</span></div>` : ''}
+      ${taxAmount > 0 ? `<div class="line"><span>Tax:</span><span>$${taxAmount.toFixed(2)}</span></div>` : ''}
+      <div class="line total-line"><span>Total:</span><span>$${total.toFixed(2)}</span></div>
+      <div class="line" style="margin-top:0.25rem;"><span>Amount Paid:</span><span>$${amountPaid.toFixed(2)}</span></div>
+      ${balanceDue > 0.01 ? `<div class="line" style="font-weight:600;color:#b91c1c;"><span>Balance Due:</span><span>$${balanceDue.toFixed(2)}</span></div>` : `<div class="line" style="font-weight:500;color:#16a34a;"><span>Balance Due:</span><span>$0.00</span></div>`}
+    </div>
+    ${o.payment_method || o.stripe_payment_intent_id ? `
+      <div class="notes-section">
+        <h4>Payment Information</h4>
+        ${o.payment_method ? '<div>Method: ' + (o.payment_method === 'stripe' ? 'Credit Card (Stripe)' : o.payment_method.charAt(0).toUpperCase() + o.payment_method.slice(1)) + '</div>' : ''}
+        ${o.stripe_payment_intent_id ? '<div style="font-size:0.75rem;color:#78716c;">Ref: ' + o.stripe_payment_intent_id + '</div>' : ''}
+      </div>
+    ` : ''}
+    ${getDocumentFooter()}
+  </body></html>`, filename: `invoice-${o.order_number}.pdf` };
+}
+
+// ==================== Packing Slip & Invoice Endpoints (Phase 7) ====================
 
 // Packing slip - accepts token from header or query param (for browser popup)
 app.get('/api/staff/orders/:id/packing-slip', async (req, res, next) => {
@@ -7235,61 +7496,9 @@ app.get('/api/staff/orders/:id/packing-slip', async (req, res, next) => {
   next();
 }, staffAuth, async (req, res) => {
   try {
-    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
-    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
-    const items = await pool.query(`
-      SELECT oi.*, p.sqft_per_box
-      FROM order_items oi
-      LEFT JOIN packaging p ON p.sku_id = oi.sku_id
-      WHERE oi.order_id = $1 ORDER BY oi.id
-    `, [req.params.id]);
-    const o = order.rows[0];
-
-    const isPickup = o.delivery_method === 'pickup';
-    const shipToBlock = isPickup
-      ? `<div class="info-block">
-          <h3>Store Pickup</h3>
-          <strong>Roma Flooring Designs</strong><br/>
-          1440 S. State College Blvd., Suite 6M<br/>
-          Anaheim, CA 92806
-        </div>`
-      : `<div class="info-block">
-          <h3>Ship To</h3>
-          <strong>${o.customer_name}</strong><br/>
-          ${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>
-          ${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}
-        </div>`;
-
-    const html = `<!DOCTYPE html><html><head><style>
-      ${getDocumentBaseCSS()}
-    </style></head><body>
-      ${getDocumentHeader('Packing Slip')}
-      <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
-        <strong>${o.order_number}</strong><br/>
-        Date: ${new Date(o.created_at).toLocaleDateString()}
-      </div>
-      ${shipToBlock}
-      <table>
-        <thead><tr><th>Product</th><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">SqFt/Box</th><th style="text-align:right">Total SqFt</th></tr></thead>
-        <tbody>
-          ${items.rows.map(i => {
-            const isUnit = i.sell_by === 'unit';
-            const sqftPerBox = i.sqft_per_box ? parseFloat(i.sqft_per_box) : null;
-            const totalSqft = i.sqft_needed ? parseFloat(i.sqft_needed) : (sqftPerBox ? sqftPerBox * i.num_boxes : null);
-            return `<tr>
-              <td>${i.product_name || ''}</td>
-              <td>${i.collection || i.description || ''}</td>
-              <td style="text-align:right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
-              <td style="text-align:right">${isUnit ? '—' : (sqftPerBox ? sqftPerBox.toFixed(2) : '—')}</td>
-              <td style="text-align:right">${isUnit ? '—' : (totalSqft ? totalSqft.toFixed(1) : '—')}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-      ${getDocumentFooter()}
-    </body></html>`;
-
-    await generatePDF(html, `packing-slip-${o.order_number}.pdf`, req, res);
+    const result = await generateOrderPackingSlipHtml(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Order not found' });
+    await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -7303,87 +7512,97 @@ app.get('/api/staff/orders/:id/invoice', async (req, res, next) => {
   next();
 }, staffAuth, async (req, res) => {
   try {
-    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
+    const result = await generateOrderInvoiceHtml(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Order not found' });
+    await generatePDF(result.html, result.filename, req, res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Send invoice email from admin (with optional payment request if balance due)
+app.post('/api/staff/orders/:id/send-invoice', staffAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body || {};
+
+    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
-    const items = await pool.query(`
-      SELECT oi.*, p.sqft_per_box
-      FROM order_items oi
-      LEFT JOIN packaging p ON p.sku_id = oi.sku_id
-      WHERE oi.order_id = $1 ORDER BY oi.id
-    `, [req.params.id]);
     const o = order.rows[0];
 
-    const isPickup = o.delivery_method === 'pickup';
-    const billToBlock = `<div class="info-block">
-      <h3>Bill To</h3>
-      <strong>${o.customer_name}</strong><br/>
-      ${o.customer_email}${o.phone ? '<br/>' + o.phone : ''}
-    </div>`;
-    const shipToBlock = isPickup
-      ? `<div class="info-block">
-          <h3>Store Pickup</h3>
-          <strong>Roma Flooring Designs</strong><br/>
-          1440 S. State College Blvd., Suite 6M<br/>
-          Anaheim, CA 92806
-        </div>`
-      : `<div class="info-block">
-          <h3>Ship To</h3>
-          <strong>${o.customer_name}</strong><br/>
-          ${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>
-          ${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}
-        </div>`;
+    const items = await pool.query(`
+      SELECT oi.*, p.sqft_per_box
+      FROM order_items oi LEFT JOIN packaging p ON p.sku_id = oi.sku_id
+      WHERE oi.order_id = $1 ORDER BY oi.id
+    `, [id]);
 
-    const html = `<!DOCTYPE html><html><head><style>
-      ${getDocumentBaseCSS()}
-    </style></head><body>
-      ${getDocumentHeader('Invoice')}
-      <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
-        <strong>${o.order_number}</strong><br/>
-        Date: ${new Date(o.created_at).toLocaleDateString()}
-      </div>
-      <div class="info-columns">
-        ${billToBlock}
-        ${shipToBlock}
-      </div>
-      <table>
-        <thead><tr>
-          <th>Product</th><th>Description</th>
-          <th style="text-align:right">SqFt</th><th style="text-align:right">Qty</th>
-          <th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th>
-        </tr></thead>
-        <tbody>
-          ${items.rows.map(i => {
-            const isUnit = i.sell_by === 'unit';
-            return `<tr>
-            <td>${i.product_name || ''}</td>
-            <td>${i.collection || i.description || ''}</td>
-            <td style="text-align:right">${isUnit ? '—' : (i.sqft_needed ? parseFloat(i.sqft_needed).toFixed(1) : '—')}</td>
-            <td style="text-align:right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
-            <td style="text-align:right">${i.unit_price ? '$' + parseFloat(i.unit_price).toFixed(2) + (isUnit ? '/ea' : '/sf') : '—'}</td>
-            <td style="text-align:right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
-          </tr>`;}).join('')}
-        </tbody>
-      </table>
-      <div class="totals">
-        <div class="line"><span>Subtotal:</span><span>$${parseFloat(o.subtotal || 0).toFixed(2)}</span></div>
-        ${parseFloat(o.shipping || 0) > 0 ? `<div class="line"><span>Shipping${o.shipping_method ? ' (' + (o.shipping_method === 'ltl_freight' ? 'LTL Freight' : 'Parcel') + ')' : ''}:</span><span>$${parseFloat(o.shipping).toFixed(2)}</span></div>` : ''}
-        ${isPickup ? '<div class="line"><span>Shipping (Store Pickup):</span><span style="color:#16a34a">FREE</span></div>' : ''}
-        ${parseFloat(o.sample_shipping || 0) > 0 ? `<div class="line"><span>Sample Shipping:</span><span>$${parseFloat(o.sample_shipping).toFixed(2)}</span></div>` : ''}
-        ${parseFloat(o.discount_amount || 0) > 0 ? `<div class="line"><span>Discount${o.promo_code ? ' (' + o.promo_code + ')' : ''}:</span><span style="color:#16a34a">-$${parseFloat(o.discount_amount).toFixed(2)}</span></div>` : ''}
-        <div class="line total-line"><span>Total:</span><span>$${parseFloat(o.total || 0).toFixed(2)}</span></div>
-      </div>
-      ${o.payment_method || o.stripe_payment_intent_id ? `
-        <div class="notes-section">
-          <h4>Payment Information</h4>
-          ${o.payment_method ? '<div>Method: ' + o.payment_method + '</div>' : ''}
-          ${o.stripe_payment_intent_id ? '<div style="font-size:0.75rem;color:#78716c;">Stripe ID: ' + o.stripe_payment_intent_id + '</div>' : ''}
-        </div>
-      ` : ''}
-      ${getDocumentFooter()}
-    </body></html>`;
+    const invoiceResult = await generateOrderInvoiceHtml(id);
+    if (!invoiceResult) return res.status(500).json({ error: 'Failed to generate invoice' });
+    let pdfBuffer = null;
+    try {
+      pdfBuffer = await generatePDFBuffer(invoiceResult.html);
+    } catch (pdfErr) {
+      console.error('[PDF] Buffer generation failed, sending without attachment:', pdfErr.message);
+    }
 
-    await generatePDF(html, `invoice-${o.order_number}.pdf`, req, res);
+    const balanceInfo = await recalculateBalance(id);
+    const balanceDue = balanceInfo && balanceInfo.balance > 0.01 ? balanceInfo.balance : 0;
+    let checkoutUrl = null;
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+
+    if (balanceDue > 0) {
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        customer_email: o.customer_email,
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: `Balance Due — Order ${o.order_number}` },
+            unit_amount: Math.round(balanceDue * 100)
+          },
+          quantity: 1
+        }],
+        metadata: { order_id: id, type: 'payment_request' },
+        success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
+        cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
+        expires_at: Math.floor(Date.now() / 1000) + 72 * 3600
+      });
+
+      checkoutUrl = session.url;
+
+      const prResult = await pool.query(`
+        INSERT INTO payment_requests (order_id, amount, stripe_checkout_session_id, stripe_checkout_url, sent_to_email, sent_by, sent_by_name, message, expires_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
+      `, [id, balanceDue.toFixed(2), session.id, session.url, o.customer_email, req.staff.id, staffName, message || null, new Date(Date.now() + 72 * 3600 * 1000)]);
+
+      await stripe.checkout.sessions.update(session.id, {
+        metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' }
+      });
+
+      await logOrderActivity(pool, id, 'payment_request_sent', req.staff.id, staffName,
+        { amount: balanceDue.toFixed(2), sent_to: o.customer_email, via: 'invoice_email' });
+    }
+
+    await sendOrderInvoiceEmail({
+      order: o,
+      items: items.rows,
+      balance: balanceDue,
+      checkout_url: checkoutUrl,
+      message: message || null,
+      pdf_buffer: pdfBuffer
+    });
+
+    await logOrderActivity(pool, id, 'invoice_sent', req.staff.id, staffName,
+      { sent_to: o.customer_email, balance_due: balanceDue.toFixed(2), payment_requested: balanceDue > 0 });
+
+    res.json({
+      success: true,
+      sent_to: o.customer_email,
+      balance_due: balanceDue,
+      payment_requested: balanceDue > 0
+    });
   } catch (err) {
+    console.error('[Staff] Send invoice error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -7552,6 +7771,146 @@ app.get('/api/rep/dashboard', repAuth, async (req, res) => {
   }
 });
 
+// ==================== Rep Action Items ====================
+
+app.get('/api/rep/action-items', repAuth, async (req, res) => {
+  try {
+    const scope = req.query.scope || 'mine'; // 'mine' or 'all'
+    const actionItems = [];
+
+    // --- ORDER ACTION ITEMS ---
+    const orderFilter = scope === 'mine' ? 'AND o.sales_rep_id = $1' : '';
+    const orderParams = scope === 'mine' ? [req.rep.id] : [];
+
+    const ordersRes = await pool.query(`
+      SELECT o.id, o.order_number, o.customer_name, o.status, o.delivery_method,
+        o.total, o.amount_paid, o.created_at, o.confirmed_at, o.shipped_at,
+        sr.first_name || ' ' || sr.last_name as rep_name
+      FROM orders o
+      LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+      WHERE o.status NOT IN ('delivered', 'cancelled', 'refunded') ${orderFilter}
+      ORDER BY o.created_at DESC
+    `, orderParams);
+
+    // Batch-fetch PO data for all open orders
+    const orderIds = ordersRes.rows.map(o => o.id);
+    let posByOrder = {};
+    if (orderIds.length > 0) {
+      const posRes = await pool.query(`
+        SELECT po.order_id, po.id as po_id, po.status as po_status,
+          (SELECT COUNT(*)::int FROM purchase_order_items poi WHERE poi.purchase_order_id = po.id AND poi.status != 'cancelled') as active_items,
+          (SELECT COUNT(*)::int FROM purchase_order_items poi WHERE poi.purchase_order_id = po.id AND poi.status = 'received') as received_items
+        FROM purchase_orders po
+        WHERE po.order_id = ANY($1)
+      `, [orderIds]);
+      posRes.rows.forEach(po => {
+        if (!posByOrder[po.order_id]) posByOrder[po.order_id] = [];
+        posByOrder[po.order_id].push(po);
+      });
+    }
+
+    ordersRes.rows.forEach(o => {
+      const totalAmount = parseFloat(o.total || 0);
+      const amountPaid = parseFloat(o.amount_paid || 0);
+      const pos = posByOrder[o.id] || [];
+      const isPickup = o.delivery_method === 'pickup';
+      const pendingSteps = [];
+
+      if (o.status === 'pending') pendingSteps.push('Confirm order');
+      if (totalAmount > 0 && amountPaid < totalAmount) pendingSteps.push('Collect payment ($' + (totalAmount - amountPaid).toFixed(2) + ' remaining)');
+      const draftPOs = pos.filter(p => p.po_status === 'draft').length;
+      if (draftPOs > 0) pendingSteps.push('Send ' + draftPOs + ' draft PO' + (draftPOs !== 1 ? 's' : ''));
+      const totalActive = pos.reduce((s, p) => s + p.active_items, 0);
+      const totalReceived = pos.reduce((s, p) => s + p.received_items, 0);
+      if (totalActive > 0 && totalReceived < totalActive) pendingSteps.push('Receive items (' + totalReceived + '/' + totalActive + ')');
+      if (o.status === 'confirmed') pendingSteps.push(isPickup ? 'Mark ready for pickup' : 'Ship order');
+
+      if (pendingSteps.length > 0) {
+        // Count completed steps out of 5
+        const completedSteps = 5 - pendingSteps.length;
+        actionItems.push({
+          type: 'order',
+          id: o.id,
+          reference: o.order_number,
+          customer_name: o.customer_name,
+          status: o.status,
+          rep_name: o.rep_name,
+          created_at: o.created_at,
+          pending_steps: pendingSteps,
+          completed_steps: completedSteps,
+          total_steps: 5
+        });
+      }
+    });
+
+    // --- SAMPLE REQUEST ACTION ITEMS ---
+    const sampleFilter = scope === 'mine' ? 'AND sr.rep_id = $1' : '';
+    const sampleParams = scope === 'mine' ? [req.rep.id] : [];
+
+    const samplesRes = await pool.query(`
+      SELECT sr.*,
+        rep.first_name || ' ' || rep.last_name as rep_name
+      FROM sample_requests sr
+      LEFT JOIN sales_reps rep ON rep.id = sr.rep_id
+      WHERE sr.status NOT IN ('delivered', 'cancelled') ${sampleFilter}
+      ORDER BY sr.created_at DESC
+    `, sampleParams);
+
+    const sampleIds = samplesRes.rows.map(s => s.id);
+    let itemsBySample = {};
+    if (sampleIds.length > 0) {
+      const sriRes = await pool.query(`
+        SELECT sri.sample_request_id, sri.status, sri.vendor_notified_at,
+          p.vendor_id
+        FROM sample_request_items sri
+        LEFT JOIN products p ON p.id = sri.product_id
+        WHERE sri.sample_request_id = ANY($1)
+      `, [sampleIds]);
+      sriRes.rows.forEach(item => {
+        if (!itemsBySample[item.sample_request_id]) itemsBySample[item.sample_request_id] = [];
+        itemsBySample[item.sample_request_id].push(item);
+      });
+    }
+
+    samplesRes.rows.forEach(sr => {
+      const sItems = (itemsBySample[sr.id] || []).filter(i => i.status !== 'cancelled');
+      const isShipping = sr.delivery_method !== 'pickup';
+      const pendingSteps = [];
+
+      if (isShipping && !sr.shipping_payment_collected) pendingSteps.push('Collect shipping payment');
+      const vendorsTotal = new Set(sItems.map(i => i.vendor_id || 'unknown')).size;
+      const vendorsNotified = new Set(sItems.filter(i => i.vendor_notified_at).map(i => i.vendor_id || 'unknown')).size;
+      if (sItems.length > 0 && vendorsNotified < vendorsTotal) pendingSteps.push('Send to ' + (vendorsTotal - vendorsNotified) + ' vendor' + ((vendorsTotal - vendorsNotified) !== 1 ? 's' : ''));
+      const readyCount = sItems.filter(i => i.status === 'ready').length;
+      if (sItems.length > 0 && readyCount < sItems.length) pendingSteps.push('Mark samples ready (' + readyCount + '/' + sItems.length + ')');
+      if (sr.status !== 'shipped' && sr.status !== 'delivered') pendingSteps.push(isShipping ? 'Ship samples' : 'Ready for pickup');
+
+      const totalSteps = isShipping ? 4 : 3;
+      if (pendingSteps.length > 0) {
+        actionItems.push({
+          type: 'sample',
+          id: sr.id,
+          reference: sr.request_number,
+          customer_name: sr.customer_name,
+          status: sr.status,
+          rep_name: sr.rep_name,
+          created_at: sr.created_at,
+          pending_steps: pendingSteps,
+          completed_steps: totalSteps - pendingSteps.length,
+          total_steps: totalSteps
+        });
+      }
+    });
+
+    // Sort by fewest completed steps first (most work remaining)
+    actionItems.sort((a, b) => (a.completed_steps / a.total_steps) - (b.completed_steps / b.total_steps));
+
+    res.json({ action_items: actionItems });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==================== Rep Commission Endpoints ====================
 
 app.get('/api/rep/commissions', repAuth, async (req, res) => {
@@ -7625,10 +7984,23 @@ app.post('/api/rep/visits', repAuth, async (req, res) => {
     const token = crypto.randomBytes(16).toString('hex');
     const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
+    // Auto-create customer if email provided
+    let customerId = null;
+    if (customer_email) {
+      const nameParts = (customer_name || '').split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      const { customer: cust } = await findOrCreateCustomer(client, {
+        email: customer_email, firstName, lastName,
+        phone: customer_phone, repId: req.rep.id, createdVia: 'visit'
+      });
+      customerId = cust.id;
+    }
+
     const visitRes = await client.query(`
-      INSERT INTO showroom_visits (token, rep_id, customer_name, customer_email, customer_phone, message, status, expires_at)
-      VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7) RETURNING *
-    `, [token, req.rep.id, customer_name, customer_email || null, customer_phone || null, message || null, expiresAt]);
+      INSERT INTO showroom_visits (token, rep_id, customer_name, customer_email, customer_phone, message, status, expires_at, customer_id)
+      VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8) RETURNING *
+    `, [token, req.rep.id, customer_name, customer_email || null, customer_phone || null, message || null, expiresAt, customerId]);
     const visit = visitRes.rows[0];
 
     const resolvedItems = [];
@@ -7954,6 +8326,15 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
   try {
     const { customer_name, customer_email, customer_phone, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, delivery_method, notes, items } = req.body;
     if (!customer_name) return res.status(400).json({ error: 'Customer name is required' });
+    if (!customer_email) return res.status(400).json({ error: 'Customer email is required' });
+    if (!customer_phone) return res.status(400).json({ error: 'Customer phone is required' });
+    const dm = delivery_method === 'pickup' ? 'pickup' : 'shipping';
+    if (dm === 'shipping') {
+      if (!shipping_address_line1) return res.status(400).json({ error: 'Shipping address is required' });
+      if (!shipping_city) return res.status(400).json({ error: 'City is required' });
+      if (!shipping_state) return res.status(400).json({ error: 'State is required' });
+      if (!shipping_zip) return res.status(400).json({ error: 'ZIP code is required' });
+    }
     if (!items || !items.length) return res.status(400).json({ error: 'At least one item is required' });
     if (items.length > 5) return res.status(400).json({ error: 'Maximum 5 items per sample request' });
 
@@ -7965,17 +8346,25 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
+    // Auto-create customer
+    const nameParts = (customer_name || '').split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    const { customer: cust } = await findOrCreateCustomer(client, {
+      email: customer_email, firstName, lastName,
+      phone: customer_phone, repId: req.rep.id, createdVia: 'sample_request'
+    });
+
     const ts = Date.now().toString(36);
     const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
     const request_number = `SR-${ts}-${rand}`;
-    const dm = delivery_method === 'pickup' ? 'pickup' : 'shipping';
 
     const srRes = await client.query(`
       INSERT INTO sample_requests (request_number, rep_id, customer_name, customer_email, customer_phone,
-        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, delivery_method, notes, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'requested') RETURNING *
+        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, delivery_method, notes, status, customer_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'requested', $13) RETURNING *
     `, [request_number, req.rep.id, customer_name, customer_email || null, customer_phone || null,
-        shipping_address_line1 || null, shipping_address_line2 || null, shipping_city || null, shipping_state || null, shipping_zip || null, dm, notes || null]);
+        shipping_address_line1 || null, shipping_address_line2 || null, shipping_city || null, shipping_state || null, shipping_zip || null, dm, notes || null, cust.id]);
     const sample_request = srRes.rows[0];
 
     const resolvedItems = [];
@@ -8027,7 +8416,7 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Fire-and-forget: email + notification
+    // Fire-and-forget: confirmation email + notification
     if (customer_email) {
       setImmediate(() => sendSampleRequestConfirmation({
         customer_name, customer_email, request_number,
@@ -8040,6 +8429,39 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
       `Sample request ${request_number} created`,
       `Sample request for ${customer_name} with ${resolvedItems.length} item(s)`,
       'sample_request', sample_request.id));
+
+    // If shipping, create Stripe checkout for $12 shipping fee and email payment link
+    if (dm === 'shipping' && customer_email) {
+      try {
+        const shippingAmount = 12;
+        const session = await stripe.checkout.sessions.create({
+          mode: 'payment',
+          customer_email: customer_email,
+          line_items: [{
+            price_data: {
+              currency: 'usd',
+              product_data: { name: `Sample Shipping — ${request_number}` },
+              unit_amount: Math.round(shippingAmount * 100)
+            },
+            quantity: 1
+          }],
+          metadata: { sample_request_id: sample_request.id, type: 'sample_shipping' },
+          success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?sample=${sample_request.id}&payment=success`,
+          cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?sample=${sample_request.id}&payment=cancelled`,
+          expires_at: Math.floor(Date.now() / 1000) + 72 * 3600
+        });
+        // Persist Stripe session ID on sample request
+        await pool.query('UPDATE sample_requests SET stripe_checkout_session_id = $1 WHERE id = $2', [session.id, sample_request.id]);
+
+        setImmediate(() => sendSampleShippingPayment({
+          customer_name, customer_email, request_number,
+          checkout_url: session.url,
+          amount: shippingAmount
+        }));
+      } catch (stripeErr) {
+        console.error('[Sample Request] Stripe session creation failed:', stripeErr.message);
+      }
+    }
 
     res.json({ sample_request, items: resolvedItems });
   } catch (err) {
@@ -8086,7 +8508,15 @@ app.get('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
     const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
 
-    const itemsRes = await pool.query('SELECT * FROM sample_request_items WHERE sample_request_id = $1 ORDER BY sort_order', [req.params.id]);
+    const itemsRes = await pool.query(`
+      SELECT sri.*, p.vendor_id, v.name as vendor_name, v.email as vendor_email, s.vendor_sku
+      FROM sample_request_items sri
+      LEFT JOIN products p ON p.id = sri.product_id
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN skus s ON s.id = sri.sku_id
+      WHERE sri.sample_request_id = $1
+      ORDER BY v.name, sri.sort_order
+    `, [req.params.id]);
     res.json({ sample_request: srRes.rows[0], items: itemsRes.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -8191,6 +8621,237 @@ app.put('/api/rep/sample-requests/:id/cancel', repAuth, async (req, res) => {
   }
 });
 
+app.put('/api/rep/sample-requests/:id/items/:itemId/status', repAuth, async (req, res) => {
+  try {
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
+    if (srRes.rows[0].status !== 'requested') return res.status(400).json({ error: 'Can only update item status while request is in requested status' });
+
+    const { status, notes } = req.body;
+    const fields = [];
+    const vals = [];
+    let idx = 1;
+    if (status !== undefined) {
+      if (!['pending', 'ready', 'cancelled'].includes(status)) return res.status(400).json({ error: 'Status must be pending, ready, or cancelled' });
+      fields.push(`status = $${idx}`); vals.push(status); idx++;
+    }
+    if (notes !== undefined) {
+      fields.push(`notes = $${idx}`); vals.push(notes || null); idx++;
+    }
+    if (!fields.length) return res.status(400).json({ error: 'No fields to update' });
+
+    vals.push(req.params.itemId, req.params.id);
+    const result = await pool.query(
+      `UPDATE sample_request_items SET ${fields.join(', ')} WHERE id = $${idx} AND sample_request_id = $${idx + 1} RETURNING *`,
+      vals
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Item not found' });
+
+    res.json({ item: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add items to an open sample request
+app.post('/api/rep/sample-requests/:id/add-items', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { items } = req.body;
+    if (!items || !items.length) return res.status(400).json({ error: 'At least one item is required' });
+
+    const srRes = await client.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
+    const sr = srRes.rows[0];
+    if (sr.status !== 'requested') return res.status(400).json({ error: 'Can only add items to open sample requests' });
+
+    const countRes = await client.query(
+      "SELECT COUNT(*)::int as cnt FROM sample_request_items WHERE sample_request_id = $1 AND status != 'cancelled'",
+      [sr.id]
+    );
+    const currentCount = countRes.rows[0].cnt;
+    if (currentCount + items.length > 5) {
+      return res.status(400).json({ error: `Maximum 5 active items per sample request (currently ${currentCount})` });
+    }
+
+    await client.query('BEGIN');
+
+    const maxSortRes = await client.query(
+      'SELECT COALESCE(MAX(sort_order), -1) + 1 as next_sort FROM sample_request_items WHERE sample_request_id = $1',
+      [sr.id]
+    );
+    let nextSort = maxSortRes.rows[0].next_sort;
+
+    const addedItems = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      let productName = 'Unknown';
+      let collection = null;
+      let variantName = null;
+      let primaryImage = null;
+      let productId = item.product_id || null;
+      let skuId = item.sku_id || null;
+
+      if (item.sku_id) {
+        const sRes = await client.query(`
+          SELECT s.variant_name, s.product_id,
+            p.name as product_name, p.collection,
+            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+          FROM skus s
+          JOIN products p ON p.id = s.product_id
+          WHERE s.id = $1
+        `, [item.sku_id]);
+        if (sRes.rows.length) {
+          const s = sRes.rows[0];
+          productId = s.product_id;
+          productName = s.product_name;
+          collection = s.collection;
+          variantName = s.variant_name;
+          primaryImage = s.primary_image;
+        }
+      } else if (item.product_id) {
+        const pRes = await client.query(`
+          SELECT p.name, p.collection,
+            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+          FROM products p WHERE p.id = $1
+        `, [item.product_id]);
+        if (pRes.rows.length) {
+          productName = pRes.rows[0].name;
+          collection = pRes.rows[0].collection;
+          primaryImage = pRes.rows[0].primary_image;
+        }
+      }
+
+      const itemRes = await client.query(`
+        INSERT INTO sample_request_items (sample_request_id, product_id, sku_id, product_name, collection, variant_name, primary_image, sort_order)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
+      `, [sr.id, productId, skuId, productName, collection, variantName, primaryImage, nextSort + i]);
+      addedItems.push(itemRes.rows[0]);
+    }
+
+    await client.query('COMMIT');
+    res.json({ added: addedItems });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/rep/sample-requests/:id/send-to-vendor', repAuth, async (req, res) => {
+  try {
+    const { vendor_id, ship_to } = req.body;
+    if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required' });
+    if (!['store', 'customer'].includes(ship_to)) return res.status(400).json({ error: 'ship_to must be store or customer' });
+
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
+    const sr = srRes.rows[0];
+
+    // If delivery is pickup, only store shipping is allowed
+    if (sr.delivery_method === 'pickup' && ship_to === 'customer') {
+      return res.status(400).json({ error: 'Pickup orders can only ship to store' });
+    }
+
+    const vendorRes = await pool.query('SELECT id, name, email FROM vendors WHERE id = $1', [vendor_id]);
+    if (!vendorRes.rows.length) return res.status(404).json({ error: 'Vendor not found' });
+    const vendor = vendorRes.rows[0];
+    if (!vendor.email) return res.status(400).json({ error: 'Vendor has no email configured' });
+
+    // Get rep name
+    const repRes = await pool.query('SELECT first_name, last_name FROM sales_reps WHERE id = $1', [req.rep.id]);
+    const repName = repRes.rows.length ? `${repRes.rows[0].first_name} ${repRes.rows[0].last_name}` : '';
+
+    // Get items for this vendor only
+    const itemsRes = await pool.query(`
+      SELECT sri.*, s.vendor_sku
+      FROM sample_request_items sri
+      LEFT JOIN products p ON p.id = sri.product_id
+      LEFT JOIN skus s ON s.id = sri.sku_id
+      WHERE sri.sample_request_id = $1 AND p.vendor_id = $2
+      ORDER BY sri.sort_order
+    `, [req.params.id, vendor_id]);
+
+    if (!itemsRes.rows.length) return res.status(400).json({ error: 'No items found for this vendor' });
+
+    // Build ship-to address
+    let shipToAddress;
+    if (ship_to === 'store') {
+      shipToAddress = {
+        name: 'Roma Flooring Designs',
+        line1: '1440 S. State College Blvd #6M',
+        city: 'Anaheim', state: 'CA', zip: '92806'
+      };
+    } else {
+      shipToAddress = {
+        name: sr.customer_name,
+        line1: sr.shipping_address_line1 || '',
+        line2: sr.shipping_address_line2 || '',
+        city: sr.shipping_city || '', state: sr.shipping_state || '', zip: sr.shipping_zip || ''
+      };
+    }
+
+    const html = generateSampleRequestVendorHTML({
+      vendor_name: vendor.name,
+      request_number: sr.request_number,
+      customer_name: sr.customer_name,
+      rep_name: repName,
+      notes: sr.notes,
+      ship_to: shipToAddress,
+      items: itemsRes.rows.map(i => ({
+        product_name: i.product_name,
+        collection: i.collection,
+        variant_name: i.variant_name,
+        sku_code: i.vendor_sku || null,
+        notes: i.notes
+      }))
+    });
+
+    const pdfBuffer = await generatePDFBuffer(html);
+
+    const emailResult = await sendSampleRequestToVendor({
+      vendor_email: vendor.email,
+      vendor_name: vendor.name,
+      request_number: sr.request_number,
+      pdf_buffer: pdfBuffer
+    });
+
+    // Persist vendor notification timestamps on successfully sent items
+    if (emailResult.sent) {
+      const itemIds = itemsRes.rows.map(i => i.id);
+      await pool.query(
+        'UPDATE sample_request_items SET vendor_notified_at = NOW(), vendor_notified_email = $1 WHERE id = ANY($2::uuid[])',
+        [vendor.email, itemIds]
+      );
+    }
+
+    res.json({ vendor_name: vendor.name, vendor_email: vendor.email, sent: emailResult.sent, error: emailResult.error || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/rep/sample-requests/:id/payment-status', repAuth, async (req, res) => {
+  try {
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
+
+    const { collected } = req.body;
+    if (typeof collected !== 'boolean') return res.status(400).json({ error: 'collected must be true or false' });
+
+    await pool.query(
+      'UPDATE sample_requests SET shipping_payment_collected = $1, shipping_payment_collected_at = $2 WHERE id = $3',
+      [collected, collected ? new Date() : null, req.params.id]
+    );
+
+    const updated = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
+    res.json({ sample_request: updated.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
   try {
     const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
@@ -8268,6 +8929,15 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     }
 
     await client.query('BEGIN');
+
+    // Auto-create customer
+    const nameParts = (customer_name || '').split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    const { customer: cust } = await findOrCreateCustomer(client, {
+      email: customer_email, firstName, lastName,
+      phone, repId: req.rep.id, createdVia: 'order'
+    });
 
     // Resolve items
     const resolvedItems = [];
@@ -8380,8 +9050,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
         subtotal, shipping, total, status, sales_rep_id, payment_method, delivery_method,
         stripe_payment_intent_id, promo_code_id, promo_code, discount_amount,
-        amount_paid)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        amount_paid, customer_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *
     `, [orderNumber, customer_email.toLowerCase().trim(), customer_name, phone || null,
         isPickup ? null : shipping_address.line1, isPickup ? null : (shipping_address.line2 || null),
@@ -8389,7 +9059,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         subtotal.toFixed(2), total.toFixed(2), orderStatus, req.rep.id, payment_method,
         isPickup ? 'pickup' : 'shipping',
         stripePaymentIntentId, promoCodeId, promoCodeStr, discountAmount.toFixed(2),
-        payment_method === 'offline' ? total.toFixed(2) : '0.00']);
+        payment_method === 'offline' ? total.toFixed(2) : '0.00', cust.id]);
 
     const order = orderResult.rows[0];
 
@@ -8504,7 +9174,7 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, tracking_number, carrier, shipped_at, cancel_reason } = req.body;
-    const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled', 'refunded'];
+    const validStatuses = ['pending', 'confirmed', 'ready_for_pickup', 'shipped', 'delivered', 'cancelled', 'refunded'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
@@ -8546,6 +9216,11 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
         WHERE id = $2
         RETURNING *
       `, [status, id]);
+    } else if (status === 'ready_for_pickup') {
+      result = await client.query(
+        'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
+        [status, id]
+      );
     } else if (status === 'confirmed') {
       result = await client.query(
         'UPDATE orders SET status = $1, confirmed_at = NOW() WHERE id = $2 RETURNING *',
@@ -8688,6 +9363,10 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
       `, [id, newTotal]);
       await logOrderActivity(pool, id, 'delivery_method_changed', req.rep.id, repName,
         { from: oldDeliveryMethod, to: 'pickup' });
+      if (order.sales_rep_id && order.sales_rep_id !== req.rep.id) {
+        setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'delivery_method_changed',
+          `${order.order_number} delivery → pickup`, `${repName} changed delivery to pickup`, 'order', id));
+      }
       const balanceInfo = await recalculateBalance(id);
       return res.json({ order: updated.rows[0], balance: balanceInfo });
     }
@@ -8734,6 +9413,10 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
 
     await logOrderActivity(pool, id, 'delivery_method_changed', req.rep.id, repName,
       { from: oldDeliveryMethod, to: 'shipping', shipping_cost: shippingCost.toFixed(2) });
+    if (order.sales_rep_id && order.sales_rep_id !== req.rep.id) {
+      setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'delivery_method_changed',
+        `${order.order_number} delivery → shipping`, `${repName} changed delivery to shipping ($${shippingCost.toFixed(2)})`, 'order', id));
+    }
     const balanceInfo = await recalculateBalance(id);
     return res.json({ order: updated.rows[0], balance: balanceInfo });
   } catch (err) {
@@ -8820,10 +9503,20 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
       [orderSubtotal.toFixed(2), orderTotal.toFixed(2), id]
     );
 
-    await logOrderActivity(client, id, 'price_adjusted', req.rep.id, req.rep.first_name + ' ' + req.rep.last_name,
+    const priceRepName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(client, id, 'price_adjusted', req.rep.id, priceRepName,
       { product_name: current.product_name, previous_price: prevPrice.toFixed(2), new_price: newPrice.toFixed(2), reason: reason || null });
 
     await client.query('COMMIT');
+
+    // Notify assigned rep if different from the one making the change
+    const priceOrder = await pool.query('SELECT order_number, sales_rep_id FROM orders WHERE id = $1', [id]);
+    if (priceOrder.rows.length && priceOrder.rows[0].sales_rep_id && priceOrder.rows[0].sales_rep_id !== req.rep.id) {
+      setImmediate(() => createRepNotification(pool, priceOrder.rows[0].sales_rep_id, 'price_adjusted',
+        `Price adjusted on ${priceOrder.rows[0].order_number}`,
+        `${priceRepName} changed ${current.product_name}: $${prevPrice.toFixed(2)} → $${newPrice.toFixed(2)}`,
+        'order', id));
+    }
 
     // Return updated order + items
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
@@ -8858,12 +9551,12 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description } = req.body;
+    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description, as_sample } = req.body;
 
     const isCustom = !sku_id;
     if (isCustom) {
       if (!product_name || !product_name.trim()) return res.status(400).json({ error: 'product_name is required for custom items' });
-      if (unit_price == null || parseFloat(unit_price) < 0) return res.status(400).json({ error: 'unit_price >= 0 is required for custom items' });
+      if (!as_sample && (unit_price == null || parseFloat(unit_price) < 0)) return res.status(400).json({ error: 'unit_price >= 0 is required for custom items' });
       if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required for custom items' });
       if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'num_boxes >= 1 is required' });
     } else {
@@ -8895,17 +9588,17 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
       sku = skuResult.rows[0];
 
-      unitPrice = parseFloat(sku.retail_price || 0);
-      isSample = sku.is_sample || false;
+      unitPrice = as_sample ? 0 : parseFloat(sku.retail_price || 0);
+      isSample = as_sample ? true : (sku.is_sample || false);
       sqftPerBox = parseFloat(sku.sqft_per_box || 1);
       isPerSqft = sku.price_basis === 'per_sqft';
       computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
       itemSubtotal = isSample ? 0 : parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
       itemVendorId = sku.vendor_id;
     } else {
-      unitPrice = parseFloat(unit_price);
-      isSample = false;
-      itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
+      unitPrice = as_sample ? 0 : parseFloat(unit_price);
+      isSample = as_sample ? true : false;
+      itemSubtotal = isSample ? 0 : parseFloat((unitPrice * num_boxes).toFixed(2));
       itemVendorId = vendor_id;
 
       const vendorCheck = await client.query('SELECT id FROM vendors WHERE id = $1', [vendor_id]);
@@ -9002,10 +9695,20 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       `, [poId]);
     }
 
-    await logOrderActivity(client, id, 'item_added', req.rep.id, req.rep.first_name + ' ' + req.rep.last_name,
-      { product_name: isCustom ? product_name.trim() : sku.product_name, is_custom: isCustom, num_boxes, subtotal: itemSubtotal.toFixed(2) });
+    const addRepName = req.rep.first_name + ' ' + req.rep.last_name;
+    const addedProductName = isCustom ? product_name.trim() : sku.product_name;
+    await logOrderActivity(client, id, 'item_added', req.rep.id, addRepName,
+      { product_name: addedProductName, is_custom: isCustom, num_boxes, subtotal: itemSubtotal.toFixed(2) });
 
     await client.query('COMMIT');
+
+    // Notify assigned rep if different
+    if (order.sales_rep_id && order.sales_rep_id !== req.rep.id) {
+      setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'item_added',
+        `Item added to ${order.order_number}`,
+        `${addRepName} added ${addedProductName} × ${num_boxes} ($${itemSubtotal.toFixed(2)})`,
+        'order', id));
+    }
 
     const balanceInfo = await recalculateBalance(id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
@@ -9091,10 +9794,19 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
       [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
 
     const removedItemRep = itemResult.rows[0];
-    await logOrderActivity(client, id, 'item_removed', req.rep.id, req.rep.first_name + ' ' + req.rep.last_name,
+    const removeRepName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(client, id, 'item_removed', req.rep.id, removeRepName,
       { product_name: removedItemRep.product_name, num_boxes: removedItemRep.num_boxes, subtotal: parseFloat(removedItemRep.subtotal).toFixed(2) });
 
     await client.query('COMMIT');
+
+    // Notify assigned rep if different
+    if (order.sales_rep_id && order.sales_rep_id !== req.rep.id) {
+      setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'item_removed',
+        `Item removed from ${order.order_number}`,
+        `${removeRepName} removed ${removedItemRep.product_name}`,
+        'order', id));
+    }
 
     const balanceInfo = await recalculateBalance(id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
@@ -9173,6 +9885,14 @@ app.post('/api/rep/orders/:id/payment-request', repAuth, async (req, res) => {
 
     await logOrderActivity(pool, id, 'payment_request_sent', req.rep.id, repName,
       { amount: amountDue.toFixed(2), sent_to: o.customer_email });
+
+    // Notify assigned rep if different
+    if (o.sales_rep_id && o.sales_rep_id !== req.rep.id) {
+      setImmediate(() => createRepNotification(pool, o.sales_rep_id, 'payment_request_sent',
+        `Payment request sent for ${o.order_number}`,
+        `${repName} sent $${amountDue.toFixed(2)} payment request to ${o.customer_email}`,
+        'order', id));
+    }
 
     setImmediate(() => sendPaymentRequest({ order: o, amount: amountDue, checkout_url: session.url, message: message || null }));
 
@@ -9394,6 +10114,130 @@ app.get('/api/rep/orders/:id/activity', repAuth, async (req, res) => {
   }
 });
 
+// ==================== Rep Invoice & Packing Slip ====================
+
+app.get('/api/rep/orders/:id/invoice', async (req, res, next) => {
+  if (!req.headers['x-rep-token'] && req.query.token) {
+    req.headers['x-rep-token'] = req.query.token;
+  }
+  next();
+}, repAuth, async (req, res) => {
+  try {
+    const result = await generateOrderInvoiceHtml(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Order not found' });
+    await generatePDF(result.html, result.filename, req, res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/rep/orders/:id/packing-slip', async (req, res, next) => {
+  if (!req.headers['x-rep-token'] && req.query.token) {
+    req.headers['x-rep-token'] = req.query.token;
+  }
+  next();
+}, repAuth, async (req, res) => {
+  try {
+    const result = await generateOrderPackingSlipHtml(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Order not found' });
+    await generatePDF(result.html, result.filename, req, res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Send invoice email (with optional payment request if balance due)
+app.post('/api/rep/orders/:id/send-invoice', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body || {};
+
+    // 1. Get order + items
+    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const o = order.rows[0];
+
+    const items = await pool.query(`
+      SELECT oi.*, p.sqft_per_box
+      FROM order_items oi LEFT JOIN packaging p ON p.sku_id = oi.sku_id
+      WHERE oi.order_id = $1 ORDER BY oi.id
+    `, [id]);
+
+    // 2. Generate invoice PDF
+    const invoiceResult = await generateOrderInvoiceHtml(id);
+    if (!invoiceResult) return res.status(500).json({ error: 'Failed to generate invoice' });
+    let pdfBuffer = null;
+    try {
+      pdfBuffer = await generatePDFBuffer(invoiceResult.html);
+    } catch (pdfErr) {
+      console.error('[PDF] Buffer generation failed, sending without attachment:', pdfErr.message);
+    }
+
+    // 3. Check balance — if due, create Stripe payment request
+    const balanceInfo = await recalculateBalance(id);
+    const balanceDue = balanceInfo && balanceInfo.balance > 0.01 ? balanceInfo.balance : 0;
+    let checkoutUrl = null;
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+
+    if (balanceDue > 0) {
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        customer_email: o.customer_email,
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: `Balance Due — Order ${o.order_number}` },
+            unit_amount: Math.round(balanceDue * 100)
+          },
+          quantity: 1
+        }],
+        metadata: { order_id: id, type: 'payment_request' },
+        success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
+        cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
+        expires_at: Math.floor(Date.now() / 1000) + 72 * 3600
+      });
+
+      checkoutUrl = session.url;
+
+      const prResult = await pool.query(`
+        INSERT INTO payment_requests (order_id, amount, stripe_checkout_session_id, stripe_checkout_url, sent_to_email, sent_by, sent_by_name, message, expires_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
+      `, [id, balanceDue.toFixed(2), session.id, session.url, o.customer_email, req.rep.id, repName, message || null, new Date(Date.now() + 72 * 3600 * 1000)]);
+
+      await stripe.checkout.sessions.update(session.id, {
+        metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' }
+      });
+
+      await logOrderActivity(pool, id, 'payment_request_sent', req.rep.id, repName,
+        { amount: balanceDue.toFixed(2), sent_to: o.customer_email, via: 'invoice_email' });
+    }
+
+    // 4. Send invoice email with PDF attached
+    await sendOrderInvoiceEmail({
+      order: o,
+      items: items.rows,
+      balance: balanceDue,
+      checkout_url: checkoutUrl,
+      message: message || null,
+      pdf_buffer: pdfBuffer
+    });
+
+    // 5. Log activity
+    await logOrderActivity(pool, id, 'invoice_sent', req.rep.id, repName,
+      { sent_to: o.customer_email, balance_due: balanceDue.toFixed(2), payment_requested: balanceDue > 0 });
+
+    res.json({
+      success: true,
+      sent_to: o.customer_email,
+      balance_due: balanceDue,
+      payment_requested: balanceDue > 0
+    });
+  } catch (err) {
+    console.error('[Rep] Send invoice error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==================== Rep Purchase Order Endpoints ====================
 
 // List POs for an order
@@ -9471,6 +10315,20 @@ app.put('/api/rep/purchase-orders/:poId/items/bulk-status', repAuth, async (req,
     );
 
     await client.query('COMMIT');
+
+    // Notify assigned rep if items received or PO fulfilled
+    if (status === 'received' || newPOStatus === 'fulfilled') {
+      const bulkPoOrder = await pool.query(
+        'SELECT o.order_number, o.sales_rep_id FROM orders o JOIN purchase_orders po2 ON po2.order_id = o.id WHERE po2.id = $1', [poId]);
+      if (bulkPoOrder.rows.length && bulkPoOrder.rows[0].sales_rep_id && bulkPoOrder.rows[0].sales_rep_id !== req.rep.id) {
+        const msg = newPOStatus === 'fulfilled'
+          ? `All items received on PO ${po.rows[0].po_number}`
+          : `Items marked received on PO ${po.rows[0].po_number}`;
+        setImmediate(() => createRepNotification(pool, bulkPoOrder.rows[0].sales_rep_id, 'po_items_received',
+          msg, `${repName} updated items for ${bulkPoOrder.rows[0].order_number}`, 'order', po.rows[0].order_id));
+      }
+    }
+
     res.json({ success: true, derived_po_status: newPOStatus });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -9519,6 +10377,20 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId/status', repAuth, async (r
     );
 
     await client.query('COMMIT');
+
+    // Notify assigned rep when items received or PO fulfilled
+    if (status === 'received' || newPOStatus === 'fulfilled') {
+      const singlePoOrder = await pool.query(
+        'SELECT o.order_number, o.sales_rep_id FROM orders o JOIN purchase_orders po2 ON po2.order_id = o.id WHERE po2.id = $1', [poId]);
+      if (singlePoOrder.rows.length && singlePoOrder.rows[0].sales_rep_id && singlePoOrder.rows[0].sales_rep_id !== req.rep.id) {
+        const singleMsg = newPOStatus === 'fulfilled'
+          ? `All items received on PO ${po.rows[0].po_number}`
+          : `Item marked received on PO ${po.rows[0].po_number}`;
+        setImmediate(() => createRepNotification(pool, singlePoOrder.rows[0].sales_rep_id, 'po_items_received',
+          singleMsg, `${repName} updated item for ${singlePoOrder.rows[0].order_number}`, 'order', po.rows[0].order_id));
+      }
+    }
+
     res.json({ success: true, derived_po_status: newPOStatus });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -9581,6 +10453,22 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId', repAuth, async (req, res
   }
 });
 
+// Rep PO Document PDF - accepts token from header or query param
+app.get('/api/rep/purchase-orders/:id/pdf', async (req, res, next) => {
+  if (!req.headers['x-rep-token'] && req.query.token) {
+    req.headers['x-rep-token'] = req.query.token;
+  }
+  next();
+}, repAuth, async (req, res) => {
+  try {
+    const result = await generatePOHtml(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Purchase order not found' });
+    await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Approve & send PO
 app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => {
   try {
@@ -9637,6 +10525,15 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       [poId, action, req.rep.id, repName, po.vendor_email || null, newRevision,
        JSON.stringify({ email_sent: emailSent, approved_via: 'rep_portal' })]
     );
+
+    // Notify assigned rep on the order if different from the one approving
+    const poOrder = await pool.query('SELECT order_number, sales_rep_id FROM orders WHERE id = $1', [po.order_id]);
+    if (poOrder.rows.length && poOrder.rows[0].sales_rep_id && poOrder.rows[0].sales_rep_id !== req.rep.id) {
+      setImmediate(() => createRepNotification(pool, poOrder.rows[0].sales_rep_id, 'po_approved',
+        `PO ${po.po_number} sent to ${po.vendor_name}`,
+        `${repName} approved and sent PO for ${poOrder.rows[0].order_number}`,
+        'order', po.order_id));
+    }
 
     res.json({ purchase_order: result.rows[0], email_sent: emailSent });
   } catch (err) {
@@ -9731,15 +10628,24 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
+    // Auto-create customer
+    const nameParts = (customer_name || '').split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    const { customer: cust } = await findOrCreateCustomer(client, {
+      email: customer_email, firstName, lastName,
+      phone, repId: req.rep.id, createdVia: 'quote'
+    });
+
     const quoteResult = await client.query(`
       INSERT INTO quotes (quote_number, sales_rep_id, customer_name, customer_email, phone,
-        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, notes, delivery_method)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, notes, delivery_method, customer_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *
     `, [quoteNumber, req.rep.id, customer_name, customer_email.toLowerCase().trim(), phone || null,
         shipping_address_line1 || null, shipping_address_line2 || null,
         shipping_city || null, shipping_state || null, shipping_zip || null, notes || null,
-        delivery_method || 'shipping']);
+        delivery_method || 'shipping', cust.id]);
 
     const quote = quoteResult.rows[0];
 
@@ -10240,6 +11146,131 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
 });
 
 // ==================== Rep Customer Endpoints ====================
+
+// GET /api/rep/customers/search?q=<term> — fast typeahead for order creation
+app.get('/api/rep/customers/search', repAuth, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 2) return res.json({ results: [] });
+    const trimmed = q.toLowerCase().trim();
+    const term = '%' + trimmed + '%';
+    // Strip non-digits for phone matching
+    const digits = trimmed.replace(/\D/g, '');
+    const phoneTerm = digits.length >= 3 ? '%' + digits + '%' : null;
+
+    const retail = await pool.query(`
+      SELECT c.id, COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '') as name,
+        c.email, c.phone,
+        c.address_line1, c.address_line2, c.city, c.state, c.zip,
+        'retail' as type
+      FROM customers c
+      WHERE LOWER(COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '')) LIKE $1
+        OR LOWER(c.email) LIKE $1
+        OR ($2::text IS NOT NULL AND regexp_replace(COALESCE(c.phone, ''), '[^0-9]', '', 'g') LIKE $2)
+      ORDER BY c.updated_at DESC NULLS LAST
+      LIMIT 10
+    `, [term, phoneTerm]);
+
+    const trade = await pool.query(`
+      SELECT tc.id, tc.contact_name as name, tc.email, tc.phone,
+        NULL as address_line1, NULL as address_line2,
+        NULL as city, NULL as state, NULL as zip,
+        'trade' as type, tc.company_name
+      FROM trade_customers tc
+      WHERE LOWER(COALESCE(tc.contact_name, '')) LIKE $1
+        OR LOWER(tc.email) LIKE $1
+        OR ($2::text IS NOT NULL AND regexp_replace(COALESCE(tc.phone, ''), '[^0-9]', '', 'g') LIKE $2)
+        OR LOWER(COALESCE(tc.company_name, '')) LIKE $1
+      ORDER BY tc.updated_at DESC NULLS LAST
+      LIMIT 5
+    `, [term, phoneTerm]);
+
+    // Also search past order customers (deduplicated by email)
+    const guests = await pool.query(`
+      SELECT DISTINCT ON (o.customer_email)
+        NULL as id, o.customer_name as name, o.customer_email as email, o.phone,
+        o.shipping_address_line1 as address_line1, o.shipping_address_line2 as address_line2,
+        o.shipping_city as city, o.shipping_state as state, o.shipping_zip as zip,
+        'order' as type
+      FROM orders o
+      WHERE (LOWER(COALESCE(o.customer_name, '')) LIKE $1
+        OR LOWER(o.customer_email) LIKE $1
+        OR ($2::text IS NOT NULL AND regexp_replace(COALESCE(o.phone, ''), '[^0-9]', '', 'g') LIKE $2))
+        AND o.customer_email NOT IN (SELECT email FROM customers)
+        AND o.customer_email NOT IN (SELECT email FROM trade_customers)
+      ORDER BY o.customer_email, o.created_at DESC
+      LIMIT 5
+    `, [term, phoneTerm]);
+
+    res.json({ results: [...retail.rows, ...trade.rows, ...guests.rows] });
+  } catch (err) {
+    console.error('Customer search error:', err);
+    res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// GET /api/rep/customers/:email/addresses — previous shipping addresses for a customer
+app.get('/api/rep/customers/:email/addresses', repAuth, async (req, res) => {
+  try {
+    const email = req.params.email.toLowerCase().trim();
+    const result = await pool.query(`
+      WITH all_addresses AS (
+        SELECT shipping_address_line1 AS line1, shipping_address_line2 AS line2,
+               shipping_city AS city, shipping_state AS state, shipping_zip AS zip,
+               created_at AS used_at
+        FROM orders WHERE LOWER(customer_email) = $1
+          AND shipping_address_line1 IS NOT NULL AND TRIM(shipping_address_line1) != ''
+        UNION ALL
+        SELECT shipping_address_line1, shipping_address_line2,
+               shipping_city, shipping_state, shipping_zip, created_at
+        FROM quotes WHERE LOWER(customer_email) = $1
+          AND shipping_address_line1 IS NOT NULL AND TRIM(shipping_address_line1) != ''
+        UNION ALL
+        SELECT shipping_address_line1, shipping_address_line2,
+               shipping_city, shipping_state, shipping_zip, created_at
+        FROM sample_requests WHERE LOWER(customer_email) = $1
+          AND shipping_address_line1 IS NOT NULL AND TRIM(shipping_address_line1) != ''
+        UNION ALL
+        SELECT address_line1, address_line2, city, state, zip, updated_at
+        FROM customers WHERE LOWER(email) = $1
+          AND address_line1 IS NOT NULL AND TRIM(address_line1) != ''
+        UNION ALL
+        SELECT address_line1, NULL, city, state, zip, updated_at
+        FROM trade_customers WHERE LOWER(email) = $1
+          AND address_line1 IS NOT NULL AND TRIM(address_line1) != ''
+      ),
+      deduped AS (
+        SELECT TRIM(line1) AS line1, TRIM(COALESCE(line2, '')) AS line2,
+               TRIM(COALESCE(city, '')) AS city, TRIM(COALESCE(state, '')) AS state,
+               TRIM(COALESCE(zip, '')) AS zip, used_at,
+               ROW_NUMBER() OVER (
+                 PARTITION BY LOWER(TRIM(line1)), LOWER(TRIM(COALESCE(city, ''))),
+                              LOWER(TRIM(COALESCE(state, ''))), TRIM(COALESCE(zip, ''))
+                 ORDER BY used_at DESC
+               ) AS rn
+        FROM all_addresses
+      )
+      SELECT line1, line2, city, state, zip, used_at AS last_used
+      FROM deduped WHERE rn = 1
+      ORDER BY last_used DESC
+      LIMIT 10
+    `, [email]);
+    res.json({ addresses: result.rows });
+  } catch (err) {
+    console.error('Customer addresses error:', err);
+    res.status(500).json({ error: 'Failed to fetch addresses' });
+  }
+});
+
+// GET /api/config/google-places-key — public API key for Google Places autocomplete
+app.get('/api/config/google-places-key', (req, res) => {
+  res.json({ key: process.env.GOOGLE_PLACES_API_KEY || '' });
+});
+
+// GET /api/rep/config/google-places-key — API key for Google Places autocomplete
+app.get('/api/rep/config/google-places-key', repAuth, async (req, res) => {
+  res.json({ key: process.env.GOOGLE_PLACES_API_KEY || '' });
+});
 
 // GET /api/rep/customers — unified list (mirrors admin endpoint)
 app.get('/api/rep/customers', repAuth, async (req, res) => {
@@ -13482,15 +14513,35 @@ app.post('/api/customer/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters with 1 uppercase letter and 1 number' });
     }
 
-    const existing = await pool.query('SELECT id FROM customers WHERE email = $1', [email.toLowerCase()]);
+    const existing = await pool.query('SELECT id, password_set FROM customers WHERE email = $1', [email.toLowerCase()]);
     if (existing.rows.length) {
+      // If account was auto-created by rep (password not set), let them claim it
+      if (existing.rows[0].password_set === false) {
+        const { hash, salt } = hashPassword(password);
+        await pool.query(
+          `UPDATE customers SET password_hash = $1, password_salt = $2, first_name = $3, last_name = $4,
+           phone = COALESCE($5, phone), password_set = true, password_reset_token = NULL, password_reset_expires = NULL,
+           updated_at = CURRENT_TIMESTAMP WHERE id = $6`,
+          [hash, salt, first_name, last_name, phone || null, existing.rows[0].id]
+        );
+        const custResult = await pool.query(
+          'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip FROM customers WHERE id = $1',
+          [existing.rows[0].id]
+        );
+        const customer = custResult.rows[0];
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
+          [customer.id, token, expiresAt]);
+        return res.json({ token, customer });
+      }
       return res.status(400).json({ error: 'An account with this email already exists' });
     }
 
     const { hash, salt } = hashPassword(password);
     const result = await pool.query(
-      `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, first_name, last_name, phone`,
+      `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, password_set)
+       VALUES ($1, $2, $3, $4, $5, $6, true) RETURNING id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip`,
       [email.toLowerCase(), hash, salt, first_name, last_name, phone || null]
     );
     const customer = result.rows[0];
@@ -13515,7 +14566,7 @@ app.post('/api/customer/login', async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT id, email, password_hash, password_salt, first_name, last_name, phone FROM customers WHERE email = $1',
+      'SELECT id, email, password_hash, password_salt, first_name, last_name, phone, password_set, address_line1, address_line2, city, state, zip FROM customers WHERE email = $1',
       [email.toLowerCase()]
     );
     if (!result.rows.length) {
@@ -13523,6 +14574,15 @@ app.post('/api/customer/login', async (req, res) => {
     }
 
     const cust = result.rows[0];
+
+    // Block login for auto-created accounts that haven't set a password yet
+    if (cust.password_set === false) {
+      return res.status(403).json({
+        error: 'password_not_set',
+        message: 'Please set your password first. Check your email for the welcome link.'
+      });
+    }
+
     if (!verifyPassword(password, cust.password_hash, cust.password_salt)) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -13534,7 +14594,7 @@ app.post('/api/customer/login', async (req, res) => {
 
     res.json({
       token,
-      customer: { id: cust.id, email: cust.email, first_name: cust.first_name, last_name: cust.last_name, phone: cust.phone }
+      customer: { id: cust.id, email: cust.email, first_name: cust.first_name, last_name: cust.last_name, phone: cust.phone, address_line1: cust.address_line1, address_line2: cust.address_line2, city: cust.city, state: cust.state, zip: cust.zip }
     });
   } catch (err) {
     console.error('Customer login error:', err);
@@ -13647,7 +14707,7 @@ app.post('/api/customer/reset-password', async (req, res) => {
 
     const { hash, salt } = hashPassword(new_password);
     await pool.query(
-      'UPDATE customers SET password_hash = $1, password_salt = $2, password_reset_token = NULL, password_reset_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+      'UPDATE customers SET password_hash = $1, password_salt = $2, password_set = true, password_reset_token = NULL, password_reset_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
       [hash, salt, result.rows[0].id]
     );
 
@@ -13864,6 +14924,126 @@ app.get('/api/customer/orders/:id', customerAuth, async (req, res) => {
   } catch (err) {
     console.error('Customer order detail error:', err);
     res.status(500).json({ error: 'Failed to fetch order' });
+  }
+});
+
+// ==================== Customer Sample Requests ====================
+
+app.get('/api/customer/sample-requests', customerAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT sr.*, json_agg(json_build_object(
+          'id', sri.id, 'product_id', sri.product_id, 'sku_id', sri.sku_id,
+          'product_name', sri.product_name, 'collection', sri.collection,
+          'variant_name', sri.variant_name, 'primary_image', sri.primary_image,
+          'status', sri.status, 'sort_order', sri.sort_order
+        ) ORDER BY sri.sort_order) AS items
+       FROM sample_requests sr
+       LEFT JOIN sample_request_items sri ON sri.sample_request_id = sr.id
+       WHERE sr.customer_id = $1
+       GROUP BY sr.id
+       ORDER BY sr.created_at DESC`,
+      [req.customer.id]
+    );
+    // Clean up null items (from LEFT JOIN with no items)
+    const requests = result.rows.map(r => ({
+      ...r,
+      items: r.items && r.items[0] && r.items[0].id ? r.items : []
+    }));
+    res.json({ sample_requests: requests });
+  } catch (err) {
+    console.error('Customer sample requests error:', err);
+    res.status(500).json({ error: 'Failed to fetch sample requests' });
+  }
+});
+
+app.post('/api/customer/sample-requests/:id/add-items', customerAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { items } = req.body;
+    if (!items || !items.length) {
+      return res.status(400).json({ error: 'At least one item is required' });
+    }
+
+    const srRes = await client.query(
+      'SELECT * FROM sample_requests WHERE id = $1 AND customer_id = $2',
+      [req.params.id, req.customer.id]
+    );
+    if (!srRes.rows.length) {
+      return res.status(404).json({ error: 'Sample request not found' });
+    }
+    const sr = srRes.rows[0];
+    if (sr.status !== 'requested') {
+      return res.status(400).json({ error: 'Can only add items to open sample requests' });
+    }
+
+    // Check current item count
+    const countRes = await client.query(
+      'SELECT COUNT(*)::int as cnt FROM sample_request_items WHERE sample_request_id = $1',
+      [sr.id]
+    );
+    const currentCount = countRes.rows[0].cnt;
+    if (currentCount + items.length > 5) {
+      return res.status(400).json({ error: `Maximum 5 items per sample request (currently ${currentCount})` });
+    }
+
+    await client.query('BEGIN');
+
+    const addedItems = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      let productName = 'Unknown';
+      let collection = null;
+      let variantName = null;
+      let primaryImage = null;
+      let productId = item.product_id || null;
+      let skuId = item.sku_id || null;
+
+      if (item.sku_id) {
+        const sRes = await client.query(`
+          SELECT s.variant_name, s.product_id,
+            p.name as product_name, p.collection,
+            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+          FROM skus s
+          JOIN products p ON p.id = s.product_id
+          WHERE s.id = $1
+        `, [item.sku_id]);
+        if (sRes.rows.length) {
+          const s = sRes.rows[0];
+          productId = s.product_id;
+          productName = s.product_name;
+          collection = s.collection;
+          variantName = s.variant_name;
+          primaryImage = s.primary_image;
+        }
+      } else if (item.product_id) {
+        const pRes = await client.query(`
+          SELECT p.name, p.collection,
+            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+          FROM products p WHERE p.id = $1
+        `, [item.product_id]);
+        if (pRes.rows.length) {
+          productName = pRes.rows[0].name;
+          collection = pRes.rows[0].collection;
+          primaryImage = pRes.rows[0].primary_image;
+        }
+      }
+
+      const itemRes = await client.query(`
+        INSERT INTO sample_request_items (sample_request_id, product_id, sku_id, product_name, collection, variant_name, primary_image, sort_order)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
+      `, [sr.id, productId, skuId, productName, collection, variantName, primaryImage, currentCount + i]);
+      addedItems.push(itemRes.rows[0]);
+    }
+
+    await client.query('COMMIT');
+    res.json({ items: addedItems });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Add sample items error:', err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -14361,6 +15541,8 @@ async function runMigrations() {
         variant_name TEXT,
         primary_image TEXT,
         sort_order INTEGER DEFAULT 0,
+        status VARCHAR(20) DEFAULT 'pending',
+        notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       CREATE INDEX IF NOT EXISTS idx_sample_request_items_request ON sample_request_items(sample_request_id);

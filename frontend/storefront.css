@@ -40,13 +40,55 @@ header { background: white; position: sticky; top: 0; z-index: 100; border-botto
 .header-nav-link.active { color: var(--stone-900); border-bottom-color: var(--gold); }
 
 /* ── MEGA MENU ── */
-.mega-menu { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); min-width: 720px; max-width: 960px; background: white; border: 1px solid var(--stone-200); box-shadow: var(--shadow-lg); padding: 2rem 2.5rem; display: none; z-index: 200; }
-.header-nav-item:hover .mega-menu { display: block; }
+.mega-menu { position: absolute; top: 100%; left: 50%; transform: translateX(-50%) translateY(8px); min-width: 720px; max-width: 960px; background: white; box-shadow: 0 4px 24px rgba(28,25,23,0.10), 0 1px 4px rgba(28,25,23,0.06); padding: 2.5rem 3rem; z-index: 200; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.2s cubic-bezier(0.4,0,0.2,1), transform 0.2s cubic-bezier(0.4,0,0.2,1), visibility 0.2s; }
+.mega-menu::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--gold); }
+.header-nav-item:hover .mega-menu { opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(-50%) translateY(0); }
 .mega-menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 2rem; }
 .mega-menu-col h4 { font-family: var(--font-heading); font-size: 1.125rem; font-weight: 400; color: var(--stone-900); margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--stone-100); }
 .mega-menu-col a { display: block; padding: 0.3rem 0; font-size: 0.8125rem; color: var(--stone-600); text-decoration: none; cursor: pointer; transition: color 0.15s; }
 .mega-menu-col a:hover { color: var(--gold); }
 .mega-menu-view-all { margin-top: 0.5rem !important; padding-top: 0.5rem !important; border-top: 1px solid var(--stone-100); font-weight: 500 !important; color: var(--stone-800) !important; font-size: 0.8125rem; }
+/* Scrim overlay — pointer-events stays none so nav items remain hoverable */
+.mega-menu-scrim { position: fixed; inset: 0; background: rgba(28,25,23,0.35); z-index: 99; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+.mega-menu-scrim.visible { opacity: 1; }
+
+/* ── AXIS MEGA MENUS (By Look / Color / Size) ── */
+.mega-menu--axis { min-width: 540px; max-width: 780px; padding: 1.5rem 2rem; }
+.mega-menu-axis-grid { max-height: 420px; overflow-y: auto; }
+.mega-menu-axis-title { font-family: var(--font-heading); font-size: 1.25rem; font-weight: 400; color: var(--stone-900); margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--stone-100); }
+.mega-menu-axis-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.25rem 1.5rem; }
+.mega-menu-axis-link { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.5rem; font-size: 0.8125rem; color: var(--stone-600); cursor: pointer; border-radius: 2px; transition: color 0.15s, background 0.15s; text-decoration: none; }
+.mega-menu-axis-link:hover { color: var(--gold); background: var(--stone-50); }
+.mega-menu-axis-count { font-size: 0.6875rem; color: var(--stone-400); margin-left: 0.5rem; }
+
+/* ── BY LOOK — Tile Grid ── */
+.mega-menu--look { min-width: 680px; max-width: 820px; padding: 2rem 2.5rem; }
+.mega-menu--look .mega-menu-axis-grid { grid-template-columns: repeat(5, 1fr); gap: 0.75rem; }
+.mega-menu-look-tile { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: 4px; cursor: pointer; }
+.mega-menu-look-tile-bg { position: absolute; inset: 0; transition: transform 0.35s cubic-bezier(0.4,0,0.2,1); }
+.mega-menu-look-tile:hover .mega-menu-look-tile-bg { transform: scale(1.08); }
+.mega-menu-look-tile-label { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 0.625rem; background: linear-gradient(to top, rgba(28,25,23,0.55) 0%, transparent 60%); }
+.mega-menu-look-tile-label span:first-child { font-family: var(--font-heading); font-size: 0.8125rem; font-weight: 600; color: white; text-transform: uppercase; letter-spacing: 0.04em; line-height: 1.2; }
+.mega-menu-look-tile-label span:last-child { font-size: 0.6875rem; color: rgba(255,255,255,0.7); margin-top: 0.125rem; }
+
+/* ── BY COLOR — Swatch Links ── */
+.mega-menu--color { min-width: 600px; max-width: 820px; }
+.mega-menu--color .mega-menu-axis-grid { grid-template-columns: repeat(3, 1fr); gap: 0.25rem 2rem; }
+.mega-menu-color-link { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.5rem; font-size: 0.8125rem; color: var(--stone-600); cursor: pointer; border-radius: 2px; transition: color 0.15s, background 0.15s; text-decoration: none; }
+.mega-menu-color-link:hover { color: var(--gold); background: var(--stone-50); }
+.mega-menu-color-dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; transition: transform 0.15s; }
+.mega-menu-color-link:hover .mega-menu-color-dot { transform: scale(1.3); }
+.mega-menu-color-dot--bordered { box-shadow: inset 0 0 0 1px var(--stone-300); }
+
+/* ── BY SIZE — Dimension Icons ── */
+.mega-menu-size-link { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.5rem; font-size: 0.8125rem; color: var(--stone-600); cursor: pointer; border-radius: 2px; transition: color 0.15s, background 0.15s; text-decoration: none; }
+.mega-menu-size-link:hover { color: var(--gold); background: var(--stone-50); }
+.mega-menu-size-icon { border: 1px solid var(--stone-300); border-radius: 1px; flex-shrink: 0; transition: background 0.15s, border-color 0.15s; }
+.mega-menu-size-link:hover .mega-menu-size-icon { background: rgba(201,166,104,0.1); border-color: var(--gold-light, #d4b978); }
+
+/* ── Mobile Color Dots ── */
+.mobile-color-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-right: 0.5rem; vertical-align: middle; }
+.mobile-color-dot--bordered { box-shadow: inset 0 0 0 1px var(--stone-300); }
 
 /* ── SEARCH ── */
 .header-search { position: relative; display: flex; align-items: center; max-width: 480px; width: 100%; margin: 0 auto; }
@@ -308,6 +350,31 @@ header { background: white; position: sticky; top: 0; z-index: 100; border-botto
 
 .packaging-info { background: var(--stone-50); padding: 1.5rem; margin-bottom: 2rem; font-size: 0.875rem; line-height: 1.8; }
 .packaging-info h4 { font-weight: 600; margin-bottom: 0.75rem; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Carpet Details Band */
+.carpet-specs-band { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1px; background: var(--stone-200); border: 1px solid var(--stone-200); margin-bottom: 2rem; }
+.carpet-spec-card { background: var(--stone-50); padding: 1rem; text-align: center; }
+.carpet-spec-card-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--stone-500); margin-bottom: 0.375rem; }
+.carpet-spec-card-value { font-size: 0.9375rem; font-weight: 600; color: var(--stone-900); line-height: 1.3; }
+
+/* Carpet Roll Specifications */
+.carpet-roll-info { background: var(--stone-50); padding: 1.5rem; margin-bottom: 2rem; font-size: 0.875rem; }
+.carpet-roll-info h4 { font-weight: 600; margin-bottom: 0.75rem; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.carpet-roll-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1.5rem; }
+.carpet-roll-info-row { display: flex; justify-content: space-between; align-items: baseline; padding: 0.375rem 0; border-bottom: 1px solid var(--stone-200); }
+.carpet-roll-info-row:last-child { border-bottom: none; }
+.carpet-roll-info-label { color: var(--stone-600); }
+.carpet-roll-info-value { font-weight: 600; color: var(--stone-900); }
+
+/* Carpet calculator roll width header */
+.carpet-roll-width-header { display: flex; align-items: center; gap: 0.625rem; margin-bottom: 1.25rem; padding: 0.75rem 1rem; background: var(--stone-900); color: white; border-radius: 0.375rem; font-size: 0.9375rem; font-weight: 500; }
+.carpet-roll-width-header svg { flex-shrink: 0; }
+
+/* Carpet calculator overage + weight */
+.carpet-overage-label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; cursor: pointer; margin-top: 0.75rem; color: var(--stone-700); }
+.carpet-overage-label input[type="checkbox"] { accent-color: var(--stone-900); }
+.carpet-seam-note { display: flex; align-items: flex-start; gap: 0.5rem; background: #fef3cd; border: 1px solid #f0d36e; border-radius: 0.375rem; padding: 0.625rem 0.75rem; font-size: 0.8125rem; color: #856404; margin-top: 0.5rem; }
+.carpet-seam-note svg { flex-shrink: 0; margin-top: 1px; }
 
 /* Siblings Strip */
 .siblings-section { margin-top: 3rem; padding-top: 3rem; border-top: 1px solid var(--stone-200); }
@@ -731,6 +798,8 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
   .sku-detail-info h1 { font-size: 1.75rem; }
   .siblings-section { margin-top: 1.5rem; padding-top: 1.5rem; }
   .calc-input-row { grid-template-columns: 1fr; }
+  .carpet-specs-band { grid-template-columns: repeat(2, 1fr); }
+  .carpet-roll-info-grid { grid-template-columns: 1fr; }
   .cart-page { padding: 0 1.5rem; }
   .cart-page-layout { grid-template-columns: 1fr; }
   .cart-table-header { display: none; }
@@ -871,3 +940,36 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
   img { max-width: 100%; }
   * { box-shadow: none !important; }
 }
+
+/* ── GOOGLE PLACES AUTOCOMPLETE ── */
+.pac-container {
+  z-index: 10000;
+  font-family: 'Inter', sans-serif;
+  border-radius: 8px;
+  border: 1px solid var(--stone-200);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  margin-top: 4px;
+  overflow: hidden;
+}
+.pac-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-top: 1px solid var(--stone-100);
+  font-size: 0.875rem;
+  color: var(--stone-700);
+  line-height: 1.5;
+}
+.pac-item:first-child { border-top: none; }
+.pac-item:hover, .pac-item-selected {
+  background: var(--stone-50);
+}
+.pac-item-query {
+  font-weight: 600;
+  color: var(--stone-900);
+  font-size: 0.875rem;
+}
+.pac-matched {
+  font-weight: 700;
+}
+.pac-icon, .pac-icon-marker { display: none; }
+.pac-logo::after { display: none; }

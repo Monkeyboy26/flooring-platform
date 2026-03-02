@@ -251,6 +251,25 @@
 
     const stripeInstance = (typeof Stripe !== 'undefined') ? Stripe('pk_test_51SzdrRAASarADPs5BQucZOHBLTPXAaFpGajCToKwXCjdVCasoYHDm3guDjMoEeQhhLr71AWiFPgq91BE2ggj2wNf004DucWYlf') : null;
 
+    // ==================== Google Places Loader ====================
+    let _placesPromise = null;
+    function loadGooglePlaces(apiKey) {
+      if (_placesPromise) return _placesPromise;
+      if (window.google && window.google.maps && window.google.maps.places) {
+        _placesPromise = Promise.resolve();
+        return _placesPromise;
+      }
+      _placesPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&libraries=places';
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = () => { _placesPromise = null; reject(new Error('Failed to load Google Places')); };
+        document.head.appendChild(script);
+      });
+      return _placesPromise;
+    }
+
     // ==================== Error Boundary ====================
 
     class ErrorBoundary extends React.Component {
@@ -3268,7 +3287,7 @@
               {/* Specs Table */}
               {(sku.attributes && sku.attributes.length > 0) && (() => {
                 const HIDDEN_SLUGS = new Set(['price_list', 'material_class', 'style_code', 'companion_skus', 'subcategory']);
-                const ORDER = ['collection', 'species', 'color', 'color_code', 'fiber', 'material', 'construction', 'finish', 'style', 'pattern', 'size', 'thickness', 'width', 'wear_layer', 'weight', 'weight_per_sqyd', 'roll_width', 'roll_length'];
+                const ORDER = ['collection', 'species', 'color', 'color_code', 'application', 'fiber', 'material', 'construction', 'finish', 'style', 'pattern', 'size', 'thickness', 'width', 'wear_layer', 'weight', 'weight_per_sqyd', 'roll_width', 'roll_length'];
                 const visible = sku.attributes.filter(a => !HIDDEN_SLUGS.has(a.slug) && !(a.slug === 'species' && /^\d+$/.test(a.value)));
                 // Remove duplicate values (e.g. fiber=material, construction=subcategory)
                 const seenVals = new Map();
@@ -3296,18 +3315,6 @@
                   const brandLine = priceListAttr.value.replace(/\s+\d+$/, '');
                   const ccIdx = sorted.findIndex(a => a.slug === 'color_code');
                   sorted.splice(ccIdx >= 0 ? ccIdx + 1 : sorted.length, 0, { slug: '_brand', name: 'Brand', value: brandLine });
-                  // Inject application type derived from price_list
-                  const pl = priceListAttr.value.toUpperCase();
-                  let appType = null;
-                  if (/CONTRACT/.test(pl)) appType = 'Commercial';
-                  else if (/MAINSTREET/.test(pl) && /COMMERCIAL/.test(pl)) appType = 'Commercial';
-                  else if (/MAINSTREET/.test(pl)) appType = 'Commercial / Residential';
-                  else if (/BUILDER/.test(pl)) appType = 'Builder / Residential';
-                  else if (/RETAIL|VALUE|RESIDENTIAL/.test(pl)) appType = 'Residential';
-                  if (appType) {
-                    const brandIdx = sorted.findIndex(a => a.slug === '_brand');
-                    sorted.splice(brandIdx >= 0 ? brandIdx + 1 : sorted.length, 0, { slug: '_application', name: 'Application', value: appType });
-                  }
                 }
                 if (sorted.length === 0) return null;
                 return (
@@ -3894,6 +3901,9 @@
       const cardRef = useRef(null);
       const cardMounted = useRef(false);
       const taxDebounce = useRef(null);
+      const addressInputRef = useRef(null);
+      const autocompleteRef = useRef(null);
+      const [placesReady, setPlacesReady] = useState(false);
 
       const isPickup = deliveryMethod === 'pickup';
       const productItems = cart.filter(i => !i.is_sample);
@@ -3915,6 +3925,60 @@
         cardMounted.current = true;
         return () => { if (cardRef.current) { cardRef.current.unmount(); cardMounted.current = false; } };
       }, []);
+
+      // Load Google Places API
+      useEffect(() => {
+        if (isPickup) return;
+        let cancelled = false;
+        fetch(API + '/api/config/google-places-key')
+          .then(r => r.json())
+          .then(data => {
+            if (cancelled || !data.key) return;
+            return loadGooglePlaces(data.key).then(() => {
+              if (!cancelled) setPlacesReady(true);
+            });
+          })
+          .catch(() => {});
+        return () => { cancelled = true; };
+      }, [isPickup]);
+
+      // Attach Google Places Autocomplete to address input
+      useEffect(() => {
+        if (!placesReady || isPickup || !addressInputRef.current) return;
+        if (autocompleteRef.current) return;
+        try {
+          const ac = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+            componentRestrictions: { country: 'us' },
+            fields: ['address_components', 'formatted_address'],
+            types: ['address']
+          });
+          ac.addListener('place_changed', () => {
+            const place = ac.getPlace();
+            if (!place || !place.address_components) return;
+            let streetNumber = '', route = '', newCity = '', newState = '', newZip = '';
+            for (const comp of place.address_components) {
+              const t = comp.types[0];
+              if (t === 'street_number') streetNumber = comp.long_name;
+              else if (t === 'route') route = comp.long_name;
+              else if (t === 'locality') newCity = comp.long_name;
+              else if (t === 'sublocality_level_1' && !newCity) newCity = comp.long_name;
+              else if (t === 'administrative_area_level_1') newState = comp.short_name;
+              else if (t === 'postal_code') newZip = comp.long_name;
+            }
+            setLine1((streetNumber + ' ' + route).trim());
+            if (newCity) setCity(newCity);
+            if (newState) setState(newState);
+            if (newZip) setZip(newZip);
+          });
+          autocompleteRef.current = ac;
+        } catch (e) { /* Google Places failed — manual entry still works */ }
+        return () => {
+          if (autocompleteRef.current) {
+            window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
+            autocompleteRef.current = null;
+          }
+        };
+      }, [placesReady, isPickup]);
 
       // Fetch tax estimate when ZIP changes
       useEffect(() => {
@@ -4012,7 +4076,7 @@
             ) : (
               <div className="checkout-section">
                 <h3>Shipping Address</h3>
-                <div className="checkout-field"><label>Address Line 1 *</label><input className="checkout-input" value={line1} onChange={e => setLine1(e.target.value)} placeholder="123 Main Street" /></div>
+                <div className="checkout-field"><label>Address Line 1 *</label><input ref={addressInputRef} className="checkout-input" value={line1} onChange={e => setLine1(e.target.value)} placeholder="Start typing an address..." autoComplete="off" /></div>
                 <div className="checkout-field"><label>Address Line 2</label><input className="checkout-input" value={line2} onChange={e => setLine2(e.target.value)} placeholder="Apt, Suite, Unit" /></div>
                 <div className="checkout-row-3">
                   <div className="checkout-field"><label>City *</label><input className="checkout-input" value={city} onChange={e => setCity(e.target.value)} placeholder="New York" /></div>
@@ -4085,6 +4149,16 @@
       const [orderDetail, setOrderDetail] = useState(null);
       const [loadingOrders, setLoadingOrders] = useState(true);
 
+      // Samples state
+      const [sampleRequests, setSampleRequests] = useState([]);
+      const [loadingSamples, setLoadingSamples] = useState(true);
+      const [expandedSample, setExpandedSample] = useState(null);
+      const [addItemsTo, setAddItemsTo] = useState(null); // sample request id being added to
+      const [sampleSearch, setSampleSearch] = useState('');
+      const [sampleSearchResults, setSampleSearchResults] = useState([]);
+      const [searchingProducts, setSearchingProducts] = useState(false);
+      const [addingSampleItem, setAddingSampleItem] = useState(null);
+
       const [firstName, setFirstName] = useState(customer.first_name || '');
       const [lastName, setLastName] = useState(customer.last_name || '');
       const [phone, setPhone] = useState(customer.phone || '');
@@ -4112,7 +4186,48 @@
           .then(r => r.json())
           .then(data => { setOrders(data.orders || []); setLoadingOrders(false); })
           .catch(() => setLoadingOrders(false));
+        fetch(API + '/api/customer/sample-requests', { headers: authHeaders })
+          .then(r => r.json())
+          .then(data => { setSampleRequests(data.sample_requests || []); setLoadingSamples(false); })
+          .catch(() => setLoadingSamples(false));
       }, []);
+
+      const refreshSamples = () => {
+        fetch(API + '/api/customer/sample-requests', { headers: authHeaders })
+          .then(r => r.json())
+          .then(data => setSampleRequests(data.sample_requests || []))
+          .catch(() => {});
+      };
+
+      const searchProducts = async (q) => {
+        if (!q || q.length < 2) { setSampleSearchResults([]); return; }
+        setSearchingProducts(true);
+        try {
+          const resp = await fetch(API + '/api/storefront/skus?search=' + encodeURIComponent(q) + '&limit=8');
+          const data = await resp.json();
+          setSampleSearchResults(data.skus || []);
+        } catch { setSampleSearchResults([]); }
+        setSearchingProducts(false);
+      };
+
+      const addSampleItem = async (srId, productId, skuId) => {
+        setAddingSampleItem(skuId || productId);
+        try {
+          const resp = await fetch(API + '/api/customer/sample-requests/' + srId + '/add-items', {
+            method: 'POST', headers,
+            body: JSON.stringify({ items: [{ product_id: productId, sku_id: skuId }] })
+          });
+          if (resp.ok) {
+            refreshSamples();
+            setSampleSearch('');
+            setSampleSearchResults([]);
+          } else {
+            const data = await resp.json();
+            alert(data.error || 'Failed to add sample');
+          }
+        } catch { alert('Failed to add sample'); }
+        setAddingSampleItem(null);
+      };
 
       const viewOrderDetail = async (orderId) => {
         if (expandedOrder === orderId) { setExpandedOrder(null); setOrderDetail(null); return; }
@@ -4167,14 +4282,16 @@
         const colors = {
           pending: { bg: '#fef3c7', text: '#92400e' },
           confirmed: { bg: '#dbeafe', text: '#1e40af' },
+          ready_for_pickup: { bg: '#f0fdf4', text: '#166534' },
           shipped: { bg: '#e0e7ff', text: '#3730a3' },
           delivered: { bg: '#dcfce7', text: '#166534' },
           cancelled: { bg: '#fef2f2', text: '#991b1b' }
         };
         const c = colors[status] || colors.pending;
+        const label = status === 'ready_for_pickup' ? 'ready for pickup' : status;
         return (
           <span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', background: c.bg, color: c.text, borderRadius: '3px' }}>
-            {status}
+            {label}
           </span>
         );
       };
@@ -4202,7 +4319,7 @@
           </p>
 
           <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid var(--stone-200)', marginBottom: '2rem' }}>
-            {['orders', 'profile'].map(t => (
+            {['orders', 'samples', 'profile'].map(t => (
               <button key={t} onClick={() => setTab(t)}
                 style={{
                   background: 'none', border: 'none', padding: '0.75rem 0', cursor: 'pointer',
@@ -4211,7 +4328,7 @@
                   borderBottom: tab === t ? '2px solid var(--gold)' : '2px solid transparent',
                   marginBottom: '-1px', textTransform: 'capitalize'
                 }}>
-                {t === 'orders' ? 'Order History' : 'Profile'}
+                {t === 'orders' ? 'Order History' : t === 'samples' ? 'My Samples' : 'Profile'}
               </button>
             ))}
           </div>
@@ -4293,23 +4410,31 @@
                           )}
 
                           <div style={{ display: 'flex', gap: '0', marginBottom: '1.25rem', fontSize: '0.75rem' }}>
-                            {['pending', 'confirmed', 'shipped', 'delivered'].map((s, i) => {
-                              const steps = ['pending', 'confirmed', 'shipped', 'delivered'];
+                            {(() => {
+                              const isPickupOrder = orderDetail.order.delivery_method === 'pickup';
+                              const steps = isPickupOrder
+                                ? ['pending', 'confirmed', 'ready_for_pickup', 'delivered']
+                                : ['pending', 'confirmed', 'shipped', 'delivered'];
+                              const stepLabels = isPickupOrder
+                                ? { pending: 'pending', confirmed: 'confirmed', ready_for_pickup: 'ready', delivered: 'picked up' }
+                                : { pending: 'pending', confirmed: 'confirmed', shipped: 'shipped', delivered: 'delivered' };
                               const currentIdx = steps.indexOf(orderDetail.order.status);
-                              const isActive = i <= currentIdx;
-                              return (
-                                <div key={s} style={{ flex: 1, textAlign: 'center' }}>
-                                  <div style={{
-                                    width: 24, height: 24, borderRadius: '50%', margin: '0 auto 0.35rem',
-                                    background: isActive ? 'var(--gold)' : 'var(--stone-200)',
-                                    color: isActive ? '#fff' : 'var(--stone-500)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: '0.7rem', fontWeight: 600
-                                  }}>{i + 1}</div>
-                                  <span style={{ color: isActive ? 'var(--stone-800)' : 'var(--stone-400)', textTransform: 'capitalize' }}>{s}</span>
-                                </div>
-                              );
-                            })}
+                              return steps.map((s, i) => {
+                                const isActive = i <= currentIdx;
+                                return (
+                                  <div key={s} style={{ flex: 1, textAlign: 'center' }}>
+                                    <div style={{
+                                      width: 24, height: 24, borderRadius: '50%', margin: '0 auto 0.35rem',
+                                      background: isActive ? 'var(--gold)' : 'var(--stone-200)',
+                                      color: isActive ? '#fff' : 'var(--stone-500)',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      fontSize: '0.7rem', fontWeight: 600
+                                    }}>{i + 1}</div>
+                                    <span style={{ color: isActive ? 'var(--stone-800)' : 'var(--stone-400)', textTransform: 'capitalize' }}>{stepLabels[s]}</span>
+                                  </div>
+                                );
+                              });
+                            })()}
                           </div>
 
                           <div style={{ marginBottom: '1rem' }}>
@@ -4358,6 +4483,156 @@
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'samples' && (
+            <div>
+              {/* Sample Actions Bar */}
+              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                <button className="btn" onClick={goBrowse} style={{ fontSize: '0.8125rem', padding: '0.5rem 1.25rem' }}>
+                  Browse Products for Samples
+                </button>
+                {sampleRequests.filter(sr => sr.status === 'requested').length > 0 && (
+                  <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.8125rem', color: 'var(--stone-600)', gap: '0.35rem' }}>
+                    <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }}></span>
+                    {sampleRequests.filter(sr => sr.status === 'requested').length} open request{sampleRequests.filter(sr => sr.status === 'requested').length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+
+              {loadingSamples ? (
+                <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem' }}>Loading samples...</p>
+              ) : sampleRequests.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48, color: 'var(--stone-300)', margin: '0 auto 1rem' }}>
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+                  </svg>
+                  <p style={{ color: 'var(--stone-500)', marginBottom: '1rem' }}>No sample requests yet.</p>
+                  <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem', marginBottom: '1rem' }}>
+                    Use the "Request Free Sample" button on any product page, or contact our team for assistance.
+                  </p>
+                  <button className="btn" onClick={goBrowse}>Browse Products</button>
+                </div>
+              ) : (
+                <div>
+                  {sampleRequests.map(sr => {
+                    const isOpen = sr.status === 'requested';
+                    const isExpanded = expandedSample === sr.id;
+                    const isAdding = addItemsTo === sr.id;
+                    const sColors = {
+                      requested: { bg: '#fef3c7', text: '#92400e', label: 'Open' },
+                      shipped: { bg: '#dbeafe', text: '#1e40af', label: 'Shipped' },
+                      delivered: { bg: '#dcfce7', text: '#166534', label: 'Delivered' },
+                      cancelled: { bg: '#fef2f2', text: '#991b1b', label: 'Cancelled' }
+                    };
+                    const sc = sColors[sr.status] || sColors.requested;
+                    return (
+                      <div key={sr.id} style={{ border: '1px solid var(--stone-200)', marginBottom: '0.75rem' }}>
+                        <div onClick={() => setExpandedSample(isExpanded ? null : sr.id)}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', cursor: 'pointer', background: isExpanded ? 'var(--stone-50)' : '#fff' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flex: 1, flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{sr.request_number}</span>
+                            <span style={{ color: 'var(--stone-500)', fontSize: '0.8125rem' }}>
+                              {new Date(sr.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                            <span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', background: sc.bg, color: sc.text, borderRadius: '3px' }}>{sc.label}</span>
+                            <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{(sr.items || []).length} sample{(sr.items || []).length !== 1 ? 's' : ''}</span>
+                          </div>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+
+                        {isExpanded && (
+                          <div style={{ padding: '1.25rem', borderTop: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
+                            {sr.tracking_number && (
+                              <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
+                                Tracking: {sr.tracking_number}
+                                {sr.shipped_at && <span style={{ marginLeft: '0.5rem' }}>(Shipped {new Date(sr.shipped_at).toLocaleDateString()})</span>}
+                              </div>
+                            )}
+
+                            {sr.delivery_method === 'pickup' && sr.status === 'shipped' && (
+                              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#166534' }}>
+                                Your samples are ready for pickup at our showroom.
+                              </div>
+                            )}
+
+                            <div style={{ marginBottom: '1rem' }}>
+                              <h4 style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem' }}>Samples</h4>
+                              {(sr.items || []).map(item => (
+                                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
+                                  {item.primary_image && (
+                                    <img src={item.primary_image} alt={item.product_name} style={{ width: 40, height: 40, objectFit: 'cover', border: '1px solid var(--stone-200)' }} />
+                                  )}
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: 500 }}>{item.product_name}</div>
+                                    {item.collection && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{item.collection}</div>}
+                                    {item.variant_name && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{item.variant_name}</div>}
+                                  </div>
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--stone-400)', textTransform: 'uppercase' }}>Free</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Add Samples to Open Request */}
+                            {isOpen && (sr.items || []).length < 5 && (
+                              <div style={{ background: '#fff', border: '1px solid var(--stone-200)', padding: '1rem', marginTop: '0.5rem' }}>
+                                <h4 style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.75rem' }}>Add Samples to This Request</h4>
+                                <input
+                                  type="text"
+                                  placeholder="Search products to add..."
+                                  value={isAdding ? sampleSearch : ''}
+                                  onFocus={() => setAddItemsTo(sr.id)}
+                                  onChange={e => { setAddItemsTo(sr.id); setSampleSearch(e.target.value); searchProducts(e.target.value); }}
+                                  style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem', fontFamily: 'Inter, sans-serif', outline: 'none', marginBottom: '0.5rem' }}
+                                />
+                                {isAdding && searchingProducts && (
+                                  <p style={{ fontSize: '0.75rem', color: 'var(--stone-400)' }}>Searching...</p>
+                                )}
+                                {isAdding && sampleSearchResults.length > 0 && (
+                                  <div style={{ border: '1px solid var(--stone-200)', maxHeight: 200, overflowY: 'auto' }}>
+                                    {sampleSearchResults.map(sku => {
+                                      const alreadyAdded = (sr.items || []).some(i => i.product_id === sku.product_id);
+                                      return (
+                                        <div key={sku.sku_id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
+                                          {sku.primary_image && <img src={sku.primary_image} alt="" style={{ width: 32, height: 32, objectFit: 'cover' }} />}
+                                          <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 500 }}>{sku.product_name || sku.collection}</div>
+                                            {sku.variant_name && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{sku.variant_name}</div>}
+                                          </div>
+                                          {alreadyAdded ? (
+                                            <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)' }}>Added</span>
+                                          ) : (
+                                            <button
+                                              onClick={() => addSampleItem(sr.id, sku.product_id, sku.sku_id)}
+                                              disabled={addingSampleItem === (sku.sku_id || sku.product_id)}
+                                              style={{ background: 'var(--stone-900)', color: '#fff', border: 'none', padding: '0.25rem 0.75rem', fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
+                                              {addingSampleItem === (sku.sku_id || sku.product_id) ? '...' : '+ Add'}
+                                            </button>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                                <p style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', marginTop: '0.5rem' }}>
+                                  {5 - (sr.items || []).length} more sample{5 - (sr.items || []).length !== 1 ? 's' : ''} can be added
+                                </p>
+                              </div>
+                            )}
+
+                            {sr.delivery_method && (
+                              <div style={{ fontSize: '0.8125rem', color: 'var(--stone-600)', marginTop: '0.75rem' }}>
+                                <strong>Delivery:</strong> {sr.delivery_method === 'pickup' ? 'Showroom Pickup' : 'Shipping'}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
