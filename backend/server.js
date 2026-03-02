@@ -7269,6 +7269,31 @@ app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
   }
 });
 
+// Trade showroom visits
+app.get('/api/trade/visits', tradeAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT sv.*, (SELECT COUNT(*)::int FROM showroom_visit_items WHERE visit_id = sv.id) as item_count
+      FROM showroom_visits sv WHERE sv.customer_email = $1 AND sv.status = 'sent'
+      ORDER BY sv.created_at DESC
+    `, [req.tradeCustomer.email]);
+    res.json({ visits: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/trade/visits/:id', tradeAuth, async (req, res) => {
+  try {
+    const visit = await pool.query('SELECT * FROM showroom_visits WHERE id = $1 AND customer_email = $2 AND status = \'sent\'', [req.params.id, req.tradeCustomer.email]);
+    if (!visit.rows.length) return res.status(404).json({ error: 'Visit not found' });
+    const items = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order, id', [req.params.id]);
+    res.json({ visit: visit.rows[0], items: items.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Quote PDF download - accepts token from header or query param (for browser popup)
 app.get('/api/trade/quotes/:id/pdf', (req, res, next) => {
   if (!req.headers['x-trade-token'] && req.query.token) {
@@ -7478,7 +7503,7 @@ async function generateOrderInvoiceHtml(orderId) {
     ${o.payment_method || o.stripe_payment_intent_id ? `
       <div class="notes-section">
         <h4>Payment Information</h4>
-        ${o.payment_method ? '<div>Method: ' + (o.payment_method === 'stripe' ? 'Credit Card (Stripe)' : o.payment_method.charAt(0).toUpperCase() + o.payment_method.slice(1)) + '</div>' : ''}
+        ${o.payment_method ? '<div>Method: ' + (o.payment_method === 'stripe' ? 'Payment Request' : o.payment_method.charAt(0).toUpperCase() + o.payment_method.slice(1)) + '</div>' : ''}
         ${o.stripe_payment_intent_id ? '<div style="font-size:0.75rem;color:#78716c;">Ref: ' + o.stripe_payment_intent_id + '</div>' : ''}
       </div>
     ` : ''}
@@ -8865,6 +8890,188 @@ app.delete('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
   }
 });
 
+// ==================== Cash Drawer Endpoints ====================
+
+app.post('/api/rep/cash-drawer/open', repAuth, async (req, res) => {
+  try {
+    const { opening_balance } = req.body;
+    const bal = parseFloat(opening_balance || 0);
+    if (isNaN(bal) || bal < 0) return res.status(400).json({ error: 'Invalid opening balance' });
+
+    // Check for existing open drawer
+    const existing = await pool.query(
+      "SELECT id FROM cash_drawers WHERE rep_id = $1 AND status = 'open'",
+      [req.rep.id]
+    );
+    if (existing.rows.length) {
+      return res.status(400).json({ error: 'You already have an open cash drawer. Close it before opening a new one.' });
+    }
+
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    const result = await pool.query(
+      `INSERT INTO cash_drawers (rep_id, rep_name, opening_balance, expected_balance, status)
+       VALUES ($1, $2, $3, $3, 'open') RETURNING *`,
+      [req.rep.id, repName, bal.toFixed(2)]
+    );
+    res.json({ drawer: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/rep/cash-drawer/current', repAuth, async (req, res) => {
+  try {
+    const drawerResult = await pool.query(
+      "SELECT * FROM cash_drawers WHERE rep_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1",
+      [req.rep.id]
+    );
+    if (!drawerResult.rows.length) {
+      return res.json({ drawer: null, transactions: [] });
+    }
+    const drawer = drawerResult.rows[0];
+    const txns = await pool.query(
+      'SELECT * FROM cash_drawer_transactions WHERE drawer_id = $1 ORDER BY created_at',
+      [drawer.id]
+    );
+    res.json({ drawer, transactions: txns.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/rep/cash-drawer/transaction', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { type, amount, description } = req.body;
+    if (!type || !['cash_in', 'cash_out'].includes(type)) {
+      return res.status(400).json({ error: 'type must be cash_in or cash_out' });
+    }
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0) return res.status(400).json({ error: 'Invalid amount' });
+
+    await client.query('BEGIN');
+
+    const drawerResult = await client.query(
+      "SELECT * FROM cash_drawers WHERE rep_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1",
+      [req.rep.id]
+    );
+    if (!drawerResult.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'No open cash drawer' });
+    }
+    const drawer = drawerResult.rows[0];
+
+    const txnResult = await client.query(
+      'INSERT INTO cash_drawer_transactions (drawer_id, type, amount, description) VALUES ($1, $2, $3, $4) RETURNING *',
+      [drawer.id, type, amt.toFixed(2), description || null]
+    );
+
+    const delta = type === 'cash_in' ? amt : -amt;
+    const updatedDrawer = await client.query(
+      'UPDATE cash_drawers SET expected_balance = expected_balance + $1 WHERE id = $2 RETURNING *',
+      [delta, drawer.id]
+    );
+
+    await client.query('COMMIT');
+    res.json({ transaction: txnResult.rows[0], drawer: updatedDrawer.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/rep/cash-drawer/close', repAuth, async (req, res) => {
+  try {
+    const { actual_balance, notes } = req.body;
+    const actual = parseFloat(actual_balance);
+    if (isNaN(actual) || actual < 0) return res.status(400).json({ error: 'Invalid actual balance' });
+
+    const drawerResult = await pool.query(
+      "SELECT * FROM cash_drawers WHERE rep_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1",
+      [req.rep.id]
+    );
+    if (!drawerResult.rows.length) {
+      return res.status(400).json({ error: 'No open cash drawer to close' });
+    }
+    const drawer = drawerResult.rows[0];
+    const expected = parseFloat(drawer.expected_balance);
+    const overShort = actual - expected;
+
+    const result = await pool.query(
+      `UPDATE cash_drawers SET status = 'closed', actual_balance = $1, over_short = $2, notes = $3, closed_at = NOW()
+       WHERE id = $4 RETURNING *`,
+      [actual.toFixed(2), overShort.toFixed(2), notes || null, drawer.id]
+    );
+    res.json({ drawer: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/rep/cash-drawer/history', repAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM cash_drawers WHERE rep_id = $1 AND status = 'closed'
+       AND closed_at >= NOW() - INTERVAL '30 days'
+       ORDER BY closed_at DESC`,
+      [req.rep.id]
+    );
+    res.json({ drawers: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== Stripe Terminal (Tap to Pay) ====================
+
+app.post('/api/rep/terminal/connection-token', repAuth, async (req, res) => {
+  try {
+    const token = await stripe.terminal.connectionTokens.create();
+    res.json({ secret: token.secret });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/rep/terminal/create-payment-intent', repAuth, async (req, res) => {
+  try {
+    const { amount, order_description } = req.body;
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'A positive amount is required' });
+    }
+    const amountCents = Math.round(amount * 100);
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: 'usd',
+      payment_method_types: ['card_present'],
+      capture_method: 'automatic',
+      description: order_description || 'In-store payment via Tap to Pay',
+    });
+    res.json({ client_secret: paymentIntent.client_secret, payment_intent_id: paymentIntent.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/rep/terminal/capture-payment', repAuth, async (req, res) => {
+  try {
+    const { payment_intent_id } = req.body;
+    if (!payment_intent_id) {
+      return res.status(400).json({ error: 'payment_intent_id is required' });
+    }
+    const pi = await stripe.paymentIntents.retrieve(payment_intent_id);
+    if (pi.status === 'requires_capture') {
+      const captured = await stripe.paymentIntents.capture(payment_intent_id);
+      return res.json({ payment_intent: captured });
+    }
+    res.json({ payment_intent: pi });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==================== Rep Order Endpoints ====================
 
 app.get('/api/rep/orders', repAuth, async (req, res) => {
@@ -8919,8 +9126,15 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'At least one item is required' });
     }
-    if (!payment_method || !['offline', 'stripe'].includes(payment_method)) {
-      return res.status(400).json({ error: 'payment_method must be offline or stripe' });
+    if (!payment_method || !['cash', 'check', 'card', 'stripe', 'offline'].includes(payment_method)) {
+      return res.status(400).json({ error: 'payment_method must be cash, check, card, stripe, or offline' });
+    }
+    const { check_number, stripe_payment_intent_id } = req.body;
+    if (payment_method === 'check' && !check_number) {
+      return res.status(400).json({ error: 'check_number is required for check payments' });
+    }
+    if (payment_method === 'card' && !stripe_payment_intent_id) {
+      return res.status(400).json({ error: 'Card payments require Stripe Terminal. Use the tap-to-pay flow.' });
     }
 
     const isPickup = delivery_method === 'pickup';
@@ -9031,10 +9245,19 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
 
     const total = subtotal - discountAmount;
     const orderNumber = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
-    const orderStatus = payment_method === 'offline' ? 'confirmed' : 'pending';
+    const paidInStore = ['cash', 'check', 'card', 'offline'].includes(payment_method);
+    const orderStatus = paidInStore ? 'confirmed' : 'pending';
 
     let stripePaymentIntentId = null;
-    if (payment_method === 'stripe') {
+    if (payment_method === 'card' && stripe_payment_intent_id) {
+      // Verify the Terminal payment was successful
+      const pi = await stripe.paymentIntents.retrieve(stripe_payment_intent_id);
+      if (pi.status !== 'succeeded') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Terminal payment not completed. Status: ' + pi.status });
+      }
+      stripePaymentIntentId = stripe_payment_intent_id;
+    } else if (payment_method === 'stripe') {
       const totalCents = Math.round(total * 100);
       if (totalCents > 0) {
         const paymentIntent = await stripe.paymentIntents.create({
@@ -9059,7 +9282,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         subtotal.toFixed(2), total.toFixed(2), orderStatus, req.rep.id, payment_method,
         isPickup ? 'pickup' : 'shipping',
         stripePaymentIntentId, promoCodeId, promoCodeStr, discountAmount.toFixed(2),
-        payment_method === 'offline' ? total.toFixed(2) : '0.00', cust.id]);
+        paidInStore ? total.toFixed(2) : '0.00', cust.id]);
 
     const order = orderResult.rows[0];
 
@@ -9073,12 +9296,37 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
           item.unit_price.toFixed(2), item.subtotal.toFixed(2), item.sell_by || null, item.is_sample]);
     }
 
-    // Record offline payment in ledger
-    if (payment_method === 'offline') {
+    // Record payment in ledger for in-store payments
+    if (paidInStore) {
+      const repFullName = req.rep.first_name + ' ' + req.rep.last_name;
+      let payDesc = 'Offline payment (rep-created)';
+      if (payment_method === 'cash') payDesc = 'Cash payment';
+      else if (payment_method === 'check') payDesc = 'Check payment — #' + check_number;
+      else if (payment_method === 'card') payDesc = 'In-store card payment';
+
       await client.query(`
-        INSERT INTO order_payments (order_id, payment_type, amount, description, initiated_by, initiated_by_name, status)
-        VALUES ($1, 'charge', $2, 'Offline payment (rep-created)', $3, $4, 'completed')
-      `, [order.id, total.toFixed(2), req.rep.id, req.rep.first_name + ' ' + req.rep.last_name]);
+        INSERT INTO order_payments (order_id, payment_type, amount, description, initiated_by, initiated_by_name, status, check_number, payment_method)
+        VALUES ($1, 'charge', $2, $3, $4, $5, 'completed', $6, $7)
+      `, [order.id, total.toFixed(2), payDesc, req.rep.id, repFullName, check_number || null, payment_method]);
+
+      // Record cash drawer transaction for cash payments
+      if (payment_method === 'cash') {
+        const drawerResult = await client.query(
+          "SELECT id FROM cash_drawers WHERE rep_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1",
+          [req.rep.id]
+        );
+        if (drawerResult.rows.length) {
+          const drawerId = drawerResult.rows[0].id;
+          await client.query(
+            'INSERT INTO cash_drawer_transactions (drawer_id, order_id, type, amount, description) VALUES ($1, $2, $3, $4, $5)',
+            [drawerId, order.id, 'sale', total, 'Cash sale — ' + orderNumber]
+          );
+          await client.query(
+            'UPDATE cash_drawers SET expected_balance = expected_balance + $1 WHERE id = $2',
+            [total, drawerId]
+          );
+        }
+      }
     }
 
     // Record promo usage
@@ -11041,9 +11289,15 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { payment_method } = req.body;
-    if (!payment_method || !['stripe', 'offline'].includes(payment_method)) {
-      return res.status(400).json({ error: 'payment_method must be stripe or offline' });
+    const { payment_method, check_number, stripe_payment_intent_id } = req.body;
+    if (!payment_method || !['cash', 'check', 'card', 'stripe', 'offline'].includes(payment_method)) {
+      return res.status(400).json({ error: 'payment_method must be cash, check, card, stripe, or offline' });
+    }
+    if (payment_method === 'check' && !check_number) {
+      return res.status(400).json({ error: 'check_number is required for check payments' });
+    }
+    if (payment_method === 'card' && !stripe_payment_intent_id) {
+      return res.status(400).json({ error: 'Card payments require Stripe Terminal. Use the tap-to-pay flow.' });
     }
 
     const quoteResult = await client.query('SELECT * FROM quotes WHERE id = $1', [id]);
@@ -11062,11 +11316,28 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
+    // Auto-create customer for quote conversion
+    const nameParts = (q.customer_name || '').split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    const { customer: cust } = await findOrCreateCustomer(client, {
+      email: q.customer_email, firstName, lastName,
+      phone: q.phone, repId: req.rep.id, createdVia: 'quote_convert'
+    });
+
     const orderNumber = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
-    const orderStatus = payment_method === 'offline' ? 'confirmed' : 'pending';
+    const paidInStore = ['cash', 'check', 'card', 'offline'].includes(payment_method);
+    const orderStatus = paidInStore ? 'confirmed' : 'pending';
 
     let stripePaymentIntentId = null;
-    if (payment_method === 'stripe') {
+    if (payment_method === 'card' && stripe_payment_intent_id) {
+      const pi = await stripe.paymentIntents.retrieve(stripe_payment_intent_id);
+      if (pi.status !== 'succeeded') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Terminal payment not completed. Status: ' + pi.status });
+      }
+      stripePaymentIntentId = stripe_payment_intent_id;
+    } else if (payment_method === 'stripe') {
       const totalCents = Math.round(parseFloat(q.total) * 100);
       if (totalCents > 0) {
         const paymentIntent = await stripe.paymentIntents.create({
@@ -11080,6 +11351,7 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
     const isPickupQuote = q.delivery_method === 'pickup';
     const quoteShipping = isPickupQuote ? '0.00' : q.shipping;
     const quoteTotal = isPickupQuote ? parseFloat(parseFloat(q.subtotal || 0).toFixed(2)).toFixed(2) : q.total;
+    const totalNum = parseFloat(quoteTotal);
 
     // Copy promo code from quote to order
     const quotePromoCodeId = q.promo_code_id || null;
@@ -11090,8 +11362,8 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
       INSERT INTO orders (order_number, customer_email, customer_name, phone,
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
         subtotal, shipping, total, status, sales_rep_id, payment_method, quote_id, stripe_payment_intent_id, delivery_method,
-        promo_code_id, promo_code, discount_amount)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        promo_code_id, promo_code, discount_amount, amount_paid, customer_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
       RETURNING *
     `, [orderNumber, q.customer_email, q.customer_name, q.phone,
         isPickupQuote ? null : (q.shipping_address_line1 || ''),
@@ -11101,7 +11373,8 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
         isPickupQuote ? null : (q.shipping_zip || ''),
         q.subtotal, quoteShipping, quoteTotal, orderStatus, req.rep.id, payment_method, id, stripePaymentIntentId,
         q.delivery_method || 'shipping',
-        quotePromoCodeId, quotePromoCode, quoteDiscount.toFixed(2)]);
+        quotePromoCodeId, quotePromoCode, quoteDiscount.toFixed(2),
+        paidInStore ? totalNum.toFixed(2) : '0.00', cust.id]);
 
     const order = orderResult.rows[0];
 
@@ -11112,6 +11385,39 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
           item.description, item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample]);
+    }
+
+    // Record payment in ledger for in-store payments
+    if (paidInStore) {
+      const repFullName = req.rep.first_name + ' ' + req.rep.last_name;
+      let payDesc = 'Offline payment (quote conversion)';
+      if (payment_method === 'cash') payDesc = 'Cash payment (quote conversion)';
+      else if (payment_method === 'check') payDesc = 'Check payment — #' + check_number + ' (quote conversion)';
+      else if (payment_method === 'card') payDesc = 'In-store card payment (quote conversion)';
+
+      await client.query(`
+        INSERT INTO order_payments (order_id, payment_type, amount, description, initiated_by, initiated_by_name, status, check_number, payment_method)
+        VALUES ($1, 'charge', $2, $3, $4, $5, 'completed', $6, $7)
+      `, [order.id, totalNum.toFixed(2), payDesc, req.rep.id, repFullName, check_number || null, payment_method]);
+
+      // Record cash drawer transaction for cash payments
+      if (payment_method === 'cash') {
+        const drawerResult = await client.query(
+          "SELECT id FROM cash_drawers WHERE rep_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1",
+          [req.rep.id]
+        );
+        if (drawerResult.rows.length) {
+          const drawerId = drawerResult.rows[0].id;
+          await client.query(
+            'INSERT INTO cash_drawer_transactions (drawer_id, order_id, type, amount, description) VALUES ($1, $2, $3, $4, $5)',
+            [drawerId, order.id, 'sale', totalNum, 'Cash sale — ' + orderNumber]
+          );
+          await client.query(
+            'UPDATE cash_drawers SET expected_balance = expected_balance + $1 WHERE id = $2',
+            [totalNum, drawerId]
+          );
+        }
+      }
     }
 
     // Record promo usage for the order (quote row stays for audit)
@@ -11128,7 +11434,7 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
       [order.id, payment_method, id]
     );
 
-    // Generate purchase orders if order is confirmed (offline payment)
+    // Generate purchase orders if order is confirmed
     if (orderStatus === 'confirmed') {
       await generatePurchaseOrders(order.id, client);
     }
@@ -15044,6 +15350,56 @@ app.post('/api/customer/sample-requests/:id/add-items', customerAuth, async (req
     res.status(500).json({ error: err.message });
   } finally {
     client.release();
+  }
+});
+
+// ==================== Customer Quotes & Visits ====================
+
+app.get('/api/customer/quotes', customerAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT q.*, (SELECT COUNT(*)::int FROM quote_items qi WHERE qi.quote_id = q.id) as item_count
+      FROM quotes q WHERE q.customer_id = $1 AND q.status != 'draft'
+      ORDER BY q.created_at DESC
+    `, [req.customer.id]);
+    res.json({ quotes: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/customer/quotes/:id', customerAuth, async (req, res) => {
+  try {
+    const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND customer_id = $2 AND status != \'draft\'', [req.params.id, req.customer.id]);
+    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    const items = await pool.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [req.params.id]);
+    res.json({ quote: quote.rows[0], items: items.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/customer/visits', customerAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT sv.*, (SELECT COUNT(*)::int FROM showroom_visit_items WHERE visit_id = sv.id) as item_count
+      FROM showroom_visits sv WHERE sv.customer_id = $1 AND sv.status = 'sent'
+      ORDER BY sv.created_at DESC
+    `, [req.customer.id]);
+    res.json({ visits: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/customer/visits/:id', customerAuth, async (req, res) => {
+  try {
+    const visit = await pool.query('SELECT * FROM showroom_visits WHERE id = $1 AND customer_id = $2 AND status = \'sent\'', [req.params.id, req.customer.id]);
+    if (!visit.rows.length) return res.status(404).json({ error: 'Visit not found' });
+    const items = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order, id', [req.params.id]);
+    res.json({ visit: visit.rows[0], items: items.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
