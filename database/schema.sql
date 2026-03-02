@@ -62,6 +62,7 @@ CREATE TABLE packaging (
     sqft_per_pallet DECIMAL(10,2),
     weight_per_pallet_lbs DECIMAL(10,2),
     roll_width_ft DECIMAL(5,2),
+    roll_length_ft DECIMAL(7,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -631,6 +632,16 @@ CREATE INDEX idx_customers_email ON customers(email);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
 CREATE INDEX idx_orders_customer ON orders(customer_id);
 
+-- Auto-created customer accounts (rep-initiated)
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_set BOOLEAN DEFAULT true;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS assigned_rep_id UUID REFERENCES sales_reps(id);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS created_via VARCHAR(30);
+
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
+ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
+ALTER TABLE showroom_visits ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
+
 -- ==================== Promo Codes ====================
 
 CREATE TABLE promo_codes (
@@ -853,7 +864,7 @@ CREATE INDEX IF NOT EXISTS idx_showroom_visit_items_visit ON showroom_visit_item
 CREATE TABLE IF NOT EXISTS sample_requests (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   request_number VARCHAR(40) UNIQUE NOT NULL,
-  rep_id UUID NOT NULL REFERENCES sales_reps(id),
+  rep_id UUID REFERENCES sales_reps(id),
   customer_name TEXT NOT NULL,
   customer_email TEXT,
   customer_phone TEXT,
@@ -869,7 +880,10 @@ CREATE TABLE IF NOT EXISTS sample_requests (
   shipped_at TIMESTAMP,
   delivered_at TIMESTAMP,
   cancelled_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  stripe_checkout_session_id TEXT,
+  shipping_payment_collected BOOLEAN DEFAULT false,
+  shipping_payment_collected_at TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_sample_requests_rep ON sample_requests(rep_id);
 CREATE INDEX IF NOT EXISTS idx_sample_requests_status ON sample_requests(status);
@@ -884,7 +898,11 @@ CREATE TABLE IF NOT EXISTS sample_request_items (
   variant_name TEXT,
   primary_image TEXT,
   sort_order INTEGER DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  status VARCHAR(20) DEFAULT 'pending',
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  vendor_notified_at TIMESTAMP,
+  vendor_notified_email TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sample_request_items_request ON sample_request_items(sample_request_id);
 
@@ -1006,3 +1024,360 @@ ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS qty_shipped INTEGER;
 
 -- Vendors: EDI config
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS edi_config JSONB;
+
+-- ==================== Accounting Module ====================
+
+-- Expense categories with type classification for P&L
+CREATE TABLE IF NOT EXISTS expense_categories (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    expense_type VARCHAR(20) NOT NULL DEFAULT 'operating' CHECK (expense_type IN ('cogs', 'operating', 'overhead')),
+    parent_id UUID REFERENCES expense_categories(id),
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Seed default expense categories
+INSERT INTO expense_categories (name, slug, expense_type, sort_order) VALUES
+  ('Shipping & Freight', 'shipping-freight', 'cogs', 1),
+  ('Returns & Damages', 'returns-damages', 'cogs', 2),
+  ('Warehouse', 'warehouse', 'operating', 3),
+  ('Vehicle & Gas', 'vehicle-gas', 'operating', 4),
+  ('Office Supplies', 'office-supplies', 'operating', 5),
+  ('Marketing', 'marketing', 'operating', 6),
+  ('Tools & Equipment', 'tools-equipment', 'operating', 7),
+  ('Commissions', 'commissions', 'operating', 8),
+  ('Insurance', 'insurance', 'overhead', 9),
+  ('Rent', 'rent', 'overhead', 10),
+  ('Utilities', 'utilities', 'overhead', 11),
+  ('Professional Services', 'professional-services', 'overhead', 12),
+  ('Payroll', 'payroll', 'overhead', 13),
+  ('Miscellaneous', 'miscellaneous', 'operating', 14)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Expenses log
+CREATE TABLE IF NOT EXISTS expenses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    category_id UUID NOT NULL REFERENCES expense_categories(id),
+    vendor_name TEXT,
+    description TEXT,
+    amount DECIMAL(10,2) NOT NULL,
+    payment_method VARCHAR(20),
+    reference_number TEXT,
+    receipt_url TEXT,
+    is_recurring BOOLEAN DEFAULT false,
+    notes TEXT,
+    created_by UUID REFERENCES staff_accounts(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);
+CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category_id);
+
+-- AR Invoices
+CREATE TABLE IF NOT EXISTS invoices (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    invoice_number TEXT UNIQUE NOT NULL,
+    order_id UUID REFERENCES orders(id),
+    customer_email TEXT,
+    customer_name TEXT,
+    trade_customer_id UUID REFERENCES trade_customers(id),
+    billing_address TEXT,
+    payment_terms VARCHAR(20) DEFAULT 'due_on_receipt',
+    issue_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    due_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    subtotal DECIMAL(10,2) NOT NULL DEFAULT 0,
+    tax_rate DECIMAL(5,4) DEFAULT 0,
+    tax_amount DECIMAL(10,2) DEFAULT 0,
+    shipping DECIMAL(10,2) DEFAULT 0,
+    discount_amount DECIMAL(10,2) DEFAULT 0,
+    total DECIMAL(10,2) NOT NULL DEFAULT 0,
+    amount_paid DECIMAL(10,2) DEFAULT 0,
+    balance DECIMAL(10,2) GENERATED ALWAYS AS (total - amount_paid) STORED,
+    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft','sent','paid','overdue','partial','void')),
+    sent_at TIMESTAMP,
+    paid_at TIMESTAMP,
+    notes TEXT,
+    created_by UUID REFERENCES staff_accounts(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+CREATE INDEX IF NOT EXISTS idx_invoices_order ON invoices(order_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_customer ON invoices(customer_email);
+
+-- Invoice line items
+CREATE TABLE IF NOT EXISTS invoice_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+    order_item_id UUID REFERENCES order_items(id),
+    sku_id UUID REFERENCES skus(id),
+    description TEXT NOT NULL,
+    qty DECIMAL(10,2) NOT NULL DEFAULT 1,
+    unit_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    subtotal DECIMAL(10,2) NOT NULL DEFAULT 0,
+    sort_order INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice ON invoice_items(invoice_id);
+
+-- Invoice payments (AR receipts)
+CREATE TABLE IF NOT EXISTS invoice_payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+    order_payment_id UUID REFERENCES order_payments(id),
+    amount DECIMAL(10,2) NOT NULL,
+    payment_method VARCHAR(20) DEFAULT 'stripe',
+    reference_number TEXT,
+    payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    notes TEXT,
+    recorded_by UUID REFERENCES staff_accounts(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_invoice_payments_invoice ON invoice_payments(invoice_id);
+
+-- AP Bills
+CREATE TABLE IF NOT EXISTS bills (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bill_number TEXT,
+    internal_bill_number TEXT UNIQUE NOT NULL,
+    vendor_id UUID NOT NULL REFERENCES vendors(id),
+    purchase_order_id UUID REFERENCES purchase_orders(id),
+    edi_invoice_id UUID REFERENCES edi_invoices(id),
+    bill_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    due_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    payment_terms VARCHAR(20) DEFAULT 'net_30',
+    subtotal DECIMAL(10,2) NOT NULL DEFAULT 0,
+    tax_amount DECIMAL(10,2) DEFAULT 0,
+    shipping DECIMAL(10,2) DEFAULT 0,
+    total DECIMAL(10,2) NOT NULL DEFAULT 0,
+    amount_paid DECIMAL(10,2) DEFAULT 0,
+    balance DECIMAL(10,2) GENERATED ALWAYS AS (total - amount_paid) STORED,
+    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft','received','approved','paid','partial','void')),
+    payment_method VARCHAR(20),
+    payment_reference TEXT,
+    notes TEXT,
+    created_by UUID REFERENCES staff_accounts(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_bills_status ON bills(status);
+CREATE INDEX IF NOT EXISTS idx_bills_vendor ON bills(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_bills_po ON bills(purchase_order_id);
+
+-- Bill line items
+CREATE TABLE IF NOT EXISTS bill_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bill_id UUID NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+    purchase_order_item_id UUID REFERENCES purchase_order_items(id),
+    sku_id UUID REFERENCES skus(id),
+    description TEXT NOT NULL,
+    qty DECIMAL(10,2) NOT NULL DEFAULT 1,
+    unit_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    subtotal DECIMAL(10,2) NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_bill_items_bill ON bill_items(bill_id);
+
+-- Bill payments (AP disbursements)
+CREATE TABLE IF NOT EXISTS bill_payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bill_id UUID NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+    amount DECIMAL(10,2) NOT NULL,
+    payment_method VARCHAR(20) DEFAULT 'check',
+    reference_number TEXT,
+    payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    notes TEXT,
+    recorded_by UUID REFERENCES staff_accounts(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_bill_payments_bill ON bill_payments(bill_id);
+
+-- Trade customer payment terms
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(20) DEFAULT 'due_on_receipt';
+
+-- Tax columns on orders
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,4) DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(10,2) DEFAULT 0;
+
+-- Tracking columns on orders
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS freightview_shipment_id TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_status VARCHAR(30);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_last_checked TIMESTAMP;
+
+-- Tracking events timeline
+CREATE TABLE IF NOT EXISTS tracking_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
+    description TEXT,
+    location TEXT,
+    event_time TIMESTAMP,
+    source VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_tracking_events_order ON tracking_events(order_id);
+
+-- ==================== Accounting ====================
+
+-- Expense Categories
+CREATE TABLE IF NOT EXISTS expense_categories (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE,
+    expense_type TEXT NOT NULL DEFAULT 'operating',
+    parent_id UUID REFERENCES expense_categories(id),
+    sort_order INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Expenses
+CREATE TABLE IF NOT EXISTS expenses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    category_id UUID REFERENCES expense_categories(id),
+    vendor_name TEXT,
+    description TEXT,
+    amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+    payment_method TEXT,
+    reference_number TEXT,
+    is_recurring BOOLEAN DEFAULT false,
+    notes TEXT,
+    created_by UUID REFERENCES staff_accounts(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Invoices (Accounts Receivable)
+CREATE TABLE IF NOT EXISTS invoices (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    invoice_number TEXT UNIQUE NOT NULL,
+    order_id UUID REFERENCES orders(id),
+    customer_email TEXT,
+    customer_name TEXT,
+    trade_customer_id UUID,
+    billing_address TEXT,
+    payment_terms TEXT DEFAULT 'due_on_receipt',
+    issue_date DATE DEFAULT CURRENT_DATE,
+    due_date DATE,
+    subtotal NUMERIC(12,2) DEFAULT 0,
+    shipping NUMERIC(12,2) DEFAULT 0,
+    discount_amount NUMERIC(12,2) DEFAULT 0,
+    tax_rate NUMERIC(5,4) DEFAULT 0,
+    tax_amount NUMERIC(12,2) DEFAULT 0,
+    total NUMERIC(12,2) DEFAULT 0,
+    amount_paid NUMERIC(12,2) DEFAULT 0,
+    balance NUMERIC(12,2) GENERATED ALWAYS AS (total - amount_paid) STORED,
+    status TEXT DEFAULT 'draft',
+    notes TEXT,
+    sent_at TIMESTAMP,
+    paid_at TIMESTAMP,
+    created_by UUID REFERENCES staff_accounts(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS invoice_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+    order_item_id UUID,
+    sku_id UUID,
+    description TEXT,
+    qty NUMERIC(12,2) DEFAULT 1,
+    unit_price NUMERIC(12,2) DEFAULT 0,
+    subtotal NUMERIC(12,2) DEFAULT 0,
+    sort_order INT DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS invoice_payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+    order_payment_id UUID,
+    amount NUMERIC(12,2) NOT NULL,
+    payment_method TEXT,
+    reference_number TEXT,
+    payment_date DATE DEFAULT CURRENT_DATE,
+    recorded_by UUID REFERENCES staff_accounts(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Bills (Accounts Payable)
+CREATE TABLE IF NOT EXISTS bills (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bill_number TEXT,
+    internal_bill_number TEXT UNIQUE NOT NULL,
+    vendor_id UUID REFERENCES vendors(id),
+    purchase_order_id UUID,
+    edi_invoice_id UUID,
+    bill_date DATE DEFAULT CURRENT_DATE,
+    due_date DATE,
+    payment_terms TEXT DEFAULT 'net_30',
+    subtotal NUMERIC(12,2) DEFAULT 0,
+    tax_amount NUMERIC(12,2) DEFAULT 0,
+    shipping NUMERIC(12,2) DEFAULT 0,
+    total NUMERIC(12,2) DEFAULT 0,
+    amount_paid NUMERIC(12,2) DEFAULT 0,
+    balance NUMERIC(12,2) GENERATED ALWAYS AS (total - amount_paid) STORED,
+    status TEXT DEFAULT 'received',
+    notes TEXT,
+    paid_at TIMESTAMP,
+    created_by UUID REFERENCES staff_accounts(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS bill_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bill_id UUID NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+    purchase_order_item_id UUID,
+    sku_id UUID,
+    description TEXT,
+    qty NUMERIC(12,2) DEFAULT 1,
+    unit_price NUMERIC(12,2) DEFAULT 0,
+    subtotal NUMERIC(12,2) DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS bill_payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bill_id UUID NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+    amount NUMERIC(12,2) NOT NULL,
+    payment_method TEXT,
+    reference_number TEXT,
+    payment_date DATE DEFAULT CURRENT_DATE,
+    recorded_by UUID REFERENCES staff_accounts(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ==================== In-Store Payment Enhancements ====================
+
+ALTER TABLE order_payments ADD COLUMN IF NOT EXISTS check_number VARCHAR(50);
+ALTER TABLE order_payments ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20);
+
+CREATE TABLE IF NOT EXISTS cash_drawers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    rep_id UUID NOT NULL REFERENCES sales_reps(id),
+    rep_name TEXT NOT NULL,
+    opening_balance DECIMAL(10,2) NOT NULL DEFAULT 0,
+    expected_balance DECIMAL(10,2) NOT NULL DEFAULT 0,
+    actual_balance DECIMAL(10,2),
+    over_short DECIMAL(10,2),
+    status VARCHAR(20) DEFAULT 'open',
+    notes TEXT,
+    opened_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_cash_drawers_rep ON cash_drawers(rep_id);
+CREATE INDEX IF NOT EXISTS idx_cash_drawers_status ON cash_drawers(rep_id, status);
+
+CREATE TABLE IF NOT EXISTS cash_drawer_transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    drawer_id UUID NOT NULL REFERENCES cash_drawers(id) ON DELETE CASCADE,
+    order_id UUID REFERENCES orders(id),
+    type VARCHAR(20) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_cash_drawer_txns_drawer ON cash_drawer_transactions(drawer_id);

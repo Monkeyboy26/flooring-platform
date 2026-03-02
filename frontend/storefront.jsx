@@ -249,7 +249,7 @@
       return React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '2px' } }, stars);
     }
 
-    const stripeInstance = (typeof Stripe !== 'undefined') ? Stripe('pk_test_51SzdrRAASarADPs5BQucZOHBLTPXAaFpGajCToKwXCjdVCasoYHDm3guDjMoEeQhhLr71AWiFPgq91BE2ggj2wNf004DucWYlf') : null;
+    const stripeInstance = (typeof Stripe !== 'undefined') ? Stripe('pk_test_51IcH4FAWmYYxUYn2GrZcTtlwu54PknYJ9JvaUqW4MNwAYQJ0X4NfFedEBl2UJpf09K6BYFDJSXNXsPw4BWYITXSM00aUeDMwcV') : null;
 
     // ==================== Google Places Loader ====================
     let _placesPromise = null;
@@ -722,8 +722,8 @@
         window.scrollTo(0, 0);
       };
 
-      const handleOrderComplete = (order) => {
-        setCompletedOrder(order);
+      const handleOrderComplete = (orderData) => {
+        setCompletedOrder(orderData);
         setCart([]);
         setView('confirmation');
         window.scrollTo(0, 0);
@@ -1132,7 +1132,7 @@
           )}
 
           {view === 'confirmation' && (
-            <ConfirmationPage order={completedOrder} goBrowse={goBrowse} />
+            <ConfirmationPage orderData={completedOrder} goBrowse={goBrowse} />
           )}
 
           {view === 'account' && (
@@ -3904,6 +3904,12 @@
       const addressInputRef = useRef(null);
       const autocompleteRef = useRef(null);
       const [placesReady, setPlacesReady] = useState(false);
+      const [createAccount, setCreateAccount] = useState(false);
+      const [accountPassword, setAccountPassword] = useState('');
+      const [confirmPassword, setConfirmPassword] = useState('');
+      const [passwordError, setPasswordError] = useState('');
+      const [walletAvailable, setWalletAvailable] = useState(false);
+      const paymentRequestRef = useRef(null);
 
       const isPickup = deliveryMethod === 'pickup';
       const productItems = cart.filter(i => !i.is_sample);
@@ -3925,6 +3931,162 @@
         cardMounted.current = true;
         return () => { if (cardRef.current) { cardRef.current.unmount(); cardMounted.current = false; } };
       }, []);
+
+      // Apple Pay / Google Pay via Payment Request API
+      const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const [walletMode, setWalletMode] = useState(null); // 'native' | 'simulated'
+
+      useEffect(() => {
+        if (!stripeInstance) return;
+        const pr = stripeInstance.paymentRequest({
+          country: 'US',
+          currency: 'usd',
+          total: { label: 'Roma Flooring Designs', amount: Math.round(cartTotal * 100) || 100 },
+          requestPayerName: true,
+          requestPayerEmail: true,
+          requestPayerPhone: true,
+        });
+        pr.canMakePayment().then(result => {
+          if (result) {
+            setWalletAvailable(true);
+            setWalletMode('native');
+            paymentRequestRef.current = pr;
+          } else if (isLocalDev) {
+            // Simulated wallet button for localhost dev testing
+            setWalletAvailable(true);
+            setWalletMode('simulated');
+          }
+        });
+      }, []);
+
+      // Mount native Payment Request Button when available
+      useEffect(() => {
+        if (walletMode !== 'native' || !paymentRequestRef.current || !stripeInstance) return;
+        const el = document.getElementById('payment-request-button');
+        if (!el) return;
+        const elements = stripeInstance.elements();
+        const prButton = elements.create('paymentRequestButton', {
+          paymentRequest: paymentRequestRef.current,
+          style: { paymentRequestButton: { type: 'default', theme: 'dark', height: '48px' } }
+        });
+        prButton.mount('#payment-request-button');
+        return () => prButton.unmount();
+      }, [walletMode]);
+
+      // Update paymentRequest amount when cart total changes
+      useEffect(() => {
+        if (!paymentRequestRef.current) return;
+        const amount = Math.round(cartTotal * 100);
+        if (amount > 0) {
+          paymentRequestRef.current.update({
+            total: { label: 'Roma Flooring Designs', amount }
+          });
+        }
+      }, [cartTotal]);
+
+      // Handle native wallet payment
+      useEffect(() => {
+        const pr = paymentRequestRef.current;
+        if (!pr) return;
+        const handler = async (ev) => {
+          try {
+            const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
+            if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = true; }
+            const piRes = await fetch(API + '/api/checkout/create-payment-intent', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(piBody)
+            });
+            const piData = await piRes.json();
+            if (piData.error) { ev.complete('fail'); setError(piData.error); return; }
+
+            const { error: confirmError, paymentIntent } = await stripeInstance.confirmCardPayment(
+              piData.clientSecret,
+              { payment_method: ev.paymentMethod.id },
+              { handleActions: false }
+            );
+            if (confirmError) { ev.complete('fail'); setError(confirmError.message); return; }
+            ev.complete('success');
+
+            if (paymentIntent.status === 'requires_action') {
+              const { error: actionError } = await stripeInstance.confirmCardPayment(piData.clientSecret);
+              if (actionError) { setError(actionError.message); return; }
+            }
+
+            const payerName = ev.payerName || customerName;
+            const payerEmail = ev.payerEmail || customerEmail;
+            const payerPhone = ev.payerPhone || phone;
+            const orderBody = {
+              session_id: sessionId, payment_intent_id: paymentIntent.id,
+              customer_name: payerName, customer_email: payerEmail, phone: payerPhone,
+              delivery_method: deliveryMethod,
+              shipping: isPickup ? null : { line1, line2, city, state, zip },
+              residential: true, liftgate: true,
+            };
+            const orderHeaders = { 'Content-Type': 'application/json' };
+            if (tradeToken) orderHeaders['X-Trade-Token'] = tradeToken;
+            if (customerToken) orderHeaders['X-Customer-Token'] = customerToken;
+            const orderRes = await fetch(API + '/api/checkout/place-order', {
+              method: 'POST', headers: orderHeaders, body: JSON.stringify(orderBody)
+            });
+            const orderData = await orderRes.json();
+            if (orderData.error) { setError(orderData.error); return; }
+            if (orderData.customer_token && orderData.customer && onCustomerLogin) {
+              onCustomerLogin(orderData.customer_token, orderData.customer);
+            }
+            handleOrderComplete({ order: orderData.order, sample_request: orderData.sample_request || null });
+          } catch (err) {
+            ev.complete('fail');
+            setError(err.message || 'Wallet payment failed. Please try again.');
+          }
+        };
+        pr.on('paymentmethod', handler);
+        return () => pr.off('paymentmethod', handler);
+      }, [walletAvailable, sessionId, deliveryMethod, isPickup, zip, city, state, line1, line2, customerName, customerEmail, phone, tradeToken, customerToken]);
+
+      // Simulated wallet pay (dev only) — uses the card element behind the scenes
+      const handleSimulatedWalletPay = async () => {
+        if (!cardRef.current) { setError('Card element not ready.'); return; }
+        setError('');
+        setProcessing(true);
+        try {
+          const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
+          if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = true; }
+          const piRes = await fetch(API + '/api/checkout/create-payment-intent', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(piBody)
+          });
+          const piData = await piRes.json();
+          if (piData.error) { setError(piData.error); setProcessing(false); return; }
+
+          const { error: stripeError, paymentIntent } = await stripeInstance.confirmCardPayment(
+            piData.clientSecret, { payment_method: { card: cardRef.current, billing_details: { name: customerName, email: customerEmail } } }
+          );
+          if (stripeError) { setError(stripeError.message); setProcessing(false); return; }
+
+          const orderBody = {
+            session_id: sessionId, payment_intent_id: paymentIntent.id,
+            customer_name: customerName, customer_email: customerEmail, phone,
+            delivery_method: deliveryMethod,
+            shipping: isPickup ? null : { line1, line2, city, state, zip },
+            residential: true, liftgate: true,
+            create_account: createAccount || undefined,
+            account_password: createAccount ? accountPassword : undefined
+          };
+          const orderHeaders = { 'Content-Type': 'application/json' };
+          if (tradeToken) orderHeaders['X-Trade-Token'] = tradeToken;
+          if (customerToken) orderHeaders['X-Customer-Token'] = customerToken;
+          const orderRes = await fetch(API + '/api/checkout/place-order', {
+            method: 'POST', headers: orderHeaders, body: JSON.stringify(orderBody)
+          });
+          const orderData = await orderRes.json();
+          if (orderData.error) { setError(orderData.error); setProcessing(false); return; }
+          if (orderData.customer_token && orderData.customer && onCustomerLogin) {
+            onCustomerLogin(orderData.customer_token, orderData.customer);
+          }
+          handleOrderComplete(orderData.order);
+        } catch (err) {
+          setError(err.message || 'Something went wrong. Please try again.');
+          setProcessing(false);
+        }
+      };
 
       // Load Google Places API
       useEffect(() => {
@@ -3998,13 +4160,35 @@
       const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        if (!customerName || !customerEmail || !phone || phone.replace(/\D/g, '').length < 10) {
-          setError('Please fill in all required fields, including a valid phone number.');
+        setPasswordError('');
+        const nameParts = customerName.trim().split(/\s+/);
+        if (nameParts.length < 2 || nameParts[0].length < 2 || nameParts[1].length < 1) {
+          setError('Please enter your full name (first and last).');
           return;
         }
-        if (!isPickup && (!line1 || !city || !state || !zip)) {
-          setError('Please fill in all required shipping fields.');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(customerEmail)) {
+          setError('Please enter a valid email address.');
           return;
+        }
+        if (phone.replace(/\D/g, '').length < 10) {
+          setError('Please enter a valid 10-digit phone number.');
+          return;
+        }
+        if (!isPickup) {
+          if (!line1.trim()) { setError('Please enter a street address.'); return; }
+          if (!city.trim()) { setError('Please enter a city.'); return; }
+          if (!state) { setError('Please select a state.'); return; }
+          if (!/^\d{5}(-\d{4})?$/.test(zip.trim())) { setError('Please enter a valid ZIP code.'); return; }
+        }
+        if (createAccount) {
+          if (accountPassword.length < 8 || !/[A-Z]/.test(accountPassword) || !/[0-9]/.test(accountPassword)) {
+            setPasswordError('Password must be at least 8 characters with 1 uppercase letter and 1 number.');
+            return;
+          }
+          if (accountPassword !== confirmPassword) {
+            setPasswordError('Passwords do not match.');
+            return;
+          }
         }
         setProcessing(true);
         try {
@@ -4026,7 +4210,9 @@
             customer_name: customerName, customer_email: customerEmail, phone,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
-            residential: true, liftgate: true
+            residential: true, liftgate: true,
+            create_account: createAccount || undefined,
+            account_password: createAccount ? accountPassword : undefined
           };
           const orderHeaders = { 'Content-Type': 'application/json' };
           if (tradeToken) orderHeaders['X-Trade-Token'] = tradeToken;
@@ -4064,6 +4250,28 @@
                 if (digits.length >= 6) fmt += '-' + digits.slice(6); setPhone(fmt);
               }} placeholder="(555) 123-4567" /></div>
             </div>
+            {!customer && !tradeCustomer && (
+              <div className="checkout-section">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9375rem' }}>
+                  <input type="checkbox" checked={createAccount} onChange={e => { setCreateAccount(e.target.checked); if (!e.target.checked) { setAccountPassword(''); setConfirmPassword(''); setPasswordError(''); } }} />
+                  Create an account for faster checkout next time
+                </label>
+                {createAccount && (
+                  <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div className="checkout-field">
+                      <label>Password *</label>
+                      <input className="checkout-input" type="password" value={accountPassword} onChange={e => { setAccountPassword(e.target.value); setPasswordError(''); }} placeholder="Create a password" autoComplete="new-password" />
+                      <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.25rem' }}>Min 8 characters, 1 uppercase letter, 1 number</div>
+                    </div>
+                    <div className="checkout-field">
+                      <label>Confirm Password *</label>
+                      <input className="checkout-input" type="password" value={confirmPassword} onChange={e => { setConfirmPassword(e.target.value); setPasswordError(''); }} placeholder="Re-enter password" autoComplete="new-password" />
+                    </div>
+                    {passwordError && <div style={{ color: '#dc2626', fontSize: '0.8125rem' }}>{passwordError}</div>}
+                  </div>
+                )}
+              </div>
+            )}
             {isPickup ? (
               <div className="checkout-section">
                 <h3>Store Pickup</h3>
@@ -4087,6 +4295,21 @@
             )}
             <div className="checkout-section">
               <h3>Payment</h3>
+              {walletAvailable && (
+                <div className="checkout-field">
+                  <label>Express Checkout</label>
+                  {walletMode === 'native' ? (
+                    <div id="payment-request-button"></div>
+                  ) : (
+                    <button type="button" className="simulated-wallet-btn" onClick={handleSimulatedWalletPay} disabled={processing}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                      {processing ? 'Processing...' : 'Pay with Wallet'}
+                      {isLocalDev && <span className="dev-badge">DEV</span>}
+                    </button>
+                  )}
+                  <div className="checkout-divider">or pay with card</div>
+                </div>
+              )}
               <div className="checkout-field"><label>Card Details</label><div id="card-element" className="stripe-element"></div></div>
             </div>
             <button type="submit" className="checkout-btn" disabled={processing}>
@@ -4115,26 +4338,52 @@
 
     // ==================== Confirmation Page ====================
 
-    function ConfirmationPage({ order, goBrowse }) {
-      if (!order) return null;
-      const items = order.items || [];
+    function ConfirmationPage({ orderData, goBrowse }) {
+      if (!orderData) return null;
+      const order = orderData.order;
+      const sampleRequest = orderData.sample_request;
+      const items = order ? (order.items || []) : [];
+      const sampleItems = sampleRequest ? (sampleRequest.items || []) : [];
       return (
         <div className="confirmation-page">
           <div className="confirmation-check">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <h1>Order Confirmed</h1>
-          <div className="confirmation-order-number">Order number: <strong>{order.order_number}</strong></div>
-          <div className="confirmation-details">
-            <h3>Items Ordered</h3>
-            {items.map((item, idx) => (
-              <div key={idx} className="confirmation-item">
-                <span>{item.product_name || 'Product'}{item.is_sample && ' (Sample)'}{!item.is_sample && (item.sell_by === 'unit' ? ` - Qty ${item.num_boxes}` : ` - ${item.num_boxes} box${parseInt(item.num_boxes) !== 1 ? 'es' : ''}`)}</span>
-                <span style={{ fontWeight: 500 }}>{item.is_sample ? 'FREE' : '$' + parseFloat(item.subtotal || 0).toFixed(2)}</span>
+          {order && <div className="confirmation-order-number">Order number: <strong>{order.order_number}</strong></div>}
+          {items.length > 0 && (
+            <div className="confirmation-details">
+              <h3>Items Ordered</h3>
+              {items.map((item, idx) => (
+                <div key={idx} className="confirmation-item">
+                  <span>{item.product_name || 'Product'}{item.sell_by === 'unit' ? ` - Qty ${item.num_boxes}` : ` - ${item.num_boxes} box${parseInt(item.num_boxes) !== 1 ? 'es' : ''}`}</span>
+                  <span style={{ fontWeight: 500 }}>{'$' + parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                </div>
+              ))}
+              <div className="confirmation-item" style={{ fontWeight: 600 }}><span>Total</span><span>${parseFloat(order.total || 0).toFixed(2)}</span></div>
+            </div>
+          )}
+          {sampleRequest && (
+            <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--stone-200, #e7e5e4)' }}>
+              <div className="confirmation-check" style={{ width: 40, height: 40 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
-            ))}
-            <div className="confirmation-item" style={{ fontWeight: 600 }}><span>Total</span><span>${parseFloat(order.total || 0).toFixed(2)}</span></div>
-          </div>
+              <h2 style={{ fontFamily: "var(--font-heading, 'Cormorant Garamond', serif)", fontWeight: 400, marginBottom: '0.5rem' }}>Sample Request Created</h2>
+              <div className="confirmation-order-number">Request number: <strong>{sampleRequest.request_number}</strong></div>
+              <div className="confirmation-details">
+                <h3>Samples Requested</h3>
+                {sampleItems.map((item, idx) => (
+                  <div key={idx} className="confirmation-item">
+                    <span>{item.product_name || 'Product'}{item.variant_name ? ' \u2014 ' + item.variant_name : ''}</span>
+                    <span style={{ fontWeight: 500, color: 'var(--stone-500, #78716c)' }}>FREE</span>
+                  </div>
+                ))}
+                <p style={{ fontSize: '0.875rem', color: 'var(--stone-500, #78716c)', marginTop: '1rem' }}>
+                  Your samples will be prepared and shipped separately.
+                </p>
+              </div>
+            </div>
+          )}
           <button className="btn" style={{ marginTop: '2rem' }} onClick={goBrowse}>Continue Shopping</button>
         </div>
       );
@@ -4158,6 +4407,18 @@
       const [sampleSearchResults, setSampleSearchResults] = useState([]);
       const [searchingProducts, setSearchingProducts] = useState(false);
       const [addingSampleItem, setAddingSampleItem] = useState(null);
+
+      // Quotes state
+      const [quotes, setQuotes] = useState([]);
+      const [loadingQuotes, setLoadingQuotes] = useState(true);
+      const [expandedQuote, setExpandedQuote] = useState(null);
+      const [quoteDetail, setQuoteDetail] = useState(null);
+
+      // Visits state
+      const [visits, setVisits] = useState([]);
+      const [loadingVisits, setLoadingVisits] = useState(true);
+      const [expandedVisit, setExpandedVisit] = useState(null);
+      const [visitDetail, setVisitDetail] = useState(null);
 
       const [firstName, setFirstName] = useState(customer.first_name || '');
       const [lastName, setLastName] = useState(customer.last_name || '');
@@ -4190,6 +4451,14 @@
           .then(r => r.json())
           .then(data => { setSampleRequests(data.sample_requests || []); setLoadingSamples(false); })
           .catch(() => setLoadingSamples(false));
+        fetch(API + '/api/customer/quotes', { headers: authHeaders })
+          .then(r => r.json())
+          .then(data => { setQuotes(data.quotes || []); setLoadingQuotes(false); })
+          .catch(() => setLoadingQuotes(false));
+        fetch(API + '/api/customer/visits', { headers: authHeaders })
+          .then(r => r.json())
+          .then(data => { setVisits(data.visits || []); setLoadingVisits(false); })
+          .catch(() => setLoadingVisits(false));
       }, []);
 
       const refreshSamples = () => {
@@ -4237,6 +4506,41 @@
           const data = await resp.json();
           setOrderDetail(data);
         } catch { setOrderDetail(null); }
+      };
+
+      const viewQuoteDetail = async (quoteId) => {
+        if (expandedQuote === quoteId) { setExpandedQuote(null); setQuoteDetail(null); return; }
+        setExpandedQuote(quoteId);
+        try {
+          const resp = await fetch(API + '/api/customer/quotes/' + quoteId, { headers: authHeaders });
+          const data = await resp.json();
+          setQuoteDetail(data);
+        } catch { setQuoteDetail(null); }
+      };
+
+      const viewVisitDetail = async (visitId) => {
+        if (expandedVisit === visitId) { setExpandedVisit(null); setVisitDetail(null); return; }
+        setExpandedVisit(visitId);
+        try {
+          const resp = await fetch(API + '/api/customer/visits/' + visitId, { headers: authHeaders });
+          const data = await resp.json();
+          setVisitDetail(data);
+        } catch { setVisitDetail(null); }
+      };
+
+      const quoteStatusBadge = (status, expiresAt) => {
+        const colors = {
+          sent: { bg: '#dbeafe', text: '#1e40af', label: 'Sent' },
+          converted: { bg: '#dcfce7', text: '#166534', label: 'Converted' },
+          expired: { bg: '#fef2f2', text: '#991b1b', label: 'Expired' }
+        };
+        const isExpired = status === 'sent' && expiresAt && new Date(expiresAt) < new Date();
+        const c = isExpired ? colors.expired : (colors[status] || colors.sent);
+        return (
+          <span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', background: c.bg, color: c.text, borderRadius: '3px' }}>
+            {isExpired ? 'Expired' : c.label}
+          </span>
+        );
       };
 
       const saveProfile = async () => {
@@ -4319,18 +4623,21 @@
           </p>
 
           <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid var(--stone-200)', marginBottom: '2rem' }}>
-            {['orders', 'samples', 'profile'].map(t => (
-              <button key={t} onClick={() => setTab(t)}
-                style={{
-                  background: 'none', border: 'none', padding: '0.75rem 0', cursor: 'pointer',
-                  fontSize: '0.875rem', fontWeight: 500, fontFamily: 'Inter, sans-serif',
-                  color: tab === t ? 'var(--stone-900)' : 'var(--stone-500)',
-                  borderBottom: tab === t ? '2px solid var(--gold)' : '2px solid transparent',
-                  marginBottom: '-1px', textTransform: 'capitalize'
-                }}>
-                {t === 'orders' ? 'Order History' : t === 'samples' ? 'My Samples' : 'Profile'}
-              </button>
-            ))}
+            {['orders', 'quotes', 'samples', 'visits', 'profile'].map(t => {
+              const labels = { orders: 'Order History', quotes: 'Quotes', samples: 'My Samples', visits: 'Visits', profile: 'Profile' };
+              return (
+                <button key={t} onClick={() => setTab(t)}
+                  style={{
+                    background: 'none', border: 'none', padding: '0.75rem 0', cursor: 'pointer',
+                    fontSize: '0.875rem', fontWeight: 500, fontFamily: 'Inter, sans-serif',
+                    color: tab === t ? 'var(--stone-900)' : 'var(--stone-500)',
+                    borderBottom: tab === t ? '2px solid var(--gold)' : '2px solid transparent',
+                    marginBottom: '-1px'
+                  }}>
+                  {labels[t]}
+                </button>
+              );
+            })}
           </div>
 
           {tab === 'orders' && (
@@ -4488,6 +4795,96 @@
             </div>
           )}
 
+          {tab === 'quotes' && (
+            <div>
+              {loadingQuotes ? (
+                <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem' }}>Loading quotes...</p>
+              ) : quotes.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48, color: 'var(--stone-300)', margin: '0 auto 1rem' }}>
+                    <path d="M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                  </svg>
+                  <p style={{ color: 'var(--stone-500)', marginBottom: '1rem' }}>No quotes yet.</p>
+                  <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>
+                    Quotes from our sales team will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  {quotes.map(q => (
+                    <div key={q.id} style={{ border: '1px solid var(--stone-200)', marginBottom: '0.75rem' }}>
+                      <div onClick={() => viewQuoteDetail(q.id)}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem',
+                          cursor: 'pointer', background: expandedQuote === q.id ? 'var(--stone-50)' : '#fff'
+                        }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flex: 1, flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{q.quote_number}</span>
+                          <span style={{ color: 'var(--stone-500)', fontSize: '0.8125rem' }}>
+                            {new Date(q.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                          {quoteStatusBadge(q.status, q.expires_at)}
+                          <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{q.item_count} item{q.item_count !== 1 ? 's' : ''}</span>
+                          <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>${parseFloat(q.total || 0).toFixed(2)}</span>
+                        </div>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{
+                          width: 16, height: 16, transform: expandedQuote === q.id ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s'
+                        }}><polyline points="6 9 12 15 18 9"/></svg>
+                      </div>
+
+                      {expandedQuote === q.id && quoteDetail && (
+                        <div style={{ padding: '1.25rem', borderTop: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
+                          {q.converted_order_id && (
+                            <div style={{ background: '#dcfce7', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#166534' }}>
+                              This quote has been converted to an order.
+                            </div>
+                          )}
+                          {q.expires_at && q.status === 'sent' && new Date(q.expires_at) > new Date() && (
+                            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
+                              Valid until {new Date(q.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </div>
+                          )}
+                          <div style={{ marginBottom: '1rem' }}>
+                            <h4 style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem' }}>Items</h4>
+                            {quoteDetail.items.map(item => (
+                              <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
+                                <div style={{ flex: 1 }}>
+                                  <span style={{ fontWeight: 500 }}>{item.product_name || 'Product'}</span>
+                                  {item.collection && <span style={{ color: 'var(--stone-500)', marginLeft: '0.5rem' }}>{item.collection}</span>}
+                                  <span style={{ color: 'var(--stone-500)', marginLeft: '0.5rem' }}>
+                                    {item.sell_by === 'unit' ? `x${item.num_boxes}` : `x${item.num_boxes} box${item.num_boxes !== 1 ? 'es' : ''}`}
+                                  </span>
+                                  {item.is_sample && <span style={{ color: 'var(--stone-400)', marginLeft: '0.5rem' }}>(Sample)</span>}
+                                </div>
+                                <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                  <span style={{ color: 'var(--stone-500)', fontSize: '0.75rem', marginRight: '0.75rem' }}>
+                                    ${parseFloat(item.unit_price || 0).toFixed(2)}{item.sell_by === 'unit' ? '/ea' : '/sqft'}
+                                  </span>
+                                  <span style={{ fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1.5rem', fontSize: '0.8125rem', paddingTop: '0.5rem' }}>
+                            {parseFloat(q.shipping || 0) > 0 && (
+                              <span style={{ color: 'var(--stone-600)' }}>Shipping: ${parseFloat(q.shipping).toFixed(2)}</span>
+                            )}
+                            <span style={{ fontWeight: 600 }}>Total: ${parseFloat(q.total || 0).toFixed(2)}</span>
+                          </div>
+                          {q.notes && (
+                            <div style={{ marginTop: '1rem', fontSize: '0.8125rem', color: 'var(--stone-600)', fontStyle: 'italic' }}>
+                              Note: {q.notes}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {tab === 'samples' && (
             <div>
               {/* Sample Actions Bar */}
@@ -4633,6 +5030,84 @@
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'visits' && (
+            <div>
+              {loadingVisits ? (
+                <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem' }}>Loading visits...</p>
+              ) : visits.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48, color: 'var(--stone-300)', margin: '0 auto 1rem' }}>
+                    <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/>
+                  </svg>
+                  <p style={{ color: 'var(--stone-500)', marginBottom: '1rem' }}>No showroom visits yet.</p>
+                  <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>
+                    After visiting our showroom, your product recommendations will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  {visits.map(v => (
+                    <div key={v.id} style={{ border: '1px solid var(--stone-200)', marginBottom: '0.75rem' }}>
+                      <div onClick={() => viewVisitDetail(v.id)}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem',
+                          cursor: 'pointer', background: expandedVisit === v.id ? 'var(--stone-50)' : '#fff'
+                        }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flex: 1, flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                            {new Date(v.sent_at || v.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                          <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{v.item_count} product{v.item_count !== 1 ? 's' : ''}</span>
+                          <span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', background: '#dbeafe', color: '#1e40af', borderRadius: '3px' }}>
+                            Showroom Visit
+                          </span>
+                        </div>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{
+                          width: 16, height: 16, transform: expandedVisit === v.id ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s'
+                        }}><polyline points="6 9 12 15 18 9"/></svg>
+                      </div>
+
+                      {expandedVisit === v.id && visitDetail && (
+                        <div style={{ padding: '1.25rem', borderTop: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
+                          {v.message && (
+                            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af', fontStyle: 'italic' }}>
+                              "{v.message}"
+                            </div>
+                          )}
+                          <div style={{ marginBottom: '1rem' }}>
+                            <h4 style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem' }}>Recommended Products</h4>
+                            {visitDetail.items.map(item => (
+                              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
+                                {item.primary_image && (
+                                  <img src={item.primary_image} alt={item.product_name} style={{ width: 48, height: 48, objectFit: 'cover', border: '1px solid var(--stone-200)' }} />
+                                )}
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: 500 }}>{item.product_name}</div>
+                                  {item.collection && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{item.collection}</div>}
+                                  {item.variant_name && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{item.variant_name}</div>}
+                                </div>
+                                {item.retail_price && (
+                                  <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
+                                    ${parseFloat(item.retail_price).toFixed(2)}{item.price_basis === 'sqft' ? '/sqft' : '/ea'}
+                                  </span>
+                                )}
+                                {item.rep_note && (
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.rep_note}>
+                                    {item.rep_note}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -4820,6 +5295,9 @@
       const [quotes, setQuotes] = useState([]);
       const [expandedQuote, setExpandedQuote] = useState(null);
       const [quoteDetail, setQuoteDetail] = useState(null);
+      const [visits, setVisits] = useState([]);
+      const [expandedVisit, setExpandedVisit] = useState(null);
+      const [visitDetail, setVisitDetail] = useState(null);
 
       const headers = { 'X-Trade-Token': tradeToken, 'Content-Type': 'application/json' };
       const authHeaders = { 'X-Trade-Token': tradeToken };
@@ -4843,6 +5321,9 @@
         } else if (t === 'quotes') {
           fetch(API + '/api/trade/quotes', { headers: authHeaders })
             .then(r => r.json()).then(d => { setQuotes(d.quotes || []); setExpandedQuote(null); setQuoteDetail(null); setLoading(false); }).catch(() => setLoading(false));
+        } else if (t === 'visits') {
+          fetch(API + '/api/trade/visits', { headers: authHeaders })
+            .then(r => r.json()).then(d => { setVisits(d.visits || []); setExpandedVisit(null); setVisitDetail(null); setLoading(false); }).catch(() => setLoading(false));
         } else if (t === 'account') {
           Promise.all([
             fetch(API + '/api/trade/account', { headers: authHeaders }).then(r => r.json()),
@@ -4901,6 +5382,14 @@
         setQuoteDetail(data);
       };
 
+      const expandVisit = async (visitId) => {
+        if (expandedVisit === visitId) { setExpandedVisit(null); setVisitDetail(null); return; }
+        setExpandedVisit(visitId);
+        const resp = await fetch(API + '/api/trade/visits/' + visitId, { headers: authHeaders });
+        const data = await resp.json();
+        setVisitDetail(data);
+      };
+
       const acceptQuote = async (quoteId) => {
         if (!confirm('Accept this quote and convert it to an order?')) return;
         const resp = await fetch(API + '/api/trade/quotes/' + quoteId + '/accept', { method: 'POST', headers: authHeaders });
@@ -4938,11 +5427,12 @@
         else { const d = await resp.json(); showToast(d.error || 'Failed to change password', 'error'); }
       };
 
-      const tabs = ['overview', 'orders', 'quotes', 'projects', 'favorites', 'account'];
+      const tabs = ['overview', 'orders', 'quotes', 'visits', 'projects', 'favorites', 'account'];
       const tabIcons = {
         overview: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
         orders: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>,
         quotes: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+        visits: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>,
         projects: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>,
         favorites: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>,
         account: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -5147,6 +5637,76 @@
                     <div className="trade-empty-state">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                       <p>No quotes yet. Contact your trade representative to request a custom quote.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Visits */}
+              {tab === 'visits' && (
+                <div>
+                  {visits.length > 0 ? (
+                    <div className="trade-card">
+                      <table className="trade-orders-table">
+                        <thead><tr><th>Date</th><th>Products</th><th>Status</th><th></th></tr></thead>
+                        <tbody>
+                          {visits.map(v => (
+                            <React.Fragment key={v.id}>
+                              <tr style={{ cursor: 'pointer' }} onClick={() => expandVisit(v.id)}>
+                                <td style={{ fontWeight: 500 }}>{new Date(v.sent_at || v.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                                <td>{v.item_count} product{v.item_count !== 1 ? 's' : ''}</td>
+                                <td><span className="trade-status-badge sent">Showroom Visit</span></td>
+                                <td style={{ textAlign: 'right' }}>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{
+                                    width: 16, height: 16, transform: expandedVisit === v.id ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s'
+                                  }}><polyline points="6 9 12 15 18 9"/></svg>
+                                </td>
+                              </tr>
+                              {expandedVisit === v.id && visitDetail && (
+                                <tr><td colSpan="4" style={{ padding: '1rem 1.5rem', background: '#fafaf9' }}>
+                                  {v.message && (
+                                    <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af', fontStyle: 'italic', borderRadius: '4px' }}>
+                                      "{v.message}"
+                                    </div>
+                                  )}
+                                  <table style={{ width: '100%', fontSize: '0.8125rem' }}>
+                                    <thead><tr style={{ borderBottom: '1px solid var(--stone-200)' }}>
+                                      <th style={{ padding: '0.5rem', fontWeight: 500, width: 56 }}></th>
+                                      <th style={{ padding: '0.5rem', fontWeight: 500 }}>Product</th>
+                                      <th style={{ padding: '0.5rem', fontWeight: 500 }}>Variant</th>
+                                      <th style={{ padding: '0.5rem', fontWeight: 500, textAlign: 'right' }}>Price</th>
+                                      <th style={{ padding: '0.5rem', fontWeight: 500 }}>Note</th>
+                                    </tr></thead>
+                                    <tbody>
+                                      {(visitDetail.items || []).map((item, i) => (
+                                        <tr key={i} style={{ borderBottom: '1px solid #e7e5e4' }}>
+                                          <td style={{ padding: '0.5rem' }}>
+                                            {item.primary_image && <img src={item.primary_image} alt="" style={{ width: 40, height: 40, objectFit: 'cover', border: '1px solid var(--stone-200)' }} />}
+                                          </td>
+                                          <td style={{ padding: '0.5rem' }}>
+                                            <div style={{ fontWeight: 500 }}>{item.product_name}</div>
+                                            {item.collection && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{item.collection}</div>}
+                                          </td>
+                                          <td style={{ padding: '0.5rem', color: 'var(--stone-600)' }}>{item.variant_name || '\u2014'}</td>
+                                          <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                                            {item.retail_price ? `$${parseFloat(item.retail_price).toFixed(2)}${item.price_basis === 'sqft' ? '/sqft' : '/ea'}` : '\u2014'}
+                                          </td>
+                                          <td style={{ padding: '0.5rem', color: 'var(--stone-500)', fontSize: '0.75rem', maxWidth: 180 }}>{item.rep_note || ''}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </td></tr>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="trade-empty-state">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
+                      <p>No showroom visits yet. After visiting our showroom, your product recommendations will appear here.</p>
                     </div>
                   )}
                 </div>

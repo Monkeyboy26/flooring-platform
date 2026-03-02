@@ -10,9 +10,9 @@
   <meta name="apple-mobile-web-app-title" content="Roma Admin">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>Admin - Roma Flooring Designs</title>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -271,6 +271,27 @@
     .badge-sent { background: #dbeafe; color: #2563eb; }
     .badge-acknowledged { background: #fef3c7; color: #d97706; }
     .badge-fulfilled { background: var(--green-light); color: #15803d; }
+    .badge-overdue { background: #fee2e2; color: #dc2626; }
+    .badge-partial { background: #fef3c7; color: #d97706; }
+    .badge-void { background: var(--stone-100); color: var(--stone-500); text-decoration: line-through; }
+    .badge-approved { background: #dbeafe; color: #2563eb; }
+    .badge-received { background: #ccfbf1; color: #0d9488; }
+    .badge-paid { background: var(--green-light); color: #15803d; }
+    .badge-due_on_receipt { background: #fef3c7; color: #d97706; }
+
+    /* P&L Statement */
+    .pnl-statement { background: white; border: 1px solid var(--stone-200); padding: 2rem; }
+    .pnl-section { margin-bottom: 1.5rem; }
+    .pnl-section-title { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--stone-500); margin-bottom: 0.75rem; font-weight: 600; }
+    .pnl-line { display: flex; justify-content: space-between; padding: 0.375rem 0; font-size: 0.875rem; color: var(--stone-700); }
+    .pnl-line.indent { padding-left: 1.5rem; font-size: 0.8125rem; color: var(--stone-500); }
+    .pnl-line.total { font-weight: 600; border-top: 1px solid var(--stone-200); padding-top: 0.5rem; margin-top: 0.25rem; color: var(--stone-800); }
+    .pnl-line.grand-total { font-weight: 700; font-size: 1rem; border-top: 2px solid var(--stone-800); padding-top: 0.75rem; margin-top: 0.5rem; color: var(--stone-900); }
+    .pnl-pct { font-size: 0.75rem; color: var(--stone-400); margin-left: 0.5rem; }
+
+    /* Aging Bar */
+    .aging-bar { display: flex; height: 32px; border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem; }
+    .aging-segment { display: flex; align-items: center; justify-content: center; font-size: 0.625rem; font-weight: 600; color: white; min-width: 30px; }
 
     /* Order Status Stepper */
     .order-stepper {
@@ -792,7 +813,7 @@
     }
     .analytics-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
       gap: 1.5rem;
       margin-bottom: 2rem;
     }
@@ -1241,6 +1262,7 @@
         { key: 'staff', label: 'Staff', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', roles: ['admin', 'manager'] },
         { key: 'audit', label: 'Audit Log', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4', roles: ['admin', 'manager'] },
         { key: 'edi', label: 'EDI', icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4', roles: ['admin', 'manager'] },
+        { key: 'accounting', label: 'Accounting', icon: 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z', roles: ['admin', 'manager'] },
       ];
 
       const navItems = allNavItems.filter(item => item.roles.includes(staffRole));
@@ -1255,7 +1277,8 @@
                           view.split('-')[0] === 'promo' || view === 'promos' ? 'promos' :
                           view.split('-')[0] === 'trade' ? 'trade' :
                           view.split('-')[0] === 'staff' ? 'staff' :
-                          view === 'audit' ? 'audit' : view;
+                          view === 'audit' ? 'audit' :
+                          view === 'accounting' ? 'accounting' : view;
 
       return (
         <div className="admin-layout">
@@ -1328,6 +1351,7 @@
             {view === 'promo-edit' && <PromoCodeFormView navigate={navigate} editId={editId} />}
             {view === 'audit' && <AuditLogView navigate={navigate} />}
             {view === 'edi' && <EDIView navigate={navigate} />}
+            {view === 'accounting' && <AccountingView navigate={navigate} />}
           </div>
         </div>
       );
@@ -1495,6 +1519,25 @@
                   <div className="stat-card-label">Margin</div>
                   <div className="stat-card-value">{analytics.summary.margin_pct}%</div>
                 </div>
+                {analytics.outstanding_ar && (
+                  <div className="stat-card" style={{ cursor: 'pointer' }} onClick={() => navigate('accounting')}>
+                    <div className="stat-card-label">Outstanding AR
+                      {analytics.outstanding_ar.overdue_count > 0 && (
+                        <span style={{ marginLeft: '0.5rem', background: '#dc2626', color: '#fff', fontSize: '0.625rem', padding: '0.1rem 0.4rem', borderRadius: '9px', fontWeight: 600 }}>
+                          {analytics.outstanding_ar.overdue_count} overdue
+                        </span>
+                      )}
+                    </div>
+                    <div className="stat-card-value">{fmtMoney(analytics.outstanding_ar.balance)}</div>
+                  </div>
+                )}
+                {analytics.pending_commissions && (
+                  <div className="stat-card" style={{ cursor: 'pointer' }} onClick={() => navigate('accounting')}>
+                    <div className="stat-card-label">Pending Commissions</div>
+                    <div className="stat-card-value">{fmtMoney(analytics.pending_commissions.total)}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--stone-400)', marginTop: '0.25rem' }}>{analytics.pending_commissions.count} unpaid</div>
+                  </div>
+                )}
               </div>
 
               {/* Revenue over time chart */}
@@ -2037,7 +2080,8 @@
               cut_cost: sku.cut_cost ? parseFloat(sku.cut_cost) : null,
               roll_cost: sku.roll_cost ? parseFloat(sku.roll_cost) : null,
               roll_min_sqft: sku.roll_min_sqft ? parseFloat(sku.roll_min_sqft) : null,
-              roll_width_ft: sku.roll_width_ft ? parseFloat(sku.roll_width_ft) : null
+              roll_width_ft: sku.roll_width_ft ? parseFloat(sku.roll_width_ft) : null,
+              roll_length_ft: sku.roll_length_ft ? parseFloat(sku.roll_length_ft) : null
             };
 
             if (sku._existing && sku.id) {
@@ -2199,6 +2243,7 @@
               <label>Sell By</label>
               <select value={sku.sell_by || 'sqft'} onChange={e => u('sell_by', e.target.value)}>
                 <option value="sqft">Per SqFt</option>
+                <option value="sqyd">Per SqYd</option>
                 <option value="box">Per Box</option>
                 <option value="unit">Per Unit</option>
               </select>
@@ -2216,12 +2261,20 @@
               <input type="number" step="0.01" value={sku.weight_per_box_lbs || ''} onChange={e => u('weight_per_box_lbs', e.target.value)} />
             </div>
             <div className="form-group">
+              <label>Roll Width (ft)</label>
+              <input type="number" step="0.01" value={sku.roll_width_ft || ''} onChange={e => u('roll_width_ft', e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Roll Length (ft)</label>
+              <input type="number" step="0.01" value={sku.roll_length_ft || ''} onChange={e => u('roll_length_ft', e.target.value)} />
+            </div>
+            <div className="form-group">
               <label>Freight Class</label>
               <select value={sku.freight_class || '70'} onChange={e => u('freight_class', e.target.value)}>
                 <option value="50">50</option>
-                <option value="55">55</option>
+                <option value="55">55 — Broadloom Carpet</option>
                 <option value="60">60 — Hardwood</option>
-                <option value="65">65</option>
+                <option value="65">65 — Carpet Tile</option>
                 <option value="70">70 — Tile / Stone</option>
                 <option value="77.5">77.5</option>
                 <option value="85">85</option>
@@ -2253,6 +2306,7 @@
               <label>Price Basis</label>
               <select value={sku.price_basis || 'per_sqft'} onChange={e => u('price_basis', e.target.value)}>
                 <option value="per_sqft">Per SqFt</option>
+                <option value="per_sqyd">Per SqYd</option>
                 <option value="per_unit">Per Unit</option>
               </select>
             </div>
@@ -3023,6 +3077,9 @@
       const [partialRefundReason, setPartialRefundReason] = useState('');
       const [showPaymentRequestModal, setShowPaymentRequestModal] = useState(false);
       const [paymentRequestMessage, setPaymentRequestMessage] = useState('');
+      const [showSendInvoiceModal, setShowSendInvoiceModal] = useState(false);
+      const [invoiceMessage, setInvoiceMessage] = useState('');
+      const [sendingInvoice, setSendingInvoice] = useState(false);
       const [addingItem, setAddingItem] = useState(false);
       const [addItemSku, setAddItemSku] = useState('');
       const [addItemBoxes, setAddItemBoxes] = useState(1);
@@ -3036,6 +3093,28 @@
       const [customItemBoxes, setCustomItemBoxes] = useState(1);
       const [addItemVendors, setAddItemVendors] = useState([]);
       const [orderActivity, setOrderActivity] = useState(null);
+      const [trackingData2, setTrackingData2] = useState(null);
+      const [trackingLoading, setTrackingLoading] = useState(false);
+      const [trackingRefreshing, setTrackingRefreshing] = useState(false);
+
+      const loadTracking = async () => {
+        if (!editId) return;
+        setTrackingLoading(true);
+        try {
+          const data = await adminFetch('/api/admin/orders/' + editId + '/tracking');
+          setTrackingData2(data);
+        } catch { setTrackingData2(null); }
+        setTrackingLoading(false);
+      };
+
+      const refreshTracking = async () => {
+        setTrackingRefreshing(true);
+        try {
+          const data = await adminFetch('/api/admin/orders/' + editId + '/tracking/refresh', { method: 'POST' });
+          setTrackingData2(prev => ({ ...prev, ...data }));
+        } catch {}
+        setTrackingRefreshing(false);
+      };
 
       const orderActionLabel = (action) => {
         const labels = {
@@ -3102,6 +3181,7 @@
           .catch(() => setLoading(false));
         adminFetch('/api/admin/staff').then(data => setReps((data.staff || []).filter(s => ['sales_rep', 'manager'].includes(s.role) && s.is_active))).catch(() => {});
         loadPOs();
+        loadTracking();
       }, [editId]);
 
       const updatePOStatus = async (poId, newStatus) => {
@@ -3335,9 +3415,56 @@
                 {/* Tracking info display below stepper when shipped/delivered */}
                 {order.tracking_number && !showTrackingForm && (
                   <div className="stepper-tracking-info">
-                    <div><strong style={{ color: 'var(--stone-500)' }}>Tracking:</strong> {order.tracking_number}</div>
+                    <div><strong style={{ color: 'var(--stone-500)' }}>Tracking:</strong> {order.tracking_number}
+                      {trackingData2 && trackingData2.tracking_url && (
+                        <a href={trackingData2.tracking_url} target="_blank" rel="noopener noreferrer" style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: 'var(--accent-gold)' }}>Track on carrier site &rarr;</a>
+                      )}
+                    </div>
                     {order.shipping_carrier && <div><strong style={{ color: 'var(--stone-500)' }}>Carrier:</strong> {order.shipping_carrier}</div>}
                     {order.shipped_at && <div><strong style={{ color: 'var(--stone-500)' }}>Shipped:</strong> {new Date(order.shipped_at).toLocaleDateString()}</div>}
+                    {trackingData2 && trackingData2.tracking_status && (
+                      <div><strong style={{ color: 'var(--stone-500)' }}>Status:</strong> <span style={{ textTransform: 'capitalize' }}>{trackingData2.tracking_status}</span></div>
+                    )}
+                  </div>
+                )}
+
+                {/* Tracking events timeline */}
+                {order.tracking_number && !showTrackingForm && trackingData2 && (trackingData2.events || []).length > 0 && (
+                  <div style={{ marginTop: '0.75rem', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                      <h4 style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--stone-700)' }}>Tracking Events</h4>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {trackingData2.last_checked && (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>Last checked: {new Date(trackingData2.last_checked).toLocaleString()}</span>
+                        )}
+                        <button className="btn btn-secondary btn-sm" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }} onClick={refreshTracking} disabled={trackingRefreshing}>
+                          {trackingRefreshing ? 'Refreshing...' : 'Refresh'}
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ position: 'relative', paddingLeft: '1.25rem' }}>
+                      <div style={{ position: 'absolute', left: '4px', top: '6px', bottom: '6px', width: '2px', background: 'var(--stone-200)' }}></div>
+                      {trackingData2.events.map((evt, idx) => (
+                        <div key={evt.id || idx} style={{ position: 'relative', paddingBottom: idx < trackingData2.events.length - 1 ? '0.75rem' : 0, fontSize: '0.8125rem' }}>
+                          <div style={{ position: 'absolute', left: '-1.25rem', top: '4px', width: '10px', height: '10px', borderRadius: '50%', background: idx === 0 ? 'var(--accent-gold)' : 'var(--stone-300)', border: '2px solid #fff' }}></div>
+                          <div style={{ fontWeight: idx === 0 ? 600 : 400, color: 'var(--stone-800)', textTransform: 'capitalize' }}>{evt.status}</div>
+                          {evt.description && <div style={{ color: 'var(--stone-500)', fontSize: '0.75rem' }}>{evt.description}</div>}
+                          <div style={{ color: 'var(--stone-400)', fontSize: '0.7rem' }}>
+                            {evt.event_time ? new Date(evt.event_time).toLocaleString() : ''}
+                            {evt.location ? (' — ' + evt.location) : ''}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Manual refresh button when no events yet but order is shipped */}
+                {order.tracking_number && !showTrackingForm && trackingData2 && (trackingData2.events || []).length === 0 && (
+                  <div style={{ marginTop: '0.5rem', textAlign: 'center' }}>
+                    <button className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }} onClick={refreshTracking} disabled={trackingRefreshing}>
+                      {trackingRefreshing ? 'Checking...' : 'Check for tracking updates'}
+                    </button>
                   </div>
                 )}
 
@@ -3404,6 +3531,9 @@
                     }}>
                       Generate Invoice
                     </button>
+                    <button className="btn btn-primary btn-sm" onClick={() => { setInvoiceMessage(''); setShowSendInvoiceModal(true); }}>
+                      Email Invoice
+                    </button>
                     {canCancel && !isCancelled && (
                       <button className="stepper-cancel-link" onClick={() => updateStatus('cancelled')} disabled={updating}>
                         Cancel Order
@@ -3439,19 +3569,25 @@
 
           <div className="form-card">
             <h3>Assign Sales Rep</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <select
-                value={order.sales_rep_id || ''}
-                onChange={e => assignRep(e.target.value)}
-                style={{ padding: '0.5rem 0.75rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', fontFamily: 'Inter, sans-serif' }}
-              >
-                <option value="">Unassigned</option>
-                {reps.map(r => (
-                  <option key={r.id} value={r.id}>{r.first_name} {r.last_name}</option>
-                ))}
-              </select>
-              {order.rep_name && <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>Currently: {order.rep_name}</span>}
-            </div>
+            {['admin', 'manager'].includes(staffRole) ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <select
+                  value={order.sales_rep_id || ''}
+                  onChange={e => assignRep(e.target.value)}
+                  style={{ padding: '0.5rem 0.75rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', fontFamily: 'Inter, sans-serif' }}
+                >
+                  <option value="">Unassigned</option>
+                  {reps.map(r => (
+                    <option key={r.id} value={r.id}>{r.first_name} {r.last_name}</option>
+                  ))}
+                </select>
+                {order.rep_name && <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>Currently: {order.rep_name}</span>}
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.875rem', color: 'var(--stone-600)' }}>
+                {order.rep_name || 'Unassigned'}
+              </div>
+            )}
           </div>
 
           <div className="form-card">
@@ -3683,8 +3819,7 @@
                     <td>{item.subtotal ? '$' + parseFloat(item.subtotal).toFixed(2) : '—'}</td>
                     {['pending', 'confirmed'].includes(order.status) && ['admin', 'manager'].includes(staffRole) && (
                       <td>
-                        {!item.is_sample && (
-                          <button className="btn btn-sm btn-secondary" style={{ color: '#dc2626', fontSize: '0.75rem' }}
+                        <button className="btn btn-sm btn-secondary" style={{ color: '#dc2626', fontSize: '0.75rem' }}
                             onClick={async () => {
                               if (!confirm('Remove this item from the order?')) return;
                               try {
@@ -3695,7 +3830,6 @@
                                 loadPOs();
                               } catch (err) { alert(err.message); }
                             }}>Remove</button>
-                        )}
                       </td>
                     )}
                   </tr>
@@ -3706,16 +3840,18 @@
             {['pending', 'confirmed'].includes(order.status) && ['admin', 'manager'].includes(staffRole) && (
               <div style={{ marginTop: '0.75rem' }}>
                 {!addingItem ? (
-                  <button className="btn btn-sm btn-secondary" onClick={() => {
-                    setAddingItem(true); setAddItemMode('sku'); setAddItemSku(''); setAddItemBoxes(1);
-                    setSkuSearchResults([]); setCustomItemName(''); setCustomItemPrice('');
-                    setCustomItemVendor(''); setCustomItemDesc(''); setCustomItemBoxes(1);
-                    if (addItemVendors.length === 0) {
-                      adminFetch('/api/admin/vendors').then(d => setAddItemVendors(d.vendors || [])).catch(() => {});
-                    }
-                  }}>
-                    + Add Item
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn btn-sm btn-secondary" onClick={() => {
+                      setAddingItem(true); setAddItemMode('sku'); setAddItemSku(''); setAddItemBoxes(1);
+                      setSkuSearchResults([]); setCustomItemName(''); setCustomItemPrice('');
+                      setCustomItemVendor(''); setCustomItemDesc(''); setCustomItemBoxes(1);
+                      if (addItemVendors.length === 0) {
+                        adminFetch('/api/admin/vendors').then(d => setAddItemVendors(d.vendors || [])).catch(() => {});
+                      }
+                    }}>
+                      + Add Item
+                    </button>
+                  </div>
                 ) : (
                   <div style={{ padding: '1rem', border: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
                     {/* Mode toggle */}
@@ -3783,7 +3919,7 @@
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
                         </div>
                       </div>
-                    ) : (
+                    ) : addItemMode === 'custom' ? (
                       /* Custom item mode */
                       <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                         <div style={{ minWidth: '160px', flex: 1 }}>
@@ -3911,6 +4047,17 @@
                           }}>
                           Download PO
                         </button>
+                        {['fulfilled', 'acknowledged', 'sent'].includes(po.status) && ['admin', 'manager'].includes(staffRole) && (
+                          <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
+                            onClick={async () => {
+                              try {
+                                const data = await adminFetch('/api/admin/accounting/bills/from-po/' + po.id, { method: 'POST' });
+                                alert('Bill ' + data.bill.internal_bill_number + ' created');
+                              } catch (err) { alert(err.message); }
+                            }}>
+                            Create Bill
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -4184,6 +4331,17 @@
                     Send Payment Request (${balanceInfo.balance.toFixed(2)})
                   </button>
                 )}
+                {['admin', 'manager'].includes(staffRole) && (
+                  <button className="btn btn-sm" style={{ background: '#dbeafe', color: '#1e40af' }}
+                    onClick={async () => {
+                      try {
+                        const data = await adminFetch('/api/admin/accounting/invoices/from-order/' + editId, { method: 'POST' });
+                        alert('Invoice ' + data.invoice.invoice_number + ' created');
+                      } catch (err) { alert(err.message); }
+                    }}>
+                    Generate Invoice
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -4255,6 +4413,53 @@
         </div>
 
         {docPreview && <DocumentPreviewModal url={docPreview.url} title={docPreview.title} onClose={() => setDocPreview(null)} />}
+
+        {showSendInvoiceModal && (
+          <div className="modal-overlay" onClick={() => !sendingInvoice && setShowSendInvoiceModal(false)}>
+            <div className="modal-box" onClick={e => e.stopPropagation()}>
+              <h3>Email Invoice</h3>
+              <p style={{ fontSize: '0.875rem', color: 'var(--stone-600)', margin: '0 0 1rem' }}>
+                Send invoice for <strong>{order.order_number}</strong> to <strong>{order.customer_email}</strong>.
+                {balanceInfo && balanceInfo.balance > 0.01 && (
+                  <span style={{ display: 'block', marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: '#fefce8', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.8125rem' }}>
+                    Balance due of <strong>${balanceInfo.balance.toFixed(2)}</strong> — a payment link will be included.
+                  </span>
+                )}
+              </p>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Message to Customer (optional)</label>
+                <textarea value={invoiceMessage} onChange={e => setInvoiceMessage(e.target.value)}
+                  placeholder="e.g. Here is the invoice for your recent order..."
+                  rows={3} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem', resize: 'vertical' }} />
+              </div>
+              <div className="modal-actions">
+                <button className="btn btn-secondary" onClick={() => setShowSendInvoiceModal(false)} disabled={sendingInvoice}>Cancel</button>
+                <button className="btn btn-primary" disabled={sendingInvoice}
+                  onClick={async () => {
+                    setSendingInvoice(true);
+                    try {
+                      const data = await adminFetch('/api/staff/orders/' + editId + '/send-invoice', {
+                        method: 'POST', body: JSON.stringify({ message: invoiceMessage || undefined })
+                      });
+                      setShowSendInvoiceModal(false);
+                      const msg = data.payment_requested
+                        ? 'Invoice with payment request sent to ' + data.sent_to
+                        : 'Invoice sent to ' + data.sent_to;
+                      alert(msg);
+                      if (data.payment_requested) {
+                        const refreshed = await adminFetch('/api/admin/orders/' + editId);
+                        setPaymentRequests(refreshed.payment_requests || []);
+                        setBalanceInfo(refreshed.balance || null);
+                      }
+                    } catch (err) { alert('Failed to send: ' + err.message); }
+                    setSendingInvoice(false);
+                  }}>
+                  {sendingInvoice ? 'Sending...' : (balanceInfo && balanceInfo.balance > 0.01 ? 'Send Invoice & Payment Request' : 'Send Invoice')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showRefundModal && (
           <div className="modal-overlay" onClick={() => !refunding && setShowRefundModal(false)}>
@@ -5529,6 +5734,7 @@
                 <th>Type</th>
                 <th>Status</th>
                 <th>Tier</th>
+                <th>Terms</th>
                 <th>Applied</th>
                 <th>Actions</th>
               </tr>
@@ -5549,6 +5755,15 @@
                         style={{ padding: '0.3rem 0.4rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' }}>
                         <option value="">No tier</option>
                         {tiers.map(t => <option key={t.id} value={t.id}>{t.name} ({parseFloat(t.discount_percent).toFixed(0)}%)</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <select value={c.payment_terms || 'due_on_receipt'} onClick={e => e.stopPropagation()} onChange={e => updateCustomer(c.id, { payment_terms: e.target.value })}
+                        style={{ padding: '0.3rem 0.4rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' }}>
+                        <option value="due_on_receipt">Due on Receipt</option>
+                        <option value="net_15">Net 15</option>
+                        <option value="net_30">Net 30</option>
+                        <option value="net_60">Net 60</option>
                       </select>
                     </td>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
@@ -6863,6 +7078,17 @@
                   <option value="disputed">Disputed</option>
                 </select>
               </div>
+              <div>
+                <button className="btn btn-sm" style={{ background: '#dbeafe', color: '#1e40af', border: 'none' }}
+                  onClick={async () => {
+                    try {
+                      const data = await adminFetch('/api/admin/accounting/bills/from-edi/' + selectedInvoice.id, { method: 'POST' });
+                      alert('Bill ' + data.bill.internal_bill_number + ' created');
+                    } catch (err) { alert(err.message); }
+                  }}>
+                  Create Bill from EDI Invoice
+                </button>
+              </div>
             </div>
             {invoiceItems.length > 0 && (
               <div className="table-scroll-wrapper">
@@ -6995,6 +7221,955 @@
                   </table>
                 </div>
               )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== AccountingView ==========
+    function AccountingView({ navigate }) {
+      const [subTab, setSubTab] = useState('invoices');
+      const subTabs = [
+        { key: 'invoices', label: 'Invoices' },
+        { key: 'bills', label: 'Bills' },
+        { key: 'expenses', label: 'Expenses' },
+        { key: 'reports', label: 'Reports' }
+      ];
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Accounting</h1>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+            {subTabs.map(t => (
+              <button key={t.key} className={subTab === t.key ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setSubTab(t.key)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {subTab === 'invoices' && <InvoicesSubTab />}
+          {subTab === 'bills' && <BillsSubTab />}
+          {subTab === 'expenses' && <ExpensesSubTab />}
+          {subTab === 'reports' && <ReportsSubTab />}
+        </div>
+      );
+    }
+
+    // ========== Expenses Sub-Tab ==========
+    function ExpensesSubTab() {
+      const [expenses, setExpenses] = useState([]);
+      const [categories, setCategories] = useState([]);
+      const [total, setTotal] = useState(0);
+      const [loading, setLoading] = useState(true);
+      const [filter, setFilter] = useState({ category_id: '', from: '', to: '', search: '' });
+      const [showModal, setShowModal] = useState(false);
+      const [editingExpense, setEditingExpense] = useState(null);
+      const [summary, setSummary] = useState(null);
+      const [form, setForm] = useState({ expense_date: new Date().toISOString().split('T')[0], category_id: '', vendor_name: '', description: '', amount: '', payment_method: '', reference_number: '', is_recurring: false, notes: '' });
+      const [saving, setSaving] = useState(false);
+
+      const loadCategories = () => adminFetch('/api/admin/accounting/expense-categories').then(d => setCategories(d.categories || [])).catch(() => {});
+      const loadExpenses = () => {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (filter.category_id) params.set('category_id', filter.category_id);
+        if (filter.from) params.set('from', filter.from);
+        if (filter.to) params.set('to', filter.to);
+        if (filter.search) params.set('search', filter.search);
+        adminFetch('/api/admin/accounting/expenses?' + params.toString())
+          .then(d => { setExpenses(d.expenses || []); setTotal(d.total || 0); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      const loadSummary = () => {
+        const params = new URLSearchParams();
+        if (filter.from) params.set('from', filter.from);
+        if (filter.to) params.set('to', filter.to);
+        adminFetch('/api/admin/accounting/expenses/summary?' + params.toString())
+          .then(d => setSummary(d)).catch(() => {});
+      };
+
+      useEffect(() => { loadCategories(); }, []);
+      useEffect(() => { loadExpenses(); loadSummary(); }, [filter.category_id, filter.from, filter.to]);
+
+      const openCreate = () => {
+        setEditingExpense(null);
+        setForm({ expense_date: new Date().toISOString().split('T')[0], category_id: '', vendor_name: '', description: '', amount: '', payment_method: '', reference_number: '', is_recurring: false, notes: '' });
+        setShowModal(true);
+      };
+      const openEdit = (exp) => {
+        setEditingExpense(exp);
+        setForm({ expense_date: exp.expense_date ? exp.expense_date.split('T')[0] : '', category_id: exp.category_id, vendor_name: exp.vendor_name || '', description: exp.description || '', amount: exp.amount, payment_method: exp.payment_method || '', reference_number: exp.reference_number || '', is_recurring: exp.is_recurring || false, notes: exp.notes || '' });
+        setShowModal(true);
+      };
+      const handleSave = async () => {
+        if (!form.category_id || !form.amount) { alert('Category and amount are required'); return; }
+        setSaving(true);
+        try {
+          if (editingExpense) {
+            await adminFetch('/api/admin/accounting/expenses/' + editingExpense.id, { method: 'PUT', body: JSON.stringify(form) });
+          } else {
+            await adminFetch('/api/admin/accounting/expenses', { method: 'POST', body: JSON.stringify(form) });
+          }
+          setShowModal(false);
+          loadExpenses();
+          loadSummary();
+        } catch (err) { alert(err.message); }
+        setSaving(false);
+      };
+      const handleDelete = async (id) => {
+        if (!confirm('Delete this expense?')) return;
+        try { await adminFetch('/api/admin/accounting/expenses/' + id, { method: 'DELETE' }); loadExpenses(); loadSummary(); } catch (err) { alert(err.message); }
+      };
+
+      const fmtMoney = v => '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      const topCategory = summary ? (summary.categories || []).find(c => parseFloat(c.total) > 0) : null;
+      const thisMonthTotal = expenses.reduce((s, e) => {
+        const d = new Date(e.expense_date);
+        const now = new Date();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() ? s + parseFloat(e.amount) : s;
+      }, 0);
+
+      return (
+        <div>
+          <div className="analytics-grid" style={{ marginBottom: '1.5rem' }}>
+            <div className="stat-card"><div className="stat-card-label">This Month</div><div className="stat-card-value">{fmtMoney(thisMonthTotal)}</div></div>
+            <div className="stat-card"><div className="stat-card-label">Year Total</div><div className="stat-card-value">{fmtMoney(summary ? summary.grand_total : 0)}</div></div>
+            <div className="stat-card"><div className="stat-card-label">Top Category</div><div className="stat-card-value" style={{ fontSize: '1.25rem' }}>{topCategory ? topCategory.category_name : '—'}</div></div>
+            <div className="stat-card"><div className="stat-card-label">Total Entries</div><div className="stat-card-value">{total}</div></div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <select className="form-input" style={{ maxWidth: 200 }} value={filter.category_id} onChange={e => setFilter(f => ({ ...f, category_id: e.target.value }))}>
+              <option value="">All Categories</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <input type="date" className="form-input" style={{ maxWidth: 150 }} value={filter.from} onChange={e => setFilter(f => ({ ...f, from: e.target.value }))} />
+            <input type="date" className="form-input" style={{ maxWidth: 150 }} value={filter.to} onChange={e => setFilter(f => ({ ...f, to: e.target.value }))} />
+            <input type="text" className="form-input" style={{ maxWidth: 200 }} placeholder="Search vendor/description..." value={filter.search} onChange={e => setFilter(f => ({ ...f, search: e.target.value }))} onKeyDown={e => e.key === 'Enter' && loadExpenses()} />
+            <button className="btn btn-secondary btn-sm" onClick={loadExpenses}>Search</button>
+            <div style={{ flex: 1 }}></div>
+            <button className="btn btn-primary btn-sm" onClick={openCreate}>+ Add Expense</button>
+          </div>
+
+          <div className="table-scroll-wrapper">
+            <table className="admin-table">
+              <thead><tr><th>Date</th><th>Category</th><th>Vendor</th><th>Description</th><th style={{ textAlign: 'right' }}>Amount</th><th>Method</th><th>Actions</th></tr></thead>
+              <tbody>
+                {loading && <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>Loading...</td></tr>}
+                {!loading && !expenses.length && <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>No expenses found</td></tr>}
+                {expenses.map(e => (
+                  <tr key={e.id}>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.8125rem' }}>{e.expense_date ? new Date(e.expense_date).toLocaleDateString() : '—'}</td>
+                    <td><span className="badge badge-active" style={{ fontSize: '0.625rem' }}>{e.category_name || '—'}</span></td>
+                    <td style={{ fontSize: '0.8125rem' }}>{e.vendor_name || '—'}</td>
+                    <td style={{ fontSize: '0.8125rem', maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.description || '—'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 500 }}>{fmtMoney(e.amount)}</td>
+                    <td style={{ fontSize: '0.8125rem' }}>{e.payment_method || '—'}</td>
+                    <td>
+                      <button className="btn btn-secondary btn-sm" style={{ marginRight: '0.25rem' }} onClick={() => openEdit(e)}>Edit</button>
+                      <button className="btn btn-sm" style={{ background: 'var(--red-light)', color: 'var(--red)', border: 'none' }} onClick={() => handleDelete(e.id)}>Del</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {showModal && (
+            <div className="modal-overlay" onClick={() => setShowModal(false)}>
+              <div className="modal-box" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+                <h3>{editingExpense ? 'Edit Expense' : 'Add Expense'}</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Date</label>
+                    <input type="date" value={form.expense_date} onChange={e => setForm(f => ({ ...f, expense_date: e.target.value }))} />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Category *</label>
+                    <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}>
+                      <option value="">Select...</option>
+                      {['cogs', 'operating', 'overhead'].map(type => (
+                        <optgroup key={type} label={type.toUpperCase()}>
+                          {categories.filter(c => c.expense_type === type && c.is_active).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Vendor Name</label>
+                    <input value={form.vendor_name} onChange={e => setForm(f => ({ ...f, vendor_name: e.target.value }))} placeholder="e.g. Home Depot" />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Amount *</label>
+                    <input type="number" step="0.01" min="0" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Payment Method</label>
+                    <select value={form.payment_method} onChange={e => setForm(f => ({ ...f, payment_method: e.target.value }))}>
+                      <option value="">Select...</option>
+                      <option value="card">Card</option>
+                      <option value="check">Check</option>
+                      <option value="cash">Cash</option>
+                      <option value="ach">ACH</option>
+                      <option value="wire">Wire</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Reference #</label>
+                    <input value={form.reference_number} onChange={e => setForm(f => ({ ...f, reference_number: e.target.value }))} />
+                  </div>
+                  <div className="form-group full" style={{ gridColumn: '1/-1', marginBottom: 0 }}>
+                    <label>Description</label>
+                    <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+                  </div>
+                  <div className="form-group full" style={{ gridColumn: '1/-1', marginBottom: 0 }}>
+                    <label>Notes</label>
+                    <textarea rows="2" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="modal-actions">
+                  <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                  <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== Invoices Sub-Tab ==========
+    function InvoicesSubTab() {
+      const [invoices, setInvoices] = useState([]);
+      const [total, setTotal] = useState(0);
+      const [loading, setLoading] = useState(true);
+      const [filter, setFilter] = useState({ status: '', search: '', from: '', to: '' });
+      const [detailId, setDetailId] = useState(null);
+      const [detail, setDetail] = useState(null);
+      const [detailItems, setDetailItems] = useState([]);
+      const [detailPayments, setDetailPayments] = useState([]);
+      const [showCreate, setShowCreate] = useState(false);
+      const [showPayment, setShowPayment] = useState(false);
+      const [payForm, setPayForm] = useState({ amount: '', payment_method: 'check', reference_number: '', payment_date: new Date().toISOString().split('T')[0], notes: '' });
+      const [createForm, setCreateForm] = useState({ customer_email: '', customer_name: '', payment_terms: 'due_on_receipt', notes: '', items: [{ description: '', qty: 1, unit_price: '' }] });
+      const [saving, setSaving] = useState(false);
+      const [dashStats, setDashStats] = useState(null);
+
+      const fmtMoney = v => '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      const fmtDate = d => d ? new Date(d).toLocaleDateString() : '—';
+
+      const loadInvoices = () => {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (filter.status) params.set('status', filter.status);
+        if (filter.search) params.set('search', filter.search);
+        if (filter.from) params.set('from', filter.from);
+        if (filter.to) params.set('to', filter.to);
+        adminFetch('/api/admin/accounting/invoices?' + params.toString())
+          .then(d => { setInvoices(d.invoices || []); setTotal(d.total || 0); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      const loadStats = () => {
+        adminFetch('/api/admin/accounting/reports/dashboard').then(d => setDashStats(d)).catch(() => {});
+      };
+      const loadDetail = (id) => {
+        setDetailId(id);
+        adminFetch('/api/admin/accounting/invoices/' + id)
+          .then(d => { setDetail(d.invoice); setDetailItems(d.items || []); setDetailPayments(d.payments || []); })
+          .catch(err => alert(err.message));
+      };
+
+      useEffect(() => { loadInvoices(); loadStats(); }, []);
+
+      const handleCreate = async () => {
+        if (!createForm.customer_name || !createForm.items.some(it => it.description && it.unit_price)) { alert('Customer name and at least one item required'); return; }
+        setSaving(true);
+        try {
+          const payload = { ...createForm, items: createForm.items.filter(it => it.description && it.unit_price) };
+          await adminFetch('/api/admin/accounting/invoices', { method: 'POST', body: JSON.stringify(payload) });
+          setShowCreate(false);
+          loadInvoices();
+        } catch (err) { alert(err.message); }
+        setSaving(false);
+      };
+
+      const handleRecordPayment = async () => {
+        if (!payForm.amount || parseFloat(payForm.amount) <= 0) { alert('Enter a valid amount'); return; }
+        setSaving(true);
+        try {
+          await adminFetch('/api/admin/accounting/invoices/' + detailId + '/payments', { method: 'POST', body: JSON.stringify(payForm) });
+          loadDetail(detailId);
+          setShowPayment(false);
+          setPayForm({ amount: '', payment_method: 'check', reference_number: '', payment_date: new Date().toISOString().split('T')[0], notes: '' });
+          loadStats();
+        } catch (err) { alert(err.message); }
+        setSaving(false);
+      };
+
+      const handleSend = async (id) => {
+        try { await adminFetch('/api/admin/accounting/invoices/' + id + '/send', { method: 'POST' }); alert('Invoice sent'); loadInvoices(); if (detailId === id) loadDetail(id); } catch (err) { alert(err.message); }
+      };
+      const handleVoid = async (id) => {
+        if (!confirm('Void this invoice?')) return;
+        try { await adminFetch('/api/admin/accounting/invoices/' + id + '/void', { method: 'POST' }); loadInvoices(); if (detailId === id) loadDetail(id); loadStats(); } catch (err) { alert(err.message); }
+      };
+
+      const addItem = () => setCreateForm(f => ({ ...f, items: [...f.items, { description: '', qty: 1, unit_price: '' }] }));
+      const updateItem = (idx, field, val) => setCreateForm(f => ({ ...f, items: f.items.map((it, i) => i === idx ? { ...it, [field]: val } : it) }));
+      const removeItem = (idx) => setCreateForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
+
+      // Detail view
+      if (detailId && detail) {
+        return (
+          <div>
+            <button className="btn btn-secondary btn-sm" onClick={() => { setDetailId(null); setDetail(null); }} style={{ marginBottom: '1rem' }}>
+              &larr; Back to Invoices
+            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+              <div>
+                <h2 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontWeight: 400 }}>{detail.invoice_number}</h2>
+                <p style={{ margin: '0.25rem 0', fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
+                  {detail.customer_name} &middot; {detail.customer_email}
+                  {detail.order_number && <span> &middot; Order {detail.order_number}</span>}
+                </p>
+              </div>
+              <span className={'badge badge-' + detail.status}>{detail.status}</span>
+            </div>
+
+            <div className="analytics-grid" style={{ marginBottom: '1.5rem' }}>
+              <div className="stat-card"><div className="stat-card-label">Total</div><div className="stat-card-value">{fmtMoney(detail.total)}</div></div>
+              <div className="stat-card"><div className="stat-card-label">Paid</div><div className="stat-card-value">{fmtMoney(detail.amount_paid)}</div></div>
+              <div className="stat-card"><div className="stat-card-label">Balance</div><div className="stat-card-value" style={{ color: parseFloat(detail.balance) > 0 ? '#dc2626' : '#16a34a' }}>{fmtMoney(detail.balance)}</div></div>
+              <div className="stat-card"><div className="stat-card-label">Due Date</div><div className="stat-card-value" style={{ fontSize: '1.25rem' }}>{fmtDate(detail.due_date)}</div></div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+              {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-primary btn-sm" onClick={() => handleSend(detailId)}>Send Invoice</button>}
+              {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-sm" style={{ background: '#dcfce7', color: '#166534', border: 'none' }} onClick={() => { setPayForm(f => ({ ...f, amount: parseFloat(detail.balance).toFixed(2) })); setShowPayment(true); }}>Record Payment</button>}
+              <a className="btn btn-secondary btn-sm" href={API + '/api/admin/accounting/invoices/' + detailId + '/pdf?preview=true'} target="_blank" rel="noopener">Download PDF</a>
+              {detail.status !== 'void' && <button className="btn btn-sm" style={{ background: 'var(--red-light)', color: 'var(--red)', border: 'none' }} onClick={() => handleVoid(detailId)}>Void</button>}
+            </div>
+
+            <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Line Items</h3>
+            <table className="admin-table" style={{ marginBottom: '1.5rem' }}>
+              <thead><tr><th>Description</th><th style={{ textAlign: 'center' }}>Qty</th><th style={{ textAlign: 'right' }}>Unit Price</th><th style={{ textAlign: 'right' }}>Amount</th></tr></thead>
+              <tbody>
+                {detailItems.map(it => (
+                  <tr key={it.id}><td>{it.description}</td><td style={{ textAlign: 'center' }}>{parseFloat(it.qty)}</td><td style={{ textAlign: 'right' }}>{fmtMoney(it.unit_price)}</td><td style={{ textAlign: 'right' }}>{fmtMoney(it.subtotal)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+
+            {detailPayments.length > 0 && (
+              <div>
+                <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Payment History</h3>
+                <table className="admin-table" style={{ marginBottom: '1.5rem' }}>
+                  <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th style={{ textAlign: 'right' }}>Amount</th><th>Recorded By</th></tr></thead>
+                  <tbody>
+                    {detailPayments.map(p => (
+                      <tr key={p.id}><td>{fmtDate(p.payment_date)}</td><td>{p.payment_method}</td><td>{p.reference_number || '—'}</td><td style={{ textAlign: 'right' }}>{fmtMoney(p.amount)}</td><td style={{ fontSize: '0.8125rem' }}>{p.recorded_by_name || '—'}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {detail.notes && <div style={{ background: 'var(--stone-50)', border: '1px solid var(--stone-200)', padding: '1rem', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Notes</h3>
+              <p style={{ fontSize: '0.875rem', margin: 0 }}>{detail.notes}</p>
+            </div>}
+
+            {showPayment && (
+              <div className="modal-overlay" onClick={() => setShowPayment(false)}>
+                <div className="modal-box" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+                  <h3>Record Payment</h3>
+                  <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label>Amount ($)</label><input type="number" step="0.01" min="0.01" value={payForm.amount} onChange={e => setPayForm(f => ({ ...f, amount: e.target.value }))} /></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label>Payment Method</label><select value={payForm.payment_method} onChange={e => setPayForm(f => ({ ...f, payment_method: e.target.value }))}><option value="check">Check</option><option value="ach">ACH</option><option value="wire">Wire</option><option value="cash">Cash</option><option value="stripe">Stripe</option></select></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label>Reference #</label><input value={payForm.reference_number} onChange={e => setPayForm(f => ({ ...f, reference_number: e.target.value }))} /></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label>Date</label><input type="date" value={payForm.payment_date} onChange={e => setPayForm(f => ({ ...f, payment_date: e.target.value }))} /></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label>Notes</label><input value={payForm.notes} onChange={e => setPayForm(f => ({ ...f, notes: e.target.value }))} /></div>
+                  </div>
+                  <div className="modal-actions">
+                    <button className="btn btn-secondary" onClick={() => setShowPayment(false)}>Cancel</button>
+                    <button className="btn btn-primary" onClick={handleRecordPayment} disabled={saving}>{saving ? 'Saving...' : 'Record Payment'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // List view
+      const statusTabs = ['', 'draft', 'sent', 'partial', 'overdue', 'paid', 'void'];
+      return (
+        <div>
+          <div className="analytics-grid" style={{ marginBottom: '1.5rem' }}>
+            <div className="stat-card"><div className="stat-card-label">Outstanding</div><div className="stat-card-value">{fmtMoney(dashStats ? dashStats.ar.outstanding : 0)}</div></div>
+            <div className="stat-card"><div className="stat-card-label">Overdue</div><div className="stat-card-value" style={{ color: dashStats && dashStats.ar.overdue_count > 0 ? '#dc2626' : undefined }}>{dashStats ? dashStats.ar.overdue_count : 0}</div></div>
+            <div className="stat-card"><div className="stat-card-label">Paid This Month</div><div className="stat-card-value">{fmtMoney(dashStats ? dashStats.ar.paid_this_month : 0)}</div></div>
+            <div className="stat-card"><div className="stat-card-label">Total Invoices</div><div className="stat-card-value">{total}</div></div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            {statusTabs.map(s => (
+              <button key={s} className={filter.status === s ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => { setFilter(f => ({ ...f, status: s })); setTimeout(loadInvoices, 50); }}>
+                {s || 'All'}
+              </button>
+            ))}
+            <input type="text" className="form-input" style={{ maxWidth: 200 }} placeholder="Search..." value={filter.search} onChange={e => setFilter(f => ({ ...f, search: e.target.value }))} onKeyDown={e => e.key === 'Enter' && loadInvoices()} />
+            <button className="btn btn-secondary btn-sm" onClick={loadInvoices}>Search</button>
+            <div style={{ flex: 1 }}></div>
+            <button className="btn btn-primary btn-sm" onClick={() => { setCreateForm({ customer_email: '', customer_name: '', payment_terms: 'due_on_receipt', notes: '', items: [{ description: '', qty: 1, unit_price: '' }] }); setShowCreate(true); }}>+ New Invoice</button>
+          </div>
+
+          <div className="table-scroll-wrapper">
+            <table className="admin-table">
+              <thead><tr><th>Invoice #</th><th>Customer</th><th>Issue Date</th><th>Due Date</th><th style={{ textAlign: 'right' }}>Total</th><th style={{ textAlign: 'right' }}>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                {loading && <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>Loading...</td></tr>}
+                {!loading && !invoices.length && <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>No invoices found</td></tr>}
+                {invoices.map(inv => (
+                  <tr key={inv.id}>
+                    <td style={{ fontWeight: 500 }}>{inv.invoice_number}</td>
+                    <td style={{ fontSize: '0.8125rem' }}>{inv.customer_name}<br/><span style={{ color: 'var(--stone-400)' }}>{inv.customer_email}</span></td>
+                    <td style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{fmtDate(inv.issue_date)}</td>
+                    <td style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{fmtDate(inv.due_date)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 500 }}>{fmtMoney(inv.total)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 500, color: parseFloat(inv.balance) > 0 ? '#dc2626' : '#16a34a' }}>{fmtMoney(inv.balance)}</td>
+                    <td><span className={'badge badge-' + inv.status}>{inv.status}</span></td>
+                    <td>
+                      <button className="btn btn-secondary btn-sm" onClick={() => loadDetail(inv.id)}>View</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {showCreate && (
+            <div className="modal-overlay" onClick={() => setShowCreate(false)}>
+              <div className="modal-box" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
+                <h3>New Invoice</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}><label>Customer Name *</label><input value={createForm.customer_name} onChange={e => setCreateForm(f => ({ ...f, customer_name: e.target.value }))} /></div>
+                  <div className="form-group" style={{ marginBottom: 0 }}><label>Customer Email</label><input value={createForm.customer_email} onChange={e => setCreateForm(f => ({ ...f, customer_email: e.target.value }))} /></div>
+                  <div className="form-group" style={{ marginBottom: 0 }}><label>Payment Terms</label>
+                    <select value={createForm.payment_terms} onChange={e => setCreateForm(f => ({ ...f, payment_terms: e.target.value }))}>
+                      <option value="due_on_receipt">Due on Receipt</option><option value="net_15">Net 15</option><option value="net_30">Net 30</option><option value="net_60">Net 60</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}><label>Notes</label><input value={createForm.notes} onChange={e => setCreateForm(f => ({ ...f, notes: e.target.value }))} /></div>
+                </div>
+                <h4 style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Line Items</h4>
+                {createForm.items.map((it, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'flex-end' }}>
+                    <div style={{ flex: 3 }}><input placeholder="Description" value={it.description} onChange={e => updateItem(idx, 'description', e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' }} /></div>
+                    <div style={{ flex: 1 }}><input type="number" min="1" placeholder="Qty" value={it.qty} onChange={e => updateItem(idx, 'qty', e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' }} /></div>
+                    <div style={{ flex: 1 }}><input type="number" step="0.01" placeholder="Price" value={it.unit_price} onChange={e => updateItem(idx, 'unit_price', e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' }} /></div>
+                    <div style={{ flex: 1, textAlign: 'right', fontSize: '0.8125rem', fontWeight: 500, padding: '0.5rem 0' }}>{it.qty && it.unit_price ? fmtMoney(parseFloat(it.qty) * parseFloat(it.unit_price)) : '—'}</div>
+                    {createForm.items.length > 1 && <button onClick={() => removeItem(idx)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '1rem' }}>&times;</button>}
+                  </div>
+                ))}
+                <button className="btn btn-secondary btn-sm" onClick={addItem} style={{ marginBottom: '1rem' }}>+ Add Line</button>
+                <div style={{ textAlign: 'right', fontWeight: 600, marginBottom: '1rem' }}>
+                  Total: {fmtMoney(createForm.items.reduce((s, it) => s + (parseFloat(it.qty || 0) * parseFloat(it.unit_price || 0)), 0))}
+                </div>
+                <div className="modal-actions">
+                  <button className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
+                  <button className="btn btn-primary" onClick={handleCreate} disabled={saving}>{saving ? 'Saving...' : 'Save Draft'}</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== Bills Sub-Tab ==========
+    function BillsSubTab() {
+      const [bills, setBills] = useState([]);
+      const [total, setTotal] = useState(0);
+      const [loading, setLoading] = useState(true);
+      const [vendors, setVendors] = useState([]);
+      const [filter, setFilter] = useState({ status: '', vendor_id: '', from: '', to: '' });
+      const [detailId, setDetailId] = useState(null);
+      const [detail, setDetail] = useState(null);
+      const [detailItems, setDetailItems] = useState([]);
+      const [detailPayments, setDetailPayments] = useState([]);
+      const [showCreate, setShowCreate] = useState(false);
+      const [showPayment, setShowPayment] = useState(false);
+      const [payForm, setPayForm] = useState({ amount: '', payment_method: 'check', reference_number: '', payment_date: new Date().toISOString().split('T')[0], notes: '' });
+      const [createForm, setCreateForm] = useState({ bill_number: '', vendor_id: '', bill_date: new Date().toISOString().split('T')[0], due_date: '', payment_terms: 'net_30', notes: '', items: [{ description: '', qty: 1, unit_price: '' }] });
+      const [saving, setSaving] = useState(false);
+      const [dashStats, setDashStats] = useState(null);
+
+      const fmtMoney = v => '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      const fmtDate = d => d ? new Date(d).toLocaleDateString() : '—';
+
+      const loadBills = () => {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (filter.status) params.set('status', filter.status);
+        if (filter.vendor_id) params.set('vendor_id', filter.vendor_id);
+        if (filter.from) params.set('from', filter.from);
+        if (filter.to) params.set('to', filter.to);
+        adminFetch('/api/admin/accounting/bills?' + params.toString())
+          .then(d => { setBills(d.bills || []); setTotal(d.total || 0); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      const loadVendors = () => adminFetch('/api/admin/vendors').then(d => setVendors(d.vendors || d || [])).catch(() => {});
+      const loadStats = () => adminFetch('/api/admin/accounting/reports/dashboard').then(d => setDashStats(d)).catch(() => {});
+      const loadDetail = (id) => {
+        setDetailId(id);
+        adminFetch('/api/admin/accounting/bills/' + id)
+          .then(d => { setDetail(d.bill); setDetailItems(d.items || []); setDetailPayments(d.payments || []); })
+          .catch(err => alert(err.message));
+      };
+
+      useEffect(() => { loadBills(); loadVendors(); loadStats(); }, []);
+
+      const handleCreate = async () => {
+        if (!createForm.vendor_id || !createForm.items.some(it => it.description && it.unit_price)) { alert('Vendor and at least one item required'); return; }
+        setSaving(true);
+        try {
+          const payload = { ...createForm, items: createForm.items.filter(it => it.description && it.unit_price) };
+          await adminFetch('/api/admin/accounting/bills', { method: 'POST', body: JSON.stringify(payload) });
+          setShowCreate(false);
+          loadBills();
+        } catch (err) { alert(err.message); }
+        setSaving(false);
+      };
+
+      const handleRecordPayment = async () => {
+        if (!payForm.amount || parseFloat(payForm.amount) <= 0) { alert('Enter a valid amount'); return; }
+        setSaving(true);
+        try {
+          await adminFetch('/api/admin/accounting/bills/' + detailId + '/payments', { method: 'POST', body: JSON.stringify(payForm) });
+          loadDetail(detailId);
+          setShowPayment(false);
+          setPayForm({ amount: '', payment_method: 'check', reference_number: '', payment_date: new Date().toISOString().split('T')[0], notes: '' });
+          loadStats();
+        } catch (err) { alert(err.message); }
+        setSaving(false);
+      };
+
+      const handleApprove = async (id) => {
+        try { await adminFetch('/api/admin/accounting/bills/' + id + '/status', { method: 'PUT', body: JSON.stringify({ status: 'approved' }) }); loadBills(); if (detailId === id) loadDetail(id); } catch (err) { alert(err.message); }
+      };
+      const handleVoid = async (id) => {
+        if (!confirm('Void this bill?')) return;
+        try { await adminFetch('/api/admin/accounting/bills/' + id + '/status', { method: 'PUT', body: JSON.stringify({ status: 'void' }) }); loadBills(); if (detailId === id) loadDetail(id); loadStats(); } catch (err) { alert(err.message); }
+      };
+
+      const addItem = () => setCreateForm(f => ({ ...f, items: [...f.items, { description: '', qty: 1, unit_price: '' }] }));
+      const updateItem = (idx, field, val) => setCreateForm(f => ({ ...f, items: f.items.map((it, i) => i === idx ? { ...it, [field]: val } : it) }));
+      const removeItem = (idx) => setCreateForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
+
+      // Detail view
+      if (detailId && detail) {
+        return (
+          <div>
+            <button className="btn btn-secondary btn-sm" onClick={() => { setDetailId(null); setDetail(null); }} style={{ marginBottom: '1rem' }}>&larr; Back to Bills</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+              <div>
+                <h2 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontWeight: 400 }}>{detail.internal_bill_number}</h2>
+                <p style={{ margin: '0.25rem 0', fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
+                  {detail.vendor_name}{detail.bill_number && <span> &middot; Vendor Ref: {detail.bill_number}</span>}
+                  {detail.po_number && <span> &middot; PO {detail.po_number}</span>}
+                </p>
+              </div>
+              <span className={'badge badge-' + detail.status}>{detail.status}</span>
+            </div>
+
+            <div className="analytics-grid" style={{ marginBottom: '1.5rem' }}>
+              <div className="stat-card"><div className="stat-card-label">Total</div><div className="stat-card-value">{fmtMoney(detail.total)}</div></div>
+              <div className="stat-card"><div className="stat-card-label">Paid</div><div className="stat-card-value">{fmtMoney(detail.amount_paid)}</div></div>
+              <div className="stat-card"><div className="stat-card-label">Balance</div><div className="stat-card-value" style={{ color: parseFloat(detail.balance) > 0 ? '#dc2626' : '#16a34a' }}>{fmtMoney(detail.balance)}</div></div>
+              <div className="stat-card"><div className="stat-card-label">Due Date</div><div className="stat-card-value" style={{ fontSize: '1.25rem' }}>{fmtDate(detail.due_date)}</div></div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+              {['draft', 'received'].includes(detail.status) && <button className="btn btn-primary btn-sm" onClick={() => handleApprove(detailId)}>Approve</button>}
+              {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-sm" style={{ background: '#dcfce7', color: '#166534', border: 'none' }} onClick={() => { setPayForm(f => ({ ...f, amount: parseFloat(detail.balance).toFixed(2) })); setShowPayment(true); }}>Record Payment</button>}
+              {detail.status !== 'void' && <button className="btn btn-sm" style={{ background: 'var(--red-light)', color: 'var(--red)', border: 'none' }} onClick={() => handleVoid(detailId)}>Void</button>}
+            </div>
+
+            <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Line Items</h3>
+            <table className="admin-table" style={{ marginBottom: '1.5rem' }}>
+              <thead><tr><th>Description</th><th style={{ textAlign: 'center' }}>Qty</th><th style={{ textAlign: 'right' }}>Unit Price</th><th style={{ textAlign: 'right' }}>Amount</th></tr></thead>
+              <tbody>
+                {detailItems.map(it => (
+                  <tr key={it.id}><td>{it.description}</td><td style={{ textAlign: 'center' }}>{parseFloat(it.qty)}</td><td style={{ textAlign: 'right' }}>{fmtMoney(it.unit_price)}</td><td style={{ textAlign: 'right' }}>{fmtMoney(it.subtotal)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+
+            {detailPayments.length > 0 && (
+              <div>
+                <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Payment History</h3>
+                <table className="admin-table" style={{ marginBottom: '1.5rem' }}>
+                  <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th style={{ textAlign: 'right' }}>Amount</th><th>Recorded By</th></tr></thead>
+                  <tbody>
+                    {detailPayments.map(p => (
+                      <tr key={p.id}><td>{fmtDate(p.payment_date)}</td><td>{p.payment_method}</td><td>{p.reference_number || '—'}</td><td style={{ textAlign: 'right' }}>{fmtMoney(p.amount)}</td><td style={{ fontSize: '0.8125rem' }}>{p.recorded_by_name || '—'}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {showPayment && (
+              <div className="modal-overlay" onClick={() => setShowPayment(false)}>
+                <div className="modal-box" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+                  <h3>Record Payment</h3>
+                  <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label>Amount ($)</label><input type="number" step="0.01" min="0.01" value={payForm.amount} onChange={e => setPayForm(f => ({ ...f, amount: e.target.value }))} /></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label>Payment Method</label><select value={payForm.payment_method} onChange={e => setPayForm(f => ({ ...f, payment_method: e.target.value }))}><option value="check">Check</option><option value="ach">ACH</option><option value="wire">Wire</option></select></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label>Reference #</label><input value={payForm.reference_number} onChange={e => setPayForm(f => ({ ...f, reference_number: e.target.value }))} /></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label>Date</label><input type="date" value={payForm.payment_date} onChange={e => setPayForm(f => ({ ...f, payment_date: e.target.value }))} /></div>
+                    <div className="form-group" style={{ marginBottom: 0 }}><label>Notes</label><input value={payForm.notes} onChange={e => setPayForm(f => ({ ...f, notes: e.target.value }))} /></div>
+                  </div>
+                  <div className="modal-actions"><button className="btn btn-secondary" onClick={() => setShowPayment(false)}>Cancel</button><button className="btn btn-primary" onClick={handleRecordPayment} disabled={saving}>{saving ? 'Saving...' : 'Record Payment'}</button></div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // List view
+      const statusTabs = ['', 'draft', 'received', 'approved', 'partial', 'paid', 'void'];
+      return (
+        <div>
+          <div className="analytics-grid" style={{ marginBottom: '1.5rem' }}>
+            <div className="stat-card"><div className="stat-card-label">Outstanding</div><div className="stat-card-value">{fmtMoney(dashStats ? dashStats.ap.outstanding : 0)}</div></div>
+            <div className="stat-card"><div className="stat-card-label">Pending Approval</div><div className="stat-card-value">{dashStats ? dashStats.ap.pending_approval : 0}</div></div>
+            <div className="stat-card"><div className="stat-card-label">Paid This Month</div><div className="stat-card-value">{fmtMoney(dashStats ? dashStats.ap.paid_this_month : 0)}</div></div>
+            <div className="stat-card"><div className="stat-card-label">Total Bills</div><div className="stat-card-value">{total}</div></div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            {statusTabs.map(s => (
+              <button key={s} className={filter.status === s ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => { setFilter(f => ({ ...f, status: s })); setTimeout(loadBills, 50); }}>
+                {s || 'All'}
+              </button>
+            ))}
+            <select className="form-input" style={{ maxWidth: 180 }} value={filter.vendor_id} onChange={e => { setFilter(f => ({ ...f, vendor_id: e.target.value })); setTimeout(loadBills, 50); }}>
+              <option value="">All Vendors</option>
+              {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+            <div style={{ flex: 1 }}></div>
+            <button className="btn btn-primary btn-sm" onClick={() => { setCreateForm({ bill_number: '', vendor_id: '', bill_date: new Date().toISOString().split('T')[0], due_date: '', payment_terms: 'net_30', notes: '', items: [{ description: '', qty: 1, unit_price: '' }] }); setShowCreate(true); }}>+ New Bill</button>
+          </div>
+
+          <div className="table-scroll-wrapper">
+            <table className="admin-table">
+              <thead><tr><th>Bill #</th><th>Vendor</th><th>PO #</th><th>Bill Date</th><th>Due Date</th><th style={{ textAlign: 'right' }}>Total</th><th style={{ textAlign: 'right' }}>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                {loading && <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>Loading...</td></tr>}
+                {!loading && !bills.length && <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>No bills found</td></tr>}
+                {bills.map(b => (
+                  <tr key={b.id}>
+                    <td style={{ fontWeight: 500 }}>{b.internal_bill_number}</td>
+                    <td style={{ fontSize: '0.8125rem' }}>{b.vendor_name}</td>
+                    <td style={{ fontSize: '0.8125rem' }}>{b.po_number || '—'}</td>
+                    <td style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{fmtDate(b.bill_date)}</td>
+                    <td style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{fmtDate(b.due_date)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 500 }}>{fmtMoney(b.total)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 500, color: parseFloat(b.balance) > 0 ? '#dc2626' : '#16a34a' }}>{fmtMoney(b.balance)}</td>
+                    <td><span className={'badge badge-' + b.status}>{b.status}</span></td>
+                    <td><button className="btn btn-secondary btn-sm" onClick={() => loadDetail(b.id)}>View</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {showCreate && (
+            <div className="modal-overlay" onClick={() => setShowCreate(false)}>
+              <div className="modal-box" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
+                <h3>New Bill</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}><label>Vendor *</label>
+                    <select value={createForm.vendor_id} onChange={e => setCreateForm(f => ({ ...f, vendor_id: e.target.value }))}>
+                      <option value="">Select vendor...</option>
+                      {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}><label>Vendor Bill #</label><input value={createForm.bill_number} onChange={e => setCreateForm(f => ({ ...f, bill_number: e.target.value }))} /></div>
+                  <div className="form-group" style={{ marginBottom: 0 }}><label>Bill Date</label><input type="date" value={createForm.bill_date} onChange={e => setCreateForm(f => ({ ...f, bill_date: e.target.value }))} /></div>
+                  <div className="form-group" style={{ marginBottom: 0 }}><label>Due Date</label><input type="date" value={createForm.due_date} onChange={e => setCreateForm(f => ({ ...f, due_date: e.target.value }))} /></div>
+                  <div className="form-group" style={{ marginBottom: 0 }}><label>Payment Terms</label>
+                    <select value={createForm.payment_terms} onChange={e => setCreateForm(f => ({ ...f, payment_terms: e.target.value }))}>
+                      <option value="net_15">Net 15</option><option value="net_30">Net 30</option><option value="net_60">Net 60</option><option value="due_on_receipt">Due on Receipt</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}><label>Notes</label><input value={createForm.notes} onChange={e => setCreateForm(f => ({ ...f, notes: e.target.value }))} /></div>
+                </div>
+                <h4 style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Line Items</h4>
+                {createForm.items.map((it, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'flex-end' }}>
+                    <div style={{ flex: 3 }}><input placeholder="Description" value={it.description} onChange={e => updateItem(idx, 'description', e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' }} /></div>
+                    <div style={{ flex: 1 }}><input type="number" min="1" placeholder="Qty" value={it.qty} onChange={e => updateItem(idx, 'qty', e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' }} /></div>
+                    <div style={{ flex: 1 }}><input type="number" step="0.01" placeholder="Cost" value={it.unit_price} onChange={e => updateItem(idx, 'unit_price', e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' }} /></div>
+                    <div style={{ flex: 1, textAlign: 'right', fontSize: '0.8125rem', fontWeight: 500, padding: '0.5rem 0' }}>{it.qty && it.unit_price ? fmtMoney(parseFloat(it.qty) * parseFloat(it.unit_price)) : '—'}</div>
+                    {createForm.items.length > 1 && <button onClick={() => removeItem(idx)} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '1rem' }}>&times;</button>}
+                  </div>
+                ))}
+                <button className="btn btn-secondary btn-sm" onClick={addItem} style={{ marginBottom: '1rem' }}>+ Add Line</button>
+                <div style={{ textAlign: 'right', fontWeight: 600, marginBottom: '1rem' }}>
+                  Total: {fmtMoney(createForm.items.reduce((s, it) => s + (parseFloat(it.qty || 0) * parseFloat(it.unit_price || 0)), 0))}
+                </div>
+                <div className="modal-actions"><button className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button><button className="btn btn-primary" onClick={handleCreate} disabled={saving}>{saving ? 'Saving...' : 'Save Bill'}</button></div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== Reports Sub-Tab ==========
+    function ReportsSubTab() {
+      const [period, setPeriod] = useState('monthly');
+      const [pnl, setPnl] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [arAging, setArAging] = useState(null);
+      const [apAging, setApAging] = useState(null);
+      const [dashboard, setDashboard] = useState(null);
+      const [customFrom, setCustomFrom] = useState('');
+      const [customTo, setCustomTo] = useState('');
+
+      const revenueChartRef = React.useRef(null);
+      const revenueChartInstance = React.useRef(null);
+      const expenseChartRef = React.useRef(null);
+      const expenseChartInstance = React.useRef(null);
+      const marginChartRef = React.useRef(null);
+      const marginChartInstance = React.useRef(null);
+
+      const fmtMoney = v => '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+      const loadPnl = () => {
+        setLoading(true);
+        const params = new URLSearchParams({ period });
+        if (period === 'custom' && customFrom && customTo) { params.set('from', customFrom); params.set('to', customTo); }
+        adminFetch('/api/admin/accounting/reports/pnl?' + params.toString())
+          .then(d => { setPnl(d); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      const loadAging = () => {
+        adminFetch('/api/admin/accounting/ar/aging').then(d => setArAging(d)).catch(() => {});
+        adminFetch('/api/admin/accounting/ap/aging').then(d => setApAging(d)).catch(() => {});
+      };
+      const loadDashboard = () => {
+        adminFetch('/api/admin/accounting/reports/dashboard').then(d => setDashboard(d)).catch(() => {});
+      };
+
+      useEffect(() => { loadPnl(); loadAging(); loadDashboard(); }, [period]);
+
+      // Revenue vs COGS chart
+      useEffect(() => {
+        if (!dashboard || !dashboard.revenue_vs_cogs || !dashboard.revenue_vs_cogs.length) return;
+        const timer = setTimeout(() => {
+          if (!revenueChartRef.current) return;
+          if (revenueChartInstance.current) revenueChartInstance.current.destroy();
+          const data = dashboard.revenue_vs_cogs;
+          const ctx = revenueChartRef.current.getContext('2d');
+          revenueChartInstance.current = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: data.map(d => d.month),
+              datasets: [
+                { label: 'Revenue', data: data.map(d => d.revenue), borderColor: '#b8960c', backgroundColor: 'rgba(184, 150, 12, 0.08)', fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#b8960c' },
+                { label: 'COGS', data: data.map(d => d.cogs), borderColor: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.08)', fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#dc2626' }
+              ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16 } } }, scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + (v / 1000).toFixed(0) + 'k' } } } }
+          });
+        }, 50);
+        return () => { clearTimeout(timer); if (revenueChartInstance.current) revenueChartInstance.current.destroy(); };
+      }, [dashboard]);
+
+      // Expense breakdown doughnut
+      useEffect(() => {
+        if (!pnl) return;
+        const cats = [...(pnl.operating_expenses.categories || []), ...(pnl.overhead.categories || [])].filter(c => c.total > 0);
+        if (!cats.length) return;
+        const timer = setTimeout(() => {
+          if (!expenseChartRef.current) return;
+          if (expenseChartInstance.current) expenseChartInstance.current.destroy();
+          const colors = ['#b8960c', '#6b8f71', '#dc2626', '#2563eb', '#9333ea', '#0d9488', '#d97706', '#a8a29e', '#ec4899', '#84cc16', '#06b6d4', '#f97316', '#8b5cf6', '#78716c'];
+          const ctx = expenseChartRef.current.getContext('2d');
+          expenseChartInstance.current = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: cats.map(c => c.name),
+              datasets: [{ data: cats.map(c => c.total), backgroundColor: cats.map((_, i) => colors[i % colors.length]) }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12, font: { size: 11 } } } } }
+          });
+        }, 50);
+        return () => { clearTimeout(timer); if (expenseChartInstance.current) expenseChartInstance.current.destroy(); };
+      }, [pnl]);
+
+      // Margin trend line
+      useEffect(() => {
+        if (!dashboard || !dashboard.revenue_vs_cogs || !dashboard.revenue_vs_cogs.length) return;
+        const timer = setTimeout(() => {
+          if (!marginChartRef.current) return;
+          if (marginChartInstance.current) marginChartInstance.current.destroy();
+          const data = dashboard.revenue_vs_cogs;
+          const ctx = marginChartRef.current.getContext('2d');
+          marginChartInstance.current = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: data.map(d => d.month),
+              datasets: [{
+                label: 'Gross Margin %',
+                data: data.map(d => d.revenue > 0 ? (((d.revenue - d.cogs) / d.revenue) * 100).toFixed(1) : 0),
+                borderColor: '#6b8f71', backgroundColor: 'rgba(107, 143, 113, 0.08)', fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#6b8f71'
+              }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } } } }
+          });
+        }, 50);
+        return () => { clearTimeout(timer); if (marginChartInstance.current) marginChartInstance.current.destroy(); };
+      }, [dashboard]);
+
+      const renderAgingBar = (aging) => {
+        if (!aging) return null;
+        const buckets = [
+          { label: 'Current', value: parseFloat(aging.current), color: '#6b8f71' },
+          { label: '1-30', value: parseFloat(aging.days_1_30), color: '#b8960c' },
+          { label: '31-60', value: parseFloat(aging.days_31_60), color: '#d97706' },
+          { label: '61-90', value: parseFloat(aging.days_61_90), color: '#dc2626' },
+          { label: '90+', value: parseFloat(aging.days_90_plus), color: '#7f1d1d' }
+        ];
+        const total = parseFloat(aging.total_outstanding) || 1;
+        return (
+          <div>
+            <div className="aging-bar">
+              {buckets.filter(b => b.value > 0).map(b => (
+                <div key={b.label} className="aging-segment" style={{ width: Math.max(b.value / total * 100, 5) + '%', background: b.color }}>{b.label}</div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--stone-500)' }}>
+              {buckets.map(b => <span key={b.label}>{b.label}: {fmtMoney(b.value)}</span>)}
+            </div>
+          </div>
+        );
+      };
+
+      const handleExport = () => {
+        const params = new URLSearchParams({ period });
+        if (period === 'custom' && customFrom && customTo) { params.set('from', customFrom); params.set('to', customTo); }
+        window.open(API + '/api/admin/accounting/reports/pnl/csv?' + params.toString(), '_blank');
+      };
+
+      return (
+        <div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            {['monthly', 'quarterly', 'yearly'].map(p => (
+              <button key={p} className={period === p ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setPeriod(p)}>
+                {p === 'monthly' ? 'This Month' : p === 'quarterly' ? 'This Quarter' : 'YTD'}
+              </button>
+            ))}
+            <button className={period === 'custom' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setPeriod('custom')}>Custom</button>
+            {period === 'custom' && (
+              <React.Fragment>
+                <input type="date" className="form-input" style={{ maxWidth: 140 }} value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+                <input type="date" className="form-input" style={{ maxWidth: 140 }} value={customTo} onChange={e => setCustomTo(e.target.value)} />
+                <button className="btn btn-secondary btn-sm" onClick={loadPnl}>Apply</button>
+              </React.Fragment>
+            )}
+            <div style={{ flex: 1 }}></div>
+            <button className="btn btn-secondary btn-sm" onClick={handleExport}>Export CSV</button>
+          </div>
+
+          {loading && <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--stone-400)' }}>Loading...</div>}
+
+          {!loading && pnl && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              {/* P&L Statement */}
+              <div className="pnl-statement" style={{ gridColumn: '1 / -1' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h2 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontWeight: 400 }}>Profit & Loss Statement</h2>
+                  <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{pnl.period.from} to {pnl.period.to}</span>
+                </div>
+
+                <div className="pnl-section">
+                  <div className="pnl-section-title">Revenue</div>
+                  <div className="pnl-line total"><span>Total Revenue ({pnl.revenue.order_count} orders)</span><span>{fmtMoney(pnl.revenue.total)}</span></div>
+                </div>
+
+                <div className="pnl-section">
+                  <div className="pnl-section-title">Cost of Goods Sold</div>
+                  <div className="pnl-line indent"><span>Purchase Order Costs</span><span>{fmtMoney(pnl.cogs.po_cost)}</span></div>
+                  <div className="pnl-line indent"><span>COGS Expenses</span><span>{fmtMoney(pnl.cogs.expenses)}</span></div>
+                  <div className="pnl-line total"><span>Total COGS</span><span>{fmtMoney(pnl.cogs.total)}</span></div>
+                </div>
+
+                <div className="pnl-section">
+                  <div className="pnl-line grand-total"><span>Gross Profit<span className="pnl-pct">({pnl.gross_margin_pct}%)</span></span><span>{fmtMoney(pnl.gross_profit)}</span></div>
+                </div>
+
+                <div className="pnl-section">
+                  <div className="pnl-section-title">Operating Expenses</div>
+                  {pnl.operating_expenses.categories.map(c => (
+                    <div key={c.name} className="pnl-line indent"><span>{c.name}</span><span>{fmtMoney(c.total)}</span></div>
+                  ))}
+                  <div className="pnl-line total"><span>Total Operating</span><span>{fmtMoney(pnl.operating_expenses.total)}</span></div>
+                </div>
+
+                <div className="pnl-section">
+                  <div className="pnl-section-title">Overhead</div>
+                  {pnl.overhead.categories.map(c => (
+                    <div key={c.name} className="pnl-line indent"><span>{c.name}</span><span>{fmtMoney(c.total)}</span></div>
+                  ))}
+                  <div className="pnl-line total"><span>Total Overhead</span><span>{fmtMoney(pnl.overhead.total)}</span></div>
+                </div>
+
+                <div className="pnl-section">
+                  <div className="pnl-line grand-total" style={{ color: pnl.net_income >= 0 ? '#16a34a' : '#dc2626' }}>
+                    <span>Net Income<span className="pnl-pct">({pnl.net_margin_pct}%)</span></span><span>{fmtMoney(pnl.net_income)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Revenue vs COGS Chart */}
+              <div className="chart-container">
+                <h3>Revenue vs COGS</h3>
+                <div style={{ height: '300px' }}><canvas ref={revenueChartRef}></canvas></div>
+              </div>
+
+              {/* Expense Breakdown */}
+              <div className="chart-container">
+                <h3>Expense Breakdown</h3>
+                <div style={{ height: '300px' }}><canvas ref={expenseChartRef}></canvas></div>
+              </div>
+
+              {/* Margin Trend */}
+              <div className="chart-container">
+                <h3>Gross Margin Trend</h3>
+                <div style={{ height: '250px' }}><canvas ref={marginChartRef}></canvas></div>
+              </div>
+
+              {/* AR Aging */}
+              <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.5rem' }}>
+                <h3 style={{ margin: '0 0 1rem', fontSize: '0.875rem' }}>Accounts Receivable Aging</h3>
+                {renderAgingBar(arAging)}
+                <div style={{ textAlign: 'right', marginTop: '0.75rem', fontWeight: 600 }}>Total: {fmtMoney(arAging ? arAging.total_outstanding : 0)}</div>
+              </div>
+
+              {/* AP Aging */}
+              <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.5rem', gridColumn: '1 / -1' }}>
+                <h3 style={{ margin: '0 0 1rem', fontSize: '0.875rem' }}>Accounts Payable Aging</h3>
+                {renderAgingBar(apAging)}
+                <div style={{ textAlign: 'right', marginTop: '0.75rem', fontWeight: 600 }}>Total: {fmtMoney(apAging ? apAging.total_outstanding : 0)}</div>
+              </div>
             </div>
           )}
         </div>

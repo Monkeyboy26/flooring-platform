@@ -2576,7 +2576,7 @@
           num_boxes: numBoxes,
           subtotal: unitPrice * numBoxes,
           sqft_per_box: sqftPerBox,
-          is_sample: r.is_sample,
+          is_sample: false,
           sell_by: r.sell_by,
           cost: parseFloat(r.cost || 0)
         }]);
@@ -2646,7 +2646,7 @@
         cancelEdit();
       };
 
-      const subtotal = items.filter(i => !i.is_sample).reduce((sum, i) => sum + i.subtotal, 0);
+      const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
       const discount = promoResult ? promoResult.discount_amount : 0;
       const total = subtotal - discount;
 
@@ -2659,7 +2659,7 @@
             sku_id: i.sku_id,
             product_id: i.product_id || null,
             subtotal: i.subtotal,
-            is_sample: i.is_sample || false
+            is_sample: false
           }));
           const data = await repFetch('/api/rep/promo-codes/validate', {
             method: 'POST',
@@ -3054,9 +3054,7 @@
                       </td>
                       <td data-label="Description" style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{item.description || item.vendor_name || '\u2014'}</td>
                       <td data-label="Type">
-                        <span className={'badge ' + (item.is_sample ? 'badge-draft' : 'badge-active')}>
-                          {item.is_sample ? 'Sample' : 'Product'}
-                        </span>
+                        <span className="badge badge-active">Product</span>
                       </td>
                       <td data-label="SqFt">{item.sqft_per_box ? (item.sqft_per_box * item.num_boxes).toFixed(1) : '\u2014'}</td>
                       <td data-label="Qty">
@@ -3086,11 +3084,9 @@
                           </>
                         ) : (
                           <div style={{ display: 'flex', gap: '0.25rem' }}>
-                            {!item.is_sample && (
-                              <button className="btn btn-secondary btn-sm" onClick={() => startEdit(item._key, 'price', item.unit_price.toFixed(2))}>
-                                Edit Price
-                              </button>
-                            )}
+                            <button className="btn btn-secondary btn-sm" onClick={() => startEdit(item._key, 'price', item.unit_price.toFixed(2))}>
+                              Edit Price
+                            </button>
                             <button className="btn btn-secondary btn-sm" onClick={() => startEdit(item._key, 'qty', item.num_boxes)}>
                               Edit Qty
                             </button>
@@ -3110,9 +3106,9 @@
           </div>
 
           {/* Purchase Orders Preview */}
-          {items.filter(i => i.sku_id && !i.is_sample).length > 0 && (() => {
+          {items.filter(i => i.sku_id).length > 0 && (() => {
             const vendorGroups = {};
-            items.filter(i => i.sku_id && !i.is_sample).forEach(item => {
+            items.filter(i => i.sku_id).forEach(item => {
               const vKey = item.vendor_id || '_unknown';
               if (!vendorGroups[vKey]) {
                 vendorGroups[vKey] = { vendor_name: item.vendor_name || 'Unknown Vendor', items: [] };
@@ -6040,12 +6036,6 @@
                     }}>
                       + Add Item
                     </button>
-                    <button className="btn btn-sm btn-secondary" onClick={() => {
-                      setAddingItem(true); setAddItemMode('sample'); setAddItemSku(''); setAddItemBoxes(1);
-                      setSkuSearchResults([]);
-                    }}>
-                      + Add Sample
-                    </button>
                   </div>
                 ) : (
                   <div style={{ padding: '1rem', border: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
@@ -6058,10 +6048,6 @@
                       <button className={addItemMode === 'custom' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary'}
                         onClick={() => { setAddItemMode('custom'); setAddItemSku(''); setSkuSearchResults([]); setAddItemBoxes(1); }}>
                         Custom Item
-                      </button>
-                      <button className={addItemMode === 'sample' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary'}
-                        onClick={() => { setAddItemMode('sample'); setAddItemSku(''); setSkuSearchResults([]); setAddItemBoxes(1); setCustomItemName(''); setCustomItemPrice(''); }}>
-                        Add Sample
                       </button>
                       <div style={{ flex: 1 }}></div>
                       <button className="btn btn-sm btn-secondary" onClick={() => setAddingItem(false)}>Cancel</button>
@@ -6175,63 +6161,6 @@
                           }}>
                           Add
                         </button>
-                      </div>
-                    ) : (
-                      /* Add Sample mode */
-                      <div>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--stone-500)', margin: '0 0 0.5rem' }}>
-                          Search for a product to add as a free sample (qty 1, $0.00).
-                        </p>
-                        <div style={{ position: 'relative' }}>
-                          <input type="text" value={addItemSku} placeholder="Search product name, SKU, or collection..."
-                            onChange={async (e) => {
-                              const q = e.target.value; setAddItemSku(q);
-                              if (q.length >= 2) {
-                                setSkuSearching(true);
-                                try {
-                                  const data = await repFetch('/api/rep/skus/search?q=' + encodeURIComponent(q));
-                                  setSkuSearchResults((data.results || []).map(r => ({
-                                    sku_id: r.sku_id,
-                                    label: r.product_name + (r.variant_name ? ' \u2014 ' + r.variant_name : ''),
-                                    vendor_name: r.vendor_name,
-                                    collection: r.collection
-                                  })));
-                                } catch (e) {}
-                                setSkuSearching(false);
-                              } else { setSkuSearchResults([]); }
-                            }}
-                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)', boxSizing: 'border-box' }} />
-                          {skuSearching && (
-                            <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: 'var(--stone-400)' }}>Searching...</div>
-                          )}
-                          {skuSearchResults.length > 0 && (
-                            <div style={{ border: '1px solid var(--stone-200)', borderTop: 'none', maxHeight: '200px', overflow: 'auto', background: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                              {skuSearchResults.map((r, i) => (
-                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', cursor: 'pointer', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}
-                                  onClick={async () => {
-                                    try {
-                                      const data = await repFetch('/api/rep/orders/' + editId + '/add-item', {
-                                        method: 'POST', body: JSON.stringify({ sku_id: r.sku_id, num_boxes: 1, as_sample: true })
-                                      });
-                                      if (data.order) setOrder(data.order);
-                                      if (data.items) setItems(data.items);
-                                      if (data.balance) setBalanceInfo(data.balance);
-                                      loadPOs();
-                                      setAddingItem(false); setSkuSearchResults([]);
-                                    } catch (err) { alert(err.message); }
-                                  }}>
-                                  <div style={{ flex: 1 }}>
-                                    <div style={{ fontWeight: 500, color: 'var(--stone-800)' }}>{r.label}</div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>
-                                      {r.vendor_name}{r.collection ? ' \u00b7 ' + r.collection : ''}
-                                    </div>
-                                  </div>
-                                  <span className="badge badge-draft" style={{ fontSize: '0.6875rem', flexShrink: 0 }}>Free Sample</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
                       </div>
                     )}
                   </div>

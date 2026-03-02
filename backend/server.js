@@ -2560,7 +2560,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
 
     const order = orderResult.rows[0];
 
-    for (const item of items) {
+    // Insert only product items into order_items
+    for (const item of productItems) {
       await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, price_tier)
@@ -2568,7 +2569,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       `, [order.id, item.product_id || null, item.sku_id || null,
           item.product_name || null, item.collection || null,
           item.sqft_needed || null, item.num_boxes,
-          item.unit_price || null, item.subtotal || null, item.is_sample || false,
+          item.unit_price || null, item.subtotal || null, false,
           item.sell_by || null, item.price_tier || null]);
     }
 
@@ -2620,8 +2621,86 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       }
     }
 
-    // Generate purchase orders (one per vendor)
-    await generatePurchaseOrders(order.id, client);
+    // Generate purchase orders (one per vendor) — only for product items
+    if (productItems.length > 0) {
+      await generatePurchaseOrders(order.id, client);
+    }
+
+    // Create sample request if there are sample items
+    let sampleRequest = null;
+    if (sampleItems.length > 0) {
+      const srTs = Date.now().toString(36);
+      const srRand = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const srNumber = `SR-${srTs}-${srRand}`;
+
+      // Resolve customer_id: use existing customer, newly created customer, or find/create one
+      let srCustomerId = existingCustomerId;
+      if (!srCustomerId && newCustomerData) {
+        srCustomerId = newCustomerData.id;
+      }
+      if (!srCustomerId) {
+        const nameParts = customer_name.trim().split(/\s+/);
+        const { customer: cust } = await findOrCreateCustomer(client, {
+          email: customer_email, firstName: nameParts[0] || '', lastName: nameParts.slice(1).join(' ') || '',
+          phone: phone || null, createdVia: 'checkout_sample'
+        });
+        srCustomerId = cust.id;
+      }
+
+      const dm = isPickup ? 'pickup' : 'shipping';
+      const srRes = await client.query(`
+        INSERT INTO sample_requests (request_number, rep_id, customer_name, customer_email, customer_phone,
+          shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
+          delivery_method, status, customer_id, shipping_payment_collected, shipping_payment_collected_at)
+        VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'requested', $11, $12, $13) RETURNING *
+      `, [srNumber, customer_name, customer_email || null, phone || null,
+          isPickup ? null : (shipping ? shipping.line1 : null),
+          isPickup ? null : (shipping ? shipping.line2 || null : null),
+          isPickup ? null : (shipping ? shipping.city : null),
+          isPickup ? null : (shipping ? shipping.state : null),
+          isPickup ? null : (shipping ? shipping.zip : null),
+          dm, srCustomerId,
+          dm === 'shipping', dm === 'shipping' ? new Date() : null]);
+      sampleRequest = srRes.rows[0];
+
+      // Insert sample request items with resolved product data
+      const resolvedSampleItems = [];
+      for (let i = 0; i < sampleItems.length; i++) {
+        const item = sampleItems[i];
+        let productName = item.product_name || 'Unknown';
+        let collection = item.collection || null;
+        let variantName = null;
+        let primaryImage = null;
+        let productId = item.product_id || null;
+        let skuId = item.sku_id || null;
+
+        if (item.sku_id) {
+          const sRes = await client.query(`
+            SELECT s.variant_name, s.product_id,
+              p.name as product_name, p.collection,
+              (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+            FROM skus s
+            JOIN products p ON p.id = s.product_id
+            WHERE s.id = $1
+          `, [item.sku_id]);
+          if (sRes.rows.length) {
+            const s = sRes.rows[0];
+            productId = s.product_id;
+            productName = s.product_name;
+            collection = s.collection;
+            variantName = s.variant_name;
+            primaryImage = s.primary_image;
+          }
+        }
+
+        const itemRes = await client.query(`
+          INSERT INTO sample_request_items (sample_request_id, product_id, sku_id, product_name, collection, variant_name, primary_image, sort_order)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
+        `, [sampleRequest.id, productId, skuId, productName, collection, variantName, primaryImage, i]);
+        resolvedSampleItems.push(itemRes.rows[0]);
+      }
+      sampleRequest.items = resolvedSampleItems;
+    }
 
     // Trade customer: increment spend and check tier promotion
     if (tradeCustomerId) {
@@ -2658,7 +2737,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
 
     // Return order with items (include customer token if account was created)
     const orderItems = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
-    const response = { order: { ...order, items: orderItems.rows } };
+    const response = { order: { ...order, items: orderItems.rows }, sample_request: sampleRequest || null };
     if (newCustomerToken && newCustomerData) {
       response.customer_token = newCustomerToken;
       response.customer = newCustomerData;
@@ -2668,9 +2747,23 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     // Recalculate commission for storefront order (if rep assigned)
     setImmediate(() => recalculateCommission(pool, order.id));
 
-    // Fire-and-forget: send order confirmation email
+    // Fire-and-forget: send order confirmation email (only if there are product items)
     const emailOrder = { ...order, items: orderItems.rows };
     setImmediate(() => sendOrderConfirmation(emailOrder));
+
+    // Fire-and-forget: send sample request confirmation email
+    if (sampleRequest && customer_email) {
+      setImmediate(() => sendSampleRequestConfirmation({
+        customer_name, customer_email, request_number: sampleRequest.request_number,
+        delivery_method: sampleRequest.delivery_method,
+        items: sampleRequest.items,
+        shipping_address_line1: isPickup ? null : (shipping ? shipping.line1 : null),
+        shipping_address_line2: isPickup ? null : (shipping ? shipping.line2 || null : null),
+        shipping_city: isPickup ? null : (shipping ? shipping.city : null),
+        shipping_state: isPickup ? null : (shipping ? shipping.state : null),
+        shipping_zip: isPickup ? null : (shipping ? shipping.zip : null)
+      }));
+    }
 
     // Fire-and-forget: notify all active reps about new storefront order
     setImmediate(() => notifyAllActiveReps(pool, 'new_order',
@@ -4106,12 +4199,12 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description, as_sample } = req.body;
+    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description } = req.body;
 
     const isCustom = !sku_id;
     if (isCustom) {
       if (!product_name || !product_name.trim()) return res.status(400).json({ error: 'product_name is required for custom items' });
-      if (!as_sample && (unit_price == null || parseFloat(unit_price) < 0)) return res.status(400).json({ error: 'unit_price >= 0 is required for custom items' });
+      if (unit_price == null || parseFloat(unit_price) < 0) return res.status(400).json({ error: 'unit_price >= 0 is required for custom items' });
       if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required for custom items' });
       if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'num_boxes >= 1 is required' });
     } else {
@@ -4126,7 +4219,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     }
 
     let sku = null;
-    let unitPrice, isSample, sqftPerBox, isPerSqft, computedSqft, itemSubtotal;
+    let unitPrice, sqftPerBox, isPerSqft, computedSqft, itemSubtotal;
     let itemVendorId;
 
     if (!isCustom) {
@@ -4144,18 +4237,16 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
       sku = skuResult.rows[0];
 
-      unitPrice = as_sample ? 0 : parseFloat(sku.retail_price || 0);
-      isSample = as_sample ? true : (sku.is_sample || false);
+      unitPrice = parseFloat(sku.retail_price || 0);
       sqftPerBox = parseFloat(sku.sqft_per_box || 1);
       isPerSqft = sku.price_basis === 'per_sqft';
       computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
-      itemSubtotal = isSample ? 0 : parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+      itemSubtotal = parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
       itemVendorId = sku.vendor_id;
     } else {
       // Custom mode
-      unitPrice = as_sample ? 0 : parseFloat(unit_price);
-      isSample = as_sample ? true : false;
-      itemSubtotal = isSample ? 0 : parseFloat((unitPrice * num_boxes).toFixed(2));
+      unitPrice = parseFloat(unit_price);
+      itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
       itemVendorId = vendor_id;
 
       // Validate vendor exists
@@ -4171,11 +4262,11 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10)
         RETURNING id
       `, [id, sku.product_id, sku_id, sku.product_name, sku.collection,
           sqft_needed || computedSqft || null, num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
-          isSample, sku.sell_by || null]);
+          sku.sell_by || null]);
       newItemId = insertResult.rows[0].id;
     } else {
       const insertResult = await client.query(`
@@ -4200,7 +4291,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
 
     // --- Auto-update Purchase Orders ---
-    if (!isSample) {
+    {
       // Find existing draft PO for this vendor on this order
       const existingPO = await client.query(
         `SELECT id, subtotal FROM purchase_orders
@@ -7511,6 +7602,64 @@ async function generateOrderInvoiceHtml(orderId) {
   </body></html>`, filename: `invoice-${o.order_number}.pdf` };
 }
 
+async function generateSampleRequestConfirmationHtml(sampleRequestId) {
+  const sr = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [sampleRequestId]);
+  if (!sr.rows.length) return null;
+  const items = await pool.query('SELECT * FROM sample_request_items WHERE sample_request_id = $1 ORDER BY sort_order', [sampleRequestId]);
+  const s = sr.rows[0];
+
+  const isPickup = s.delivery_method === 'pickup';
+  const deliveryBlock = isPickup
+    ? `<div class="info-block">
+        <h3>Store Pickup</h3>
+        <strong>Roma Flooring Designs</strong><br/>
+        1440 S. State College Blvd., Suite 6M<br/>
+        Anaheim, CA 92806
+      </div>`
+    : `<div class="info-block">
+        <h3>Ship To</h3>
+        <strong>${s.customer_name}</strong><br/>
+        ${s.shipping_address_line1 || ''}${s.shipping_address_line2 ? '<br/>' + s.shipping_address_line2 : ''}<br/>
+        ${s.shipping_city || ''}, ${s.shipping_state || ''} ${s.shipping_zip || ''}
+      </div>`;
+
+  return { html: `<!DOCTYPE html><html><head><style>
+    ${getDocumentBaseCSS()}
+  </style></head><body>
+    ${getDocumentHeader('Sample Request Confirmation')}
+    <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
+      <strong>${s.request_number}</strong><br/>
+      Date: ${new Date(s.created_at).toLocaleDateString()}
+    </div>
+    <div class="info-columns">
+      <div class="info-block">
+        <h3>Customer</h3>
+        <strong>${s.customer_name}</strong><br/>
+        ${s.customer_email || ''}${s.customer_phone ? '<br/>' + s.customer_phone : ''}
+      </div>
+      ${deliveryBlock}
+    </div>
+    <table>
+      <thead><tr>
+        <th>Product</th><th>Collection</th><th>Variant</th>
+      </tr></thead>
+      <tbody>
+        ${items.rows.map(i => `<tr>
+          <td>${i.product_name || ''}</td>
+          <td>${i.collection || '\u2014'}</td>
+          <td>${i.variant_name || '\u2014'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="notes-section">
+      <h4>Note</h4>
+      <div>Samples are complimentary.${!isPickup ? ' Shipping fee: $12.00' : ''}</div>
+    </div>
+    ${s.notes ? `<div class="notes-section"><h4>Additional Notes</h4><div>${s.notes}</div></div>` : ''}
+    ${getDocumentFooter()}
+  </body></html>`, filename: `sample-request-${s.request_number}.pdf` };
+}
+
 // ==================== Packing Slip & Invoice Endpoints (Phase 7) ====================
 
 // Packing slip - accepts token from header or query param (for browser popup)
@@ -9799,12 +9948,12 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description, as_sample } = req.body;
+    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description } = req.body;
 
     const isCustom = !sku_id;
     if (isCustom) {
       if (!product_name || !product_name.trim()) return res.status(400).json({ error: 'product_name is required for custom items' });
-      if (!as_sample && (unit_price == null || parseFloat(unit_price) < 0)) return res.status(400).json({ error: 'unit_price >= 0 is required for custom items' });
+      if (unit_price == null || parseFloat(unit_price) < 0) return res.status(400).json({ error: 'unit_price >= 0 is required for custom items' });
       if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required for custom items' });
       if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'num_boxes >= 1 is required' });
     } else {
@@ -9819,7 +9968,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     }
 
     let sku = null;
-    let unitPrice, isSample, sqftPerBox, isPerSqft, computedSqft, itemSubtotal;
+    let unitPrice, sqftPerBox, isPerSqft, computedSqft, itemSubtotal;
     let itemVendorId;
 
     if (!isCustom) {
@@ -9836,17 +9985,15 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
       sku = skuResult.rows[0];
 
-      unitPrice = as_sample ? 0 : parseFloat(sku.retail_price || 0);
-      isSample = as_sample ? true : (sku.is_sample || false);
+      unitPrice = parseFloat(sku.retail_price || 0);
       sqftPerBox = parseFloat(sku.sqft_per_box || 1);
       isPerSqft = sku.price_basis === 'per_sqft';
       computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
-      itemSubtotal = isSample ? 0 : parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+      itemSubtotal = parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
       itemVendorId = sku.vendor_id;
     } else {
-      unitPrice = as_sample ? 0 : parseFloat(unit_price);
-      isSample = as_sample ? true : false;
-      itemSubtotal = isSample ? 0 : parseFloat((unitPrice * num_boxes).toFixed(2));
+      unitPrice = parseFloat(unit_price);
+      itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
       itemVendorId = vendor_id;
 
       const vendorCheck = await client.query('SELECT id FROM vendors WHERE id = $1', [vendor_id]);
@@ -9860,11 +10007,11 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10)
         RETURNING id
       `, [id, sku.product_id, sku_id, sku.product_name, sku.collection,
           sqft_needed || computedSqft || null, num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
-          isSample, sku.sell_by || null]);
+          sku.sell_by || null]);
       newItemId = insertResult.rows[0].id;
     } else {
       const insertResult = await client.query(`
@@ -9888,7 +10035,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
 
     // --- Auto-update Purchase Orders ---
-    if (!isSample) {
+    {
       const existingPO = await client.query(
         `SELECT id, subtotal FROM purchase_orders
          WHERE order_id = $1 AND vendor_id = $2 AND status = 'draft'
@@ -15350,6 +15497,19 @@ app.post('/api/customer/sample-requests/:id/add-items', customerAuth, async (req
     res.status(500).json({ error: err.message });
   } finally {
     client.release();
+  }
+});
+
+// Customer sample request PDF
+app.get('/api/customer/sample-requests/:id/pdf', customerAuth, async (req, res) => {
+  try {
+    const sr = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND customer_id = $2', [req.params.id, req.customer.id]);
+    if (!sr.rows.length) return res.status(404).json({ error: 'Sample request not found' });
+    const result = await generateSampleRequestConfirmationHtml(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Sample request not found' });
+    await generatePDF(result.html, result.filename, req, res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
