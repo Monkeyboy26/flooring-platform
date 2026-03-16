@@ -1,4 +1,4 @@
-    const { useState, useEffect, useRef, useCallback } = React;
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
     const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'http://localhost:3001'
@@ -199,6 +199,14 @@
       }).join(' \u2014 ');
     }
 
+    function fullProductName(sku) {
+      const name = formatCarpetValue(sku.product_name || '');
+      const col = sku.collection || '';
+      // Skip collection prefix if product name already starts with it (avoids "Victory Victory")
+      const showCollection = col && name && !name.toLowerCase().startsWith(col.toLowerCase()) ? col : '';
+      return [showCollection, name, sku.variant_name ? formatVariantName(sku.variant_name) : null].filter(Boolean).join(' ');
+    }
+
     function cleanDescription(text, vendorName) {
       if (!text) return '';
       let cleaned = text;
@@ -303,6 +311,43 @@
       }
     }
 
+    // ==================== Scroll Reveal ====================
+
+    function useRevealOnScroll(options = {}) {
+      const ref = useRef(null);
+      const [isVisible, setIsVisible] = useState(false);
+      useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(([entry]) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            observer.unobserve(el);
+          }
+        }, { threshold: options.threshold || 0.15, rootMargin: options.rootMargin || '-60px' });
+        observer.observe(el);
+        return () => observer.disconnect();
+      }, []);
+      return [ref, isVisible];
+    }
+
+    function RevealSection({ children, delay = 0, className = '' }) {
+      const [ref, isVisible] = useRevealOnScroll();
+      return (
+        <div
+          ref={ref}
+          className={'reveal-section ' + className}
+          style={{
+            opacity: isVisible ? 1 : 0,
+            transform: isVisible ? 'translateY(0)' : 'translateY(var(--fade-up-distance, 30px))',
+            transition: `opacity var(--fade-duration, 0.7s) cubic-bezier(0.22,1,0.36,1) ${delay}s, transform var(--fade-duration, 0.7s) cubic-bezier(0.22,1,0.36,1) ${delay}s`
+          }}
+        >
+          {children}
+        </div>
+      );
+    }
+
     // ==================== Main App ====================
 
     function StorefrontApp() {
@@ -325,6 +370,7 @@
 
       // Homepage
       const [featuredSkus, setFeaturedSkus] = useState([]);
+      const [featuredLoading, setFeaturedLoading] = useState(true);
 
       // Cart
       const [cart, setCart] = useState([]);
@@ -354,6 +400,7 @@
       const [showTradeModal, setShowTradeModal] = useState(false);
       const [tradeModalMode, setTradeModalMode] = useState('login');
       const [showInstallModal, setShowInstallModal] = useState(false);
+      const [showFloorQuiz, setShowFloorQuiz] = useState(false);
       const [installModalProduct, setInstallModalProduct] = useState(null);
 
       // Order
@@ -391,6 +438,7 @@
 
       const sessionId = useRef(getSessionId());
       const scrollY = useRef(0);
+      const pendingScroll = useRef(null);
 
       const tradeHeaders = () => {
         const t = localStorage.getItem('trade_token');
@@ -417,7 +465,7 @@
         params.set('offset', String((page - 1) * PAGE_SIZE));
         const af = activeFilters || {};
         Object.keys(af).forEach(slug => {
-          if (af[slug] && af[slug].length > 0) params.set(slug, af[slug].join(','));
+          if (af[slug] && af[slug].length > 0) params.set(slug, af[slug].join('|'));
         });
 
         setLoadingSkus(true);
@@ -427,6 +475,11 @@
             setSkus(data.skus || []);
             setTotalSkus(data.total || 0);
             setLoadingSkus(false);
+            if (pendingScroll.current !== null) {
+              const pos = pendingScroll.current;
+              pendingScroll.current = null;
+              requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, pos)));
+            }
           })
           .catch(err => { console.error(err); setLoadingSkus(false); });
       }, [selectedCategory, selectedCollection, searchQuery, filters, sortBy, currentPage]);
@@ -443,7 +496,7 @@
         if (search) params.set('q', search);
         const af = activeFilters || {};
         Object.keys(af).forEach(slug => {
-          if (af[slug] && af[slug].length > 0) params.set(slug, af[slug].join(','));
+          if (af[slug] && af[slug].length > 0) params.set(slug, af[slug].join('|'));
         });
 
         fetch(API + '/api/storefront/facets?' + params.toString())
@@ -464,7 +517,7 @@
         if (search) params.set('q', search);
         const f = af || {};
         Object.keys(f).forEach(slug => {
-          if (f[slug] && f[slug].length > 0) params.set(slug, f[slug].join(','));
+          if (f[slug] && f[slug].length > 0) params.set(slug, f[slug].join('|'));
         });
         const qs = params.toString();
         return '/shop' + (qs ? '?' + qs : '');
@@ -472,7 +525,7 @@
 
       const pushShopUrl = (cat, coll, search, af, replace) => {
         const url = buildShopUrl(cat, coll, search, af);
-        const state = { view: 'browse', cat, coll, search, filters: af };
+        const state = { view: 'browse', cat, coll, search, filters: af, page: currentPage, scrollPos: scrollY.current };
         if (replace) history.replaceState(state, '', url);
         else history.pushState(state, '', url);
       };
@@ -659,6 +712,75 @@
         window.scrollTo(0, 0);
       };
 
+      const goInstallation = () => {
+        setView('installation');
+        history.pushState({ view: 'installation' }, '', '/installation');
+        window.scrollTo(0, 0);
+      };
+
+      const goInspiration = () => {
+        setView('inspiration');
+        history.pushState({ view: 'inspiration' }, '', '/inspiration');
+        window.scrollTo(0, 0);
+      };
+
+      const [comingSoonTitle, setComingSoonTitle] = useState('');
+      const [newsletterEmail, setNewsletterEmail] = useState('');
+      const [newsletterSubmitted, setNewsletterSubmitted] = useState(false);
+      const handleNewsletterSubmit = (e) => {
+        e.preventDefault();
+        if (!newsletterEmail) return;
+        fetch(API + '/api/newsletter/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: newsletterEmail })
+        }).then(r => r.json()).then(() => {
+          setNewsletterSubmitted(true);
+        }).catch(() => {
+          setNewsletterSubmitted(true);
+        });
+      };
+
+      const navigate = (path) => {
+        // Handle query-based shop routes
+        if (path.startsWith('/shop?')) {
+          const sp = new URLSearchParams(path.split('?')[1]);
+          setSelectedCategory(null);
+          setSelectedCollection(null);
+          setSearchQuery('');
+          setFilters({});
+          setCurrentPage(1);
+          const sortVal = sp.get('sort');
+          if (sortVal) setSortBy(sortVal);
+          setView('browse');
+          fetchSkus({ cat: null, coll: null, search: '', activeFilters: {}, page: 1, sort: sortVal || sortBy });
+          fetchFacets({ cat: null, coll: null, search: '', activeFilters: {} });
+          history.pushState({ view: 'browse' }, '', path);
+          window.scrollTo(0, 0);
+          return;
+        }
+        if (path === '/installation') {
+          goInstallation();
+          return;
+        }
+        if (path === '/inspiration') {
+          goInspiration();
+          return;
+        }
+        // Service page placeholders
+        const servicePages = {
+          '/design-services': 'Design Services',
+          '/about': 'About Us'
+        };
+        if (servicePages[path]) {
+          setComingSoonTitle(servicePages[path]);
+          setView('coming-soon');
+          history.pushState({ view: 'coming-soon', title: servicePages[path] }, '', path);
+          window.scrollTo(0, 0);
+          return;
+        }
+      };
+
       const handleCollectionClick = (collectionName) => {
         setSelectedCategory(null);
         setSelectedCollection(collectionName);
@@ -688,7 +810,7 @@
       };
 
       const goSkuDetail = (skuId, productName) => {
-        scrollY.current = window.scrollY;
+        if (view === 'browse' || view === 'home') scrollY.current = window.scrollY;
         setSelectedSkuId(skuId);
         setView('detail');
         const slug = generateSlug(productName || 'product');
@@ -699,7 +821,7 @@
       const goBackToBrowse = () => {
         setView('browse');
         pushShopUrl(selectedCategory, selectedCollection, searchQuery, filters);
-        requestAnimationFrame(() => window.scrollTo(0, scrollY.current));
+        requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, scrollY.current)));
       };
 
       const goCart = () => {
@@ -828,11 +950,11 @@
             .catch(() => { localStorage.removeItem('customer_token'); setCustomerToken(null); });
         }
 
-        // Fetch featured SKUs for homepage
-        fetch(API + '/api/storefront/skus?limit=8&sort=newest')
+        // Fetch featured SKUs for homepage (best-sellers with newest fallback)
+        fetch(API + '/api/storefront/featured')
           .then(r => r.json())
-          .then(data => setFeaturedSkus(data.skus || []))
-          .catch(() => {});
+          .then(data => { setFeaturedSkus(data.skus || []); setFeaturedLoading(false); })
+          .catch(() => { setFeaturedLoading(false); });
 
         // Fetch global facets for axis navigation (By Look, By Color, By Size)
         fetch(API + '/api/storefront/facets')
@@ -879,6 +1001,14 @@
           setView('visit-recap');
         } else if (path === '/reset-password') {
           setView('reset-password');
+        } else if (path === '/installation') {
+          setView('installation');
+        } else if (path === '/inspiration') {
+          setView('inspiration');
+        } else if (['/design-services', '/about'].includes(path)) {
+          const titles = { '/design-services': 'Design Services', '/about': 'About Us' };
+          setComingSoonTitle(titles[path]);
+          setView('coming-soon');
         } else if (path === '/shop' || path.startsWith('/shop')) {
           // Browse view
           setView('browse');
@@ -887,7 +1017,7 @@
           const q = sp.get('q');
           const af = {};
           sp.forEach((val, key) => {
-            if (!['category', 'collection', 'q'].includes(key)) af[key] = val.split(',');
+            if (!['category', 'collection', 'q'].includes(key)) af[key] = val.split('|');
           });
           if (cat) setSelectedCategory(cat);
           if (coll) setSelectedCollection(coll);
@@ -910,11 +1040,16 @@
               setSelectedCollection(state.coll || null);
               setSearchQuery(state.search || '');
               setFilters(state.filters || {});
-              setCurrentPage(1);
-              fetchSkusRef.current({ cat: state.cat, coll: state.coll, search: state.search || '', activeFilters: state.filters || {}, page: 1 });
+              const savedPage = state.page || 1;
+              const savedScroll = state.scrollPos || 0;
+              setCurrentPage(savedPage);
+              scrollY.current = savedScroll;
+              pendingScroll.current = savedScroll;
+              fetchSkusRef.current({ cat: state.cat, coll: state.coll, search: state.search || '', activeFilters: state.filters || {}, page: savedPage });
               fetchFacetsRef.current({ cat: state.cat, coll: state.coll, search: state.search || '', activeFilters: state.filters || {} });
             }
             if (state.view === 'visit-recap' && state.token) setVisitRecapToken(state.token);
+            if (state.view === 'coming-soon' && state.title) setComingSoonTitle(state.title);
           } else {
             // Re-parse URL for unknown states
             const p = window.location.pathname;
@@ -934,7 +1069,7 @@
               const q = sp2.get('q');
               const af = {};
               sp2.forEach((val, key) => {
-                if (!['category', 'collection', 'q'].includes(key)) af[key] = val.split(',');
+                if (!['category', 'collection', 'q'].includes(key)) af[key] = val.split('|');
               });
               setSelectedCategory(cat);
               setSelectedCollection(coll);
@@ -1064,18 +1199,24 @@
             mobileNavOpen={mobileNavOpen} setMobileNavOpen={setMobileNavOpen}
             mobileSearchOpen={mobileSearchOpen} setMobileSearchOpen={setMobileSearchOpen}
             view={view}
+            navigate={navigate}
           />
 
           {view === 'home' && (
             <HomePage
               featuredSkus={featuredSkus}
+              featuredLoading={featuredLoading}
               categories={categories}
               onSkuClick={goSkuDetail}
               onCategorySelect={(slug) => { handleCategorySelect(slug); setView('browse'); }}
               goBrowse={goBrowse}
               goTrade={goTrade}
+              navigate={navigate}
               wishlist={wishlist} toggleWishlist={toggleWishlist}
               setQuickViewSku={setQuickViewSku}
+              newsletterEmail={newsletterEmail} setNewsletterEmail={setNewsletterEmail}
+              newsletterSubmitted={newsletterSubmitted} onNewsletterSubmit={handleNewsletterSubmit}
+              onOpenQuiz={() => setShowFloorQuiz(true)}
             />
           )}
 
@@ -1183,6 +1324,24 @@
             <ResetPasswordPage goHome={goHome} openLogin={() => { setAuthModalMode('login'); setShowAuthModal(true); }} />
           )}
 
+          {view === 'installation' && (
+            <InstallationPage onRequestQuote={() => { setInstallModalProduct(null); setShowInstallModal(true); }} />
+          )}
+
+          {view === 'inspiration' && (
+            <InspirationPage navigate={navigate} goBrowse={goBrowse} />
+          )}
+
+          {view === 'coming-soon' && (
+            <div style={{ maxWidth: 600, margin: '6rem auto', textAlign: 'center', padding: '0 2rem' }}>
+              <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: '2.5rem', marginBottom: '1rem' }}>{comingSoonTitle}</h1>
+              <p style={{ color: 'var(--stone-500)', fontSize: '1.125rem', lineHeight: 1.6, marginBottom: '2rem' }}>
+                This page is coming soon. We're working on something beautiful.
+              </p>
+              <button className="btn" onClick={goHome}>Back to Home</button>
+            </div>
+          )}
+
           {/* Cart Drawer */}
           <CartDrawer
             cart={cart} open={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)}
@@ -1207,15 +1366,36 @@
 
           {/* Mobile Search Overlay */}
           <MobileSearchOverlay open={mobileSearchOpen} onClose={() => setMobileSearchOpen(false)}
-            onSearch={handleSearch} onSkuClick={goSkuDetail}
+            onSearch={handleSearch} onSkuClick={goSkuDetail} onCategorySelect={handleCategorySelect}
           />
 
           {showTradeModal && <TradeModal onClose={() => setShowTradeModal(false)} onLogin={handleTradeLogin} initialMode={tradeModalMode} />}
           {showAuthModal && <CustomerAuthModal onClose={() => setShowAuthModal(false)} onLogin={handleCustomerLogin} initialMode={authModalMode} />}
           {showInstallModal && <InstallationModal onClose={() => setShowInstallModal(false)} product={installModalProduct} />}
+          {showFloorQuiz && <FloorQuizModal onClose={() => setShowFloorQuiz(false)} onSkuClick={goSkuDetail} onViewAll={(qs) => { navigate('/shop?' + qs); }} />}
 
           <SiteFooter goHome={goHome} goBrowse={goBrowse} goCollections={goCollections} goTrade={goTrade}
-            onInstallClick={() => { setInstallModalProduct(null); setShowInstallModal(true); }} />
+            onInstallClick={goInstallation} />
+
+          <nav className="mobile-bottom-nav">
+            <button className={'mobile-bottom-nav-item' + (view === 'home' ? ' active' : '')} onClick={goHome}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Home
+            </button>
+            <button className={'mobile-bottom-nav-item' + (view === 'browse' ? ' active' : '')} onClick={() => setMobileSearchOpen(true)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Search
+            </button>
+            <button className="mobile-bottom-nav-item" onClick={() => setCartDrawerOpen(true)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+              {cart.length > 0 && <span className="mobile-bottom-nav-badge">{cart.length}</span>}
+              Cart
+            </button>
+            <button className={'mobile-bottom-nav-item' + (view === 'account' ? ' active' : '')} onClick={customer ? goAccount : () => { setAuthModalMode('login'); setShowAuthModal(true); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Account
+            </button>
+          </nav>
 
           <BackToTop />
           <ToastContainer toasts={toasts} />
@@ -1223,44 +1403,67 @@
       );
     }
 
-    // ==================== Header (Two-Row) ====================
+    // ==================== Header (4-Row) ====================
 
-    function Header({ goHome, goBrowse, cart, cartDrawerOpen, setCartDrawerOpen, cartFlash, onSearch, onSkuClick, tradeCustomer, onTradeClick, onTradeLogout, customer, onAccountClick, onCustomerLogout, wishlistCount, goWishlist, goCollections, categories, onCategorySelect, globalFacets, onAxisSelect, mobileNavOpen, setMobileNavOpen, mobileSearchOpen, setMobileSearchOpen, view }) {
+    function Header({ goHome, goBrowse, cart, cartDrawerOpen, setCartDrawerOpen, cartFlash, onSearch, onSkuClick, tradeCustomer, onTradeClick, onTradeLogout, customer, onAccountClick, onCustomerLogout, wishlistCount, goWishlist, goCollections, categories, onCategorySelect, globalFacets, onAxisSelect, mobileNavOpen, setMobileNavOpen, mobileSearchOpen, setMobileSearchOpen, view, navigate }) {
       const [searchInput, setSearchInput] = useState('');
-      const [suggestions, setSuggestions] = useState([]);
+      const [suggestData, setSuggestData] = useState({ categories: [], collections: [], products: [], total: 0 });
       const [showSuggestions, setShowSuggestions] = useState(false);
       const [activeIdx, setActiveIdx] = useState(-1);
-      const [megaMenuHover, setMegaMenuHover] = useState(false);
+      const [popularSearches, setPopularSearches] = useState([]);
+      const [materialHover, setMaterialHover] = useState(null);
+      const [condensed, setCondensed] = useState(false);
       const suggestTimerRef = useRef(null);
       const searchWrapRef = useRef(null);
-      const megaMenuTimerRef = useRef(null);
+      const materialTimerRef = useRef(null);
+      const lastScrollY = useRef(0);
       const itemCount = cart.length;
 
-      const handleMegaEnter = () => { clearTimeout(megaMenuTimerRef.current); setMegaMenuHover(true); };
-      const handleMegaLeave = () => { megaMenuTimerRef.current = setTimeout(() => setMegaMenuHover(false), 100); };
+      // Fetch popular searches once on mount
+      useEffect(() => {
+        fetch(API + '/api/storefront/search/popular').then(r => r.json()).then(d => setPopularSearches(d.terms || [])).catch(() => {});
+      }, []);
+
+      const handleMaterialEnter = (slug) => { clearTimeout(materialTimerRef.current); setMaterialHover(slug); };
+      const handleMaterialLeave = () => { materialTimerRef.current = setTimeout(() => setMaterialHover(null), 120); };
+
+      // Build flat list of all suggest items for keyboard navigation
+      const suggestItems = useMemo(() => {
+        const items = [];
+        suggestData.categories.forEach(c => items.push({ type: 'category', data: c }));
+        suggestData.collections.forEach(c => items.push({ type: 'collection', data: c }));
+        suggestData.products.forEach(p => items.push({ type: 'product', data: p }));
+        return items;
+      }, [suggestData]);
 
       const fetchSuggestions = (q) => {
         if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
-        if (!q || q.length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+        if (!q || q.length < 2) { setSuggestData({ categories: [], collections: [], products: [], total: 0 }); return; }
         suggestTimerRef.current = setTimeout(async () => {
           try {
-            const res = await fetch(API + '/api/storefront/skus?q=' + encodeURIComponent(q) + '&limit=6');
+            const res = await fetch(API + '/api/storefront/search/suggest?q=' + encodeURIComponent(q));
             const data = await res.json();
-            setSuggestions(data.skus || []);
+            setSuggestData(data);
             setShowSuggestions(true);
             setActiveIdx(-1);
-          } catch(e) { setSuggestions([]); }
-        }, 250);
+          } catch(e) { setSuggestData({ categories: [], collections: [], products: [], total: 0 }); }
+        }, 200);
       };
 
       const handleSearchInput = (e) => { setSearchInput(e.target.value); fetchSuggestions(e.target.value); };
-      const selectSuggestion = (sku) => { setShowSuggestions(false); setSearchInput(''); setSuggestions([]); onSkuClick(sku.sku_id, sku.product_name || sku.collection); };
+      const selectSuggestion = (item) => {
+        setShowSuggestions(false); setSearchInput(''); setSuggestData({ categories: [], collections: [], products: [], total: 0 });
+        if (item.type === 'category') { onCategorySelect(item.data.slug); }
+        else if (item.type === 'collection') { onSearch(item.data.name); }
+        else if (item.type === 'product') { onSkuClick(item.data.sku_id, item.data.product_name || item.data.collection); }
+      };
 
       const handleSearchKeyDown = (e) => {
-        if (!showSuggestions || suggestions.length === 0) return;
-        if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, suggestions.length - 1)); }
+        const totalItems = suggestItems.length;
+        if (!showSuggestions || totalItems === 0) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, totalItems - 1)); }
         else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, -1)); }
-        else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); selectSuggestion(suggestions[activeIdx]); }
+        else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); selectSuggestion(suggestItems[activeIdx]); }
         else if (e.key === 'Escape') { setShowSuggestions(false); }
       };
 
@@ -1272,165 +1475,218 @@
         return () => document.removeEventListener('mousedown', handleClickOutside);
       }, []);
 
-      // Build mega menu columns from categories (exclude empty categories)
-      const parentCats = categories.filter(c => !c.parent_id && c.product_count > 0);
-      const megaCols = parentCats.map(parent => ({
-        name: parent.name,
-        slug: parent.slug,
-        children: categories.filter(c => c.parent_id === parent.id)
-      }));
+      useEffect(() => {
+        const onScroll = () => {
+          const y = window.scrollY;
+          const delta = y - lastScrollY.current;
+          if (y > 80 && delta > 5) {
+            setCondensed(true);
+          } else if (delta < -5 || y <= 10) {
+            setCondensed(false);
+          }
+          lastScrollY.current = y;
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+      }, []);
 
-      // Axis navigation facet values
-      const lookValues = (((globalFacets || []).find(f => f.slug === 'look') || {}).values || []).slice(0, 15);
-      const colorValues = (((globalFacets || []).find(f => f.slug === 'color') || {}).values || []).slice(0, 12);
-      const sizeValues = (((globalFacets || []).find(f => f.slug === 'size') || {}).values || []).slice(0, 16);
+      const parentCats = categories.filter(c => !c.parent_id && c.product_count > 0);
+
+      const hasSuggestResults = suggestData.categories.length > 0 || suggestData.collections.length > 0 || suggestData.products.length > 0;
+      let suggestItemIdx = 0;
 
       const searchForm = (
         <form className="header-search" ref={searchWrapRef} onSubmit={(e) => { e.preventDefault(); const q = searchInput.trim(); if (q) { onSearch(q); setShowSuggestions(false); setSearchInput(''); } }}>
           <span className="header-search-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </span>
-          <input type="text" placeholder="Search products..." value={searchInput} onChange={handleSearchInput} onKeyDown={handleSearchKeyDown} onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }} />
-          {showSuggestions && suggestions.length > 0 && (
+          <input type="text" placeholder="Search products..." value={searchInput} onChange={handleSearchInput} onKeyDown={handleSearchKeyDown} onClick={() => {
+            if (hasSuggestResults || (!searchInput && popularSearches.length > 0)) setShowSuggestions(true);
+          }} />
+          {showSuggestions && !searchInput && popularSearches.length > 0 && (
             <div className="search-suggestions">
-              {suggestions.map((sku, i) => (
-                <div key={sku.sku_id} className={'search-suggestion' + (i === activeIdx ? ' active' : '')} onClick={() => selectSuggestion(sku)}>
-                  {sku.primary_image && <img className="search-suggestion-img" src={sku.primary_image} alt="" decoding="async" />}
-                  <div className="search-suggestion-text">
-                    <div className="search-suggestion-name">{sku.product_name}</div>
-                    <div className="search-suggestion-variant">{formatVariantName(sku.variant_name)}</div>
-                  </div>
-                  <span className="search-suggestion-price">${parseFloat(sku.retail_price || 0).toFixed(2)}{sku.price_basis === 'per_sqyd' ? '/sqyd' : sku.price_basis === 'per_sqft' ? '/sf' : ''}</span>
+              <div className="search-suggest-section">
+                <div className="search-suggest-label">Popular Searches</div>
+                <div className="search-suggest-popular">
+                  {popularSearches.map(term => (
+                    <div key={term} className="search-suggest-popular-item" onClick={() => { setSearchInput(term); fetchSuggestions(term); onSearch(term); setShowSuggestions(false); setSearchInput(''); }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                      {term}
+                    </div>
+                  ))}
                 </div>
-              ))}
-              <div className="search-view-all" onClick={() => { onSearch(searchInput.trim()); setShowSuggestions(false); setSearchInput(''); }}>View all results</div>
+              </div>
+            </div>
+          )}
+          {showSuggestions && hasSuggestResults && (
+            <div className="search-suggestions">
+              {suggestData.categories.length > 0 && (
+                <div className="search-suggest-section">
+                  <div className="search-suggest-label">Categories</div>
+                  {suggestData.categories.map(cat => {
+                    const idx = suggestItemIdx++;
+                    return (
+                      <div key={cat.slug} className={'search-suggest-item' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'category', data: cat })}>
+                        <span className="search-suggest-item-icon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        </span>
+                        <span className="search-suggest-category-text">{cat.name}</span>
+                        <span className="search-suggest-count">{cat.product_count} products</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {suggestData.collections.length > 0 && (
+                <div className="search-suggest-section">
+                  <div className="search-suggest-label">Collections</div>
+                  {suggestData.collections.map(col => {
+                    const idx = suggestItemIdx++;
+                    return (
+                      <div key={col.name} className={'search-suggest-item' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'collection', data: col })}>
+                        {col.image ? <img className="search-suggest-collection-img" src={col.image} alt="" decoding="async" /> : <span className="search-suggest-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>}
+                        <div className="search-suggest-collection-text">
+                          <div className="search-suggest-collection-name">{col.name}</div>
+                        </div>
+                        <span className="search-suggest-count">{col.product_count} products</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {suggestData.products.length > 0 && (
+                <div className="search-suggest-section">
+                  <div className="search-suggest-label">Products</div>
+                  {suggestData.products.map(sku => {
+                    const idx = suggestItemIdx++;
+                    return (
+                      <div key={sku.sku_id} className={'search-suggestion' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'product', data: sku })}>
+                        <div className="search-suggestion-img">{sku.primary_image ? <img src={sku.primary_image} alt="" decoding="async" /> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, color: 'var(--stone-300)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>}</div>
+                        <div className="search-suggestion-text">
+                          <div className="search-suggestion-name">{fullProductName(sku)}</div>
+                          {sku.variant_name && <div className="search-suggestion-variant">{formatCarpetValue(sku.variant_name)}</div>}
+                        </div>
+                        <span className="search-suggestion-price">${parseFloat(sku.retail_price || 0).toFixed(2)}{sku.price_basis === 'per_sqyd' ? '/sqyd' : (sku.sell_by === 'sqft' || sku.price_basis === 'per_sqft') ? '/sf' : ''}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="search-suggest-footer" onClick={() => { onSearch(searchInput.trim()); setShowSuggestions(false); setSearchInput(''); }}>
+                View all {suggestData.total} results
+              </div>
             </div>
           )}
         </form>
       );
 
       return (
-        <header>
-          {/* Row 1: Logo | Search | Actions */}
-          <div className="header-row-1">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <button className="mobile-menu-btn" onClick={() => setMobileNavOpen(true)}>
+        <header className={condensed ? 'header-condensed' : ''}>
+          {/* Row 1 — Utility Bar */}
+          <div className="utility-bar">
+            <div className="utility-bar-inner">
+              <div className="utility-bar-left">
+                <a href="tel:+17149990009" className="utility-bar-phone">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                  (714) 999-0009
+                </a>
+                <span className="utility-bar-dot">&bull;</span>
+                <span>Anaheim, CA Showroom</span>
+              </div>
+              <div className="utility-bar-right">
+                <button onClick={onTradeClick}>
+                  {tradeCustomer ? `Trade: ${tradeCustomer.company_name}` : 'Trade Program'}
+                </button>
+                <span className="utility-bar-dot">&bull;</span>
+                <button onClick={onAccountClick}>
+                  {customer ? `Hi, ${customer.first_name}` : 'Sign In'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2 — Logo Bar (grid: 1fr auto 1fr) */}
+          <div className="header-main">
+            <div className="header-main-left">
+              <button className="mobile-menu-btn" aria-label="Open navigation menu" onClick={() => setMobileNavOpen(true)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
               </button>
-              <div className="logo" onClick={goHome}><img src="/assets/logo/roma-transparent.png" alt="Roma Flooring Designs" width="120" height="44" decoding="async" /></div>
+              {searchForm}
             </div>
-            {searchForm}
-            <div className="header-actions">
-              <button className="mobile-search-btn" onClick={() => setMobileSearchOpen(true)}>
+            <div className="logo" onClick={goHome}>
+              <img src="/assets/logo/roma-transparent.png" alt="Roma Flooring Designs" width="120" height="38" decoding="async" />
+            </div>
+            <div className="header-main-right">
+              <button className="mobile-search-btn" aria-label="Search products" onClick={() => setMobileSearchOpen(true)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </button>
-              <button className="header-action-btn" onClick={onAccountClick} title={customer ? customer.first_name : 'Account'}>
+              <button className="header-action-btn" onClick={onAccountClick} aria-label="Account" title={customer ? customer.first_name : 'Account'}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               </button>
-              <button className="header-action-btn wishlist-header-wrap" onClick={goWishlist}>
+              <button className="header-action-btn wishlist-header-wrap" aria-label="Wishlist" onClick={goWishlist}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
                 </svg>
                 {wishlistCount > 0 && <span className="wishlist-badge">{wishlistCount}</span>}
               </button>
-              <button className={'header-action-btn' + (cartFlash ? ' cart-flash' : '')} onClick={() => setCartDrawerOpen(true)}>
+              <button className={'header-action-btn' + (cartFlash ? ' cart-flash' : '')} aria-label="Shopping cart" onClick={() => setCartDrawerOpen(true)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
                 {itemCount > 0 && <span className="cart-badge">{itemCount}</span>}
               </button>
             </div>
           </div>
 
-          {/* Row 2: Navigation */}
-          <div className="header-row-2">
-            <nav className="header-nav">
-              <div className="header-nav-item" onMouseEnter={handleMegaEnter} onMouseLeave={handleMegaLeave}>
-                <button className={'header-nav-link' + (view === 'browse' ? ' active' : '')} onClick={goBrowse}>Shop</button>
-                {megaCols.length > 0 && (
-                  <div className="mega-menu">
-                    <div className="mega-menu-grid">
-                      {megaCols.map(col => (
-                        <div key={col.slug} className="mega-menu-col">
-                          <h4><a onClick={() => onCategorySelect(col.slug)}>{col.name}</a></h4>
-                          {col.children.map(child => (
-                            <a key={child.slug} onClick={() => onCategorySelect(child.slug)}>{child.name}</a>
-                          ))}
-                          {col.children.length > 0 && <a className="mega-menu-view-all" onClick={() => onCategorySelect(col.slug)}>View All {col.name} &rarr;</a>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+          {/* Row 3 — General Sections Nav */}
+          <div className="nav-row">
+            <div className="nav-row-inner">
+              <div className="nav-row-group">
+                <button className="nav-row-link" onClick={goCollections}>Collections</button>
+                <button className="nav-row-link" onClick={() => navigate('/shop?sort=newest')}>New Arrivals</button>
+                <button className="nav-row-link" onClick={() => navigate('/shop?sale=true')}>Sale</button>
+                <button className="nav-row-link" onClick={() => navigate('/shop?room=kitchen')}>Shop by Room</button>
               </div>
-              {lookValues.length > 0 && (
-                <div className="header-nav-item" onMouseEnter={handleMegaEnter} onMouseLeave={handleMegaLeave}>
-                  <button className="header-nav-link">By Look</button>
-                  <div className="mega-menu mega-menu--axis mega-menu--look">
-                    <div className="mega-menu-axis-title">Shop by Look</div>
-                    <div className="mega-menu-axis-grid">
-                      {lookValues.map(v => (
-                        <a key={v.value} className="mega-menu-look-tile" onClick={() => onAxisSelect('look', v.value)}>
-                          <div className="mega-menu-look-tile-bg" style={{ background: getLookGradient(v.value) }} />
-                          <div className="mega-menu-look-tile-label">
-                            <span>{v.value}</span>
-                            <span>{v.count} products</span>
-                          </div>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {colorValues.length > 0 && (
-                <div className="header-nav-item" onMouseEnter={handleMegaEnter} onMouseLeave={handleMegaLeave}>
-                  <button className="header-nav-link">By Color</button>
-                  <div className="mega-menu mega-menu--axis mega-menu--color">
-                    <div className="mega-menu-axis-title">Shop by Color</div>
-                    <div className="mega-menu-axis-grid">
-                      {colorValues.map(v => {
-                        const hex = getColorHex(v.value);
-                        return (
-                          <a key={v.value} className="mega-menu-color-link" onClick={() => onAxisSelect('color', v.value)}>
-                            <span className={'mega-menu-color-dot' + (isLightColor(hex) ? ' mega-menu-color-dot--bordered' : '')} style={{ background: hex }} />
-                            <span>{v.value}</span>
-                            <span className="mega-menu-axis-count">{v.count}</span>
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {sizeValues.length > 0 && (
-                <div className="header-nav-item" onMouseEnter={handleMegaEnter} onMouseLeave={handleMegaLeave}>
-                  <button className="header-nav-link">By Size</button>
-                  <div className="mega-menu mega-menu--axis">
-                    <div className="mega-menu-axis-title">Shop by Size</div>
-                    <div className="mega-menu-axis-grid">
-                      {sizeValues.map(v => {
-                        const dims = parseSizeDimensions(v.value);
-                        return (
-                          <a key={v.value} className="mega-menu-size-link" onClick={() => onAxisSelect('size', v.value)}>
-                            <span className="mega-menu-size-icon" style={{ width: dims.width + 'px', height: dims.height + 'px' }} />
-                            <span>{v.value}</span>
-                            <span className="mega-menu-axis-count">{v.count}</span>
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div className="header-nav-item">
-                <button className={'header-nav-link' + (view === 'collections' ? ' active' : '')} onClick={goCollections}>Collections</button>
+              <span className="nav-row-separator" />
+              <div className="nav-row-group">
+                <button className="nav-row-link" onClick={() => navigate('/inspiration')}>Inspiration</button>
+                <button className="nav-row-link" onClick={() => navigate('/design-services')}>Design Services</button>
+                <button className="nav-row-link" onClick={() => navigate('/installation')}>Installation</button>
+                <button className="nav-row-link" onClick={onTradeClick}>Trade</button>
+                <button className="nav-row-link" onClick={() => navigate('/about')}>About Us</button>
               </div>
-              <div className="header-nav-item">
-                <button className={'header-nav-link' + (view === 'trade' || view === 'trade-dashboard' ? ' active' : '')} onClick={onTradeClick}>
-                  {tradeCustomer ? `Trade: ${tradeCustomer.company_name}` : 'Trade'}
-                </button>
-              </div>
-            </nav>
+            </div>
           </div>
-          <div className={'mega-menu-scrim' + (megaMenuHover ? ' visible' : '')} />
+
+          {/* Row 4 — Material Categories Bar */}
+          <div className="material-bar">
+            <div className="material-bar-inner">
+              {parentCats.map(cat => {
+                const children = categories.filter(c => c.parent_id === cat.id);
+                const hasChildren = children.length > 0;
+                return (
+                  <div key={cat.slug} className="material-bar-item"
+                    onMouseEnter={() => hasChildren && handleMaterialEnter(cat.slug)}
+                    onMouseLeave={handleMaterialLeave}>
+                    <button className="material-bar-link" onClick={() => onCategorySelect(cat.slug)}>
+                      {cat.name}
+                      {hasChildren && <span className="material-bar-chevron">&#9662;</span>}
+                    </button>
+                    {hasChildren && (
+                      <div className={'material-dropdown' + (materialHover === cat.slug ? ' visible' : '')}
+                        onMouseEnter={() => handleMaterialEnter(cat.slug)}
+                        onMouseLeave={handleMaterialLeave}>
+                        {children.map(child => (
+                          <a key={child.slug} onClick={() => onCategorySelect(child.slug)}>{child.name}</a>
+                        ))}
+                        <a className="material-dropdown-viewall" onClick={() => onCategorySelect(cat.slug)}>View All {cat.name} &rarr;</a>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className={'mega-menu-scrim' + (materialHover ? ' visible' : '')} />
         </header>
       );
     }
@@ -1470,7 +1726,7 @@
                       </div>
                       <div className="cart-drawer-item-info">
                         <div className="cart-drawer-item-name">
-                          {item.product_name || 'Product'}
+                          {fullProductName(item) || 'Product'}
                           {item.is_sample && <span className="sample-tag">Sample</span>}
                         </div>
                         <div className="cart-drawer-item-meta">
@@ -1630,8 +1886,7 @@
               )}
             </div>
             <div className="quick-view-info">
-              <h2>{activeSku.collection && activeSku.collection.toLowerCase() !== (activeSku.product_name || '').toLowerCase() ? `${activeSku.collection} ${activeSku.product_name}` : (activeSku.product_name || activeSku.collection)}</h2>
-              {activeSku.variant_name && <p style={{ color: 'var(--stone-500)', fontSize: '0.9375rem', marginBottom: '0.5rem' }}>{formatVariantName(activeSku.variant_name)}</p>}
+              <h2>{fullProductName(activeSku)}</h2>
               <div className="price">
                 {activeSku.trade_price && activeSku.retail_price && (
                   <span style={{ textDecoration: 'line-through', color: 'var(--stone-500)', fontSize: '1rem', marginRight: '0.5rem' }}>
@@ -1671,22 +1926,10 @@
       const [expandedCat, setExpandedCat] = useState(null);
       const parentCats = categories.filter(c => !c.parent_id && c.product_count > 0);
 
-      // Axis navigation facet values for mobile
-      const lookValues = (((globalFacets || []).find(f => f.slug === 'look') || {}).values || []).slice(0, 15);
-      const colorValues = (((globalFacets || []).find(f => f.slug === 'color') || {}).values || []).slice(0, 12);
-      const sizeValues = (((globalFacets || []).find(f => f.slug === 'size') || {}).values || []).slice(0, 16);
-
       useEffect(() => {
         document.body.style.overflow = open ? 'hidden' : '';
         return () => { document.body.style.overflow = ''; };
       }, [open]);
-
-      const handleCatClick = (cat) => {
-        if (expandedCat === cat.id) { setExpandedCat(null); return; }
-        const children = categories.filter(c => c.parent_id === cat.id);
-        if (children.length > 0) { setExpandedCat(cat.id); }
-        else { onCategorySelect(cat.slug); onClose(); }
-      };
 
       return (
         <>
@@ -1699,81 +1942,33 @@
             <div className="mobile-nav-links">
               <a onClick={() => { goHome(); onClose(); }}>Home</a>
               <a onClick={() => { goBrowse(); onClose(); }}>Shop All</a>
-              <div className="mobile-nav-accordion">
-                <div className="mobile-nav-accordion-header" onClick={() => setExpandedCat(expandedCat === 'cats' ? null : 'cats')}>
-                  <span>Categories</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, transform: expandedCat === 'cats' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                {expandedCat === 'cats' && (
-                  <div className="mobile-nav-accordion-body">
-                    {parentCats.map(cat => {
-                      const children = categories.filter(c => c.parent_id === cat.id);
-                      return (
-                        <div key={cat.id}>
-                          <a onClick={() => { onCategorySelect(cat.slug); onClose(); }} style={{ fontWeight: 500 }}>{cat.name}</a>
-                          {children.map(child => (
-                            <a key={child.id} onClick={() => { onCategorySelect(child.slug); onClose(); }} style={{ paddingLeft: '1.5rem', fontSize: '0.8125rem' }}>{child.name}</a>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-              {lookValues.length > 0 && (
-                <div className="mobile-nav-accordion">
-                  <div className="mobile-nav-accordion-header" onClick={() => setExpandedCat(expandedCat === 'look' ? null : 'look')}>
-                    <span>By Look</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, transform: expandedCat === 'look' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
-                  </div>
-                  {expandedCat === 'look' && (
-                    <div className="mobile-nav-accordion-body">
-                      {lookValues.map(v => (
-                        <a key={v.value} onClick={() => { onAxisSelect('look', v.value); onClose(); }}>{v.value} <span style={{ color: 'var(--stone-400)', fontSize: '0.75rem' }}>({v.count})</span></a>
-                      ))}
+              {parentCats.map(cat => {
+                const children = categories.filter(c => c.parent_id === cat.id);
+                if (children.length === 0) {
+                  return <a key={cat.id} onClick={() => { onCategorySelect(cat.slug); onClose(); }}>{cat.name}</a>;
+                }
+                return (
+                  <div key={cat.id} className="mobile-nav-cat-item">
+                    <div className="mobile-nav-cat-header" onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}>
+                      <span>{cat.name}</span>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, transform: expandedCat === cat.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
-                  )}
-                </div>
-              )}
-              {colorValues.length > 0 && (
-                <div className="mobile-nav-accordion">
-                  <div className="mobile-nav-accordion-header" onClick={() => setExpandedCat(expandedCat === 'color' ? null : 'color')}>
-                    <span>By Color</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, transform: expandedCat === 'color' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
+                    {expandedCat === cat.id && (
+                      <div className="mobile-nav-cat-children">
+                        <a onClick={() => { onCategorySelect(cat.slug); onClose(); }}>All {cat.name}</a>
+                        {children.map(child => (
+                          <a key={child.id} onClick={() => { onCategorySelect(child.slug); onClose(); }}>{child.name}</a>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {expandedCat === 'color' && (
-                    <div className="mobile-nav-accordion-body">
-                      {colorValues.map(v => {
-                        const hex = getColorHex(v.value);
-                        return (
-                          <a key={v.value} onClick={() => { onAxisSelect('color', v.value); onClose(); }} style={{ display: 'flex', alignItems: 'center' }}>
-                            <span className={'mobile-color-dot' + (isLightColor(hex) ? ' mobile-color-dot--bordered' : '')} style={{ background: hex }} />
-                            {v.value} <span style={{ color: 'var(--stone-400)', fontSize: '0.75rem', marginLeft: '0.25rem' }}>({v.count})</span>
-                          </a>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-              {sizeValues.length > 0 && (
-                <div className="mobile-nav-accordion">
-                  <div className="mobile-nav-accordion-header" onClick={() => setExpandedCat(expandedCat === 'size' ? null : 'size')}>
-                    <span>By Size</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, transform: expandedCat === 'size' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
-                  </div>
-                  {expandedCat === 'size' && (
-                    <div className="mobile-nav-accordion-body">
-                      {sizeValues.map(v => (
-                        <a key={v.value} onClick={() => { onAxisSelect('size', v.value); onClose(); }}>{v.value} <span style={{ color: 'var(--stone-400)', fontSize: '0.75rem' }}>({v.count})</span></a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                );
+              })}
               <a onClick={() => { goCollections(); onClose(); }}>Collections</a>
-              <a onClick={() => { goTrade(); onClose(); }}>Trade Program</a>
             </div>
+            {!tradeCustomer && (
+              <a className="mobile-nav-trade-cta" onClick={() => { onTradeClick(); onClose(); }}>Trade Program</a>
+            )}
             <div className="mobile-nav-footer">
               {customer ? (
                 <div>
@@ -1784,12 +1979,12 @@
               ) : tradeCustomer ? (
                 <div>
                   <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Trade: {tradeCustomer.company_name}</div>
+                  <a onClick={() => { goTrade(); onClose(); }}>Trade Dashboard</a>
                   <a onClick={() => { onTradeLogout(); onClose(); }}>Sign Out</a>
                 </div>
               ) : (
                 <div>
                   <a onClick={() => { goAccount(); onClose(); }}>Sign In</a>
-                  <a onClick={() => { onTradeClick(); onClose(); }}>Trade Login</a>
                 </div>
               )}
             </div>
@@ -1800,9 +1995,9 @@
 
     // ==================== Mobile Search Overlay ====================
 
-    function MobileSearchOverlay({ open, onClose, onSearch, onSkuClick }) {
+    function MobileSearchOverlay({ open, onClose, onSearch, onSkuClick, onCategorySelect }) {
       const [query, setQuery] = useState('');
-      const [results, setResults] = useState([]);
+      const [suggestData, setSuggestData] = useState({ categories: [], collections: [], products: [], total: 0 });
       const [loading, setLoading] = useState(false);
       const inputRef = useRef(null);
       const debounceRef = useRef(null);
@@ -1811,27 +2006,29 @@
         if (open && inputRef.current) {
           setTimeout(() => inputRef.current.focus(), 100);
         }
-        if (!open) { setQuery(''); setResults([]); }
+        if (!open) { setQuery(''); setSuggestData({ categories: [], collections: [], products: [], total: 0 }); }
       }, [open]);
 
       useEffect(() => {
-        if (!query || query.length < 2) { setResults([]); return; }
+        if (!query || query.length < 2) { setSuggestData({ categories: [], collections: [], products: [], total: 0 }); return; }
         clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(async () => {
           setLoading(true);
           try {
-            const res = await fetch(API + '/api/storefront/skus?search=' + encodeURIComponent(query) + '&limit=8');
+            const res = await fetch(API + '/api/storefront/search/suggest?q=' + encodeURIComponent(query));
             const data = await res.json();
-            setResults(data.skus || []);
-          } catch { setResults([]); }
+            setSuggestData(data);
+          } catch { setSuggestData({ categories: [], collections: [], products: [], total: 0 }); }
           setLoading(false);
-        }, 300);
+        }, 250);
       }, [query]);
 
       const handleSubmit = (e) => {
         e.preventDefault();
         if (query.trim()) { onSearch(query.trim()); onClose(); }
       };
+
+      const hasResults = suggestData.categories.length > 0 || suggestData.collections.length > 0 || suggestData.products.length > 0;
 
       return open ? (
         <div className="mobile-search-overlay">
@@ -1841,19 +2038,57 @@
             </form>
             <button className="mobile-search-close" onClick={onClose}>Cancel</button>
           </div>
-          {results.length > 0 && (
+          {hasResults && (
             <div className="mobile-search-results">
-              {results.map(sku => (
-                <div key={sku.sku_id} className="mobile-search-result" onClick={() => { onSkuClick(sku.sku_id, sku.product_name); onClose(); }}>
-                  <div className="mobile-search-result-img">
-                    {sku.primary_image && <img src={sku.primary_image} alt="" decoding="async" />}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{sku.product_name}</div>
-                    <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>${parseFloat(sku.retail_price || 0).toFixed(2)}{priceSuffix(sku)}</div>
-                  </div>
+              {suggestData.categories.length > 0 && (
+                <div className="search-suggest-section">
+                  <div className="search-suggest-label">Categories</div>
+                  {suggestData.categories.map(cat => (
+                    <div key={cat.slug} className="search-suggest-item" onClick={() => { onCategorySelect(cat.slug); onClose(); }}>
+                      <span className="search-suggest-item-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                      </span>
+                      <span className="search-suggest-category-text">{cat.name}</span>
+                      <span className="search-suggest-count">{cat.product_count}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+              {suggestData.collections.length > 0 && (
+                <div className="search-suggest-section">
+                  <div className="search-suggest-label">Collections</div>
+                  {suggestData.collections.map(col => (
+                    <div key={col.name} className="search-suggest-item" onClick={() => { onSearch(col.name); onClose(); }}>
+                      {col.image ? <img className="search-suggest-collection-img" src={col.image} alt="" decoding="async" /> : <span className="search-suggest-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>}
+                      <div className="search-suggest-collection-text">
+                        <div className="search-suggest-collection-name">{col.name}</div>
+                      </div>
+                      <span className="search-suggest-count">{col.product_count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {suggestData.products.length > 0 && (
+                <div className="search-suggest-section">
+                  <div className="search-suggest-label">Products</div>
+                  {suggestData.products.map(sku => (
+                    <div key={sku.sku_id} className="mobile-search-result" onClick={() => { onSkuClick(sku.sku_id, sku.product_name); onClose(); }}>
+                      <div className="mobile-search-result-img">
+                        {sku.primary_image && <img src={sku.primary_image} alt="" decoding="async" />}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{fullProductName(sku)}</div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>${parseFloat(sku.retail_price || 0).toFixed(2)}{(sku.sell_by === 'sqft' || sku.price_basis === 'per_sqft') ? '/sf' : ''}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {suggestData.total > 0 && (
+                <div className="search-suggest-footer" onClick={() => { onSearch(query.trim()); onClose(); }}>
+                  View all {suggestData.total} results
+                </div>
+              )}
             </div>
           )}
           {loading && (
@@ -1936,34 +2171,225 @@
 
     // ==================== Home Page ====================
 
-    function HomePage({ featuredSkus, categories, onSkuClick, onCategorySelect, goBrowse, goTrade, wishlist, toggleWishlist, setQuickViewSku }) {
+    function HomePage({ featuredSkus, featuredLoading, categories, onSkuClick, onCategorySelect, goBrowse, goTrade, navigate, wishlist, toggleWishlist, setQuickViewSku, newsletterEmail, setNewsletterEmail, newsletterSubmitted, onNewsletterSubmit, onOpenQuiz }) {
       const parentCats = categories.filter(c => !c.parent_id && c.product_count > 0);
+      const topCats = parentCats.slice(0, 6);
+      const heroRef = useRef(null);
+
+      useEffect(() => {
+        const timer = setTimeout(() => {
+          if (heroRef.current) heroRef.current.classList.add('loaded');
+        }, 100);
+        return () => clearTimeout(timer);
+      }, []);
+
+      const looks = [
+        { name: 'Modern Minimalist', slug: 'modern-minimalist', image: '/uploads/looks/modern-minimalist.jpg' },
+        { name: 'Warm Mediterranean', slug: 'warm-mediterranean', image: '/uploads/looks/warm-mediterranean.jpg' },
+        { name: 'Coastal Retreat', slug: 'coastal-retreat', image: '/uploads/looks/coastal-retreat.jpg' },
+        { name: 'Classic Elegance', slug: 'classic-elegance', image: '/uploads/looks/classic-elegance.jpg' },
+      ];
+
+      const inspoImages = [
+        { src: '/uploads/inspo/kitchen.jpg', label: 'Kitchen' },
+        { src: '/uploads/inspo/living-room.jpg', label: 'Living Room', tall: true },
+        { src: '/uploads/inspo/bathroom.jpg', label: 'Bathroom' },
+        { src: '/uploads/inspo/bedroom.jpg', label: 'Bedroom' },
+        { src: '/uploads/inspo/outdoor.jpg', label: 'Outdoor' },
+      ];
+
       return (
         <>
-          <section className="hero">
-            <div className="hero-bg" style={{ backgroundImage: 'url(/uploads/hero-bg.jpg)' }} />
+          <section className="hero" ref={heroRef}>
+            <div className="hero-bg" style={{ backgroundImage: 'url(/uploads/hero-bg.jpg?v=2)' }} />
             <div className="hero-content">
-              <h1>Surfaces Crafted for Living</h1>
-              <p>Premium flooring, tile, and stone from the world's finest manufacturers. Discover materials that transform spaces.</p>
-              <button className="hero-cta" onClick={goBrowse}>Shop Now</button>
+              <h1>Redefine Your Space</h1>
+              <button className="hero-cta" onClick={goBrowse}>Explore Our Floors</button>
             </div>
           </section>
 
-          {parentCats.length > 0 && (
-            <section className="homepage-section">
-              <h2>Shop by Category</h2>
-              <p className="subtitle">Explore our curated selection of premium surfaces</p>
-              <CategoryCarousel categories={parentCats} onCategorySelect={onCategorySelect} />
-            </section>
+          <RevealSection>
+            <div className="trust-strip">
+              <div className="trust-strip-inner">
+                <div className="trust-strip-item">
+                  <div className="trust-strip-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 00-8 0v2"/></svg>
+                  </div>
+                  <div className="trust-strip-text">Free Samples<span>Try before you buy</span></div>
+                </div>
+                <div className="trust-strip-item">
+                  <div className="trust-strip-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/><circle cx="12" cy="12" r="5"/></svg>
+                  </div>
+                  <div className="trust-strip-text">Trade Pricing<span>Exclusive pro discounts</span></div>
+                </div>
+                <div className="trust-strip-item">
+                  <div className="trust-strip-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                  </div>
+                  <div className="trust-strip-text">Expert Guidance<span>Design consultation available</span></div>
+                </div>
+                <div className="trust-strip-item">
+                  <div className="trust-strip-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3" width="15" height="13" rx="1"/><polyline points="16 8 20 8 23 11 23 16 20 16"/><circle cx="18" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+                  </div>
+                  <div className="trust-strip-text">Fast Shipping<span>Direct from warehouse</span></div>
+                </div>
+              </div>
+            </div>
+          </RevealSection>
+
+          {topCats.length > 0 && (
+            <RevealSection>
+              <section className="homepage-section">
+                <h2>Shop by Category</h2>
+                <p className="subtitle">Explore our curated selection of premium surfaces</p>
+                <div className="homepage-cat-grid">
+                  {topCats.map(cat => (
+                    <div key={cat.slug} className="homepage-cat-tile" onClick={() => onCategorySelect(cat.slug)}>
+                      {cat.image_url && <img src={cat.image_url} alt={cat.name} loading="lazy" decoding="async" />}
+                      <div className="homepage-cat-tile-overlay">
+                        <span className="homepage-cat-tile-name">{cat.name}</span>
+                        <span className="homepage-cat-tile-cta">Shop Now &rarr;</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </RevealSection>
           )}
 
-          {featuredSkus.length > 0 && (
-            <section className="homepage-section">
-              <h2>New Arrivals</h2>
-              <p className="subtitle">The latest additions to our collection</p>
-              <SkuGrid skus={featuredSkus} onSkuClick={onSkuClick} wishlist={wishlist} toggleWishlist={toggleWishlist} setQuickViewSku={setQuickViewSku} />
+          <RevealSection delay={0.1}>
+            <section className="homepage-featured-band">
+              <div className="homepage-section">
+                <h2>Featured Products</h2>
+                <p className="subtitle">Our most popular floors, chosen by customers like you</p>
+                {featuredLoading ? (
+                  <SkeletonGrid count={8} />
+                ) : featuredSkus.length > 0 ? (
+                  <SkuGrid skus={featuredSkus} onSkuClick={onSkuClick} wishlist={wishlist} toggleWishlist={toggleWishlist} setQuickViewSku={setQuickViewSku} />
+                ) : (
+                  <p style={{ textAlign: 'center', color: 'var(--stone-500)', padding: '2rem 0' }}>Featured products coming soon.</p>
+                )}
+              </div>
             </section>
-          )}
+          </RevealSection>
+
+          <RevealSection delay={0.1}>
+            <section className="homepage-section">
+              <h2>Shop the Look</h2>
+              <p className="subtitle">Curated collections for every style</p>
+              <div className="looks-grid">
+                {looks.map(look => (
+                  <div key={look.slug} className="look-card" onClick={() => navigate('/shop?collection=' + look.slug)}>
+                    <img src={look.image} alt={look.name} loading="lazy" decoding="async" />
+                    <div className="look-card-overlay">
+                      <span className="look-card-name">{look.name}</span>
+                      <span className="look-card-cta">Explore &rarr;</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </RevealSection>
+
+          <RevealSection delay={0.1}>
+            <section className="homepage-section">
+              <h2>Get Inspired</h2>
+              <p className="subtitle">Real spaces, real transformations</p>
+              <div className="inspo-gallery">
+                {inspoImages.map((img, i) => (
+                  <div key={i} className={'inspo-gallery-item' + (img.tall ? ' tall' : '')} onClick={() => navigate('/shop?room=' + img.label.toLowerCase().replace(/\s+/g, '-'))}>
+                    <img src={img.src} alt={img.label} loading="lazy" decoding="async" />
+                    <div className="inspo-gallery-overlay">
+                      <span className="inspo-gallery-label">{img.label}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </RevealSection>
+
+          <RevealSection delay={0.1}>
+            <div className="homepage-cta-duo">
+              <div className="cta-card cta-card-dark">
+                <div className="cta-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                </div>
+                <h3>Room Visualizer</h3>
+                <p>See how our floors look in your space before you buy. Upload a photo and preview any product.</p>
+                <button className="btn-outline" onClick={() => { if (window.roomvo && typeof window.roomvo.startStandaloneVisualizer === 'function') { window.roomvo.startStandaloneVisualizer(); } else { window.location.href = '/shop'; } }}>Try It Now</button>
+              </div>
+              <div className="cta-card cta-card-light">
+                <div className="cta-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <h3>Find Your Floor</h3>
+                <p>Answer a few quick questions and we'll recommend the perfect flooring for your space and style.</p>
+                <button className="btn-outline" onClick={onOpenQuiz}>Take the Quiz</button>
+              </div>
+            </div>
+          </RevealSection>
+
+          <RevealSection delay={0.1}>
+            <section className="homepage-section">
+              <h2>How We Help</h2>
+              <p className="subtitle">From selection to installation, we're with you every step</p>
+              <div className="services-grid">
+                <div className="service-card" onClick={() => navigate('/design-services')}>
+                  <div className="service-card-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+                  </div>
+                  <h4>Design Consultation</h4>
+                  <p>Work with our team to find the perfect material and style for your project</p>
+                </div>
+                <div className="service-card" onClick={goBrowse}>
+                  <div className="service-card-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 00-8 0v2"/></svg>
+                  </div>
+                  <h4>Free Samples</h4>
+                  <p>Order up to 5 free samples and experience the quality in your own home</p>
+                </div>
+                <div className="service-card" onClick={() => navigate('/installation')}>
+                  <div className="service-card-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+                  </div>
+                  <h4>Professional Installation</h4>
+                  <p>Licensed installers with years of experience to ensure a perfect finish</p>
+                </div>
+                <div className="service-card" onClick={goTrade}>
+                  <div className="service-card-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                  </div>
+                  <h4>Trade Program</h4>
+                  <p>Exclusive pricing and dedicated support for contractors and designers</p>
+                </div>
+              </div>
+            </section>
+          </RevealSection>
+
+          <RevealSection delay={0.15}>
+            <section className="homepage-trade-band">
+              <h2>Trade Professional?</h2>
+              <p>Exclusive pricing, dedicated support, and tools built for the trade. Join our professional program.</p>
+              <button className="btn" onClick={goTrade}>Learn More</button>
+            </section>
+          </RevealSection>
+
+          <RevealSection delay={0.1}>
+            <section className="newsletter-band">
+              <h2>Stay in the Know</h2>
+              <p className="subtitle">New arrivals, design tips, and exclusive offers delivered to your inbox</p>
+              {newsletterSubmitted ? (
+                <p className="newsletter-success">Thank you for subscribing! Check your inbox for a welcome email.</p>
+              ) : (
+                <form className="newsletter-form" onSubmit={onNewsletterSubmit}>
+                  <input type="email" placeholder="Enter your email" value={newsletterEmail} onChange={(e) => setNewsletterEmail(e.target.value)} required />
+                  <button type="submit">Subscribe</button>
+                </form>
+              )}
+            </section>
+          </RevealSection>
         </>
       );
     }
@@ -2077,6 +2503,22 @@
                 Filters
               </button>
             </div>
+            {!searchQuery && !selectedCollection && (
+              <div className="color-swatches">
+                {[
+                  { name: 'White', color: '#f5f5f0' },
+                  { name: 'Gray', color: '#9e9e9e' },
+                  { name: 'Beige', color: '#d4c5a9' },
+                  { name: 'Brown', color: '#8b6f47' },
+                  { name: 'Black', color: '#2c2c2c' },
+                  { name: 'Blue', color: '#6b8cae' },
+                ].map(c => (
+                  <div key={c.name} className={'color-swatch' + (filters.color && filters.color.includes(c.name) ? ' active' : '')} style={{ background: c.color }} onClick={() => onFilterToggle('color', c.name)} title={c.name}>
+                    <span className="color-swatch-label">{c.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {loading ? (
               <SkeletonGrid count={8} />
             ) : skus.length === 0 ? (
@@ -2307,7 +2749,7 @@
     function SkuCard({ sku, onClick, isWished, onToggleWishlist, onQuickView }) {
       const price = sku.trade_price || sku.retail_price;
       return (
-        <div className="sku-card" onClick={onClick}>
+        <div className="sku-card" onClick={onClick} data-sku={sku.vendor_sku || sku.internal_sku}>
           <button className={'wishlist-heart' + (isWished ? ' active' : '')}
             onClick={(e) => { e.stopPropagation(); onToggleWishlist(); }}>
             <svg viewBox="0 0 24 24" fill={isWished ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -2319,11 +2761,7 @@
             {sku.alternate_image && <img className="sku-card-alt-img" src={sku.alternate_image} alt="" loading="lazy" decoding="async" width="300" height="300" />}
             {onQuickView && <button className="quick-view-btn" onClick={(e) => { e.stopPropagation(); onQuickView(); }}>Quick View</button>}
           </div>
-          <div className="sku-card-name">{sku.collection && sku.collection.toLowerCase() !== (sku.product_name || '').toLowerCase() ? `${sku.collection} ${sku.product_name}` : (sku.product_name || sku.collection)}</div>
-          {sku.variant_count > 1
-            ? <div className="sku-card-variant">{sku.variant_count} options</div>
-            : sku.variant_name && <div className="sku-card-variant">{formatVariantName(sku.variant_name)}</div>
-          }
+          <div className="sku-card-name">{fullProductName(sku)}</div>
           <div className="sku-card-price">
             {price ? (
               <>
@@ -2350,6 +2788,7 @@
       const [collectionSiblings, setCollectionSiblings] = useState([]);
       const [collectionAttributes, setCollectionAttributes] = useState({});
       const [groupedProducts, setGroupedProducts] = useState([]);
+      const [countertopImage, setCountertopImage] = useState(null);
       const [selectedImage, setSelectedImage] = useState(0);
       const [loading, setLoading] = useState(true);
       const [fetchError, setFetchError] = useState(null);
@@ -2411,12 +2850,13 @@
             setCollectionSiblings(data.collection_siblings || []);
             setCollectionAttributes(data.collection_attributes || {});
             setGroupedProducts(data.grouped_products || []);
+            setCountertopImage(data.countertop_image || null);
             setLoading(false);
             if (data.sku && addRecentlyViewed) {
               addRecentlyViewed({ sku_id: data.sku.sku_id, product_name: data.sku.product_name, variant_name: data.sku.variant_name, primary_image: (data.media && data.media[0]) ? data.media[0].url : null, retail_price: data.sku.retail_price, price_basis: data.sku.price_basis });
             }
             if (data.sku) {
-              const skuTitle = data.sku.product_name + (data.sku.variant_name ? ' - ' + formatVariantName(data.sku.variant_name) : '') + ' | Roma Flooring Designs';
+              const skuTitle = fullProductName(data.sku) + ' | Roma Flooring Designs';
               const skuDesc = cleanDescription(data.sku.description_short, data.sku.vendor_name) || ('Premium ' + data.sku.product_name + ' from Roma Flooring Designs');
               const skuImage = (data.media && data.media[0]) ? data.media[0].url : null;
               updateSEO({ title: skuTitle, description: skuDesc, url: SITE_URL + '/shop/sku/' + skuId, image: skuImage });
@@ -2703,7 +3143,7 @@
                     <div className="sibling-card-image">
                       {rv.primary_image && <img src={rv.primary_image} alt={rv.product_name} loading="lazy" />}
                     </div>
-                    <div className="sibling-card-name">{rv.product_name}</div>
+                    <div className="sibling-card-name">{fullProductName(rv)}</div>
                     {rv.retail_price && <div className="sibling-card-price">${parseFloat(rv.retail_price).toFixed(2)}{rv.price_basis === 'per_unit' ? '/ea' : rv.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft'}</div>}
                   </div>
                 ))}
@@ -2756,12 +3196,12 @@
 
       return (
         <>
-          <div className="sku-detail">
+          <div className="sku-detail" data-sku={sku.vendor_sku || sku.internal_sku}>
             <div className="breadcrumbs">
               <a onClick={goBack}>Shop</a>
               <span>/</span>
               {sku.category_name && <><a onClick={goBack}>{sku.category_name}</a><span>/</span></>}
-              <span style={{ color: 'var(--stone-800)' }}>{sku.product_name}{sku.variant_name ? ' \u2014 ' + formatVariantName(sku.variant_name) : ''}</span>
+              <span style={{ color: 'var(--stone-800)' }}>{fullProductName(sku)}</span>
             </div>
 
             <div className="sku-detail-main">
@@ -2778,15 +3218,95 @@
                   ))}
                 </div>
               )}
+
+              {/* Specs Table — below gallery */}
+              {(() => {
+                const HIDDEN_SLUGS = new Set(['price_list', 'material_class', 'style_code', 'companion_skus', 'subcategory', 'brand', 'upc', 'msrp', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number']);
+                const ORDER = ['_collection', '_category', 'collection', 'species', 'color', 'color_code', 'application', 'fiber', 'material', 'construction', 'finish', 'style', 'pattern', 'size', 'thickness', 'width', 'wear_layer', 'weight', 'weight_per_sqyd', 'roll_width', 'roll_length'];
+                const slugMap = {};
+                (sku.attributes || []).forEach(a => { slugMap[a.slug] = (a.value || '').trim(); });
+                const redundantSlugs = new Set();
+                if (slugMap.roll_width) { redundantSlugs.add('width'); redundantSlugs.add('size'); }
+                if (slugMap.fiber) redundantSlugs.add('material');
+                const visible = (sku.attributes || []).filter(a => !HIDDEN_SLUGS.has(a.slug) && !redundantSlugs.has(a.slug) && !(a.slug === 'species' && /^\d+$/.test(a.value)));
+                const seenVals = new Map();
+                const deduped = visible.filter(a => {
+                  const norm = (a.value || '').toUpperCase().replace(/[\s.]+/g, '').trim();
+                  if (seenVals.has(norm)) return false;
+                  seenVals.set(norm, true);
+                  return true;
+                });
+                const sorted = deduped.sort((a, b) => {
+                  const ai = ORDER.indexOf(a.slug), bi = ORDER.indexOf(b.slug);
+                  if (ai >= 0 && bi >= 0) return ai - bi;
+                  if (ai >= 0) return -1;
+                  if (bi >= 0) return 1;
+                  return a.name.localeCompare(b.name);
+                });
+                // Inject collection if not already an attribute
+                if (sku.collection && !slugMap.collection) {
+                  sorted.unshift({ slug: '_collection', name: 'Collection', value: sku.collection });
+                }
+                // Inject category
+                if (sku.category_name) {
+                  const insertIdx = sorted.findIndex(a => a.slug === '_collection') >= 0 ? 1 : 0;
+                  sorted.splice(insertIdx, 0, { slug: '_category', name: 'Category', value: sku.category_name });
+                }
+                const priceListAttr = (sku.attributes || []).find(a => a.slug === 'price_list');
+                if (priceListAttr && priceListAttr.value) {
+                  const brandLine = priceListAttr.value.replace(/\s+\d+$/, '');
+                  const ccIdx = sorted.findIndex(a => a.slug === 'color_code');
+                  sorted.splice(ccIdx >= 0 ? ccIdx + 1 : sorted.length, 0, { slug: '_brand', name: 'Brand', value: brandLine });
+                }
+                if (sorted.length === 0) return null;
+                return (
+                  <table className="specs-table">
+                    <tbody>
+                      {sorted.map((a, i) => (
+                        <tr key={i}><td>{a.name}</td><td>{formatCarpetValue(a.value)}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+
+              {/* Description — below gallery */}
+              {(sku.description_long || sku.description_short) && (() => {
+                const cleaned = cleanDescription(sku.description_long || sku.description_short, sku.vendor_name);
+                return cleaned ? (
+                  <div style={{ marginTop: '1rem', fontSize: '0.9rem', lineHeight: 1.7, color: 'var(--stone-600)' }}>
+                    {cleaned}
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Spec PDF Downloads — below gallery */}
+              {specPdfs.length > 0 && (
+                <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--stone-200)' }}>
+                  {specPdfs.map(pdf => (
+                    <a key={pdf.id} href={pdf.url} target="_blank" rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem',
+                        border: '1px solid var(--stone-200)', fontSize: '0.8125rem', color: 'var(--stone-800)',
+                        textDecoration: 'none', transition: 'border-color 0.2s', marginRight: '0.5rem', marginBottom: '0.5rem'
+                      }}
+                      onMouseOver={e => e.currentTarget.style.borderColor = 'var(--gold)'}
+                      onMouseOut={e => e.currentTarget.style.borderColor = 'var(--stone-200)'}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16, flexShrink: 0 }}>
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/>
+                      </svg>
+                      {pdf.alt_text || 'Spec Sheet (PDF)'}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="sku-detail-info">
               <a className="back-btn" onClick={goBack}>&larr; Back to Shop</a>
-              <h1>{isCarpetSku && sku.collection && sku.collection.toLowerCase() !== sku.product_name.toLowerCase() ? `${formatCarpetValue(sku.collection)} ${formatCarpetValue(sku.product_name)}` : formatCarpetValue(sku.product_name)}</h1>
-              {sku.variant_name && <div className="sku-detail-variant">{formatCarpetValue(sku.variant_name)}</div>}
-              <div className="sku-detail-meta">
-                {sku.vendor_name}
-              </div>
+              <h1 className="sku-detail-title-row">
+                {fullProductName(sku)}
+              </h1>
 
               <div className="sku-detail-price">
                 {isCarpet(sku) ? (
@@ -2866,7 +3386,7 @@
                     attrMap[a.slug].values.add(a.value);
                   });
                 });
-                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory']);
+                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory', 'upc', 'msrp', 'weight', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number', 'width', 'height', 'depth', 'hardware_finish', 'num_drawers', 'num_doors', 'num_shelves', 'num_sinks', 'soft_close', 'sink_material', 'sink_type', 'vanity_type', 'bowl_shape', 'style', 'origin', 'countertop_material', 'thickness', 'construction']);
                 // Only show pills when this color/product actually has multiple options
                 const localAttrCounts = {};
                 allSiblings.forEach(s => {
@@ -2885,11 +3405,11 @@
                   <div className="variant-selectors">
                     {showColors && (
                       <div className="variant-selector-group">
-                        <div className="variant-selector-label">Color<span>{sku.product_name}</span></div>
+                        <div className="variant-selector-label">{attrMap['countertop_finish'] ? 'Size' : 'Color'}</div>
                         <div className="color-swatches">
                           {colorItems.map(c => (
                             <div key={c.sku_id} className={'color-swatch' + (c.is_current ? ' active' : '')} onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
-                              {c.primary_image ? <img src={c.primary_image} alt={c.product_name} loading="lazy" decoding="async" width="48" height="48" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)' }} />}
+                              {c.primary_image ? <img src={c.primary_image} alt={c.product_name} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)' }} />}
                               <div className="color-swatch-tooltip">{c.product_name}</div>
                             </div>
                           ))}
@@ -2912,25 +3432,59 @@
                       });
                       if (values.length <= 1 && !currentVal) return null;
                       const findBest = (val) => {
-                        const desired = { ...currentAttrs, [slug]: val };
-                        const scored = allSiblings.filter(s => s.sku_id !== sku.sku_id).map(s => {
+                        // Only consider siblings that match the target attribute value
+                        const matching = allSiblings.filter(s => {
+                          if (s.sku_id === sku.sku_id) return false;
+                          const sa = (s.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
+                          return sa[slug] === val;
+                        });
+                        if (matching.length === 0) return null;
+                        if (matching.length === 1) return matching[0];
+                        // Score by other selectable attributes to find best match
+                        const scored = matching.map(s => {
                           const sa = (s.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
                           let score = 0;
-                          Object.keys(desired).forEach(k => { if (sa[k] === desired[k]) score++; });
+                          attrSlugs.forEach(k => { if (k !== slug && sa[k] === currentAttrs[k]) score++; });
                           return { ...s, score };
                         });
                         return scored.sort((a, b) => b.score - a.score)[0];
                       };
+                      // Use image swatches for countertop_finish and finish (vanity tops)
+                      const useImageSwatches = (slug === 'countertop_finish' || slug === 'finish') && values.length <= 10;
+                      const getSwatchImage = (val) => {
+                        if (val === currentVal) {
+                          if (slug === 'countertop_finish' && countertopImage) return countertopImage;
+                          return (media && media[0]) ? media[0].url : null;
+                        }
+                        const match = findBest(val);
+                        if (!match) return null;
+                        if (slug === 'countertop_finish') return match.countertop_image || match.primary_image;
+                        return match.primary_image;
+                      };
                       return (
                         <div key={slug} className="variant-selector-group">
-                          <div className="variant-selector-label">{attrMap[slug].name}<span>{formatCarpetValue(currentVal || '')}</span></div>
-                          {values.length > 8 ? (
+                          <div className="variant-selector-label">{slug === 'finish' && attrMap['countertop_finish'] ? 'Cabinet Color' : slug === 'countertop_finish' ? 'Countertop' : attrMap[slug].name}<span>{formatCarpetValue(currentVal || '')}</span></div>
+                          {values.length > 10 ? (
                             <select className="attr-select" value={currentVal || ''} onChange={(e) => {
                               const best = findBest(e.target.value);
                               if (best) onSkuClick(best.sku_id);
                             }}>
                               {values.map(val => <option key={val} value={val}>{formatCarpetValue(val)}</option>)}
                             </select>
+                          ) : useImageSwatches ? (
+                            <div className="color-swatches">
+                              {values.map(val => {
+                                const isActive = val === currentVal;
+                                const img = getSwatchImage(val);
+                                const best = findBest(val);
+                                return (
+                                  <div key={val} className={'color-swatch' + (isActive ? ' active' : '')} onClick={() => { if (!isActive && best) onSkuClick(best.sku_id); }}>
+                                    {img ? <img src={img} alt={formatCarpetValue(val)} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--stone-500)', textAlign: 'center', padding: '0.25rem' }}>{formatCarpetValue(val)}</div>}
+                                    <div className="color-swatch-tooltip">{formatCarpetValue(val)}</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           ) : (
                             <div className="attr-pills">
                               {values.map(val => {
@@ -3262,6 +3816,18 @@
                 </div>
               )}
 
+              {/* Visualize in Your Room — Roomvo enables this button automatically when the SKU is recognized */}
+              <button className="btn roomvo-visualize-btn"
+                ref={el => { try { if (el && window.roomvo) window.roomvo.enableButtonForVisualization(el); } catch(e) {} }}
+                data-sku={sku.vendor_sku || sku.internal_sku}
+                style={{ width: '100%', marginBottom: '1rem', padding: '1.125rem 2rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.625rem', visibility: 'hidden' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 22, height: 22 }}>
+                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                  <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+                Visualize in Your Room
+              </button>
+
               {/* Sample CTA */}
               <button className="btn btn-secondary" style={{ width: '100%', marginBottom: '1rem' }} onClick={handleRequestSample}>
                 Request Free Sample
@@ -3284,80 +3850,6 @@
                 <button className="btn btn-secondary" onClick={() => onRequestInstall(sku)}>Request Installation Quote</button>
               </div>
 
-              {/* Specs Table */}
-              {(sku.attributes && sku.attributes.length > 0) && (() => {
-                const HIDDEN_SLUGS = new Set(['price_list', 'material_class', 'style_code', 'companion_skus', 'subcategory']);
-                const ORDER = ['collection', 'species', 'color', 'color_code', 'application', 'fiber', 'material', 'construction', 'finish', 'style', 'pattern', 'size', 'thickness', 'width', 'wear_layer', 'weight', 'weight_per_sqyd', 'roll_width', 'roll_length'];
-                const visible = sku.attributes.filter(a => !HIDDEN_SLUGS.has(a.slug) && !(a.slug === 'species' && /^\d+$/.test(a.value)));
-                // Remove duplicate values (e.g. fiber=material, construction=subcategory)
-                const seenVals = new Map();
-                const deduped = visible.filter(a => {
-                  const norm = (a.value || '').toUpperCase().replace(/\s+/g, ' ').trim();
-                  if (seenVals.has(norm)) return false;
-                  seenVals.set(norm, true);
-                  return true;
-                });
-                const sorted = deduped.sort((a, b) => {
-                  const ai = ORDER.indexOf(a.slug), bi = ORDER.indexOf(b.slug);
-                  if (ai >= 0 && bi >= 0) return ai - bi;
-                  if (ai >= 0) return -1;
-                  if (bi >= 0) return 1;
-                  return a.name.localeCompare(b.name);
-                });
-                // Inject style (product name) after collection
-                if (sku.product_name) {
-                  const collIdx = sorted.findIndex(a => a.slug === 'collection');
-                  sorted.splice(collIdx >= 0 ? collIdx + 1 : 0, 0, { slug: '_style', name: 'Style', value: sku.product_name });
-                }
-                // Inject brand line from price_list after color_code
-                const priceListAttr = (sku.attributes || []).find(a => a.slug === 'price_list');
-                if (priceListAttr && priceListAttr.value) {
-                  const brandLine = priceListAttr.value.replace(/\s+\d+$/, '');
-                  const ccIdx = sorted.findIndex(a => a.slug === 'color_code');
-                  sorted.splice(ccIdx >= 0 ? ccIdx + 1 : sorted.length, 0, { slug: '_brand', name: 'Brand', value: brandLine });
-                }
-                if (sorted.length === 0) return null;
-                return (
-                  <table className="specs-table">
-                    <tbody>
-                      {sorted.map((a, i) => (
-                        <tr key={i}><td>{a.name}</td><td>{formatCarpetValue(a.value)}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                );
-              })()}
-
-              {/* Description */}
-              {(sku.description_long || sku.description_short) && (() => {
-                const cleaned = cleanDescription(sku.description_long || sku.description_short, sku.vendor_name);
-                return cleaned ? (
-                  <div style={{ marginTop: '2rem', fontSize: '0.9rem', lineHeight: 1.7, color: 'var(--stone-600)' }}>
-                    {cleaned}
-                  </div>
-                ) : null;
-              })()}
-
-              {/* Spec PDF Downloads */}
-              {specPdfs.length > 0 && (
-                <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--stone-200)' }}>
-                  {specPdfs.map(pdf => (
-                    <a key={pdf.id} href={pdf.url} target="_blank" rel="noopener noreferrer"
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem',
-                        border: '1px solid var(--stone-200)', fontSize: '0.8125rem', color: 'var(--stone-800)',
-                        textDecoration: 'none', transition: 'border-color 0.2s', marginRight: '0.5rem', marginBottom: '0.5rem'
-                      }}
-                      onMouseOver={e => e.currentTarget.style.borderColor = 'var(--gold)'}
-                      onMouseOut={e => e.currentTarget.style.borderColor = 'var(--stone-200)'}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16, flexShrink: 0 }}>
-                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/>
-                      </svg>
-                      {pdf.alt_text || 'Spec Sheet (PDF)'}
-                    </a>
-                  ))}
-                </div>
-              )}
             </div>
             </div>{/* end .sku-detail-main */}
 
@@ -3429,8 +3921,7 @@
                       <div className="sibling-card-image">
                         {s.primary_image && <img src={s.primary_image} alt={s.product_name} loading="lazy" decoding="async" />}
                       </div>
-                      <div className="sibling-card-name">{s.product_name}</div>
-                      {s.variant_name && <div className="sibling-card-meta">{formatVariantName(s.variant_name)}</div>}
+                      <div className="sibling-card-name">{fullProductName(s)}</div>
                       {s.retail_price && <div className="sibling-card-price">${parseFloat(s.retail_price).toFixed(2)}</div>}
                     </div>
                   ))}
@@ -3447,8 +3938,7 @@
                       <div className="sibling-card-image">
                         {s.primary_image && <img src={s.primary_image} alt={s.product_name} loading="lazy" decoding="async" />}
                       </div>
-                      <div className="sibling-card-name">{s.product_name}</div>
-                      {s.variant_name && <div className="sibling-card-meta">{formatVariantName(s.variant_name)}</div>}
+                      <div className="sibling-card-name">{fullProductName(s)}</div>
                       {s.retail_price && <div className="sibling-card-price">${parseFloat(s.retail_price).toFixed(2)}{s.price_basis === 'per_sqyd' ? '/sqyd' : s.price_basis === 'per_sqft' ? '/sf' : ''}</div>}
                     </div>
                   ))}
@@ -3668,13 +4158,12 @@
                     <div key={item.id} className={'cart-table-row' + (item.is_sample ? ' sample-item' : '')}>
                       <div>
                         <div className="cart-table-product-name">
-                          {item.product_name || 'Product'}
+                          {fullProductName(item) || 'Product'}
                           {item.is_sample && <span className="sample-tag">Sample</span>}
                         </div>
                         <div className="cart-table-product-meta">
                           {item.is_sample ? 'Free sample' : (
                             <>
-                              {item.collection && <span>{item.collection} &middot; </span>}
                               ${parseFloat(item.unit_price).toFixed(2)}{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'sqyd' ? '/sqyd' : '/sqft'}
                               {item.price_tier && (
                                 <span style={{ display: 'inline-block', marginLeft: '0.375rem', padding: '0.0625rem 0.375rem', borderRadius: '0.1875rem', fontSize: '0.6875rem', fontWeight: 600, background: item.price_tier === 'roll' ? 'var(--sage, #6b9080)' : 'var(--stone-200)', color: item.price_tier === 'roll' ? 'white' : 'var(--stone-600)' }}>
@@ -5253,7 +5742,7 @@
                         <div className="sibling-card-image">
                           {rv.primary_image && <img src={rv.primary_image} alt={rv.product_name} loading="lazy" />}
                         </div>
-                        <div className="sibling-card-name">{rv.product_name}</div>
+                        <div className="sibling-card-name">{fullProductName(rv)}</div>
                         {rv.retail_price && <div className="sibling-card-price">${parseFloat(rv.retail_price).toFixed(2)}{rv.price_basis === 'per_unit' ? '/ea' : rv.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft'}</div>}
                       </div>
                     ))}
@@ -5944,6 +6433,268 @@
       );
     }
 
+    // ==================== Floor Quiz Modal ====================
+
+    function FloorQuizModal({ onClose, onSkuClick, onViewAll }) {
+      const [step, setStep] = useState(1);
+      const [room, setRoom] = useState('');
+      const [style, setStyle] = useState('');
+      const [durability, setDurability] = useState('');
+      const [budget, setBudget] = useState('');
+      const [results, setResults] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [filterParams, setFilterParams] = useState('');
+
+      const rooms = [
+        { id: 'kitchen', label: 'Kitchen', icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="12" y1="10" x2="12" y2="22"/><circle cx="7" cy="6" r="1.5"/><circle cx="17" cy="6" r="1.5"/></svg>
+        )},
+        { id: 'bathroom', label: 'Bathroom', icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 12h16a1 1 0 011 1v3a4 4 0 01-4 4H7a4 4 0 01-4-4v-3a1 1 0 011-1z"/><path d="M6 12V5a2 2 0 012-2h1"/><line x1="2" y1="20" x2="5" y2="22"/><line x1="22" y1="20" x2="19" y2="22"/></svg>
+        )},
+        { id: 'living-room', label: 'Living Room', icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 9V6a2 2 0 00-2-2H6a2 2 0 00-2 2v3"/><path d="M2 11v5a2 2 0 002 2h16a2 2 0 002-2v-5a2 2 0 00-4 0H6a2 2 0 00-4 0z"/><line x1="4" y1="18" x2="4" y2="21"/><line x1="20" y1="18" x2="20" y2="21"/></svg>
+        )},
+        { id: 'bedroom', label: 'Bedroom', icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 12h20v7H2z"/><path d="M2 12V8a4 4 0 014-4h12a4 4 0 014 4v4"/><rect x="6" y="8" width="4" height="4" rx="1"/><rect x="14" y="8" width="4" height="4" rx="1"/><line x1="2" y1="19" x2="2" y2="22"/><line x1="22" y1="19" x2="22" y2="22"/></svg>
+        )},
+        { id: 'outdoor', label: 'Outdoor', icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="16"/><path d="M5 22l3-8h8l3 8"/><line x1="5" y1="22" x2="19" y2="22"/></svg>
+        )},
+        { id: 'commercial', label: 'Commercial', icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="4" y="2" width="16" height="20" rx="1"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+        )},
+      ];
+
+      const styles = [
+        { id: 'modern', label: 'Modern', desc: 'Clean lines, minimal' },
+        { id: 'traditional', label: 'Traditional', desc: 'Classic, timeless' },
+        { id: 'rustic', label: 'Rustic', desc: 'Warm, natural feel' },
+        { id: 'coastal', label: 'Coastal', desc: 'Light, breezy' },
+        { id: 'mediterranean', label: 'Mediterranean', desc: 'Earthy, textured' },
+        { id: 'contemporary', label: 'Contemporary', desc: 'Bold, current' },
+      ];
+
+      const durabilities = [
+        { id: 'light', label: 'Light Traffic', desc: 'Bedrooms, closets' },
+        { id: 'medium', label: 'Medium Traffic', desc: 'Living rooms, dining' },
+        { id: 'heavy', label: 'Heavy Traffic', desc: 'Kitchens, hallways' },
+        { id: 'waterproof', label: 'Waterproof', desc: 'Baths, laundry, outdoor' },
+        { id: 'commercial', label: 'Commercial', desc: 'Retail, office spaces' },
+        { id: 'any', label: 'No Preference', desc: 'Show me everything' },
+      ];
+
+      const budgets = [
+        { id: 'under3', label: '$', desc: 'Under $3/sqft' },
+        { id: '3to6', label: '$$', desc: '$3–$6/sqft' },
+        { id: '6to10', label: '$$$', desc: '$6–$10/sqft' },
+        { id: 'over10', label: '$$$$', desc: '$10+/sqft' },
+        { id: 'any', label: 'Any', desc: 'Show all price ranges' },
+      ];
+
+      // Map quiz answers to API filter params
+      const buildFilters = () => {
+        const params = new URLSearchParams();
+
+        // Room → category
+        const roomCatMap = {
+          'kitchen': 'tile', 'bathroom': 'tile', 'living-room': 'hardwood',
+          'bedroom': 'hardwood', 'outdoor': 'tile', 'commercial': 'luxury-vinyl'
+        };
+        // Style refines category choice
+        const styleCatOverrides = {
+          'rustic': { 'living-room': 'hardwood', 'bedroom': 'hardwood' },
+          'modern': { 'living-room': 'luxury-vinyl', 'kitchen': 'luxury-vinyl' },
+          'coastal': { 'living-room': 'luxury-vinyl', 'bedroom': 'laminate-flooring' },
+        };
+
+        let cat = roomCatMap[room] || '';
+        if (styleCatOverrides[style] && styleCatOverrides[style][room]) {
+          cat = styleCatOverrides[style][room];
+        }
+        // Waterproof → prefer LVP or tile
+        if (durability === 'waterproof' && cat === 'hardwood') cat = 'luxury-vinyl';
+
+        if (cat) params.set('category', cat);
+        params.set('limit', '8');
+        params.set('sort', 'newest');
+        return params.toString();
+      };
+
+      const fetchResults = async () => {
+        setLoading(true);
+        const qs = buildFilters();
+        setFilterParams(qs);
+        try {
+          const res = await fetch(API + '/api/storefront/skus?' + qs);
+          const data = await res.json();
+          setResults(data.skus || []);
+        } catch (e) {
+          setResults([]);
+        }
+        setLoading(false);
+      };
+
+      const handleNext = () => {
+        if (step < 4) {
+          setStep(step + 1);
+        } else {
+          setStep(5);
+          fetchResults();
+        }
+      };
+
+      const canNext = () => {
+        if (step === 1) return !!room;
+        if (step === 2) return !!style;
+        if (step === 3) return !!durability;
+        if (step === 4) return !!budget;
+        return false;
+      };
+
+      const stepLabels = ['Room', 'Style', 'Durability', 'Budget', 'Results'];
+
+      return (
+        <div className="quiz-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+          <div className="quiz-modal">
+            <button className="quiz-close" onClick={onClose}>&times;</button>
+
+            <div className="quiz-progress">
+              {[1,2,3,4,5].map(s => (
+                <div key={s} className={'quiz-progress-step' + (s === step ? ' active' : '') + (s < step ? ' done' : '')} />
+              ))}
+            </div>
+
+            {step <= 4 && (
+              <p className="quiz-step-label">Step {step} of 4 &mdash; {stepLabels[step - 1]}</p>
+            )}
+
+            {step === 1 && (
+              <>
+                <h2>What room is this for?</h2>
+                <p className="subtitle">We'll recommend the best flooring for your space</p>
+                <div className="quiz-options">
+                  {rooms.map(r => (
+                    <div key={r.id} className={'quiz-option' + (room === r.id ? ' selected' : '')} onClick={() => setRoom(r.id)}>
+                      <span className="quiz-option-icon">{r.icon}</span>
+                      <span className="quiz-option-label">{r.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {step === 2 && (
+              <>
+                <h2>What's your style?</h2>
+                <p className="subtitle">Choose the look that speaks to you</p>
+                <div className="quiz-options">
+                  {styles.map(s => (
+                    <div key={s.id} className={'quiz-option' + (style === s.id ? ' selected' : '')} onClick={() => setStyle(s.id)}>
+                      <span className="quiz-option-label">{s.label}</span>
+                      <span className="quiz-option-desc">{s.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {step === 3 && (
+              <>
+                <h2>How much traffic?</h2>
+                <p className="subtitle">Helps us pick the right durability rating</p>
+                <div className="quiz-options">
+                  {durabilities.map(d => (
+                    <div key={d.id} className={'quiz-option' + (durability === d.id ? ' selected' : '')} onClick={() => setDurability(d.id)}>
+                      <span className="quiz-option-label">{d.label}</span>
+                      <span className="quiz-option-desc">{d.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {step === 4 && (
+              <>
+                <h2>What's your budget?</h2>
+                <p className="subtitle">Per square foot pricing</p>
+                <div className="quiz-options" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+                  {budgets.map(b => (
+                    <div key={b.id} className={'quiz-option' + (budget === b.id ? ' selected' : '')} onClick={() => setBudget(b.id)}>
+                      <span className="quiz-option-label">{b.label}</span>
+                      <span className="quiz-option-desc">{b.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {step === 5 && (
+              <>
+                <div className="quiz-results-header">
+                  <h2>Your Recommendations</h2>
+                  <p className="subtitle">Based on your preferences, we think you'll love these</p>
+                  <div className="quiz-results-tags">
+                    {room && <span className="quiz-results-tag">{rooms.find(r => r.id === room)?.label}</span>}
+                    {style && <span className="quiz-results-tag">{styles.find(s => s.id === style)?.label}</span>}
+                    {durability && durability !== 'any' && <span className="quiz-results-tag">{durabilities.find(d => d.id === durability)?.label}</span>}
+                    {budget && budget !== 'any' && <span className="quiz-results-tag">{budgets.find(b => b.id === budget)?.desc}</span>}
+                  </div>
+                </div>
+                {loading ? (
+                  <SkeletonGrid count={4} />
+                ) : results.length > 0 ? (
+                  <>
+                    <div className="quiz-results-grid">
+                      {results.slice(0, 8).map(sku => (
+                        <div key={sku.sku_id} className="quiz-result-card" onClick={() => { onClose(); onSkuClick(sku.sku_id, sku.product_name); }}>
+                          {sku.primary_image && <img src={sku.primary_image} alt={sku.product_name} loading="lazy" decoding="async" />}
+                          <div className="quiz-result-card-info">
+                            <div className="quiz-result-card-name">{sku.product_name}</div>
+                            <div className="quiz-result-card-price">{sku.retail_price ? '$' + parseFloat(sku.retail_price).toFixed(2) + '/sqft' : ''}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button className="quiz-view-all" onClick={() => { onClose(); onViewAll(filterParams); }}>View All Results &rarr;</button>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-500)' }}>
+                    <p>No exact matches found. Try browsing our full collection.</p>
+                    <button className="quiz-view-all" style={{ marginTop: '1rem' }} onClick={() => { onClose(); onViewAll(''); }}>Browse All Floors</button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {step <= 4 && (
+              <div className="quiz-nav">
+                {step > 1 ? (
+                  <button className="quiz-nav-back" onClick={() => setStep(step - 1)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+                    Back
+                  </button>
+                ) : <span />}
+                <button className="quiz-nav-next" disabled={!canNext()} onClick={handleNext}>
+                  {step === 4 ? 'See Results' : 'Next'}
+                </button>
+              </div>
+            )}
+
+            {step === 5 && !loading && (
+              <div className="quiz-nav" style={{ marginTop: '1rem' }}>
+                <button className="quiz-nav-back" onClick={() => { setStep(1); setRoom(''); setStyle(''); setDurability(''); setBudget(''); setResults([]); }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+                  Start Over
+                </button>
+                <span />
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     // ==================== Trade Modal ====================
 
     function TradeModal({ onClose, onLogin, initialMode }) {
@@ -6396,7 +7147,7 @@
             ) : (
               <>
                 <h2>Request Installation Quote</h2>
-                {product && <p style={{ color: 'var(--stone-600)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>For: {[product.collection, product.product_name].filter(Boolean).join(' ')}</p>}
+                {product && <p style={{ color: 'var(--stone-600)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>For: {fullProductName(product)}</p>}
                 <form onSubmit={handleSubmit}>
                   {error && <div className="checkout-error">{error}</div>}
                   <div className="checkout-field"><label>Name *</label><input className="checkout-input" value={name} onChange={e => setName(e.target.value)} required /></div>
@@ -6413,6 +7164,211 @@
                 </form>
               </>
             )}
+          </div>
+        </div>
+      );
+    }
+
+    // ==================== Installation Landing Page ====================
+
+    function InstallationPage({ onRequestQuote }) {
+      return (
+        <div className="installation-page">
+          <div className="install-hero">
+            <h1>Professional Installation</h1>
+            <p>Licensed and insured installers with decades of combined experience. From hardwood to tile, we ensure a flawless finish on every project.</p>
+            <button className="btn btn-gold" onClick={onRequestQuote}>Request a Free Quote</button>
+          </div>
+
+          <div className="install-types">
+            <h2>What We Install</h2>
+            <div className="install-types-grid">
+              <div className="install-type-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                <h3>Hardwood</h3>
+                <p>Solid and engineered hardwood installation with precision nailing, glue-down, or floating methods.</p>
+              </div>
+              <div className="install-type-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+                <h3>Tile &amp; Porcelain</h3>
+                <p>Floor and wall tile installation including mortar-set, large-format, and mosaic applications.</p>
+              </div>
+              <div className="install-type-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 20h20"/><path d="M4 20V8l4-4h8l4 4v12"/><path d="M2 20l4-4"/><path d="M22 20l-4-4"/></svg>
+                <h3>Luxury Vinyl</h3>
+                <p>Click-lock LVP and glue-down LVT for waterproof, durable performance in any room.</p>
+              </div>
+              <div className="install-type-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                <h3>Natural Stone</h3>
+                <p>Marble, travertine, slate, and quartzite installed with expert care for lasting beauty.</p>
+              </div>
+              <div className="install-type-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 20c0-4 4-4 4-8s-4-4-4-8"/><path d="M12 20c0-4 4-4 4-8s-4-4-4-8"/><path d="M20 20c0-4 4-4 4-8s-4-4-4-8"/></svg>
+                <h3>Carpet</h3>
+                <p>Stretch-in and direct-glue carpet installation for bedrooms, living spaces, and commercial areas.</p>
+              </div>
+              <div className="install-type-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="6" width="20" height="12" rx="1"/><line x1="6" y1="6" x2="6" y2="18"/><line x1="10" y1="6" x2="10" y2="18"/><line x1="14" y1="6" x2="14" y2="18"/><line x1="18" y1="6" x2="18" y2="18"/></svg>
+                <h3>Laminate</h3>
+                <p>Quick and affordable floating-floor laminate installation with seamless transitions.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="install-steps-section">
+            <h2>How It Works</h2>
+            <div className="install-steps">
+              <div className="install-step">
+                <div className="step-number">1</div>
+                <h3>Request a Quote</h3>
+                <p>Tell us about your project — flooring type, square footage, and timeline.</p>
+              </div>
+              <div className="install-step">
+                <div className="step-number">2</div>
+                <h3>Site Visit &amp; Measure</h3>
+                <p>Our team visits your space for precise measurements and subfloor assessment.</p>
+              </div>
+              <div className="install-step">
+                <div className="step-number">3</div>
+                <h3>Schedule Installation</h3>
+                <p>Pick a date that works for you. We handle materials, prep, and cleanup.</p>
+              </div>
+              <div className="install-step">
+                <div className="step-number">4</div>
+                <h3>Enjoy Your New Floors</h3>
+                <p>Walk-through inspection, care instructions, and warranty documentation provided.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="install-benefits">
+            <h2>Why Choose Us</h2>
+            <div className="install-benefits-grid">
+              <div className="benefit-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <h3>Licensed &amp; Insured</h3>
+                <p>California Contractor License #830966. Fully bonded and insured for your protection.</p>
+              </div>
+              <div className="benefit-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+                <h3>Manufacturer Certified</h3>
+                <p>Factory-trained installers certified by leading flooring manufacturers.</p>
+              </div>
+              <div className="benefit-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <h3>Warranty Included</h3>
+                <p>Every installation backed by our workmanship warranty for your peace of mind.</p>
+              </div>
+              <div className="benefit-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                <h3>Free Estimates</h3>
+                <p>No-obligation quotes with transparent pricing. No hidden fees, ever.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="install-area">
+            <h2>Service Area</h2>
+            <p>We proudly serve Orange County and surrounding areas, including:</p>
+            <p className="install-area-cities">
+              Anaheim &middot; Fullerton &middot; Irvine &middot; Orange &middot; Tustin &middot; Santa Ana &middot; Yorba Linda &middot; Placentia &middot; Brea &middot; Buena Park &middot; Huntington Beach &middot; Costa Mesa &middot; Newport Beach &middot; Mission Viejo &middot; Lake Forest &middot; Laguna Hills
+            </p>
+          </div>
+
+          <div className="install-cta-band">
+            <h2>Ready to Get Started?</h2>
+            <p>Request a free, no-obligation quote and let our experts transform your space.</p>
+            <button className="btn btn-gold" onClick={onRequestQuote}>Request a Free Quote</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ==================== Inspiration Page ====================
+
+    function InspirationPage({ navigate, goBrowse }) {
+      const rooms = [
+        { name: 'Kitchen', slug: 'kitchen', desc: 'Durable, beautiful floors for the heart of your home.', gradient: 'linear-gradient(135deg, #c9a668 0%, #a8967a 50%, #78716c 100%)', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="21"/></svg> },
+        { name: 'Living Room', slug: 'living-room', desc: 'Warm, inviting surfaces for everyday living.', gradient: 'linear-gradient(135deg, #8a9a7b 0%, #a8967a 50%, #78716c 100%)', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 9V6a2 2 0 00-2-2H6a2 2 0 00-2 2v3"/><path d="M2 11v6a2 2 0 002 2h16a2 2 0 002-2v-6a2 2 0 00-4 0H6a2 2 0 00-4 0z"/><path d="M4 19v2"/><path d="M20 19v2"/></svg> },
+        { name: 'Bathroom', slug: 'bathroom', desc: 'Waterproof elegance for wet spaces.', gradient: 'linear-gradient(135deg, #94a3b8 0%, #a8a29e 50%, #78716c 100%)', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 12h16a1 1 0 011 1v3a4 4 0 01-4 4H7a4 4 0 01-4-4v-3a1 1 0 011-1z"/><path d="M6 12V5a2 2 0 012-2h1"/><circle cx="12" cy="7" r="1"/></svg> },
+        { name: 'Bedroom', slug: 'bedroom', desc: 'Soft, quiet comfort underfoot.', gradient: 'linear-gradient(135deg, #c4a882 0%, #b8a898 50%, #a8a29e 100%)', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 16V6a2 2 0 012-2h16a2 2 0 012 2v10"/><path d="M2 12h20"/><path d="M2 16h20v2H2z"/><path d="M6 12V8h12v4"/></svg> },
+        { name: 'Dining Room', slug: 'dining-room', desc: 'Refined surfaces for memorable gatherings.', gradient: 'linear-gradient(135deg, #b8942e 0%, #c9a668 50%, #a8967a 100%)', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2v8"/><path d="M8 6c0-1.5 1.8-4 4-4s4 2.5 4 4-1.8 4-4 4-4-2.5-4-4z"/><path d="M12 10v12"/><path d="M8 22h8"/></svg> },
+        { name: 'Entryway', slug: 'entryway', desc: 'Make a lasting first impression.', gradient: 'linear-gradient(135deg, #a8967a 0%, #d6d3d1 50%, #a8a29e 100%)', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 21h18"/><path d="M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16"/><rect x="9" y="9" width="6" height="12"/><circle cx="14" cy="15" r="1"/></svg> },
+        { name: 'Outdoor', slug: 'outdoor', desc: 'Weather-resistant style for patios and decks.', gradient: 'linear-gradient(135deg, #6b8f5e 0%, #8a9a7b 50%, #a8a29e 100%)', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> },
+        { name: 'Laundry Room', slug: 'laundry-room', desc: 'Practical, easy-clean flooring solutions.', gradient: 'linear-gradient(135deg, #93c5e8 0%, #a8b8c8 50%, #a8a29e 100%)', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="12" cy="13" r="5"/><path d="M12 8v1"/><circle cx="7" cy="5" r="1"/></svg> },
+      ];
+
+      const tips = [
+        { title: 'Start with Your Lifestyle', text: 'Consider how each room is used daily. High-traffic areas need durable materials like porcelain or luxury vinyl, while bedrooms can embrace softer options like carpet or cork.', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+        { title: 'Consider the Light', text: 'Natural light affects how flooring colors appear. Lighter floors open up darker rooms, while rich tones add warmth to sun-filled spaces. Always view samples in your actual room lighting.', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> },
+        { title: 'Think About Flow', text: 'Create visual continuity by using complementary flooring throughout your home. Similar tones across rooms create a cohesive look, while transitions mark distinct living zones.', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
+      ];
+
+      const styles = [
+        { name: 'Modern Minimalist', slug: 'modern-minimalist', desc: 'Clean lines, neutral tones, and understated elegance.', gradient: 'linear-gradient(135deg, #e7e5e4 0%, #a8a29e 50%, #78716c 100%)', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18"/><line x1="3" y1="12" x2="21" y2="12"/></svg> },
+        { name: 'Warm Mediterranean', slug: 'warm-mediterranean', desc: 'Terracotta warmth and rustic character.', gradient: 'linear-gradient(135deg, #c9a668 0%, #c4856c 50%, #a8967a 100%)', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 000 20 14.5 14.5 0 000-20"/><line x1="2" y1="12" x2="22" y2="12"/></svg> },
+        { name: 'Coastal Retreat', slug: 'coastal-retreat', desc: 'Light, airy floors inspired by the shore.', gradient: 'linear-gradient(135deg, #bfdbfe 0%, #94a3b8 50%, #e7e5e4 100%)', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg> },
+        { name: 'Classic Elegance', slug: 'classic-elegance', desc: 'Timeless patterns and rich natural materials.', gradient: 'linear-gradient(135deg, #44403c 0%, #78716c 50%, #c9a668 100%)', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> },
+      ];
+
+      return (
+        <div className="inspiration-page">
+          <div className="inspo-hero">
+            <h1>Find Your Inspiration</h1>
+            <p>Explore room ideas, design tips, and curated styles to help you envision the perfect floor for every space in your home.</p>
+            <button className="btn btn-gold" onClick={goBrowse}>Browse All Products</button>
+          </div>
+
+          <div className="inspo-section">
+            <h2>Browse by Room</h2>
+            <p className="inspo-section-sub">Select a room to explore flooring options tailored to that space.</p>
+            <div className="inspo-rooms-grid">
+              {rooms.map(r => (
+                <div key={r.slug} className="inspo-room-card" style={{ background: r.gradient }} onClick={() => navigate('/shop?room=' + r.slug)}>
+                  <div className="inspo-room-icon">{r.icon}</div>
+                  <h3>{r.name}</h3>
+                  <p>{r.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="inspo-tips">
+            <h2>Design Tips</h2>
+            <p className="inspo-section-sub">Expert guidance to help you choose with confidence.</p>
+            <div className="inspo-tips-grid">
+              {tips.map(t => (
+                <div key={t.title} className="inspo-tip-card">
+                  <div className="inspo-tip-icon">{t.icon}</div>
+                  <h3>{t.title}</h3>
+                  <p>{t.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="inspo-section">
+            <h2>Popular Styles</h2>
+            <p className="inspo-section-sub">Shop curated collections inspired by trending design aesthetics.</p>
+            <div className="inspo-styles-grid">
+              {styles.map(s => (
+                <div key={s.slug} className="inspo-style-card" style={{ background: s.gradient }} onClick={() => navigate('/shop?collection=' + s.slug)}>
+                  <div className="inspo-style-icon">{s.icon}</div>
+                  <h3>{s.name}</h3>
+                  <p>{s.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="inspo-cta-band">
+            <h2>Ready to Transform Your Space?</h2>
+            <p>Explore our full catalog or request free samples to see and feel the difference.</p>
+            <div className="inspo-cta-buttons">
+              <button className="btn btn-gold" onClick={goBrowse}>Browse All Products</button>
+              <button className="btn btn-secondary" style={{ borderColor: 'rgba(255,255,255,0.3)', color: 'white' }} onClick={() => navigate('/shop?sort=newest')}>Order Free Samples</button>
+            </div>
           </div>
         </div>
       );
@@ -6693,8 +7649,7 @@
                 <div className="sku-card-image">
                   {item.primary_image && <img src={item.primary_image} alt={item.product_name} loading="lazy" decoding="async" />}
                 </div>
-                <div className="sku-card-name">{[item.collection, item.product_name].filter(Boolean).join(' ')}</div>
-                {item.variant_name && <div className="sku-card-variant">{item.variant_name}</div>}
+                <div className="sku-card-name">{fullProductName(item)}</div>
                 <div className="sku-card-price">
                   {item.retail_price ? '$' + parseFloat(item.retail_price).toFixed(2) + (item.price_basis === 'per_sqyd' ? '/sqyd' : item.price_basis === 'per_sqft' ? '/sqft' : '') : ''}
                 </div>

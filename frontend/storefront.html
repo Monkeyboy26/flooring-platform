@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="theme-color" content="#1c1917">
+  <meta name="robots" content="index, follow">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Roma Flooring">
@@ -15,6 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://js.stripe.com">
+  <link rel="preconnect" href="https://js.stripe.com" crossorigin>
   <title>Roma Flooring Designs | Premium Flooring &amp; Tile in Anaheim, CA</title>
   <meta name="description" content="Roma Flooring Designs offers premium flooring, tile, stone, and countertop products in Anaheim, CA. Shop our curated collections of hardwood, porcelain, marble, and more.">
   <link rel="canonical" href="https://www.romaflooringdesigns.com/">
@@ -64,19 +66,29 @@
   </script>
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
-  <script src="https://js.stripe.com/v3/"></script>
-  <link rel="stylesheet" href="/storefront.css?v=16">
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"></noscript>
+  <script async src="https://js.stripe.com/v3/"></script>
+  <link rel="stylesheet" href="/storefront.css?v=37">
 </head>
 <body>
   <div id="root"></div>
-  <script src="/storefront-app.js?v=17"></script>
+  <noscript>
+    <div style="max-width:600px;margin:4rem auto;text-align:center;padding:2rem;font-family:system-ui,sans-serif">
+      <h1 style="font-size:1.5rem;margin-bottom:1rem">JavaScript Required</h1>
+      <p>Please enable JavaScript to use Roma Flooring Designs. Our shop requires JavaScript for browsing products, managing your cart, and checking out.</p>
+    </div>
+  </noscript>
+  <script src="/storefront-app.js?v=66"></script>
   <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function(regs) {
-      regs.forEach(function(r) { r.unregister(); });
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js');
     });
   }
   </script>
+  <script async id="roomvoAssistant" type="text/javascript"
+    data-locale="en-us" data-position="bottom-right"
+    src="https://www.roomvo.com/static/scripts/b2b/common/assistant.js"></script>
 </body>
 </html>
