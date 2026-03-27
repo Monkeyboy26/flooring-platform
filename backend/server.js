@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import cors from 'cors';
 import pg from 'pg';
 import crypto from 'crypto';
@@ -11,12 +12,15 @@ import fs from 'fs';
 import path from 'path';
 import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
+import { generateEstimateSentHTML } from './templates/estimateSent.js';
 import healthRoutes from './routes/health.js';
+import createSeoRouter from './services/seoRenderer.js';
 import { generate850 } from './services/ediGenerator.js';
 import { createSftpConnection, uploadFile } from './services/ediSftp.js';
+import { createFtpConnection, uploadFile as ftpUploadFile } from './services/ediFtp.js';
 import { createRequire } from 'module';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
@@ -40,50 +44,74 @@ function calculateSalesTax(subtotal, shippingZip, isTaxExempt) {
   return { rate, amount };
 }
 
+// ==================== Logo (base64 for PDF embedding) ====================
+
+let LOGO_DATA_URI = '';
+try {
+  const logoPath = path.join(path.dirname(new URL(import.meta.url).pathname), 'assets', 'logo', 'roma-transparent.png');
+  const logoBuffer = fs.readFileSync(logoPath);
+  LOGO_DATA_URI = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+} catch (e) {
+  console.warn('Logo file not found — PDFs will render without logo');
+}
+
 // ==================== Document Helpers ====================
+
+function itemDescriptionCell(collection, color, variant) {
+  const sub = [color, variant].filter(Boolean).join(' · ');
+  if (!collection && !sub) return '—';
+  let html = collection ? `<strong>${collection}</strong>` : '';
+  if (sub) html += `<div style="font-size:0.75rem;color:#57534e;margin-top:2px;">${sub}</div>`;
+  return html;
+}
 
 function getDocumentBaseCSS() {
   return `
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap');
     body { font-family: 'Inter', Arial, sans-serif; margin: 0; padding: 2rem; color: #1c1917; font-size: 13px; line-height: 1.5; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid #c8a97e; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; padding-bottom: 0.5rem; border-bottom: 1px solid #c8a97e; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header-logo { width: 60px; height: 60px; object-fit: contain; }
     .company { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.75rem; font-weight: 300; margin-bottom: 0.25rem; }
     .company-info { font-size: 0.75rem; color: #57534e; line-height: 1.6; }
-    .doc-title { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.5rem; font-weight: 400; color: #c8a97e; }
+    .doc-title { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.5rem; font-weight: 400; color: #c8a97e; font-style: italic; }
     .doc-meta { font-size: 0.8125rem; color: #57534e; line-height: 1.8; text-align: right; }
-    .info-block { margin-bottom: 1.5rem; padding: 1rem; background: #fafaf9; border: 1px solid #e7e5e4; }
-    .info-block h3 { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.1em; color: #78716c; margin: 0 0 0.5rem; }
+    .info-block { margin-bottom: 1.5rem; padding: 1rem; padding-left: 1rem; background: #fdfcfb; border: none; border-left: 3px solid #c8a97e; }
+    .info-block h3 { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.1em; color: #a8998a; margin: 0 0 0.5rem; }
     .info-columns { display: flex; gap: 2rem; margin-bottom: 1.5rem; }
     .info-columns .info-block { flex: 1; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
-    th { background: #1c1917; color: #fff; padding: 0.625rem 0.75rem; text-align: left; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; }
-    td { padding: 0.625rem 0.75rem; border-bottom: 1px solid #e7e5e4; font-size: 0.8125rem; }
-    tr:nth-child(even) td { background: #fafaf9; }
+    th { background: #f5f0eb; color: #44403c; padding: 0.625rem 0.75rem; text-align: left; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #c8a97e; }
+    td { padding: 0.625rem 0.75rem; border-bottom: 1px solid #f0ede8; font-size: 0.8125rem; }
     .totals { text-align: right; margin-top: 1rem; }
     .totals .line { display: flex; justify-content: flex-end; gap: 2rem; font-size: 0.875rem; padding: 0.25rem 0; }
-    .totals .total-line { font-weight: 600; font-size: 1rem; border-top: 2px solid #1c1917; padding-top: 0.5rem; margin-top: 0.5rem; }
-    .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e7e5e4; font-size: 0.6875rem; color: #78716c; text-align: center; }
+    .totals .total-line { font-weight: 600; font-size: 1.0625rem; border-top: 2px solid #c8a97e; padding-top: 0.5rem; margin-top: 0.5rem; }
+    .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #c8a97e; font-size: 0.6875rem; color: #a8998a; text-align: center; }
     .badge { display: inline-block; padding: 2px 8px; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; border-radius: 3px; }
     .badge-status { background: #e7e5e4; color: #57534e; }
     .badge-revised { background: #fef3c7; color: #92400e; }
     .badge-sent { background: #dbeafe; color: #1e40af; }
     .badge-fulfilled { background: #dcfce7; color: #166534; }
     .badge-cancelled { background: #fee2e2; color: #991b1b; }
-    .notes-section { margin-top: 1.5rem; padding: 1rem; background: #fafaf9; border: 1px solid #e7e5e4; }
-    .notes-section h4 { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.1em; color: #78716c; margin: 0 0 0.5rem; }
+    .notes-section { margin-top: 1.5rem; padding: 1rem; padding-left: 1rem; background: #fdfcfb; border: none; border-left: 3px solid #c8a97e; }
+    .notes-section h4 { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.1em; color: #a8998a; margin: 0 0 0.5rem; }
   `;
 }
 
 function getDocumentHeader(title) {
+  const logoImg = LOGO_DATA_URI ? `<img src="${LOGO_DATA_URI}" class="header-logo" alt="Roma Flooring Designs"/>` : '';
   return `
     <div class="header">
-      <div>
-        <div class="company">Roma Flooring Designs</div>
-        <div class="company-info">
-          1440 S. State College Blvd #6M<br/>
-          Anaheim, CA 92806<br/>
-          (714) 999-0009<br/>
-          Sales@romaflooringdesigns.com
+      <div class="header-left">
+        ${logoImg}
+        <div>
+          <div class="company">Roma Flooring Designs</div>
+          <div class="company-info">
+            1440 S. State College Blvd #6M<br/>
+            Anaheim, CA 92806<br/>
+            (714) 999-0009<br/>
+            Sales@romaflooringdesigns.com
+          </div>
         </div>
       </div>
       <div>
@@ -96,7 +124,8 @@ function getDocumentHeader(title) {
 function getDocumentFooter() {
   return `
     <div class="footer">
-      <p>Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
+      <p style="margin: 0 0 0.25rem;">Roma Flooring Designs</p>
+      <p style="margin: 0;">License #830966 &nbsp;|&nbsp; www.romaflooringdesigns.com</p>
     </div>
   `;
 }
@@ -140,7 +169,15 @@ async function generatePOHtml(poId) {
   `, [poId]);
   if (!po.rows.length) return null;
   const p = po.rows[0];
-  const items = await pool.query('SELECT * FROM purchase_order_items WHERE purchase_order_id = $1 ORDER BY created_at', [poId]);
+  const items = await pool.query(`
+    SELECT poi.*, pr.collection, sk.variant_name, sa_c.value as color
+    FROM purchase_order_items poi
+    LEFT JOIN skus sk ON sk.id = poi.sku_id
+    LEFT JOIN products pr ON pr.id = sk.product_id
+    LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = poi.sku_id
+      AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+    WHERE poi.purchase_order_id = $1 ORDER BY poi.created_at
+  `, [poId]);
 
   const html = `<!DOCTYPE html><html><head><style>
     ${getDocumentBaseCSS()}
@@ -168,17 +205,18 @@ async function generatePOHtml(poId) {
     </div>
     <table>
       <thead><tr>
-        <th>Product</th><th>Vendor SKU</th>
+        <th>Description</th><th>Vendor SKU</th>
         <th style="text-align:right">Qty</th>
         <th style="text-align:right">Cost</th><th style="text-align:right">Subtotal</th>
       </tr></thead>
       <tbody>
         ${items.rows.map(i => {
+          const isUnit = i.sell_by === 'unit';
           return `<tr>
-            <td>${i.product_name || ''}</td>
+            <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td>
             <td>${i.vendor_sku || '—'}</td>
-            <td style="text-align:right">${i.qty}</td>
-            <td style="text-align:right">$${parseFloat(i.cost).toFixed(2)}</td>
+            <td style="text-align:right">${i.qty}${isUnit ? '' : ' box' + (i.qty > 1 ? 'es' : '')}</td>
+            <td style="text-align:right">$${parseFloat(i.cost).toFixed(2)}${isUnit ? '/ea' : '/sqft'}</td>
             <td style="text-align:right">$${parseFloat(i.subtotal).toFixed(2)}</td>
           </tr>`;
         }).join('')}
@@ -407,21 +445,98 @@ async function recalculateCommission(queryable, orderId) {
   }
 }
 
+// Sync an order_payment to invoice_payments (AR receipt) if an invoice exists for the order
+async function syncOrderPaymentToInvoice(orderPaymentId, orderId, queryable) {
+  try {
+    const invRes = await queryable.query(
+      "SELECT id, total, amount_paid FROM invoices WHERE order_id = $1 AND status != 'void' LIMIT 1",
+      [orderId]
+    );
+    if (!invRes.rows.length) return;
+    const invoice = invRes.rows[0];
+
+    // Check if already synced
+    const existing = await queryable.query(
+      'SELECT id FROM invoice_payments WHERE order_payment_id = $1',
+      [orderPaymentId]
+    );
+    if (existing.rows.length) return;
+
+    // Get payment details
+    const opRes = await queryable.query(
+      'SELECT amount, payment_method, reference_number FROM order_payments WHERE id = $1',
+      [orderPaymentId]
+    );
+    if (!opRes.rows.length) return;
+    const op = opRes.rows[0];
+
+    await queryable.query(
+      `INSERT INTO invoice_payments (invoice_id, order_payment_id, amount, payment_method, reference_number, payment_date)
+       VALUES ($1, $2, $3, $4, $5, CURRENT_DATE)`,
+      [invoice.id, orderPaymentId, op.amount, op.payment_method || 'stripe', op.reference_number]
+    );
+
+    // Update invoice amount_paid and status
+    const totals = await queryable.query(
+      'SELECT COALESCE(SUM(amount), 0) as total_paid FROM invoice_payments WHERE invoice_id = $1',
+      [invoice.id]
+    );
+    const totalPaid = parseFloat(totals.rows[0].total_paid);
+    const invoiceTotal = parseFloat(invoice.total);
+    const newStatus = totalPaid >= invoiceTotal ? 'paid' : totalPaid > 0 ? 'partial' : 'sent';
+
+    await queryable.query(
+      `UPDATE invoices SET amount_paid = $1, status = $2, paid_at = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
+      [totalPaid, newStatus, newStatus === 'paid' ? new Date() : null, invoice.id]
+    );
+  } catch (err) {
+    console.error('syncOrderPaymentToInvoice error:', err.message);
+  }
+}
+
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
 const pool = new pg.Pool({
   host: process.env.DB_HOST || 'localhost',
-  port: 5432,
-  database: 'flooring_pim',
-  user: 'postgres',
-  password: 'postgres'
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  database: process.env.DB_NAME || 'flooring_pim',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres'
 });
 
-app.use(cors());
+app.disable('x-powered-by');
+
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:3000').split(',').map(s => s.trim());
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) callback(null, true);
+    else callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '2mb' }));
 app.use('/assets', express.static('assets'));
 app.use(healthRoutes);
+app.use(createSeoRouter(pool));
+
+// ==================== Rate Limiters ====================
+const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many login attempts, please try again later' } });
+const checkoutLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
+const searchLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+const registrationLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 3, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many registration attempts, please try again later' } });
+
+app.use(globalLimiter);
+app.use('/api/staff/login', authLimiter);
+app.use('/api/trade/login', authLimiter);
+app.use('/api/rep/login', authLimiter);
+app.use('/api/customer/login', authLimiter);
+app.use('/api/customer/reset-password', authLimiter);
+app.use('/api/checkout', checkoutLimiter);
+app.use('/api/storefront/search/suggest', searchLimiter);
+app.use('/api/trade/register', registrationLimiter);
+app.use('/api/trade/register/upload', registrationLimiter);
 
 // ==================== S3/MinIO Client ====================
 const S3_BUCKET = process.env.S3_BUCKET || 'trade-documents';
@@ -609,7 +724,7 @@ app.get('/api/products', optionalTradeAuth, async (req, res) => {
 
     res.json({ products, total });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -693,7 +808,7 @@ app.get('/api/products/:id', optionalTradeAuth, async (req, res) => {
 
     res.json({ product: product.rows[0], skus, media: media.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -753,7 +868,7 @@ app.get('/api/products/:id/recommendations', async (req, res) => {
 
     res.json({ recommendations: recs });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -801,12 +916,19 @@ app.get('/api/attributes', async (req, res) => {
 
     res.json({ attributes: Object.values(grouped) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 app.get('/api/collections', async (req, res) => {
   try {
+    const { vendor } = req.query;
+    const params = [];
+    let vendorClause = '';
+    if (vendor) {
+      params.push(vendor);
+      vendorClause = ' AND p.vendor_id::text = $1';
+    }
     const result = await pool.query(`
       SELECT p.collection as name,
         COUNT(*)::int as product_count,
@@ -816,17 +938,17 @@ app.get('/api/collections', async (req, res) => {
          ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
            CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as image
       FROM products p
-      WHERE p.status = 'active' AND p.collection IS NOT NULL AND p.collection != ''
+      WHERE p.status = 'active' AND p.collection IS NOT NULL AND p.collection != ''${vendorClause}
       GROUP BY p.collection
       ORDER BY p.collection
-    `);
+    `, params);
     const collections = result.rows.map(r => ({
       ...r,
       slug: r.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
     }));
     res.json({ collections });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -876,7 +998,513 @@ app.get('/api/categories', async (req, res) => {
 
     res.json({ categories });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== Site Analytics Ingest ====================
+
+const ALLOWED_EVENT_TYPES = new Set([
+  'page_view', 'product_view', 'add_to_cart', 'remove_from_cart', 'checkout_started',
+  'order_completed', 'search', 'filter_toggle', 'sort_change', 'category_select',
+  'collection_select', 'wishlist_add', 'wishlist_remove', 'sample_request',
+  'trade_signup_start', 'trade_signup_complete', 'trade_login', 'customer_login',
+  'quick_view_open', 'image_gallery', 'scroll_depth', 'time_on_page',
+  'cart_drawer_open', 'page_change'
+]);
+
+app.post('/api/analytics/event', (req, res) => {
+  res.json({ ok: true });
+  setImmediate(async () => {
+    try {
+      const events = Array.isArray(req.body.events) ? req.body.events.slice(0, 50) : [];
+      if (events.length === 0) return;
+      const values = [];
+      const params = [];
+      let idx = 1;
+      for (const evt of events) {
+        if (!evt.event_type || !ALLOWED_EVENT_TYPES.has(evt.event_type)) continue;
+        values.push(`($${idx}, $${idx+1}, $${idx+2}, $${idx+3}, $${idx+4}, $${idx+5})`);
+        params.push(evt.session_id || null, evt.visitor_id || null, evt.event_type,
+          JSON.stringify(evt.properties || {}), evt.page_path || null, evt.referrer || null);
+        idx += 6;
+      }
+      if (values.length === 0) return;
+      await pool.query(
+        `INSERT INTO analytics_events (session_id, visitor_id, event_type, properties, page_path, referrer)
+         VALUES ${values.join(', ')}`,
+        params
+      );
+    } catch (err) { console.error('[Analytics] Event insert error:', err.message); }
+  });
+});
+
+app.post('/api/analytics/session', (req, res) => {
+  res.json({ ok: true });
+  setImmediate(async () => {
+    try {
+      const { session_id, visitor_id, user_agent, referrer, device_type, utm_source, utm_medium, utm_campaign } = req.body;
+      if (!session_id) return;
+      await pool.query(`
+        INSERT INTO analytics_sessions (session_id, visitor_id, user_agent, referrer, device_type, utm_source, utm_medium, utm_campaign)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (session_id) DO UPDATE SET
+          last_seen_at = CURRENT_TIMESTAMP,
+          page_count = analytics_sessions.page_count + 1
+      `, [session_id, visitor_id || null, user_agent || null, referrer || null,
+          device_type || null, utm_source || null, utm_medium || null, utm_campaign || null]);
+    } catch (err) { console.error('[Analytics] Session upsert error:', err.message); }
+  });
+});
+
+// ==================== Featured Products (best-sellers) ====================
+
+app.get('/api/storefront/featured', async (req, res) => {
+  try {
+    const LIMIT = 8;
+
+    // Best-sellers: SKUs ordered most often in confirmed/shipped/delivered orders
+    const bestSellersSQL = `
+      WITH best AS (
+        SELECT oi.sku_id, COUNT(oi.id)::int as times_ordered
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        JOIN skus s ON s.id = oi.sku_id
+        JOIN products p ON p.id = s.product_id
+        WHERE o.status IN ('confirmed', 'shipped', 'delivered')
+          AND oi.is_sample = false
+          AND s.status = 'active' AND p.status = 'active'
+          AND COALESCE(s.variant_type, '') != 'accessory'
+        GROUP BY oi.sku_id
+        ORDER BY times_ordered DESC
+        LIMIT $1
+      ),
+      sku_images AS (
+        SELECT DISTINCT ON (sku_id) sku_id, url
+        FROM media_assets WHERE asset_type = 'primary' AND sku_id IS NOT NULL
+        ORDER BY sku_id, sort_order
+      ),
+      product_images AS (
+        SELECT DISTINCT ON (product_id) product_id, url
+        FROM media_assets WHERE asset_type = 'primary' AND sku_id IS NULL
+        ORDER BY product_id, sort_order
+      ),
+      sku_alt_images AS (
+        SELECT DISTINCT ON (sku_id) sku_id, url
+        FROM media_assets WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NOT NULL
+        ORDER BY sku_id, sort_order
+      ),
+      product_alt_images AS (
+        SELECT DISTINCT ON (product_id) product_id, url
+        FROM media_assets WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NULL
+        ORDER BY product_id, sort_order
+      ),
+      variant_counts AS (
+        SELECT product_id, COUNT(*) as variant_count
+        FROM skus WHERE status = 'active' AND is_sample = false AND COALESCE(variant_type, '') != 'accessory'
+        GROUP BY product_id
+      )
+      SELECT
+        s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
+        p.name as product_name, p.collection, p.description_short,
+        v.name as vendor_name,
+        COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
+        c.name as category_name, c.slug as category_slug,
+        pr.retail_price, pr.price_basis, pr.cut_price,
+        CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+        pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
+        COALESCE(si.url, pi.url) as primary_image,
+        COALESCE(sai.url, pai.url) as alternate_image,
+        CASE
+          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+          ELSE 'out_of_stock'
+        END as stock_status,
+        COALESCE(vc.variant_count, 0) as variant_count,
+        b.times_ordered
+      FROM best b
+      JOIN skus s ON s.id = b.sku_id
+      JOIN products p ON p.id = s.product_id
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      LEFT JOIN sku_images si ON si.sku_id = s.id
+      LEFT JOIN product_images pi ON pi.product_id = p.id
+      LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
+      LEFT JOIN product_alt_images pai ON pai.product_id = p.id
+      LEFT JOIN variant_counts vc ON vc.product_id = p.id
+      ORDER BY b.times_ordered DESC
+    `;
+
+    const { rows: bestSellers } = await pool.query(bestSellersSQL, [LIMIT]);
+
+    let skus = bestSellers;
+
+    // Fallback: pad with newest SKUs if fewer than LIMIT best-sellers
+    if (skus.length < LIMIT) {
+      const existingIds = skus.map(s => s.sku_id);
+      const padSQL = `
+        WITH sku_images AS (
+          SELECT DISTINCT ON (sku_id) sku_id, url
+          FROM media_assets WHERE asset_type = 'primary' AND sku_id IS NOT NULL
+          ORDER BY sku_id, sort_order
+        ),
+        product_images AS (
+          SELECT DISTINCT ON (product_id) product_id, url
+          FROM media_assets WHERE asset_type = 'primary' AND sku_id IS NULL
+          ORDER BY product_id, sort_order
+        ),
+        sku_alt_images AS (
+          SELECT DISTINCT ON (sku_id) sku_id, url
+          FROM media_assets WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NOT NULL
+          ORDER BY sku_id, sort_order
+        ),
+        product_alt_images AS (
+          SELECT DISTINCT ON (product_id) product_id, url
+          FROM media_assets WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NULL
+          ORDER BY product_id, sort_order
+        ),
+        variant_counts AS (
+          SELECT product_id, COUNT(*) as variant_count
+          FROM skus WHERE status = 'active' AND is_sample = false AND COALESCE(variant_type, '') != 'accessory'
+          GROUP BY product_id
+        )
+        SELECT * FROM (
+          SELECT DISTINCT ON (p.id)
+            s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
+            p.name as product_name, p.collection, p.description_short,
+            v.name as vendor_name,
+            COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
+            c.name as category_name, c.slug as category_slug,
+            pr.retail_price, pr.price_basis, pr.cut_price,
+            CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+            pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
+            COALESCE(si.url, pi.url) as primary_image,
+            COALESCE(sai.url, pai.url) as alternate_image,
+            CASE
+              WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+              WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+              WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+              ELSE 'out_of_stock'
+            END as stock_status,
+            COALESCE(vc.variant_count, 0) as variant_count
+          FROM skus s
+          JOIN products p ON p.id = s.product_id
+          JOIN vendors v ON v.id = p.vendor_id
+          LEFT JOIN categories c ON c.id = p.category_id
+          LEFT JOIN pricing pr ON pr.sku_id = s.id
+          LEFT JOIN packaging pk ON pk.sku_id = s.id
+          LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+          LEFT JOIN sku_images si ON si.sku_id = s.id
+          LEFT JOIN product_images pi ON pi.product_id = p.id
+          LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
+          LEFT JOIN product_alt_images pai ON pai.product_id = p.id
+          LEFT JOIN variant_counts vc ON vc.product_id = p.id
+          WHERE p.status = 'active' AND s.status = 'active' AND s.is_sample = false
+            AND COALESCE(s.variant_type, '') != 'accessory'
+            ${existingIds.length > 0 ? 'AND s.id != ALL($2)' : ''}
+          ORDER BY p.id, s.created_at
+        ) grouped
+        ORDER BY created_at DESC
+        LIMIT $1
+      `;
+      const padParams = [LIMIT - skus.length];
+      if (existingIds.length > 0) padParams.push(existingIds);
+      const { rows: padRows } = await pool.query(padSQL, padParams);
+      skus = [...skus, ...padRows];
+    }
+
+    // Batch-fetch attributes
+    if (skus.length > 0) {
+      const skuIds = skus.map(s => s.sku_id);
+      const attrResult = await pool.query(`
+        SELECT sa.sku_id, a.name, a.slug, sa.value
+        FROM sku_attributes sa
+        JOIN attributes a ON a.id = sa.attribute_id
+        WHERE sa.sku_id = ANY($1)
+        ORDER BY a.display_order, a.name
+      `, [skuIds]);
+      const attrMap = {};
+      for (const row of attrResult.rows) {
+        if (!attrMap[row.sku_id]) attrMap[row.sku_id] = [];
+        attrMap[row.sku_id].push({ slug: row.slug, name: row.name, value: row.value });
+      }
+      skus = skus.map(s => ({ ...s, attributes: attrMap[s.sku_id] || [] }));
+    }
+
+    // Strip times_ordered from response
+    skus = skus.map(({ times_ordered, ...rest }) => rest);
+
+    res.json({ skus });
+  } catch (err) {
+    console.error('[Featured] Error:', err);
+    res.status(500).json({ error: 'Failed to load featured products' });
+  }
+});
+
+// ==================== Newsletter Signup ====================
+
+app.post('/api/newsletter/subscribe', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+    await pool.query(`
+      INSERT INTO newsletter_subscribers (email)
+      VALUES ($1)
+      ON CONFLICT (email) DO UPDATE SET subscribed_at = CURRENT_TIMESTAMP
+    `, [email.toLowerCase().trim()]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Newsletter] Error:', err.message);
+    res.status(500).json({ error: 'Failed to subscribe' });
+  }
+});
+
+// ==================== Search Synonyms / Aliases ====================
+
+const SEARCH_SYNONYMS = {
+  // Abbreviations
+  'lvp': 'luxury vinyl plank',
+  'lvt': 'luxury vinyl tile',
+  'spc': 'stone polymer composite rigid core vinyl',
+  'wpc': 'wood polymer composite vinyl',
+  'cof': 'coefficient of friction',
+  'porcy': 'porcelain',
+  'herring': 'herringbone',
+  'hw': 'hardwood',
+  'eng': 'engineered hardwood',
+  'lam': 'laminate',
+  'calc': 'calacatta',
+  'trav': 'travertine',
+  'slab': 'countertop slab',
+  'backsplash': 'mosaic wall tile',
+  'subway': 'subway wall tile',
+  'penny': 'penny round mosaic',
+  'hex': 'hexagon mosaic',
+  'bullnose': 'bullnose trim',
+  'schluter': 'trim transition',
+  'reducer': 'transition reducer',
+  'quarter round': 'quarter round molding',
+  't-molding': 't molding transition',
+  'underlayment': 'underlayment pad',
+  'waterproof': 'waterproof vinyl',
+  'click lock': 'click lock floating',
+  'glue down': 'glue down',
+  'wood look': 'wood look porcelain plank',
+  'marble look': 'marble look porcelain',
+  'stone look': 'stone look porcelain',
+  // Common misspellings
+  'pocelain': 'porcelain',
+  'porcelian': 'porcelain',
+  'porclain': 'porcelain',
+  'procelain': 'porcelain',
+  'calacata': 'calacatta',
+  'calacatta': 'calacatta',
+  'calcatta': 'calacatta',
+  'cararra': 'carrara',
+  'carara': 'carrara',
+  'carrarra': 'carrara',
+  'herringbon': 'herringbone',
+  'herringbne': 'herringbone',
+  'harwood': 'hardwood',
+  'hadwood': 'hardwood',
+  'laminent': 'laminate',
+  'laminat': 'laminate',
+  'laminent': 'laminate',
+  'travertene': 'travertine',
+  'travertine': 'travertine',
+  'moasic': 'mosaic',
+  'mosaik': 'mosaic',
+  'vinly': 'vinyl',
+  'vinal': 'vinyl',
+  'vynil': 'vinyl',
+  'grout': 'grout',
+  'quartz': 'quartz countertop',
+  'quartzite': 'quartzite natural stone',
+};
+
+function expandSynonyms(query) {
+  const lower = query.toLowerCase().trim();
+  if (SEARCH_SYNONYMS[lower]) return SEARCH_SYNONYMS[lower];
+  const words = lower.split(/\s+/);
+  let expanded = false;
+  const result = words.map(w => {
+    if (SEARCH_SYNONYMS[w]) { expanded = true; return SEARCH_SYNONYMS[w]; }
+    return w;
+  });
+  return expanded ? query + ' ' + result.join(' ') : query;
+}
+
+// ==================== Storefront Search Suggest ====================
+
+app.get('/api/storefront/search/suggest', async (req, res) => {
+  try {
+    const raw = (req.query.q || '').trim();
+    if (!raw || raw.length < 2) return res.json({ categories: [], collections: [], products: [], total: 0 });
+
+    const sanitized = raw.replace(/[^\w\s'.-]/g, '').trim();
+    if (!sanitized) return res.json({ categories: [], collections: [], products: [], total: 0 });
+
+    const expanded = expandSynonyms(sanitized);
+    const tsQuery = expanded.split(/\s+/).filter(Boolean).map(w => w + ':*').join(' & ');
+
+    // Run categories, collections, and FTS product search in parallel
+    const [catResult, colResult, ftsResult] = await Promise.all([
+      // Categories — trigram + ILIKE (small table, fast)
+      pool.query(`
+        SELECT c.name, c.slug, c.image_url, COUNT(DISTINCT p.id) as product_count
+        FROM categories c
+        JOIN products p ON p.category_id = c.id
+        WHERE p.status = 'active'
+          AND (c.name % $1 OR c.name ILIKE '%' || $1 || '%')
+        GROUP BY c.id
+        ORDER BY similarity(c.name, $1) DESC
+        LIMIT 3
+      `, [sanitized]),
+
+      // Collections — trigram + ILIKE on products.collection
+      pool.query(`
+        SELECT p.collection, COUNT(DISTINCT p.id) as product_count,
+          MIN(ma.url) FILTER (WHERE ma.asset_type = 'primary' AND ma.sku_id IS NULL) as image
+        FROM products p
+        LEFT JOIN media_assets ma ON ma.product_id = p.id
+        WHERE p.status = 'active'
+          AND p.collection != ''
+          AND (p.collection % $1 OR p.collection ILIKE '%' || $1 || '%')
+        GROUP BY p.collection
+        ORDER BY similarity(p.collection, $1) DESC
+        LIMIT 3
+      `, [sanitized]),
+
+      // Products — FTS: find matching product IDs first (fast GIN scan), then enrich top results
+      pool.query(`
+        WITH fts_products AS (
+          SELECT p.id, ts_rank(p.search_vector, to_tsquery('english', unaccent($1))) as fts_rank,
+                 COUNT(*) OVER() as total_count
+          FROM products p
+          WHERE p.status = 'active'
+            AND p.search_vector @@ to_tsquery('english', unaccent($1))
+          ORDER BY ts_rank(p.search_vector, to_tsquery('english', unaccent($1))) DESC
+          LIMIT 8
+        ),
+        top_skus AS (
+          SELECT DISTINCT ON (fp.id)
+            s.id as sku_id, fp.id as product_id, p.name as product_name, p.collection, s.variant_name,
+            v.name as vendor_name,
+            pr.retail_price, pr.price_basis, s.sell_by, pk.sqft_per_box,
+            CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+            fp.fts_rank, fp.total_count
+          FROM fts_products fp
+          JOIN products p ON p.id = fp.id
+          JOIN vendors v ON v.id = p.vendor_id
+          JOIN skus s ON s.product_id = fp.id AND s.status = 'active' AND s.is_sample = false AND COALESCE(s.variant_type, '') != 'accessory'
+          LEFT JOIN pricing pr ON pr.sku_id = s.id
+          LEFT JOIN packaging pk ON pk.sku_id = s.id
+          ORDER BY fp.id, s.created_at
+        )
+        SELECT ts.*,
+          COALESCE(
+            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'primary' LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1)
+          ) as primary_image
+        FROM top_skus ts
+        ORDER BY ts.fts_rank DESC
+        LIMIT 6
+      `, [tsQuery])
+    ]);
+
+    // If FTS returned fewer than 6 products, try trigram fallback
+    let prodRows = ftsResult.rows;
+    let totalCount = prodRows.length > 0 ? parseInt(prodRows[0].total_count) : 0;
+
+    if (prodRows.length < 6) {
+      const ftsIds = prodRows.map(r => r.product_id);
+      const trgmResult = await pool.query(`
+        WITH trgm_products AS (
+          SELECT p.id, greatest(similarity(p.name, $1), similarity(p.collection, $1)) as trgm_score
+          FROM products p
+          WHERE p.status = 'active'
+            AND (p.name % $1 OR p.collection % $1)
+            ${ftsIds.length > 0 ? 'AND p.id != ALL($2::uuid[])' : ''}
+          ORDER BY greatest(similarity(p.name, $1), similarity(p.collection, $1)) DESC
+          LIMIT 8
+        ),
+        top_skus AS (
+          SELECT DISTINCT ON (tp.id)
+            s.id as sku_id, tp.id as product_id, p.name as product_name, p.collection, s.variant_name,
+            v.name as vendor_name,
+            pr.retail_price, pr.price_basis, s.sell_by, pk.sqft_per_box,
+            CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+            0::float as fts_rank, tp.trgm_score
+          FROM trgm_products tp
+          JOIN products p ON p.id = tp.id
+          JOIN vendors v ON v.id = p.vendor_id
+          JOIN skus s ON s.product_id = tp.id AND s.status = 'active' AND s.is_sample = false AND COALESCE(s.variant_type, '') != 'accessory'
+          LEFT JOIN pricing pr ON pr.sku_id = s.id
+          LEFT JOIN packaging pk ON pk.sku_id = s.id
+          ORDER BY tp.id, s.created_at
+        )
+        SELECT ts.*,
+          COALESCE(
+            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'primary' LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1)
+          ) as primary_image
+        FROM top_skus ts
+        ORDER BY ts.trgm_score DESC
+        LIMIT 6
+      `, ftsIds.length > 0 ? [sanitized, ftsIds] : [sanitized]);
+
+      // Merge: FTS results first (ranked), then trigram results (ranked)
+      const trgmRows = trgmResult.rows;
+      totalCount += trgmRows.length;
+      prodRows = prodRows.concat(trgmRows);
+    }
+
+    // Sort merged results: FTS rank first, then trigram score
+    prodRows.sort((a, b) => {
+      const scoreA = (parseFloat(a.fts_rank || 0) * 2) + parseFloat(a.trgm_score || 0);
+      const scoreB = (parseFloat(b.fts_rank || 0) * 2) + parseFloat(b.trgm_score || 0);
+      return scoreB - scoreA;
+    });
+    prodRows = prodRows.slice(0, 6);
+
+    res.json({
+      categories: catResult.rows.map(r => ({ name: r.name, slug: r.slug, image_url: r.image_url, product_count: parseInt(r.product_count) })),
+      collections: colResult.rows.map(r => ({ name: r.collection, product_count: parseInt(r.product_count), image: r.image })),
+      products: prodRows.map(r => ({
+        sku_id: r.sku_id, product_name: r.product_name, collection: r.collection,
+        variant_name: r.variant_name, vendor_name: r.vendor_name, primary_image: r.primary_image,
+        retail_price: r.retail_price, price_basis: r.price_basis, sell_by: r.sell_by, sqft_per_box: r.sqft_per_box, sale_price: r.sale_price
+      })),
+      total: totalCount
+    });
+  } catch (err) {
+    console.error('Search suggest error:', err);
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/storefront/search/popular', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT properties->>'query' as term, COUNT(*) as cnt
+      FROM analytics_events
+      WHERE event_type = 'search'
+        AND properties->>'query' IS NOT NULL
+        AND properties->>'query' != ''
+        AND created_at > NOW() - INTERVAL '30 days'
+      GROUP BY properties->>'query'
+      HAVING COUNT(*) >= 2
+      ORDER BY cnt DESC
+      LIMIT 8
+    `);
+    res.json({ terms: result.rows.map(r => r.term) });
+  } catch (err) {
+    console.error('Popular searches error:', err);
+    res.json({ terms: ['marble tile', 'porcelain', 'calacatta', 'wood look', 'mosaic', 'subway tile', '12x24', 'herringbone'] });
   }
 });
 
@@ -891,7 +1519,8 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
 
     let params = [];
     let paramIndex = 1;
-    let whereClauses = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'", "COALESCE(s.variant_type, '') != 'accessory'"];
+    let whereClauses = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'", "COALESCE(s.variant_type, '') != 'accessory'",
+      "p.collection NOT LIKE 'AHF%'", "(pr.retail_price IS NULL OR pr.retail_price > 0)"];
 
     // Category filter (includes children)
     if (category) {
@@ -907,11 +1536,27 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       paramIndex++;
     }
 
-    // Search
+    // Search — FTS + trigram hybrid (with synonym expansion)
+    let searchParamIdx = null;
+    let searchTsQueryIdx = null;
     if (searchTerm) {
-      params.push('%' + searchTerm + '%');
-      whereClauses.push(`(p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR (p.collection || ' ' || p.name) ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex} OR s.variant_name ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex})`);
-      paramIndex++;
+      const sanitized = searchTerm.replace(/[^\w\s'.-]/g, '').trim();
+      if (sanitized) {
+        params.push(sanitized);
+        searchParamIdx = paramIndex;
+        paramIndex++;
+        const expanded = expandSynonyms(sanitized);
+        const tsQuery = expanded.split(/\s+/).filter(Boolean).map(w => w + ':*').join(' & ');
+        params.push(tsQuery);
+        searchTsQueryIdx = paramIndex;
+        paramIndex++;
+        whereClauses.push(`(
+          p.search_vector @@ to_tsquery('english', unaccent($${searchTsQueryIdx}))
+          OR p.name % $${searchParamIdx}
+          OR p.collection % $${searchParamIdx}
+          OR (p.collection || ' ' || p.name) ILIKE '%' || $${searchParamIdx} || '%'
+        )`);
+      }
     }
 
     // Product IDs filter (for wishlist)
@@ -923,12 +1568,34 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       }
     }
 
+    // Vendor filter
+    if (req.query.vendor) {
+      const vendorNames = req.query.vendor.split('|').map(v => v.trim()).filter(Boolean);
+      const vendorPlaceholders = vendorNames.map(v => { params.push(v); return `$${paramIndex++}`; });
+      whereClauses.push(`v.name IN (${vendorPlaceholders.join(',')})`);
+    }
+
+    // Price range filters
+    if (req.query.price_min) {
+      params.push(parseFloat(req.query.price_min));
+      whereClauses.push(`pr.retail_price >= $${paramIndex++}`);
+    }
+    if (req.query.price_max) {
+      params.push(parseFloat(req.query.price_max));
+      whereClauses.push(`pr.retail_price <= $${paramIndex++}`);
+    }
+
     // Attribute filters: any query param matching an attribute slug
-    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'product_ids'];
+    // Sale filter
+    if (req.query.sale === 'true') {
+      whereClauses.push("pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW())");
+    }
+
+    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'product_ids', 'vendor', 'price_min', 'price_max', 'sale'];
     const attrFilters = {};
     for (const [key, val] of Object.entries(req.query)) {
       if (!reservedParams.includes(key) && val) {
-        attrFilters[key] = val.split(',').map(v => v.trim()).filter(Boolean);
+        attrFilters[key] = val.split('|').map(v => v.trim()).filter(Boolean);
       }
     }
 
@@ -944,13 +1611,17 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
 
     const whereSQL = whereClauses.join(' AND ');
 
-    // Sort — column names without table prefixes (used in outer query over subquery)
+    // Sort — relevance-first when searching (unless user explicitly chose a sort)
     let orderBy = 'product_name ASC, variant_name ASC';
-    if (sort === 'price_asc') orderBy = 'retail_price ASC NULLS LAST, product_name ASC';
+    if (sort === 'discount') orderBy = 'CASE WHEN sale_price IS NOT NULL AND retail_price > 0 THEN (retail_price - sale_price) / retail_price ELSE 0 END DESC, product_name ASC';
+    else if (sort === 'price_asc') orderBy = 'retail_price ASC NULLS LAST, product_name ASC';
     else if (sort === 'price_desc') orderBy = 'retail_price DESC NULLS LAST, product_name ASC';
     else if (sort === 'newest') orderBy = 'created_at DESC';
     else if (sort === 'name_asc') orderBy = 'product_name ASC, variant_name ASC';
     else if (sort === 'name_desc') orderBy = 'product_name DESC, variant_name DESC';
+    else if (searchParamIdx && !sort) {
+      orderBy = `(ts_rank(search_vector, to_tsquery('english', unaccent($${searchTsQueryIdx}))) * 2 + greatest(similarity(product_name, $${searchParamIdx}), similarity(collection, $${searchParamIdx}))) DESC, product_name ASC`;
+    }
 
     // Count query — count distinct products, not individual SKUs
     const countSQL = `
@@ -959,6 +1630,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
       WHERE ${whereSQL}
     `;
 
@@ -996,12 +1668,13 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       )
       SELECT * FROM (
         SELECT DISTINCT ON (p.id)
-          s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.sell_by, s.created_at,
-          p.name as product_name, p.collection, p.description_short,
+          s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
+          p.name as product_name, p.collection, p.description_short, p.search_vector,
           v.name as vendor_name,
           COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
           c.name as category_name, c.slug as category_slug,
-          pr.retail_price, pr.price_basis,
+          pr.retail_price, pr.price_basis, pr.cut_price,
+          CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
           pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
           COALESCE(si.url, pi.url) as primary_image,
           COALESCE(sai.url, pai.url) as alternate_image,
@@ -1074,10 +1747,10 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       });
     }
 
-    res.json({ skus, total });
+    res.json({ skus: skus.map(({ search_vector, ...rest }) => rest), total });
   } catch (err) {
     console.error('Storefront SKU browse error:', err);
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -1095,6 +1768,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.cost, pr.price_basis,
         pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft,
+        pr.sale_price, pr.sale_ends_at,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class,
         pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs,
         pk.roll_width_ft, pk.roll_length_ft,
@@ -1119,7 +1793,14 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
     let sku = skuResult.rows[0];
 
-    // Accessories don't have their own page — redirect to parent product's first main SKU
+    // Nullify expired sales
+    if (sku.sale_price && sku.sale_ends_at && new Date(sku.sale_ends_at) <= new Date()) {
+      sku.sale_price = null;
+      sku.sale_ends_at = null;
+    }
+
+    // Accessories that share a product with non-accessory SKUs redirect to the parent
+    // Standalone accessory products (e.g. "Console Base") render their own page
     if (sku.variant_type === 'accessory') {
       const parentSku = await pool.query(`
         SELECT s.id FROM skus s
@@ -1130,7 +1811,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       if (parentSku.rows.length) {
         return res.json({ redirect_to_sku: parentSku.rows[0].id });
       }
-      return res.status(404).json({ error: 'Product not found' });
+      // No non-accessory sibling — this is a standalone product, render normally
     }
 
     // SKU attributes
@@ -1160,14 +1841,31 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     `, [skuId, sku.product_id]);
 
     let mediaResult;
+    const isAdexVendor = /adex/i.test(sku.vendor_name || '');
     if (skuMediaResult.rows.length > 0) {
-      mediaResult = skuMediaResult;
+      // SKU has its own images — also include product-level lifestyle (room scenes)
+      // For ADEX: also include product-level alternate (shape drawing) as the primary display image
+      const extraTypes = isAdexVendor ? "'lifestyle','alternate'" : "'lifestyle'";
+      const productExtra = await pool.query(`
+        SELECT id, asset_type, url, sort_order, sku_id
+        FROM media_assets
+        WHERE product_id = $1 AND sku_id IS NULL AND asset_type IN (${extraTypes})
+        ORDER BY CASE asset_type WHEN 'alternate' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, sort_order
+      `, [sku.product_id]);
+      if (isAdexVendor) {
+        // For ADEX: show shape image first, then SKU color swatch, then lifestyle
+        mediaResult = { rows: [...productExtra.rows, ...skuMediaResult.rows] };
+      } else {
+        mediaResult = { rows: [...skuMediaResult.rows, ...productExtra.rows] };
+      }
     } else {
+      // No SKU images — fall back to product-level primary/alternate only (not lifestyle,
+      // which would show a random color variant's room scene)
       mediaResult = await pool.query(`
         SELECT id, asset_type, url, sort_order, sku_id
         FROM media_assets
-        WHERE product_id = $1 AND sku_id IS NULL
-        ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END, sort_order
+        WHERE product_id = $1 AND sku_id IS NULL AND asset_type IN ('primary', 'alternate')
+        ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 ELSE 2 END, sort_order
       `, [sku.product_id]);
     }
 
@@ -1185,11 +1883,19 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     const siblingsResult = await pool.query(`
       SELECT
         s.id as sku_id, s.variant_name, s.internal_sku, s.variant_type, s.sell_by,
-        pr.retail_price, pr.price_basis,
+        pr.retail_price, pr.price_basis, pk.sqft_per_box,
+        CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         COALESCE(
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
           (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
         ) as primary_image,
+        (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as sku_image,
+        (SELECT ma.url FROM media_assets ma
+         JOIN skus s_top ON s_top.id = ma.sku_id AND ma.asset_type = 'primary'
+         JOIN sku_attributes sa_ref ON sa_ref.sku_id = s.id
+         JOIN attributes a_ref ON a_ref.id = sa_ref.attribute_id AND a_ref.slug = 'top_ref_sku'
+         WHERE s_top.vendor_sku IN (sa_ref.value || '-SNK', sa_ref.value, regexp_replace(sa_ref.value, '-([^-]+)$', '-BS-\\1'))
+         LIMIT 1) as countertop_image,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -1198,6 +1904,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         END as stock_status
       FROM skus s
       LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
       WHERE s.product_id = $1 AND s.id != $2 AND s.is_sample = false AND s.status = 'active'
       ORDER BY s.variant_name
@@ -1224,29 +1931,55 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
 
     // Collection siblings (other products in same collection, same category, excluding mosaics/hexagons/bullnose)
     let collectionSiblings = [];
+    // isAdexVendor already declared above (media section)
     if (sku.collection) {
       const isMosaicProduct = /mosaic|hexagon|bullnose/i.test(sku.product_name);
-      const collResult = await pool.query(`
-        SELECT DISTINCT ON (p.id)
-          s.id as sku_id, s.variant_name, p.id as product_id, p.name as product_name, p.collection,
-          pr.retail_price, pr.price_basis,
-          COALESCE(
-            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-            (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
-          ) as primary_image
-        FROM products p
-        JOIN skus s ON s.product_id = p.id AND s.is_sample = false AND s.status = 'active'
-        LEFT JOIN pricing pr ON pr.sku_id = s.id
-        WHERE LOWER(p.collection) = LOWER($1) AND p.id != $2 AND p.status = 'active'
-          AND p.category_id = $3
-          AND (
-            ($4 = true AND p.name ~* '(mosaic|hexagon|bullnose)')
-            OR ($4 = false AND p.name !~* '(mosaic|hexagon|bullnose)')
-          )
-        ORDER BY p.id, s.created_at
-        LIMIT 50
-      `, [sku.collection, sku.product_id, sku.category_id, isMosaicProduct]);
-      collectionSiblings = collResult.rows;
+      if (isAdexVendor) {
+        // ADEX: return ALL SKUs in entire collection (all colors, finishes, products) for swatch grid
+        const collResult = await pool.query(`
+          SELECT s.id as sku_id, s.variant_name, s.sell_by, p.id as product_id, p.name as product_name, p.collection,
+            pr.retail_price, pr.price_basis, pk.sqft_per_box,
+            CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image,
+            (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY ma.sort_order LIMIT 1) as shape_image,
+            (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) as color,
+            (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) as finish
+          FROM products p
+          JOIN skus s ON s.product_id = p.id AND s.is_sample = false AND s.status = 'active'
+          LEFT JOIN pricing pr ON pr.sku_id = s.id
+          LEFT JOIN packaging pk ON pk.sku_id = s.id
+          WHERE LOWER(p.collection) = LOWER($1) AND p.status = 'active'
+            AND p.category_id = $2
+            AND s.id != $3
+          ORDER BY p.name, s.variant_name
+          LIMIT 500
+        `, [sku.collection, sku.category_id, skuId]);
+        collectionSiblings = collResult.rows;
+      } else {
+        const collResult = await pool.query(`
+          SELECT DISTINCT ON (p.id)
+            s.id as sku_id, s.variant_name, s.sell_by, p.id as product_id, p.name as product_name, p.collection,
+            pr.retail_price, pr.price_basis, pk.sqft_per_box,
+            CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+            COALESCE(
+              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+              (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
+            ) as primary_image
+          FROM products p
+          JOIN skus s ON s.product_id = p.id AND s.is_sample = false AND s.status = 'active'
+          LEFT JOIN pricing pr ON pr.sku_id = s.id
+          LEFT JOIN packaging pk ON pk.sku_id = s.id
+          WHERE LOWER(p.collection) = LOWER($1) AND p.id != $2 AND p.status = 'active'
+            AND p.category_id = $3
+            AND (
+              ($4 = true AND p.name ~* '(mosaic|hexagon|bullnose)')
+              OR ($4 = false AND p.name !~* '(mosaic|hexagon|bullnose)')
+            )
+          ORDER BY p.id, (s.variant_name = $5) DESC, s.created_at
+          LIMIT 50
+        `, [sku.collection, sku.product_id, sku.category_id, isMosaicProduct, sku.variant_name]);
+        collectionSiblings = collResult.rows;
+      }
     }
 
     // Collection-wide attribute values (all sizes/finishes across all colors)
@@ -1305,7 +2038,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           s.id as sku_id, s.variant_name, s.variant_type, s.sell_by,
           p.id as product_id, p.name as product_name, p.collection,
           c.name as category_name, c.slug as category_slug,
-          pr.retail_price, pr.price_basis,
+          pr.retail_price, pr.price_basis, pk.sqft_per_box,
+          CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
           COALESCE(
             (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' LIMIT 1),
             (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' LIMIT 1)
@@ -1315,6 +2049,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         JOIN products p ON p.id = s.product_id AND p.status = 'active'
         LEFT JOIN categories c ON c.id = p.category_id
         LEFT JOIN pricing pr ON pr.sku_id = s.id
+        LEFT JOIN packaging pk ON pk.sku_id = s.id
         WHERE sa.attribute_id = (SELECT id FROM attributes WHERE slug = 'group_number')
           AND sa.value = $1
           AND p.category_id != $2
@@ -1326,9 +2061,26 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       groupedProducts = gpResult.rows;
     }
 
+    // Look up countertop-only image for current SKU via top_ref_sku attribute
+    let countertopImage = null;
+    const topRefAttr = (sku.attributes || []).find(a => a.slug === 'top_ref_sku');
+    if (topRefAttr) {
+      const ref = topRefAttr.value;
+      // Try: exact match, with -SNK suffix, and with -BS- before the finish code
+      const bsVariant = ref.replace(/-([^-]+)$/, '-BS-$1');
+      const ctResult = await pool.query(`
+        SELECT ma.url FROM media_assets ma
+        JOIN skus s_top ON s_top.id = ma.sku_id AND ma.asset_type = 'primary'
+        WHERE s_top.vendor_sku = ANY($1)
+        LIMIT 1
+      `, [[ref + '-SNK', ref, bsVariant]]);
+      if (ctResult.rows.length) countertopImage = ctResult.rows[0].url;
+    }
+
     res.json({
       sku,
       media: dedupedMedia,
+      countertop_image: countertopImage,
       same_product_siblings: sameSiblings,
       collection_siblings: collectionSiblings,
       collection_attributes: collectionAttributes,
@@ -1336,7 +2088,27 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('Storefront SKU detail error:', err);
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/storefront/sale/stats', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COUNT(DISTINCT p.id) as count,
+        MAX(CASE WHEN pr.retail_price > 0 THEN ROUND(((pr.retail_price - pr.sale_price) / pr.retail_price) * 100) ELSE 0 END) as max_discount
+      FROM pricing pr
+      JOIN skus s ON s.id = pr.sku_id AND s.status = 'active' AND s.is_sample = false AND COALESCE(s.variant_type, '') != 'accessory'
+      JOIN products p ON p.id = s.product_id AND p.status = 'active'
+      WHERE pr.sale_price IS NOT NULL
+        AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW())
+    `);
+    const row = result.rows[0];
+    res.json({ count: parseInt(row.count) || 0, max_discount: parseInt(row.max_discount) || 0 });
+  } catch (err) {
+    console.error('Sale stats error:', err);
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -1348,7 +2120,8 @@ app.get('/api/storefront/facets', async (req, res) => {
     // Build base WHERE for non-attribute filters
     let params = [];
     let paramIndex = 1;
-    let baseWhere = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'"];
+    let baseWhere = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'",
+      "COALESCE(s.variant_type, '') != 'accessory'", "p.collection NOT LIKE 'AHF%'"];
 
     if (category) {
       params.push(category);
@@ -1361,37 +2134,100 @@ app.get('/api/storefront/facets', async (req, res) => {
       paramIndex++;
     }
     if (searchTerm) {
-      params.push('%' + searchTerm + '%');
-      baseWhere.push(`(p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR (p.collection || ' ' || p.name) ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex} OR s.variant_name ILIKE $${paramIndex})`);
-      paramIndex++;
-    }
-
-    // Collect attribute filters from query params
-    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset'];
-    const attrFilters = {};
-    for (const [key, val] of Object.entries(req.query)) {
-      if (!reservedParams.includes(key) && val) {
-        attrFilters[key] = val.split(',').map(v => v.trim()).filter(Boolean);
+      const sanitized = searchTerm.replace(/[^\w\s'.-]/g, '').trim();
+      if (sanitized) {
+        params.push(sanitized);
+        const sIdx = paramIndex++;
+        const tsQuery = sanitized.split(/\s+/).filter(Boolean).map(w => w + ':*').join(' & ');
+        params.push(tsQuery);
+        const tsIdx = paramIndex++;
+        baseWhere.push(`(
+          p.search_vector @@ to_tsquery('english', unaccent($${tsIdx}))
+          OR p.name % $${sIdx}
+          OR p.collection % $${sIdx}
+          OR (p.collection || ' ' || p.name) ILIKE '%' || $${sIdx} || '%'
+        )`);
       }
     }
 
-    // Get all filterable attributes
-    const attrsResult = await pool.query(
-      "SELECT id, name, slug FROM attributes WHERE is_filterable = true ORDER BY display_order, name"
-    );
+    // Vendor filter
+    if (req.query.vendor) {
+      const vendorNames = req.query.vendor.split('|').map(v => v.trim()).filter(Boolean);
+      const vendorPlaceholders = vendorNames.map(v => { params.push(v); return `$${paramIndex++}`; });
+      baseWhere.push(`v.name IN (${vendorPlaceholders.join(',')})`);
+    }
 
-    // For each attribute group, compute disjunctive counts
-    // (apply all OTHER attribute filters, but not the current one)
-    const facetPromises = attrsResult.rows.map(async (attr) => {
+    // Price range filters
+    if (req.query.price_min) {
+      params.push(parseFloat(req.query.price_min));
+      baseWhere.push(`pr.retail_price >= $${paramIndex++}`);
+    }
+    if (req.query.price_max) {
+      params.push(parseFloat(req.query.price_max));
+      baseWhere.push(`pr.retail_price <= $${paramIndex++}`);
+    }
+
+    // Sale filter
+    if (req.query.sale === 'true') {
+      baseWhere.push("pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW())");
+    }
+
+    // Collect attribute filters from query params
+    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'vendor', 'price_min', 'price_max', 'product_ids', 'sale'];
+    const attrFilters = {};
+    for (const [key, val] of Object.entries(req.query)) {
+      if (!reservedParams.includes(key) && val) {
+        attrFilters[key] = val.split('|').map(v => v.trim()).filter(Boolean);
+      }
+    }
+
+    // Hidden facets — technical attributes not useful for shoppers
+    const hiddenFacets = ['color_code', 'style_code', 'upc', 'collection', 'brand', 'subcategory', 'weight_per_sqyd'];
+
+    // Build WHERE clause for attr filters (used in pre-filter + facet queries)
+    let attrWhereFragments = [];
+    let attrWhereParams = [...params];
+    let attrParamIndex = paramIndex;
+    for (const [slug, values] of Object.entries(attrFilters)) {
+      const slugP = attrParamIndex++;
+      attrWhereParams.push(slug);
+      const valPlaceholders = values.map(v => {
+        attrWhereParams.push(v);
+        return `$${attrParamIndex++}`;
+      });
+      attrWhereFragments.push({ slug, clause: `s.id IN (SELECT sa2.sku_id FROM sku_attributes sa2 JOIN attributes a2 ON a2.id = sa2.attribute_id WHERE a2.slug = $${slugP} AND sa2.value IN (${valPlaceholders.join(',')}))` });
+    }
+
+    // Pre-filter: only query attributes that actually exist in the current result set
+    const allAttrWhere = [...baseWhere, ...attrWhereFragments.map(f => f.clause)].join(' AND ');
+    const preFilterSQL = `
+      SELECT DISTINCT a.id, a.name, a.slug, a.display_order
+      FROM sku_attributes sa
+      JOIN attributes a ON a.id = sa.attribute_id AND a.is_filterable = true
+      JOIN skus s ON s.id = sa.sku_id
+      JOIN products p ON p.id = s.product_id
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      WHERE ${allAttrWhere}
+      ORDER BY a.display_order, a.name
+    `;
+    const attrsResult = await pool.query(preFilterSQL, attrWhereParams);
+    const relevantAttrs = attrsResult.rows.filter(a => !hiddenFacets.includes(a.slug));
+
+    // For each relevant attribute, compute disjunctive counts
+    const facetPromises = relevantAttrs.map(async (attr) => {
       let facetParams = [...params];
       let facetParamIndex = paramIndex;
       let facetWhere = [...baseWhere];
 
       // Apply all attribute filters EXCEPT this one (disjunctive faceting)
-      for (const [slug, values] of Object.entries(attrFilters)) {
-        if (slug === attr.slug) continue; // skip self
+      for (const frag of attrWhereFragments) {
+        if (frag.slug === attr.slug) continue;
+        // Re-build the clause with current param indices
         const slugP = facetParamIndex++;
-        facetParams.push(slug);
+        facetParams.push(frag.slug);
+        const values = attrFilters[frag.slug];
         const valPlaceholders = values.map(v => {
           facetParams.push(v);
           return `$${facetParamIndex++}`;
@@ -1407,6 +2243,7 @@ app.get('/api/storefront/facets', async (req, res) => {
         JOIN products p ON p.id = s.product_id
         JOIN vendors v ON v.id = p.vendor_id
         LEFT JOIN categories c ON c.id = p.category_id
+        LEFT JOIN pricing pr ON pr.sku_id = s.id
         WHERE a.slug = $${facetParamIndex} AND ${facetWhere.join(' AND ')}
         GROUP BY sa.value
         ORDER BY count DESC, sa.value ASC
@@ -1421,12 +2258,50 @@ app.get('/api/storefront/facets', async (req, res) => {
       };
     });
 
-    const facets = (await Promise.all(facetPromises)).filter(f => f.values.length > 0);
+    // Vendor counts (disjunctive: skip vendor filter from WHERE)
+    const vendorWhereFragments = [...baseWhere.filter(w => !w.startsWith('v.name IN')), ...attrWhereFragments.map(f => f.clause)];
+    const vendorSQL = `
+      SELECT v.name, COUNT(DISTINCT s.id) as count
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      WHERE ${vendorWhereFragments.join(' AND ')}
+      GROUP BY v.name
+      ORDER BY count DESC
+    `;
 
-    res.json({ facets });
+    // Price range (applied to full filter set minus price filters)
+    const priceWhereFragments = [...baseWhere.filter(w => !w.includes('pr.retail_price')), ...attrWhereFragments.map(f => f.clause)];
+    const priceSQL = `
+      SELECT MIN(pr.retail_price::numeric) as min_price, MAX(pr.retail_price::numeric) as max_price
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      WHERE pr.retail_price IS NOT NULL AND pr.retail_price::numeric > 0 AND ${priceWhereFragments.join(' AND ')}
+    `;
+
+    const [facetResults, vendorResult, priceResult] = await Promise.all([
+      Promise.all(facetPromises),
+      pool.query(vendorSQL, attrWhereParams),
+      pool.query(priceSQL, attrWhereParams)
+    ]);
+
+    const facets = facetResults.filter(f => f.values.length > 0);
+    const vendors = vendorResult.rows.map(r => ({ name: r.name, count: parseInt(r.count) }));
+    const priceRow = priceResult.rows[0];
+    const priceRange = {
+      min: priceRow && priceRow.min_price ? parseFloat(parseFloat(priceRow.min_price).toFixed(2)) : 0,
+      max: priceRow && priceRow.max_price ? parseFloat(parseFloat(priceRow.max_price).toFixed(2)) : 1000
+    };
+
+    res.json({ facets, vendors, priceRange });
   } catch (err) {
     console.error('Storefront facets error:', err);
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -1445,7 +2320,7 @@ app.post('/api/calculate', async (req, res) => {
       subtotal: (pricePerSqft * actualSqft).toFixed(2)
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -1473,7 +2348,7 @@ app.get('/api/cart', async (req, res) => {
     }));
     res.json({ cart });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -1510,11 +2385,29 @@ app.post('/api/cart', async (req, res) => {
       }
     }
 
+    // Server-side price validation: override client price with DB price
+    let validatedUnitPrice = unit_price || 0;
+    let validatedSubtotal = subtotal || 0;
+    if (!is_sample && sku_id) {
+      const dbPrice = await pool.query('SELECT retail_price FROM pricing WHERE sku_id = $1', [sku_id]);
+      if (dbPrice.rows.length) {
+        const dbRetail = parseFloat(dbPrice.rows[0].retail_price);
+        if (Math.abs(parseFloat(validatedUnitPrice) - dbRetail) > 0.01) {
+          validatedUnitPrice = dbRetail;
+          if (sell_by === 'sqft' && sqft_needed) {
+            validatedSubtotal = parseFloat((dbRetail * parseFloat(sqft_needed)).toFixed(2));
+          } else {
+            validatedSubtotal = parseFloat((dbRetail * num_boxes).toFixed(2));
+          }
+        }
+      }
+    }
+
     const result = await pool.query(`
       INSERT INTO cart_items (session_id, product_id, sku_id, sqft_needed, num_boxes, include_overage, unit_price, subtotal, is_sample, sell_by, price_tier)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
-    `, [session_id, product_id || null, sku_id || null, sqft_needed || null, num_boxes, include_overage || false, unit_price || 0, subtotal || 0, is_sample || false, sell_by || null, price_tier || null]);
+    `, [session_id, product_id || null, sku_id || null, sqft_needed || null, num_boxes, include_overage || false, validatedUnitPrice, validatedSubtotal, is_sample || false, sell_by || null, price_tier || null]);
 
     // Return with product info
     const item = result.rows[0];
@@ -1527,14 +2420,36 @@ app.post('/api/cart', async (req, res) => {
     }
     res.json({ item });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 app.put('/api/cart/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { num_boxes, sqft_needed, subtotal, unit_price, price_tier } = req.body;
+    const { session_id, num_boxes, sqft_needed, subtotal, unit_price, price_tier } = req.body;
+    if (!session_id) return res.status(400).json({ error: 'session_id is required' });
+
+    // Server-side price validation
+    let validatedUnitPrice = unit_price;
+    let validatedSubtotal = subtotal;
+    if (unit_price != null || subtotal != null) {
+      const existing = await pool.query('SELECT sku_id, sell_by FROM cart_items WHERE id = $1 AND session_id = $2', [id, session_id]);
+      if (existing.rows.length && existing.rows[0].sku_id) {
+        const dbPrice = await pool.query('SELECT retail_price FROM pricing WHERE sku_id = $1', [existing.rows[0].sku_id]);
+        if (dbPrice.rows.length) {
+          const dbRetail = parseFloat(dbPrice.rows[0].retail_price);
+          if (unit_price != null && Math.abs(parseFloat(unit_price) - dbRetail) > 0.01) {
+            validatedUnitPrice = dbRetail;
+            if (num_boxes && existing.rows[0].sell_by === 'sqft' && sqft_needed) {
+              validatedSubtotal = parseFloat((dbRetail * parseFloat(sqft_needed)).toFixed(2));
+            } else if (num_boxes) {
+              validatedSubtotal = parseFloat((dbRetail * num_boxes).toFixed(2));
+            }
+          }
+        }
+      }
+    }
 
     const result = await pool.query(`
       UPDATE cart_items
@@ -1544,9 +2459,9 @@ app.put('/api/cart/:id', async (req, res) => {
           unit_price = COALESCE($4, unit_price),
           price_tier = COALESCE($5, price_tier),
           updated_at = CURRENT_TIMESTAMP
-      WHERE id = $6
+      WHERE id = $6 AND session_id = $7
       RETURNING *
-    `, [num_boxes, sqft_needed, subtotal, unit_price, price_tier, id]);
+    `, [num_boxes, sqft_needed, validatedSubtotal, validatedUnitPrice, price_tier, id, session_id]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Cart item not found' });
 
@@ -1560,18 +2475,20 @@ app.put('/api/cart/:id', async (req, res) => {
     }
     res.json({ item });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 app.delete('/api/cart/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('DELETE FROM cart_items WHERE id = $1 RETURNING id', [id]);
+    const { session_id } = req.query;
+    if (!session_id) return res.status(400).json({ error: 'session_id is required' });
+    const result = await pool.query('DELETE FROM cart_items WHERE id = $1 AND session_id = $2 RETURNING id', [id, session_id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Cart item not found' });
     res.json({ deleted: id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -1589,7 +2506,7 @@ app.get('/api/cart/tax-estimate', async (req, res) => {
     const { rate, amount } = calculateSalesTax(subtotal, zip, false);
     res.json({ rate, amount, subtotal });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -2056,7 +2973,8 @@ app.post('/api/shipping/estimate', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('Shipping estimate error:', err.message);
-    res.status(500).json({ error: 'Unable to calculate shipping: ' + err.message });
+    console.error('Shipping calculation error:', err);
+    res.status(500).json({ error: 'Unable to calculate shipping' });
   }
 });
 
@@ -2197,7 +3115,7 @@ app.post('/api/promo-codes/validate', async (req, res) => {
       description: result.promo.description || ''
     });
   } catch (err) {
-    res.status(500).json({ valid: false, error: err.message });
+    console.error(err); res.status(500).json({ valid: false, error: 'Internal server error' });
   }
 });
 
@@ -2299,7 +3217,7 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
       tax_amount: taxAmount
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -2365,7 +3283,7 @@ async function generatePurchaseOrders(orderId, client) {
         // Carpet: cost/sqyd * sqyd (sqft_needed is in sqft, convert to sqyd)
         const sqyd = parseFloat(item.sqft_needed || 0) / 9;
         itemCost = vendorCost * sqyd;
-      } else if (item.price_basis === 'per_sqft') {
+      } else if (item.price_basis === 'per_sqft' || item.price_basis === 'sqft') {
         itemCost = vendorCost * sqftPerBox * item.qty;
       } else {
         itemCost = vendorCost * item.qty;
@@ -2397,7 +3315,7 @@ async function generatePurchaseOrders(orderId, client) {
         costPerBox = vendorCost; // cost per sqyd
         retailPerBox = item.unit_price ? parseFloat(item.unit_price) : null; // retail per sqyd
         itemSubtotal = vendorCost * sqyd;
-      } else if (item.price_basis === 'per_sqft') {
+      } else if (item.price_basis === 'per_sqft' || item.price_basis === 'sqft') {
         costPerBox = vendorCost * sqftPerBox;
         retailPerBox = item.unit_price ? parseFloat(item.unit_price) * sqftPerBox : null;
         itemSubtotal = costPerBox * item.qty;
@@ -2429,6 +3347,11 @@ async function generatePurchaseOrders(orderId, client) {
 }
 
 app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, async (req, res) => {
+  // Honeypot: hidden field that real users never fill in
+  if (req.body.company_url) {
+    return res.json({ success: true, order_number: 'ORD-' + Math.random().toString(36).substring(2, 10).toUpperCase() });
+  }
+
   const client = await pool.connect();
   try {
     const { session_id, payment_intent_id, customer_name: bodyName, customer_email: bodyEmail, phone: bodyPhone, shipping, delivery_method,
@@ -2574,10 +3497,11 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     }
 
     // Record initial charge in order_payments ledger
-    await client.query(`
+    const opResult = await client.query(`
       INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status)
-      VALUES ($1, 'charge', $2, $3, 'Original payment', 'completed')
+      VALUES ($1, 'charge', $2, $3, 'Original payment', 'completed') RETURNING id
     `, [order.id, total.toFixed(2), payment_intent_id]);
+    await syncOrderPaymentToInvoice(opResult.rows[0].id, order.id, client);
 
     // Record promo code usage
     if (promoCodeId && discountAmount > 0) {
@@ -2772,7 +3696,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       'order', order.id));
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -2788,8 +3712,19 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
 // Staff management: admin only
 // Audit log: admin + manager (enforced at its own route)
 
+// Search vector rebuild
+app.post('/api/admin/search/rebuild', staffAuth, requireRole('admin'), async (req, res) => {
+  try {
+    await pool.query('SELECT refresh_search_vectors()');
+    res.json({ success: true, message: 'Search vectors rebuilt' });
+  } catch (err) {
+    console.error('Search rebuild error:', err);
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Dashboard stats
-app.get('/api/admin/stats', staffAuth, async (req, res) => {
+app.get('/api/admin/stats', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const counts = await pool.query(`
       SELECT
@@ -2813,12 +3748,12 @@ app.get('/api/admin/stats', staffAuth, async (req, res) => {
     `);
     res.json({ counts: counts.rows[0], recent_products: recent.rows, recent_orders: recentOrders.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Dashboard analytics
-app.get('/api/admin/analytics', staffAuth, async (req, res) => {
+app.get('/api/admin/analytics', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const period = req.query.period || '30d';
     let sinceDate = null;
@@ -2881,7 +3816,8 @@ app.get('/api/admin/analytics', staffAuth, async (req, res) => {
                COALESCE(SUM(oi.num_boxes), 0)::int as units_sold
         FROM order_items oi
         JOIN orders o ON o.id = oi.order_id
-        LEFT JOIN products p ON p.id = oi.product_id
+        LEFT JOIN skus s ON s.id = oi.sku_id
+        LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
         WHERE o.status != 'cancelled' ${dateFilter}
         GROUP BY oi.product_id, p.name, oi.product_name
         ORDER BY revenue DESC
@@ -2971,8 +3907,192 @@ app.get('/api/admin/analytics', staffAuth, async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// ==================== Site Analytics Admin API ====================
+
+app.get('/api/admin/site-analytics', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const period = req.query.period || '7d';
+    const days = period === '90d' ? 90 : period === '30d' ? 30 : 7;
+    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+
+    const [dailyRes, totalsRes, devicesRes, referrersRes, pagesRes] = await Promise.all([
+      pool.query(
+        `SELECT stat_date::text, total_sessions, unique_visitors, page_views, product_views,
+                add_to_carts, checkouts_started, orders_completed, total_revenue, bounce_rate
+         FROM analytics_daily_stats WHERE stat_date >= $1 ORDER BY stat_date`, [since]),
+      pool.query(
+        `SELECT COALESCE(SUM(total_sessions),0)::int as sessions,
+                COALESCE(SUM(unique_visitors),0)::int as visitors,
+                COALESCE(SUM(page_views),0)::int as page_views,
+                COALESCE(SUM(product_views),0)::int as product_views,
+                COALESCE(SUM(add_to_carts),0)::int as add_to_carts,
+                COALESCE(SUM(checkouts_started),0)::int as checkouts_started,
+                COALESCE(SUM(orders_completed),0)::int as orders_completed,
+                COALESCE(SUM(searches),0)::int as searches,
+                COALESCE(SUM(total_revenue),0) as revenue,
+                COALESCE(AVG(avg_session_duration_secs),0)::int as avg_duration,
+                COALESCE(AVG(bounce_rate),0) as bounce_rate,
+                COALESCE(AVG(cart_abandonment_rate),0) as cart_abandonment_rate
+         FROM analytics_daily_stats WHERE stat_date >= $1`, [since]),
+      pool.query(
+        `SELECT device_type, COUNT(*)::int as count FROM analytics_sessions
+         WHERE first_seen_at >= $1 AND device_type IS NOT NULL
+         GROUP BY device_type ORDER BY count DESC`, [since]),
+      pool.query(
+        `SELECT referrer, COUNT(*)::int as count FROM analytics_sessions
+         WHERE first_seen_at >= $1 AND referrer IS NOT NULL AND referrer != ''
+         GROUP BY referrer ORDER BY count DESC LIMIT 10`, [since]),
+      pool.query(
+        `SELECT page_path, COUNT(*)::int as views FROM analytics_events
+         WHERE event_type = 'page_view' AND created_at >= $1
+         GROUP BY page_path ORDER BY views DESC LIMIT 10`, [since])
+    ]);
+
+    res.json({
+      daily: dailyRes.rows,
+      totals: totalsRes.rows[0] || {},
+      devices: devicesRes.rows,
+      referrers: referrersRes.rows,
+      top_pages: pagesRes.rows
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.get('/api/admin/site-analytics/funnel', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const period = req.query.period || '30d';
+    const days = period === '90d' ? 90 : period === '30d' ? 30 : 7;
+    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+
+    const result = await pool.query(`
+      SELECT event_type, COUNT(DISTINCT session_id)::int as sessions
+      FROM analytics_events
+      WHERE event_type IN ('page_view','product_view','add_to_cart','checkout_started','order_completed')
+        AND created_at >= $1
+      GROUP BY event_type
+    `, [since]);
+
+    const map = {};
+    result.rows.forEach(r => { map[r.event_type] = r.sessions; });
+    const steps = [
+      { step: 'Page Views', count: map.page_view || 0 },
+      { step: 'Product Views', count: map.product_view || 0 },
+      { step: 'Add to Cart', count: map.add_to_cart || 0 },
+      { step: 'Checkout Started', count: map.checkout_started || 0 },
+      { step: 'Order Completed', count: map.order_completed || 0 }
+    ];
+    for (let i = 1; i < steps.length; i++) {
+      steps[i].dropoff = steps[i-1].count > 0
+        ? parseFloat((100 - (steps[i].count / steps[i-1].count * 100)).toFixed(1))
+        : 0;
+    }
+    res.json({ steps });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.get('/api/admin/site-analytics/products', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const period = req.query.period || '30d';
+    const days = period === '90d' ? 90 : period === '30d' ? 30 : 7;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+
+    const result = await pool.query(`
+      WITH views AS (
+        SELECT properties->>'sku_id' as sku_id,
+               COALESCE(properties->>'product_name', '') as product_name,
+               COUNT(*)::int as view_count,
+               COUNT(DISTINCT session_id)::int as unique_sessions
+        FROM analytics_events
+        WHERE event_type = 'product_view' AND created_at >= $1
+          AND properties->>'sku_id' IS NOT NULL
+        GROUP BY properties->>'sku_id', properties->>'product_name'
+      ),
+      carts AS (
+        SELECT properties->>'sku_id' as sku_id, COUNT(*)::int as cart_count
+        FROM analytics_events
+        WHERE event_type = 'add_to_cart' AND created_at >= $1
+          AND properties->>'sku_id' IS NOT NULL
+        GROUP BY properties->>'sku_id'
+      ),
+      orders AS (
+        SELECT properties->>'sku_id' as sku_id, COUNT(*)::int as order_count
+        FROM analytics_events
+        WHERE event_type = 'order_completed' AND created_at >= $1
+          AND properties->>'sku_id' IS NOT NULL
+        GROUP BY properties->>'sku_id'
+      )
+      SELECT v.sku_id, v.product_name, v.view_count, v.unique_sessions,
+             COALESCE(c.cart_count, 0) as cart_count,
+             COALESCE(o.order_count, 0) as order_count,
+             CASE WHEN v.view_count > 0 THEN
+               ROUND((v.view_count - COALESCE(c.cart_count, 0))::numeric / v.view_count * 100, 1)
+             ELSE 0 END as opportunity_score
+      FROM views v
+      LEFT JOIN carts c ON c.sku_id = v.sku_id
+      LEFT JOIN orders o ON o.sku_id = v.sku_id
+      ORDER BY opportunity_score DESC, v.view_count DESC
+      LIMIT $2
+    `, [since, limit]);
+
+    res.json({ products: result.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.get('/api/admin/site-analytics/searches', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const period = req.query.period || '30d';
+    const days = period === '90d' ? 90 : period === '30d' ? 30 : 7;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+
+    const [topTerms, zeroResults] = await Promise.all([
+      pool.query(`
+        SELECT LOWER(properties->>'query') as term, COUNT(*)::int as count
+        FROM analytics_events
+        WHERE event_type = 'search' AND created_at >= $1
+          AND properties->>'query' IS NOT NULL AND properties->>'query' != ''
+        GROUP BY LOWER(properties->>'query')
+        ORDER BY count DESC LIMIT $2
+      `, [since, limit]),
+      pool.query(`
+        SELECT LOWER(properties->>'query') as term, COUNT(*)::int as count
+        FROM analytics_events
+        WHERE event_type = 'search' AND created_at >= $1
+          AND properties->>'query' IS NOT NULL AND properties->>'query' != ''
+          AND properties->>'results_count' IS NOT NULL AND (properties->>'results_count')::int = 0
+        GROUP BY LOWER(properties->>'query')
+        ORDER BY count DESC LIMIT $2
+      `, [since, limit])
+    ]);
+
+    res.json({ top_terms: topTerms.rows, zero_results: zeroResults.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.get('/api/admin/site-analytics/realtime', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+
+    const [sessionsRes, eventsRes] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(DISTINCT session_id)::int as active_sessions
+         FROM analytics_events WHERE created_at >= $1`, [thirtyMinAgo]),
+      pool.query(
+        `SELECT event_type, properties, page_path, created_at
+         FROM analytics_events WHERE created_at >= $1
+         ORDER BY created_at DESC LIMIT 50`, [thirtyMinAgo])
+    ]);
+
+    res.json({
+      active_sessions: sessionsRes.rows[0]?.active_sessions || 0,
+      recent_events: eventsRes.rows
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // List all products (admin view - any status)
@@ -3041,7 +4161,7 @@ app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async
 
     res.json({ products: dataResult.rows, total: countResult.rows[0].total });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3050,14 +4170,14 @@ app.patch('/api/admin/products/bulk/status', staffAuth, requireRole('admin', 'ma
   try {
     const { ids, status } = req.body;
     if (!ids || !ids.length) return res.status(400).json({ error: 'ids array is required' });
-    if (!['active', 'draft'].includes(status)) return res.status(400).json({ error: 'status must be active or draft' });
+    if (!['active', 'draft', 'discontinued'].includes(status)) return res.status(400).json({ error: 'status must be active, draft, or discontinued' });
     const result = await pool.query(
       'UPDATE products SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = ANY($2) RETURNING id',
       [status, ids]
     );
     res.json({ updated: result.rowCount });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3072,7 +4192,7 @@ app.patch('/api/admin/products/bulk/category', staffAuth, requireRole('admin', '
     );
     res.json({ updated: result.rowCount });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3099,7 +4219,7 @@ app.delete('/api/admin/products/bulk', staffAuth, requireRole('admin', 'manager'
     res.json({ deleted: result.rowCount });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -3159,7 +4279,7 @@ app.get('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
 
     res.json({ product: product.rows[0], skus: skus.rows, media: media.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3177,7 +4297,7 @@ app.post('/api/admin/products', staffAuth, requireRole('admin', 'manager'), asyn
 
     res.json({ product: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3204,7 +4324,7 @@ app.put('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
     if (!result.rows.length) return res.status(404).json({ error: 'Product not found' });
     res.json({ product: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3231,7 +4351,7 @@ app.delete('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager')
     res.json({ deleted: id });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -3273,7 +4393,7 @@ app.get('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', '
 
     res.json({ skus: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3324,7 +4444,7 @@ app.post('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', 
     res.json({ sku: full.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -3397,7 +4517,7 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
     res.json({ sku: full.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -3444,7 +4564,7 @@ app.put('/api/admin/skus/:id/attributes', staffAuth, requireRole('admin', 'manag
     res.json({ attributes: result.rows });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -3465,7 +4585,7 @@ app.delete('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), as
     res.json({ deleted: id });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -3525,7 +4645,7 @@ app.post('/api/admin/products/:id/media/upload', staffAuth, requireRole('admin',
     );
     res.json({ media: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3555,7 +4675,7 @@ app.post('/api/admin/products/:id/media/url', staffAuth, requireRole('admin', 'm
     );
     res.json({ media: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3581,7 +4701,7 @@ app.put('/api/admin/media/:id', staffAuth, requireRole('admin', 'manager'), asyn
     if (!result.rows.length) return res.status(404).json({ error: 'Media not found' });
     res.json({ media: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3598,7 +4718,7 @@ app.delete('/api/admin/media/:id', staffAuth, requireRole('admin', 'manager'), a
     }
     res.json({ deleted: deleted.id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3630,7 +4750,7 @@ app.patch('/api/admin/products/:id/media/reorder', staffAuth, requireRole('admin
     res.json({ media: result.rows });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -3646,7 +4766,7 @@ app.get('/api/admin/products/:id/media', staffAuth, requireRole('admin', 'manage
     );
     res.json({ media: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3660,7 +4780,7 @@ app.get('/api/admin/vendors', staffAuth, requireRole('admin', 'manager'), async 
     `);
     res.json({ vendors: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3677,7 +4797,7 @@ app.post('/api/admin/vendors', staffAuth, requireRole('admin', 'manager'), async
     `, [name, code, website || null, email || null]);
     res.json({ vendor: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3701,7 +4821,7 @@ app.put('/api/admin/vendors/:id', staffAuth, requireRole('admin', 'manager'), as
     if (!result.rows.length) return res.status(404).json({ error: 'Vendor not found' });
     res.json({ vendor: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3717,7 +4837,154 @@ app.patch('/api/admin/vendors/:id/toggle', staffAuth, requireRole('admin', 'mana
     if (!result.rows.length) return res.status(404).json({ error: 'Vendor not found' });
     res.json({ vendor: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== Vendor Health ====================
+
+// Vendor health summary (all vendors)
+app.get('/api/admin/vendor-health', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        v.id as vendor_id,
+        v.name as vendor_name,
+        v.code as vendor_code,
+        v.is_active,
+        COALESCE(stats.total_products, 0)::int as total_products,
+        COALESCE(stats.total_skus, 0)::int as total_skus,
+        COALESCE(stats.skus_with_images, 0)::int as skus_with_images,
+        COALESCE(stats.skus_with_pricing, 0)::int as skus_with_pricing,
+        COALESCE(stats.skus_with_packaging, 0)::int as skus_with_packaging,
+        COALESCE(stats.products_with_description, 0)::int as products_with_description,
+        COALESCE(stats.products_in_draft, 0)::int as products_in_draft,
+        COALESCE(stats.skus_with_attributes, 0)::int as skus_with_attributes,
+        scrape_info.last_scraped,
+        scrape_info.last_scrape_status
+      FROM vendors v
+      LEFT JOIN LATERAL (
+        SELECT
+          (SELECT COUNT(*)::int FROM products WHERE vendor_id = v.id) as total_products,
+          (SELECT COUNT(*)::int FROM skus s JOIN products p ON s.product_id = p.id WHERE p.vendor_id = v.id) as total_skus,
+          (SELECT COUNT(DISTINCT s.id)::int FROM skus s JOIN products p ON s.product_id = p.id
+           WHERE p.vendor_id = v.id AND EXISTS (
+             SELECT 1 FROM media_assets ma WHERE (ma.sku_id = s.id OR (ma.product_id = p.id AND ma.sku_id IS NULL)) AND ma.asset_type = 'primary'
+           )) as skus_with_images,
+          (SELECT COUNT(*)::int FROM pricing pr JOIN skus s ON pr.sku_id = s.id JOIN products p ON s.product_id = p.id WHERE p.vendor_id = v.id) as skus_with_pricing,
+          (SELECT COUNT(*)::int FROM packaging pk JOIN skus s ON pk.sku_id = s.id JOIN products p ON s.product_id = p.id WHERE p.vendor_id = v.id) as skus_with_packaging,
+          (SELECT COUNT(*)::int FROM products WHERE vendor_id = v.id AND ((description_short IS NOT NULL AND description_short != '') OR (description_long IS NOT NULL AND description_long != ''))) as products_with_description,
+          (SELECT COUNT(*)::int FROM products WHERE vendor_id = v.id AND status = 'draft') as products_in_draft,
+          (SELECT COUNT(DISTINCT s.id)::int FROM skus s JOIN products p ON s.product_id = p.id
+           WHERE p.vendor_id = v.id AND EXISTS (SELECT 1 FROM sku_attributes sa WHERE sa.sku_id = s.id)) as skus_with_attributes
+      ) stats ON true
+      LEFT JOIN LATERAL (
+        SELECT sj.completed_at as last_scraped, sj2.status as last_scrape_status
+        FROM (SELECT 1) x
+        LEFT JOIN LATERAL (
+          SELECT sj.completed_at FROM scrape_jobs sj JOIN vendor_sources vs ON sj.vendor_source_id = vs.id
+          WHERE vs.vendor_id = v.id AND sj.status = 'completed' ORDER BY sj.completed_at DESC LIMIT 1
+        ) sj ON true
+        LEFT JOIN LATERAL (
+          SELECT sj.status FROM scrape_jobs sj JOIN vendor_sources vs ON sj.vendor_source_id = vs.id
+          WHERE vs.vendor_id = v.id ORDER BY sj.created_at DESC LIMIT 1
+        ) sj2 ON true
+      ) scrape_info ON true
+      ORDER BY v.name
+    `);
+    res.json({ vendors: result.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Vendor health detail (single vendor)
+app.get('/api/admin/vendor-health/:vendorId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    // Vendor info
+    const vendorRes = await pool.query('SELECT id, name, code FROM vendors WHERE id = $1', [vendorId]);
+    if (!vendorRes.rows.length) return res.status(404).json({ error: 'Vendor not found' });
+    const vendor = vendorRes.rows[0];
+
+    // Coverage stats — use subqueries to avoid expensive multi-join
+    const stats = await pool.query(`
+      SELECT
+        (SELECT COUNT(*)::int FROM products WHERE vendor_id = $1) as total_products,
+        (SELECT COUNT(*)::int FROM skus s JOIN products p ON s.product_id = p.id WHERE p.vendor_id = $1) as total_skus,
+        (SELECT COUNT(DISTINCT s.id)::int FROM skus s JOIN products p ON s.product_id = p.id
+         WHERE p.vendor_id = $1 AND EXISTS (
+           SELECT 1 FROM media_assets ma WHERE (ma.sku_id = s.id OR (ma.product_id = p.id AND ma.sku_id IS NULL)) AND ma.asset_type = 'primary'
+         )) as skus_with_images,
+        (SELECT COUNT(*)::int FROM pricing pr JOIN skus s ON pr.sku_id = s.id JOIN products p ON s.product_id = p.id WHERE p.vendor_id = $1) as skus_with_pricing,
+        (SELECT COUNT(*)::int FROM packaging pk JOIN skus s ON pk.sku_id = s.id JOIN products p ON s.product_id = p.id WHERE p.vendor_id = $1) as skus_with_packaging,
+        (SELECT COUNT(*)::int FROM products WHERE vendor_id = $1 AND ((description_short IS NOT NULL AND description_short != '') OR (description_long IS NOT NULL AND description_long != ''))) as products_with_description,
+        (SELECT COUNT(*)::int FROM products WHERE vendor_id = $1 AND status = 'draft') as products_in_draft,
+        (SELECT COUNT(*)::int FROM products WHERE vendor_id = $1 AND category_id IS NOT NULL) as products_with_category,
+        (SELECT COUNT(*)::int FROM skus s JOIN products p ON s.product_id = p.id WHERE p.vendor_id = $1 AND s.sell_by IS NOT NULL) as skus_with_sell_by,
+        (SELECT COUNT(DISTINCT s.id)::int FROM skus s JOIN products p ON s.product_id = p.id
+         WHERE p.vendor_id = $1 AND EXISTS (SELECT 1 FROM sku_attributes sa WHERE sa.sku_id = s.id)) as skus_with_attributes
+    `, [vendorId]);
+
+    // SKUs missing critical data (images, pricing)
+    const missingImages = await pool.query(`
+      SELECT s.id, s.internal_sku, s.vendor_sku, p.name as product_name, p.collection
+      FROM skus s
+      JOIN products p ON s.product_id = p.id
+      WHERE p.vendor_id = $1 AND NOT EXISTS (
+        SELECT 1 FROM media_assets ma
+        WHERE (ma.sku_id = s.id OR (ma.product_id = p.id AND ma.sku_id IS NULL))
+        AND ma.asset_type = 'primary'
+      )
+      ORDER BY p.name, s.internal_sku
+      LIMIT 50
+    `, [vendorId]);
+
+    const missingPricing = await pool.query(`
+      SELECT s.id, s.internal_sku, s.vendor_sku, p.name as product_name, p.collection
+      FROM skus s
+      JOIN products p ON s.product_id = p.id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      WHERE p.vendor_id = $1 AND pr.sku_id IS NULL
+      ORDER BY p.name, s.internal_sku
+      LIMIT 50
+    `, [vendorId]);
+
+    const missingPackaging = await pool.query(`
+      SELECT s.id, s.internal_sku, s.vendor_sku, p.name as product_name, p.collection
+      FROM skus s
+      JOIN products p ON s.product_id = p.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      WHERE p.vendor_id = $1 AND pk.sku_id IS NULL
+      ORDER BY p.name, s.internal_sku
+      LIMIT 50
+    `, [vendorId]);
+
+    // Recent scrape jobs
+    const scrapeJobs = await pool.query(`
+      SELECT sj.id, sj.status, sj.started_at, sj.completed_at,
+             sj.products_found, sj.products_created, sj.products_updated, sj.skus_created,
+             vs.name as source_name, vs.source_type
+      FROM scrape_jobs sj
+      JOIN vendor_sources vs ON sj.vendor_source_id = vs.id
+      WHERE vs.vendor_id = $1
+      ORDER BY sj.created_at DESC
+      LIMIT 10
+    `, [vendorId]);
+
+    res.json({
+      vendor,
+      stats: stats.rows[0],
+      missing: {
+        images: missingImages.rows,
+        pricing: missingPricing.rows,
+        packaging: missingPackaging.rows,
+      },
+      scrape_jobs: scrapeJobs.rows,
+    });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3740,7 +5007,7 @@ app.get('/api/admin/categories', staffAuth, requireRole('admin', 'manager'), asy
 
     res.json({ flat, tree });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3757,7 +5024,7 @@ app.post('/api/admin/categories', staffAuth, requireRole('admin', 'manager'), as
     `, [name, slug, parent_id || null, sort_order || 0, description || null, banner_image || null]);
     res.json({ category: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3783,7 +5050,7 @@ app.put('/api/admin/categories/:id', staffAuth, requireRole('admin', 'manager'),
     if (!result.rows.length) return res.status(404).json({ error: 'Category not found' });
     res.json({ category: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3806,7 +5073,7 @@ app.delete('/api/admin/categories/:id', staffAuth, requireRole('admin', 'manager
     if (!result.rows.length) return res.status(404).json({ error: 'Category not found' });
     res.json({ deleted: id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3823,7 +5090,7 @@ app.get('/api/admin/orders', staffAuth, async (req, res) => {
     `);
     res.json({ orders: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3839,9 +5106,15 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
 
     const items = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection
+      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color
       FROM order_items oi
-      LEFT JOIN products p ON p.id = oi.product_id
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1
       ORDER BY oi.id
     `, [id]);
@@ -3852,7 +5125,7 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
 
     res.json({ order: order.rows[0], items: items.rows, payments: payments.rows, payment_requests: paymentRequests.rows, balance: balanceInfo });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -4008,7 +5281,7 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
     }
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -4098,7 +5371,7 @@ app.put('/api/admin/orders/:id/delivery-method', staffAuth, requireRole('admin',
     const balanceInfo = await recalculateBalance(id);
     return res.json({ order: updated.rows[0], balance: balanceInfo });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -4157,10 +5430,11 @@ app.post('/api/admin/orders/:id/refund', staffAuth, requireRole('admin', 'manage
     const description = reason || (amount != null ? `Partial refund of $${refundAmount.toFixed(2)}` : 'Full refund');
 
     // Record in ledger
-    await pool.query(`
+    const refundOpRes = await pool.query(`
       INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, stripe_refund_id, description, initiated_by, initiated_by_name, status)
-      VALUES ($1, 'refund', $2, $3, $4, $5, $6, $7, 'completed')
+      VALUES ($1, 'refund', $2, $3, $4, $5, $6, $7, 'completed') RETURNING id
     `, [id, (-refundAmount).toFixed(2), o.stripe_payment_intent_id, refund.id, description, req.staff.id, staffName]);
+    await syncOrderPaymentToInvoice(refundOpRes.rows[0].id, id, pool);
 
     // Update amount_paid
     const newAmountPaid = parseFloat((parseFloat(o.amount_paid) - refundAmount).toFixed(2));
@@ -4187,7 +5461,7 @@ app.post('/api/admin/orders/:id/refund', staffAuth, requireRole('admin', 'manage
     const balanceInfo = await recalculateBalance(id);
     res.json({ order: result.rows[0], balance: balanceInfo });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -4199,7 +5473,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description } = req.body;
+    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description, sell_by: customSellBy } = req.body;
 
     const isCustom = !sku_id;
     if (isCustom) {
@@ -4208,7 +5482,8 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required for custom items' });
       if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'num_boxes >= 1 is required' });
     } else {
-      if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'sku_id and num_boxes (>= 1) are required' });
+      // For carpet (per_sqyd), sqft_needed is required instead of num_boxes
+      if ((!num_boxes || num_boxes < 1) && !sqft_needed) return res.status(400).json({ error: 'sku_id and num_boxes (>= 1) or sqft_needed are required' });
     }
 
     const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
@@ -4223,30 +5498,46 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     let itemVendorId;
 
     if (!isCustom) {
-      // SKU mode: Look up SKU + product + pricing + cost
+      // SKU mode: Look up SKU + product + pricing + cost + color
       const skuResult = await client.query(`
         SELECT s.*, p.name as product_name, p.collection, p.vendor_id,
-          pr.retail_price, pr.price_basis, pr.cost,
-          pk.sqft_per_box, pk.weight_per_box_lbs
+          pr.retail_price, pr.price_basis, pr.cost, pr.cut_price, pr.roll_price,
+          pk.sqft_per_box, pk.weight_per_box_lbs, pk.roll_width_ft,
+          sa_c.value as color
         FROM skus s
         JOIN products p ON p.id = s.product_id
         LEFT JOIN pricing pr ON pr.sku_id = s.id
         LEFT JOIN packaging pk ON pk.sku_id = s.id
+        LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = s.id
+          AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
         WHERE s.id = $1
       `, [sku_id]);
       if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
       sku = skuResult.rows[0];
 
+      const isCarpet = sku.price_basis === 'per_sqyd';
       unitPrice = parseFloat(sku.retail_price || 0);
       sqftPerBox = parseFloat(sku.sqft_per_box || 1);
-      isPerSqft = sku.price_basis === 'per_sqft';
-      computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
-      itemSubtotal = parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+      isPerSqft = sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft';
+
+      if (isCarpet) {
+        computedSqft = parseFloat(sqft_needed || 0);
+        const sqyd = computedSqft / 9;
+        itemSubtotal = parseFloat((unitPrice * sqyd).toFixed(2));
+      } else {
+        computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
+        itemSubtotal = parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+      }
       itemVendorId = sku.vendor_id;
     } else {
       // Custom mode
       unitPrice = parseFloat(unit_price);
-      itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
+      if (customSellBy === 'sqyd') {
+        // Carpet custom: num_boxes is sqft, price is per sqyd
+        itemSubtotal = parseFloat((unitPrice * (num_boxes / 9)).toFixed(2));
+      } else {
+        itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
+      }
       itemVendorId = vendor_id;
 
       // Validate vendor exists
@@ -4256,26 +5547,39 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
 
     await client.query('BEGIN');
 
+    // Build full descriptive product name for SKU items
+    let storedProductName, storedDescription;
+    if (!isCustom) {
+      const descParts = [sku.color, sku.variant_name && sku.variant_name !== sku.color ? sku.variant_name : null].filter(Boolean).join(' · ');
+      storedProductName = sku.collection
+        ? (descParts ? sku.collection + ' — ' + descParts : sku.collection)
+        : (descParts ? sku.product_name + ' — ' + descParts : sku.product_name);
+      storedDescription = descParts || null;
+    }
+
     // Insert order item
     let newItemId;
     if (!isCustom) {
+      const isCarpet = sku.price_basis === 'per_sqyd';
       const insertResult = await client.query(`
-        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11)
         RETURNING id
-      `, [id, sku.product_id, sku_id, sku.product_name, sku.collection,
-          sqft_needed || computedSqft || null, num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
-          sku.sell_by || null]);
+      `, [id, sku.product_id, sku_id, storedProductName, sku.collection, storedDescription,
+          sqft_needed || computedSqft || null, isCarpet ? 1 : num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
+          isCarpet ? 'sqyd' : (sku.sell_by || null)]);
       newItemId = insertResult.rows[0].id;
     } else {
+      const isCustomCarpet = customSellBy === 'sqyd';
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description)
-        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, NULL, $7)
+        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8)
         RETURNING id
-      `, [id, product_name.trim(), sqft_needed || null, num_boxes, unitPrice.toFixed(2),
-          itemSubtotal.toFixed(2), description || null]);
+      `, [id, product_name.trim(), isCustomCarpet ? num_boxes : (sqft_needed || null),
+          isCustomCarpet ? 1 : num_boxes, unitPrice.toFixed(2),
+          itemSubtotal.toFixed(2), customSellBy || null, description || null]);
       newItemId = insertResult.rows[0].id;
     }
 
@@ -4321,10 +5625,11 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       if (sku) {
         const skuSqftPerBox = parseFloat(sku.sqft_per_box || 1);
         const vendorCost = parseFloat(sku.cost || 0);
-        poCost = sku.price_basis === 'per_sqft' ? vendorCost * skuSqftPerBox : vendorCost;
-        poRetail = sku.price_basis === 'per_sqft' ? unitPrice * skuSqftPerBox : unitPrice;
+        const poIsPerSqft = sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft';
+        poCost = poIsPerSqft ? vendorCost * skuSqftPerBox : vendorCost;
+        poRetail = poIsPerSqft ? unitPrice * skuSqftPerBox : unitPrice;
         poVendorSku = sku.vendor_sku;
-        poProductName = sku.product_name;
+        poProductName = storedProductName;
       } else {
         poCost = unitPrice;
         poRetail = unitPrice;
@@ -4352,21 +5657,28 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     }
 
     await logOrderActivity(client, id, 'item_added', req.staff.id, req.staff.first_name + ' ' + req.staff.last_name,
-      { product_name: isCustom ? product_name.trim() : sku.product_name, is_custom: isCustom, num_boxes, subtotal: itemSubtotal.toFixed(2) });
+      { product_name: isCustom ? product_name.trim() : storedProductName, is_custom: isCustom, num_boxes, subtotal: itemSubtotal.toFixed(2) });
 
     await client.query('COMMIT');
 
     const balanceInfo = await recalculateBalance(id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection
-      FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color
+      FROM order_items oi
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
 
     // Fetch updated POs for response
     const posResult = await pool.query(`
-      SELECT po.*, v.name as vendor_name
+      SELECT po.*, v.name as vendor_name, v.edi_config
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
       WHERE po.order_id = $1
@@ -4381,7 +5693,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo, purchase_orders: purchaseOrders });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -4450,14 +5762,21 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     const balanceInfo = await recalculateBalance(id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection
-      FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color
+      FROM order_items oi
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
 
     // Fetch updated POs
     const posResult = await pool.query(`
-      SELECT po.*, v.name as vendor_name
+      SELECT po.*, v.name as vendor_name, v.edi_config
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
       WHERE po.order_id = $1
@@ -4472,7 +5791,7 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo, purchase_orders: purchaseOrders });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -4540,7 +5859,7 @@ app.post('/api/admin/orders/:id/payment-request', staffAuth, requireRole('admin'
 
     res.json({ payment_request: prResult.rows[0], checkout_url: session.url });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -4562,7 +5881,7 @@ app.post('/api/admin/orders/:id/payment-requests/:reqId/cancel', staffAuth, requ
       { amount: parseFloat(pr.rows[0].amount).toFixed(2) });
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -4575,13 +5894,16 @@ app.get('/api/admin/skus/search', staffAuth, async (req, res) => {
       SELECT s.id as sku_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
         p.name as product_name, p.collection, p.vendor_id,
         v.name as vendor_name,
-        pr.retail_price, pr.cost, pr.price_basis,
-        pk.sqft_per_box
+        pr.retail_price, pr.cost, pr.price_basis, pr.cut_price, pr.roll_price,
+        pk.sqft_per_box, pk.roll_width_ft,
+        sa_c.value as color
       FROM skus s
       JOIN products p ON p.id = s.product_id
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = s.id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE p.status = 'active' AND s.status = 'active'
         AND (p.name ILIKE $1 OR s.internal_sku ILIKE $1 OR s.vendor_sku ILIKE $1 OR s.variant_name ILIKE $1 OR p.collection ILIKE $1 OR (p.collection || ' ' || p.name) ILIKE $1)
       ORDER BY p.name, s.variant_name
@@ -4589,7 +5911,7 @@ app.get('/api/admin/skus/search', staffAuth, async (req, res) => {
     `, ['%' + q + '%']);
     res.json({ results: results.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -4655,7 +5977,7 @@ app.get('/api/admin/import/fields', staffAuth, requireRole('admin', 'manager'), 
     }
     res.json({ fields });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -4695,7 +6017,8 @@ app.post('/api/admin/import/upload', staffAuth, requireRole('admin', 'manager'),
       total_rows: totalRows
     });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to parse file: ' + err.message });
+    console.error('File parse error:', err);
+    res.status(500).json({ error: 'Failed to parse file' });
   }
 });
 
@@ -4807,7 +6130,7 @@ app.post('/api/admin/import/validate', staffAuth, requireRole('admin', 'manager'
       rows
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -4948,12 +6271,13 @@ app.post('/api/admin/import/execute', staffAuth, requireRole('admin', 'manager')
       res.json({ results });
     } catch (err) {
       await client.query('ROLLBACK');
-      res.status(500).json({ error: 'Import failed: ' + err.message, results });
+      console.error('Import error:', err);
+      res.status(500).json({ error: 'Import failed', results });
     } finally {
       client.release();
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -4969,7 +6293,7 @@ app.post('/api/admin/import/templates', staffAuth, requireRole('admin', 'manager
     `, [vendor_id, name, JSON.stringify(mapping)]);
     res.json({ template: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -4984,7 +6308,7 @@ app.get('/api/admin/import/templates', staffAuth, requireRole('admin', 'manager'
     const result = await pool.query(query, params);
     res.json({ templates: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -4996,7 +6320,7 @@ app.delete('/api/admin/import/templates/:id', staffAuth, requireRole('admin', 'm
     if (!result.rows.length) return res.status(404).json({ error: 'Template not found' });
     res.json({ deleted: id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -5007,29 +6331,27 @@ app.delete('/api/admin/import/templates/:id', staffAuth, requireRole('admin', 'm
 // Scrapers that launch a Puppeteer browser (high memory — need concurrency limits)
 const BROWSER_SCRAPERS = new Set([
   'msi', 'bed', 'tradepro-pricebooks', 'tradepro-inventory', 'bosphorus-inventory',
-  'triwest-catalog', 'triwest-pricing', 'triwest-inventory',
+  'triwest-inventory',
   'triwest-provenza', 'triwest-paradigm', 'triwest-quickstep', 'triwest-armstrong',
-  'triwest-metroflor', 'triwest-mirage', 'triwest-calclassics', 'triwest-grandpacific',
-  'triwest-bravada', 'triwest-hartco', 'triwest-truetouch', 'triwest-citywide',
-  'triwest-ahf', 'triwest-flexco', 'triwest-opulux', 'triwest-shaw', 'triwest-stanton',
+  'triwest-metroflor', 'triwest-mirage', 'triwest-grandpacific',
+  'triwest-bravada', 'triwest-hartco', 'triwest-truetouch',
+  'triwest-ahf', 'triwest-flexco', 'triwest-shaw', 'triwest-stanton',
   'triwest-bruce', 'triwest-congoleum', 'triwest-kraus', 'triwest-sika',
-  'triwest-usrubber', 'triwest-tec', 'triwest-kenmark', 'triwest-bosphorus',
+  'triwest-tec', 'triwest-bosphorus',
   'triwest-babool', 'triwest-elysium', 'triwest-forester', 'triwest-hardwoodsspecialty',
-  'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit', 'triwest-traditions',
-  'triwest-wftaylor',
+  'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit',
 ]);
 
 // Enrichment scrapers (triwest-* brand scrapers) — separate pool so they don't block catalog/inventory
 const ENRICHMENT_SCRAPERS = new Set([
   'triwest-provenza', 'triwest-paradigm', 'triwest-quickstep', 'triwest-armstrong',
-  'triwest-metroflor', 'triwest-mirage', 'triwest-calclassics', 'triwest-grandpacific',
-  'triwest-bravada', 'triwest-hartco', 'triwest-truetouch', 'triwest-citywide',
-  'triwest-ahf', 'triwest-flexco', 'triwest-opulux', 'triwest-shaw', 'triwest-stanton',
+  'triwest-metroflor', 'triwest-mirage', 'triwest-grandpacific',
+  'triwest-bravada', 'triwest-hartco', 'triwest-truetouch',
+  'triwest-ahf', 'triwest-flexco', 'triwest-shaw', 'triwest-stanton',
   'triwest-bruce', 'triwest-congoleum', 'triwest-kraus', 'triwest-sika',
-  'triwest-usrubber', 'triwest-tec', 'triwest-kenmark', 'triwest-bosphorus',
+  'triwest-tec', 'triwest-bosphorus',
   'triwest-babool', 'triwest-elysium', 'triwest-forester', 'triwest-hardwoodsspecialty',
-  'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit', 'triwest-traditions',
-  'triwest-wftaylor',
+  'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit',
 ]);
 
 // Concurrency control — two separate pools:
@@ -5289,6 +6611,29 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
       label: 'Daltile Catalog (Website)', source_type: 'website', base_url: 'https://www.daltile.com',
       categories: []
     },
+    'daltile-dam': {
+      label: 'Daltile DAM Image Enrichment', source_type: 'portal',
+      base_url: 'https://images.daltile.com/assetbank-daltile/',
+      categories: []
+    },
+    'schluter': {
+      label: 'Schluter Systems Image Enrichment', source_type: 'website',
+      base_url: 'https://www.schluter.com',
+      categories: []
+    },
+    'mapei': {
+      label: 'Mapei Image Enrichment', source_type: 'website',
+      base_url: 'https://www.mapei.com',
+      categories: []
+    },
+    'daltile-832': {
+      label: 'Daltile EDI 832 Catalog (FTP)', source_type: 'edi_ftp',
+      base_url: 'ftp://daltileb2b.daltile.com', categories: []
+    },
+    'daltile-edi-poller': {
+      label: 'Daltile EDI Poller (855/856/810)', source_type: 'edi_ftp',
+      base_url: 'ftp://daltileb2b.daltile.com', categories: []
+    },
     'ao-catalog': {
       label: 'American Olean Catalog (Website)', source_type: 'website', base_url: 'https://www.americanolean.com',
       categories: []
@@ -5333,6 +6678,10 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
       label: 'Emser Price List (PDF)', source_type: 'pdf', base_url: '',
       categories: []
     },
+    'emser-832': {
+      label: 'Emser EDI 832 Catalog (SFTP)', source_type: 'edi_sftp',
+      base_url: 'sftp://ediftp.emser.com', categories: []
+    },
     'bosphorus': {
       label: 'Bosphorus Imports Catalog', source_type: 'website', base_url: 'https://www.bosphorusimports.com',
       categories: []
@@ -5361,6 +6710,15 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
       label: 'Shaw EDI Poller (855/856/810)', source_type: 'edi_sftp', base_url: 'sftp://shawedi.shawfloors.com',
       categories: []
     },
+    'shaw-data-api': {
+      label: 'Shaw Data API (Product Catalog)', source_type: 'api',
+      base_url: 'https://DigitalServiceAPI.shawinc.com/ProductAPI/api/v1/Retailer/GetProducts',
+      categories: []
+    },
+    'edi-poller': {
+      label: 'Generic EDI Poller (855/856/810)', source_type: 'edi_ftp', base_url: '',
+      categories: []
+    },
   };
   try {
     const fs = await import('fs');
@@ -5387,7 +6745,7 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
     res.json({ scrapers });
   } catch (err) {
     console.error('List scrapers error:', err);
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -5409,7 +6767,7 @@ app.get('/api/admin/vendor-sources', staffAuth, requireRole('admin', 'manager'),
     `);
     res.json({ sources: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -5428,7 +6786,7 @@ app.post('/api/admin/vendor-sources', staffAuth, requireRole('admin', 'manager')
         JSON.stringify(config || {}), scraper_key || null, schedule || null]);
     res.json({ source: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -5459,7 +6817,7 @@ app.put('/api/admin/vendor-sources/:id', staffAuth, requireRole('admin', 'manage
 
     res.json({ source: updated });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -5476,7 +6834,7 @@ app.delete('/api/admin/vendor-sources/:id', staffAuth, requireRole('admin', 'man
     res.json({ deleted: id });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -5500,7 +6858,7 @@ app.post('/api/admin/vendor-sources/:id/scrape', staffAuth, requireRole('admin',
     }
     res.json({ job: result });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -5529,7 +6887,7 @@ app.post('/api/admin/scrape-jobs/:id/stop', staffAuth, requireRole('admin', 'man
       res.json({ stopped: true, job_id: id, note: 'Stale job marked as cancelled' });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -5581,7 +6939,7 @@ app.post('/api/admin/vendor-sources/:id/upload-pricelist', staffAuth, requireRol
 
     res.json({ source: result.rows[0], pdf_path: pdfPath });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -5611,7 +6969,7 @@ app.get('/api/admin/scrape-jobs', staffAuth, requireRole('admin', 'manager'), as
     const result = await pool.query(query, params);
     res.json({ jobs: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -5629,7 +6987,7 @@ app.get('/api/admin/scrape-jobs/:id', staffAuth, requireRole('admin', 'manager')
     if (!result.rows.length) return res.status(404).json({ error: 'Job not found' });
     res.json({ job: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -5645,6 +7003,13 @@ function verifyPassword(password, hash, salt) {
   const derived = crypto.scryptSync(password, salt, 64);
   const stored = Buffer.from(hash, 'hex');
   return crypto.timingSafeEqual(derived, stored);
+}
+
+function validatePassword(password) {
+  if (!password || password.length < 8) return 'Password must be at least 8 characters';
+  if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
+  if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
+  return null;
 }
 
 async function repAuth(req, res, next) {
@@ -5670,7 +7035,7 @@ async function repAuth(req, res, next) {
     };
     next();
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 }
 
@@ -5703,7 +7068,7 @@ async function tradeAuth(req, res, next) {
     };
     next();
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 }
 
@@ -5763,7 +7128,7 @@ async function customerAuth(req, res, next) {
     req.customer = result.rows[0];
     next();
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 }
 
@@ -5821,7 +7186,7 @@ async function staffAuth(req, res, next) {
     };
     next();
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 }
 
@@ -5871,6 +7236,8 @@ app.post('/api/staff/setup', async (req, res) => {
     if (!email || !password || !first_name || !last_name) {
       return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
     }
+    const pwError = validatePassword(password);
+    if (pwError) return res.status(400).json({ error: pwError });
 
     const { hash, salt } = hashPassword(password);
     const result = await pool.query(`
@@ -5894,7 +7261,7 @@ app.post('/api/staff/setup', async (req, res) => {
     res.json({ token, staff });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'An account with this email already exists' });
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -5942,9 +7309,12 @@ app.post('/api/staff/login', async (req, res) => {
       isTrusted = trusted.rows.length > 0;
     }
 
-    // If untrusted device, require 2FA (skip in dev when SMTP not configured)
-    const smtpConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
-    if (!isTrusted && fpHash && smtpConfigured) {
+    // If untrusted device, require 2FA (skip only in non-production)
+    if (!isTrusted && fpHash && process.env.NODE_ENV === 'production') {
+      const smtpConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+      if (!smtpConfigured) {
+        return res.status(503).json({ error: '2FA is required but email service is not configured. Contact an administrator.' });
+      }
       const code = String(Math.floor(100000 + Math.random() * 900000));
       const codeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
       await pool.query(
@@ -5955,8 +7325,8 @@ app.post('/api/staff/login', async (req, res) => {
       await send2FACode(staff.email, code);
       return res.json({ requires_2fa: true, staff_id: staff.id });
     }
-    if (!isTrusted && fpHash && !smtpConfigured) {
-      console.log(`[Auth] 2FA bypassed for ${emailKey} — SMTP not configured (dev mode)`);
+    if (!isTrusted && fpHash && process.env.NODE_ENV !== 'production') {
+      console.log(`[Auth] 2FA bypassed for ${emailKey} — non-production environment`);
     }
 
     // Trusted device or no fingerprint — create session directly
@@ -5982,7 +7352,7 @@ app.post('/api/staff/login', async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6029,7 +7399,7 @@ app.post('/api/staff/verify-2fa', async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6040,7 +7410,7 @@ app.post('/api/staff/logout', staffAuth, async (req, res) => {
     await logAudit(req.staff.id, 'staff.logout', 'staff_accounts', req.staff.id, {}, req.ip);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6059,7 +7429,7 @@ app.get('/api/admin/staff', staffAuth, requireRole('admin', 'manager'), async (r
     `);
     res.json({ staff: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6069,6 +7439,8 @@ app.post('/api/admin/staff', staffAuth, requireRole('admin', 'manager'), async (
     if (!email || !password || !first_name || !last_name) {
       return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
     }
+    const pwError = validatePassword(password);
+    if (pwError) return res.status(400).json({ error: pwError });
     const validRoles = ['admin', 'manager', 'sales_rep', 'warehouse'];
     if (role && !validRoles.includes(role)) {
       return res.status(400).json({ error: 'Invalid role. Must be one of: ' + validRoles.join(', ') });
@@ -6089,7 +7461,7 @@ app.post('/api/admin/staff', staffAuth, requireRole('admin', 'manager'), async (
     res.json({ staff_member: result.rows[0] });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'An account with this email already exists' });
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6129,7 +7501,7 @@ app.put('/api/admin/staff/:id', staffAuth, requireRole('admin', 'manager'), asyn
     res.json({ staff_member: result.rows[0] });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'An account with this email already exists' });
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6164,7 +7536,7 @@ app.patch('/api/admin/staff/:id/toggle', staffAuth, requireRole('admin', 'manage
     await logAudit(req.staff.id, result.rows[0].is_active ? 'staff.activate' : 'staff.deactivate', 'staff_accounts', id, {}, req.ip);
     res.json({ staff_member: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6187,7 +7559,7 @@ app.put('/api/admin/staff/:id/password', staffAuth, requireRole('admin', 'manage
     await logAudit(req.staff.id, 'staff.password_reset', 'staff_accounts', id, {}, req.ip);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6199,6 +7571,8 @@ app.post('/api/trade/register', async (req, res) => {
     if (!email || !password || !company_name || !contact_name) {
       return res.status(400).json({ error: 'Email, password, company name, and contact name are required' });
     }
+    const pwError = validatePassword(password);
+    if (pwError) return res.status(400).json({ error: pwError });
 
     const { hash, salt } = hashPassword(password);
     await pool.query(
@@ -6212,7 +7586,7 @@ app.post('/api/trade/register', async (req, res) => {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'An account with this email already exists' });
     }
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6262,7 +7636,7 @@ app.post('/api/trade/login', async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6272,7 +7646,7 @@ app.post('/api/trade/logout', tradeAuth, async (req, res) => {
     await pool.query('DELETE FROM trade_sessions WHERE token = $1', [token]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6293,7 +7667,7 @@ app.post('/api/trade/register/setup-intent', async (req, res) => {
     });
     res.json({ client_secret: setupIntent.client_secret, stripe_customer_id: customer.id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6320,7 +7694,7 @@ app.post('/api/trade/register/upload', docUpload.single('document'), async (req,
 
     res.json({ document_id: result.rows[0].id, file_key: fileKey });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6332,6 +7706,8 @@ app.post('/api/trade/register/enhanced', async (req, res) => {
     if (!email || !password || !company_name || !contact_name) {
       return res.status(400).json({ error: 'Email, password, company name, and contact name are required' });
     }
+    const pwError = validatePassword(password);
+    if (pwError) return res.status(400).json({ error: pwError });
     if (!address_line1 || !city || !state || !zip) {
       return res.status(400).json({ error: 'Address, city, state, and zip are required' });
     }
@@ -6360,7 +7736,7 @@ app.post('/api/trade/register/enhanced', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     if (err.code === '23505') return res.status(409).json({ error: 'An account with this email already exists' });
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -6380,7 +7756,7 @@ app.get('/api/admin/trade-customers/:id/documents', staffAuth, requireRole('admi
     }));
     res.json({ documents: docsWithUrls });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6454,7 +7830,7 @@ app.post('/api/admin/trade-customers/:id/approve', staffAuth, requireRole('admin
     res.json({ customer: full.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -6502,7 +7878,7 @@ app.post('/api/admin/trade-customers/:id/deny', staffAuth, requireRole('admin', 
 
     res.json({ customer: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6573,7 +7949,7 @@ app.put('/api/trade/payment-method', tradeAuth, async (req, res) => {
 
     res.json({ success: true, message: 'Payment method updated' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6600,7 +7976,7 @@ app.get('/api/trade/membership', tradeAuth, async (req, res) => {
       next_tier: nextTier.rows[0] || null
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6618,7 +7994,7 @@ app.post('/api/trade/cancel-membership', tradeAuth, async (req, res) => {
     }
     res.json({ success: true, message: 'Membership will end at the current billing period' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6685,10 +8061,11 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           }
 
           // Record additional charge in ledger
-          await pool.query(`
+          const addChargeOpRes = await pool.query(`
             INSERT INTO order_payments (order_id, payment_type, amount, stripe_checkout_session_id, description, status)
-            VALUES ($1, 'additional_charge', $2, $3, 'Additional payment via checkout', 'completed')
+            VALUES ($1, 'additional_charge', $2, $3, 'Additional payment via checkout', 'completed') RETURNING id
           `, [order_id, paidAmount.toFixed(2), session.id]);
+          await syncOrderPaymentToInvoice(addChargeOpRes.rows[0].id, order_id, pool);
 
           // Update amount_paid
           await pool.query(
@@ -6725,10 +8102,61 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
         }
         break;
       }
+      case 'payment_intent.succeeded': {
+        const pi = event.data.object;
+        // Only handle ACH (us_bank_account) settlements
+        if (pi.payment_method_types && pi.payment_method_types.includes('us_bank_account')) {
+          const orderResult = await pool.query(
+            "SELECT * FROM orders WHERE stripe_payment_intent_id = $1 AND payment_method = 'ach'",
+            [pi.id]
+          );
+          if (orderResult.rows.length) {
+            const order = orderResult.rows[0];
+            const settledAmount = (pi.amount_received || pi.amount) / 100;
+            await pool.query(
+              "UPDATE orders SET status = 'confirmed', amount_paid = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+              [settledAmount.toFixed(2), order.id]
+            );
+            const achOpRes = await pool.query(`
+              INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status, payment_method)
+              VALUES ($1, 'charge', $2, $3, 'ACH bank transfer payment', 'completed', 'ach') RETURNING id
+            `, [order.id, settledAmount.toFixed(2), pi.id]);
+            await syncOrderPaymentToInvoice(achOpRes.rows[0].id, order.id, pool);
+            await logOrderActivity(pool, order.id, 'payment_received', null, 'System',
+              { method: 'ach', amount: settledAmount.toFixed(2) });
+            // Generate purchase orders now that payment is confirmed
+            setImmediate(() => generatePurchaseOrders(order.id, pool));
+          }
+        }
+        break;
+      }
+      case 'payment_intent.payment_failed': {
+        const pi = event.data.object;
+        if (pi.payment_method_types && pi.payment_method_types.includes('us_bank_account')) {
+          const orderResult = await pool.query(
+            "SELECT * FROM orders WHERE stripe_payment_intent_id = $1 AND payment_method = 'ach'",
+            [pi.id]
+          );
+          if (orderResult.rows.length) {
+            const order = orderResult.rows[0];
+            const failMessage = pi.last_payment_error ? pi.last_payment_error.message : 'ACH payment failed';
+            await logOrderActivity(pool, order.id, 'payment_failed', null, 'System',
+              { method: 'ach', error: failMessage });
+            // Notify assigned rep
+            if (order.sales_rep_id) {
+              setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'payment_failed',
+                'ACH payment failed for ' + order.order_number,
+                failMessage + '. The order remains pending — retry or switch payment method.',
+                'order', order.id));
+            }
+          }
+        }
+        break;
+      }
     }
     res.json({ received: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6780,7 +8208,7 @@ app.put('/api/admin/trade-customers/:id/assign-rep', staffAuth, requireRole('adm
     `, [id]);
     res.json({ customer: full.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6794,7 +8222,7 @@ app.get('/api/trade/my-rep', tradeAuth, async (req, res) => {
     `, [req.tradeCustomer.id]);
     res.json({ rep: result.rows[0] || null });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6812,7 +8240,7 @@ app.get('/api/staff/my-customers', staffAuth, async (req, res) => {
     `, [req.staff.id]);
     res.json({ customers: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6874,7 +8302,7 @@ app.patch('/api/admin/staff/:id/terminate', staffAuth, requireRole('admin', 'man
       recommended_rep: recommendedRep ? { id: recommendedRep.id, name: recommendedRep.first_name + ' ' + recommendedRep.last_name } : null
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6923,7 +8351,7 @@ app.get('/api/trade/dashboard', tradeAuth, async (req, res) => {
       favorite_collections: stats.rows[0].favorite_collections
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6942,7 +8370,7 @@ app.get('/api/trade/orders', tradeAuth, async (req, res) => {
     }
     res.json({ orders });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6953,7 +8381,7 @@ app.get('/api/trade/orders/:id', tradeAuth, async (req, res) => {
     const items = await pool.query('SELECT * FROM order_items WHERE order_id = $1 ORDER BY id', [req.params.id]);
     res.json({ order: order.rows[0], items: items.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6966,7 +8394,7 @@ app.get('/api/trade/projects', tradeAuth, async (req, res) => {
     );
     res.json({ projects: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6980,7 +8408,7 @@ app.post('/api/trade/projects', tradeAuth, async (req, res) => {
     );
     res.json({ project: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -6996,7 +8424,7 @@ app.put('/api/trade/projects/:id', tradeAuth, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Project not found' });
     res.json({ project: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7007,7 +8435,7 @@ app.get('/api/trade/projects/:id', tradeAuth, async (req, res) => {
     const orders = await pool.query('SELECT id, order_number, total, status, created_at FROM orders WHERE project_id = $1 ORDER BY created_at DESC', [req.params.id]);
     res.json({ project: project.rows[0], orders: orders.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7023,7 +8451,7 @@ app.delete('/api/trade/projects/:id', tradeAuth, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Project not found' });
     res.json({ deleted: req.params.id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7038,7 +8466,7 @@ app.put('/api/trade/orders/:id/project', tradeAuth, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Order not found' });
     res.json({ order: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7051,7 +8479,7 @@ app.get('/api/trade/favorites', tradeAuth, async (req, res) => {
     );
     res.json({ favorites: collections.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7065,7 +8493,7 @@ app.post('/api/trade/favorites', tradeAuth, async (req, res) => {
     );
     res.json({ favorite: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7078,7 +8506,7 @@ app.delete('/api/trade/favorites/:id', tradeAuth, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Collection not found' });
     res.json({ deleted: req.params.id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7097,7 +8525,7 @@ app.get('/api/trade/favorites/:id/items', tradeAuth, async (req, res) => {
     `, [req.params.id]);
     res.json({ items: items.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7114,7 +8542,7 @@ app.post('/api/trade/favorites/:id/items', tradeAuth, async (req, res) => {
     );
     res.json({ item: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7126,7 +8554,7 @@ app.delete('/api/trade/favorites/:favId/items/:itemId', tradeAuth, async (req, r
     if (!result.rows.length) return res.status(404).json({ error: 'Item not found' });
     res.json({ deleted: req.params.itemId });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7143,7 +8571,7 @@ app.get('/api/trade/account', tradeAuth, async (req, res) => {
     `, [req.tradeCustomer.id]);
     res.json({ account: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7161,7 +8589,7 @@ app.put('/api/trade/account', tradeAuth, async (req, res) => {
     `, [company_name, contact_name, phone, req.tradeCustomer.id]);
     res.json({ account: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7169,6 +8597,8 @@ app.post('/api/trade/change-password', tradeAuth, async (req, res) => {
   try {
     const { current_password, new_password } = req.body;
     if (!current_password || !new_password) return res.status(400).json({ error: 'Both current and new password are required' });
+    const pwError = validatePassword(new_password);
+    if (pwError) return res.status(400).json({ error: pwError });
 
     const cust = await pool.query('SELECT password_hash, password_salt FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
     if (!verifyPassword(current_password, cust.rows[0].password_hash, cust.rows[0].password_salt)) {
@@ -7179,7 +8609,7 @@ app.post('/api/trade/change-password', tradeAuth, async (req, res) => {
     await pool.query('UPDATE trade_customers SET password_hash = $1, password_salt = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3', [hash, salt, req.tradeCustomer.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7238,7 +8668,7 @@ app.post('/api/trade/bulk-order', tradeAuth, async (req, res) => {
 
     res.json({ validated_items: validated, errors, total: validated.reduce((sum, i) => sum + i.subtotal, 0) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7281,7 +8711,7 @@ app.post('/api/trade/bulk-order/confirm', tradeAuth, async (req, res) => {
     res.json({ order: { ...order, items } });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -7296,7 +8726,7 @@ app.get('/api/trade/quotes', tradeAuth, async (req, res) => {
     `, [req.tradeCustomer.id]);
     res.json({ quotes: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7304,10 +8734,19 @@ app.get('/api/trade/quotes/:id', tradeAuth, async (req, res) => {
   try {
     const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
-    const items = await pool.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [req.params.id]);
+    const items = await pool.query(`
+      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      FROM quote_items qi
+      LEFT JOIN skus s ON s.id = qi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE qi.quote_id = $1 ORDER BY qi.id
+    `, [req.params.id]);
     res.json({ quote: quote.rows[0], items: items.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7354,7 +8793,7 @@ app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
     res.json({ order });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -7370,7 +8809,7 @@ app.get('/api/trade/visits', tradeAuth, async (req, res) => {
     `, [req.tradeCustomer.email]);
     res.json({ visits: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7381,7 +8820,7 @@ app.get('/api/trade/visits/:id', tradeAuth, async (req, res) => {
     const items = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order, id', [req.params.id]);
     res.json({ visit: visit.rows[0], items: items.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7396,7 +8835,17 @@ app.get('/api/trade/quotes/:id/pdf', (req, res, next) => {
     const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
     const q = quote.rows[0];
-    const items = await pool.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [req.params.id]);
+    const items = await pool.query(`
+      SELECT qi.*, sk.variant_name, sa_c.value as color,
+        v.name as vendor_name, sk.vendor_sku, p.collection as current_collection
+      FROM quote_items qi
+      LEFT JOIN skus sk ON sk.id = qi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(sk.product_id, qi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE qi.quote_id = $1 ORDER BY qi.id
+    `, [req.params.id]);
     const customer = await pool.query('SELECT * FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
     const c = customer.rows[0] || {};
 
@@ -7425,15 +8874,17 @@ app.get('/api/trade/quotes/:id/pdf', (req, res, next) => {
         ${q.shipping_city ? '<br/>' + q.shipping_city + ', ' + (q.shipping_state || '') + ' ' + (q.shipping_zip || '') : ''}
       </div>
       <table>
-        <thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th></tr></thead>
+        <thead><tr><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th></tr></thead>
         <tbody>
-          ${items.rows.map(i => `<tr>
-            <td>${i.product_name || ''}</td>
-            <td>${i.collection || i.description || ''}</td>
-            <td style="text-align:right">${i.num_boxes || i.quantity || 1}</td>
-            <td style="text-align:right">$${parseFloat(i.unit_price || 0).toFixed(2)}</td>
+          ${items.rows.map(i => {
+            const isUnit = i.sell_by === 'unit';
+            const qty = i.num_boxes || i.quantity || 1;
+            return `<tr>
+            <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td>
+            <td style="text-align:right">${qty}${isUnit ? '' : ' box' + (qty > 1 ? 'es' : '')}</td>
+            <td style="text-align:right">$${parseFloat(i.unit_price || 0).toFixed(2)}${isUnit ? '/ea' : '/sqft'}</td>
             <td style="text-align:right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
-          </tr>`).join('')}
+          </tr>`; }).join('')}
         </tbody>
       </table>
       <div class="totals">
@@ -7450,7 +8901,7 @@ app.get('/api/trade/quotes/:id/pdf', (req, res, next) => {
 
     await generatePDF(html, `quote-${q.quote_number || q.id.substring(0, 8)}.pdf`, req, res);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7460,9 +8911,12 @@ async function generateOrderPackingSlipHtml(orderId) {
   const order = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
   if (!order.rows.length) return null;
   const items = await pool.query(`
-    SELECT oi.*, p.sqft_per_box
+    SELECT oi.*, p.sqft_per_box, sk.variant_name, sa_c.value as color
     FROM order_items oi
     LEFT JOIN packaging p ON p.sku_id = oi.sku_id
+    LEFT JOIN skus sk ON sk.id = oi.sku_id
+    LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+      AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
     WHERE oi.order_id = $1 ORDER BY oi.id
   `, [orderId]);
   const o = order.rows[0];
@@ -7492,15 +8946,14 @@ async function generateOrderPackingSlipHtml(orderId) {
     </div>
     ${shipToBlock}
     <table>
-      <thead><tr><th>Product</th><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">SqFt/Box</th><th style="text-align:right">Total SqFt</th></tr></thead>
+      <thead><tr><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">SqFt/Box</th><th style="text-align:right">Total SqFt</th></tr></thead>
       <tbody>
         ${items.rows.map(i => {
           const isUnit = i.sell_by === 'unit';
           const sqftPerBox = i.sqft_per_box ? parseFloat(i.sqft_per_box) : null;
           const totalSqft = i.sqft_needed ? parseFloat(i.sqft_needed) : (sqftPerBox ? sqftPerBox * i.num_boxes : null);
           return `<tr>
-            <td>${i.product_name || ''}${i.is_sample ? ' <span style="color:#c8a97e;font-size:0.75rem;">(Sample)</span>' : ''}</td>
-            <td>${i.collection || i.description || ''}</td>
+            <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}${i.is_sample ? ' <span style="color:#c8a97e;font-size:0.75rem;">(Sample)</span>' : ''}</td>
             <td style="text-align:right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
             <td style="text-align:right">${isUnit ? '—' : (sqftPerBox ? sqftPerBox.toFixed(2) : '—')}</td>
             <td style="text-align:right">${isUnit ? '—' : (totalSqft ? totalSqft.toFixed(1) : '—')}</td>
@@ -7516,9 +8969,12 @@ async function generateOrderInvoiceHtml(orderId) {
   const order = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
   if (!order.rows.length) return null;
   const items = await pool.query(`
-    SELECT oi.*, p.sqft_per_box
+    SELECT oi.*, p.sqft_per_box, sk.variant_name, sa_c.value as color
     FROM order_items oi
     LEFT JOIN packaging p ON p.sku_id = oi.sku_id
+    LEFT JOIN skus sk ON sk.id = oi.sku_id
+    LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+      AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
     WHERE oi.order_id = $1 ORDER BY oi.id
   `, [orderId]);
   const o = order.rows[0];
@@ -7563,7 +9019,7 @@ async function generateOrderInvoiceHtml(orderId) {
     </div>
     <table>
       <thead><tr>
-        <th>Product</th><th>Description</th>
+        <th>Description</th>
         <th style="text-align:right">SqFt</th><th style="text-align:right">Qty</th>
         <th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th>
       </tr></thead>
@@ -7571,8 +9027,7 @@ async function generateOrderInvoiceHtml(orderId) {
         ${items.rows.map(i => {
           const isUnit = i.sell_by === 'unit';
           return `<tr>
-          <td>${i.product_name || ''}${i.is_sample ? ' <span style="color:#c8a97e;font-size:0.75rem;font-weight:600;">(Sample)</span>' : ''}</td>
-          <td>${i.collection || i.description || ''}</td>
+          <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}${i.is_sample ? ' <span style="color:#c8a97e;font-size:0.75rem;font-weight:600;">(Sample)</span>' : ''}</td>
           <td style="text-align:right">${isUnit ? '—' : (i.sqft_needed ? parseFloat(i.sqft_needed).toFixed(1) : '—')}</td>
           <td style="text-align:right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
           <td style="text-align:right">${i.is_sample ? '<span style="color:#78716c;">$0.00</span>' : (i.unit_price ? '$' + parseFloat(i.unit_price).toFixed(2) + (isUnit ? '/ea' : '/sf') : '—')}</td>
@@ -7605,7 +9060,13 @@ async function generateOrderInvoiceHtml(orderId) {
 async function generateSampleRequestConfirmationHtml(sampleRequestId) {
   const sr = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [sampleRequestId]);
   if (!sr.rows.length) return null;
-  const items = await pool.query('SELECT * FROM sample_request_items WHERE sample_request_id = $1 ORDER BY sort_order', [sampleRequestId]);
+  const items = await pool.query(`
+    SELECT sri.*, sa_c.value as color
+    FROM sample_request_items sri
+    LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = sri.sku_id
+      AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+    WHERE sri.sample_request_id = $1 ORDER BY sri.sort_order
+  `, [sampleRequestId]);
   const s = sr.rows[0];
 
   const isPickup = s.delivery_method === 'pickup';
@@ -7641,13 +9102,11 @@ async function generateSampleRequestConfirmationHtml(sampleRequestId) {
     </div>
     <table>
       <thead><tr>
-        <th>Product</th><th>Collection</th><th>Variant</th>
+        <th>Description</th>
       </tr></thead>
       <tbody>
         ${items.rows.map(i => `<tr>
-          <td>${i.product_name || ''}</td>
-          <td>${i.collection || '\u2014'}</td>
-          <td>${i.variant_name || '\u2014'}</td>
+          <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td>
         </tr>`).join('')}
       </tbody>
     </table>
@@ -7674,7 +9133,7 @@ app.get('/api/staff/orders/:id/packing-slip', async (req, res, next) => {
     if (!result) return res.status(404).json({ error: 'Order not found' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7690,7 +9149,7 @@ app.get('/api/staff/orders/:id/invoice', async (req, res, next) => {
     if (!result) return res.status(404).json({ error: 'Order not found' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7777,7 +9236,7 @@ app.post('/api/staff/orders/:id/send-invoice', staffAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('[Staff] Send invoice error:', err);
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7801,7 +9260,7 @@ app.get('/api/admin/audit-log', staffAuth, requireRole('admin', 'manager'), asyn
     const result = await pool.query(query, params);
     res.json({ entries: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7834,7 +9293,7 @@ app.post('/api/rep/login', async (req, res) => {
       rep: { id: rep.id, email: rep.email, first_name: rep.first_name, last_name: rep.last_name }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7844,7 +9303,7 @@ app.post('/api/rep/logout', repAuth, async (req, res) => {
     await pool.query('DELETE FROM rep_sessions WHERE token = $1', [token]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -7865,7 +9324,9 @@ app.get('/api/rep/dashboard', repAuth, async (req, res) => {
         (SELECT COUNT(*)::int FROM orders WHERE status = 'confirmed') as confirmed_orders,
         (SELECT COUNT(*)::int FROM orders WHERE status = 'shipped') as shipped_orders,
         (SELECT COUNT(*)::int FROM quotes WHERE sales_rep_id = $1) as my_quotes,
-        (SELECT COUNT(*)::int FROM quotes WHERE sales_rep_id = $1 AND status = 'draft') as draft_quotes
+        (SELECT COUNT(*)::int FROM quotes WHERE sales_rep_id = $1 AND status = 'draft') as draft_quotes,
+        (SELECT COUNT(*)::int FROM estimates WHERE sales_rep_id = $1 AND status = 'draft') as estimates_draft,
+        (SELECT COUNT(*)::int FROM estimates WHERE sales_rep_id = $1 AND status = 'sent') as estimates_sent
     `, [req.rep.id]);
 
     // Sales metrics scoped to this rep
@@ -7941,7 +9402,7 @@ app.get('/api/rep/dashboard', repAuth, async (req, res) => {
       recent_orders: recentOrders.rows
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8081,7 +9542,7 @@ app.get('/api/rep/action-items', repAuth, async (req, res) => {
 
     res.json({ action_items: actionItems });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8126,7 +9587,7 @@ app.get('/api/rep/commissions', repAuth, async (req, res) => {
       commissions: commissions.rows
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8141,7 +9602,7 @@ app.get('/api/rep/commissions/summary', repAuth, async (req, res) => {
     `, [req.rep.id]);
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8248,7 +9709,7 @@ app.post('/api/rep/visits', repAuth, async (req, res) => {
     res.json({ visit, items: resolvedItems });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -8276,7 +9737,7 @@ app.get('/api/rep/visits', repAuth, async (req, res) => {
     const result = await pool.query(query, params);
     res.json({ visits: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8288,7 +9749,7 @@ app.get('/api/rep/visits/:id', repAuth, async (req, res) => {
     const itemsRes = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [req.params.id]);
     res.json({ visit: visitRes.rows[0], items: itemsRes.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8387,7 +9848,7 @@ app.put('/api/rep/visits/:id', repAuth, async (req, res) => {
     res.json({ visit: updatedVisit.rows[0], items: updatedItems.rows });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -8402,7 +9863,7 @@ app.delete('/api/rep/visits/:id', repAuth, async (req, res) => {
     await pool.query('DELETE FROM showroom_visits WHERE id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8436,7 +9897,7 @@ app.post('/api/rep/visits/:id/send', repAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8474,7 +9935,7 @@ app.get('/api/visit-recap/:token', async (req, res) => {
       items: itemsRes.rows
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8489,7 +9950,7 @@ app.post('/api/visit-recap/:token/carted', async (req, res) => {
     }
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8640,7 +10101,7 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
     res.json({ sample_request, items: resolvedItems });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -8673,7 +10134,7 @@ app.get('/api/rep/sample-requests', repAuth, async (req, res) => {
     const result = await pool.query(query, params);
     res.json({ sample_requests: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8693,7 +10154,7 @@ app.get('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
     `, [req.params.id]);
     res.json({ sample_request: srRes.rows[0], items: itemsRes.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8726,7 +10187,7 @@ app.put('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
     const updated = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     res.json({ sample_request: updated.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8763,7 +10224,7 @@ app.put('/api/rep/sample-requests/:id/ship', repAuth, async (req, res) => {
 
     res.json({ sample_request: sr });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8777,7 +10238,7 @@ app.put('/api/rep/sample-requests/:id/deliver', repAuth, async (req, res) => {
     const updated = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     res.json({ sample_request: updated.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8791,7 +10252,7 @@ app.put('/api/rep/sample-requests/:id/cancel', repAuth, async (req, res) => {
     const updated = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     res.json({ sample_request: updated.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8823,7 +10284,7 @@ app.put('/api/rep/sample-requests/:id/items/:itemId/status', repAuth, async (req
 
     res.json({ item: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -8907,7 +10368,7 @@ app.post('/api/rep/sample-requests/:id/add-items', repAuth, async (req, res) => 
     res.json({ added: addedItems });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -9002,7 +10463,7 @@ app.post('/api/rep/sample-requests/:id/send-to-vendor', repAuth, async (req, res
 
     res.json({ vendor_name: vendor.name, vendor_email: vendor.email, sent: emailResult.sent, error: emailResult.error || null });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9022,7 +10483,7 @@ app.put('/api/rep/sample-requests/:id/payment-status', repAuth, async (req, res)
     const updated = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     res.json({ sample_request: updated.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9035,7 +10496,7 @@ app.delete('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
     await pool.query('DELETE FROM sample_requests WHERE id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9064,7 +10525,7 @@ app.post('/api/rep/cash-drawer/open', repAuth, async (req, res) => {
     );
     res.json({ drawer: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9084,7 +10545,7 @@ app.get('/api/rep/cash-drawer/current', repAuth, async (req, res) => {
     );
     res.json({ drawer, transactions: txns.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9125,7 +10586,7 @@ app.post('/api/rep/cash-drawer/transaction', repAuth, async (req, res) => {
     res.json({ transaction: txnResult.rows[0], drawer: updatedDrawer.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -9155,7 +10616,7 @@ app.post('/api/rep/cash-drawer/close', repAuth, async (req, res) => {
     );
     res.json({ drawer: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9169,7 +10630,7 @@ app.get('/api/rep/cash-drawer/history', repAuth, async (req, res) => {
     );
     res.json({ drawers: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9180,7 +10641,7 @@ app.post('/api/rep/terminal/connection-token', repAuth, async (req, res) => {
     const token = await stripe.terminal.connectionTokens.create();
     res.json({ secret: token.secret });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9200,7 +10661,55 @@ app.post('/api/rep/terminal/create-payment-intent', repAuth, async (req, res) =>
     });
     res.json({ client_secret: paymentIntent.client_secret, payment_intent_id: paymentIntent.id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Manual card entry (mobile) — creates a PI for Stripe Elements confirmation
+app.post('/api/rep/card/create-payment-intent', repAuth, async (req, res) => {
+  try {
+    const { amount, order_description } = req.body;
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'A positive amount is required' });
+    }
+    const amountCents = Math.round(amount * 100);
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: 'usd',
+      payment_method_types: ['card'],
+      description: order_description || 'In-store manual card entry',
+    });
+    res.json({ client_secret: paymentIntent.client_secret, payment_intent_id: paymentIntent.id });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ACH bank transfer — creates a PI for us_bank_account confirmation
+app.post('/api/rep/ach/create-payment-intent', repAuth, async (req, res) => {
+  try {
+    const { amount, customer_name, customer_email } = req.body;
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'A positive amount is required' });
+    }
+    if (!customer_name || !customer_email) {
+      return res.status(400).json({ error: 'Customer name and email are required for ACH payments' });
+    }
+    const amountCents = Math.round(amount * 100);
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: 'usd',
+      payment_method_types: ['us_bank_account'],
+      payment_method_options: {
+        us_bank_account: {
+          financial_connections: { permissions: ['payment_method'] }
+        }
+      },
+      description: 'ACH bank transfer — rep-created order',
+    });
+    res.json({ client_secret: paymentIntent.client_secret, payment_intent_id: paymentIntent.id });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9217,7 +10726,7 @@ app.post('/api/rep/terminal/capture-payment', repAuth, async (req, res) => {
     }
     res.json({ payment_intent: pi });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9257,7 +10766,7 @@ app.get('/api/rep/orders', repAuth, async (req, res) => {
     const result = await pool.query(query, params);
     res.json({ orders: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9267,20 +10776,26 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { customer_name, customer_email, phone, delivery_method, shipping_address,
-            payment_method, items, promo_code } = req.body;
+            payment_method, items, promo_code, document_ids } = req.body;
 
     if (!customer_name || !customer_email) {
       return res.status(400).json({ error: 'Customer name and email are required' });
     }
+    if (!phone || phone.replace(/\D/g, '').length !== 10) {
+      return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
+    }
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'At least one item is required' });
     }
-    if (!payment_method || !['cash', 'check', 'card', 'stripe', 'offline'].includes(payment_method)) {
-      return res.status(400).json({ error: 'payment_method must be cash, check, card, stripe, or offline' });
+    if (!payment_method || !['cash', 'check', 'card', 'stripe', 'offline', 'ach'].includes(payment_method)) {
+      return res.status(400).json({ error: 'payment_method must be cash, check, card, stripe, offline, or ach' });
     }
     const { check_number, stripe_payment_intent_id } = req.body;
     if (payment_method === 'check' && !check_number) {
       return res.status(400).json({ error: 'check_number is required for check payments' });
+    }
+    if (payment_method === 'ach' && (!document_ids || document_ids.length < 2)) {
+      return res.status(400).json({ error: 'ACH payments require customer ID and check photo uploads' });
     }
     if (payment_method === 'card' && !stripe_payment_intent_id) {
       return res.status(400).json({ error: 'Card payments require Stripe Terminal. Use the tap-to-pay flow.' });
@@ -9406,6 +10921,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         return res.status(400).json({ error: 'Terminal payment not completed. Status: ' + pi.status });
       }
       stripePaymentIntentId = stripe_payment_intent_id;
+    } else if (payment_method === 'ach' && stripe_payment_intent_id) {
+      stripePaymentIntentId = stripe_payment_intent_id;
     } else if (payment_method === 'stripe') {
       const totalCents = Math.round(total * 100);
       if (totalCents > 0) {
@@ -9445,6 +10962,14 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
           item.unit_price.toFixed(2), item.subtotal.toFixed(2), item.sell_by || null, item.is_sample]);
     }
 
+    // Link uploaded documents to the order
+    if (document_ids && document_ids.length > 0) {
+      await client.query(
+        'UPDATE order_documents SET order_id = $1 WHERE id = ANY($2) AND order_id IS NULL',
+        [order.id, document_ids]
+      );
+    }
+
     // Record payment in ledger for in-store payments
     if (paidInStore) {
       const repFullName = req.rep.first_name + ' ' + req.rep.last_name;
@@ -9453,10 +10978,11 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       else if (payment_method === 'check') payDesc = 'Check payment — #' + check_number;
       else if (payment_method === 'card') payDesc = 'In-store card payment';
 
-      await client.query(`
+      const repPayOpRes = await client.query(`
         INSERT INTO order_payments (order_id, payment_type, amount, description, initiated_by, initiated_by_name, status, check_number, payment_method)
-        VALUES ($1, 'charge', $2, $3, $4, $5, 'completed', $6, $7)
+        VALUES ($1, 'charge', $2, $3, $4, $5, 'completed', $6, $7) RETURNING id
       `, [order.id, total.toFixed(2), payDesc, req.rep.id, repFullName, check_number || null, payment_method]);
+      await syncOrderPaymentToInvoice(repPayOpRes.rows[0].id, order.id, client);
 
       // Record cash drawer transaction for cash payments
       if (payment_method === 'cash') {
@@ -9515,7 +11041,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       'order', order.id));
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -9528,14 +11054,20 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
       SELECT o.*, sr.first_name || ' ' || sr.last_name as rep_name
       FROM orders o
       LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
-      WHERE o.id = $1
-    `, [id]);
+      WHERE o.id = $1 AND o.sales_rep_id = $2
+    `, [id, req.rep.id]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
 
     const items = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection
+      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color
       FROM order_items oi
-      LEFT JOIN products p ON p.id = oi.product_id
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1
       ORDER BY oi.id
     `, [id]);
@@ -9562,7 +11094,7 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
       balance: balanceInfo
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9588,9 +11120,13 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
-    // Block uncancelling a refunded order
-    const currentOrder = await client.query('SELECT status, stripe_refund_id FROM orders WHERE id = $1', [id]);
-    if (currentOrder.rows.length && currentOrder.rows[0].status === 'cancelled' && currentOrder.rows[0].stripe_refund_id) {
+    // Block uncancelling a refunded order + verify rep ownership
+    const currentOrder = await client.query('SELECT status, stripe_refund_id FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    if (!currentOrder.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    if (currentOrder.rows[0].status === 'cancelled' && currentOrder.rows[0].stripe_refund_id) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Cannot reopen an order that has been refunded' });
     }
@@ -9719,7 +11255,7 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
     }
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -9731,7 +11267,7 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
     const { id } = req.params;
     const { delivery_method, shipping_address, shipping_option_index, residential, liftgate } = req.body;
 
-    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
     if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
 
@@ -9817,7 +11353,7 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
     const balanceInfo = await recalculateBalance(id);
     return res.json({ order: updated.rows[0], balance: balanceInfo });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9839,7 +11375,7 @@ app.put('/api/rep/orders/:id/assign', repAuth, async (req, res) => {
       'You have been assigned to order ' + result.rows[0].order_number,
       'order', id));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -9918,8 +11454,15 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
     // Return updated order + items
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection
-      FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color
+      FROM order_items oi
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
     const adjustments = await pool.query(`
@@ -9934,7 +11477,7 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
     res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, price_adjustments: adjustments.rows, balance: balanceInfo });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -9948,7 +11491,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description } = req.body;
+    const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description, sell_by: customSellBy } = req.body;
 
     const isCustom = !sku_id;
     if (isCustom) {
@@ -9957,10 +11500,10 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required for custom items' });
       if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'num_boxes >= 1 is required' });
     } else {
-      if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'sku_id and num_boxes (>= 1) are required' });
+      if ((!num_boxes || num_boxes < 1) && !sqft_needed) return res.status(400).json({ error: 'sku_id and num_boxes (>= 1) or sqft_needed are required' });
     }
 
-    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
+    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
     if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
     if (!['pending', 'confirmed'].includes(order.status)) {
@@ -9974,26 +11517,41 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     if (!isCustom) {
       const skuResult = await client.query(`
         SELECT s.*, p.name as product_name, p.collection, p.vendor_id,
-          pr.retail_price, pr.price_basis, pr.cost,
-          pk.sqft_per_box, pk.weight_per_box_lbs
+          pr.retail_price, pr.price_basis, pr.cost, pr.cut_price, pr.roll_price,
+          pk.sqft_per_box, pk.weight_per_box_lbs, pk.roll_width_ft,
+          sa_c.value as color
         FROM skus s
         JOIN products p ON p.id = s.product_id
         LEFT JOIN pricing pr ON pr.sku_id = s.id
         LEFT JOIN packaging pk ON pk.sku_id = s.id
+        LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = s.id
+          AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
         WHERE s.id = $1
       `, [sku_id]);
       if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
       sku = skuResult.rows[0];
 
+      const isCarpet = sku.price_basis === 'per_sqyd';
       unitPrice = parseFloat(sku.retail_price || 0);
       sqftPerBox = parseFloat(sku.sqft_per_box || 1);
-      isPerSqft = sku.price_basis === 'per_sqft';
-      computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
-      itemSubtotal = parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+      isPerSqft = sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft';
+
+      if (isCarpet) {
+        computedSqft = parseFloat(sqft_needed || 0);
+        const sqyd = computedSqft / 9;
+        itemSubtotal = parseFloat((unitPrice * sqyd).toFixed(2));
+      } else {
+        computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
+        itemSubtotal = parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+      }
       itemVendorId = sku.vendor_id;
     } else {
       unitPrice = parseFloat(unit_price);
-      itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
+      if (customSellBy === 'sqyd') {
+        itemSubtotal = parseFloat((unitPrice * (num_boxes / 9)).toFixed(2));
+      } else {
+        itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
+      }
       itemVendorId = vendor_id;
 
       const vendorCheck = await client.query('SELECT id FROM vendors WHERE id = $1', [vendor_id]);
@@ -10002,25 +11560,38 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
+    // Build full descriptive product name for SKU items
+    let storedProductName, storedDescription;
+    if (!isCustom) {
+      const descParts = [sku.color, sku.variant_name && sku.variant_name !== sku.color ? sku.variant_name : null].filter(Boolean).join(' · ');
+      storedProductName = sku.collection
+        ? (descParts ? sku.collection + ' — ' + descParts : sku.collection)
+        : (descParts ? sku.product_name + ' — ' + descParts : sku.product_name);
+      storedDescription = descParts || null;
+    }
+
     let newItemId;
     if (!isCustom) {
+      const isCarpet = sku.price_basis === 'per_sqyd';
       const insertResult = await client.query(`
-        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11)
         RETURNING id
-      `, [id, sku.product_id, sku_id, sku.product_name, sku.collection,
-          sqft_needed || computedSqft || null, num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
-          sku.sell_by || null]);
+      `, [id, sku.product_id, sku_id, storedProductName, sku.collection, storedDescription,
+          sqft_needed || computedSqft || null, isCarpet ? 1 : num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
+          isCarpet ? 'sqyd' : (sku.sell_by || null)]);
       newItemId = insertResult.rows[0].id;
     } else {
+      const isCustomCarpet = customSellBy === 'sqyd';
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description)
-        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, NULL, $7)
+        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8)
         RETURNING id
-      `, [id, product_name.trim(), sqft_needed || null, num_boxes, unitPrice.toFixed(2),
-          itemSubtotal.toFixed(2), description || null]);
+      `, [id, product_name.trim(), isCustomCarpet ? num_boxes : (sqft_needed || null),
+          isCustomCarpet ? 1 : num_boxes, unitPrice.toFixed(2),
+          itemSubtotal.toFixed(2), customSellBy || null, description || null]);
       newItemId = insertResult.rows[0].id;
     }
 
@@ -10062,10 +11633,11 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       if (sku) {
         const skuSqftPerBox = parseFloat(sku.sqft_per_box || 1);
         const vendorCost = parseFloat(sku.cost || 0);
-        poCost = sku.price_basis === 'per_sqft' ? vendorCost * skuSqftPerBox : vendorCost;
-        poRetail = sku.price_basis === 'per_sqft' ? unitPrice * skuSqftPerBox : unitPrice;
+        const poIsPerSqft = sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft';
+        poCost = poIsPerSqft ? vendorCost * skuSqftPerBox : vendorCost;
+        poRetail = poIsPerSqft ? unitPrice * skuSqftPerBox : unitPrice;
         poVendorSku = sku.vendor_sku;
-        poProductName = sku.product_name;
+        poProductName = storedProductName;
       } else {
         poCost = unitPrice;
         poRetail = unitPrice;
@@ -10091,7 +11663,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     }
 
     const addRepName = req.rep.first_name + ' ' + req.rep.last_name;
-    const addedProductName = isCustom ? product_name.trim() : sku.product_name;
+    const addedProductName = isCustom ? product_name.trim() : storedProductName;
     await logOrderActivity(client, id, 'item_added', req.rep.id, addRepName,
       { product_name: addedProductName, is_custom: isCustom, num_boxes, subtotal: itemSubtotal.toFixed(2) });
 
@@ -10108,13 +11680,20 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     const balanceInfo = await recalculateBalance(id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection
-      FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color
+      FROM order_items oi
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
 
     const posResult = await pool.query(`
-      SELECT po.*, v.name as vendor_name
+      SELECT po.*, v.name as vendor_name, v.edi_config
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
       WHERE po.order_id = $1
@@ -10129,7 +11708,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo, purchase_orders: purchaseOrders });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -10141,7 +11720,7 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
   try {
     const { id, itemId } = req.params;
 
-    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
+    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
     if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
     if (!['pending', 'confirmed'].includes(order.status)) {
@@ -10206,14 +11785,21 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
     const balanceInfo = await recalculateBalance(id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection
-      FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color
+      FROM order_items oi
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
 
     // Fetch updated POs
     const posResult = await pool.query(`
-      SELECT po.*, v.name as vendor_name
+      SELECT po.*, v.name as vendor_name, v.edi_config
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
       WHERE po.order_id = $1
@@ -10228,7 +11814,7 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
     res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo, purchase_orders: purchaseOrders });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -10239,7 +11825,7 @@ app.post('/api/rep/orders/:id/payment-request', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { message } = req.body || {};
-    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    const order = await pool.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
     const o = order.rows[0];
 
@@ -10293,7 +11879,120 @@ app.post('/api/rep/orders/:id/payment-request', repAuth, async (req, res) => {
 
     res.json({ payment_request: prResult.rows[0], checkout_url: session.url });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Collect payment in person on existing order (rep)
+app.post('/api/rep/orders/:id/collect-payment', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { payment_method, amount, stripe_payment_intent_id, check_number } = req.body;
+
+    if (!['cash', 'card', 'check'].includes(payment_method)) {
+      return res.status(400).json({ error: 'Invalid payment_method. Must be cash, card, or check.' });
+    }
+
+    await client.query('BEGIN');
+
+    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!orderResult.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const order = orderResult.rows[0];
+
+    const balanceInfo = await recalculateBalance(id, client);
+    if (!balanceInfo || balanceInfo.balance_status !== 'balance_due') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'No balance due on this order' });
+    }
+
+    const payAmount = amount ? parseFloat(amount) : balanceInfo.balance;
+    if (payAmount <= 0 || payAmount > balanceInfo.balance + 0.01) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Invalid amount. Balance due is $${balanceInfo.balance.toFixed(2)}` });
+    }
+
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    let stripePaymentIntentId = null;
+
+    if (payment_method === 'card') {
+      if (!stripe_payment_intent_id) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'stripe_payment_intent_id required for card payments' });
+      }
+      const pi = await stripe.paymentIntents.retrieve(stripe_payment_intent_id);
+      if (pi.status !== 'succeeded') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Card payment not completed. Status: ' + pi.status });
+      }
+      stripePaymentIntentId = stripe_payment_intent_id;
+    }
+
+    if (payment_method === 'check') {
+      if (!check_number || !check_number.trim()) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'check_number is required for check payments' });
+      }
+    }
+
+    // Insert order_payments row
+    const description = payment_method === 'cash' ? 'In-store cash payment'
+      : payment_method === 'card' ? 'In-store card payment'
+      : 'Check payment — #' + check_number;
+
+    const addPayOpRes = await client.query(`
+      INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, initiated_by, initiated_by_name, status, check_number, payment_method)
+      VALUES ($1, 'additional_charge', $2, $3, $4, $5, $6, 'completed', $7, $8) RETURNING id
+    `, [id, payAmount.toFixed(2), stripePaymentIntentId, description, req.rep.id, repName, payment_method === 'check' ? check_number : null, payment_method]);
+    await syncOrderPaymentToInvoice(addPayOpRes.rows[0].id, id, client);
+
+    // Update amount_paid
+    await client.query('UPDATE orders SET amount_paid = amount_paid + $1 WHERE id = $2', [payAmount, id]);
+
+    // Cash drawer transaction
+    if (payment_method === 'cash') {
+      const drawerResult = await client.query(
+        "SELECT id FROM cash_drawers WHERE rep_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1",
+        [req.rep.id]
+      );
+      if (drawerResult.rows.length) {
+        const drawerId = drawerResult.rows[0].id;
+        await client.query(
+          'INSERT INTO cash_drawer_transactions (drawer_id, order_id, type, amount, description) VALUES ($1, $2, $3, $4, $5)',
+          [drawerId, id, 'sale', payAmount, 'Additional payment — ' + order.order_number]
+        );
+        await client.query(
+          'UPDATE cash_drawers SET expected_balance = expected_balance + $1 WHERE id = $2',
+          [payAmount, drawerId]
+        );
+      }
+    }
+
+    // Auto-confirm pending orders when fully paid
+    const updatedBalance = await recalculateBalance(id, client);
+    if (updatedBalance && updatedBalance.balance_status === 'paid' && order.status === 'pending') {
+      await client.query("UPDATE orders SET status = 'confirmed' WHERE id = $1", [id]);
+      await logOrderActivity(client, id, 'status_changed', req.rep.id, repName,
+        { from: 'pending', to: 'confirmed', reason: 'Auto-confirmed after full payment' });
+      await generatePurchaseOrders(id, client);
+    }
+
+    await logOrderActivity(client, id, 'payment_collected', req.rep.id, repName,
+      { method: payment_method, amount: payAmount.toFixed(2), status: paymentStatus });
+
+    await client.query('COMMIT');
+
+    // Return updated balance
+    const finalBalance = await recalculateBalance(id);
+    res.json({ success: true, balance: finalBalance });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
@@ -10303,7 +12002,7 @@ app.get('/api/rep/vendors', repAuth, async (req, res) => {
     const result = await pool.query('SELECT id, name, code FROM vendors WHERE is_active = true ORDER BY name');
     res.json({ vendors: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -10316,13 +12015,16 @@ app.get('/api/rep/skus/search', repAuth, async (req, res) => {
       SELECT s.id as sku_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
         p.name as product_name, p.collection, p.vendor_id,
         v.name as vendor_name,
-        pr.retail_price, pr.cost, pr.price_basis,
-        pk.sqft_per_box
+        pr.retail_price, pr.cost, pr.price_basis, pr.cut_price, pr.roll_price,
+        pk.sqft_per_box, pk.roll_width_ft,
+        sa_c.value as color
       FROM skus s
       JOIN products p ON p.id = s.product_id
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = s.id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE p.status = 'active' AND s.status = 'active'
         AND (p.name ILIKE $1 OR s.internal_sku ILIKE $1 OR s.vendor_sku ILIKE $1 OR s.variant_name ILIKE $1 OR p.collection ILIKE $1 OR (p.collection || ' ' || p.name) ILIKE $1)
       ORDER BY p.name, s.variant_name
@@ -10330,7 +12032,7 @@ app.get('/api/rep/skus/search', repAuth, async (req, res) => {
     `, ['%' + q + '%']);
     res.json({ results: results.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -10338,22 +12040,44 @@ app.get('/api/rep/skus/search', repAuth, async (req, res) => {
 
 app.get('/api/rep/products', repAuth, async (req, res) => {
   try {
-    const { search, category, collection, page: pageParam, limit: limitParam } = req.query;
+    const { search, category, collection, vendor, stock_status, page: pageParam, limit: limitParam } = req.query;
     const page = parseInt(pageParam) || 1;
     const limit = Math.min(parseInt(limitParam) || 30, 100);
     const offset = (page - 1) * limit;
 
     let query = `
-      SELECT p.*, v.name as vendor_name, c.name as category_name, c.slug as category_slug,
+      SELECT p.*, v.name as vendor_name, v.code as vendor_code, c.name as category_name, c.slug as category_slug,
+        (SELECT COUNT(*)::int FROM skus s WHERE s.product_id = p.id AND s.status = 'active') as sku_count,
         (SELECT pr.retail_price FROM pricing pr
          JOIN skus s ON s.id = pr.sku_id
          WHERE s.product_id = p.id AND s.status = 'active' LIMIT 1) as price,
         (SELECT pr.cost FROM pricing pr
          JOIN skus s ON s.id = pr.sku_id
          WHERE s.product_id = p.id AND s.status = 'active' LIMIT 1) as cost,
+        (SELECT pr.map_price FROM pricing pr
+         JOIN skus s ON s.id = pr.sku_id
+         WHERE s.product_id = p.id AND s.status = 'active' AND pr.map_price IS NOT NULL LIMIT 1) as map_price,
+        (SELECT s.sell_by FROM skus s
+         WHERE s.product_id = p.id AND s.status = 'active' LIMIT 1) as sell_by,
+        (SELECT s.vendor_sku FROM skus s
+         WHERE s.product_id = p.id AND s.status = 'active' LIMIT 1) as vendor_sku,
+        (SELECT pk.sqft_per_box FROM packaging pk
+         JOIN skus s ON s.id = pk.sku_id
+         WHERE s.product_id = p.id AND s.status = 'active' AND pk.sqft_per_box IS NOT NULL LIMIT 1) as sqft_per_box,
+        (SELECT pk.weight_per_box_lbs FROM packaging pk
+         JOIN skus s ON s.id = pk.sku_id
+         WHERE s.product_id = p.id AND s.status = 'active' AND pk.weight_per_box_lbs IS NOT NULL LIMIT 1) as weight_per_box,
+        (SELECT pk.pieces_per_box FROM packaging pk
+         JOIN skus s ON s.id = pk.sku_id
+         WHERE s.product_id = p.id AND s.status = 'active' AND pk.pieces_per_box IS NOT NULL LIMIT 1) as pieces_per_box,
         (SELECT ma.url FROM media_assets ma
          WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id IS NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image,
+        (SELECT COALESCE(SUM(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand ELSE 0 END), 0)
+         FROM skus s2
+         LEFT JOIN inventory_snapshots inv ON inv.sku_id = s2.id
+         WHERE s2.product_id = p.id AND s2.status = 'active'
+        ) as qty_on_hand,
         (SELECT CASE
            WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand END) IS NULL THEN 'unknown'
            WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand ELSE 0 END) > 10 THEN 'in_stock'
@@ -10398,6 +12122,12 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
       paramIndex++;
     }
 
+    if (vendor) {
+      params.push(vendor);
+      query += ` AND v.id::text = $${paramIndex}`;
+      paramIndex++;
+    }
+
     // Attribute filters
     try {
       const attrResult = await pool.query('SELECT slug FROM attributes WHERE is_filterable = true');
@@ -10421,27 +12151,46 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
       }
     } catch (attrErr) { /* attributes table may not exist yet */ }
 
-    // Count total
-    const countQuery = query.replace(/SELECT p\.\*.*?FROM products p/s, 'SELECT COUNT(*)::int as total FROM products p');
-    const countResult = await pool.query(countQuery, params);
-    const total = countResult.rows[0].total;
+    // Wrap for stock_status filter if needed
+    if (stock_status && ['in_stock', 'low_stock', 'out_of_stock', 'unknown'].includes(stock_status)) {
+      query = `SELECT * FROM (${query}) AS filtered WHERE filtered.stock_status = $${paramIndex}`;
+      params.push(stock_status);
+      paramIndex++;
 
-    query += ` ORDER BY p.name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    params.push(limit, offset);
+      const countQuery = `SELECT COUNT(*)::int as total FROM (${query}) AS counted`;
+      const countResult = await pool.query(countQuery, params);
+      const total = countResult.rows[0].total;
 
-    const result = await pool.query(query, params);
+      query += ` ORDER BY filtered.name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      params.push(limit, offset);
+      const result = await pool.query(query, params);
 
-    // Add margin_pct
-    const products = result.rows.map(p => {
-      const retail = parseFloat(p.price || 0);
-      const cost = parseFloat(p.cost || 0);
-      const margin_pct = retail > 0 ? ((retail - cost) / retail * 100) : 0;
-      return { ...p, margin_pct: parseFloat(margin_pct.toFixed(1)) };
-    });
+      const products = result.rows.map(p => {
+        const retail = parseFloat(p.price || 0);
+        const cost = parseFloat(p.cost || 0);
+        const margin_pct = retail > 0 ? ((retail - cost) / retail * 100) : 0;
+        return { ...p, margin_pct: parseFloat(margin_pct.toFixed(1)) };
+      });
+      res.json({ products, total, page, limit });
+    } else {
+      const countQuery = query.replace(/SELECT p\.\*.*?FROM products p/s, 'SELECT COUNT(*)::int as total FROM products p');
+      const countResult = await pool.query(countQuery, params);
+      const total = countResult.rows[0].total;
 
-    res.json({ products, total, page, limit });
+      query += ` ORDER BY p.name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      params.push(limit, offset);
+      const result = await pool.query(query, params);
+
+      const products = result.rows.map(p => {
+        const retail = parseFloat(p.price || 0);
+        const cost = parseFloat(p.cost || 0);
+        const margin_pct = retail > 0 ? ((retail - cost) / retail * 100) : 0;
+        return { ...p, margin_pct: parseFloat(margin_pct.toFixed(1)) };
+      });
+      res.json({ products, total, page, limit });
+    }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -10491,7 +12240,7 @@ app.get('/api/rep/products/:id', repAuth, async (req, res) => {
 
     res.json({ product: product.rows[0], skus: skuRows, media: media.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -10505,7 +12254,52 @@ app.get('/api/rep/orders/:id/activity', repAuth, async (req, res) => {
     );
     res.json({ activity: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== Order Documents ====================
+
+// Upload order document (customer ID or check photo)
+app.post('/api/rep/orders/documents/upload', repAuth, docUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const { doc_type, order_id } = req.body;
+    if (!doc_type || !['customer_id', 'check_photo'].includes(doc_type)) {
+      return res.status(400).json({ error: 'doc_type must be customer_id or check_photo' });
+    }
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const hex = crypto.randomBytes(8).toString('hex');
+    const fileKey = `order-docs/${Date.now()}-${hex}${ext}`;
+    await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
+    const result = await pool.query(
+      `INSERT INTO order_documents (order_id, doc_type, file_name, file_key, file_size, mime_type)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, file_key`,
+      [order_id || null, doc_type, req.file.originalname, fileKey, req.file.size, req.file.mimetype]
+    );
+    res.json({ document_id: result.rows[0].id, file_key: result.rows[0].file_key });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get documents for an order
+app.get('/api/rep/orders/:id/documents', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM order_documents WHERE order_id = $1 ORDER BY uploaded_at',
+      [id]
+    );
+    const docs = [];
+    for (const doc of result.rows) {
+      let url = null;
+      try { url = await getPresignedUrl(doc.file_key); } catch (e) {}
+      docs.push({ ...doc, url });
+    }
+    res.json({ documents: docs });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -10522,7 +12316,7 @@ app.get('/api/rep/orders/:id/invoice', async (req, res, next) => {
     if (!result) return res.status(404).json({ error: 'Order not found' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -10537,7 +12331,7 @@ app.get('/api/rep/orders/:id/packing-slip', async (req, res, next) => {
     if (!result) return res.status(404).json({ error: 'Order not found' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -10629,7 +12423,7 @@ app.post('/api/rep/orders/:id/send-invoice', repAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('[Rep] Send invoice error:', err);
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -10668,7 +12462,7 @@ app.get('/api/rep/orders/:id/purchase-orders', repAuth, async (req, res) => {
 
     res.json({ purchase_orders: result });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -10727,7 +12521,7 @@ app.put('/api/rep/purchase-orders/:poId/items/bulk-status', repAuth, async (req,
     res.json({ success: true, derived_po_status: newPOStatus });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -10789,7 +12583,7 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId/status', repAuth, async (r
     res.json({ success: true, derived_po_status: newPOStatus });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -10842,7 +12636,7 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId', repAuth, async (req, res
     res.json({ success: true });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -10860,16 +12654,16 @@ app.get('/api/rep/purchase-orders/:id/pdf', async (req, res, next) => {
     if (!result) return res.status(404).json({ error: 'Purchase order not found' });
     await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Approve & send PO
+// Approve & send PO (or submit for admin approval if EDI vendor)
 app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => {
   try {
     const { poId } = req.params;
     const poCheck = await pool.query(`
-      SELECT po.*, v.name as vendor_name, v.email as vendor_email
+      SELECT po.*, v.name as vendor_name, v.email as vendor_email, v.edi_config
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
       WHERE po.id = $1
@@ -10880,6 +12674,14 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
     }
 
     const po = poCheck.rows[0];
+    const ediConfig = po.edi_config;
+    const ediEnabled = ediConfig && ediConfig.enabled;
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+
+    if (!ediEnabled && !po.vendor_email) {
+      return res.status(400).json({ error: 'Vendor has no email configured and EDI is not enabled.' });
+    }
+
     const newRevision = (po.revision || 0) + 1;
     const isRevised = newRevision > 1;
 
@@ -10889,23 +12691,117 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       WHERE id = $4 RETURNING *
     `, [newRevision, isRevised, req.rep.id, poId]);
 
-    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    let sentVia = 'email';
     let emailSent = false;
+    let ediDetails = null;
 
-    // Send email if vendor has email
+    // EDI path: generate 850 and upload via SFTP or FTP
+    if (ediEnabled) {
+      let ediSuccess = false;
+      try {
+        const docs = await generate850(pool, poId, ediConfig);
+        const transportType = (ediConfig.transport || 'sftp').toLowerCase();
+        const inboxDir = ediConfig.inbox_dir || '/Inbox';
+
+        if (transportType === 'ftp') {
+          const ftpClient = await createFtpConnection({
+            ftp_host: ediConfig.ftp_host,
+            ftp_port: ediConfig.ftp_port || 21,
+            ftp_user: ediConfig.ftp_user,
+            ftp_pass: ediConfig.ftp_pass,
+            ftp_secure: ediConfig.ftp_secure || false,
+          });
+          try {
+            for (const doc of docs) {
+              const txnResult = await pool.query(
+                `INSERT INTO edi_transactions
+                 (vendor_id, document_type, direction, filename, interchange_control_number, purchase_order_id, order_id, status, raw_content)
+                 VALUES ($1, '850', 'outbound', $2, $3, $4, $5, 'pending', $6)
+                 RETURNING id`,
+                [po.vendor_id, doc.filename, doc.icn, poId, po.order_id, doc.content]
+              );
+              const txnId = txnResult.rows[0].id;
+              await ftpUploadFile(ftpClient, `${inboxDir}/${doc.filename}`, doc.content);
+              await pool.query(`UPDATE edi_transactions SET status = 'sent', processed_at = CURRENT_TIMESTAMP WHERE id = $1`, [txnId]);
+              await pool.query(`UPDATE purchase_orders SET edi_interchange_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [poId, doc.icn]);
+            }
+            ediSuccess = true;
+          } finally {
+            ftpClient.close();
+          }
+        } else {
+          const sftp = await createSftpConnection(ediConfig);
+          try {
+            for (const doc of docs) {
+              const txnResult = await pool.query(
+                `INSERT INTO edi_transactions
+                 (vendor_id, document_type, direction, filename, interchange_control_number, purchase_order_id, order_id, status, raw_content)
+                 VALUES ($1, '850', 'outbound', $2, $3, $4, $5, 'pending', $6)
+                 RETURNING id`,
+                [po.vendor_id, doc.filename, doc.icn, poId, po.order_id, doc.content]
+              );
+              const txnId = txnResult.rows[0].id;
+              await uploadFile(sftp, `${inboxDir}/${doc.filename}`, doc.content);
+              await pool.query(`UPDATE edi_transactions SET status = 'sent', processed_at = CURRENT_TIMESTAMP WHERE id = $1`, [txnId]);
+              await pool.query(`UPDATE purchase_orders SET edi_interchange_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [poId, doc.icn]);
+            }
+            ediSuccess = true;
+          } finally {
+            try { await sftp.end(); } catch (_) {}
+          }
+        }
+
+        if (ediSuccess) {
+          sentVia = 'edi';
+          ediDetails = { docs_sent: docs.length, filenames: docs.map(d => d.filename), transport: transportType };
+          console.log(`[Rep PO Approve] EDI 850 sent via ${transportType} for ${po.po_number}: ${docs.map(d => d.filename).join(', ')}`);
+        }
+      } catch (ediErr) {
+        console.error(`[Rep PO Approve] EDI failed for ${po.po_number}, falling back to email:`, ediErr.message);
+        ediDetails = { edi_error: ediErr.message, fallback: 'email' };
+      }
+
+      if (ediSuccess) {
+        const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+        const action = isRevised ? 'revised_and_sent' : 'edi_sent';
+        await pool.query(
+          `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, revision, details)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [poId, action, req.rep.id, repName, newRevision, JSON.stringify({ ...ediDetails, approved_via: 'rep_portal' })]
+        );
+
+        // Notify assigned rep if different
+        const poOrder = await pool.query('SELECT order_number, sales_rep_id FROM orders WHERE id = $1', [po.order_id]);
+        if (poOrder.rows.length && poOrder.rows[0].sales_rep_id && poOrder.rows[0].sales_rep_id !== req.rep.id) {
+          setImmediate(() => createRepNotification(pool, poOrder.rows[0].sales_rep_id, 'po_approved',
+            `PO ${po.po_number} sent to ${po.vendor_name} via EDI`,
+            `${repName} approved and sent PO for ${poOrder.rows[0].order_number}`,
+            'order', po.order_id));
+        }
+
+        return res.json({ purchase_order: updatedPO.rows[0], sent_via: 'edi', edi: ediDetails });
+      }
+
+      // EDI failed — fall through to email
+      if (!po.vendor_email) {
+        return res.status(500).json({ error: 'EDI send failed and vendor has no email configured for fallback.' });
+      }
+    }
+
+    // Email path (default or EDI fallback)
     if (po.vendor_email) {
       try {
         const poData = await generatePOHtml(poId);
         if (poData) {
           const pdfBuffer = await generatePDFBuffer(poData.html);
-          const emailResult = await sendPurchaseOrderToVendor({
+          const result = await sendPurchaseOrderToVendor({
             vendor_email: po.vendor_email,
             vendor_name: po.vendor_name,
             po_number: po.po_number,
             is_revised: isRevised,
             pdf_buffer: pdfBuffer
           });
-          emailSent = emailResult.sent;
+          emailSent = result.sent;
         }
       } catch (emailErr) {
         console.error('[Rep PO Approve] Email send failed:', emailErr.message);
@@ -10918,7 +12814,7 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, recipient_email, revision, details)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [poId, action, req.rep.id, repName, po.vendor_email || null, newRevision,
-       JSON.stringify({ email_sent: emailSent, approved_via: 'rep_portal' })]
+       JSON.stringify({ email_sent: emailSent, approved_via: 'rep_portal', edi_fallback: ediDetails })]
     );
 
     // Notify assigned rep on the order if different from the one approving
@@ -10930,9 +12826,10 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
         'order', po.order_id));
     }
 
-    res.json({ purchase_order: result.rows[0], email_sent: emailSent });
+    const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    res.json({ purchase_order: updatedPO.rows[0], email_sent: emailSent, sent_via: sentVia });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -10968,7 +12865,7 @@ app.get('/api/rep/quotes', repAuth, async (req, res) => {
     const result = await pool.query(query, params);
     res.json({ quotes: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -11006,7 +12903,7 @@ app.post('/api/rep/promo-codes/validate', repAuth, async (req, res) => {
       description: result.promo.description || ''
     });
   } catch (err) {
-    res.status(500).json({ valid: false, error: err.message });
+    console.error(err); res.status(500).json({ valid: false, error: 'Internal server error' });
   }
 });
 
@@ -11017,6 +12914,9 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
             shipping_city, shipping_state, shipping_zip, notes, items, delivery_method, promo_code } = req.body;
     if (!customer_name || !customer_email) {
       return res.status(400).json({ error: 'Customer name and email are required' });
+    }
+    if (!phone || phone.replace(/\D/g, '').length !== 10) {
+      return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
     }
 
     const quoteNumber = 'QT-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
@@ -11111,11 +13011,20 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
 
     // Return full quote with items
     const fullQuote = await pool.query('SELECT * FROM quotes WHERE id = $1', [quote.id]);
-    const quoteItems = await pool.query('SELECT * FROM quote_items WHERE quote_id = $1', [quote.id]);
+    const quoteItems = await pool.query(`
+      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      FROM quote_items qi
+      LEFT JOIN skus s ON s.id = qi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE qi.quote_id = $1
+    `, [quote.id]);
     res.json({ quote: fullQuote.rows[0], items: quoteItems.rows });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -11131,10 +13040,19 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
     `, [id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
 
-    const items = await pool.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [id]);
+    const items = await pool.query(`
+      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      FROM quote_items qi
+      LEFT JOIN skus s ON s.id = qi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE qi.quote_id = $1 ORDER BY qi.id
+    `, [id]);
     res.json({ quote: quote.rows[0], items: items.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -11143,6 +13061,10 @@ app.put('/api/rep/quotes/:id', repAuth, async (req, res) => {
     const { id } = req.params;
     const { customer_name, customer_email, phone, shipping_address_line1, shipping_address_line2,
             shipping_city, shipping_state, shipping_zip, notes, shipping, delivery_method, promo_code } = req.body;
+
+    if (phone !== undefined && (!phone || phone.replace(/\D/g, '').length !== 10)) {
+      return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
+    }
 
     const result = await pool.query(`
       UPDATE quotes SET
@@ -11181,7 +13103,7 @@ app.put('/api/rep/quotes/:id', repAuth, async (req, res) => {
         await pool.query('DELETE FROM promo_code_usages WHERE quote_id = $1', [id]);
       } else {
         // Validate new promo code against current items
-        const itemsResult = await pool.query('SELECT qi.*, p.category_id FROM quote_items qi LEFT JOIN products p ON p.id = qi.product_id WHERE qi.quote_id = $1', [id]);
+        const itemsResult = await pool.query('SELECT qi.*, p.category_id FROM quote_items qi LEFT JOIN skus s ON s.id = qi.sku_id LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id) WHERE qi.quote_id = $1', [id]);
         const promoItems = itemsResult.rows.map(i => ({
           product_id: i.product_id,
           category_id: i.category_id,
@@ -11219,7 +13141,7 @@ app.put('/api/rep/quotes/:id', repAuth, async (req, res) => {
 
     res.json({ quote: q });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -11261,7 +13183,7 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
     res.json({ item: itemResult.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -11312,7 +13234,7 @@ app.put('/api/rep/quotes/:id/items/:itemId', repAuth, async (req, res) => {
     res.json({ item: result.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -11351,7 +13273,7 @@ app.delete('/api/rep/quotes/:id/items/:itemId', repAuth, async (req, res) => {
     res.json({ deleted: itemId });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -11375,9 +13297,16 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
     );
 
     // Fetch quote items for the email
-    const quoteItems = await pool.query(
-      'SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [id]
-    );
+    const quoteItems = await pool.query(`
+      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      FROM quote_items qi
+      LEFT JOIN skus s ON s.id = qi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE qi.quote_id = $1 ORDER BY qi.id
+    `, [id]);
 
     // Send email and report delivery status
     const emailData = {
@@ -11390,13 +13319,27 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
     const emailResult = await sendQuoteSent(emailData);
     const emailed = emailResult && emailResult.sent;
 
+    // Auto-create deal in "quoted" stage if none exists for this quote
+    try {
+      const existingDeal = await pool.query('SELECT id FROM deals WHERE linked_quote_id = $1', [id]);
+      if (!existingDeal.rows.length) {
+        await pool.query(`
+          INSERT INTO deals (rep_id, title, estimated_value, stage, customer_name, customer_email, linked_quote_id)
+          VALUES ($1, $2, $3, 'quoted', $4, $5, $6)
+        `, [req.rep.id, 'Quote ' + q.quote_number + ' — ' + q.customer_name,
+            parseFloat(q.total || 0), q.customer_name, q.customer_email, id]);
+      }
+    } catch (dealErr) {
+      console.error('Auto-deal creation failed (non-fatal):', dealErr.message);
+    }
+
     if (emailed) {
       res.json({ success: true, message: 'Quote emailed to ' + q.customer_email, emailed: true });
     } else {
       res.json({ success: true, message: 'Quote marked as sent (email not configured)', emailed: false });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -11407,9 +13350,16 @@ app.get('/api/rep/quotes/:id/preview', repAuth, async (req, res) => {
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
 
     const q = quote.rows[0];
-    const quoteItems = await pool.query(
-      'SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [id]
-    );
+    const quoteItems = await pool.query(`
+      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      FROM quote_items qi
+      LEFT JOIN skus s ON s.id = qi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE qi.quote_id = $1 ORDER BY qi.id
+    `, [id]);
 
     const emailData = {
       ...q,
@@ -11428,7 +13378,7 @@ app.get('/api/rep/quotes/:id/preview', repAuth, async (req, res) => {
       reply_to: req.rep.email
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -11436,15 +13386,18 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { payment_method, check_number, stripe_payment_intent_id } = req.body;
-    if (!payment_method || !['cash', 'check', 'card', 'stripe', 'offline'].includes(payment_method)) {
-      return res.status(400).json({ error: 'payment_method must be cash, check, card, stripe, or offline' });
+    const { payment_method, check_number, stripe_payment_intent_id, document_ids } = req.body;
+    if (!payment_method || !['cash', 'check', 'card', 'stripe', 'offline', 'ach'].includes(payment_method)) {
+      return res.status(400).json({ error: 'payment_method must be cash, check, card, stripe, offline, or ach' });
     }
     if (payment_method === 'check' && !check_number) {
       return res.status(400).json({ error: 'check_number is required for check payments' });
     }
     if (payment_method === 'card' && !stripe_payment_intent_id) {
       return res.status(400).json({ error: 'Card payments require Stripe Terminal. Use the tap-to-pay flow.' });
+    }
+    if (payment_method === 'ach' && (!document_ids || document_ids.length < 2)) {
+      return res.status(400).json({ error: 'ACH payments require customer ID and check photo uploads' });
     }
 
     const quoteResult = await client.query('SELECT * FROM quotes WHERE id = $1', [id]);
@@ -11483,6 +13436,8 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Terminal payment not completed. Status: ' + pi.status });
       }
+      stripePaymentIntentId = stripe_payment_intent_id;
+    } else if (payment_method === 'ach' && stripe_payment_intent_id) {
       stripePaymentIntentId = stripe_payment_intent_id;
     } else if (payment_method === 'stripe') {
       const totalCents = Math.round(parseFloat(q.total) * 100);
@@ -11534,6 +13489,14 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
           item.description, item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample]);
     }
 
+    // Link uploaded documents to the order
+    if (document_ids && document_ids.length > 0) {
+      await client.query(
+        'UPDATE order_documents SET order_id = $1 WHERE id = ANY($2) AND order_id IS NULL',
+        [order.id, document_ids]
+      );
+    }
+
     // Record payment in ledger for in-store payments
     if (paidInStore) {
       const repFullName = req.rep.first_name + ' ' + req.rep.last_name;
@@ -11542,10 +13505,11 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
       else if (payment_method === 'check') payDesc = 'Check payment — #' + check_number + ' (quote conversion)';
       else if (payment_method === 'card') payDesc = 'In-store card payment (quote conversion)';
 
-      await client.query(`
+      const quotePayOpRes = await client.query(`
         INSERT INTO order_payments (order_id, payment_type, amount, description, initiated_by, initiated_by_name, status, check_number, payment_method)
-        VALUES ($1, 'charge', $2, $3, $4, $5, 'completed', $6, $7)
+        VALUES ($1, 'charge', $2, $3, $4, $5, 'completed', $6, $7) RETURNING id
       `, [order.id, totalNum.toFixed(2), payDesc, req.rep.id, repFullName, check_number || null, payment_method]);
+      await syncOrderPaymentToInvoice(quotePayOpRes.rows[0].id, order.id, client);
 
       // Record cash drawer transaction for cash payments
       if (payment_method === 'cash') {
@@ -11581,6 +13545,20 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
       [order.id, payment_method, id]
     );
 
+    // Move linked deal to "won" stage + link the new order
+    try {
+      const dealResult = await client.query('SELECT id FROM deals WHERE linked_quote_id = $1 AND rep_id = $2', [id, req.rep.id]);
+      if (dealResult.rows.length) {
+        await client.query(`
+          UPDATE deals SET stage = 'won', stage_entered_at = CURRENT_TIMESTAMP,
+            linked_order_id = $1, estimated_value = $2, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $3
+        `, [order.id, parseFloat(quoteTotal), dealResult.rows[0].id]);
+      }
+    } catch (dealErr) {
+      console.error('Deal stage update failed (non-fatal):', dealErr.message);
+    }
+
     // Generate purchase orders if order is confirmed
     if (orderStatus === 'confirmed') {
       await generatePurchaseOrders(order.id, client);
@@ -11592,7 +13570,805 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
     res.json({ order: { ...order, items: orderItems.rows } });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// ==================== Rep Estimate Endpoints ====================
+
+// Shared helper: recalculate estimate totals
+async function recalculateEstimateTotals(estimateId, client) {
+  const matResult = await client.query(
+    "SELECT COALESCE(SUM(subtotal), 0) as total FROM estimate_items WHERE estimate_id = $1 AND item_type = 'material'",
+    [estimateId]
+  );
+  const laborResult = await client.query(
+    "SELECT COALESCE(SUM(subtotal), 0) as total FROM estimate_items WHERE estimate_id = $1 AND item_type = 'labor'",
+    [estimateId]
+  );
+  const materialsSubtotal = parseFloat(parseFloat(matResult.rows[0].total).toFixed(2));
+  const laborSubtotal = parseFloat(parseFloat(laborResult.rows[0].total).toFixed(2));
+  const sub = parseFloat((materialsSubtotal + laborSubtotal).toFixed(2));
+
+  // Tax on materials only
+  const est = await client.query('SELECT project_zip FROM estimates WHERE id = $1', [estimateId]);
+  const zip = est.rows[0] ? est.rows[0].project_zip : null;
+  const tax = calculateSalesTax(materialsSubtotal, zip);
+  const total = parseFloat((sub + tax.amount).toFixed(2));
+
+  await client.query(
+    `UPDATE estimates SET materials_subtotal = $1, labor_subtotal = $2, subtotal = $3,
+     tax_rate = $4, tax_amount = $5, total = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7`,
+    [materialsSubtotal.toFixed(2), laborSubtotal.toFixed(2), sub.toFixed(2),
+     tax.rate, tax.amount.toFixed(2), total.toFixed(2), estimateId]
+  );
+  return { materials_subtotal: materialsSubtotal, labor_subtotal: laborSubtotal, subtotal: sub, tax_rate: tax.rate, tax_amount: tax.amount, total };
+}
+
+// GET /api/rep/estimates — List estimates
+app.get('/api/rep/estimates', repAuth, async (req, res) => {
+  try {
+    const { status, search } = req.query;
+    let query = `
+      SELECT e.*,
+        sr.first_name || ' ' || sr.last_name as rep_name,
+        (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id) as item_count,
+        (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id AND ei.item_type = 'material') as material_count,
+        (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id AND ei.item_type = 'labor') as labor_count
+      FROM estimates e
+      LEFT JOIN sales_reps sr ON sr.id = e.sales_rep_id
+      WHERE e.sales_rep_id = $1
+    `;
+    const params = [req.rep.id];
+    let idx = 2;
+
+    if (status) {
+      query += ` AND e.status = $${idx}`;
+      params.push(status);
+      idx++;
+    }
+    if (search) {
+      query += ` AND (e.customer_name ILIKE $${idx} OR e.customer_email ILIKE $${idx} OR e.estimate_number ILIKE $${idx} OR e.project_name ILIKE $${idx})`;
+      params.push('%' + search + '%');
+      idx++;
+    }
+
+    query += ' ORDER BY e.created_at DESC';
+    const result = await pool.query(query, params);
+    res.json({ estimates: result.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/rep/estimates — Create estimate
+app.post('/api/rep/estimates', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { customer_name, customer_email, phone, project_name,
+            project_address_line1, project_address_line2,
+            project_city, project_state, project_zip,
+            notes, internal_notes } = req.body;
+    if (!customer_name || !customer_email) {
+      return res.status(400).json({ error: 'Customer name and email are required' });
+    }
+
+    const estimateNumber = 'EST-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await client.query('BEGIN');
+
+    // Auto-create customer
+    const nameParts = (customer_name || '').split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    const { customer: cust } = await findOrCreateCustomer(client, {
+      email: customer_email, firstName, lastName,
+      phone, repId: req.rep.id, createdVia: 'estimate'
+    });
+
+    const result = await client.query(`
+      INSERT INTO estimates (estimate_number, sales_rep_id, customer_id, customer_name, customer_email, phone,
+        project_name, project_address_line1, project_address_line2, project_city, project_state, project_zip,
+        notes, internal_notes, expires_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      RETURNING *
+    `, [estimateNumber, req.rep.id, cust.id, customer_name, customer_email.toLowerCase().trim(), phone || null,
+        project_name || null,
+        project_address_line1 || null, project_address_line2 || null,
+        project_city || null, project_state || null, project_zip || null,
+        notes || null, internal_notes || null, expiresAt]);
+
+    await client.query('COMMIT');
+    res.json({ estimate: result.rows[0], items: [] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /api/rep/estimates/:id — Get estimate with items
+app.get('/api/rep/estimates/:id', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const estimate = await pool.query(`
+      SELECT e.*, sr.first_name || ' ' || sr.last_name as rep_name
+      FROM estimates e LEFT JOIN sales_reps sr ON sr.id = e.sales_rep_id
+      WHERE e.id = $1
+    `, [id]);
+    if (!estimate.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+
+    const items = await pool.query(`
+      SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color,
+        p.collection as current_collection
+      FROM estimate_items ei
+      LEFT JOIN skus s ON s.id = ei.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, ei.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ei.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at
+    `, [id]);
+    res.json({ estimate: estimate.rows[0], items: items.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/rep/estimates/:id — Update estimate header
+app.put('/api/rep/estimates/:id', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { customer_name, customer_email, phone, project_name,
+            project_address_line1, project_address_line2,
+            project_city, project_state, project_zip,
+            notes, internal_notes, tax_rate } = req.body;
+
+    // Check status
+    const existing = await client.query('SELECT status FROM estimates WHERE id = $1', [id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+    if (!['draft', 'sent'].includes(existing.rows[0].status)) {
+      return res.status(400).json({ error: 'Estimate cannot be edited in current status' });
+    }
+
+    await client.query('BEGIN');
+
+    const result = await client.query(`
+      UPDATE estimates SET
+        customer_name = COALESCE($1, customer_name),
+        customer_email = COALESCE($2, customer_email),
+        phone = COALESCE($3, phone),
+        project_name = COALESCE($4, project_name),
+        project_address_line1 = COALESCE($5, project_address_line1),
+        project_address_line2 = COALESCE($6, project_address_line2),
+        project_city = COALESCE($7, project_city),
+        project_state = COALESCE($8, project_state),
+        project_zip = COALESCE($9, project_zip),
+        notes = COALESCE($10, notes),
+        internal_notes = COALESCE($11, internal_notes),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $12
+      RETURNING *
+    `, [customer_name, customer_email, phone, project_name,
+        project_address_line1, project_address_line2,
+        project_city, project_state, project_zip,
+        notes, internal_notes, id]);
+
+    // Recalculate totals (in case zip changed, affecting tax)
+    await recalculateEstimateTotals(id, client);
+    await client.query('COMMIT');
+
+    const updated = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
+    res.json({ estimate: updated.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// DELETE /api/rep/estimates/:id — Delete estimate (draft only)
+app.delete('/api/rep/estimates/:id', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await pool.query('SELECT status FROM estimates WHERE id = $1', [id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+    if (existing.rows[0].status !== 'draft') {
+      return res.status(400).json({ error: 'Only draft estimates can be deleted' });
+    }
+    await pool.query('DELETE FROM estimates WHERE id = $1', [id]);
+    res.json({ deleted: id });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/rep/estimates/:id/items — Add item
+app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { item_type, product_id, sku_id, product_name, collection, description,
+            sqft_needed, num_boxes, sell_by,
+            labor_category, rate_type, rate_sqft, labor_sqft,
+            unit_price, quantity, subtotal, sort_order } = req.body;
+
+    await client.query('BEGIN');
+
+    const itemResult = await client.query(`
+      INSERT INTO estimate_items (estimate_id, item_type, product_id, sku_id, product_name, collection, description,
+        sqft_needed, num_boxes, sell_by, labor_category, rate_type, rate_sqft, labor_sqft,
+        unit_price, quantity, subtotal, sort_order)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      RETURNING *
+    `, [id, item_type || 'material', product_id || null, sku_id || null,
+        product_name || null, collection || null, description || null,
+        sqft_needed || null, num_boxes || null, sell_by || null,
+        labor_category || null, rate_type || null, rate_sqft || null, labor_sqft || null,
+        parseFloat(unit_price || 0).toFixed(2), quantity || 1,
+        parseFloat(subtotal || 0).toFixed(2), sort_order || 0]);
+
+    await recalculateEstimateTotals(id, client);
+    await client.query('COMMIT');
+
+    const updated = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
+    res.json({ item: itemResult.rows[0], estimate: updated.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// PUT /api/rep/estimates/:id/items/:itemId — Update item
+app.put('/api/rep/estimates/:id/items/:itemId', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, itemId } = req.params;
+    const { product_name, collection, description, sqft_needed, num_boxes, sell_by,
+            labor_category, rate_type, rate_sqft, labor_sqft,
+            unit_price, quantity, subtotal, sort_order } = req.body;
+
+    await client.query('BEGIN');
+
+    const result = await client.query(`
+      UPDATE estimate_items SET
+        product_name = COALESCE($1, product_name),
+        collection = COALESCE($2, collection),
+        description = COALESCE($3, description),
+        sqft_needed = COALESCE($4, sqft_needed),
+        num_boxes = COALESCE($5, num_boxes),
+        sell_by = COALESCE($6, sell_by),
+        labor_category = COALESCE($7, labor_category),
+        rate_type = COALESCE($8, rate_type),
+        rate_sqft = COALESCE($9, rate_sqft),
+        labor_sqft = COALESCE($10, labor_sqft),
+        unit_price = COALESCE($11, unit_price),
+        quantity = COALESCE($12, quantity),
+        subtotal = COALESCE($13, subtotal),
+        sort_order = COALESCE($14, sort_order)
+      WHERE id = $15 AND estimate_id = $16
+      RETURNING *
+    `, [product_name, collection, description, sqft_needed, num_boxes, sell_by,
+        labor_category, rate_type, rate_sqft, labor_sqft,
+        unit_price, quantity, subtotal, sort_order,
+        itemId, id]);
+
+    if (!result.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Estimate item not found' });
+    }
+
+    await recalculateEstimateTotals(id, client);
+    await client.query('COMMIT');
+
+    const updated = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
+    res.json({ item: result.rows[0], estimate: updated.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// DELETE /api/rep/estimates/:id/items/:itemId — Remove item
+app.delete('/api/rep/estimates/:id/items/:itemId', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, itemId } = req.params;
+
+    await client.query('BEGIN');
+
+    const result = await client.query(
+      'DELETE FROM estimate_items WHERE id = $1 AND estimate_id = $2 RETURNING id', [itemId, id]
+    );
+    if (!result.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Estimate item not found' });
+    }
+
+    await recalculateEstimateTotals(id, client);
+    await client.query('COMMIT');
+
+    const updated = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
+    res.json({ deleted: itemId, estimate: updated.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /api/rep/estimates/:id/pdf — Branded PDF
+app.get('/api/rep/estimates/:id/pdf', (req, res, next) => {
+  if (!req.headers['x-rep-token'] && req.query.token) {
+    req.headers['x-rep-token'] = req.query.token;
+  }
+  next();
+}, repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const estimate = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
+    if (!estimate.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+    const e = estimate.rows[0];
+
+    const items = await pool.query(`
+      SELECT ei.*, sk.variant_name, sa_c.value as color,
+        v.name as vendor_name, sk.vendor_sku, p.collection as current_collection
+      FROM estimate_items ei
+      LEFT JOIN skus sk ON sk.id = ei.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(sk.product_id, ei.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ei.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at
+    `, [id]);
+    const materialItems = items.rows.filter(i => i.item_type === 'material');
+    const laborItems = items.rows.filter(i => i.item_type === 'labor');
+
+    const laborCategoryLabels = {
+      installation: 'Installation', tearout: 'Tearout', underlayment: 'Underlayment',
+      transitions: 'Transitions', baseboards: 'Baseboards', floor_leveling: 'Floor Leveling',
+      moisture_barrier: 'Moisture Barrier', furniture_moving: 'Furniture Moving', other: 'Other'
+    };
+
+    const isExpired = e.expires_at && new Date(e.expires_at) < new Date();
+    const expiryStr = e.expires_at ? new Date(e.expires_at).toLocaleDateString() : 'N/A';
+
+    const materialRowsHtml = materialItems.map((i, idx) => {
+      const isUnit = i.sell_by === 'unit';
+      const qty = i.num_boxes || i.quantity || 1;
+      return `<tr>
+      <td>${idx + 1}</td>
+      <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td>
+      <td style="text-align:right">${isUnit ? '—' : (i.sqft_needed ? parseFloat(i.sqft_needed).toFixed(0) + ' sqft' : '—')}</td>
+      <td style="text-align:right">${qty}${isUnit ? '' : ' box' + (qty > 1 ? 'es' : '')}</td>
+      <td style="text-align:right">$${parseFloat(i.unit_price || 0).toFixed(2)}${isUnit ? '/ea' : '/sqft'}</td>
+      <td style="text-align:right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
+    </tr>`; }).join('');
+
+    const laborRowsHtml = laborItems.map((i, idx) => {
+      const rateDisplay = i.rate_type === 'per_sqft'
+        ? `$${parseFloat(i.rate_sqft || 0).toFixed(2)}/sqft`
+        : 'Flat';
+      const areaQty = i.rate_type === 'per_sqft'
+        ? `${parseFloat(i.labor_sqft || 0).toFixed(0)} sqft`
+        : (parseFloat(i.quantity || 1) > 1 ? parseFloat(i.quantity).toFixed(0) : '-');
+      return `<tr>
+        <td>${idx + 1}</td>
+        <td>${laborCategoryLabels[i.labor_category] || i.labor_category || ''}</td>
+        <td>${i.description ? i.description.split('\n').map((line, idx) => idx === 0 ? line : '&bull; ' + line).join('<br/>') : ''}</td>
+        <td style="text-align:right">${rateDisplay}</td>
+        <td style="text-align:right">${areaQty}</td>
+        <td style="text-align:right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html><html><head><style>
+      ${getDocumentBaseCSS()}
+    </style></head><body>
+      ${getDocumentHeader('Estimate')}
+      <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
+        <strong>${e.estimate_number}</strong><br/>
+        Date: ${new Date(e.created_at).toLocaleDateString()}<br/>
+        Valid Until: ${expiryStr} ${isExpired ? '<span style="display:inline-block;background:#dc2626;color:white;padding:2px 8px;font-size:0.6875rem;font-weight:600;text-transform:uppercase;">Expired</span>' : '<span style="display:inline-block;background:#16a34a;color:white;padding:2px 8px;font-size:0.6875rem;font-weight:600;text-transform:uppercase;">Valid</span>'}
+      </div>
+      <div class="info-columns">
+        <div class="info-block">
+          <h3>Prepared For</h3>
+          <strong>${e.customer_name || ''}</strong><br/>
+          ${e.customer_email || ''}
+          ${e.phone ? '<br/>' + e.phone : ''}
+        </div>
+        <div class="info-block">
+          <h3>Project Location</h3>
+          ${e.project_name ? '<strong>' + e.project_name + '</strong><br/>' : ''}
+          ${e.project_address_line1 || ''}
+          ${e.project_address_line2 ? '<br/>' + e.project_address_line2 : ''}
+          ${e.project_city ? '<br/>' + e.project_city + ', ' + (e.project_state || '') + ' ' + (e.project_zip || '') : ''}
+        </div>
+      </div>
+
+      ${materialItems.length > 0 ? `
+      <h3 style="font-size:0.8125rem;text-transform:uppercase;letter-spacing:0.05em;color:#78716c;margin:1.5rem 0 0.5rem;">Materials</h3>
+      <table>
+        <thead><tr><th>#</th><th>Description</th><th style="text-align:right">Area</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th></tr></thead>
+        <tbody>${materialRowsHtml}</tbody>
+      </table>
+      ` : ''}
+
+      ${laborItems.length > 0 ? `
+      <h3 style="font-size:0.8125rem;text-transform:uppercase;letter-spacing:0.05em;color:#78716c;margin:1.5rem 0 0.5rem;">Labor &amp; Services</h3>
+      <table>
+        <thead><tr><th>#</th><th>Service</th><th>Description</th><th style="text-align:right">Rate</th><th style="text-align:right">Area/Qty</th><th style="text-align:right">Subtotal</th></tr></thead>
+        <tbody>${laborRowsHtml}</tbody>
+      </table>
+      ` : ''}
+
+      <div class="totals">
+        <div class="line"><span>Materials Subtotal:</span><span>$${parseFloat(e.materials_subtotal || 0).toFixed(2)}</span></div>
+        <div class="line"><span>Labor &amp; Services:</span><span>$${parseFloat(e.labor_subtotal || 0).toFixed(2)}</span></div>
+        ${parseFloat(e.tax_amount || 0) > 0 ? `<div class="line"><span>Tax (materials only)*:</span><span>$${parseFloat(e.tax_amount).toFixed(2)}</span></div>` : ''}
+        <div class="line total-line"><span>Grand Total:</span><span>$${parseFloat(e.total || 0).toFixed(2)}</span></div>
+      </div>
+
+      ${e.notes ? `<div class="notes-section"><h4>Notes</h4><p style="margin:0;font-size:0.8125rem;color:#57534e;white-space:pre-wrap;">${e.notes}</p></div>` : ''}
+
+      <div class="footer">
+        ${parseFloat(e.tax_amount || 0) > 0 ? '<p style="font-size:0.625rem;color:#a8a29e;">* Sales tax applies to materials only. Labor and services are not taxed.</p>' : ''}
+        <p>Valid for 30 days from the date of issue. Labor rates may vary based on site conditions.</p>
+        <p>Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
+      </div>
+    </body></html>`;
+
+    await generatePDF(html, `estimate-${e.estimate_number}.pdf`, req, res);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/rep/estimates/:id/preview — Email preview HTML
+app.get('/api/rep/estimates/:id/preview', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const estimate = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
+    if (!estimate.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+    const e = estimate.rows[0];
+
+    const items = await pool.query(`
+      SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color,
+        p.collection as current_collection
+      FROM estimate_items ei
+      LEFT JOIN skus s ON s.id = ei.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, ei.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ei.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at
+    `, [id]);
+    const materialItems = items.rows.filter(i => i.item_type === 'material');
+    const laborItems = items.rows.filter(i => i.item_type === 'labor');
+
+    const emailData = {
+      ...e,
+      materialItems,
+      laborItems,
+      rep_first_name: req.rep.first_name,
+      rep_last_name: req.rep.last_name,
+      rep_email: req.rep.email
+    };
+
+    const html = generateEstimateSentHTML(emailData);
+    res.json({
+      html,
+      subject: `Your Construction Estimate — ${e.estimate_number}`,
+      to: e.customer_email,
+      reply_to: req.rep.email
+    });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/rep/estimates/:id/send — Send estimate to customer
+app.post('/api/rep/estimates/:id/send', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const estimate = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
+    if (!estimate.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+    const e = estimate.rows[0];
+
+    if (e.status !== 'draft' && e.status !== 'sent') {
+      return res.status(400).json({ error: 'Estimate cannot be sent in current status' });
+    }
+
+    await pool.query(
+      "UPDATE estimates SET status = 'sent', sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+      [id]
+    );
+
+    const items = await pool.query(`
+      SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color,
+        p.collection as current_collection
+      FROM estimate_items ei
+      LEFT JOIN skus s ON s.id = ei.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, ei.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ei.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at
+    `, [id]);
+    const materialItems = items.rows.filter(i => i.item_type === 'material');
+    const laborItems = items.rows.filter(i => i.item_type === 'labor');
+
+    const emailData = {
+      ...e,
+      materialItems,
+      laborItems,
+      rep_first_name: req.rep.first_name,
+      rep_last_name: req.rep.last_name,
+      rep_email: req.rep.email
+    };
+    const emailResult = await sendEstimateSent(emailData);
+    const emailed = emailResult && emailResult.sent;
+
+    if (emailed) {
+      res.json({ success: true, message: 'Estimate emailed to ' + e.customer_email, emailed: true });
+    } else {
+      res.json({ success: true, message: 'Estimate marked as sent (email not configured)', emailed: false });
+    }
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/rep/estimates/:id/convert-to-quote — Convert to quote (materials only)
+app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const estResult = await client.query('SELECT * FROM estimates WHERE id = $1', [id]);
+    if (!estResult.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+    const e = estResult.rows[0];
+
+    if (e.status === 'converted') {
+      return res.status(400).json({ error: 'Estimate already converted' });
+    }
+
+    const itemsResult = await client.query(
+      "SELECT * FROM estimate_items WHERE estimate_id = $1 ORDER BY sort_order, created_at", [id]
+    );
+    const materialItems = itemsResult.rows.filter(i => i.item_type === 'material');
+    const laborItems = itemsResult.rows.filter(i => i.item_type === 'labor');
+
+    if (materialItems.length === 0) {
+      return res.status(400).json({ error: 'Estimate has no material items to convert' });
+    }
+
+    await client.query('BEGIN');
+
+    const quoteNumber = 'QT-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+
+    // Build labor note
+    const laborCategoryLabels = {
+      installation: 'Installation', tearout: 'Tearout', underlayment: 'Underlayment',
+      transitions: 'Transitions', baseboards: 'Baseboards', floor_leveling: 'Floor Leveling',
+      moisture_barrier: 'Moisture Barrier', furniture_moving: 'Furniture Moving', other: 'Other'
+    };
+    let laborNote = '';
+    if (laborItems.length > 0) {
+      const laborTotal = parseFloat(e.labor_subtotal || 0);
+      const laborDetails = laborItems.map(i =>
+        `${laborCategoryLabels[i.labor_category] || i.labor_category} ($${parseFloat(i.subtotal || 0).toFixed(2)})`
+      ).join(', ');
+      laborNote = `\nConverted from Estimate ${e.estimate_number}. Labor/services totaling $${laborTotal.toFixed(2)} excluded: ${laborDetails}.`;
+    } else {
+      laborNote = `\nConverted from Estimate ${e.estimate_number}.`;
+    }
+
+    // Auto-create customer
+    const nameParts = (e.customer_name || '').split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    const { customer: cust } = await findOrCreateCustomer(client, {
+      email: e.customer_email, firstName, lastName,
+      phone: e.phone, repId: req.rep.id, createdVia: 'estimate_convert'
+    });
+
+    // Create quote — project address becomes shipping address
+    const quoteNotes = (e.notes || '') + laborNote;
+    const quoteResult = await client.query(`
+      INSERT INTO quotes (quote_number, sales_rep_id, customer_name, customer_email, phone,
+        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
+        notes, customer_id, delivery_method)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'shipping')
+      RETURNING *
+    `, [quoteNumber, req.rep.id, e.customer_name, e.customer_email, e.phone,
+        e.project_address_line1 || null, e.project_address_line2 || null,
+        e.project_city || null, e.project_state || null, e.project_zip || null,
+        quoteNotes, cust.id]);
+
+    const quote = quoteResult.rows[0];
+
+    // Copy material items to quote items
+    for (const item of materialItems) {
+      await client.query(`
+        INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description,
+          sqft_needed, num_boxes, unit_price, subtotal, sell_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [quote.id, item.product_id, item.sku_id, item.product_name, item.collection,
+          item.description, item.sqft_needed, item.num_boxes || item.quantity || 1,
+          item.unit_price, item.subtotal, item.sell_by]);
+    }
+
+    // Recalculate quote totals
+    const totals = await client.query(
+      'SELECT COALESCE(SUM(subtotal), 0) as sub FROM quote_items WHERE quote_id = $1', [quote.id]
+    );
+    const quoteSubtotal = parseFloat(parseFloat(totals.rows[0].sub).toFixed(2));
+    await client.query(
+      'UPDATE quotes SET subtotal = $1, total = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+      [quoteSubtotal.toFixed(2), quoteSubtotal.toFixed(2), quote.id]
+    );
+
+    // Update estimate status
+    await client.query(
+      "UPDATE estimates SET status = 'converted', converted_quote_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+      [quote.id, id]
+    );
+
+    await client.query('COMMIT');
+
+    const quoteItems = await pool.query(`
+      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      FROM quote_items qi
+      LEFT JOIN skus s ON s.id = qi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE qi.quote_id = $1
+    `, [quote.id]);
+    res.json({ quote: { ...quote, subtotal: quoteSubtotal.toFixed(2), total: quoteSubtotal.toFixed(2) }, items: quoteItems.rows });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /api/rep/estimates/:id/convert-to-order — Convert to order (materials only)
+app.post('/api/rep/estimates/:id/convert-to-order', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { payment_method } = req.body;
+
+    if (!payment_method || !['cash', 'check', 'card', 'stripe', 'offline', 'ach'].includes(payment_method)) {
+      return res.status(400).json({ error: 'payment_method must be cash, check, card, stripe, offline, or ach' });
+    }
+
+    const estResult = await client.query('SELECT * FROM estimates WHERE id = $1', [id]);
+    if (!estResult.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+    const e = estResult.rows[0];
+
+    if (e.status === 'converted') {
+      return res.status(400).json({ error: 'Estimate already converted' });
+    }
+
+    const itemsResult = await client.query(
+      "SELECT * FROM estimate_items WHERE estimate_id = $1 ORDER BY sort_order, created_at", [id]
+    );
+    const materialItems = itemsResult.rows.filter(i => i.item_type === 'material');
+    const laborItems = itemsResult.rows.filter(i => i.item_type === 'labor');
+
+    if (materialItems.length === 0) {
+      return res.status(400).json({ error: 'Estimate has no material items to convert' });
+    }
+
+    await client.query('BEGIN');
+
+    // Build labor note
+    const laborCategoryLabels = {
+      installation: 'Installation', tearout: 'Tearout', underlayment: 'Underlayment',
+      transitions: 'Transitions', baseboards: 'Baseboards', floor_leveling: 'Floor Leveling',
+      moisture_barrier: 'Moisture Barrier', furniture_moving: 'Furniture Moving', other: 'Other'
+    };
+    let laborNote = '';
+    if (laborItems.length > 0) {
+      const laborTotal = parseFloat(e.labor_subtotal || 0);
+      const laborDetails = laborItems.map(i =>
+        `${laborCategoryLabels[i.labor_category] || i.labor_category} ($${parseFloat(i.subtotal || 0).toFixed(2)})`
+      ).join(', ');
+      laborNote = `Converted from Estimate ${e.estimate_number}. Labor/services totaling $${laborTotal.toFixed(2)} excluded: ${laborDetails}.`;
+    } else {
+      laborNote = `Converted from Estimate ${e.estimate_number}.`;
+    }
+
+    // Auto-create customer
+    const nameParts = (e.customer_name || '').split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    const { customer: cust } = await findOrCreateCustomer(client, {
+      email: e.customer_email, firstName, lastName,
+      phone: e.phone, repId: req.rep.id, createdVia: 'estimate_convert'
+    });
+
+    const orderNumber = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    const paidInStore = ['cash', 'check', 'card', 'offline'].includes(payment_method);
+    const orderStatus = paidInStore ? 'confirmed' : 'pending';
+
+    // Calculate materials-only subtotal and tax
+    const matSubtotal = parseFloat(e.materials_subtotal || 0);
+    const tax = calculateSalesTax(matSubtotal, e.project_zip);
+    const orderTotal = parseFloat((matSubtotal + tax.amount).toFixed(2));
+
+    const orderResult = await client.query(`
+      INSERT INTO orders (order_number, customer_email, customer_name, phone,
+        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
+        subtotal, total, status, sales_rep_id, payment_method, customer_id, notes,
+        tax_rate, tax_amount, delivery_method,
+        amount_paid)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'shipping', $19)
+      RETURNING *
+    `, [orderNumber, e.customer_email, e.customer_name, e.phone,
+        e.project_address_line1 || '', e.project_address_line2 || null,
+        e.project_city || '', e.project_state || '', e.project_zip || '',
+        matSubtotal.toFixed(2), orderTotal.toFixed(2), orderStatus, req.rep.id, payment_method, cust.id,
+        laborNote, tax.rate, tax.amount.toFixed(2),
+        paidInStore ? orderTotal.toFixed(2) : '0.00']);
+
+    const order = orderResult.rows[0];
+
+    // Copy material items to order items
+    for (const item of materialItems) {
+      await client.query(`
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
+          sqft_needed, num_boxes, unit_price, subtotal, sell_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
+          item.description, item.sqft_needed, item.num_boxes || item.quantity || 1,
+          item.unit_price, item.subtotal, item.sell_by]);
+    }
+
+    // Record payment for in-store
+    if (paidInStore) {
+      const repFullName = req.rep.first_name + ' ' + req.rep.last_name;
+      let payDesc = `${payment_method.charAt(0).toUpperCase() + payment_method.slice(1)} payment (estimate conversion)`;
+      await client.query(`
+        INSERT INTO order_payments (order_id, payment_type, amount, description, initiated_by, initiated_by_name, status, payment_method)
+        VALUES ($1, 'charge', $2, $3, $4, $5, 'completed', $6)
+      `, [order.id, orderTotal.toFixed(2), payDesc, req.rep.id, repFullName, payment_method]);
+    }
+
+    // Update estimate status
+    await client.query(
+      "UPDATE estimates SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+      [order.id, id]
+    );
+
+    // Generate purchase orders if order is confirmed
+    if (orderStatus === 'confirmed') {
+      await generatePurchaseOrders(order.id, client);
+    }
+
+    await client.query('COMMIT');
+
+    const orderItems = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+    res.json({ order: { ...order, items: orderItems.rows } });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -11715,6 +14491,11 @@ app.get('/api/rep/customers/:email/addresses', repAuth, async (req, res) => {
   }
 });
 
+// GET /api/config/stripe-key — public Stripe publishable key
+app.get('/api/config/stripe-key', (req, res) => {
+  res.json({ key: process.env.STRIPE_PUBLISHABLE_KEY || '' });
+});
+
 // GET /api/config/google-places-key — public API key for Google Places autocomplete
 app.get('/api/config/google-places-key', (req, res) => {
   res.json({ key: process.env.GOOGLE_PLACES_API_KEY || '' });
@@ -11834,7 +14615,7 @@ app.get('/api/rep/customers', repAuth, async (req, res) => {
 
     res.json({ customers, total, page: pageNum, limit: limitNum });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12014,7 +14795,7 @@ app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12034,7 +14815,7 @@ app.post('/api/rep/customers/:id/notes', repAuth, async (req, res) => {
     newNote.staff_name = req.rep.first_name + ' ' + req.rep.last_name;
     res.json({ note: newNote });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12252,7 +15033,7 @@ app.get('/api/rep/customers/:id/timeline', repAuth, async (req, res) => {
     timeline.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     res.json({ timeline: timeline.slice(0, 100) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12288,7 +15069,7 @@ app.get('/api/rep/notifications', repAuth, async (req, res) => {
     const result = await pool.query(query, params);
     res.json({ notifications: result.rows, unread_count, total });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12300,7 +15081,7 @@ app.get('/api/rep/notifications/count', repAuth, async (req, res) => {
     );
     res.json({ unread_count: result.rows[0].unread_count });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12312,7 +15093,7 @@ app.put('/api/rep/notifications/read-all', repAuth, async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12325,7 +15106,354 @@ app.put('/api/rep/notifications/:id/read', repAuth, async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== Rep Tasks ====================
+
+// GET /api/rep/tasks — List tasks with filters
+app.get('/api/rep/tasks', repAuth, async (req, res) => {
+  try {
+    const { status, priority, due_from, due_to, linked_type, search } = req.query;
+    let where = 'WHERE t.rep_id = $1';
+    const params = [req.rep.id];
+    let idx = 2;
+
+    if (status) { where += ` AND t.status = $${idx++}`; params.push(status); }
+    if (priority) { where += ` AND t.priority = $${idx++}`; params.push(priority); }
+    if (due_from) { where += ` AND t.due_date >= $${idx++}`; params.push(due_from); }
+    if (due_to) { where += ` AND t.due_date <= $${idx++}`; params.push(due_to); }
+    if (linked_type === 'customer') { where += ' AND t.linked_customer_ref IS NOT NULL'; }
+    else if (linked_type === 'order') { where += ' AND t.linked_order_id IS NOT NULL'; }
+    else if (linked_type === 'quote') { where += ' AND t.linked_quote_id IS NOT NULL'; }
+    else if (linked_type === 'estimate') { where += ' AND t.linked_estimate_id IS NOT NULL'; }
+    else if (linked_type === 'deal') { where += ' AND t.linked_deal_id IS NOT NULL'; }
+    if (search) { where += ` AND (t.title ILIKE $${idx} OR t.description ILIKE $${idx})`; params.push(`%${search}%`); idx++; }
+
+    const result = await pool.query(`
+      SELECT t.*,
+        o.order_number AS linked_order_number,
+        q.quote_number AS linked_quote_number,
+        e.estimate_number AS linked_estimate_number,
+        d.title AS linked_deal_title
+      FROM rep_tasks t
+      LEFT JOIN orders o ON o.id = t.linked_order_id
+      LEFT JOIN quotes q ON q.id = t.linked_quote_id
+      LEFT JOIN estimates e ON e.id = t.linked_estimate_id
+      LEFT JOIN deals d ON d.id = t.linked_deal_id
+      ${where}
+      ORDER BY
+        CASE WHEN t.status = 'open' THEN 0 ELSE 1 END,
+        CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END,
+        t.due_date ASC,
+        CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+        t.created_at DESC
+    `, params);
+    res.json({ tasks: result.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/rep/tasks/dashboard — Overdue + today + upcoming (7 days)
+app.get('/api/rep/tasks/dashboard', repAuth, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const upcoming = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+
+    const result = await pool.query(`
+      SELECT t.*,
+        o.order_number AS linked_order_number,
+        q.quote_number AS linked_quote_number,
+        d.title AS linked_deal_title
+      FROM rep_tasks t
+      LEFT JOIN orders o ON o.id = t.linked_order_id
+      LEFT JOIN quotes q ON q.id = t.linked_quote_id
+      LEFT JOIN deals d ON d.id = t.linked_deal_id
+      WHERE t.rep_id = $1 AND t.status = 'open'
+        AND (t.due_date IS NULL OR t.due_date <= $2)
+      ORDER BY
+        CASE WHEN t.due_date < $3 THEN 0 WHEN t.due_date = $3 THEN 1 ELSE 2 END,
+        t.due_date ASC,
+        CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END
+    `, [req.rep.id, upcoming, today]);
+
+    const overdue = result.rows.filter(t => t.due_date && t.due_date < today);
+    const todayTasks = result.rows.filter(t => t.due_date && t.due_date.toISOString().split('T')[0] === today);
+    const upcomingTasks = result.rows.filter(t => !t.due_date || t.due_date > today);
+
+    res.json({ overdue, today: todayTasks, upcoming: upcomingTasks, total: result.rows.length });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/rep/tasks — Create task
+app.post('/api/rep/tasks', repAuth, async (req, res) => {
+  try {
+    const { title, description, due_date, priority,
+      linked_customer_type, linked_customer_ref,
+      linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id } = req.body;
+    if (!title || !title.trim()) return res.status(400).json({ error: 'Title is required' });
+
+    const result = await pool.query(`
+      INSERT INTO rep_tasks (rep_id, title, description, due_date, priority,
+        linked_customer_type, linked_customer_ref,
+        linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING *
+    `, [req.rep.id, title.trim(), description || null, due_date || null, priority || 'medium',
+        linked_customer_type || null, linked_customer_ref || null,
+        linked_order_id || null, linked_quote_id || null, linked_estimate_id || null, linked_deal_id || null]);
+    res.json({ task: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/rep/tasks/:id — Update task
+app.put('/api/rep/tasks/:id', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, due_date, priority,
+      linked_customer_type, linked_customer_ref,
+      linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id } = req.body;
+
+    const existing = await pool.query('SELECT * FROM rep_tasks WHERE id = $1 AND rep_id = $2', [id, req.rep.id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Task not found' });
+
+    const result = await pool.query(`
+      UPDATE rep_tasks SET
+        title = COALESCE($1, title),
+        description = $2,
+        due_date = $3,
+        priority = COALESCE($4, priority),
+        linked_customer_type = $5,
+        linked_customer_ref = $6,
+        linked_order_id = $7,
+        linked_quote_id = $8,
+        linked_estimate_id = $9,
+        linked_deal_id = $10,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $11 AND rep_id = $12
+      RETURNING *
+    `, [title || null, description !== undefined ? description : existing.rows[0].description,
+        due_date !== undefined ? due_date : existing.rows[0].due_date,
+        priority || null,
+        linked_customer_type !== undefined ? linked_customer_type : existing.rows[0].linked_customer_type,
+        linked_customer_ref !== undefined ? linked_customer_ref : existing.rows[0].linked_customer_ref,
+        linked_order_id !== undefined ? linked_order_id : existing.rows[0].linked_order_id,
+        linked_quote_id !== undefined ? linked_quote_id : existing.rows[0].linked_quote_id,
+        linked_estimate_id !== undefined ? linked_estimate_id : existing.rows[0].linked_estimate_id,
+        linked_deal_id !== undefined ? linked_deal_id : existing.rows[0].linked_deal_id,
+        id, req.rep.id]);
+    res.json({ task: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/rep/tasks/:id/complete — Mark task complete
+app.put('/api/rep/tasks/:id/complete', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(`
+      UPDATE rep_tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND rep_id = $2 AND status = 'open'
+      RETURNING *
+    `, [id, req.rep.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Task not found or already completed' });
+    res.json({ task: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/rep/tasks/:id/reopen — Reopen completed task
+app.put('/api/rep/tasks/:id/reopen', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(`
+      UPDATE rep_tasks SET status = 'open', completed_at = NULL, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND rep_id = $2 AND status = 'completed'
+      RETURNING *
+    `, [id, req.rep.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Task not found or not completed' });
+    res.json({ task: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/rep/tasks/:id — Delete task
+app.delete('/api/rep/tasks/:id', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM rep_tasks WHERE id = $1 AND rep_id = $2 RETURNING id', [id, req.rep.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Task not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== Rep Deals / Pipeline ====================
+
+// GET /api/rep/deals — List deals + pipeline summary
+app.get('/api/rep/deals', repAuth, async (req, res) => {
+  try {
+    const { stage, search } = req.query;
+    let where = 'WHERE d.rep_id = $1';
+    const params = [req.rep.id];
+    let idx = 2;
+
+    if (stage) { where += ` AND d.stage = $${idx++}`; params.push(stage); }
+    if (search) { where += ` AND (d.title ILIKE $${idx} OR d.customer_name ILIKE $${idx})`; params.push(`%${search}%`); idx++; }
+
+    const [dealsResult, summaryResult] = await Promise.all([
+      pool.query(`
+        SELECT d.*,
+          q.quote_number AS linked_quote_number,
+          o.order_number AS linked_order_number,
+          e.estimate_number AS linked_estimate_number,
+          (SELECT COUNT(*)::int FROM rep_tasks t WHERE t.linked_deal_id = d.id AND t.status = 'open') AS open_tasks
+        FROM deals d
+        LEFT JOIN quotes q ON q.id = d.linked_quote_id
+        LEFT JOIN orders o ON o.id = d.linked_order_id
+        LEFT JOIN estimates e ON e.id = d.linked_estimate_id
+        ${where}
+        ORDER BY d.stage_entered_at DESC
+      `, params),
+      pool.query(`
+        SELECT stage,
+          COUNT(*)::int AS count,
+          COALESCE(SUM(estimated_value), 0) AS total_value
+        FROM deals
+        WHERE rep_id = $1
+        GROUP BY stage
+      `, [req.rep.id])
+    ]);
+
+    const pipeline_summary = {};
+    for (const row of summaryResult.rows) {
+      pipeline_summary[row.stage] = { count: row.count, total_value: parseFloat(row.total_value) };
+    }
+
+    res.json({ deals: dealsResult.rows, pipeline_summary });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/rep/deals — Create deal
+app.post('/api/rep/deals', repAuth, async (req, res) => {
+  try {
+    const { title, estimated_value, stage, customer_type, customer_ref,
+      customer_name, customer_email, linked_quote_id, linked_order_id,
+      linked_estimate_id, notes, expected_close_date } = req.body;
+    if (!title || !title.trim()) return res.status(400).json({ error: 'Title is required' });
+    if (!customer_name || !customer_name.trim()) return res.status(400).json({ error: 'Customer name is required' });
+
+    const result = await pool.query(`
+      INSERT INTO deals (rep_id, title, estimated_value, stage, customer_type, customer_ref,
+        customer_name, customer_email, linked_quote_id, linked_order_id, linked_estimate_id,
+        notes, expected_close_date)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING *
+    `, [req.rep.id, title.trim(), estimated_value || 0, stage || 'lead',
+        customer_type || null, customer_ref || null,
+        customer_name.trim(), customer_email || null,
+        linked_quote_id || null, linked_order_id || null, linked_estimate_id || null,
+        notes || null, expected_close_date || null]);
+    res.json({ deal: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/rep/deals/:id — Update deal
+app.put('/api/rep/deals/:id', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await pool.query('SELECT * FROM deals WHERE id = $1 AND rep_id = $2', [id, req.rep.id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Deal not found' });
+
+    const { title, estimated_value, customer_type, customer_ref,
+      customer_name, customer_email, linked_quote_id, linked_order_id,
+      linked_estimate_id, notes, expected_close_date } = req.body;
+    const e = existing.rows[0];
+
+    const result = await pool.query(`
+      UPDATE deals SET
+        title = COALESCE($1, title),
+        estimated_value = $2,
+        customer_type = $3, customer_ref = $4,
+        customer_name = COALESCE($5, customer_name),
+        customer_email = $6,
+        linked_quote_id = $7, linked_order_id = $8, linked_estimate_id = $9,
+        notes = $10, expected_close_date = $11,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $12 AND rep_id = $13
+      RETURNING *
+    `, [title || null,
+        estimated_value !== undefined ? estimated_value : e.estimated_value,
+        customer_type !== undefined ? customer_type : e.customer_type,
+        customer_ref !== undefined ? customer_ref : e.customer_ref,
+        customer_name || null,
+        customer_email !== undefined ? customer_email : e.customer_email,
+        linked_quote_id !== undefined ? linked_quote_id : e.linked_quote_id,
+        linked_order_id !== undefined ? linked_order_id : e.linked_order_id,
+        linked_estimate_id !== undefined ? linked_estimate_id : e.linked_estimate_id,
+        notes !== undefined ? notes : e.notes,
+        expected_close_date !== undefined ? expected_close_date : e.expected_close_date,
+        id, req.rep.id]);
+    res.json({ deal: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/rep/deals/:id/stage — Move deal to new stage
+app.put('/api/rep/deals/:id/stage', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { stage, lost_reason } = req.body;
+    const validStages = ['lead', 'quoted', 'negotiating', 'won', 'lost'];
+    if (!stage || !validStages.includes(stage)) {
+      return res.status(400).json({ error: 'stage must be one of: ' + validStages.join(', ') });
+    }
+    if (stage === 'lost' && !lost_reason) {
+      return res.status(400).json({ error: 'lost_reason is required when moving to lost stage' });
+    }
+
+    const result = await pool.query(`
+      UPDATE deals SET
+        stage = $1,
+        stage_entered_at = CURRENT_TIMESTAMP,
+        lost_reason = $2,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3 AND rep_id = $4
+      RETURNING *
+    `, [stage, stage === 'lost' ? lost_reason : null, id, req.rep.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Deal not found' });
+    res.json({ deal: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/rep/deals/:id — Delete deal
+app.delete('/api/rep/deals/:id', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Unlink any tasks referencing this deal
+    await pool.query('UPDATE rep_tasks SET linked_deal_id = NULL WHERE linked_deal_id = $1', [id]);
+    const result = await pool.query('DELETE FROM deals WHERE id = $1 AND rep_id = $2 RETURNING id', [id, req.rep.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Deal not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12341,7 +15469,7 @@ app.get('/api/admin/promo-codes', staffAuth, requireRole('admin', 'manager'), as
     `);
     res.json({ promo_codes: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12372,7 +15500,7 @@ app.post('/api/admin/promo-codes', staffAuth, requireRole('admin', 'manager'), a
     res.json({ promo_code: result.rows[0] });
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'A promo code with this code already exists' });
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12418,7 +15546,7 @@ app.put('/api/admin/promo-codes/:id', staffAuth, requireRole('admin', 'manager')
     res.json({ promo_code: result.rows[0] });
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'A promo code with this code already exists' });
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12433,7 +15561,7 @@ app.patch('/api/admin/promo-codes/:id/toggle', staffAuth, requireRole('admin', '
     await logAudit(req.staff.id, 'toggle_promo_code', 'promo_code', id, { is_active: result.rows[0].is_active }, req.ip);
     res.json({ promo_code: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12450,7 +15578,7 @@ app.get('/api/admin/promo-codes/:id/usages', staffAuth, requireRole('admin', 'ma
     `, [id]);
     res.json({ usages: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12475,7 +15603,7 @@ app.put('/api/admin/orders/:id/assign', staffAuth, requireRole('admin', 'manager
     }
     res.json({ order: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12489,7 +15617,7 @@ app.get('/api/admin/orders/:id/activity', staffAuth, async (req, res) => {
     );
     res.json({ activity: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12527,7 +15655,7 @@ app.get('/api/admin/orders/:id/purchase-orders', staffAuth, async (req, res) => 
 
     res.json({ purchase_orders: result });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12586,7 +15714,7 @@ app.put('/api/admin/purchase-orders/:poId/status', staffAuth, requireRole('admin
 
     res.json({ purchase_order: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12604,7 +15732,7 @@ app.put('/api/admin/purchase-orders/:poId', staffAuth, requireRole('admin', 'man
     );
     res.json({ purchase_order: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12642,7 +15770,7 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
       const isRevised = newRevision > 1;
       await pool.query(`
         UPDATE purchase_orders SET status = 'sent', revision = $1, is_revised = $2,
-          approved_by = $3, approved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+          approved_by = COALESCE(approved_by, $3), approved_at = COALESCE(approved_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP
         WHERE id = $4
       `, [newRevision, isRevised, req.staff.id, poId]);
       action = isRevised ? 'revised_and_sent' : 'sent';
@@ -12654,48 +15782,80 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
     let emailResult = { sent: false };
     let ediDetails = null;
 
-    // EDI path: generate 850 and upload to SFTP
+    // EDI path: generate 850 and upload via SFTP or FTP
     if (ediEnabled) {
       let ediSuccess = false;
       try {
         const docs = await generate850(pool, poId, ediConfig);
-        const sftp = await createSftpConnection(ediConfig);
+        const transportType = (ediConfig.transport || 'sftp').toLowerCase();
         const inboxDir = ediConfig.inbox_dir || '/Inbox';
 
-        try {
-          for (const doc of docs) {
-            // Record transaction
-            const txnResult = await pool.query(
-              `INSERT INTO edi_transactions
-               (vendor_id, document_type, direction, filename, interchange_control_number, purchase_order_id, order_id, status, raw_content)
-               VALUES ($1, '850', 'outbound', $2, $3, $4, $5, 'pending', $6)
-               RETURNING id`,
-              [po.vendor_id, doc.filename, doc.icn, poId, po.order_id, doc.content]
-            );
-            const txnId = txnResult.rows[0].id;
-
-            // Upload to SFTP
-            await uploadFile(sftp, `${inboxDir}/${doc.filename}`, doc.content);
-
-            // Mark as sent
-            await pool.query(
-              `UPDATE edi_transactions SET status = 'sent', processed_at = CURRENT_TIMESTAMP WHERE id = $1`,
-              [txnId]
-            );
-
-            // Store interchange ID on PO
-            await pool.query(
-              `UPDATE purchase_orders SET edi_interchange_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-              [poId, doc.icn]
-            );
+        if (transportType === 'ftp') {
+          // FTP transport (e.g. Engineered Floors)
+          const ftpClient = await createFtpConnection({
+            ftp_host: ediConfig.ftp_host,
+            ftp_port: ediConfig.ftp_port || 21,
+            ftp_user: ediConfig.ftp_user,
+            ftp_pass: ediConfig.ftp_pass,
+            ftp_secure: ediConfig.ftp_secure || false,
+          });
+          try {
+            for (const doc of docs) {
+              const txnResult = await pool.query(
+                `INSERT INTO edi_transactions
+                 (vendor_id, document_type, direction, filename, interchange_control_number, purchase_order_id, order_id, status, raw_content)
+                 VALUES ($1, '850', 'outbound', $2, $3, $4, $5, 'pending', $6)
+                 RETURNING id`,
+                [po.vendor_id, doc.filename, doc.icn, poId, po.order_id, doc.content]
+              );
+              const txnId = txnResult.rows[0].id;
+              await ftpUploadFile(ftpClient, `${inboxDir}/${doc.filename}`, doc.content);
+              await pool.query(
+                `UPDATE edi_transactions SET status = 'sent', processed_at = CURRENT_TIMESTAMP WHERE id = $1`,
+                [txnId]
+              );
+              await pool.query(
+                `UPDATE purchase_orders SET edi_interchange_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+                [poId, doc.icn]
+              );
+            }
+            ediSuccess = true;
+          } finally {
+            ftpClient.close();
           }
+        } else {
+          // SFTP transport (e.g. Shaw)
+          const sftp = await createSftpConnection(ediConfig);
+          try {
+            for (const doc of docs) {
+              const txnResult = await pool.query(
+                `INSERT INTO edi_transactions
+                 (vendor_id, document_type, direction, filename, interchange_control_number, purchase_order_id, order_id, status, raw_content)
+                 VALUES ($1, '850', 'outbound', $2, $3, $4, $5, 'pending', $6)
+                 RETURNING id`,
+                [po.vendor_id, doc.filename, doc.icn, poId, po.order_id, doc.content]
+              );
+              const txnId = txnResult.rows[0].id;
+              await uploadFile(sftp, `${inboxDir}/${doc.filename}`, doc.content);
+              await pool.query(
+                `UPDATE edi_transactions SET status = 'sent', processed_at = CURRENT_TIMESTAMP WHERE id = $1`,
+                [txnId]
+              );
+              await pool.query(
+                `UPDATE purchase_orders SET edi_interchange_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+                [poId, doc.icn]
+              );
+            }
+            ediSuccess = true;
+          } finally {
+            try { await sftp.end(); } catch (_) {}
+          }
+        }
 
-          ediSuccess = true;
+        if (ediSuccess) {
           sentVia = 'edi';
-          ediDetails = { docs_sent: docs.length, filenames: docs.map(d => d.filename) };
-          console.log(`[PO Send] EDI 850 sent for ${po.po_number}: ${docs.map(d => d.filename).join(', ')}`);
-        } finally {
-          try { await sftp.end(); } catch (_) {}
+          ediDetails = { docs_sent: docs.length, filenames: docs.map(d => d.filename), transport: transportType };
+          console.log(`[PO Send] EDI 850 sent via ${transportType} for ${po.po_number}: ${docs.map(d => d.filename).join(', ')}`);
         }
       } catch (ediErr) {
         console.error(`[PO Send] EDI failed for ${po.po_number}, falling back to email:`, ediErr.message);
@@ -12752,7 +15912,7 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
 
     res.json({ purchase_order: updatedPO.rows[0], sent_via: sentVia, email_sent: emailResult.sent });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12790,7 +15950,7 @@ app.get('/api/admin/edi/transactions', staffAuth, async (req, res) => {
 
     res.json({ transactions: result.rows, total: parseInt(countResult.rows[0].count) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12807,7 +15967,7 @@ app.get('/api/admin/edi/transactions/:id', staffAuth, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'EDI transaction not found' });
     res.json({ transaction: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12839,7 +15999,7 @@ app.get('/api/admin/edi/invoices', staffAuth, async (req, res) => {
 
     res.json({ invoices: result.rows, total: parseInt(countResult.rows[0].count) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12862,7 +16022,7 @@ app.get('/api/admin/edi/invoices/:id', staffAuth, async (req, res) => {
 
     res.json({ invoice: invoiceResult.rows[0], items: itemsResult.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12881,55 +16041,68 @@ app.put('/api/admin/edi/invoices/:id/status', staffAuth, requireRole('admin', 'm
     if (!result.rows.length) return res.status(404).json({ error: 'EDI invoice not found' });
     res.json({ invoice: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Trigger immediate EDI poll for a vendor
+// Trigger immediate EDI poll for a vendor (or all EDI vendors)
 app.post('/api/admin/edi/poll-now', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    // Find Shaw EDI poller vendor source
-    const sourceResult = await pool.query(
-      `SELECT vs.*, v.edi_config FROM vendor_sources vs
-       JOIN vendors v ON v.id = vs.vendor_id
-       WHERE vs.scraper_key = 'shaw-edi-poller' AND vs.is_active = true
-       LIMIT 1`
-    );
-    if (!sourceResult.rows.length) {
-      return res.status(404).json({ error: 'Shaw EDI poller source not found or inactive' });
+    const { vendor_id } = req.body;
+
+    // Find all EDI-enabled vendors (or a specific one)
+    let query = `SELECT v.id as vendor_id, v.code as vendor_code, v.name as vendor_name, v.edi_config
+                 FROM vendors v WHERE v.edi_config IS NOT NULL AND (v.edi_config->>'enabled')::boolean = true`;
+    const params = [];
+    if (vendor_id) {
+      query += ` AND v.id = $1`;
+      params.push(vendor_id);
     }
-    const source = sourceResult.rows[0];
+    const vendorResult = await pool.query(query, params);
 
-    // Dynamic import of poller
-    const pollerModule = await import('./scrapers/shaw-edi-poller.js');
+    if (!vendorResult.rows.length) {
+      return res.status(404).json({ error: vendor_id ? 'Vendor not found or EDI not enabled' : 'No EDI-enabled vendors found' });
+    }
 
-    // Create a job record
-    const jobResult = await pool.query(
-      `INSERT INTO scrape_jobs (vendor_source_id, status, started_at)
-       VALUES ($1, 'running', CURRENT_TIMESTAMP) RETURNING id`,
-      [source.id]
-    );
+    const pollerModule = await import('./scrapers/edi-poller.js');
+    const jobs = [];
 
-    // Run poller asynchronously
-    const jobId = jobResult.rows[0].id;
-    pollerModule.run(pool, { id: jobId }, source).then(async (stats) => {
-      await pool.query(
-        `UPDATE scrape_jobs SET status = 'completed', completed_at = CURRENT_TIMESTAMP,
-         products_found = $2, products_created = $3
-         WHERE id = $1`,
-        [jobId, stats.files_found || 0, stats.processed || 0]
+    for (const vendor of vendorResult.rows) {
+      const jobResult = await pool.query(
+        `INSERT INTO scrape_jobs (vendor_source_id, status, started_at)
+         VALUES ((SELECT id FROM vendor_sources WHERE vendor_id = $1 AND scraper_key LIKE '%edi%' LIMIT 1), 'running', CURRENT_TIMESTAMP) RETURNING id`,
+        [vendor.vendor_id]
       );
-    }).catch(async (err) => {
-      console.error('[EDI Poll Now] Error:', err.message);
-      await pool.query(
-        `UPDATE scrape_jobs SET status = 'failed', completed_at = CURRENT_TIMESTAMP, error = $2 WHERE id = $1`,
-        [jobId, err.message]
-      );
-    });
+      const jobId = jobResult.rows[0]?.id;
+      if (!jobId) continue;
 
-    res.json({ message: 'EDI poll triggered', job_id: jobId });
+      const source = {
+        vendor_id: vendor.vendor_id,
+        vendor_code: vendor.vendor_code,
+        config: { edi: vendor.edi_config },
+      };
+
+      pollerModule.run(pool, { id: jobId }, source).then(async (stats) => {
+        await pool.query(
+          `UPDATE scrape_jobs SET status = 'completed', completed_at = CURRENT_TIMESTAMP,
+           products_found = $2, products_created = $3
+           WHERE id = $1`,
+          [jobId, stats.files_found || 0, stats.processed || 0]
+        );
+      }).catch(async (err) => {
+        console.error(`[EDI Poll Now:${vendor.vendor_code}] Error:`, err.message);
+        await pool.query(
+          `UPDATE scrape_jobs SET status = 'failed', completed_at = CURRENT_TIMESTAMP, error = $2 WHERE id = $1`,
+          [jobId, err.message]
+        );
+      });
+
+      jobs.push({ vendor_id: vendor.vendor_id, vendor_code: vendor.vendor_code, job_id: jobId });
+    }
+
+    res.json({ message: `EDI poll triggered for ${jobs.length} vendor(s)`, jobs });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12943,7 +16116,7 @@ app.get('/api/admin/purchase-orders/:poId/activity', staffAuth, async (req, res)
     );
     res.json({ activity: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -12980,7 +16153,7 @@ app.put('/api/admin/purchase-orders/:poId/items/bulk-status', staffAuth, require
     res.json({ success: true, derived_po_status: newPOStatus });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -13033,7 +16206,7 @@ app.put('/api/admin/purchase-orders/:poId/items/:itemId', staffAuth, requireRole
     res.json({ success: true });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -13078,7 +16251,7 @@ app.post('/api/admin/purchase-orders/:poId/items', staffAuth, requireRole('admin
     res.json({ item: itemResult.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -13112,7 +16285,7 @@ app.delete('/api/admin/purchase-orders/:poId/items/:itemId', staffAuth, requireR
     res.json({ success: true });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -13152,7 +16325,7 @@ app.put('/api/admin/purchase-orders/:poId/items/:itemId/status', staffAuth, requ
     res.json({ success: true, derived_po_status: newPOStatus });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -13170,7 +16343,7 @@ app.get('/api/staff/purchase-orders/:id/pdf', async (req, res, next) => {
     if (!result) return res.status(404).json({ error: 'Purchase order not found' });
     await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -13186,7 +16359,7 @@ app.get('/api/admin/margin-tiers', staffAuth, requireRole('admin', 'manager'), a
     `);
     res.json({ tiers: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -13201,7 +16374,7 @@ app.post('/api/admin/margin-tiers', staffAuth, requireRole('admin', 'manager'), 
     res.json({ tier: result.rows[0] });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'A tier with this name already exists' });
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -13217,7 +16390,7 @@ app.put('/api/admin/margin-tiers/:id', staffAuth, requireRole('admin', 'manager'
     res.json({ tier: result.rows[0] });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'A tier with this name already exists' });
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -13231,7 +16404,7 @@ app.delete('/api/admin/margin-tiers/:id', staffAuth, requireRole('admin', 'manag
     if (!result.rows.length) return res.status(404).json({ error: 'Tier not found' });
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -13254,7 +16427,7 @@ app.get('/api/admin/trade-customers', staffAuth, requireRole('admin', 'manager',
     const result = await pool.query(query, params);
     res.json({ customers: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -13283,7 +16456,7 @@ app.put('/api/admin/trade-customers/:id', staffAuth, requireRole('admin', 'manag
 
     res.json({ customer: full.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -13293,7 +16466,7 @@ app.delete('/api/admin/trade-customers/:id', staffAuth, requireRole('admin', 'ma
     if (!result.rows.length) return res.status(404).json({ error: 'Trade customer not found' });
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -13408,7 +16581,7 @@ app.get('/api/admin/customers', staffAuth, requireRole('admin', 'manager', 'sale
 
     res.json({ customers, total, page: pageNum, limit: limitNum });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -13588,7 +16761,7 @@ app.get('/api/admin/customers/:id', staffAuth, requireRole('admin', 'manager', '
       }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -13608,7 +16781,7 @@ app.post('/api/admin/customers/:id/notes', staffAuth, requireRole('admin', 'mana
     newNote.staff_name = req.staff.first_name + ' ' + req.staff.last_name;
     res.json({ note: newNote });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -13630,7 +16803,7 @@ app.get('/api/admin/accounting/expense-categories', staffAuth, requireRole('admi
   try {
     const result = await pool.query('SELECT * FROM expense_categories ORDER BY sort_order, name');
     res.json({ categories: result.rows });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/admin/accounting/expense-categories', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -13645,7 +16818,7 @@ app.post('/api/admin/accounting/expense-categories', staffAuth, requireRole('adm
       [name, slug, expense_type || 'operating', parent_id || null, maxSort.rows[0].next]
     );
     res.json({ category: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.put('/api/admin/accounting/expense-categories/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -13658,7 +16831,7 @@ app.put('/api/admin/accounting/expense-categories/:id', staffAuth, requireRole('
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
     res.json({ category: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // --- Expenses CRUD ---
@@ -13684,7 +16857,7 @@ app.get('/api/admin/accounting/expenses', staffAuth, requireRole('admin', 'manag
        LIMIT $${params.length - 1} OFFSET $${params.length}`, params
     );
     res.json({ expenses: result.rows, total: parseInt(countResult.rows[0].count) });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/admin/accounting/expenses', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -13697,7 +16870,7 @@ app.post('/api/admin/accounting/expenses', staffAuth, requireRole('admin', 'mana
       [expense_date || new Date(), category_id, vendor_name, description, amount, payment_method, reference_number, is_recurring || false, notes, req.staff.id]
     );
     res.json({ expense: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.put('/api/admin/accounting/expenses/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -13712,7 +16885,7 @@ app.put('/api/admin/accounting/expenses/:id', staffAuth, requireRole('admin', 'm
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
     res.json({ expense: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.delete('/api/admin/accounting/expenses/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -13720,7 +16893,7 @@ app.delete('/api/admin/accounting/expenses/:id', staffAuth, requireRole('admin',
     const result = await pool.query('DELETE FROM expenses WHERE id = $1 RETURNING id', [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
     res.json({ deleted: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/admin/accounting/expenses/:id/receipt', staffAuth, requireRole('admin', 'manager'), receiptUpload.single('file'), async (req, res) => {
@@ -13732,7 +16905,7 @@ app.post('/api/admin/accounting/expenses/:id/receipt', staffAuth, requireRole('a
     const url = await getSignedUrlFromS3(fileKey);
     await pool.query('UPDATE expenses SET receipt_url = $1 WHERE id = $2', [fileKey, req.params.id]);
     res.json({ receipt_url: url, file_key: fileKey });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.get('/api/admin/accounting/expenses/summary', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -13754,7 +16927,17 @@ app.get('/api/admin/accounting/expenses/summary', staffAuth, requireRole('admin'
     );
     const grandTotal = result.rows.reduce((s, r) => s + parseFloat(r.total), 0);
     res.json({ categories: result.rows, grand_total: grandTotal });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.get('/api/admin/accounting/expenses/:id/receipt-url', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query('SELECT receipt_url FROM expenses WHERE id = $1', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Expense not found' });
+    if (!result.rows[0].receipt_url) return res.status(404).json({ error: 'No receipt attached' });
+    const url = await getPresignedUrl(result.rows[0].receipt_url);
+    res.json({ url });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // --- Invoices (AR) ---
@@ -13881,7 +17064,7 @@ app.get('/api/admin/accounting/invoices', staffAuth, requireRole('admin', 'manag
        LIMIT $${params.length - 1} OFFSET $${params.length}`, params
     );
     res.json({ invoices: result.rows, total: parseInt(countResult.rows[0].count) });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.get('/api/admin/accounting/invoices/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -13897,7 +17080,7 @@ app.get('/api/admin/accounting/invoices/:id', staffAuth, requireRole('admin', 'm
        WHERE ip.invoice_id = $1 ORDER BY ip.payment_date DESC`, [req.params.id]
     );
     res.json({ invoice: inv.rows[0], items: items.rows, payments: payments.rows });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/admin/accounting/invoices', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -13928,7 +17111,7 @@ app.post('/api/admin/accounting/invoices', staffAuth, requireRole('admin', 'mana
       );
     }
     res.json({ invoice });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/admin/accounting/invoices/from-order/:orderId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14000,7 +17183,7 @@ app.post('/api/admin/accounting/invoices/from-order/:orderId', staffAuth, requir
     }
 
     res.json({ invoice });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.put('/api/admin/accounting/invoices/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14036,7 +17219,7 @@ app.put('/api/admin/accounting/invoices/:id', staffAuth, requireRole('admin', 'm
     );
     if (!result.rows.length) return res.status(400).json({ error: 'Invoice not found or not in draft status' });
     res.json({ invoice: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/admin/accounting/invoices/:id/send', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14055,7 +17238,7 @@ app.post('/api/admin/accounting/invoices/:id/send', staffAuth, requireRole('admi
     const newStatus = invoice.status === 'draft' ? 'sent' : invoice.status;
     await pool.query('UPDATE invoices SET status = $1, sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newStatus, req.params.id]);
     res.json({ sent: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/admin/accounting/invoices/:id/payments', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14063,10 +17246,28 @@ app.post('/api/admin/accounting/invoices/:id/payments', staffAuth, requireRole('
     const { amount, payment_method, reference_number, payment_date, notes } = req.body;
     if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ error: 'Valid amount is required' });
 
+    const payMethod = payment_method || 'check';
+    const payDate = payment_date || new Date().toISOString().split('T')[0];
+
+    // Find the order linked to this invoice (if any) and create an order_payment
+    const invOrder = await pool.query('SELECT order_id FROM invoices WHERE id = $1', [req.params.id]);
+    let orderPaymentId = null;
+    if (invOrder.rows.length && invOrder.rows[0].order_id) {
+      const orderId = invOrder.rows[0].order_id;
+      const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+      const opRes = await pool.query(`
+        INSERT INTO order_payments (order_id, payment_type, amount, description, initiated_by, initiated_by_name, status, payment_method)
+        VALUES ($1, 'charge', $2, $3, $4, $5, 'completed', $6) RETURNING id
+      `, [orderId, amount, 'Manual invoice payment' + (reference_number ? ' — ' + reference_number : ''), req.staff.id, staffName, payMethod]);
+      orderPaymentId = opRes.rows[0].id;
+      // Update order amount_paid
+      await pool.query('UPDATE orders SET amount_paid = amount_paid + $1 WHERE id = $2', [amount, orderId]);
+    }
+
     await pool.query(
-      `INSERT INTO invoice_payments (invoice_id, amount, payment_method, reference_number, payment_date, notes, recorded_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [req.params.id, amount, payment_method || 'check', reference_number, payment_date || new Date().toISOString().split('T')[0], notes, req.staff.id]
+      `INSERT INTO invoice_payments (invoice_id, order_payment_id, amount, payment_method, reference_number, payment_date, notes, recorded_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [req.params.id, orderPaymentId, amount, payMethod, reference_number, payDate, notes, req.staff.id]
     );
 
     // Update amount_paid on invoice
@@ -14081,7 +17282,7 @@ app.post('/api/admin/accounting/invoices/:id/payments', staffAuth, requireRole('
       [totalPaid, newStatus, newStatus === 'paid' ? new Date() : null, req.params.id]
     );
     res.json({ amount_paid: totalPaid, status: newStatus });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/admin/accounting/invoices/:id/void', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14091,7 +17292,7 @@ app.post('/api/admin/accounting/invoices/:id/void', staffAuth, requireRole('admi
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
     res.json({ invoice: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.get('/api/admin/accounting/invoices/:id/pdf', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14099,14 +17300,24 @@ app.get('/api/admin/accounting/invoices/:id/pdf', staffAuth, requireRole('admin'
     const inv = await pool.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
     if (!inv.rows.length) return res.status(404).json({ error: 'Not found' });
     const invoice = inv.rows[0];
-    const items = await pool.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order', [req.params.id]);
+    const items = await pool.query(`
+      SELECT ii.*, pr.collection, sk.variant_name, sk.sell_by, sa_c.value as color
+      FROM invoice_items ii
+      LEFT JOIN skus sk ON sk.id = ii.sku_id
+      LEFT JOIN products pr ON pr.id = sk.product_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ii.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE ii.invoice_id = $1 ORDER BY ii.sort_order
+    `, [req.params.id]);
     const payments = await pool.query('SELECT * FROM invoice_payments WHERE invoice_id = $1 ORDER BY payment_date', [req.params.id]);
 
-    const itemRows = items.rows.map(it =>
-      `<tr><td>${it.description}</td><td style="text-align:center">${parseFloat(it.qty)}</td>
-       <td style="text-align:right">$${parseFloat(it.unit_price).toFixed(2)}</td>
-       <td style="text-align:right">$${parseFloat(it.subtotal).toFixed(2)}</td></tr>`
-    ).join('');
+    const itemRows = items.rows.map(it => {
+      const isUnit = it.sell_by === 'unit';
+      const qty = parseFloat(it.qty);
+      return `<tr><td>${itemDescriptionCell(it.collection, it.color, it.variant_name)}</td><td style="text-align:center">${qty}${it.sell_by ? (isUnit ? '' : ' box' + (qty > 1 ? 'es' : '')) : ''}</td>
+       <td style="text-align:right">$${parseFloat(it.unit_price).toFixed(2)}${it.sell_by ? (isUnit ? '/ea' : '/sqft') : ''}</td>
+       <td style="text-align:right">$${parseFloat(it.subtotal).toFixed(2)}</td></tr>`;
+    }).join('');
 
     const paymentRows = payments.rows.length ? payments.rows.map(p =>
       `<tr><td>${new Date(p.payment_date).toLocaleDateString()}</td><td>${p.payment_method}</td>
@@ -14143,7 +17354,7 @@ app.get('/api/admin/accounting/invoices/:id/pdf', staffAuth, requireRole('admin'
     </body></html>`;
 
     await generatePDF(html, `${invoice.invoice_number}.pdf`, req, res);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.get('/api/admin/accounting/ar/aging', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14159,7 +17370,7 @@ app.get('/api/admin/accounting/ar/aging', staffAuth, requireRole('admin', 'manag
       FROM invoices WHERE status NOT IN ('void', 'paid', 'draft')
     `);
     res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/admin/accounting/invoices/send-reminders', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14175,7 +17386,20 @@ app.post('/api/admin/accounting/invoices/send-reminders', staffAuth, requireRole
       } catch (e) { console.log('[Accounting] Reminder skipped for', inv.invoice_number, e.message); }
     }
     res.json({ reminders_sent: sent, total_overdue: overdue.rows.length });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.post('/api/admin/accounting/invoices/:id/send-reminder', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Invoice not found' });
+    const invoice = result.rows[0];
+    if (!['overdue', 'sent', 'partial'].includes(invoice.status)) {
+      return res.status(400).json({ error: 'Reminders can only be sent for overdue, sent, or partial invoices' });
+    }
+    await sendInvoiceReminder(invoice);
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // --- Daily overdue invoice cron (8am) ---
@@ -14222,7 +17446,7 @@ app.get('/api/admin/accounting/bills', staffAuth, requireRole('admin', 'manager'
        LIMIT $${params.length - 1} OFFSET $${params.length}`, params
     );
     res.json({ bills: result.rows, total: parseInt(countResult.rows[0].count) });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.get('/api/admin/accounting/bills/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14240,7 +17464,7 @@ app.get('/api/admin/accounting/bills/:id', staffAuth, requireRole('admin', 'mana
        WHERE bp.bill_id = $1 ORDER BY bp.payment_date DESC`, [req.params.id]
     );
     res.json({ bill: bill.rows[0], items: items.rows, payments: payments.rows });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/admin/accounting/bills', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14269,7 +17493,7 @@ app.post('/api/admin/accounting/bills', staffAuth, requireRole('admin', 'manager
       );
     }
     res.json({ bill });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/admin/accounting/bills/from-po/:poId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14304,7 +17528,7 @@ app.post('/api/admin/accounting/bills/from-po/:poId', staffAuth, requireRole('ad
       );
     }
     res.json({ bill });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/admin/accounting/bills/from-edi/:ediInvoiceId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14340,7 +17564,7 @@ app.post('/api/admin/accounting/bills/from-edi/:ediInvoiceId', staffAuth, requir
       );
     }
     res.json({ bill });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.put('/api/admin/accounting/bills/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14356,7 +17580,7 @@ app.put('/api/admin/accounting/bills/:id', staffAuth, requireRole('admin', 'mana
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
     res.json({ bill: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.put('/api/admin/accounting/bills/:id/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14369,7 +17593,7 @@ app.put('/api/admin/accounting/bills/:id/status', staffAuth, requireRole('admin'
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
     res.json({ bill: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.post('/api/admin/accounting/bills/:id/payments', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14394,7 +17618,7 @@ app.post('/api/admin/accounting/bills/:id/payments', staffAuth, requireRole('adm
       [totalPaid, newStatus, payment_method || 'check', reference_number, req.params.id]
     );
     res.json({ amount_paid: totalPaid, status: newStatus });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.get('/api/admin/accounting/ap/aging', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14410,7 +17634,154 @@ app.get('/api/admin/accounting/ap/aging', staffAuth, requireRole('admin', 'manag
       FROM bills WHERE status NOT IN ('void', 'paid', 'draft')
     `);
     res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// --- Commission Management ---
+
+// List commissions with filters
+app.get('/api/admin/accounting/commissions', staffAuth, requireRole('admin', 'manager', 'sales'), async (req, res) => {
+  try {
+    const { status, rep_id, from, to, page = 1, limit = 25 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    let query = `
+      SELECT rc.*, o.order_number, o.customer_name, o.status as order_status, o.created_at as order_date,
+             sr.first_name || ' ' || sr.last_name as rep_name
+      FROM rep_commissions rc
+      JOIN orders o ON o.id = rc.order_id
+      JOIN sales_reps sr ON sr.id = rc.rep_id
+      WHERE 1=1
+    `;
+    const params = [];
+    const countParams = [];
+    let idx = 1;
+    let countIdx = 1;
+    let countWhere = '';
+    if (status) { query += ` AND rc.status = $${idx++}`; params.push(status); countWhere += ` AND rc.status = $${countIdx++}`; countParams.push(status); }
+    if (rep_id) { query += ` AND rc.rep_id = $${idx++}`; params.push(rep_id); countWhere += ` AND rc.rep_id = $${countIdx++}`; countParams.push(rep_id); }
+    if (from) { query += ` AND rc.created_at >= $${idx++}`; params.push(from); countWhere += ` AND rc.created_at >= $${countIdx++}`; countParams.push(from); }
+    if (to) { query += ` AND rc.created_at <= ($${idx++})::date + interval '1 day'`; params.push(to); countWhere += ` AND rc.created_at <= ($${countIdx++})::date + interval '1 day'`; countParams.push(to); }
+
+    const countRes = await pool.query(`SELECT COUNT(*)::int as total FROM rep_commissions rc JOIN orders o ON o.id = rc.order_id WHERE 1=1` + countWhere, countParams);
+
+    query += ` ORDER BY rc.created_at DESC LIMIT $${idx++} OFFSET $${idx++}`;
+    params.push(parseInt(limit), offset);
+    const result = await pool.query(query, params);
+    res.json({ commissions: result.rows, total: countRes.rows[0].total, page: parseInt(page), limit: parseInt(limit) });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Commission summary stats
+app.get('/api/admin/accounting/commissions/summary', staffAuth, requireRole('admin', 'manager', 'sales'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN status = 'pending' THEN commission_amount ELSE 0 END), 0) as total_pending,
+        COALESCE(SUM(CASE WHEN status = 'earned' THEN commission_amount ELSE 0 END), 0) as total_earned,
+        COALESCE(SUM(CASE WHEN status = 'paid' AND paid_at >= DATE_TRUNC('month', CURRENT_DATE) THEN commission_amount ELSE 0 END), 0) as paid_this_month,
+        COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END), 0) as total_paid,
+        COALESCE(AVG(commission_rate), 0) as avg_rate,
+        COUNT(*)::int as total_count
+      FROM rep_commissions
+    `);
+    res.json(result.rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Get commission config
+app.get('/api/admin/accounting/commissions/config', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM commission_config LIMIT 1');
+    res.json(result.rows[0] || { rate: 0.10, default_cost_ratio: 0.55 });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Update commission config
+app.put('/api/admin/accounting/commissions/config', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { rate, default_cost_ratio } = req.body;
+    const result = await pool.query(
+      `UPDATE commission_config SET rate = COALESCE($1, rate), default_cost_ratio = COALESCE($2, default_cost_ratio), updated_at = CURRENT_TIMESTAMP RETURNING *`,
+      [rate, default_cost_ratio]
+    );
+    res.json(result.rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Single commission detail
+app.get('/api/admin/accounting/commissions/:id', staffAuth, requireRole('admin', 'manager', 'sales'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT rc.*, o.order_number, o.customer_name, o.status as order_status, o.total as current_order_total,
+             sr.first_name || ' ' || sr.last_name as rep_name, sr.email as rep_email
+      FROM rep_commissions rc
+      JOIN orders o ON o.id = rc.order_id
+      JOIN sales_reps sr ON sr.id = rc.rep_id
+      WHERE rc.id = $1
+    `, [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Commission not found' });
+    res.json(result.rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Update commission (approve, adjust)
+app.put('/api/admin/accounting/commissions/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { status, commission_rate, commission_amount, notes } = req.body;
+    const current = await pool.query('SELECT * FROM rep_commissions WHERE id = $1', [req.params.id]);
+    if (!current.rows.length) return res.status(404).json({ error: 'Commission not found' });
+    const comm = current.rows[0];
+
+    let newAmount = commission_amount != null ? parseFloat(commission_amount) : parseFloat(comm.commission_amount);
+    let newRate = commission_rate != null ? parseFloat(commission_rate) : parseFloat(comm.commission_rate);
+
+    // If rate changed, recalculate amount from margin
+    if (commission_rate != null && parseFloat(commission_rate) !== parseFloat(comm.commission_rate)) {
+      newAmount = parseFloat(comm.margin) * newRate;
+    }
+
+    const result = await pool.query(`
+      UPDATE rep_commissions SET
+        status = COALESCE($1, status),
+        commission_rate = $2,
+        commission_amount = $3,
+        notes = COALESCE($4, notes),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $5 RETURNING *
+    `, [status || comm.status, newRate, newAmount.toFixed(2), notes, req.params.id]);
+    res.json(result.rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Pay a single commission
+app.post('/api/admin/accounting/commissions/:id/pay', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      UPDATE rep_commissions SET status = 'paid', paid_at = NOW(), paid_by = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2 AND status IN ('earned', 'pending') RETURNING *
+    `, [req.staff.id, req.params.id]);
+    if (!result.rows.length) return res.status(400).json({ error: 'Commission not found or already paid' });
+    res.json(result.rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Batch pay commissions
+app.post('/api/admin/accounting/commissions/batch-pay', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !ids.length) return res.status(400).json({ error: 'No commission IDs provided' });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(`
+        UPDATE rep_commissions SET status = 'paid', paid_at = NOW(), paid_by = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ANY($2) AND status IN ('earned', 'pending') RETURNING id
+      `, [req.staff.id, ids]);
+      await client.query('COMMIT');
+      res.json({ paid_count: result.rowCount, paid_ids: result.rows.map(r => r.id) });
+    } catch (err) { await client.query('ROLLBACK'); throw err; }
+    finally { client.release(); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // --- P&L / Reports ---
@@ -14490,7 +17861,7 @@ app.get('/api/admin/accounting/reports/pnl', staffAuth, requireRole('admin', 'ma
       net_income: netIncome,
       net_margin_pct: totalRevenue > 0 ? ((netIncome / totalRevenue) * 100).toFixed(1) : '0.0'
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.get('/api/admin/accounting/reports/pnl/csv', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14530,7 +17901,7 @@ app.get('/api/admin/accounting/reports/pnl/csv', staffAuth, requireRole('admin',
 
     res.set({ 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="pnl-${pnl.period.from}-to-${pnl.period.to}.csv"` });
     res.send(lines.join('\n'));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 app.get('/api/admin/accounting/reports/dashboard', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -14577,15 +17948,119 @@ app.get('/api/admin/accounting/reports/dashboard', staffAuth, requireRole('admin
       months[key].cogs = parseFloat(r.cogs);
     }
 
+    // DSO / DPO calculations (last 90 days)
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const [dsoQuery, dpoQuery] = await Promise.all([
+      pool.query(`SELECT COALESCE(SUM(total), 0) as revenue_90d FROM orders WHERE status IN ('confirmed','shipped','delivered') AND created_at >= $1`, [ninetyDaysAgo]),
+      pool.query(`SELECT COALESCE(SUM(poi.subtotal), 0) as cogs_90d FROM purchase_order_items poi JOIN purchase_orders po ON po.id = poi.purchase_order_id WHERE po.status NOT IN ('cancelled','draft') AND po.created_at >= $1`, [ninetyDaysAgo])
+    ]);
+    const arOutstanding = parseFloat(arAging.rows[0].total);
+    const apOutstanding = parseFloat(apAging.rows[0].total);
+    const revenue90d = parseFloat(dsoQuery.rows[0].revenue_90d);
+    const cogs90d = parseFloat(dpoQuery.rows[0].cogs_90d);
+    const dso = revenue90d > 0 ? Math.round((arOutstanding / revenue90d) * 90) : 0;
+    const dpo = cogs90d > 0 ? Math.round((apOutstanding / cogs90d) * 90) : 0;
+
     res.json({
-      ar: { outstanding: parseFloat(arAging.rows[0].total), count: arAging.rows[0].count,
+      ar: { outstanding: arOutstanding, count: arAging.rows[0].count,
         overdue_count: invoiceStats.rows[0].overdue_count, paid_this_month: parseFloat(invoiceStats.rows[0].paid_this_month) },
-      ap: { outstanding: parseFloat(apAging.rows[0].total), count: apAging.rows[0].count,
+      ap: { outstanding: apOutstanding, count: apAging.rows[0].count,
         pending_approval: billStats.rows[0].pending_approval, paid_this_month: parseFloat(billStats.rows[0].paid_this_month) },
       expenses: { this_month: parseFloat(expenseMonth.rows[0].total), this_year: parseFloat(expenseYear.rows[0].total) },
-      revenue_vs_cogs: Object.values(months).sort((a, b) => a.month.localeCompare(b.month))
+      revenue_vs_cogs: Object.values(months).sort((a, b) => a.month.localeCompare(b.month)),
+      dso, dpo
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// --- Tax Reporting ---
+
+app.get('/api/admin/accounting/reports/tax', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const now = new Date();
+    const from = req.query.from || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const to = req.query.to || now.toISOString().split('T')[0];
+
+    // Tax by jurisdiction (zip code)
+    const byZip = await pool.query(`
+      SELECT
+        SUBSTRING(COALESCE(shipping_zip, '') FROM 1 FOR 5) as zip,
+        COALESCE(shipping_city, '') as city,
+        COALESCE(shipping_state, '') as state,
+        COUNT(*)::int as order_count,
+        COALESCE(SUM(total - COALESCE(tax_amount, 0)), 0) as taxable_amount,
+        COALESCE(SUM(tax_amount), 0) as tax_collected
+      FROM orders
+      WHERE status NOT IN ('cancelled', 'refunded')
+        AND created_at >= $1 AND created_at <= ($2)::date + interval '1 day'
+        AND COALESCE(tax_amount, 0) > 0
+      GROUP BY zip, city, state
+      ORDER BY tax_collected DESC
+    `, [from, to]);
+
+    // Monthly totals
+    const monthly = await pool.query(`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') as month,
+        COALESCE(SUM(tax_amount), 0) as tax_collected,
+        COUNT(*)::int as order_count
+      FROM orders
+      WHERE status NOT IN ('cancelled', 'refunded')
+        AND created_at >= $1 AND created_at <= ($2)::date + interval '1 day'
+        AND COALESCE(tax_amount, 0) > 0
+      GROUP BY DATE_TRUNC('month', created_at)
+      ORDER BY month
+    `, [from, to]);
+
+    const totalTax = byZip.rows.reduce((sum, r) => sum + parseFloat(r.tax_collected), 0);
+
+    res.json({
+      period: { from, to },
+      total_tax: totalTax,
+      by_jurisdiction: byZip.rows.map(r => ({
+        zip: r.zip, city: r.city, state: r.state,
+        order_count: r.order_count,
+        taxable_amount: parseFloat(r.taxable_amount),
+        tax_collected: parseFloat(r.tax_collected)
+      })),
+      monthly_totals: monthly.rows.map(r => ({
+        month: r.month, tax_collected: parseFloat(r.tax_collected), order_count: r.order_count
+      }))
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.get('/api/admin/accounting/reports/tax/csv', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const now = new Date();
+    const from = req.query.from || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const to = req.query.to || now.toISOString().split('T')[0];
+
+    const byZip = await pool.query(`
+      SELECT
+        SUBSTRING(COALESCE(shipping_zip, '') FROM 1 FOR 5) as zip,
+        COALESCE(shipping_city, '') as city,
+        COALESCE(shipping_state, '') as state,
+        COUNT(*)::int as order_count,
+        COALESCE(SUM(total - COALESCE(tax_amount, 0)), 0) as taxable_amount,
+        COALESCE(SUM(tax_amount), 0) as tax_collected
+      FROM orders
+      WHERE status NOT IN ('cancelled', 'refunded')
+        AND created_at >= $1 AND created_at <= ($2)::date + interval '1 day'
+        AND COALESCE(tax_amount, 0) > 0
+      GROUP BY zip, city, state
+      ORDER BY tax_collected DESC
+    `, [from, to]);
+
+    let csv = 'Period,Zip Code,City,State,Order Count,Taxable Amount,Tax Collected\n';
+    for (const r of byZip.rows) {
+      csv += `"${from} to ${to}","${r.zip}","${r.city}","${r.state}",${r.order_count},${parseFloat(r.taxable_amount).toFixed(2)},${parseFloat(r.tax_collected).toFixed(2)}\n`;
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="tax-report-${from}-to-${to}.csv"`);
+    res.send(csv);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // ==================== Scheduler Init ====================
@@ -14896,7 +18371,7 @@ app.get('/api/admin/orders/:id/tracking', staffAuth, async (req, res) => {
       tracking_url: getTrackingUrl(o.shipping_carrier, o.tracking_number),
       events: events.rows
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // Admin API: manually refresh tracking for an order
@@ -14925,7 +18400,7 @@ app.post('/api/admin/orders/:id/tracking/refresh', staffAuth, async (req, res) =
       tracking_url: getTrackingUrl(o.shipping_carrier, o.tracking_number),
       events: events.rows
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // Cron: poll tracking for shipped orders every 4 hours
@@ -14950,6 +18425,175 @@ cron.schedule('0 */4 * * *', async () => {
     console.error('[Cron] Tracking poll error:', err.message);
   }
 });
+
+// ==================== Analytics Daily Aggregation (7 AM Pacific) ====================
+
+cron.schedule('0 7 * * *', async () => {
+  console.log('[Analytics] Running daily aggregation...');
+  try {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const dayStart = yesterday + 'T00:00:00';
+    const dayEnd = yesterday + 'T23:59:59.999';
+
+    // Count events by type
+    const eventCounts = await pool.query(`
+      SELECT event_type, COUNT(*)::int as cnt, COUNT(DISTINCT session_id)::int as sessions
+      FROM analytics_events WHERE created_at >= $1 AND created_at <= $2
+      GROUP BY event_type
+    `, [dayStart, dayEnd]);
+    const ec = {};
+    eventCounts.rows.forEach(r => { ec[r.event_type] = { cnt: r.cnt, sessions: r.sessions }; });
+
+    // Session stats
+    const sessionStats = await pool.query(`
+      SELECT COUNT(*)::int as total_sessions,
+             COUNT(DISTINCT visitor_id)::int as unique_visitors,
+             AVG(EXTRACT(EPOCH FROM (last_seen_at - first_seen_at)))::int as avg_duration,
+             COUNT(*) FILTER (WHERE page_count <= 1)::numeric / NULLIF(COUNT(*), 0) * 100 as bounce_rate
+      FROM analytics_sessions WHERE first_seen_at >= $1 AND first_seen_at <= $2
+    `, [dayStart, dayEnd]);
+    const ss = sessionStats.rows[0] || {};
+
+    // Revenue from order_completed events (or from orders table)
+    const revenueRes = await pool.query(`
+      SELECT COALESCE(SUM(total), 0) as revenue FROM orders
+      WHERE created_at >= $1 AND created_at <= $2 AND status != 'cancelled'
+    `, [dayStart, dayEnd]);
+
+    // Cart abandonment: sessions with add_to_cart but no order_completed
+    const cartAbandonment = await pool.query(`
+      SELECT
+        COUNT(DISTINCT session_id) FILTER (WHERE event_type = 'add_to_cart')::int as cart_sessions,
+        COUNT(DISTINCT session_id) FILTER (WHERE event_type = 'order_completed')::int as order_sessions
+      FROM analytics_events WHERE created_at >= $1 AND created_at <= $2
+    `, [dayStart, dayEnd]);
+    const ca = cartAbandonment.rows[0] || {};
+    const cartAbandonRate = ca.cart_sessions > 0
+      ? parseFloat(((ca.cart_sessions - ca.order_sessions) / ca.cart_sessions * 100).toFixed(2))
+      : 0;
+
+    // Top search terms
+    const topSearches = await pool.query(`
+      SELECT LOWER(properties->>'query') as term, COUNT(*)::int as count
+      FROM analytics_events WHERE event_type = 'search' AND created_at >= $1 AND created_at <= $2
+        AND properties->>'query' IS NOT NULL AND properties->>'query' != ''
+      GROUP BY LOWER(properties->>'query') ORDER BY count DESC LIMIT 20
+    `, [dayStart, dayEnd]);
+
+    await pool.query(`
+      INSERT INTO analytics_daily_stats (stat_date, total_sessions, unique_visitors, page_views,
+        product_views, add_to_carts, checkouts_started, orders_completed, searches,
+        sample_requests, trade_signups, total_revenue, avg_session_duration_secs,
+        bounce_rate, cart_abandonment_rate, top_search_terms)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      ON CONFLICT (stat_date) DO UPDATE SET
+        total_sessions = EXCLUDED.total_sessions, unique_visitors = EXCLUDED.unique_visitors,
+        page_views = EXCLUDED.page_views, product_views = EXCLUDED.product_views,
+        add_to_carts = EXCLUDED.add_to_carts, checkouts_started = EXCLUDED.checkouts_started,
+        orders_completed = EXCLUDED.orders_completed, searches = EXCLUDED.searches,
+        sample_requests = EXCLUDED.sample_requests, trade_signups = EXCLUDED.trade_signups,
+        total_revenue = EXCLUDED.total_revenue, avg_session_duration_secs = EXCLUDED.avg_session_duration_secs,
+        bounce_rate = EXCLUDED.bounce_rate, cart_abandonment_rate = EXCLUDED.cart_abandonment_rate,
+        top_search_terms = EXCLUDED.top_search_terms
+    `, [
+      yesterday,
+      ss.total_sessions || 0,
+      ss.unique_visitors || 0,
+      ec.page_view?.cnt || 0,
+      ec.product_view?.cnt || 0,
+      ec.add_to_cart?.cnt || 0,
+      ec.checkout_started?.cnt || 0,
+      ec.order_completed?.cnt || 0,
+      ec.search?.cnt || 0,
+      ec.sample_request?.cnt || 0,
+      ec.trade_signup_complete?.cnt || 0,
+      parseFloat(revenueRes.rows[0]?.revenue || 0),
+      ss.avg_duration || 0,
+      parseFloat(ss.bounce_rate || 0).toFixed(2),
+      cartAbandonRate,
+      JSON.stringify(topSearches.rows)
+    ]);
+
+    console.log(`[Analytics] Daily stats aggregated for ${yesterday}`);
+
+    // Send summary email to admin/manager staff
+    try {
+      const staffRes = await pool.query(
+        "SELECT email FROM staff_accounts WHERE role IN ('admin','manager') AND is_active = true"
+      );
+      if (staffRes.rows.length > 0) {
+        // Get top viewed-not-purchased for email
+        const vnp = await pool.query(`
+          WITH views AS (
+            SELECT properties->>'sku_id' as sku_id, COALESCE(properties->>'product_name','') as product_name,
+                   COUNT(*)::int as views
+            FROM analytics_events WHERE event_type = 'product_view' AND created_at >= $1 AND created_at <= $2
+              AND properties->>'sku_id' IS NOT NULL
+            GROUP BY properties->>'sku_id', properties->>'product_name'
+          ),
+          carts AS (
+            SELECT properties->>'sku_id' as sku_id, COUNT(*)::int as carts
+            FROM analytics_events WHERE event_type = 'add_to_cart' AND created_at >= $1 AND created_at <= $2
+              AND properties->>'sku_id' IS NOT NULL
+            GROUP BY properties->>'sku_id'
+          )
+          SELECT v.product_name, v.views, COALESCE(c.carts, 0) as carts
+          FROM views v LEFT JOIN carts c ON c.sku_id = v.sku_id
+          ORDER BY v.views DESC LIMIT 5
+        `, [dayStart, dayEnd]);
+
+        const zeroSearches = await pool.query(`
+          SELECT LOWER(properties->>'query') as term, COUNT(*)::int as count
+          FROM analytics_events WHERE event_type = 'search' AND created_at >= $1 AND created_at <= $2
+            AND properties->>'query' IS NOT NULL AND properties->>'results_count' IS NOT NULL AND (properties->>'results_count')::int = 0
+          GROUP BY LOWER(properties->>'query') ORDER BY count DESC LIMIT 5
+        `, [dayStart, dayEnd]);
+
+        await sendDailyAnalyticsSummary(
+          staffRes.rows.map(r => r.email),
+          {
+            stat_date: yesterday,
+            total_sessions: ss.total_sessions || 0,
+            unique_visitors: ss.unique_visitors || 0,
+            page_views: ec.page_view?.cnt || 0,
+            product_views: ec.product_view?.cnt || 0,
+            add_to_carts: ec.add_to_cart?.cnt || 0,
+            checkouts_started: ec.checkout_started?.cnt || 0,
+            orders_completed: ec.order_completed?.cnt || 0,
+            searches: ec.search?.cnt || 0,
+            sample_requests: ec.sample_request?.cnt || 0,
+            trade_signups: ec.trade_signup_complete?.cnt || 0,
+            total_revenue: parseFloat(revenueRes.rows[0]?.revenue || 0),
+            avg_session_duration_secs: ss.avg_duration || 0,
+            bounce_rate: parseFloat(ss.bounce_rate || 0),
+            cart_abandonment_rate: cartAbandonRate,
+            top_search_terms: topSearches.rows,
+            top_viewed_not_purchased: vnp.rows,
+            zero_result_searches: zeroSearches.rows
+          }
+        );
+      }
+    } catch (emailErr) {
+      console.error('[Analytics] Email summary error:', emailErr.message);
+    }
+  } catch (err) {
+    console.error('[Analytics] Daily aggregation error:', err.message);
+  }
+}, { timezone: 'America/Los_Angeles' });
+
+// Analytics retention cron: purge raw events > 90 days (Sundays 3 AM Pacific)
+cron.schedule('0 3 * * 0', async () => {
+  console.log('[Analytics] Running retention cleanup...');
+  try {
+    const cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
+    const result = await pool.query('DELETE FROM analytics_events WHERE created_at < $1', [cutoff]);
+    console.log(`[Analytics] Purged ${result.rowCount} events older than 90 days`);
+    const sessResult = await pool.query('DELETE FROM analytics_sessions WHERE last_seen_at < $1', [cutoff]);
+    console.log(`[Analytics] Purged ${sessResult.rowCount} sessions older than 90 days`);
+  } catch (err) {
+    console.error('[Analytics] Retention cleanup error:', err.message);
+  }
+}, { timezone: 'America/Los_Angeles' });
 
 // ==================== Customer Accounts ====================
 
@@ -15060,7 +18704,7 @@ app.post('/api/customer/logout', customerAuth, async (req, res) => {
     await pool.query('DELETE FROM customer_sessions WHERE id = $1', [req.customer.session_id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15181,7 +18825,7 @@ app.get('/api/wishlist', customerAuth, async (req, res) => {
     );
     res.json({ product_ids: result.rows.map(r => r.product_id) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15195,7 +18839,7 @@ app.post('/api/wishlist', customerAuth, async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15207,7 +18851,7 @@ app.delete('/api/wishlist/:productId', customerAuth, async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15228,7 +18872,7 @@ app.post('/api/wishlist/sync', customerAuth, async (req, res) => {
     );
     res.json({ product_ids: result.rows.map(r => r.product_id) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15299,7 +18943,10 @@ app.post('/api/storefront/stock-alerts', optionalCustomerAuth, async (req, res) 
 
 app.delete('/api/storefront/stock-alerts/:id', async (req, res) => {
   try {
-    await pool.query("UPDATE stock_alerts SET status = 'cancelled' WHERE id = $1", [req.params.id]);
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ error: 'email is required' });
+    const result = await pool.query("UPDATE stock_alerts SET status = 'cancelled' WHERE id = $1 AND email = $2 RETURNING id", [req.params.id, email]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Alert not found' });
     res.json({ success: true });
   } catch (err) {
     console.error('Stock alert cancel error:', err);
@@ -15494,7 +19141,7 @@ app.post('/api/customer/sample-requests/:id/add-items', customerAuth, async (req
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Add sample items error:', err);
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -15509,7 +19156,7 @@ app.get('/api/customer/sample-requests/:id/pdf', customerAuth, async (req, res) 
     if (!result) return res.status(404).json({ error: 'Sample request not found' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15524,7 +19171,7 @@ app.get('/api/customer/quotes', customerAuth, async (req, res) => {
     `, [req.customer.id]);
     res.json({ quotes: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15532,10 +19179,19 @@ app.get('/api/customer/quotes/:id', customerAuth, async (req, res) => {
   try {
     const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND customer_id = $2 AND status != \'draft\'', [req.params.id, req.customer.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
-    const items = await pool.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [req.params.id]);
+    const items = await pool.query(`
+      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      FROM quote_items qi
+      LEFT JOIN skus s ON s.id = qi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE qi.quote_id = $1 ORDER BY qi.id
+    `, [req.params.id]);
     res.json({ quote: quote.rows[0], items: items.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15548,7 +19204,7 @@ app.get('/api/customer/visits', customerAuth, async (req, res) => {
     `, [req.customer.id]);
     res.json({ visits: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15559,7 +19215,7 @@ app.get('/api/customer/visits/:id', customerAuth, async (req, res) => {
     const items = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order, id', [req.params.id]);
     res.json({ visit: visit.rows[0], items: items.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15656,7 +19312,7 @@ app.get('/api/admin/installation-inquiries', staffAuth, requireRole('admin', 'ma
 
     res.json({ inquiries: result.rows, total: countResult.rows[0].total });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15671,7 +19327,7 @@ app.get('/api/admin/installation-inquiries/:id', staffAuth, requireRole('admin',
     if (!result.rows.length) return res.status(404).json({ error: 'Inquiry not found' });
     res.json({ inquiry: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15706,7 +19362,7 @@ app.put('/api/admin/installation-inquiries/:id', staffAuth, requireRole('admin',
     if (!result.rows.length) return res.status(404).json({ error: 'Inquiry not found' });
     res.json({ inquiry: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15716,7 +19372,7 @@ app.delete('/api/admin/installation-inquiries/:id', staffAuth, requireRole('admi
     if (!result.rows.length) return res.status(404).json({ error: 'Inquiry not found' });
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -15727,11 +19383,11 @@ function generateSlugBackend(text) {
 
 app.get('/api/sitemap.xml', async (req, res) => {
   try {
-    const baseUrl = 'https://www.romaflooringdesigns.com';
+    const baseUrl = (process.env.SITE_URL || 'https://romaflooringdesigns.com').replace(/\/+$/, '');
     const today = new Date().toISOString().split('T')[0];
 
     const [skusResult, categoriesResult, collectionsResult] = await Promise.all([
-      pool.query(`SELECT s.id, p.name as product_name, s.updated_at FROM skus s JOIN products p ON s.product_id = p.id WHERE p.status = 'active' ORDER BY s.id`),
+      pool.query(`SELECT s.id, p.name as product_name, s.updated_at FROM skus s JOIN products p ON s.product_id = p.id WHERE p.status = 'active' AND s.status = 'active' AND s.is_sample = false AND COALESCE(s.variant_type, '') != 'accessory' ORDER BY s.id`),
       pool.query(`SELECT slug FROM categories WHERE is_active = true ORDER BY slug`),
       pool.query(`SELECT DISTINCT collection as name FROM products WHERE status = 'active' AND collection IS NOT NULL AND collection != '' ORDER BY collection`)
     ]);
@@ -15740,7 +19396,7 @@ app.get('/api/sitemap.xml', async (req, res) => {
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
     // Static pages
-    const staticPages = ['/', '/shop', '/collections', '/trade'];
+    const staticPages = ['/', '/shop', '/collections', '/trade', '/privacy', '/terms'];
     for (const page of staticPages) {
       xml += `  <url><loc>${baseUrl}${page}</loc><lastmod>${today}</lastmod><changefreq>weekly</changefreq><priority>${page === '/' ? '1.0' : '0.8'}</priority></url>\n`;
     }
@@ -15892,6 +19548,23 @@ async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_order_activity_log_order ON order_activity_log(order_id);
     `);
     console.log('Migrations: Order activity log applied');
+
+    // Order documents table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS order_documents (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
+        doc_type VARCHAR(50) NOT NULL,
+        file_name TEXT NOT NULL,
+        file_key TEXT NOT NULL,
+        file_size INTEGER,
+        mime_type TEXT,
+        uploaded_by UUID REFERENCES staff_accounts(id),
+        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_order_documents_order ON order_documents(order_id);
+    `);
+    console.log('Migrations: Order documents table applied');
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
@@ -16299,8 +19972,9 @@ const EMAIL_PREVIEW_TEMPLATES = {
   }),
 };
 
-// Index page listing all templates
+// Index page listing all templates (dev only)
 app.get('/api/dev/email-preview', (req, res) => {
+  if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'Not found' });
   const names = Object.keys(EMAIL_PREVIEW_TEMPLATES);
   const links = names.map(n => `<li style="margin:4px 0;"><a href="/api/dev/email-preview/${n}" target="_blank" style="color:#292524;font-size:15px;">${n}</a></li>`).join('');
   res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Email Template Preview</title>
@@ -16310,15 +19984,23 @@ app.get('/api/dev/email-preview', (req, res) => {
     </head><body><h1>Email Template Preview</h1><p>${names.length} templates available</p><ul>${links}</ul></body></html>`);
 });
 
-// Individual template render
+// Individual template render (dev only)
 app.get('/api/dev/email-preview/:name', (req, res) => {
+  if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'Not found' });
   const generator = EMAIL_PREVIEW_TEMPLATES[req.params.name];
   if (!generator) return res.status(404).send('Template not found. <a href="/api/dev/email-preview">View all templates</a>');
   try {
     res.send(generator());
   } catch (err) {
-    res.status(500).send(`<pre>Error rendering template: ${err.message}\n\n${err.stack}</pre>`);
+    console.error('Email preview render error:', err);
+    res.status(500).send('<pre>Error rendering template</pre>');
   }
+});
+
+// Centralized error handler — prevent stack traces leaking to clients
+app.use((err, req, res, _next) => {
+  console.error('Unhandled error:', err);
+  res.status(err.status || 500).json({ error: 'Internal server error' });
 });
 
 runMigrations().then(() => {

@@ -1,4 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS unaccent;
 
 CREATE TABLE vendors (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -77,8 +79,12 @@ CREATE TABLE pricing (
     roll_cost DECIMAL(10,2),
     roll_min_sqft DECIMAL(10,2),
     map_price DECIMAL(10,2),
+    sale_price DECIMAL(10,2),
+    sale_ends_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_pricing_sale ON pricing(sale_price) WHERE sale_price IS NOT NULL;
 
 CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -1219,137 +1225,6 @@ CREATE TABLE IF NOT EXISTS tracking_events (
 );
 CREATE INDEX IF NOT EXISTS idx_tracking_events_order ON tracking_events(order_id);
 
--- ==================== Accounting ====================
-
--- Expense Categories
-CREATE TABLE IF NOT EXISTS expense_categories (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    slug TEXT UNIQUE,
-    expense_type TEXT NOT NULL DEFAULT 'operating',
-    parent_id UUID REFERENCES expense_categories(id),
-    sort_order INT DEFAULT 0,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Expenses
-CREATE TABLE IF NOT EXISTS expenses (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    category_id UUID REFERENCES expense_categories(id),
-    vendor_name TEXT,
-    description TEXT,
-    amount NUMERIC(12,2) NOT NULL DEFAULT 0,
-    payment_method TEXT,
-    reference_number TEXT,
-    is_recurring BOOLEAN DEFAULT false,
-    notes TEXT,
-    created_by UUID REFERENCES staff_accounts(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Invoices (Accounts Receivable)
-CREATE TABLE IF NOT EXISTS invoices (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    invoice_number TEXT UNIQUE NOT NULL,
-    order_id UUID REFERENCES orders(id),
-    customer_email TEXT,
-    customer_name TEXT,
-    trade_customer_id UUID,
-    billing_address TEXT,
-    payment_terms TEXT DEFAULT 'due_on_receipt',
-    issue_date DATE DEFAULT CURRENT_DATE,
-    due_date DATE,
-    subtotal NUMERIC(12,2) DEFAULT 0,
-    shipping NUMERIC(12,2) DEFAULT 0,
-    discount_amount NUMERIC(12,2) DEFAULT 0,
-    tax_rate NUMERIC(5,4) DEFAULT 0,
-    tax_amount NUMERIC(12,2) DEFAULT 0,
-    total NUMERIC(12,2) DEFAULT 0,
-    amount_paid NUMERIC(12,2) DEFAULT 0,
-    balance NUMERIC(12,2) GENERATED ALWAYS AS (total - amount_paid) STORED,
-    status TEXT DEFAULT 'draft',
-    notes TEXT,
-    sent_at TIMESTAMP,
-    paid_at TIMESTAMP,
-    created_by UUID REFERENCES staff_accounts(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS invoice_items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
-    order_item_id UUID,
-    sku_id UUID,
-    description TEXT,
-    qty NUMERIC(12,2) DEFAULT 1,
-    unit_price NUMERIC(12,2) DEFAULT 0,
-    subtotal NUMERIC(12,2) DEFAULT 0,
-    sort_order INT DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS invoice_payments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
-    order_payment_id UUID,
-    amount NUMERIC(12,2) NOT NULL,
-    payment_method TEXT,
-    reference_number TEXT,
-    payment_date DATE DEFAULT CURRENT_DATE,
-    recorded_by UUID REFERENCES staff_accounts(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Bills (Accounts Payable)
-CREATE TABLE IF NOT EXISTS bills (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    bill_number TEXT,
-    internal_bill_number TEXT UNIQUE NOT NULL,
-    vendor_id UUID REFERENCES vendors(id),
-    purchase_order_id UUID,
-    edi_invoice_id UUID,
-    bill_date DATE DEFAULT CURRENT_DATE,
-    due_date DATE,
-    payment_terms TEXT DEFAULT 'net_30',
-    subtotal NUMERIC(12,2) DEFAULT 0,
-    tax_amount NUMERIC(12,2) DEFAULT 0,
-    shipping NUMERIC(12,2) DEFAULT 0,
-    total NUMERIC(12,2) DEFAULT 0,
-    amount_paid NUMERIC(12,2) DEFAULT 0,
-    balance NUMERIC(12,2) GENERATED ALWAYS AS (total - amount_paid) STORED,
-    status TEXT DEFAULT 'received',
-    notes TEXT,
-    paid_at TIMESTAMP,
-    created_by UUID REFERENCES staff_accounts(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS bill_items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    bill_id UUID NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
-    purchase_order_item_id UUID,
-    sku_id UUID,
-    description TEXT,
-    qty NUMERIC(12,2) DEFAULT 1,
-    unit_price NUMERIC(12,2) DEFAULT 0,
-    subtotal NUMERIC(12,2) DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS bill_payments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    bill_id UUID NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
-    amount NUMERIC(12,2) NOT NULL,
-    payment_method TEXT,
-    reference_number TEXT,
-    payment_date DATE DEFAULT CURRENT_DATE,
-    recorded_by UUID REFERENCES staff_accounts(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 -- ==================== In-Store Payment Enhancements ====================
 
 ALTER TABLE order_payments ADD COLUMN IF NOT EXISTS check_number VARCHAR(50);
@@ -1381,3 +1256,219 @@ CREATE TABLE IF NOT EXISTS cash_drawer_transactions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_cash_drawer_txns_drawer ON cash_drawer_transactions(drawer_id);
+
+-- ==================== Order Documents ====================
+
+CREATE TABLE IF NOT EXISTS order_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
+    doc_type VARCHAR(50) NOT NULL,
+    file_name TEXT NOT NULL,
+    file_key TEXT NOT NULL,
+    file_size INTEGER,
+    mime_type TEXT,
+    uploaded_by UUID REFERENCES staff_accounts(id),
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_order_documents_order ON order_documents(order_id);
+
+-- ==================== Site Analytics ====================
+
+CREATE TABLE IF NOT EXISTS analytics_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id TEXT,
+    visitor_id TEXT,
+    event_type VARCHAR(60) NOT NULL,
+    properties JSONB DEFAULT '{}',
+    page_path TEXT,
+    referrer TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_type ON analytics_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_session ON analytics_events(session_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_created ON analytics_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_type_created ON analytics_events(event_type, created_at);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_sku ON analytics_events((properties->>'sku_id')) WHERE properties->>'sku_id' IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS analytics_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id TEXT UNIQUE NOT NULL,
+    visitor_id TEXT,
+    customer_id UUID,
+    trade_customer_id UUID,
+    user_agent TEXT,
+    referrer TEXT,
+    utm_source TEXT,
+    utm_medium TEXT,
+    utm_campaign TEXT,
+    device_type VARCHAR(20),
+    first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    page_count INTEGER DEFAULT 1,
+    is_converted BOOLEAN DEFAULT false
+);
+CREATE INDEX IF NOT EXISTS idx_analytics_sessions_visitor ON analytics_sessions(visitor_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_sessions_first_seen ON analytics_sessions(first_seen_at);
+
+CREATE TABLE IF NOT EXISTS analytics_daily_stats (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    stat_date DATE UNIQUE NOT NULL,
+    total_sessions INTEGER DEFAULT 0,
+    unique_visitors INTEGER DEFAULT 0,
+    page_views INTEGER DEFAULT 0,
+    product_views INTEGER DEFAULT 0,
+    add_to_carts INTEGER DEFAULT 0,
+    checkouts_started INTEGER DEFAULT 0,
+    orders_completed INTEGER DEFAULT 0,
+    searches INTEGER DEFAULT 0,
+    sample_requests INTEGER DEFAULT 0,
+    trade_signups INTEGER DEFAULT 0,
+    total_revenue DECIMAL(12,2) DEFAULT 0,
+    avg_session_duration_secs INTEGER DEFAULT 0,
+    bounce_rate DECIMAL(5,2) DEFAULT 0,
+    cart_abandonment_rate DECIMAL(5,2) DEFAULT 0,
+    top_search_terms JSONB DEFAULT '[]',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_analytics_daily_stats_date ON analytics_daily_stats(stat_date);
+
+-- ==================== Estimates ====================
+CREATE TABLE IF NOT EXISTS estimates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    estimate_number TEXT UNIQUE NOT NULL,
+    sales_rep_id UUID NOT NULL REFERENCES sales_reps(id),
+    customer_id UUID REFERENCES customers(id),
+    customer_name TEXT NOT NULL,
+    customer_email TEXT NOT NULL,
+    phone TEXT,
+    project_name TEXT,
+    project_address_line1 TEXT,
+    project_address_line2 TEXT,
+    project_city TEXT,
+    project_state TEXT,
+    project_zip TEXT,
+    materials_subtotal DECIMAL(10,2) DEFAULT 0,
+    labor_subtotal DECIMAL(10,2) DEFAULT 0,
+    subtotal DECIMAL(10,2) DEFAULT 0,
+    tax_rate DECIMAL(5,4) DEFAULT 0,
+    tax_amount DECIMAL(10,2) DEFAULT 0,
+    total DECIMAL(10,2) DEFAULT 0,
+    notes TEXT,
+    internal_notes TEXT,
+    status VARCHAR(30) DEFAULT 'draft',
+    converted_quote_id UUID REFERENCES quotes(id),
+    converted_order_id UUID REFERENCES orders(id),
+    expires_at TIMESTAMP,
+    sent_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_estimates_rep ON estimates(sales_rep_id);
+CREATE INDEX IF NOT EXISTS idx_estimates_status ON estimates(status);
+
+CREATE TABLE IF NOT EXISTS estimate_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    estimate_id UUID NOT NULL REFERENCES estimates(id) ON DELETE CASCADE,
+    item_type VARCHAR(20) NOT NULL DEFAULT 'material',
+    product_id UUID REFERENCES products(id),
+    sku_id UUID REFERENCES skus(id),
+    product_name TEXT,
+    collection TEXT,
+    description TEXT,
+    sqft_needed DECIMAL(10,2),
+    num_boxes INTEGER,
+    sell_by VARCHAR(20),
+    labor_category VARCHAR(50),
+    rate_type VARCHAR(20),
+    rate_sqft DECIMAL(10,2),
+    labor_sqft DECIMAL(10,2),
+    unit_price DECIMAL(10,2) NOT NULL,
+    quantity DECIMAL(10,2) DEFAULT 1,
+    subtotal DECIMAL(10,2) NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_estimate_items_estimate ON estimate_items(estimate_id);
+
+CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ==================== CRM: Deals & Tasks ====================
+
+CREATE TABLE IF NOT EXISTS deals (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    rep_id UUID NOT NULL REFERENCES sales_reps(id),
+    title TEXT NOT NULL,
+    estimated_value DECIMAL(10,2) DEFAULT 0,
+    stage VARCHAR(20) NOT NULL DEFAULT 'lead' CHECK (stage IN ('lead','quoted','negotiating','won','lost')),
+    stage_entered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    customer_type VARCHAR(10),
+    customer_ref TEXT,
+    customer_name TEXT NOT NULL,
+    customer_email TEXT,
+    linked_quote_id UUID REFERENCES quotes(id) ON DELETE SET NULL,
+    linked_order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+    linked_estimate_id UUID REFERENCES estimates(id) ON DELETE SET NULL,
+    notes TEXT,
+    lost_reason TEXT,
+    expected_close_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_deals_rep ON deals(rep_id);
+CREATE INDEX IF NOT EXISTS idx_deals_stage ON deals(stage);
+CREATE INDEX IF NOT EXISTS idx_deals_customer ON deals(customer_type, customer_ref);
+
+CREATE TABLE IF NOT EXISTS rep_tasks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    rep_id UUID NOT NULL REFERENCES sales_reps(id),
+    title TEXT NOT NULL,
+    description TEXT,
+    due_date DATE,
+    priority VARCHAR(10) NOT NULL DEFAULT 'medium' CHECK (priority IN ('low','medium','high')),
+    status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open','completed')),
+    completed_at TIMESTAMP,
+    linked_customer_type VARCHAR(10),
+    linked_customer_ref TEXT,
+    linked_order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+    linked_quote_id UUID REFERENCES quotes(id) ON DELETE SET NULL,
+    linked_estimate_id UUID REFERENCES estimates(id) ON DELETE SET NULL,
+    linked_deal_id UUID REFERENCES deals(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_rep_tasks_rep_status ON rep_tasks(rep_id, status);
+CREATE INDEX IF NOT EXISTS idx_rep_tasks_due ON rep_tasks(due_date) WHERE status = 'open';
+CREATE INDEX IF NOT EXISTS idx_rep_tasks_customer ON rep_tasks(linked_customer_type, linked_customer_ref);
+
+-- ==================== Full-Text Search ====================
+
+ALTER TABLE products ADD COLUMN IF NOT EXISTS search_vector tsvector;
+
+CREATE OR REPLACE FUNCTION refresh_search_vectors(target_product_id uuid DEFAULT NULL)
+RETURNS void AS $$
+BEGIN
+  UPDATE products p SET search_vector =
+    setweight(to_tsvector('english', unaccent(coalesce(p.name, ''))), 'A') ||
+    setweight(to_tsvector('english', unaccent(coalesce(p.collection, ''))), 'A') ||
+    setweight(to_tsvector('english', unaccent(coalesce(v.name, ''))), 'B') ||
+    setweight(to_tsvector('english', unaccent(coalesce(
+      (SELECT c.name FROM categories c WHERE c.id = p.category_id), ''))), 'B') ||
+    setweight(to_tsvector('english', unaccent(coalesce(p.description_short, ''))), 'C') ||
+    setweight(to_tsvector('english', unaccent(coalesce(
+      (SELECT string_agg(DISTINCT sa.value, ' ')
+       FROM skus s JOIN sku_attributes sa ON sa.sku_id = s.id
+       WHERE s.product_id = p.id AND s.status = 'active'), ''))), 'D')
+  FROM vendors v
+  WHERE v.id = p.vendor_id
+    AND (target_product_id IS NULL OR p.id = target_product_id);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE INDEX IF NOT EXISTS idx_products_search_vector ON products USING GIN(search_vector);
+CREATE INDEX IF NOT EXISTS idx_products_name_trgm ON products USING GIN(name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_products_collection_trgm ON products USING GIN(collection gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_categories_name_trgm ON categories USING GIN(name gin_trgm_ops);
