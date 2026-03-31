@@ -7,7 +7,7 @@
     function getSessionId() {
       let id = localStorage.getItem('cart_session_id');
       if (!id) {
-        id = 'sess_' + Math.random().toString(36).substr(2, 12) + Date.now().toString(36);
+        id = 'sess_' + crypto.randomUUID();
         localStorage.setItem('cart_session_id', id);
       }
       return id;
@@ -81,6 +81,66 @@
       if (isSoldPerSqyd(sku)) return '/sqyd';
       return '/sqft';
     }
+    // Slab pricing: when price is stored per sqft but sold per piece, compute piece price
+    function displayPrice(sku, rawPrice) {
+      const price = parseFloat(rawPrice || 0);
+      if (sku && sku.sell_by === 'unit' && (sku.price_basis === 'sqft' || sku.price_basis === 'per_sqft') && parseFloat(sku.sqft_per_box) > 0) {
+        return price * parseFloat(sku.sqft_per_box);
+      }
+      return price;
+    }
+
+    // ==================== Image Optimization Helper ====================
+    function optimizeImg(url, width) {
+      if (!url || typeof url !== 'string') return url;
+      try {
+        // Amplience: i8.amplience.net
+        if (url.includes('i8.amplience.net')) {
+          const u = new URL(url);
+          u.searchParams.set('w', width);
+          u.searchParams.set('fmt', 'auto');
+          u.searchParams.set('qlt', '80');
+          return u.toString();
+        }
+        // Cloudinary: res.cloudinary.com — insert transforms after /upload/
+        if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+          return url.replace('/upload/', `/upload/w_${width},f_auto,q_80/`);
+        }
+        // Widen: *.widen.net
+        if (url.includes('.widen.net')) {
+          const u = new URL(url);
+          u.searchParams.set('w', width);
+          u.searchParams.set('quality', '80');
+          return u.toString();
+        }
+      } catch (e) { /* malformed URL — return as-is */ }
+      return url;
+    }
+
+    // ==================== Recent Searches (localStorage) ====================
+    const RECENT_SEARCHES_KEY = 'roma_recent_searches';
+    const MAX_RECENT_SEARCHES = 6;
+    function getRecentSearches() {
+      try { return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || '[]'); } catch { return []; }
+    }
+    function addRecentSearch(term) {
+      if (!term || term.length < 2) return;
+      const recent = getRecentSearches().filter(t => t.toLowerCase() !== term.toLowerCase());
+      recent.unshift(term);
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recent.slice(0, MAX_RECENT_SEARCHES)));
+    }
+    function clearRecentSearches() { localStorage.removeItem(RECENT_SEARCHES_KEY); }
+
+    // ==================== Search Highlight Helper ====================
+    function highlightMatch(text, query) {
+      if (!query || query.length < 2 || !text) return text;
+      try {
+        const regex = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+        const parts = String(text).split(regex);
+        if (parts.length === 1) return text;
+        return parts.map((part, i) => regex.test(part) ? React.createElement('mark', { key: i, className: 'search-highlight' }, part) : part);
+      } catch { return text; }
+    }
 
     // ==================== Mega Menu Data Maps ====================
 
@@ -148,6 +208,31 @@
       return 'linear-gradient(135deg, #c2b8aa, #a49888)';
     }
 
+    // ==================== Color Families for Sidebar Swatches ====================
+    const COLOR_FAMILIES = {
+      'White':  { hex: '#f5f5f0', keywords: ['white', 'ivory', 'cream', 'snow', 'pearl', 'alabaster', 'frost', 'arctic', 'bright white'] },
+      'Gray':   { hex: '#9e9e9e', keywords: ['gray', 'grey', 'charcoal', 'silver', 'slate', 'ash', 'smoke', 'graphite', 'pewter', 'cement', 'concrete'] },
+      'Beige':  { hex: '#d4c5a9', keywords: ['beige', 'tan', 'sand', 'taupe', 'khaki', 'linen', 'wheat', 'bone', 'champagne', 'natural', 'almond'] },
+      'Brown':  { hex: '#8b6f47', keywords: ['brown', 'chocolate', 'coffee', 'mocha', 'walnut', 'chestnut', 'mahogany', 'espresso', 'umber', 'oak', 'hickory', 'pecan', 'caramel'] },
+      'Black':  { hex: '#2c2c2c', keywords: ['black', 'onyx', 'ebony', 'jet', 'midnight', 'noir', 'obsidian'] },
+      'Blue':   { hex: '#6b8cae', keywords: ['blue', 'navy', 'cobalt', 'teal', 'aqua', 'sapphire', 'ocean', 'azure', 'cerulean', 'indigo', 'denim'] },
+      'Green':  { hex: '#7a9972', keywords: ['green', 'sage', 'olive', 'forest', 'emerald', 'moss', 'mint', 'jade', 'celadon'] },
+      'Red':    { hex: '#b54c4c', keywords: ['red', 'burgundy', 'wine', 'cherry', 'crimson', 'maroon', 'rust', 'brick', 'terracotta'] },
+      'Gold':   { hex: '#c9a668', keywords: ['gold', 'golden', 'honey', 'amber', 'copper', 'bronze', 'brass'] },
+      'Blonde': { hex: '#dcc9a3', keywords: ['blonde', 'blond', 'flaxen', 'straw', 'light oak', 'light natural'] },
+      'Multi':  { hex: 'conic-gradient(#f5f5f0,#9e9e9e,#d4c5a9,#8b6f47,#6b8cae)', keywords: ['multi', 'mixed', 'multicolor', 'variegated', 'blend'] },
+    };
+
+    function mapColorToFamily(rawColor) {
+      if (!rawColor) return null;
+      const lower = rawColor.toLowerCase().trim();
+      if (lower === 'xxx' || lower === 'n/a' || lower === 'na' || !lower) return null;
+      for (const [family, { keywords }] of Object.entries(COLOR_FAMILIES)) {
+        if (keywords.some(kw => lower.includes(kw))) return family;
+      }
+      return null;
+    }
+
     function parseSizeDimensions(sizeStr) {
       if (!sizeStr) return { width: 16, height: 16 };
       const s = sizeStr.trim().replace(/"/g, '').replace(/\u201d/g, '');
@@ -199,12 +284,68 @@
       }).join(' \u2014 ');
     }
 
+    const ROMAN_VAL = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10 };
+    const ROMAN_REGEX = /\b(I{1,3}|IV|V(?:I{1,3})?|IX|X)\b(?=\s+\d|\s*$)/;
+    function hasRomanSuffix(name) {
+      if (!name) return false;
+      const m = name.match(ROMAN_REGEX);
+      return !!(m && ROMAN_VAL[m[1]]);
+    }
+    function romanSortKey(name) {
+      if (!name) return 0;
+      const m = name.match(ROMAN_REGEX);
+      return (m && ROMAN_VAL[m[1]]) || 0;
+    }
+
     function fullProductName(sku) {
-      const name = formatCarpetValue(sku.product_name || '');
+      const rawName = sku.product_name || '';
       const col = sku.collection || '';
-      // Skip collection prefix if product name already starts with it (avoids "Victory Victory")
-      const showCollection = col && name && !name.toLowerCase().startsWith(col.toLowerCase()) ? col : '';
-      return [showCollection, name, sku.variant_name ? formatVariantName(sku.variant_name) : null].filter(Boolean).join(' ');
+      let name = formatCarpetValue(rawName);
+
+      // Strip leading size prefix from product name (e.g. "12x24r Marble Onice Supreme Marfil" → "Marble Onice Supreme Marfil")
+      name = name.replace(/^\d+\s*[xX×]\s*\d+\w?\s+/, '');
+
+      // If collection name appears inside product name, remove it to avoid repetition
+      // e.g. name="Marble Onice Supreme Marfil", col="Onice Supreme" → "Marble Marfil"
+      let showCollection = '';
+      if (col && name) {
+        const colLower = col.toLowerCase();
+        const nameLower = name.toLowerCase();
+        if (colLower === nameLower) {
+          // Collection is identical to product name — skip to avoid "Blockade II Blockade II"
+          showCollection = '';
+        } else if (nameLower.startsWith(colLower + ' ') || nameLower.startsWith(colLower + '-')) {
+          // Product name starts with collection — skip collection display, keep full name
+          showCollection = '';
+        } else if (nameLower.includes(' ' + colLower + ' ') || nameLower.endsWith(' ' + colLower)) {
+          // Collection name embedded in middle/end of product name — skip collection display
+          showCollection = '';
+        } else {
+          showCollection = col;
+        }
+      }
+
+      // Build variant display: skip if it duplicates or is already inside product_name
+      let variant = null;
+      if (sku.variant_name && sku.variant_name.toLowerCase() !== rawName.toLowerCase()) {
+        const vLower = sku.variant_name.toLowerCase().trim();
+        const pLower = rawName.toLowerCase();
+        const nLower = name.toLowerCase();
+        if (vLower.startsWith(pLower + ' ')) {
+          // variant_name = "Cement 12X24" when product_name = "Cement" → show just "12X24"
+          const suffix = sku.variant_name.substring(rawName.length + 1).trim();
+          variant = suffix ? formatVariantName(suffix) : null;
+        } else if (pLower.startsWith(vLower + ' ') || pLower === vLower) {
+          // product_name already contains variant info
+          variant = null;
+        } else if (vLower.length > 2 && (nLower.includes(' ' + vLower + ' ') || nLower.endsWith(' ' + vLower) || nLower.startsWith(vLower + ' '))) {
+          // variant_name is a word/phrase already present in product name (e.g. color embedded)
+          variant = null;
+        } else {
+          variant = formatVariantName(sku.variant_name);
+        }
+      }
+      return [showCollection, name, variant].filter(Boolean).join(' ');
     }
 
     function cleanDescription(text, vendorName) {
@@ -257,7 +398,15 @@
       return React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '2px' } }, stars);
     }
 
-    const stripeInstance = (typeof Stripe !== 'undefined') ? Stripe('pk_test_51IcH4FAWmYYxUYn2GrZcTtlwu54PknYJ9JvaUqW4MNwAYQJ0X4NfFedEBl2UJpf09K6BYFDJSXNXsPw4BWYITXSM00aUeDMwcV') : null;
+    let stripeInstance = null;
+    (async () => {
+      if (typeof Stripe === 'undefined') return;
+      try {
+        const r = await fetch((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001' : '') + '/api/config/stripe-key');
+        const data = await r.json();
+        if (data.key) stripeInstance = Stripe(data.key);
+      } catch (e) { console.warn('Failed to load Stripe key:', e); }
+    })();
 
     // ==================== Google Places Loader ====================
     let _placesPromise = null;
@@ -283,10 +432,10 @@
     class ErrorBoundary extends React.Component {
       constructor(props) {
         super(props);
-        this.state = { hasError: false };
+        this.state = { hasError: false, errorMsg: '' };
       }
-      static getDerivedStateFromError() {
-        return { hasError: true };
+      static getDerivedStateFromError(error) {
+        return { hasError: true, errorMsg: error && (error.stack || error.message || String(error)) };
       }
       componentDidCatch(error, info) {
         console.error('ErrorBoundary caught:', error, info);
@@ -294,12 +443,12 @@
       render() {
         if (this.state.hasError) {
           return React.createElement('div', {
-            style: { maxWidth: 600, margin: '6rem auto', textAlign: 'center', padding: '2rem', fontFamily: "'Inter', system-ui, sans-serif" }
+            style: { maxWidth: 800, margin: '6rem auto', textAlign: 'center', padding: '2rem', fontFamily: "'Inter', system-ui, sans-serif" }
           },
             React.createElement('div', { style: { fontSize: '4rem', marginBottom: '1rem', color: '#a8a29e' } }, '\u26A0'),
             React.createElement('h1', { style: { fontFamily: "'Cormorant Garamond', serif", fontSize: '2rem', fontWeight: 300, marginBottom: '0.75rem' } }, 'Something Went Wrong'),
-            React.createElement('p', { style: { color: '#78716c', marginBottom: '2rem', lineHeight: 1.6 } },
-              'We\u2019re sorry, an unexpected error occurred. Please refresh the page to try again.'
+            React.createElement('pre', { style: { color: '#dc2626', textAlign: 'left', background: '#fef2f2', padding: '1rem', fontSize: '0.75rem', overflow: 'auto', maxHeight: '300px', marginBottom: '1rem', border: '1px solid #fca5a5', borderRadius: '4px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' } },
+              this.state.errorMsg || 'Unknown error'
             ),
             React.createElement('button', {
               onClick: () => window.location.reload(),
@@ -361,9 +510,16 @@
       const [selectedCategory, setSelectedCategory] = useState(null);
       const [selectedCollection, setSelectedCollection] = useState(null);
       const [searchQuery, setSearchQuery] = useState('');
+      const [searchDidYouMean, setSearchDidYouMean] = useState(null);
       const [filters, setFilters] = useState({});
       const [facets, setFacets] = useState([]);
+      const [vendorFacets, setVendorFacets] = useState([]);
+      const [priceRange, setPriceRange] = useState({ min: 0, max: 1000 });
+      const [userPriceRange, setUserPriceRange] = useState({ min: null, max: null });
+      const [vendorFilters, setVendorFilters] = useState([]);
       const [globalFacets, setGlobalFacets] = useState([]);
+      const [tagFacets, setTagFacets] = useState([]);
+      const [tagFilters, setTagFilters] = useState([]);
       const [sortBy, setSortBy] = useState('name_asc');
       const [loadingSkus, setLoadingSkus] = useState(false);
       const [currentPage, setCurrentPage] = useState(1);
@@ -430,7 +586,7 @@
       const addRecentlyViewed = (skuData) => {
         setRecentlyViewed(prev => {
           const filtered = prev.filter(s => s.sku_id !== skuData.sku_id);
-          const updated = [{ sku_id: skuData.sku_id, product_name: skuData.product_name, variant_name: skuData.variant_name, primary_image: skuData.primary_image, retail_price: skuData.retail_price, price_basis: skuData.price_basis }, ...filtered].slice(0, 12);
+          const updated = [{ sku_id: skuData.sku_id, product_name: skuData.product_name, variant_name: skuData.variant_name, primary_image: skuData.primary_image, retail_price: skuData.retail_price, price_basis: skuData.price_basis, sell_by: skuData.sell_by, sqft_per_box: skuData.sqft_per_box }, ...filtered].slice(0, 12);
           localStorage.setItem('recently_viewed', JSON.stringify(updated));
           return updated;
         });
@@ -452,9 +608,10 @@
       // ---- Fetch SKUs ----
       const fetchSkus = useCallback((opts = {}) => {
         const PAGE_SIZE = 72;
-        const { cat, coll, search, activeFilters, sort, page } = {
+        const { cat, coll, search, activeFilters, sort, page, vendors, priceMin, priceMax, tags } = {
           cat: selectedCategory, coll: selectedCollection, search: searchQuery,
-          activeFilters: filters, sort: sortBy, page: currentPage, ...opts
+          activeFilters: filters, sort: sortBy, page: currentPage,
+          vendors: vendorFilters, priceMin: userPriceRange.min, priceMax: userPriceRange.max, tags: tagFilters, ...opts
         };
         const params = new URLSearchParams();
         if (cat) params.set('category', cat);
@@ -467,6 +624,12 @@
         Object.keys(af).forEach(slug => {
           if (af[slug] && af[slug].length > 0) params.set(slug, af[slug].join('|'));
         });
+        const vf = vendors || [];
+        if (vf.length > 0) params.set('vendor', vf.join('|'));
+        if (priceMin != null) params.set('price_min', String(priceMin));
+        if (priceMax != null) params.set('price_max', String(priceMax));
+        const tf = tags || [];
+        if (tf.length > 0) params.set('tags', tf.join('|'));
 
         setLoadingSkus(true);
         fetch(API + '/api/storefront/skus?' + params.toString(), { headers: tradeHeaders() })
@@ -474,6 +637,7 @@
           .then(data => {
             setSkus(data.skus || []);
             setTotalSkus(data.total || 0);
+            setSearchDidYouMean(data.didYouMean || null);
             setLoadingSkus(false);
             if (pendingScroll.current !== null) {
               const pos = pendingScroll.current;
@@ -482,13 +646,14 @@
             }
           })
           .catch(err => { console.error(err); setLoadingSkus(false); });
-      }, [selectedCategory, selectedCollection, searchQuery, filters, sortBy, currentPage]);
+      }, [selectedCategory, selectedCollection, searchQuery, filters, sortBy, currentPage, vendorFilters, userPriceRange, tagFilters]);
 
       // ---- Fetch Facets ----
       const fetchFacets = useCallback((opts = {}) => {
-        const { cat, coll, search, activeFilters } = {
+        const { cat, coll, search, activeFilters, vendors, priceMin, priceMax, tags } = {
           cat: selectedCategory, coll: selectedCollection, search: searchQuery,
-          activeFilters: filters, ...opts
+          activeFilters: filters, vendors: vendorFilters,
+          priceMin: userPriceRange.min, priceMax: userPriceRange.max, tags: tagFilters, ...opts
         };
         const params = new URLSearchParams();
         if (cat) params.set('category', cat);
@@ -498,19 +663,30 @@
         Object.keys(af).forEach(slug => {
           if (af[slug] && af[slug].length > 0) params.set(slug, af[slug].join('|'));
         });
+        const vf = vendors || [];
+        if (vf.length > 0) params.set('vendor', vf.join('|'));
+        if (priceMin != null) params.set('price_min', String(priceMin));
+        if (priceMax != null) params.set('price_max', String(priceMax));
+        const tf = tags || [];
+        if (tf.length > 0) params.set('tags', tf.join('|'));
 
         fetch(API + '/api/storefront/facets?' + params.toString())
           .then(r => r.json())
-          .then(data => setFacets(data.facets || []))
+          .then(data => {
+            setFacets(data.facets || []);
+            setVendorFacets(data.vendors || []);
+            setTagFacets(data.tags || []);
+            if (data.priceRange) setPriceRange(data.priceRange);
+          })
           .catch(err => console.error(err));
-      }, [selectedCategory, selectedCollection, searchQuery, filters]);
+      }, [selectedCategory, selectedCollection, searchQuery, filters, vendorFilters, userPriceRange, tagFilters]);
 
       // Keep refs up to date so popstate always uses latest versions
       fetchSkusRef.current = fetchSkus;
       fetchFacetsRef.current = fetchFacets;
 
       // ---- URL Helpers ----
-      const buildShopUrl = (cat, coll, search, af) => {
+      const buildShopUrl = (cat, coll, search, af, vf, prMin, prMax, tf) => {
         const params = new URLSearchParams();
         if (cat) params.set('category', cat);
         if (coll) params.set('collection', coll);
@@ -519,13 +695,17 @@
         Object.keys(f).forEach(slug => {
           if (f[slug] && f[slug].length > 0) params.set(slug, f[slug].join('|'));
         });
+        if (vf && vf.length > 0) params.set('vendor', vf.join('|'));
+        if (prMin != null) params.set('price_min', String(prMin));
+        if (prMax != null) params.set('price_max', String(prMax));
+        if (tf && tf.length > 0) params.set('tags', tf.join('|'));
         const qs = params.toString();
         return '/shop' + (qs ? '?' + qs : '');
       };
 
-      const pushShopUrl = (cat, coll, search, af, replace) => {
-        const url = buildShopUrl(cat, coll, search, af);
-        const state = { view: 'browse', cat, coll, search, filters: af, page: currentPage, scrollPos: scrollY.current };
+      const pushShopUrl = (cat, coll, search, af, replace, vf, prMin, prMax, tf) => {
+        const url = buildShopUrl(cat, coll, search, af, vf, prMin, prMax, tf);
+        const state = { view: 'browse', cat, coll, search, filters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: currentPage, scrollPos: scrollY.current };
         if (replace) history.replaceState(state, '', url);
         else history.pushState(state, '', url);
       };
@@ -724,6 +904,12 @@
         window.scrollTo(0, 0);
       };
 
+      const goSale = () => {
+        setView('sale');
+        history.pushState({ view: 'sale' }, '', '/sale');
+        window.scrollTo(0, 0);
+      };
+
       const [comingSoonTitle, setComingSoonTitle] = useState('');
       const [newsletterEmail, setNewsletterEmail] = useState('');
       const [newsletterSubmitted, setNewsletterSubmitted] = useState(false);
@@ -749,12 +935,15 @@
           setSelectedCollection(null);
           setSearchQuery('');
           setFilters({});
+          setVendorFilters([]);
+          setTagFilters([]);
+          setUserPriceRange({ min: null, max: null });
           setCurrentPage(1);
           const sortVal = sp.get('sort');
           if (sortVal) setSortBy(sortVal);
           setView('browse');
-          fetchSkus({ cat: null, coll: null, search: '', activeFilters: {}, page: 1, sort: sortVal || sortBy });
-          fetchFacets({ cat: null, coll: null, search: '', activeFilters: {} });
+          fetchSkus({ cat: null, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1, sort: sortVal || sortBy });
+          fetchFacets({ cat: null, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
           history.pushState({ view: 'browse' }, '', path);
           window.scrollTo(0, 0);
           return;
@@ -765,6 +954,10 @@
         }
         if (path === '/inspiration') {
           goInspiration();
+          return;
+        }
+        if (path === '/sale') {
+          goSale();
           return;
         }
         // Service page placeholders
@@ -785,11 +978,14 @@
         setSelectedCategory(null);
         setSelectedCollection(collectionName);
         setFilters({});
+        setVendorFilters([]);
+        setTagFilters([]);
+        setUserPriceRange({ min: null, max: null });
         setCurrentPage(1);
         setView('browse');
-        fetchSkus({ cat: null, coll: collectionName, activeFilters: {}, page: 1 });
-        fetchFacets({ cat: null, coll: collectionName, activeFilters: {} });
-        pushShopUrl(null, collectionName, '', {});
+        fetchSkus({ cat: null, coll: collectionName, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
+        fetchFacets({ cat: null, coll: collectionName, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
+        pushShopUrl(null, collectionName, '', {}, false, [], null, null, []);
         window.scrollTo(0, 0);
       };
 
@@ -799,13 +995,16 @@
         setSelectedCollection(null);
         setSearchQuery('');
         setFilters({});
+        setVendorFilters([]);
+        setTagFilters([]);
+        setUserPriceRange({ min: null, max: null });
         setCurrentPage(1);
         // Auto-select first category instead of showing "Shop All"
         const firstCat = categories.length > 0 ? categories[0].slug : null;
         setSelectedCategory(firstCat);
-        fetchSkus({ cat: firstCat, coll: null, search: '', activeFilters: {}, page: 1 });
-        fetchFacets({ cat: firstCat, coll: null, search: '', activeFilters: {} });
-        pushShopUrl(firstCat, null, '', {});
+        fetchSkus({ cat: firstCat, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
+        fetchFacets({ cat: firstCat, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
+        pushShopUrl(firstCat, null, '', {}, false, [], null, null, []);
         window.scrollTo(0, 0);
       };
 
@@ -820,7 +1019,7 @@
 
       const goBackToBrowse = () => {
         setView('browse');
-        pushShopUrl(selectedCategory, selectedCollection, searchQuery, filters);
+        pushShopUrl(selectedCategory, selectedCollection, searchQuery, filters, false, vendorFilters, userPriceRange.min, userPriceRange.max, tagFilters);
         requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, scrollY.current)));
       };
 
@@ -856,10 +1055,13 @@
         setSelectedCategory(slug);
         setSelectedCollection(null);
         setFilters({});
+        setVendorFilters([]);
+        setTagFilters([]);
+        setUserPriceRange({ min: null, max: null });
         setCurrentPage(1);
-        fetchSkus({ cat: slug, coll: null, activeFilters: {}, page: 1 });
-        fetchFacets({ cat: slug, coll: null, activeFilters: {} });
-        pushShopUrl(slug, null, searchQuery, {});
+        fetchSkus({ cat: slug, coll: null, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
+        fetchFacets({ cat: slug, coll: null, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
+        pushShopUrl(slug, null, searchQuery, {}, false, [], null, null, []);
       };
 
       const handleAxisSelect = (attrSlug, value) => {
@@ -867,12 +1069,15 @@
         setSelectedCollection(null);
         setSearchQuery('');
         setFilters({ [attrSlug]: [value] });
+        setVendorFilters([]);
+        setTagFilters([]);
+        setUserPriceRange({ min: null, max: null });
         setCurrentPage(1);
         setView('browse');
         const af = { [attrSlug]: [value] };
-        fetchSkus({ cat: null, coll: null, search: '', activeFilters: af, page: 1 });
-        fetchFacets({ cat: null, coll: null, search: '', activeFilters: af });
-        pushShopUrl(null, null, '', af);
+        fetchSkus({ cat: null, coll: null, search: '', activeFilters: af, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
+        fetchFacets({ cat: null, coll: null, search: '', activeFilters: af, vendors: [], priceMin: null, priceMax: null, tags: [] });
+        pushShopUrl(null, null, '', af, false, [], null, null, []);
         window.scrollTo(0, 0);
       };
 
@@ -886,29 +1091,71 @@
           setCurrentPage(1);
           fetchSkus({ activeFilters: updated, page: 1 });
           fetchFacets({ activeFilters: updated });
-          pushShopUrl(selectedCategory, selectedCollection, searchQuery, updated, true);
+          pushShopUrl(selectedCategory, selectedCollection, searchQuery, updated, true, vendorFilters, userPriceRange.min, userPriceRange.max, tagFilters);
           return updated;
         });
       };
 
+      const handleVendorToggle = (name) => {
+        setVendorFilters(prev => {
+          const next = prev.includes(name) ? prev.filter(v => v !== name) : [...prev, name];
+          setCurrentPage(1);
+          fetchSkus({ vendors: next, page: 1 });
+          fetchFacets({ vendors: next });
+          pushShopUrl(selectedCategory, selectedCollection, searchQuery, filters, true, next, userPriceRange.min, userPriceRange.max, tagFilters);
+          return next;
+        });
+      };
+
+      const handleTagToggle = (slug) => {
+        setTagFilters(prev => {
+          const next = prev.includes(slug) ? prev.filter(t => t !== slug) : [...prev, slug];
+          setCurrentPage(1);
+          fetchSkus({ tags: next, page: 1 });
+          fetchFacets({ tags: next });
+          pushShopUrl(selectedCategory, selectedCollection, searchQuery, filters, true, vendorFilters, userPriceRange.min, userPriceRange.max, next);
+          return next;
+        });
+      };
+
+      const priceDebounceRef = useRef(null);
+      const handlePriceRangeChange = (min, max) => {
+        const newRange = { min: min != null ? min : null, max: max != null ? max : null };
+        setUserPriceRange(newRange);
+        if (priceDebounceRef.current) clearTimeout(priceDebounceRef.current);
+        priceDebounceRef.current = setTimeout(() => {
+          setCurrentPage(1);
+          fetchSkus({ priceMin: newRange.min, priceMax: newRange.max, page: 1 });
+          fetchFacets({ priceMin: newRange.min, priceMax: newRange.max });
+          pushShopUrl(selectedCategory, selectedCollection, searchQuery, filters, true, vendorFilters, newRange.min, newRange.max, tagFilters);
+        }, 500);
+      };
+
       const handleClearFilters = () => {
         setFilters({});
+        setVendorFilters([]);
+        setTagFilters([]);
+        setUserPriceRange({ min: null, max: null });
         setCurrentPage(1);
-        fetchSkus({ activeFilters: {}, page: 1 });
-        fetchFacets({ activeFilters: {} });
-        pushShopUrl(selectedCategory, selectedCollection, searchQuery, {}, true);
+        fetchSkus({ activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
+        fetchFacets({ activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
+        pushShopUrl(selectedCategory, selectedCollection, searchQuery, {}, true, [], null, null, []);
       };
 
       const handleSearch = (query) => {
         setSearchQuery(query);
+        setSearchDidYouMean(null);
         setSelectedCategory(null);
         setSelectedCollection(null);
         setFilters({});
+        setVendorFilters([]);
+        setTagFilters([]);
+        setUserPriceRange({ min: null, max: null });
         setCurrentPage(1);
         setView('browse');
-        fetchSkus({ cat: null, coll: null, search: query, activeFilters: {}, page: 1 });
-        fetchFacets({ cat: null, coll: null, search: query, activeFilters: {} });
-        pushShopUrl(null, null, query, {});
+        fetchSkus({ cat: null, coll: null, search: query, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
+        fetchFacets({ cat: null, coll: null, search: query, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
+        pushShopUrl(null, null, query, {}, false, [], null, null, []);
         window.scrollTo(0, 0);
       };
 
@@ -988,8 +1235,8 @@
           const slug = path.replace('/collections/', '');
           setSelectedCollection(slug);
           setView('browse');
-          fetchSkus({ coll: slug, activeFilters: {} });
-          fetchFacets({ coll: slug, activeFilters: {} });
+          fetchSkus({ coll: slug, activeFilters: {}, tags: [] });
+          fetchFacets({ coll: slug, activeFilters: {}, tags: [] });
         } else if (path === '/trade' && !path.startsWith('/trade/')) {
           setView('trade');
         } else if (path === '/trade/dashboard' || path === '/shop/trade') {
@@ -1005,6 +1252,8 @@
           setView('installation');
         } else if (path === '/inspiration') {
           setView('inspiration');
+        } else if (path === '/sale') {
+          setView('sale');
         } else if (['/design-services', '/about'].includes(path)) {
           const titles = { '/design-services': 'Design Services', '/about': 'About Us' };
           setComingSoonTitle(titles[path]);
@@ -1015,16 +1264,24 @@
           const cat = sp.get('category');
           const coll = sp.get('collection');
           const q = sp.get('q');
+          const reserved = ['category', 'collection', 'q', 'vendor', 'price_min', 'price_max', 'sort', 'tags'];
           const af = {};
           sp.forEach((val, key) => {
-            if (!['category', 'collection', 'q'].includes(key)) af[key] = val.split('|');
+            if (!reserved.includes(key)) af[key] = val.split('|');
           });
+          const vf = sp.get('vendor') ? sp.get('vendor').split('|') : [];
+          const prMin = sp.get('price_min') ? parseFloat(sp.get('price_min')) : null;
+          const prMax = sp.get('price_max') ? parseFloat(sp.get('price_max')) : null;
+          const tf = sp.get('tags') ? sp.get('tags').split('|') : [];
           if (cat) setSelectedCategory(cat);
           if (coll) setSelectedCollection(coll);
           if (q) setSearchQuery(q);
           if (Object.keys(af).length) setFilters(af);
-          fetchSkus({ cat, coll, search: q || '', activeFilters: af });
-          fetchFacets({ cat, coll, search: q || '', activeFilters: af });
+          if (vf.length) setVendorFilters(vf);
+          if (tf.length) setTagFilters(tf);
+          if (prMin != null || prMax != null) setUserPriceRange({ min: prMin, max: prMax });
+          fetchSkus({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+          fetchFacets({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
         } else {
           setView('home');
         }
@@ -1040,13 +1297,16 @@
               setSelectedCollection(state.coll || null);
               setSearchQuery(state.search || '');
               setFilters(state.filters || {});
+              setVendorFilters(state.vendors || []);
+              setTagFilters(state.tags || []);
+              setUserPriceRange({ min: state.priceMin != null ? state.priceMin : null, max: state.priceMax != null ? state.priceMax : null });
               const savedPage = state.page || 1;
               const savedScroll = state.scrollPos || 0;
               setCurrentPage(savedPage);
               scrollY.current = savedScroll;
               pendingScroll.current = savedScroll;
-              fetchSkusRef.current({ cat: state.cat, coll: state.coll, search: state.search || '', activeFilters: state.filters || {}, page: savedPage });
-              fetchFacetsRef.current({ cat: state.cat, coll: state.coll, search: state.search || '', activeFilters: state.filters || {} });
+              fetchSkusRef.current({ cat: state.cat, coll: state.coll, search: state.search || '', activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [], page: savedPage });
+              fetchFacetsRef.current({ cat: state.cat, coll: state.coll, search: state.search || '', activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [] });
             }
             if (state.view === 'visit-recap' && state.token) setVisitRecapToken(state.token);
             if (state.view === 'coming-soon' && state.title) setComingSoonTitle(state.title);
@@ -1060,6 +1320,7 @@
               setView('detail');
             } else if (p === '/trade') { setView('trade'); }
             else if (p === '/trade/dashboard') { setView('trade-dashboard'); }
+            else if (p === '/sale') { setView('sale'); }
             else if (p.startsWith('/visit/')) { setVisitRecapToken(p.replace('/visit/', '')); setView('visit-recap'); }
             else {
               setView('browse');
@@ -1067,17 +1328,25 @@
               const cat = sp2.get('category');
               const coll = sp2.get('collection');
               const q = sp2.get('q');
+              const reserved2 = ['category', 'collection', 'q', 'vendor', 'price_min', 'price_max', 'sort', 'tags'];
               const af = {};
               sp2.forEach((val, key) => {
-                if (!['category', 'collection', 'q'].includes(key)) af[key] = val.split('|');
+                if (!reserved2.includes(key)) af[key] = val.split('|');
               });
+              const vf = sp2.get('vendor') ? sp2.get('vendor').split('|') : [];
+              const prMin = sp2.get('price_min') ? parseFloat(sp2.get('price_min')) : null;
+              const prMax = sp2.get('price_max') ? parseFloat(sp2.get('price_max')) : null;
+              const tf = sp2.get('tags') ? sp2.get('tags').split('|') : [];
               setSelectedCategory(cat);
               setSelectedCollection(coll);
               setSearchQuery(q || '');
               if (Object.keys(af).length) setFilters(af);
+              setVendorFilters(vf);
+              setTagFilters(tf);
+              setUserPriceRange({ min: prMin, max: prMax });
               setCurrentPage(1);
-              fetchSkusRef.current({ cat, coll, search: q || '', activeFilters: af, page: 1 });
-              fetchFacetsRef.current({ cat, coll, search: q || '', activeFilters: af });
+              fetchSkusRef.current({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: 1 });
+              fetchFacetsRef.current({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
             }
           }
         };
@@ -1093,7 +1362,7 @@
             setSelectedCategory(firstParent.slug);
             fetchSkus({ cat: firstParent.slug, coll: null, search: '', activeFilters: filters, page: 1 });
             fetchFacets({ cat: firstParent.slug, coll: null, search: '', activeFilters: filters });
-            pushShopUrl(firstParent.slug, null, '', filters, true);
+            pushShopUrl(firstParent.slug, null, '', filters, true, [], null, null, []);
           }
         }
       }, [view, categories]);
@@ -1200,6 +1469,7 @@
             mobileSearchOpen={mobileSearchOpen} setMobileSearchOpen={setMobileSearchOpen}
             view={view}
             navigate={navigate}
+            goSale={goSale}
           />
 
           {view === 'home' && (
@@ -1225,7 +1495,7 @@
               skus={skus} totalSkus={totalSkus} loading={loadingSkus}
               categories={categories} selectedCategory={selectedCategory}
               selectedCollection={selectedCollection} searchQuery={searchQuery}
-              onCategorySelect={handleCategorySelect}
+              onCategorySelect={handleCategorySelect} onSearch={handleSearch}
               facets={facets} filters={filters}
               onFilterToggle={handleFilterToggle} onClearFilters={handleClearFilters}
               sortBy={sortBy} onSortChange={handleSortChange}
@@ -1235,6 +1505,10 @@
               setQuickViewSku={setQuickViewSku}
               filterDrawerOpen={filterDrawerOpen} setFilterDrawerOpen={setFilterDrawerOpen}
               goHome={goHome}
+              vendorFacets={vendorFacets} vendorFilters={vendorFilters} onVendorToggle={handleVendorToggle}
+              priceRange={priceRange} userPriceRange={userPriceRange} onPriceRangeChange={handlePriceRangeChange}
+              tagFacets={tagFacets} tagFilters={tagFilters} onTagToggle={handleTagToggle}
+              didYouMean={searchDidYouMean}
             />
           )}
 
@@ -1332,6 +1606,10 @@
             <InspirationPage navigate={navigate} goBrowse={goBrowse} />
           )}
 
+          {view === 'sale' && (
+            <SalePage onSkuClick={goSkuDetail} wishlist={wishlist} toggleWishlist={toggleWishlist} setQuickViewSku={setQuickViewSku} navigate={navigate} />
+          )}
+
           {view === 'coming-soon' && (
             <div style={{ maxWidth: 600, margin: '6rem auto', textAlign: 'center', padding: '0 2rem' }}>
               <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: '2.5rem', marginBottom: '1rem' }}>{comingSoonTitle}</h1>
@@ -1405,15 +1683,19 @@
 
     // ==================== Header (4-Row) ====================
 
-    function Header({ goHome, goBrowse, cart, cartDrawerOpen, setCartDrawerOpen, cartFlash, onSearch, onSkuClick, tradeCustomer, onTradeClick, onTradeLogout, customer, onAccountClick, onCustomerLogout, wishlistCount, goWishlist, goCollections, categories, onCategorySelect, globalFacets, onAxisSelect, mobileNavOpen, setMobileNavOpen, mobileSearchOpen, setMobileSearchOpen, view, navigate }) {
+    function Header({ goHome, goBrowse, cart, cartDrawerOpen, setCartDrawerOpen, cartFlash, onSearch, onSkuClick, tradeCustomer, onTradeClick, onTradeLogout, customer, onAccountClick, onCustomerLogout, wishlistCount, goWishlist, goCollections, categories, onCategorySelect, globalFacets, onAxisSelect, mobileNavOpen, setMobileNavOpen, mobileSearchOpen, setMobileSearchOpen, view, navigate, goSale }) {
       const [searchInput, setSearchInput] = useState('');
       const [suggestData, setSuggestData] = useState({ categories: [], collections: [], products: [], total: 0 });
       const [showSuggestions, setShowSuggestions] = useState(false);
       const [activeIdx, setActiveIdx] = useState(-1);
       const [popularSearches, setPopularSearches] = useState([]);
+      const [recentSearches, setRecentSearches] = useState(() => getRecentSearches());
+      const [suggestLoading, setSuggestLoading] = useState(false);
       const [materialHover, setMaterialHover] = useState(null);
       const [condensed, setCondensed] = useState(false);
       const suggestTimerRef = useRef(null);
+      const abortRef = useRef(null);
+      const preArrowInputRef = useRef(null);
       const searchWrapRef = useRef(null);
       const materialTimerRef = useRef(null);
       const lastScrollY = useRef(0);
@@ -1430,41 +1712,80 @@
       // Build flat list of all suggest items for keyboard navigation
       const suggestItems = useMemo(() => {
         const items = [];
-        suggestData.categories.forEach(c => items.push({ type: 'category', data: c }));
-        suggestData.collections.forEach(c => items.push({ type: 'collection', data: c }));
-        suggestData.products.forEach(p => items.push({ type: 'product', data: p }));
+        if (!searchInput) {
+          recentSearches.forEach(t => items.push({ type: 'recent', data: { term: t } }));
+          popularSearches.forEach(t => items.push({ type: 'popular', data: { term: t } }));
+        } else {
+          suggestData.categories.forEach(c => items.push({ type: 'category', data: c }));
+          suggestData.collections.forEach(c => items.push({ type: 'collection', data: c }));
+          suggestData.products.forEach(p => items.push({ type: 'product', data: p }));
+        }
         return items;
-      }, [suggestData]);
+      }, [suggestData, searchInput, recentSearches, popularSearches]);
 
-      const fetchSuggestions = (q) => {
-        if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
-        if (!q || q.length < 2) { setSuggestData({ categories: [], collections: [], products: [], total: 0 }); return; }
+      const fetchSuggestions = useCallback((q) => {
+        clearTimeout(suggestTimerRef.current);
+        if (abortRef.current) abortRef.current.abort();
+        if (!q || q.length < 2) { setSuggestData({ categories: [], collections: [], products: [], total: 0 }); setShowSuggestions(false); setSuggestLoading(false); return; }
+        setSuggestLoading(true);
         suggestTimerRef.current = setTimeout(async () => {
+          const controller = new AbortController();
+          abortRef.current = controller;
           try {
-            const res = await fetch(API + '/api/storefront/search/suggest?q=' + encodeURIComponent(q));
+            const res = await fetch(API + '/api/storefront/search/suggest?q=' + encodeURIComponent(q), { signal: controller.signal });
             const data = await res.json();
-            setSuggestData(data);
-            setShowSuggestions(true);
-            setActiveIdx(-1);
-          } catch(e) { setSuggestData({ categories: [], collections: [], products: [], total: 0 }); }
-        }, 200);
-      };
+            if (!controller.signal.aborted) {
+              setSuggestData(data);
+              setShowSuggestions(true);
+              setActiveIdx(-1);
+              setSuggestLoading(false);
+            }
+          } catch(e) { if (e.name !== 'AbortError') setSuggestData({ categories: [], collections: [], products: [], total: 0 }); }
+        }, 300);
+      }, []);
 
-      const handleSearchInput = (e) => { setSearchInput(e.target.value); fetchSuggestions(e.target.value); };
+      const handleSearchInput = (e) => { preArrowInputRef.current = null; setActiveIdx(-1); setSearchInput(e.target.value); fetchSuggestions(e.target.value); };
       const selectSuggestion = (item) => {
         setShowSuggestions(false); setSearchInput(''); setSuggestData({ categories: [], collections: [], products: [], total: 0 });
-        if (item.type === 'category') { onCategorySelect(item.data.slug); }
-        else if (item.type === 'collection') { onSearch(item.data.name); }
-        else if (item.type === 'product') { onSkuClick(item.data.sku_id, item.data.product_name || item.data.collection); }
+        if (item.type === 'recent' || item.type === 'popular') { addRecentSearch(item.data.term); setRecentSearches(getRecentSearches()); onSearch(item.data.term); }
+        else if (item.type === 'category') { addRecentSearch(item.data.name); setRecentSearches(getRecentSearches()); onCategorySelect(item.data.slug); }
+        else if (item.type === 'collection') { addRecentSearch(item.data.name); setRecentSearches(getRecentSearches()); onSearch(item.data.name); }
+        else if (item.type === 'product') { addRecentSearch(item.data.product_name || item.data.collection); setRecentSearches(getRecentSearches()); onSkuClick(item.data.sku_id, item.data.product_name || item.data.collection); }
       };
 
+      const getItemLabel = (item) => {
+        if (!item) return '';
+        if (item.type === 'recent' || item.type === 'popular') return item.data.term;
+        if (item.type === 'category') return item.data.name;
+        if (item.type === 'collection') return item.data.name;
+        if (item.type === 'product') return fullProductName(item.data);
+        return '';
+      };
       const handleSearchKeyDown = (e) => {
         const totalItems = suggestItems.length;
         if (!showSuggestions || totalItems === 0) return;
-        if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, totalItems - 1)); }
-        else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, -1)); }
-        else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); selectSuggestion(suggestItems[activeIdx]); }
-        else if (e.key === 'Escape') { setShowSuggestions(false); }
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (preArrowInputRef.current === null) preArrowInputRef.current = searchInput;
+          setActiveIdx(i => {
+            const next = Math.min(i + 1, totalItems - 1);
+            setSearchInput(getItemLabel(suggestItems[next]));
+            return next;
+          });
+          setTimeout(() => { const el = searchWrapRef.current && searchWrapRef.current.querySelector('.active'); if (el) el.scrollIntoView({ block: 'nearest' }); }, 0);
+        }
+        else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setActiveIdx(i => {
+            const next = Math.max(i - 1, -1);
+            setSearchInput(next === -1 ? (preArrowInputRef.current || '') : getItemLabel(suggestItems[next]));
+            if (next === -1) preArrowInputRef.current = null;
+            return next;
+          });
+          setTimeout(() => { const el = searchWrapRef.current && searchWrapRef.current.querySelector('.active'); if (el) el.scrollIntoView({ block: 'nearest' }); }, 0);
+        }
+        else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); preArrowInputRef.current = null; selectSuggestion(suggestItems[activeIdx]); }
+        else if (e.key === 'Escape') { setShowSuggestions(false); if (preArrowInputRef.current !== null) { setSearchInput(preArrowInputRef.current); preArrowInputRef.current = null; } }
       };
 
       useEffect(() => {
@@ -1496,30 +1817,81 @@
       let suggestItemIdx = 0;
 
       const searchForm = (
-        <form className="header-search" ref={searchWrapRef} onSubmit={(e) => { e.preventDefault(); const q = searchInput.trim(); if (q) { onSearch(q); setShowSuggestions(false); setSearchInput(''); } }}>
-          <span className="header-search-icon">
+        <form className="header-search" ref={searchWrapRef} onSubmit={(e) => { e.preventDefault(); const q = searchInput.trim(); if (q) { addRecentSearch(q); setRecentSearches(getRecentSearches()); onSearch(q); setShowSuggestions(false); setSearchInput(''); } }}>
+          <button type="submit" className="header-search-icon" tabIndex={-1} aria-label="Search">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </span>
-          <input type="text" placeholder="Search products..." value={searchInput} onChange={handleSearchInput} onKeyDown={handleSearchKeyDown} onClick={() => {
-            if (hasSuggestResults || (!searchInput && popularSearches.length > 0)) setShowSuggestions(true);
+          </button>
+          <input type="text" placeholder="Search products..." value={searchInput} autoComplete="off" onChange={handleSearchInput} onKeyDown={handleSearchKeyDown} onFocus={() => {
+            if (hasSuggestResults || (!searchInput && (popularSearches.length > 0 || recentSearches.length > 0))) setShowSuggestions(true);
           }} />
-          {showSuggestions && !searchInput && popularSearches.length > 0 && (
+          {searchInput && (
+            <button type="button" className="header-search-clear" onClick={() => { setSearchInput(''); setSuggestData({ categories: [], collections: [], products: [], total: 0 }); setShowSuggestions(false); }} aria-label="Clear search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          )}
+          {showSuggestions && !searchInput && (recentSearches.length > 0 || popularSearches.length > 0) && (
+            <div className="search-suggestions">
+              {recentSearches.length > 0 && (
+                <div className="search-suggest-section">
+                  <div className="search-suggest-label">
+                    Recent Searches
+                    <button className="search-recent-clear" onClick={(e) => { e.stopPropagation(); clearRecentSearches(); setRecentSearches([]); }}>Clear</button>
+                  </div>
+                  <div className="search-suggest-popular">
+                    {recentSearches.map((term) => {
+                      const idx = suggestItemIdx++;
+                      return (
+                        <div key={term} className={'search-suggest-popular-item' + (idx === activeIdx ? ' active' : '')} onClick={() => { addRecentSearch(term); setRecentSearches(getRecentSearches()); onSearch(term); setShowSuggestions(false); setSearchInput(''); }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                          {term}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {popularSearches.length > 0 && (
+                <div className="search-suggest-section">
+                  <div className="search-suggest-label">Popular Searches</div>
+                  <div className="search-suggest-popular">
+                    {popularSearches.map((term) => {
+                      const idx = suggestItemIdx++;
+                      return (
+                        <div key={term} className={'search-suggest-popular-item' + (idx === activeIdx ? ' active' : '')} onClick={() => { addRecentSearch(term); setRecentSearches(getRecentSearches()); onSearch(term); setShowSuggestions(false); setSearchInput(''); }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                          {term}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {showSuggestions && suggestLoading && searchInput && !hasSuggestResults && (
+            <div className="search-suggestions">
+              <div className="search-suggest-loading">
+                <div className="search-suggest-loading-dots"><span /><span /><span /></div>
+                Searching...
+              </div>
+            </div>
+          )}
+          {showSuggestions && !hasSuggestResults && !suggestLoading && searchInput && searchInput.length >= 2 && suggestData.didYouMean && (
             <div className="search-suggestions">
               <div className="search-suggest-section">
-                <div className="search-suggest-label">Popular Searches</div>
-                <div className="search-suggest-popular">
-                  {popularSearches.map(term => (
-                    <div key={term} className="search-suggest-popular-item" onClick={() => { setSearchInput(term); fetchSuggestions(term); onSearch(term); setShowSuggestions(false); setSearchInput(''); }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                      {term}
-                    </div>
-                  ))}
+                <div className="search-did-you-mean" onClick={() => { onSearch(suggestData.didYouMean); setShowSuggestions(false); setSearchInput(''); }}>
+                  Did you mean: <strong>{suggestData.didYouMean}</strong>?
                 </div>
               </div>
             </div>
           )}
           {showSuggestions && hasSuggestResults && (
             <div className="search-suggestions">
+              {suggestData.expandedFrom && (
+                <div className="search-expanded-indicator">
+                  Showing results for <strong>{suggestData.expandedTo ? suggestData.expandedTo.split(' ').slice(0, 4).join(' ') : suggestData.expandedFrom}</strong>
+                </div>
+              )}
               {suggestData.categories.length > 0 && (
                 <div className="search-suggest-section">
                   <div className="search-suggest-label">Categories</div>
@@ -1530,7 +1902,7 @@
                         <span className="search-suggest-item-icon">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
                         </span>
-                        <span className="search-suggest-category-text">{cat.name}</span>
+                        <span className="search-suggest-category-text">{highlightMatch(cat.name, searchInput)}</span>
                         <span className="search-suggest-count">{cat.product_count} products</span>
                       </div>
                     );
@@ -1544,9 +1916,9 @@
                     const idx = suggestItemIdx++;
                     return (
                       <div key={col.name} className={'search-suggest-item' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'collection', data: col })}>
-                        {col.image ? <img className="search-suggest-collection-img" src={col.image} alt="" decoding="async" /> : <span className="search-suggest-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>}
+                        {col.image ? <img className="search-suggest-collection-img" src={optimizeImg(col.image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} /> : <span className="search-suggest-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>}
                         <div className="search-suggest-collection-text">
-                          <div className="search-suggest-collection-name">{col.name}</div>
+                          <div className="search-suggest-collection-name">{highlightMatch(col.name, searchInput)}</div>
                         </div>
                         <span className="search-suggest-count">{col.product_count} products</span>
                       </div>
@@ -1561,18 +1933,20 @@
                     const idx = suggestItemIdx++;
                     return (
                       <div key={sku.sku_id} className={'search-suggestion' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'product', data: sku })}>
-                        <div className="search-suggestion-img">{sku.primary_image ? <img src={sku.primary_image} alt="" decoding="async" /> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, color: 'var(--stone-300)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>}</div>
+                        <div className="search-suggestion-img">{sku.primary_image ? <img src={optimizeImg(sku.primary_image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} /> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, color: 'var(--stone-300)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>}</div>
                         <div className="search-suggestion-text">
-                          <div className="search-suggestion-name">{fullProductName(sku)}</div>
+                          <div className="search-suggestion-name">{highlightMatch(fullProductName(sku), searchInput)}</div>
+                          {sku.vendor_name && <div className="search-suggestion-vendor">{sku.vendor_name}</div>}
                           {sku.variant_name && <div className="search-suggestion-variant">{formatCarpetValue(sku.variant_name)}</div>}
+                          {tradeCustomer && sku.vendor_sku && <div className="search-suggestion-sku">SKU: {sku.vendor_sku}</div>}
                         </div>
-                        <span className="search-suggestion-price">${parseFloat(sku.retail_price || 0).toFixed(2)}{sku.price_basis === 'per_sqyd' ? '/sqyd' : (sku.sell_by === 'sqft' || sku.price_basis === 'per_sqft') ? '/sf' : ''}</span>
+                        <span className="search-suggestion-price">${displayPrice(sku, sku.retail_price).toFixed(2)}{priceSuffix(sku)}</span>
                       </div>
                     );
                   })}
                 </div>
               )}
-              <div className="search-suggest-footer" onClick={() => { onSearch(searchInput.trim()); setShowSuggestions(false); setSearchInput(''); }}>
+              <div className="search-suggest-footer" onClick={() => { const q = searchInput.trim(); if (q) { addRecentSearch(q); setRecentSearches(getRecentSearches()); } onSearch(q); setShowSuggestions(false); setSearchInput(''); }}>
                 View all {suggestData.total} results
               </div>
             </div>
@@ -1642,7 +2016,7 @@
               <div className="nav-row-group">
                 <button className="nav-row-link" onClick={goCollections}>Collections</button>
                 <button className="nav-row-link" onClick={() => navigate('/shop?sort=newest')}>New Arrivals</button>
-                <button className="nav-row-link" onClick={() => navigate('/shop?sale=true')}>Sale</button>
+                <button className="nav-row-link" onClick={goSale}>Sale</button>
                 <button className="nav-row-link" onClick={() => navigate('/shop?room=kitchen')}>Shop by Room</button>
               </div>
               <span className="nav-row-separator" />
@@ -1722,7 +2096,7 @@
                   {cart.map(item => (
                     <div key={item.id} className="cart-drawer-item">
                       <div className="cart-drawer-item-img">
-                        {item.primary_image && <img src={item.primary_image} alt="" decoding="async" />}
+                        {item.primary_image && <img src={optimizeImg(item.primary_image, 100)} alt="" decoding="async" loading="lazy" width={40} height={40} />}
                       </div>
                       <div className="cart-drawer-item-info">
                         <div className="cart-drawer-item-name">
@@ -1828,7 +2202,7 @@
 
       const handleVariantClick = (sib) => {
         // Immediately show sibling image, then fetch full detail
-        setActiveSku(prev => ({ ...prev, sku_id: sib.sku_id, variant_name: sib.variant_name, retail_price: sib.retail_price, primary_image: sib.primary_image, sell_by: sib.sell_by, price_basis: sib.price_basis }));
+        setActiveSku(prev => ({ ...prev, sku_id: sib.sku_id, variant_name: sib.variant_name, retail_price: sib.retail_price, primary_image: sib.primary_image, sell_by: sib.sell_by, price_basis: sib.price_basis, sqft_per_box: sib.sqft_per_box }));
         fetch('/api/storefront/skus/' + sib.sku_id, { headers: getTradeHeaders() })
           .then(r => r.json())
           .then(data => applyDetail(data));
@@ -1847,7 +2221,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
                   </button>
                 )}
-                {currentImg.url && <img src={currentImg.url} alt={activeSku.product_name} decoding="async" />}
+                {currentImg.url && <img src={optimizeImg(currentImg.url, 800)} alt={activeSku.product_name} decoding="async" width={400} height={400} />}
                 {media.length > 1 && (
                   <button className="quick-view-gallery-arrow right" disabled={imgIndex >= media.length - 1} onClick={() => setImgIndex(i => i + 1)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -1868,7 +2242,7 @@
                     className={'quick-view-variant-swatch active'}
                     title={formatVariantName(activeSku.variant_name)}
                   >
-                    {(baseMediaRef.current[0] || {}).url && <img src={baseMediaRef.current[0].url} alt={activeSku.variant_name} decoding="async" />}
+                    {(baseMediaRef.current[0] || {}).url && <img src={optimizeImg(baseMediaRef.current[0].url, 120)} alt={activeSku.variant_name} decoding="async" width={64} height={64} />}
                   </div>
                   {siblings.map(sib => (
                     <div
@@ -1879,7 +2253,7 @@
                       onMouseLeave={handleVariantLeave}
                       onClick={() => handleVariantClick(sib)}
                     >
-                      {sib.primary_image && <img src={sib.primary_image} alt={sib.variant_name} decoding="async" />}
+                      {sib.primary_image && <img src={optimizeImg(sib.primary_image, 120)} alt={sib.variant_name} decoding="async" width={64} height={64} />}
                     </div>
                   ))}
                 </div>
@@ -1890,11 +2264,21 @@
               <div className="price">
                 {activeSku.trade_price && activeSku.retail_price && (
                   <span style={{ textDecoration: 'line-through', color: 'var(--stone-500)', fontSize: '1rem', marginRight: '0.5rem' }}>
-                    ${parseFloat(activeSku.retail_price).toFixed(2)}
+                    ${displayPrice(activeSku, activeSku.retail_price).toFixed(2)}
                   </span>
                 )}
-                ${parseFloat(activeSku.trade_price || activeSku.retail_price || 0).toFixed(2)}
+                {!activeSku.trade_price && activeSku.sale_price && activeSku.retail_price && (
+                  <span className="sale-original-price">
+                    ${displayPrice(activeSku, activeSku.retail_price).toFixed(2)}
+                  </span>
+                )}
+                <span className={!activeSku.trade_price && activeSku.sale_price ? 'sale-price-text' : ''}>
+                  ${displayPrice(activeSku, activeSku.trade_price || activeSku.sale_price || activeSku.retail_price || 0).toFixed(2)}
+                </span>
                 <span>{priceSuffix(activeSku)}</span>
+                {!activeSku.trade_price && activeSku.sale_price && activeSku.retail_price && (
+                  <span className="sale-discount-tag">{Math.round((1 - parseFloat(activeSku.sale_price) / parseFloat(activeSku.retail_price)) * 100)}% off</span>
+                )}
               </div>
               {activeSku.description_short && (
                 <p style={{ fontSize: '0.875rem', color: 'var(--stone-600)', lineHeight: 1.6, marginBottom: '1rem' }}>{activeSku.description_short}</p>
@@ -1999,12 +2383,16 @@
       const [query, setQuery] = useState('');
       const [suggestData, setSuggestData] = useState({ categories: [], collections: [], products: [], total: 0 });
       const [loading, setLoading] = useState(false);
+      const [mobileRecent, setMobileRecent] = useState([]);
+      const [mobilePopular, setMobilePopular] = useState([]);
       const inputRef = useRef(null);
       const debounceRef = useRef(null);
 
       useEffect(() => {
-        if (open && inputRef.current) {
-          setTimeout(() => inputRef.current.focus(), 100);
+        if (open) {
+          if (inputRef.current) setTimeout(() => inputRef.current.focus(), 100);
+          setMobileRecent(getRecentSearches());
+          fetch(API + '/api/storefront/search/popular').then(r => r.json()).then(d => setMobilePopular(d.terms || [])).catch(() => {});
         }
         if (!open) { setQuery(''); setSuggestData({ categories: [], collections: [], products: [], total: 0 }); }
       }, [open]);
@@ -2025,7 +2413,7 @@
 
       const handleSubmit = (e) => {
         e.preventDefault();
-        if (query.trim()) { onSearch(query.trim()); onClose(); }
+        if (query.trim()) { addRecentSearch(query.trim()); setMobileRecent(getRecentSearches()); onSearch(query.trim()); onClose(); }
       };
 
       const hasResults = suggestData.categories.length > 0 || suggestData.collections.length > 0 || suggestData.products.length > 0;
@@ -2033,22 +2421,74 @@
       return open ? (
         <div className="mobile-search-overlay">
           <div className="mobile-search-header">
-            <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex', gap: '0.5rem' }}>
-              <input ref={inputRef} className="mobile-search-input" type="text" placeholder="Search products..." value={query} onChange={e => setQuery(e.target.value)} />
+            <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex', gap: '0.5rem', position: 'relative' }}>
+              <input ref={inputRef} className="mobile-search-input" type="text" placeholder="Search products..." value={query} autoComplete="off" onChange={e => setQuery(e.target.value)} />
+              {query && (
+                <button type="button" className="header-search-clear" style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)' }} onClick={() => { setQuery(''); setSuggestData({ categories: [], collections: [], products: [], total: 0 }); }} aria-label="Clear search">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              )}
             </form>
             <button className="mobile-search-close" onClick={onClose}>Cancel</button>
           </div>
+          {!query && (mobileRecent.length > 0 || mobilePopular.length > 0) && (
+            <div className="mobile-search-results">
+              {mobileRecent.length > 0 && (
+                <div className="search-suggest-section">
+                  <div className="search-suggest-label">
+                    Recent Searches
+                    <button className="search-recent-clear" onClick={() => { clearRecentSearches(); setMobileRecent([]); }}>Clear</button>
+                  </div>
+                  <div className="search-suggest-popular">
+                    {mobileRecent.map(term => (
+                      <div key={term} className="search-suggest-popular-item" onClick={() => { addRecentSearch(term); setMobileRecent(getRecentSearches()); onSearch(term); onClose(); }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        {term}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {mobilePopular.length > 0 && (
+                <div className="search-suggest-section">
+                  <div className="search-suggest-label">Popular Searches</div>
+                  <div className="search-suggest-popular">
+                    {mobilePopular.map(term => (
+                      <div key={term} className="search-suggest-popular-item" onClick={() => { addRecentSearch(term); setMobileRecent(getRecentSearches()); onSearch(term); onClose(); }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                        {term}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {!hasResults && !loading && query && query.length >= 2 && suggestData.didYouMean && (
+            <div className="mobile-search-results">
+              <div className="search-suggest-section">
+                <div className="search-did-you-mean" onClick={() => { setQuery(suggestData.didYouMean); }}>
+                  Did you mean: <strong>{suggestData.didYouMean}</strong>?
+                </div>
+              </div>
+            </div>
+          )}
           {hasResults && (
             <div className="mobile-search-results">
+              {suggestData.expandedFrom && (
+                <div className="search-expanded-indicator">
+                  Showing results for <strong>{suggestData.expandedTo ? suggestData.expandedTo.split(' ').slice(0, 4).join(' ') : suggestData.expandedFrom}</strong>
+                </div>
+              )}
               {suggestData.categories.length > 0 && (
                 <div className="search-suggest-section">
                   <div className="search-suggest-label">Categories</div>
                   {suggestData.categories.map(cat => (
-                    <div key={cat.slug} className="search-suggest-item" onClick={() => { onCategorySelect(cat.slug); onClose(); }}>
+                    <div key={cat.slug} className="search-suggest-item" onClick={() => { addRecentSearch(cat.name); onCategorySelect(cat.slug); onClose(); }}>
                       <span className="search-suggest-item-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
                       </span>
-                      <span className="search-suggest-category-text">{cat.name}</span>
+                      <span className="search-suggest-category-text">{highlightMatch(cat.name, query)}</span>
                       <span className="search-suggest-count">{cat.product_count}</span>
                     </div>
                   ))}
@@ -2058,10 +2498,10 @@
                 <div className="search-suggest-section">
                   <div className="search-suggest-label">Collections</div>
                   {suggestData.collections.map(col => (
-                    <div key={col.name} className="search-suggest-item" onClick={() => { onSearch(col.name); onClose(); }}>
-                      {col.image ? <img className="search-suggest-collection-img" src={col.image} alt="" decoding="async" /> : <span className="search-suggest-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>}
+                    <div key={col.name} className="search-suggest-item" onClick={() => { addRecentSearch(col.name); onSearch(col.name); onClose(); }}>
+                      {col.image ? <img className="search-suggest-collection-img" src={optimizeImg(col.image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} /> : <span className="search-suggest-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>}
                       <div className="search-suggest-collection-text">
-                        <div className="search-suggest-collection-name">{col.name}</div>
+                        <div className="search-suggest-collection-name">{highlightMatch(col.name, query)}</div>
                       </div>
                       <span className="search-suggest-count">{col.product_count}</span>
                     </div>
@@ -2072,20 +2512,21 @@
                 <div className="search-suggest-section">
                   <div className="search-suggest-label">Products</div>
                   {suggestData.products.map(sku => (
-                    <div key={sku.sku_id} className="mobile-search-result" onClick={() => { onSkuClick(sku.sku_id, sku.product_name); onClose(); }}>
+                    <div key={sku.sku_id} className="mobile-search-result" onClick={() => { addRecentSearch(sku.product_name || sku.collection); onSkuClick(sku.sku_id, sku.product_name); onClose(); }}>
                       <div className="mobile-search-result-img">
-                        {sku.primary_image && <img src={sku.primary_image} alt="" decoding="async" />}
+                        {sku.primary_image && <img src={optimizeImg(sku.primary_image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} />}
                       </div>
                       <div>
-                        <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{fullProductName(sku)}</div>
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>${parseFloat(sku.retail_price || 0).toFixed(2)}{(sku.sell_by === 'sqft' || sku.price_basis === 'per_sqft') ? '/sf' : ''}</div>
+                        <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{highlightMatch(fullProductName(sku), query)}</div>
+                        {sku.vendor_name && <div className="search-suggestion-vendor">{sku.vendor_name}</div>}
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>${displayPrice(sku, sku.retail_price).toFixed(2)}{priceSuffix(sku)}</div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
               {suggestData.total > 0 && (
-                <div className="search-suggest-footer" onClick={() => { onSearch(query.trim()); onClose(); }}>
+                <div className="search-suggest-footer" onClick={() => { const q = query.trim(); if (q) { addRecentSearch(q); } onSearch(q); onClose(); }}>
                   View all {suggestData.total} results
                 </div>
               )}
@@ -2147,7 +2588,7 @@
           <div className="category-carousel-track" ref={trackRef}>
             {categories.map(cat => (
               <div key={cat.slug} className="category-tile" onClick={() => onCategorySelect(cat.slug)}>
-                {cat.image_url && <img src={cat.image_url} alt={cat.name} loading="lazy" decoding="async" />}
+                {cat.image_url && <img src={optimizeImg(cat.image_url, 400)} alt={cat.name} loading="lazy" decoding="async" />}
                 <div className="category-tile-overlay">
                   <span className="category-tile-name">{cat.name}</span>
                   <span className="category-tile-count">{cat.product_count} products</span>
@@ -2247,7 +2688,7 @@
                 <div className="homepage-cat-grid">
                   {topCats.map(cat => (
                     <div key={cat.slug} className="homepage-cat-tile" onClick={() => onCategorySelect(cat.slug)}>
-                      {cat.image_url && <img src={cat.image_url} alt={cat.name} loading="lazy" decoding="async" />}
+                      {cat.image_url && <img src={optimizeImg(cat.image_url, 400)} alt={cat.name} loading="lazy" decoding="async" />}
                       <div className="homepage-cat-tile-overlay">
                         <span className="homepage-cat-tile-name">{cat.name}</span>
                         <span className="homepage-cat-tile-cta">Shop Now &rarr;</span>
@@ -2282,7 +2723,7 @@
               <div className="looks-grid">
                 {looks.map(look => (
                   <div key={look.slug} className="look-card" onClick={() => navigate('/shop?collection=' + look.slug)}>
-                    <img src={look.image} alt={look.name} loading="lazy" decoding="async" />
+                    <img src={optimizeImg(look.image, 400)} alt={look.name} loading="lazy" decoding="async" />
                     <div className="look-card-overlay">
                       <span className="look-card-name">{look.name}</span>
                       <span className="look-card-cta">Explore &rarr;</span>
@@ -2300,7 +2741,7 @@
               <div className="inspo-gallery">
                 {inspoImages.map((img, i) => (
                   <div key={i} className={'inspo-gallery-item' + (img.tall ? ' tall' : '')} onClick={() => navigate('/shop?room=' + img.label.toLowerCase().replace(/\s+/g, '-'))}>
-                    <img src={img.src} alt={img.label} loading="lazy" decoding="async" />
+                    <img src={optimizeImg(img.src, 400)} alt={img.label} loading="lazy" decoding="async" />
                     <div className="inspo-gallery-overlay">
                       <span className="inspo-gallery-label">{img.label}</span>
                     </div>
@@ -2394,14 +2835,47 @@
       );
     }
 
+    // ==================== Search Empty State ====================
+
+    function SearchEmptyState({ searchQuery, categories, onSearch, onCategorySelect, didYouMean, popularTerms }) {
+      const fallbackTerms = ['porcelain tile', 'hardwood', 'luxury vinyl', 'mosaic', 'marble', 'carpet'];
+      const suggestedTerms = (popularTerms && popularTerms.length > 0) ? popularTerms.slice(0, 6) : fallbackTerms;
+      return (
+        <div className="search-empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <h2>No results for "{searchQuery}"</h2>
+          {didYouMean && (
+            <p className="search-empty-did-you-mean">
+              Did you mean: <button className="search-empty-dym-link" onClick={() => onSearch(didYouMean)}>{didYouMean}</button>?
+            </p>
+          )}
+          <p>We couldn't find any products matching your search. Try one of these:</p>
+          <div className="search-empty-suggestions">
+            {suggestedTerms.map(term => (
+              <button key={term} className="search-empty-chip" onClick={() => onSearch(term)}>{term}</button>
+            ))}
+          </div>
+          <p className="search-empty-browse">Or browse by category:</p>
+          <div className="search-empty-categories">
+            {categories.filter(c => !c.parent_id && c.product_count > 0).slice(0, 6).map(cat => (
+              <button key={cat.slug} className="search-empty-cat-chip" onClick={() => onCategorySelect(cat.slug)}>
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     // ==================== Category Hero ====================
 
-    function CategoryHero({ category, crumbs, searchQuery }) {
+    function CategoryHero({ category, crumbs, searchQuery, totalSkus }) {
       if (searchQuery) {
         return (
           <div className="category-hero" style={{ height: '160px' }}>
             <Breadcrumbs items={crumbs} />
             <h1>Search: "{searchQuery}"</h1>
+            {totalSkus > 0 && <p className="search-result-count">{totalSkus} result{totalSkus !== 1 ? 's' : ''}</p>}
           </div>
         );
       }
@@ -2420,9 +2894,15 @@
 
     // ==================== Browse View ====================
 
-    function BrowseView({ skus, totalSkus, loading, categories, selectedCategory, selectedCollection, searchQuery, onCategorySelect, facets, filters, onFilterToggle, onClearFilters, sortBy, onSortChange, onSkuClick, currentPage, onPageChange, wishlist, toggleWishlist, setQuickViewSku, filterDrawerOpen, setFilterDrawerOpen, goHome }) {
+    function BrowseView({ skus, totalSkus, loading, categories, selectedCategory, selectedCollection, searchQuery, onCategorySelect, onSearch, facets, filters, onFilterToggle, onClearFilters, sortBy, onSortChange, onSkuClick, currentPage, onPageChange, wishlist, toggleWishlist, setQuickViewSku, filterDrawerOpen, setFilterDrawerOpen, goHome,
+      vendorFacets, vendorFilters, onVendorToggle, priceRange, userPriceRange, onPriceRangeChange, tagFacets, tagFilters, onTagToggle, didYouMean }) {
       const totalPages = Math.ceil(totalSkus / 72);
-      const hasFilters = Object.keys(filters).length > 0;
+      const hasAttrFilters = Object.keys(filters).length > 0;
+      const hasVendorFilters = vendorFilters && vendorFilters.length > 0;
+      const hasPriceFilters = userPriceRange && (userPriceRange.min != null || userPriceRange.max != null);
+      const hasTagFilters = tagFilters && tagFilters.length > 0;
+      const hasFilters = hasAttrFilters || hasVendorFilters || hasPriceFilters || hasTagFilters;
+      const totalActiveFilterCount = (vendorFilters ? vendorFilters.length : 0) + (hasPriceFilters ? 1 : 0) + (tagFilters ? tagFilters.length : 0) + Object.values(filters).reduce((s, a) => s + a.length, 0);
 
       // Find the current category object (with description, banner_image, etc.)
       let currentCategory = null;
@@ -2439,6 +2919,14 @@
       else if (selectedCollection) crumbs.push({ label: selectedCollection });
       else if (searchQuery) crumbs.push({ label: 'Search Results' });
 
+      // Shared FacetPanel props
+      const facetProps = {
+        facets, filters, onFilterToggle, onClearFilters,
+        vendors: vendorFacets, vendorFilters, onVendorToggle,
+        priceRange, userPriceRange, onPriceRangeChange,
+        tagFacets, tagFilters, onTagToggle, totalSkus
+      };
+
       // Check if this is a parent category with subcategories → show landing page
       const isParentLanding = currentCategory && !currentCategory.parent_id && !searchQuery && !selectedCollection;
       const landingChildren = isParentLanding
@@ -2448,7 +2936,7 @@
       if (isParentLanding && landingChildren.length === 0 && (currentCategory.children || []).length > 0) {
         return (
           <>
-            <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} />
+            <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} totalSkus={totalSkus} />
             <section className="category-landing">
               <h2>{currentCategory.name}</h2>
               <p className="subtitle">Products coming soon. Check back later!</p>
@@ -2460,7 +2948,7 @@
       if (isParentLanding && landingChildren.length > 0) {
         return (
           <>
-            <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} />
+            <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} totalSkus={totalSkus} />
             <section className="category-landing">
               <h2>Browse {currentCategory.name}</h2>
               <p className="subtitle">Explore our {currentCategory.name.toLowerCase()} collections</p>
@@ -2468,7 +2956,7 @@
                 {landingChildren.map(child => (
                   <div key={child.slug} className="category-tile" onClick={() => onCategorySelect(child.slug)}>
                     {child.image_url
-                      ? <img src={child.image_url} alt={child.name} loading="lazy" decoding="async" />
+                      ? <img src={optimizeImg(child.image_url, 400)} alt={child.name} loading="lazy" decoding="async" />
                       : <div style={{ width: '100%', height: '100%', background: 'var(--stone-200)' }} />
                     }
                     <div className="category-tile-overlay">
@@ -2485,47 +2973,38 @@
 
       return (
         <>
-          <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} />
+          <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} totalSkus={totalSkus} />
           <div className="browse-layout">
 
           <div className="sidebar">
-            <FacetPanel facets={facets} filters={filters} onFilterToggle={onFilterToggle} onClearFilters={onClearFilters} />
+            <FacetPanel {...facetProps} />
           </div>
 
           <div>
             {hasFilters && (
-              <ActiveFilterPills filters={filters} facets={facets} onFilterToggle={onFilterToggle} onClearFilters={onClearFilters} />
+              <ActiveFilterPills filters={filters} facets={facets} onFilterToggle={onFilterToggle} onClearFilters={onClearFilters}
+                vendorFilters={vendorFilters} onVendorToggle={onVendorToggle} userPriceRange={userPriceRange} onPriceRangeChange={onPriceRangeChange}
+                tagFilters={tagFilters} tagFacets={tagFacets} onTagToggle={onTagToggle} />
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <BrowseToolbar totalSkus={totalSkus} sortBy={sortBy} onSortChange={onSortChange} />
               <button className="mobile-filter-btn" onClick={() => setFilterDrawerOpen(true)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
                 Filters
+                {totalActiveFilterCount > 0 && <span className="filter-badge">{totalActiveFilterCount}</span>}
               </button>
             </div>
-            {!searchQuery && !selectedCollection && (
-              <div className="color-swatches">
-                {[
-                  { name: 'White', color: '#f5f5f0' },
-                  { name: 'Gray', color: '#9e9e9e' },
-                  { name: 'Beige', color: '#d4c5a9' },
-                  { name: 'Brown', color: '#8b6f47' },
-                  { name: 'Black', color: '#2c2c2c' },
-                  { name: 'Blue', color: '#6b8cae' },
-                ].map(c => (
-                  <div key={c.name} className={'color-swatch' + (filters.color && filters.color.includes(c.name) ? ' active' : '')} style={{ background: c.color }} onClick={() => onFilterToggle('color', c.name)} title={c.name}>
-                    <span className="color-swatch-label">{c.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
             {loading ? (
               <SkeletonGrid count={8} />
             ) : skus.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--stone-600)' }}>
-                <p style={{ fontSize: '1.125rem', marginBottom: '1rem' }}>No products found</p>
-                <p style={{ fontSize: '0.875rem' }}>Try adjusting your filters or search terms</p>
-              </div>
+              searchQuery ? (
+                <SearchEmptyState searchQuery={searchQuery} categories={categories} onSearch={onSearch} onCategorySelect={onCategorySelect} didYouMean={didYouMean} />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--stone-600)' }}>
+                  <p style={{ fontSize: '1.125rem', marginBottom: '1rem' }}>No products found</p>
+                  <p style={{ fontSize: '0.875rem' }}>Try adjusting your filters</p>
+                </div>
+              )
             ) : (
               <>
                 <SkuGrid skus={skus} onSkuClick={onSkuClick} wishlist={wishlist} toggleWishlist={toggleWishlist} setQuickViewSku={setQuickViewSku} />
@@ -2544,10 +3023,12 @@
                 </button>
               </div>
               <div className="filter-drawer-body">
-                <FacetPanel facets={facets} filters={filters} onFilterToggle={onFilterToggle} onClearFilters={onClearFilters} />
+                <FacetPanel {...facetProps} isMobile={true} />
               </div>
               <div className="filter-drawer-footer">
-                <button className="btn" style={{ width: '100%' }} onClick={() => setFilterDrawerOpen(false)}>Apply Filters</button>
+                <button className="btn" style={{ width: '100%' }} onClick={() => setFilterDrawerOpen(false)}>
+                  Show {totalSkus} Result{totalSkus !== 1 ? 's' : ''}
+                </button>
               </div>
             </div>
           </div>
@@ -2588,20 +3069,78 @@
       );
     }
 
-    function FacetPanel({ facets, filters, onFilterToggle, onClearFilters }) {
-      const hasActive = Object.keys(filters).length > 0;
-      const [collapsed, setCollapsed] = useState(null);
-      const [showAll, setShowAll] = useState({});
+    function PriceRangeFilter({ priceRange, userPriceRange, onChange }) {
+      const min = priceRange.min || 0;
+      const max = priceRange.max || 1000;
+      const step = max > 100 ? 1 : 0.5;
+      const curMin = userPriceRange.min != null ? userPriceRange.min : min;
+      const curMax = userPriceRange.max != null ? userPriceRange.max : max;
+      const [localMin, setLocalMin] = useState(curMin);
+      const [localMax, setLocalMax] = useState(curMax);
 
-      const hiddenFacets = ['pei_rating', 'water_absorption', 'dcof'];
-      const visibleFacets = facets.filter(g => !hiddenFacets.includes(g.slug));
-      if (!visibleFacets || visibleFacets.length === 0) return null;
-      if (collapsed === null) {
-        const init = {};
-        visibleFacets.forEach(g => { init[g.slug] = true; });
-        setCollapsed(init);
-        return null;
-      }
+      useEffect(() => {
+        setLocalMin(userPriceRange.min != null ? userPriceRange.min : min);
+        setLocalMax(userPriceRange.max != null ? userPriceRange.max : max);
+      }, [userPriceRange.min, userPriceRange.max, min, max]);
+
+      const pctMin = ((localMin - min) / (max - min)) * 100;
+      const pctMax = ((localMax - min) / (max - min)) * 100;
+
+      const commit = (lo, hi) => {
+        const newMin = lo > min ? lo : null;
+        const newMax = hi < max ? hi : null;
+        if (newMin === null && newMax === null) onChange(null, null);
+        else onChange(newMin, newMax);
+      };
+
+      return (
+        <div className="price-range-wrapper">
+          <div className="price-range-slider">
+            <div className="price-range-track" />
+            <div className="price-range-fill" style={{ left: pctMin + '%', width: (pctMax - pctMin) + '%' }} />
+            <input type="range" min={min} max={max} step={step} value={localMin}
+              onChange={e => { const v = Math.min(parseFloat(e.target.value), localMax - step); setLocalMin(v); }}
+              onMouseUp={() => commit(localMin, localMax)} onTouchEnd={() => commit(localMin, localMax)} />
+            <input type="range" min={min} max={max} step={step} value={localMax}
+              onChange={e => { const v = Math.max(parseFloat(e.target.value), localMin + step); setLocalMax(v); }}
+              onMouseUp={() => commit(localMin, localMax)} onTouchEnd={() => commit(localMin, localMax)} />
+          </div>
+          <div className="price-range-inputs">
+            <div className="price-input-wrap">
+              <span>$</span>
+              <input type="number" min={min} max={max} step={step} value={localMin}
+                onChange={e => { const v = parseFloat(e.target.value) || min; setLocalMin(v); }}
+                onBlur={() => commit(localMin, localMax)} />
+            </div>
+            <span className="price-range-dash">&ndash;</span>
+            <div className="price-input-wrap">
+              <span>$</span>
+              <input type="number" min={min} max={max} step={step} value={localMax}
+                onChange={e => { const v = parseFloat(e.target.value) || max; setLocalMax(v); }}
+                onBlur={() => commit(localMin, localMax)} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function FacetPanel({ facets, filters, onFilterToggle, onClearFilters,
+      vendors, vendorFilters, onVendorToggle,
+      priceRange, userPriceRange, onPriceRangeChange,
+      tagFacets, tagFilters, onTagToggle,
+      totalSkus, isMobile }) {
+
+      const hasAttrFilters = Object.keys(filters).length > 0;
+      const hasVendorFilters = vendorFilters && vendorFilters.length > 0;
+      const hasPriceFilters = userPriceRange && (userPriceRange.min != null || userPriceRange.max != null);
+      const hasTagFilters = tagFilters && tagFilters.length > 0;
+      const hasAny = hasAttrFilters || hasVendorFilters || hasPriceFilters || hasTagFilters;
+
+      const [collapsed, setCollapsed] = useState({});
+      const [filterSearch, setFilterSearch] = useState({});
+
+      const prioritySlugs = ['material', 'finish', 'size', 'application'];
+      const bottomSlugs = ['pei_rating', 'water_absorption', 'dcof'];
 
       const chevron = (isOpen) => (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
@@ -2609,59 +3148,276 @@
         </svg>
       );
 
+      // Determine default collapsed state for a group
+      const isGroupCollapsed = (slug) => {
+        if (collapsed[slug] !== undefined) return collapsed[slug];
+        // Groups with active selections: always expanded
+        if (filters[slug] && filters[slug].length > 0) return false;
+        // Priority groups start expanded
+        if (prioritySlugs.includes(slug)) return false;
+        // Color starts expanded
+        if (slug === 'color') return false;
+        // Rest collapsed by default
+        return true;
+      };
+
+      // --- Color families aggregation ---
+      const colorFacet = facets.find(f => f.slug === 'color');
+      const familyCounts = {};
+      if (colorFacet) {
+        colorFacet.values.forEach(v => {
+          const family = mapColorToFamily(v.value);
+          if (family) familyCounts[family] = (familyCounts[family] || 0) + v.count;
+        });
+      }
+      const activeFamilies = (filters.color || []).reduce((acc, rawVal) => {
+        const fam = mapColorToFamily(rawVal);
+        if (fam && !acc.includes(fam)) acc.push(fam);
+        return acc;
+      }, []);
+
+      const handleFamilyClick = (familyName) => {
+        const { keywords } = COLOR_FAMILIES[familyName];
+        if (!colorFacet) return;
+        // Get all raw color values that belong to this family
+        const familyRawValues = colorFacet.values.map(v => v.value).filter(v => {
+          const lower = v.toLowerCase().trim();
+          return keywords.some(kw => lower.includes(kw));
+        });
+        if (familyRawValues.length === 0) return;
+        const currentColors = filters.color || [];
+        const isActive = familyRawValues.some(v => currentColors.includes(v));
+        if (isActive) {
+          // Remove all raw values in this family
+          familyRawValues.forEach(v => {
+            if (currentColors.includes(v)) onFilterToggle('color', v);
+          });
+        } else {
+          // Add all raw values in this family
+          familyRawValues.forEach(v => {
+            if (!currentColors.includes(v)) onFilterToggle('color', v);
+          });
+        }
+      };
+
+      // Separate color from other facets for custom rendering
+      const nonColorFacets = facets.filter(f => f.slug !== 'color');
+
+      // Sort facets: priority first, bottom last, rest in original order
+      const sortedFacets = [...nonColorFacets].sort((a, b) => {
+        const ai = prioritySlugs.indexOf(a.slug);
+        const bi = prioritySlugs.indexOf(b.slug);
+        const aBot = bottomSlugs.indexOf(a.slug);
+        const bBot = bottomSlugs.indexOf(b.slug);
+        if (ai !== -1 && bi !== -1) return ai - bi;
+        if (ai !== -1 && bBot !== -1) return -1;
+        if (aBot !== -1 && bi !== -1) return 1;
+        if (ai !== -1) return -1;
+        if (bi !== -1) return 1;
+        if (aBot !== -1 && bBot !== -1) return aBot - bBot;
+        if (aBot !== -1) return 1;
+        if (bBot !== -1) return -1;
+        return 0;
+      });
+
+      const renderFilterGroup = (group) => {
+        const isCol = isGroupCollapsed(group.slug);
+        const searchTerm = filterSearch[group.slug] || '';
+        const values = searchTerm
+          ? group.values.filter(v => v.value.toLowerCase().includes(searchTerm.toLowerCase()))
+          : group.values;
+        const activeCount = (filters[group.slug] || []).length;
+        const checkId = (val) => 'f-' + group.slug + '-' + val.replace(/[^a-zA-Z0-9]/g, '_');
+
+        return (
+          <div key={group.slug} className="filter-group">
+            <div className="filter-group-title" onClick={() => setCollapsed(prev => ({ ...prev, [group.slug]: !isCol }))}>
+              <span>{group.name}{activeCount > 0 && <span className="filter-group-count-badge">{activeCount}</span>}</span>
+              {chevron(!isCol)}
+            </div>
+            {!isCol && (
+              <div style={{ marginTop: '0.625rem' }}>
+                {group.values.length > 15 && (
+                  <input className="filter-search-input" type="text" placeholder={'Search ' + group.name.toLowerCase() + '...'}
+                    value={searchTerm} onChange={e => setFilterSearch(prev => ({ ...prev, [group.slug]: e.target.value }))}
+                    onClick={e => e.stopPropagation()} />
+                )}
+                <div className="filter-values-scroll">
+                  {values.map(v => {
+                    const checked = (filters[group.slug] || []).includes(v.value);
+                    return (
+                      <div key={v.value} className="filter-option">
+                        <input type="checkbox" id={checkId(v.value)} checked={checked}
+                          onChange={() => onFilterToggle(group.slug, v.value)} />
+                        <label htmlFor={checkId(v.value)}>{formatCarpetValue(v.value)}</label>
+                        <span className="filter-count">({v.count})</span>
+                      </div>
+                    );
+                  })}
+                  {values.length === 0 && searchTerm && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', padding: '0.25rem 0' }}>No matches</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
       return (
         <div className="filter-panel">
-          {hasActive && (
-            <div style={{ paddingBottom: '0.75rem', borderBottom: '1px solid var(--stone-200)', marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--stone-900)' }}>Filters</span>
-              <button className="filter-clear" onClick={onClearFilters}>Clear All</button>
-            </div>
-          )}
-          {visibleFacets.map(group => {
-            const isCollapsed = collapsed[group.slug];
-            const showAllValues = showAll[group.slug];
-            const values = showAllValues ? group.values : group.values.slice(0, 8);
+          {/* Header + Clear All */}
+          <div style={{ paddingBottom: '0.75rem', borderBottom: '1px solid var(--stone-200)', marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--stone-900)' }}>Filters</span>
+            {hasAny && <button className="filter-clear" onClick={onClearFilters}>Clear All</button>}
+          </div>
 
-            return (
-              <div key={group.slug} className="filter-group">
-                <div className="filter-group-title" onClick={() => setCollapsed(prev => ({ ...prev, [group.slug]: !prev[group.slug] }))}>
-                  <span>{group.name}</span>
-                  {chevron(!isCollapsed)}
-                </div>
-                {!isCollapsed && (
-                  <div style={{ marginTop: '0.625rem' }}>
-                    {values.map(v => {
-                      const checked = (filters[group.slug] || []).includes(v.value);
+          {/* Vendor filter */}
+          {vendors && vendors.length > 0 && (
+            <div className="filter-group vendor-filter-group">
+              <div className="filter-group-title" onClick={() => setCollapsed(prev => ({ ...prev, _vendor: !prev._vendor }))}>
+                <span>Brand{hasVendorFilters && <span className="filter-group-count-badge">{vendorFilters.length}</span>}</span>
+                {chevron(collapsed._vendor)}
+              </div>
+              {!collapsed._vendor && (
+                <div style={{ marginTop: '0.625rem' }}>
+                  {vendors.length > 15 && (
+                    <input className="filter-search-input" type="text" placeholder="Search brands..."
+                      value={filterSearch._vendor || ''} onChange={e => setFilterSearch(prev => ({ ...prev, _vendor: e.target.value }))}
+                      onClick={e => e.stopPropagation()} />
+                  )}
+                  <div className="filter-values-scroll">
+                    {(filterSearch._vendor
+                      ? vendors.filter(v => v.name.toLowerCase().includes(filterSearch._vendor.toLowerCase()))
+                      : vendors
+                    ).map(v => {
+                      const checked = vendorFilters.includes(v.name);
                       return (
-                        <div key={v.value} className="filter-option">
-                          <input type="checkbox" id={'f-' + group.slug + '-' + v.value} checked={checked}
-                            onChange={() => onFilterToggle(group.slug, v.value)} />
-                          <label htmlFor={'f-' + group.slug + '-' + v.value}>{v.value}</label>
+                        <div key={v.name} className="filter-option">
+                          <input type="checkbox" id={'f-vendor-' + v.name.replace(/[^a-zA-Z0-9]/g, '_')} checked={checked}
+                            onChange={() => onVendorToggle(v.name)} />
+                          <label htmlFor={'f-vendor-' + v.name.replace(/[^a-zA-Z0-9]/g, '_')}>{v.name}</label>
                           <span className="filter-count">({v.count})</span>
                         </div>
                       );
                     })}
-                    {group.values.length > 8 && !showAllValues && (
-                      <button className="show-more-btn" onClick={() => setShowAll(prev => ({ ...prev, [group.slug]: true }))}>
-                        + {group.values.length - 8} more
-                      </button>
-                    )}
                   </div>
-                )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tag chips (Features & Room) */}
+          {tagFacets && tagFacets.length > 0 && (
+            <div className="filter-group">
+              <div className="filter-group-title"><span>Features & Room{hasTagFilters && <span className="filter-group-count-badge">{tagFilters.length}</span>}</span></div>
+              <div className="tag-chips">
+                {tagFacets.map(tag => (
+                  <button key={tag.slug}
+                    className={'tag-chip' + ((tagFilters || []).includes(tag.slug) ? ' active' : '')}
+                    onClick={() => onTagToggle(tag.slug)}>
+                    {tag.name} <span className="filter-count">({tag.count})</span>
+                  </button>
+                ))}
               </div>
-            );
-          })}
+            </div>
+          )}
+
+          {/* Price range */}
+          {priceRange && priceRange.max > 0 && (
+            <div className="filter-group">
+              <div className="filter-group-title" onClick={() => setCollapsed(prev => ({ ...prev, _price: !prev._price }))}>
+                <span>Price{hasPriceFilters && <span className="filter-group-count-badge">1</span>}</span>
+                {chevron(collapsed._price)}
+              </div>
+              {!collapsed._price && (
+                <div style={{ marginTop: '0.625rem' }}>
+                  <PriceRangeFilter priceRange={priceRange} userPriceRange={userPriceRange || { min: null, max: null }} onChange={onPriceRangeChange} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Color families + color facet */}
+          {colorFacet && (
+            <div className="filter-group">
+              <div className="filter-group-title" onClick={() => setCollapsed(prev => ({ ...prev, color: !isGroupCollapsed('color') }))}>
+                <span>Color{(filters.color || []).length > 0 && <span className="filter-group-count-badge">{(filters.color || []).length}</span>}</span>
+                {chevron(isGroupCollapsed('color'))}
+              </div>
+              {!isGroupCollapsed('color') && (
+                <div style={{ marginTop: '0.625rem' }}>
+                  {/* Color family swatches */}
+                  <div className="color-family-grid">
+                    {Object.entries(COLOR_FAMILIES).map(([name, { hex }]) => {
+                      if (!familyCounts[name]) return null;
+                      const isActive = activeFamilies.includes(name);
+                      const style = hex.includes('gradient')
+                        ? { background: hex }
+                        : { backgroundColor: hex };
+                      return (
+                        <div key={name} className={'color-family-swatch' + (isActive ? ' active' : '')} onClick={() => handleFamilyClick(name)}>
+                          <div className="color-family-circle" style={style} />
+                          <span className="color-family-name">{name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Detailed color values with search */}
+                  {colorFacet.values.length > 15 && (
+                    <input className="filter-search-input" type="text" placeholder="Search colors..."
+                      value={filterSearch.color || ''} onChange={e => setFilterSearch(prev => ({ ...prev, color: e.target.value }))}
+                      onClick={e => e.stopPropagation()} />
+                  )}
+                  <div className="filter-values-scroll">
+                    {(filterSearch.color
+                      ? colorFacet.values.filter(v => v.value.toLowerCase().includes(filterSearch.color.toLowerCase()))
+                      : colorFacet.values
+                    ).map(v => {
+                      const checked = (filters.color || []).includes(v.value);
+                      return (
+                        <div key={v.value} className="filter-option">
+                          <input type="checkbox" id={'f-color-' + v.value.replace(/[^a-zA-Z0-9]/g, '_')} checked={checked}
+                            onChange={() => onFilterToggle('color', v.value)} />
+                          <label htmlFor={'f-color-' + v.value.replace(/[^a-zA-Z0-9]/g, '_')}>{formatCarpetValue(v.value)}</label>
+                          <span className="filter-count">({v.count})</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Attribute facets */}
+          {sortedFacets.map(group => renderFilterGroup(group))}
         </div>
       );
     }
 
-    function ActiveFilterPills({ filters, facets, onFilterToggle, onClearFilters }) {
+    function ActiveFilterPills({ filters, facets, onFilterToggle, onClearFilters, vendorFilters, onVendorToggle, userPriceRange, onPriceRangeChange, tagFilters, tagFacets, onTagToggle }) {
       const pills = [];
+      // Vendor pills
+      (vendorFilters || []).forEach(name => {
+        pills.push({ type: 'vendor', value: name, label: 'Brand: ' + name, onRemove: () => onVendorToggle(name) });
+      });
+      // Tag pills
+      (tagFilters || []).forEach(slug => {
+        const tag = (tagFacets || []).find(t => t.slug === slug);
+        pills.push({ type: 'tag', value: slug, label: tag ? tag.name : slug, onRemove: () => onTagToggle(slug) });
+      });
+      // Price pill
+      if (userPriceRange && (userPriceRange.min != null || userPriceRange.max != null)) {
+        const label = 'Price: $' + (userPriceRange.min || 0) + ' – $' + (userPriceRange.max || '∞');
+        pills.push({ type: 'price', value: 'price', label, onRemove: () => onPriceRangeChange(null, null) });
+      }
+      // Attribute pills
       Object.keys(filters).forEach(slug => {
         const group = facets.find(f => f.slug === slug);
         const name = group ? group.name : slug;
         (filters[slug] || []).forEach(val => {
-          pills.push({ slug, name, value: val });
+          pills.push({ type: 'attr', slug, value: val, label: name + ': ' + val, onRemove: () => onFilterToggle(slug, val) });
         });
       });
       if (pills.length === 0) return null;
@@ -2669,8 +3425,8 @@
         <div className="active-filters">
           {pills.map((p, i) => (
             <div key={i} className="filter-pill">
-              <span>{p.name}: {p.value}</span>
-              <button onClick={() => onFilterToggle(p.slug, p.value)}>&times;</button>
+              <span>{p.label}</span>
+              <button onClick={p.onRemove}>&times;</button>
             </div>
           ))}
           <button className="filter-clear" onClick={onClearFilters}>Clear All</button>
@@ -2747,7 +3503,9 @@
     }
 
     function SkuCard({ sku, onClick, isWished, onToggleWishlist, onQuickView }) {
-      const price = sku.trade_price || sku.retail_price;
+      const onSale = sku.sale_price != null && !sku.trade_price;
+      const price = sku.trade_price || (onSale ? sku.sale_price : sku.retail_price);
+      const discountPct = onSale && sku.retail_price ? Math.round((1 - parseFloat(sku.sale_price) / parseFloat(sku.retail_price)) * 100) : 0;
       return (
         <div className="sku-card" onClick={onClick} data-sku={sku.vendor_sku || sku.internal_sku}>
           <button className={'wishlist-heart' + (isWished ? ' active' : '')}
@@ -2757,21 +3515,31 @@
             </svg>
           </button>
           <div className="sku-card-image">
-            {sku.primary_image && <img src={sku.primary_image} alt={sku.product_name} loading="lazy" decoding="async" width="300" height="300" />}
-            {sku.alternate_image && <img className="sku-card-alt-img" src={sku.alternate_image} alt="" loading="lazy" decoding="async" width="300" height="300" />}
+            {sku.primary_image && <img src={optimizeImg(sku.primary_image, 400)} alt={sku.product_name} loading="lazy" decoding="async" width="300" height="300" />}
+            {sku.alternate_image && <img className="sku-card-alt-img" src={optimizeImg(sku.alternate_image, 400)} alt="" loading="lazy" decoding="async" width="300" height="300" />}
+            {onSale && <span className="sale-badge">SALE</span>}
             {onQuickView && <button className="quick-view-btn" onClick={(e) => { e.stopPropagation(); onQuickView(); }}>Quick View</button>}
           </div>
           <div className="sku-card-name">{fullProductName(sku)}</div>
+          {sku.vendor_name && <div className="sku-card-vendor">{sku.vendor_name}</div>}
           <div className="sku-card-price">
             {price ? (
               <>
                 {sku.trade_price && sku.retail_price && (
                   <span style={{ textDecoration: 'line-through', color: 'var(--stone-500)', fontSize: '0.875rem', marginRight: '0.5rem' }}>
-                    ${parseFloat(sku.retail_price).toFixed(2)}
+                    ${displayPrice(sku, sku.retail_price).toFixed(2)}
                   </span>
                 )}
-                ${parseFloat(price).toFixed(2)}
+                {onSale && (
+                  <span className="sale-original-price">
+                    ${displayPrice(sku, sku.retail_price).toFixed(2)}
+                  </span>
+                )}
+                <span className={onSale ? 'sale-price-text' : ''}>
+                  ${displayPrice(sku, price).toFixed(2)}
+                </span>
                 <span className="price-suffix">{priceSuffix(sku)}</span>
+                {onSale && discountPct > 0 && <span className="sale-discount-tag">{discountPct}% off</span>}
               </>
             ) : 'Contact for pricing'}
           </div>
@@ -2788,6 +3556,7 @@
       const [collectionSiblings, setCollectionSiblings] = useState([]);
       const [collectionAttributes, setCollectionAttributes] = useState({});
       const [groupedProducts, setGroupedProducts] = useState([]);
+      const [productTags, setProductTags] = useState([]);
       const [countertopImage, setCountertopImage] = useState(null);
       const [selectedImage, setSelectedImage] = useState(0);
       const [loading, setLoading] = useState(true);
@@ -2851,9 +3620,10 @@
             setCollectionAttributes(data.collection_attributes || {});
             setGroupedProducts(data.grouped_products || []);
             setCountertopImage(data.countertop_image || null);
+            setProductTags(data.tags || []);
             setLoading(false);
             if (data.sku && addRecentlyViewed) {
-              addRecentlyViewed({ sku_id: data.sku.sku_id, product_name: data.sku.product_name, variant_name: data.sku.variant_name, primary_image: (data.media && data.media[0]) ? data.media[0].url : null, retail_price: data.sku.retail_price, price_basis: data.sku.price_basis });
+              addRecentlyViewed({ sku_id: data.sku.sku_id, product_name: data.sku.product_name, variant_name: data.sku.variant_name, primary_image: (data.media && data.media[0]) ? data.media[0].url : null, retail_price: data.sku.retail_price, price_basis: data.sku.price_basis, sell_by: data.sku.sell_by, sqft_per_box: data.sku.sqft_per_box });
             }
             if (data.sku) {
               const skuTitle = fullProductName(data.sku) + ' | Roma Flooring Designs';
@@ -2910,7 +3680,7 @@
           brand: { '@type': 'Brand', name: sku.vendor_name || 'Roma Flooring Designs' },
           category: sku.category_name || '',
           offers: { '@type': 'Offer', url: SITE_URL + '/shop/sku/' + skuId, priceCurrency: 'USD',
-            price: parseFloat(sku.retail_price || 0).toFixed(2),
+            price: displayPrice(sku, sku.sale_price || sku.retail_price).toFixed(2),
             availability: sku.stock_status === 'in_stock' ? 'https://schema.org/InStock' : 'https://schema.org/PreOrder',
             seller: { '@type': 'Organization', name: 'Roma Flooring Designs' } }
         };
@@ -2930,8 +3700,9 @@
 
       // Sync sqft <-> boxes
       const sqftPerBox = sku ? parseFloat(sku.sqft_per_box) || 0 : 0;
-      const retailPrice = sku ? parseFloat(sku.retail_price) || 0 : 0;
-      const tradePrice = sku && sku.trade_price ? parseFloat(sku.trade_price) : null;
+      const retailPrice = sku ? displayPrice(sku, sku.retail_price) : 0;
+      const salePrice = sku && sku.sale_price ? displayPrice(sku, sku.sale_price) : null;
+      const tradePrice = sku && sku.trade_price ? displayPrice(sku, sku.trade_price) : null;
       const isCarpetSku = sku && isCarpet(sku);
       const cutPrice = isCarpetSku ? parseFloat(sku.cut_price) : 0;
       const rollPrice = isCarpetSku ? parseFloat(sku.roll_price) : 0;
@@ -2967,7 +3738,7 @@
       const carpetEstWeight = carpetWeightPerSqyd > 0 ? carpetSqyd * carpetWeightPerSqyd : 0;
       // Room wider than roll — seam needed
       const carpetNeedsSeam = isCarpetSku && effectiveCarpetMode === 'dimensions' && rollWidthFt > 0 && (parseFloat(roomWidth) || 0) > rollWidthFt;
-      const effectivePrice = isCarpetSku ? carpetActivePrice : (tradePrice || retailPrice);
+      const effectivePrice = isCarpetSku ? carpetActivePrice : (tradePrice || salePrice || retailPrice);
 
       const handleSqftChange = (val) => {
         setSqftInput(val);
@@ -3141,10 +3912,10 @@
                 {recentlyViewed.slice(0, 6).map(rv => (
                   <div key={rv.sku_id} className="sibling-card" onClick={() => onSkuClick(rv.sku_id, rv.product_name)}>
                     <div className="sibling-card-image">
-                      {rv.primary_image && <img src={rv.primary_image} alt={rv.product_name} loading="lazy" />}
+                      {rv.primary_image && <img src={optimizeImg(rv.primary_image, 400)} alt={rv.product_name} loading="lazy" />}
                     </div>
                     <div className="sibling-card-name">{fullProductName(rv)}</div>
-                    {rv.retail_price && <div className="sibling-card-price">${parseFloat(rv.retail_price).toFixed(2)}{rv.price_basis === 'per_unit' ? '/ea' : rv.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft'}</div>}
+                    {rv.retail_price && <div className="sibling-card-price">${displayPrice(rv, rv.retail_price).toFixed(2)}{priceSuffix(rv)}</div>}
                   </div>
                 ))}
               </div>
@@ -3194,6 +3965,9 @@
       const mainSiblings = siblings.filter(s => s.variant_type !== 'accessory');
       const accessorySiblings = siblings.filter(s => s.variant_type === 'accessory');
 
+      // ADEX products use a 3-row variant selector (Color / Finish / Type) + grouped collection siblings
+      const isAdexProduct = /adex/i.test(sku.vendor_name || '');
+
       return (
         <>
           <div className="sku-detail" data-sku={sku.vendor_sku || sku.internal_sku}>
@@ -3207,13 +3981,13 @@
             <div className="sku-detail-main">
             <div className="sku-detail-gallery">
               <div className="sku-detail-image">
-                {mainImage && <img src={mainImage.url} alt={sku.product_name} decoding="async" />}
+                {mainImage && <img src={optimizeImg(mainImage.url, 800)} alt={sku.product_name} decoding="async" />}
               </div>
               {images.length > 1 && (
                 <div className="gallery-thumbs">
                   {images.map((img, i) => (
                     <div key={img.id} className={'gallery-thumb' + (i === selectedImage ? ' active' : '')} onClick={() => setSelectedImage(i)}>
-                      <img src={img.url} alt="" loading="lazy" decoding="async" width="80" height="80" />
+                      <img src={optimizeImg(img.url, 120)} alt="" loading="lazy" decoding="async" width="80" height="80" />
                     </div>
                   ))}
                 </div>
@@ -3221,7 +3995,7 @@
 
               {/* Specs Table — below gallery */}
               {(() => {
-                const HIDDEN_SLUGS = new Set(['price_list', 'material_class', 'style_code', 'companion_skus', 'subcategory', 'brand', 'upc', 'msrp', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number']);
+                const HIDDEN_SLUGS = new Set(['price_list', 'material_class', 'style_code', 'companion_skus', 'subcategory', 'brand', 'msrp', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number']);
                 const ORDER = ['_collection', '_category', 'collection', 'species', 'color', 'color_code', 'application', 'fiber', 'material', 'construction', 'finish', 'style', 'pattern', 'size', 'thickness', 'width', 'wear_layer', 'weight', 'weight_per_sqyd', 'roll_width', 'roll_length'];
                 const slugMap = {};
                 (sku.attributes || []).forEach(a => { slugMap[a.slug] = (a.value || '').trim(); });
@@ -3308,6 +4082,12 @@
                 {fullProductName(sku)}
               </h1>
 
+              {productTags.length > 0 && (
+                <div className="product-tag-badges">
+                  {productTags.map(t => <span key={t.slug} className="product-tag-badge">{t.name}</span>)}
+                </div>
+              )}
+
               <div className="sku-detail-price">
                 {isCarpet(sku) ? (
                   <>
@@ -3336,6 +4116,17 @@
                     ${tradePrice.toFixed(2)}
                     <span>{priceSuffix(sku)}</span>
                     <div style={{ fontSize: '0.8125rem', color: 'var(--gold)', marginTop: '0.25rem' }}>Trade Price ({sku.trade_tier})</div>
+                  </>
+                ) : salePrice ? (
+                  <>
+                    <span className="sale-original-price" style={{ fontSize: '1.25rem' }}>
+                      ${retailPrice.toFixed(2)}
+                    </span>
+                    <span className="sale-price-text" style={{ fontSize: '1.75rem', fontWeight: 600 }}>
+                      ${salePrice.toFixed(2)}
+                    </span>
+                    <span>{priceSuffix(sku)}</span>
+                    <span className="sale-discount-tag">{Math.round((1 - salePrice / retailPrice) * 100)}% off</span>
                   </>
                 ) : retailPrice > 0 ? (
                   <>${retailPrice.toFixed(2)}<span>{priceSuffix(sku)}</span></>
@@ -3369,6 +4160,170 @@
               {(() => {
                 const currentAttrs = (sku.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
                 const allSiblings = [{ sku_id: sku.sku_id, variant_name: sku.variant_name, attributes: sku.attributes || [], primary_image: (media && media[0]) ? media[0].url : null }, ...mainSiblings];
+
+                if (isAdexProduct) {
+                  // ADEX 3-row selector:
+                  // Row 1: Color swatches — same product + same finish, different colors
+                  // Row 2: Finish pills — same product + same color, different finishes
+                  // Row 3: Variant grid — all OTHER pieces in collection matching color+finish
+
+                  // Build unified list: current SKU + same-product siblings + collection siblings
+                  const allCollection = [];
+                  const seenIds = new Set();
+
+                  // Current SKU
+                  const curColorAttr = (sku.attributes || []).find(a => a.slug === 'color');
+                  const curColor = curColorAttr ? curColorAttr.value : '';
+                  const curFinishAttr = (sku.attributes || []).find(a => a.slug === 'finish');
+                  const curFinish = curFinishAttr ? curFinishAttr.value : '';
+                  // For color swatches, use SKU-level primary (color swatch), not shape/fallback image
+                  const curSkuPrimary = media ? media.find(m => m.sku_id && m.asset_type === 'primary') : null;
+                  allCollection.push({
+                    sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name,
+                    primary_image: curSkuPrimary ? curSkuPrimary.url : null,
+                    color: curColor, finish: curFinish
+                  });
+                  seenIds.add(sku.sku_id);
+
+                  // Same-product siblings — use sku_image (SKU-only, no product fallback) for color swatches
+                  mainSiblings.forEach(s => {
+                    if (seenIds.has(s.sku_id)) return;
+                    seenIds.add(s.sku_id);
+                    const ca = (s.attributes || []).find(a => a.slug === 'color');
+                    const fa = (s.attributes || []).find(a => a.slug === 'finish');
+                    allCollection.push({ ...s, product_name: sku.product_name, color: ca ? ca.value : '', finish: fa ? fa.value : '', primary_image: s.sku_image || null });
+                  });
+
+                  // Collection siblings (primary_image is already SKU-only for ADEX from backend)
+                  collectionSiblings.forEach(s => {
+                    if (seenIds.has(s.sku_id)) return;
+                    seenIds.add(s.sku_id);
+                    allCollection.push({ ...s, color: s.color || '', finish: s.finish || '' });
+                  });
+
+                  if (allCollection.length > 1) {
+                    // Helper: is this a "main" variant (not End Cap, Frame Corner, Beak, etc.)
+                    const isMainVariant = (s) => {
+                      const vn = s.variant_name || '';
+                      return !/^(End Cap|Frame Corner|Beak|FE Corner)\s*-/i.test(vn);
+                    };
+
+                    // Row 1: colors for THIS product + THIS finish only (excluding accessories)
+                    const sameProductFinish = allCollection.filter(s =>
+                      s.product_name === sku.product_name && s.finish === curFinish && isMainVariant(s)
+                    );
+                    const uniqueColors = [...new Set(sameProductFinish.map(s => s.color))].filter(Boolean).sort();
+                    const colorSwatches = uniqueColors.map(color => {
+                      const rep = sameProductFinish.find(s => s.color === color);
+                      return { color, sku_id: rep.sku_id, primary_image: rep.primary_image, is_current: color === curColor };
+                    });
+
+                    // Row 2: finishes for THIS product + THIS color only (excluding accessories)
+                    const sameProductColor = allCollection.filter(s =>
+                      s.product_name === sku.product_name && s.color === curColor && isMainVariant(s)
+                    );
+                    const finishesForColor = [...new Set(sameProductColor.map(s => s.finish))].sort();
+                    const showFinishRow = finishesForColor.length > 1;
+
+                    // Row 3: all OTHER pieces in collection matching current color + finish
+                    const matchingVariants = allCollection.filter(s => s.color === curColor && s.finish === curFinish && s.sku_id !== sku.sku_id);
+
+                    return (
+                      <div className="variant-selectors">
+                        {uniqueColors.length > 1 && (
+                          <div className="variant-selector-group">
+                            <div className="variant-selector-label">Color<span>{curColor}</span></div>
+                            <div className="color-swatches">
+                              {colorSwatches.map(c => (
+                                <div key={c.color} className="color-swatch-wrap" onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
+                                  <div className={'color-swatch' + (c.is_current ? ' active' : '')}>
+                                    {c.primary_image ? <img src={optimizeImg(c.primary_image, 120)} alt={c.color} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.625rem', fontWeight: 600, color: 'var(--stone-500)', textAlign: 'center', lineHeight: 1.2, padding: '4px' }}>{c.color}</div>}
+                                  </div>
+                                  <div className="color-swatch-tooltip">{c.color}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {showFinishRow && (
+                          <div className="variant-selector-group">
+                            <div className="variant-selector-label">Finish<span>{curFinish || 'Standard'}</span></div>
+                            <div className="attr-pills">
+                              {finishesForColor.map(f => {
+                                const isActive = f === curFinish;
+                                // Find same product+color in this finish (main variant, not accessory)
+                                const match = sameProductColor.find(s => s.finish === f)
+                                  || allCollection.find(s => s.color === curColor && s.finish === f && s.product_name === sku.product_name);
+                                return (
+                                  <button key={f || '_std'} className={'attr-pill' + (isActive ? ' active' : '')} onClick={() => { if (!isActive && match) onSkuClick(match.sku_id); }}>
+                                    {f || 'Standard'}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        {matchingVariants.length > 0 && (() => {
+                          // Group variants by category (like James Martin "Complete the Look")
+                          const categorize = (name, variantName) => {
+                            const vn = variantName || '';
+                            const dashIdx = vn.indexOf(' - ');
+                            const prefix = dashIdx > 0 ? vn.substring(0, dashIdx) : '';
+                            if (/^End Cap|^Frame Corner/i.test(prefix)) return 'Finishing Touches';
+                            if (/^Beak/i.test(prefix)) return 'Decorative Accessories';
+                            if (/^FE Corner/i.test(prefix)) return 'Finishing Edges';
+                            if (/^Field Tile/i.test(name)) return 'Field Tiles';
+                            if (/^Beveled/i.test(name)) return 'Beveled Tiles';
+                            if (/Stripe Liner|Quarter Round|Round Bar|Ponciana/i.test(name)) return 'Decorative Accessories';
+                            if (/Finishing Edge|^FE /i.test(name)) return 'Finishing Edges';
+                            if (/^Sbn |^Dbn /i.test(name)) return 'Bullnoses';
+                            if (/^Dge |^Sge |^Framed/i.test(name)) return 'Glazed Edges';
+                            if (/Chair Molding|Crown Molding|Rail Molding|Base Board|Molding/i.test(name)) return 'Moldings & Trim';
+                            if (/Deco|Border|Liner|Listello|Planet|Universe|Vizcaya|Flower|Gables|Palm Beach/i.test(name)) return 'Decorative Accents';
+                            return 'Other Pieces';
+                          };
+                          const displayName = (s) => {
+                            const vn = s.variant_name || '';
+                            const dashIdx = vn.indexOf(' - ');
+                            const prefix = dashIdx > 0 ? vn.substring(0, dashIdx) : '';
+                            if (/^End Cap|^Frame Corner|^Beak|^FE Corner/i.test(prefix)) return s.product_name + ' — ' + prefix;
+                            return s.product_name;
+                          };
+                          const groups = {};
+                          matchingVariants.forEach(s => {
+                            const cat = categorize(s.product_name || '', s.variant_name || '');
+                            if (!groups[cat]) groups[cat] = [];
+                            groups[cat].push(s);
+                          });
+                          const CATEGORY_ORDER = ['Field Tiles', 'Beveled Tiles', 'Decorative Accessories', 'Decorative Accents', 'Finishing Edges', 'Bullnoses', 'Glazed Edges', 'Moldings & Trim', 'Finishing Touches', 'Other Pieces'];
+                          const orderedGroups = CATEGORY_ORDER.filter(cat => groups[cat] && groups[cat].length > 0);
+                          return (
+                            <div style={{ marginTop: '1.5rem' }}>
+                              <div className="variant-selector-label" style={{ marginBottom: '0.75rem' }}>{curColor}{curFinish ? ' ' + curFinish : ''} — {sku.collection} Collection<span>{matchingVariants.length} pieces</span></div>
+                              {orderedGroups.map(cat => (
+                                <div key={cat} style={{ marginBottom: '1.25rem' }}>
+                                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>{cat}</div>
+                                  <div className="variant-grid">
+                                    {groups[cat].map(s => (
+                                      <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
+                                        <div className="sibling-card-image">
+                                          {(s.shape_image || s.primary_image) && <img src={optimizeImg(s.shape_image || s.primary_image, 120)} alt={displayName(s)} loading="lazy" decoding="async" />}
+                                        </div>
+                                        <div className="sibling-card-name">{displayName(s)}</div>
+                                        {s.retail_price && <div className="sibling-card-price">${displayPrice(s, s.retail_price).toFixed(2)}{priceSuffix(s)}</div>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    );
+                  }
+                }
+
                 const colorItems = collectionSiblings.length > 0 ? [
                   { sku_id: sku.sku_id, product_name: sku.product_name, primary_image: (media && media[0]) ? media[0].url : null, is_current: true },
                   ...collectionSiblings
@@ -3399,21 +4354,35 @@
                   .sort((a, b) => a === 'finish' ? -1 : b === 'finish' ? 1 : 0);
                 const sizeSort = (a, b) => { const na = parseFloat(a), nb = parseFloat(b); if (!isNaN(na) && !isNaN(nb)) return na - nb; return a.localeCompare(b); };
                 const showColors = colorItems.length >= 2;
+                const isRomanVariants = showColors && colorItems.some(c => hasRomanSuffix(c.product_name));
+                const colorLabel = attrMap['countertop_finish'] ? 'Size' : isRomanVariants ? 'Style' : 'Color';
                 const showAttrs = attrSlugs.length > 0;
                 if (!showColors && !showAttrs) return null;
                 return (
                   <div className="variant-selectors">
                     {showColors && (
                       <div className="variant-selector-group">
-                        <div className="variant-selector-label">{attrMap['countertop_finish'] ? 'Size' : 'Color'}</div>
-                        <div className="color-swatches">
-                          {colorItems.map(c => (
-                            <div key={c.sku_id} className={'color-swatch' + (c.is_current ? ' active' : '')} onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
-                              {c.primary_image ? <img src={c.primary_image} alt={c.product_name} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)' }} />}
-                              <div className="color-swatch-tooltip">{c.product_name}</div>
-                            </div>
-                          ))}
-                        </div>
+                        <div className="variant-selector-label">{colorLabel}</div>
+                        {isRomanVariants ? (
+                          <div className="attr-pills">
+                            {[...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map(c => (
+                                <button key={c.sku_id} className={'attr-pill' + (c.is_current ? ' active' : '')} onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
+                                  {c.product_name}
+                                </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="color-swatches">
+                            {colorItems.map(c => (
+                              <div key={c.sku_id} className="color-swatch-wrap" onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
+                                <div className={'color-swatch' + (c.is_current ? ' active' : '')}>
+                                  {c.primary_image ? <img src={optimizeImg(c.primary_image, 120)} alt={c.product_name} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)' }} />}
+                                </div>
+                                <div className="color-swatch-tooltip">{c.product_name}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                     {showAttrs && attrSlugs.map(slug => {
@@ -3478,8 +4447,10 @@
                                 const img = getSwatchImage(val);
                                 const best = findBest(val);
                                 return (
-                                  <div key={val} className={'color-swatch' + (isActive ? ' active' : '')} onClick={() => { if (!isActive && best) onSkuClick(best.sku_id); }}>
-                                    {img ? <img src={img} alt={formatCarpetValue(val)} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--stone-500)', textAlign: 'center', padding: '0.25rem' }}>{formatCarpetValue(val)}</div>}
+                                  <div key={val} className="color-swatch-wrap" onClick={() => { if (!isActive && best) onSkuClick(best.sku_id); }}>
+                                    <div className={'color-swatch' + (isActive ? ' active' : '')}>
+                                      {img ? <img src={optimizeImg(img, 120)} alt={formatCarpetValue(val)} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--stone-500)', textAlign: 'center', padding: '0.25rem' }}>{formatCarpetValue(val)}</div>}
+                                    </div>
                                     <div className="color-swatch-tooltip">{formatCarpetValue(val)}</div>
                                   </div>
                                 );
@@ -3871,10 +4842,10 @@
                         {items.map(s => (
                           <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
                             <div className="sibling-card-image">
-                              {s.primary_image && <img src={s.primary_image} alt={s.product_name} loading="lazy" decoding="async" />}
+                              {s.primary_image && <img src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
                             </div>
                             <div className="sibling-card-name">{s.product_name}</div>
-                            {s.retail_price && <div className="sibling-card-price">from ${parseFloat(s.retail_price).toFixed(2)}{s.sell_by === 'sqyd' ? '/sqyd' : s.sell_by === 'sqft' ? '/sf' : s.price_basis === 'per_sqyd' ? '/sqyd' : s.price_basis === 'per_sqft' ? '/sf' : ''}</div>}
+                            {s.retail_price && <div className="sibling-card-price">from ${displayPrice(s, s.retail_price).toFixed(2)}{priceSuffix(s)}</div>}
                           </div>
                         ))}
                       </div>
@@ -3884,15 +4855,15 @@
               );
             })()}
 
-            {/* Same Product Siblings (non-accessory) */}
-            {mainSiblings.length > 0 && (
+            {/* Same Product Siblings (non-accessory) — hidden for ADEX (brochure catalog below covers it) */}
+            {!isAdexProduct && mainSiblings.length > 0 && (
               <div className="siblings-section">
                 <h2>Other Sizes &amp; Finishes</h2>
                 <div className="siblings-strip">
                   {mainSiblings.map(s => (
                     <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
                       <div className="sibling-card-image">
-                        {s.primary_image && <img src={s.primary_image} alt={formatVariantName(s.variant_name)} loading="lazy" decoding="async" />}
+                        {s.primary_image && <img src={optimizeImg(s.primary_image, 400)} alt={formatVariantName(s.variant_name)} loading="lazy" decoding="async" />}
                       </div>
                       <div className="sibling-card-name">{formatCarpetValue(s.variant_name) || 'Variant'}</div>
                       {s.attributes && s.attributes.length > 0 && (() => {
@@ -3904,7 +4875,7 @@
                         if (differing.length === 0) return null;
                         return <div className="sibling-card-meta">{differing.map(a => formatCarpetValue(a.value)).join(' \u00B7 ')}</div>;
                       })()}
-                      {s.retail_price && <div className="sibling-card-price">${parseFloat(s.retail_price).toFixed(2)}{priceSuffix(s)}</div>}
+                      {s.retail_price && <div className="sibling-card-price">${displayPrice(s, s.retail_price).toFixed(2)}{priceSuffix(s)}</div>}
                     </div>
                   ))}
                 </div>
@@ -3912,22 +4883,28 @@
             )}
 
             {/* Collection Siblings */}
-            {collectionSiblings.length > 0 && (
-              <div className="siblings-section">
-                <h2>More from {sku.collection}</h2>
-                <div className="siblings-strip">
-                  {collectionSiblings.map(s => (
-                    <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
-                      <div className="sibling-card-image">
-                        {s.primary_image && <img src={s.primary_image} alt={s.product_name} loading="lazy" decoding="async" />}
+            {(() => {
+              // ADEX: swatch grid in variant selector already shows all collection variants
+              if (isAdexProduct) return null;
+              // Default: flat strip for non-ADEX products
+              if (collectionSiblings.length === 0) return null;
+              return (
+                <div className="siblings-section">
+                  <h2>More from {sku.collection}</h2>
+                  <div className="siblings-strip">
+                    {collectionSiblings.map(s => (
+                      <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
+                        <div className="sibling-card-image">
+                          {s.primary_image && <img src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
+                        </div>
+                        <div className="sibling-card-name">{fullProductName(s)}</div>
+                        {s.retail_price && <div className="sibling-card-price">${displayPrice(s, s.retail_price).toFixed(2)}{priceSuffix(s)}</div>}
                       </div>
-                      <div className="sibling-card-name">{fullProductName(s)}</div>
-                      {s.retail_price && <div className="sibling-card-price">${parseFloat(s.retail_price).toFixed(2)}</div>}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {recentlyViewed && recentlyViewed.filter(r => r.sku_id !== skuId).length > 0 && (
               <div className="siblings-section">
@@ -3936,10 +4913,10 @@
                   {recentlyViewed.filter(r => r.sku_id !== skuId).slice(0, 8).map(s => (
                     <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
                       <div className="sibling-card-image">
-                        {s.primary_image && <img src={s.primary_image} alt={s.product_name} loading="lazy" decoding="async" />}
+                        {s.primary_image && <img src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
                       </div>
                       <div className="sibling-card-name">{fullProductName(s)}</div>
-                      {s.retail_price && <div className="sibling-card-price">${parseFloat(s.retail_price).toFixed(2)}{s.price_basis === 'per_sqyd' ? '/sqyd' : s.price_basis === 'per_sqft' ? '/sf' : ''}</div>}
+                      {s.retail_price && <div className="sibling-card-price">${displayPrice(s, s.retail_price).toFixed(2)}{priceSuffix(s)}</div>}
                     </div>
                   ))}
                 </div>
@@ -5450,7 +6427,7 @@
                               {(sr.items || []).map(item => (
                                 <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
                                   {item.primary_image && (
-                                    <img src={item.primary_image} alt={item.product_name} style={{ width: 40, height: 40, objectFit: 'cover', border: '1px solid var(--stone-200)' }} />
+                                    <img src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 40, height: 40, objectFit: 'cover', border: '1px solid var(--stone-200)' }} loading="lazy" />
                                   )}
                                   <div style={{ flex: 1 }}>
                                     <div style={{ fontWeight: 500 }}>{item.product_name}</div>
@@ -5483,7 +6460,7 @@
                                       const alreadyAdded = (sr.items || []).some(i => i.product_id === sku.product_id);
                                       return (
                                         <div key={sku.sku_id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
-                                          {sku.primary_image && <img src={sku.primary_image} alt="" style={{ width: 32, height: 32, objectFit: 'cover' }} />}
+                                          {sku.primary_image && <img src={optimizeImg(sku.primary_image, 100)} alt="" style={{ width: 32, height: 32, objectFit: 'cover' }} loading="lazy" />}
                                           <div style={{ flex: 1 }}>
                                             <div style={{ fontWeight: 500 }}>{sku.product_name || sku.collection}</div>
                                             {sku.variant_name && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{sku.variant_name}</div>}
@@ -5573,7 +6550,7 @@
                             {visitDetail.items.map(item => (
                               <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
                                 {item.primary_image && (
-                                  <img src={item.primary_image} alt={item.product_name} style={{ width: 48, height: 48, objectFit: 'cover', border: '1px solid var(--stone-200)' }} />
+                                  <img src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 48, height: 48, objectFit: 'cover', border: '1px solid var(--stone-200)' }} loading="lazy" />
                                 )}
                                 <div style={{ flex: 1 }}>
                                   <div style={{ fontWeight: 500 }}>{item.product_name}</div>
@@ -5582,7 +6559,7 @@
                                 </div>
                                 {item.retail_price && (
                                   <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
-                                    ${parseFloat(item.retail_price).toFixed(2)}{item.price_basis === 'sqft' ? '/sqft' : '/ea'}
+                                    ${displayPrice(item, item.retail_price).toFixed(2)}{priceSuffix(item)}
                                   </span>
                                 )}
                                 {item.rep_note && (
@@ -5740,10 +6717,10 @@
                     {recentlyViewed.slice(0, 6).map(rv => (
                       <div key={rv.sku_id} className="sibling-card" onClick={() => onSkuClick(rv.sku_id, rv.product_name)}>
                         <div className="sibling-card-image">
-                          {rv.primary_image && <img src={rv.primary_image} alt={rv.product_name} loading="lazy" />}
+                          {rv.primary_image && <img src={optimizeImg(rv.primary_image, 400)} alt={rv.product_name} loading="lazy" />}
                         </div>
                         <div className="sibling-card-name">{fullProductName(rv)}</div>
-                        {rv.retail_price && <div className="sibling-card-price">${parseFloat(rv.retail_price).toFixed(2)}{rv.price_basis === 'per_unit' ? '/ea' : rv.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft'}</div>}
+                        {rv.retail_price && <div className="sibling-card-price">${displayPrice(rv, rv.retail_price).toFixed(2)}{priceSuffix(rv)}</div>}
                       </div>
                     ))}
                   </div>
@@ -6170,7 +7147,7 @@
                                       {(visitDetail.items || []).map((item, i) => (
                                         <tr key={i} style={{ borderBottom: '1px solid #e7e5e4' }}>
                                           <td style={{ padding: '0.5rem' }}>
-                                            {item.primary_image && <img src={item.primary_image} alt="" style={{ width: 40, height: 40, objectFit: 'cover', border: '1px solid var(--stone-200)' }} />}
+                                            {item.primary_image && <img src={optimizeImg(item.primary_image, 100)} alt="" style={{ width: 40, height: 40, objectFit: 'cover', border: '1px solid var(--stone-200)' }} loading="lazy" />}
                                           </td>
                                           <td style={{ padding: '0.5rem' }}>
                                             <div style={{ fontWeight: 500 }}>{item.product_name}</div>
@@ -6178,7 +7155,7 @@
                                           </td>
                                           <td style={{ padding: '0.5rem', color: 'var(--stone-600)' }}>{item.variant_name || '\u2014'}</td>
                                           <td style={{ padding: '0.5rem', textAlign: 'right' }}>
-                                            {item.retail_price ? `$${parseFloat(item.retail_price).toFixed(2)}${item.price_basis === 'sqft' ? '/sqft' : '/ea'}` : '\u2014'}
+                                            {item.retail_price ? `$${displayPrice(item, item.retail_price).toFixed(2)}${priceSuffix(item)}` : '\u2014'}
                                           </td>
                                           <td style={{ padding: '0.5rem', color: 'var(--stone-500)', fontSize: '0.75rem', maxWidth: 180 }}>{item.rep_note || ''}</td>
                                         </tr>
@@ -6276,7 +7253,7 @@
                         <div className="trade-fav-grid">
                           {col.items.map(item => (
                             <div key={item.id} className="trade-fav-item">
-                              {item.primary_image_url ? <img src={item.primary_image_url} alt={item.product_name} loading="lazy" decoding="async" /> : <div style={{ height: 140, background: 'var(--stone-100)' }}></div>}
+                              {item.primary_image_url ? <img src={optimizeImg(item.primary_image_url, 400)} alt={item.product_name} loading="lazy" decoding="async" /> : <div style={{ height: 140, background: 'var(--stone-100)' }}></div>}
                               <div className="name">{item.product_name}</div>
                               <button className="btn" style={{ marginTop: '0.5rem', fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
                                 onClick={() => addToCart({ product_id: item.product_id, sku_id: item.sku_id, sqft_needed: 1, num_boxes: 1, unit_price: parseFloat(item.retail_price || item.price || 0), subtotal: parseFloat(item.retail_price || item.price || 0).toFixed(2) })}>Add to Cart</button>
@@ -6419,7 +7396,7 @@
               {collections.map(c => (
                 <div key={c.slug} className="collection-card" onClick={() => onCollectionClick(c.name)}>
                   <div className="collection-card-image">
-                    {c.image && <img src={c.image} alt={c.name} loading="lazy" decoding="async" />}
+                    {c.image && <img src={optimizeImg(c.image, 400)} alt={c.name} loading="lazy" decoding="async" />}
                   </div>
                   <div className="collection-card-info">
                     <div className="collection-card-name">{c.name}</div>
@@ -6648,10 +7625,10 @@
                     <div className="quiz-results-grid">
                       {results.slice(0, 8).map(sku => (
                         <div key={sku.sku_id} className="quiz-result-card" onClick={() => { onClose(); onSkuClick(sku.sku_id, sku.product_name); }}>
-                          {sku.primary_image && <img src={sku.primary_image} alt={sku.product_name} loading="lazy" decoding="async" />}
+                          {sku.primary_image && <img src={optimizeImg(sku.primary_image, 400)} alt={sku.product_name} loading="lazy" decoding="async" />}
                           <div className="quiz-result-card-info">
                             <div className="quiz-result-card-name">{sku.product_name}</div>
-                            <div className="quiz-result-card-price">{sku.retail_price ? '$' + parseFloat(sku.retail_price).toFixed(2) + '/sqft' : ''}</div>
+                            <div className="quiz-result-card-price">{sku.retail_price ? '$' + displayPrice(sku, sku.retail_price).toFixed(2) + priceSuffix(sku) : ''}</div>
                           </div>
                         </div>
                       ))}
@@ -7285,6 +8262,97 @@
       );
     }
 
+    // ==================== Sale Page ====================
+
+    function SalePage({ onSkuClick, wishlist, toggleWishlist, setQuickViewSku, navigate }) {
+      const [skus, setSkus] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [total, setTotal] = useState(0);
+      const [page, setPage] = useState(1);
+      const [sortBy, setSortBy] = useState('discount');
+      const [stats, setStats] = useState({ count: 0, max_discount: 0 });
+      const limit = 24;
+
+      useEffect(() => {
+        fetch('/api/storefront/sale/stats')
+          .then(r => r.json())
+          .then(data => setStats(data))
+          .catch(() => {});
+      }, []);
+
+      useEffect(() => {
+        setLoading(true);
+        const offset = (page - 1) * limit;
+        fetch(`/api/storefront/skus?sale=true&sort=${sortBy}&limit=${limit}&offset=${offset}`)
+          .then(r => r.json())
+          .then(data => {
+            setSkus(data.skus || []);
+            setTotal(data.total || 0);
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      }, [page, sortBy]);
+
+      const totalPages = Math.ceil(total / limit);
+
+      return (
+        <div>
+          <div className="sale-hero">
+            <div className="sale-hero-badge">LIMITED TIME</div>
+            <h1>Sale</h1>
+            <p>Exceptional flooring at extraordinary prices. Shop our curated selection of premium materials at reduced prices.</p>
+            {stats.count > 0 && (
+              <div className="sale-hero-stats">
+                <div className="sale-hero-stat">
+                  <div className="stat-value">{stats.count}</div>
+                  <div className="stat-label">Products on Sale</div>
+                </div>
+                <div className="sale-hero-stat">
+                  <div className="stat-value">Up to {stats.max_discount}%</div>
+                  <div className="stat-label">Savings</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="sale-grid-section">
+            {loading ? (
+              <SkeletonGrid count={8} />
+            ) : skus.length === 0 ? (
+              <div className="sale-empty">
+                <h2>No sale items right now</h2>
+                <p>Check back soon — we regularly add new deals on premium flooring.</p>
+                <button className="btn" onClick={() => navigate('/shop')}>Browse All Products</button>
+              </div>
+            ) : (
+              <>
+                <div className="sale-toolbar">
+                  <span className="result-count">{total} product{total !== 1 ? 's' : ''} on sale</span>
+                  <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }}>
+                    <option value="discount">Biggest Savings</option>
+                    <option value="price_asc">Price: Low to High</option>
+                    <option value="price_desc">Price: High to Low</option>
+                    <option value="newest">Newest</option>
+                    <option value="name_asc">Name: A–Z</option>
+                  </select>
+                </div>
+                <SkuGrid skus={skus} onSkuClick={onSkuClick} wishlist={wishlist} toggleWishlist={toggleWishlist} setQuickViewSku={setQuickViewSku} />
+                {totalPages > 1 && (
+                  <Pagination currentPage={page} totalPages={totalPages} onPageChange={(p) => { setPage(p); window.scrollTo(0, 400); }} />
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="sale-cta-band">
+            <h2>Need Help Choosing?</h2>
+            <p>Our flooring experts are here to help you find the perfect material for your project.</p>
+            <button className="btn btn-outline-light" onClick={() => navigate('/installation')}>Get a Free Consultation</button>
+          </div>
+        </div>
+      );
+    }
+
     // ==================== Inspiration Page ====================
 
     function InspirationPage({ navigate, goBrowse }) {
@@ -7647,11 +8715,11 @@
               <div key={item.id || idx} className="sku-card" style={{ cursor: item.sku_id ? 'pointer' : 'default' }}
                 onClick={() => item.sku_id && onSkuClick(item.sku_id, item.product_name)}>
                 <div className="sku-card-image">
-                  {item.primary_image && <img src={item.primary_image} alt={item.product_name} loading="lazy" decoding="async" />}
+                  {item.primary_image && <img src={optimizeImg(item.primary_image, 400)} alt={item.product_name} loading="lazy" decoding="async" />}
                 </div>
                 <div className="sku-card-name">{fullProductName(item)}</div>
                 <div className="sku-card-price">
-                  {item.retail_price ? '$' + parseFloat(item.retail_price).toFixed(2) + (item.price_basis === 'per_sqyd' ? '/sqyd' : item.price_basis === 'per_sqft' ? '/sqft' : '') : ''}
+                  {item.retail_price ? '$' + displayPrice(item, item.retail_price).toFixed(2) + priceSuffix(item) : ''}
                 </div>
                 {item.rep_note && (
                   <p style={{ margin: '0.5rem 0 0', fontSize: '0.8125rem', fontStyle: 'italic', color: 'var(--stone-400)', lineHeight: 1.4 }}>"{item.rep_note}"</p>

@@ -34,6 +34,17 @@
       --green-light: #dcfce7;
       --red: #dc2626;
       --red-light: #fee2e2;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-full: 9999px;
+      --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.03);
+      --shadow-lg: 0 10px 15px rgba(0,0,0,0.06), 0 4px 6px rgba(0,0,0,0.03);
+      --transition-fast: 0.15s ease;
+      --transition-base: 0.2s ease;
+      --transition-slow: 0.3s ease;
     }
     body {
       font-family: 'Inter', sans-serif;
@@ -54,7 +65,9 @@
       padding: 3rem;
       width: 400px;
       max-width: 90vw;
-      border: 1px solid var(--stone-200);
+      border: none;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
     }
     .auth-box h1 {
       font-family: 'Cormorant Garamond', serif;
@@ -71,11 +84,13 @@
       width: 100%;
       padding: 0.875rem 1rem;
       border: 2px solid var(--stone-200);
+      border-radius: var(--radius-sm);
       font-size: 0.875rem;
       font-family: 'Inter', sans-serif;
       margin-bottom: 1rem;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
     }
-    .auth-box input:focus { outline: none; border-color: var(--gold); }
+    .auth-box input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,166,104,0.1); }
     .auth-error {
       color: var(--red);
       font-size: 0.8125rem;
@@ -117,26 +132,28 @@
       padding: 0 1.5rem;
       margin-bottom: 2.5rem;
     }
-    .sidebar-nav { flex: 1; }
+    .sidebar-nav { flex: 1; overflow-y: auto; }
     .sidebar-item {
       display: flex;
       align-items: center;
       gap: 0.75rem;
       padding: 0.75rem 1.5rem;
+      margin: 0 0.75rem;
       font-size: 0.875rem;
       color: var(--stone-400);
       cursor: pointer;
-      transition: all 0.15s;
-      border-left: 3px solid transparent;
+      transition: all var(--transition-base);
+      border-radius: var(--radius-sm);
+      border-left: none;
     }
     .sidebar-item:hover {
       color: white;
-      background: rgba(255,255,255,0.05);
+      background: rgba(255,255,255,0.07);
     }
     .sidebar-item.active {
       color: white;
-      background: rgba(255,255,255,0.08);
-      border-left-color: var(--gold);
+      background: rgba(255,255,255,0.1);
+      box-shadow: inset 3px 0 0 var(--gold);
     }
     .sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; }
     .sidebar-logout {
@@ -170,13 +187,15 @@
       font-size: 0.8125rem;
       font-family: 'Inter', sans-serif;
       border: none;
+      border-radius: var(--radius-sm);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all var(--transition-base);
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
+    .btn:active { transform: translateY(1px); }
     .btn-primary { background: var(--stone-900); color: white; }
-    .btn-primary:hover { background: var(--gold); }
+    .btn-primary:hover { background: var(--stone-800); box-shadow: var(--shadow-sm); }
     .btn-secondary { background: white; color: var(--stone-800); border: 1px solid var(--stone-300); }
     .btn-secondary:hover { background: var(--stone-100); }
     .btn-danger { background: var(--red); color: white; }
@@ -185,7 +204,34 @@
     .btn-link:hover { color: var(--stone-900); }
     .btn-link-danger { color: var(--red); }
     .btn-link-danger:hover { color: #b91c1c; }
-    .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.75rem; }
+    .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.75rem; border-radius: var(--radius-sm); }
+
+    /* Product search results */
+    .search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      background: #fff;
+      border: 1px solid var(--stone-200);
+      border-radius: var(--radius-sm);
+      max-height: 280px;
+      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .search-result-item {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      border-bottom: 1px solid var(--stone-100);
+      font-size: 0.875rem;
+    }
+    .search-result-item:hover { background: var(--stone-50); }
+    .search-result-item .product-meta {
+      font-size: 0.75rem;
+      color: var(--stone-500);
+      margin-top: 0.15rem;
+    }
 
     /* Stat cards */
     .stat-grid {
@@ -196,9 +242,28 @@
     }
     .stat-card {
       background: white;
-      border: 1px solid var(--stone-200);
+      border: none;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
       padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow var(--transition-base), transform var(--transition-base);
     }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(135deg, var(--gold), var(--gold-light));
+      transform: scaleX(0);
+      transition: transform var(--transition-base);
+    }
+    .stat-card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+    .stat-card:hover::before { transform: scaleX(1); }
     .stat-card-label {
       font-size: 0.75rem;
       text-transform: uppercase;
@@ -217,8 +282,12 @@
     .admin-table {
       width: 100%;
       background: white;
-      border: 1px solid var(--stone-200);
-      border-collapse: collapse;
+      border: none;
+      border-collapse: separate;
+      border-spacing: 0;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
     }
     .admin-table th {
       text-align: left;
@@ -227,7 +296,7 @@
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--stone-500);
-      border-bottom: 2px solid var(--stone-200);
+      border-bottom: 1px solid var(--stone-200);
       background: var(--stone-50);
     }
     .admin-table td {
@@ -236,6 +305,7 @@
       border-bottom: 1px solid var(--stone-100);
       vertical-align: middle;
     }
+    .admin-table tbody tr { transition: background var(--transition-fast); }
     .admin-table tr:hover td { background: var(--stone-50); }
     .admin-table .actions { white-space: nowrap; }
     .admin-table .actions button { margin-right: 0.5rem; }
@@ -243,15 +313,16 @@
     /* Status badges */
     .badge {
       display: inline-block;
-      padding: 0.2rem 0.6rem;
+      padding: 0.2rem 0.65rem;
       font-size: 0.6875rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.03em;
-      border-radius: 2px;
+      border-radius: var(--radius-full);
     }
     .badge-active { background: var(--green-light); color: var(--green); }
     .badge-draft { background: var(--stone-100); color: var(--stone-500); }
+    .badge-discontinued { background: var(--red-light); color: var(--red); }
     .badge-inactive { background: var(--red-light); color: var(--red); }
     .badge-pending { background: #fef3c7; color: #d97706; }
     .badge-confirmed { background: var(--green-light); color: var(--green); }
@@ -278,9 +349,10 @@
     .badge-received { background: #ccfbf1; color: #0d9488; }
     .badge-paid { background: var(--green-light); color: #15803d; }
     .badge-due_on_receipt { background: #fef3c7; color: #d97706; }
+    .badge-ready_for_pickup { background: #ccfbf1; color: #0d9488; }
 
     /* P&L Statement */
-    .pnl-statement { background: white; border: 1px solid var(--stone-200); padding: 2rem; }
+    .pnl-statement { background: white; border: none; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 2rem; }
     .pnl-section { margin-bottom: 1.5rem; }
     .pnl-section-title { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--stone-500); margin-bottom: 0.75rem; font-weight: 600; }
     .pnl-line { display: flex; justify-content: space-between; padding: 0.375rem 0; font-size: 0.875rem; color: var(--stone-700); }
@@ -290,7 +362,7 @@
     .pnl-pct { font-size: 0.75rem; color: var(--stone-400); margin-left: 0.5rem; }
 
     /* Aging Bar */
-    .aging-bar { display: flex; height: 32px; border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem; }
+    .aging-bar { display: flex; height: 32px; border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 0.5rem; }
     .aging-segment { display: flex; align-items: center; justify-content: center; font-size: 0.625rem; font-weight: 600; color: white; min-width: 30px; }
 
     /* Order Status Stepper */
@@ -378,6 +450,7 @@
     .stepper-cancelled-banner {
       background: var(--red-light);
       border: 1px solid var(--red);
+      border-radius: var(--radius-sm);
       color: var(--red);
       text-align: center;
       padding: 0.5rem 1rem;
@@ -424,6 +497,7 @@
       padding: 0.75rem 1rem;
       background: var(--stone-50);
       border: 1px solid var(--stone-200);
+      border-radius: var(--radius-sm);
       display: flex;
       align-items: center;
       gap: 1.5rem;
@@ -495,18 +569,23 @@
       width: 100%;
       padding: 0.75rem 1rem;
       border: 1px solid var(--stone-300);
+      border-radius: var(--radius-sm);
       font-size: 0.875rem;
       font-family: 'Inter', sans-serif;
       background: white;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
     }
     .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
       outline: none;
       border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(201,166,104,0.1);
     }
     .form-group textarea { resize: vertical; min-height: 80px; }
     .form-card {
       background: white;
-      border: 1px solid var(--stone-200);
+      border: none;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
       padding: 2rem;
       margin-bottom: 1.5rem;
     }
@@ -549,6 +628,7 @@
     .sku-card {
       background: var(--stone-50);
       border: 1px solid var(--stone-200);
+      border-radius: var(--radius-sm);
       padding: 1.5rem;
       margin-bottom: 1rem;
     }
@@ -571,7 +651,10 @@
       justify-content: space-between;
       border-bottom: 1px solid var(--stone-100);
       background: white;
+      transition: background var(--transition-fast);
     }
+    .cat-tree-item:first-child { border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md); }
+    .cat-tree-item:last-child { border-bottom-left-radius: var(--radius-md); border-bottom-right-radius: var(--radius-md); border-bottom: none; }
     .cat-tree-item:hover { background: var(--stone-50); }
     .cat-tree-child {
       padding-left: 2.5rem;
@@ -593,10 +676,15 @@
     }
 
     /* Delete confirm modal */
+    @keyframes modal-enter {
+      from { opacity: 0; transform: scale(0.95) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -607,6 +695,9 @@
       padding: 2rem;
       width: 420px;
       max-width: 90vw;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      animation: modal-enter 0.2s ease-out;
     }
     .modal-box h3 {
       font-family: 'Cormorant Garamond', serif;
@@ -644,6 +735,7 @@
       color: white;
       margin-bottom: 1rem;
       font-size: 0.8125rem;
+      border-radius: var(--radius-sm);
     }
     .bulk-toolbar .bulk-count {
       font-weight: 600;
@@ -654,6 +746,7 @@
       font-size: 0.75rem;
       font-family: 'Inter', sans-serif;
       border: 1px solid var(--stone-600);
+      border-radius: var(--radius-sm);
       background: var(--stone-800);
       color: white;
       cursor: pointer;
@@ -678,13 +771,16 @@
       font-size: 0.8125rem;
       font-family: 'Inter', sans-serif;
       border: 1px solid var(--stone-300);
+      border-radius: var(--radius-sm);
       background: white;
       color: var(--stone-800);
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
     }
     .filter-bar input:focus,
     .filter-bar select:focus {
       outline: none;
       border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(201,166,104,0.1);
     }
     .filter-bar input[type="text"] { min-width: 220px; }
     .filter-bar .filter-count {
@@ -800,10 +896,11 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
       border: 1px solid var(--stone-300);
+      border-radius: var(--radius-sm);
       background: white;
       color: var(--stone-600);
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all var(--transition-fast);
     }
     .period-btn:hover { border-color: var(--gold); color: var(--stone-800); }
     .period-btn.active {
@@ -825,7 +922,9 @@
     }
     .chart-container {
       background: white;
-      border: 1px solid var(--stone-200);
+      border: none;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
       padding: 1.5rem;
       margin-bottom: 1.5rem;
     }
@@ -941,6 +1040,17 @@
         const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'http://localhost:3001'
       : `${window.location.protocol}//${window.location.hostname}:3001`;
+
+    // ========== Image Optimization Helper ==========
+    function optimizeImg(url, width) {
+      if (!url || typeof url !== 'string') return url;
+      try {
+        if (url.includes('i8.amplience.net')) { const u = new URL(url); u.searchParams.set('w', width); u.searchParams.set('fmt', 'auto'); u.searchParams.set('qlt', '80'); return u.toString(); }
+        if (url.includes('res.cloudinary.com') && url.includes('/upload/')) return url.replace('/upload/', `/upload/w_${width},f_auto,q_80/`);
+        if (url.includes('.widen.net')) { const u = new URL(url); u.searchParams.set('w', width); u.searchParams.set('quality', '80'); return u.toString(); }
+      } catch (e) {}
+      return url;
+    }
 
     // ========== Admin Fetch Helper ==========
     function getAuthHeaders() {
@@ -1075,7 +1185,7 @@
         fetch(API + '/api/staff/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim(), password, device_fingerprint: navigator.userAgent })
+          body: JSON.stringify({ email: email.trim(), password, device_fingerprint: (localStorage.getItem('device_fp') || (() => { const fp = crypto.randomUUID(); localStorage.setItem('device_fp', fp); return fp; })()) })
         })
           .then(r => r.json().then(data => ({ ok: r.ok, data })))
           .then(({ ok, data }) => {
@@ -1103,7 +1213,7 @@
         fetch(API + '/api/staff/verify-2fa', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ staff_id: twoFAStaffId, code: twoFACode, trust_device: rememberDevice, device_fingerprint: navigator.userAgent })
+          body: JSON.stringify({ staff_id: twoFAStaffId, code: twoFACode, trust_device: rememberDevice, device_fingerprint: (localStorage.getItem('device_fp') || (() => { const fp = crypto.randomUUID(); localStorage.setItem('device_fp', fp); return fp; })()) })
         })
           .then(r => r.json().then(data => ({ ok: r.ok, data })))
           .then(({ ok, data }) => {
@@ -1123,7 +1233,7 @@
         fetch(API + '/api/staff/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim(), password, device_fingerprint: navigator.userAgent })
+          body: JSON.stringify({ email: email.trim(), password, device_fingerprint: (localStorage.getItem('device_fp') || (() => { const fp = crypto.randomUUID(); localStorage.setItem('device_fp', fp); return fp; })()) })
         }).then(() => setError('')).catch(() => {});
       };
 
@@ -1212,20 +1322,48 @@
       );
     }
 
+    // ========== Hash-based routing helpers ==========
+    function parseHash() {
+      const hash = window.location.hash.replace(/^#\/?/, '');
+      if (!hash) return { view: 'dashboard', id: null };
+      const parts = hash.split('/');
+      return { view: parts[0] || 'dashboard', id: parts[1] || null };
+    }
+
+    function buildHash(view, id) {
+      if (view === 'dashboard') return '';
+      return id ? '#' + view + '/' + id : '#' + view;
+    }
+
     // ========== AdminLayout ==========
     function AdminLayout({ onLogout, staffData }) {
-      const [view, setView] = useState('dashboard');
-      const [editId, setEditId] = useState(null);
+      const initialRoute = parseHash();
+      const [view, setView] = useState(initialRoute.view);
+      const [editId, setEditId] = useState(initialRoute.id);
       const scrollPositions = React.useRef({});
       const pendingScroll = React.useRef(null);
-      const staffRole = staffData ? staffData.role : 'admin';
+      const staffRole = staffData ? staffData.role : 'warehouse';
       const [sidebarOpen, setSidebarOpen] = useState(false);
 
       useEffect(() => {
         const mq = window.matchMedia('(min-width: 769px)');
         const handler = (e) => { if (e.matches) setSidebarOpen(false); };
         mq.addEventListener('change', handler);
+        history.replaceState({ view: initialRoute.view, id: initialRoute.id }, '');
         return () => mq.removeEventListener('change', handler);
+      }, []);
+
+      // Browser back/forward support
+      useEffect(() => {
+        const onPopState = () => {
+          const route = parseHash();
+          setView(route.view);
+          setEditId(route.id);
+          window.scrollTo(0, 0);
+          setSidebarOpen(false);
+        };
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
       }, []);
 
       const navigate = (v, id) => {
@@ -1233,6 +1371,10 @@
         setSidebarOpen(false);
         setView(v);
         setEditId(id || null);
+        const hash = buildHash(v, id);
+        if (window.location.hash !== (hash || '#')) {
+          history.pushState({ view: v, id: id || null }, '', hash || window.location.pathname);
+        }
         if (scrollPositions.current[v] != null) {
           pendingScroll.current = scrollPositions.current[v];
         } else {
@@ -1263,6 +1405,7 @@
         { key: 'audit', label: 'Audit Log', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4', roles: ['admin', 'manager'] },
         { key: 'edi', label: 'EDI', icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4', roles: ['admin', 'manager'] },
         { key: 'accounting', label: 'Accounting', icon: 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z', roles: ['admin', 'manager'] },
+        { key: 'site-analytics', label: 'Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', roles: ['admin', 'manager'] },
       ];
 
       const navItems = allNavItems.filter(item => item.roles.includes(staffRole));
@@ -1278,7 +1421,8 @@
                           view.split('-')[0] === 'trade' ? 'trade' :
                           view.split('-')[0] === 'staff' ? 'staff' :
                           view === 'audit' ? 'audit' :
-                          view === 'accounting' ? 'accounting' : view;
+                          view === 'accounting' ? 'accounting' :
+                          view === 'site-analytics' ? 'site-analytics' : view;
 
       return (
         <div className="admin-layout">
@@ -1329,9 +1473,12 @@
             {view === 'products' && <ProductsListView navigate={navigate} onReady={consumePendingScroll} />}
             {view === 'product-create' && <ProductFormView navigate={navigate} />}
             {view === 'product-edit' && <ProductFormView navigate={navigate} editId={editId} />}
+            {view === 'bulk-import' && <BulkImportView navigate={navigate} />}
             {view === 'vendors' && <VendorsListView navigate={navigate} />}
             {view === 'vendor-create' && <VendorFormView navigate={navigate} />}
             {view === 'vendor-edit' && <VendorFormView navigate={navigate} editId={editId} />}
+            {view === 'vendor-health' && <VendorHealthView navigate={navigate} />}
+            {view === 'vendor-health-detail' && <VendorHealthDetailView navigate={navigate} editId={editId} />}
             {view === 'categories' && <CategoriesListView navigate={navigate} />}
             {view === 'category-create' && <CategoryFormView navigate={navigate} />}
             {view === 'category-edit' && <CategoryFormView navigate={navigate} editId={editId} />}
@@ -1340,6 +1487,7 @@
             {view === 'scraper-source-edit' && <ScraperSourceFormView navigate={navigate} editId={editId} />}
             {view === 'scraper-jobs' && <ScraperJobsView navigate={navigate} editId={editId} />}
             {view === 'scraper-job-detail' && <ScraperJobDetailView navigate={navigate} editId={editId} />}
+            {view === 'scraper-health' && <ScraperHealthView navigate={navigate} />}
             {view === 'inquiries' && <InquiriesListView navigate={navigate} />}
             {view === 'inquiry-detail' && <InquiryDetailView navigate={navigate} editId={editId} staffRole={staffRole} />}
             {view === 'trade' && <TradeManagementView navigate={navigate} />}
@@ -1352,6 +1500,7 @@
             {view === 'audit' && <AuditLogView navigate={navigate} />}
             {view === 'edi' && <EDIView navigate={navigate} />}
             {view === 'accounting' && <AccountingView navigate={navigate} />}
+            {view === 'site-analytics' && <SiteAnalyticsView />}
           </div>
         </div>
       );
@@ -1848,6 +1997,43 @@
         }).then(() => loadFresh()).catch(() => {});
       };
 
+      // Bulk tag management
+      const [bulkTagModalOpen, setBulkTagModalOpen] = useState(false);
+      const [bulkAllTags, setBulkAllTags] = useState([]);
+      const [bulkTagGrouped, setBulkTagGrouped] = useState({});
+      const [bulkAddTagIds, setBulkAddTagIds] = useState([]);
+      const [bulkRemoveTagIds, setBulkRemoveTagIds] = useState([]);
+      const [bulkTagSaving, setBulkTagSaving] = useState(false);
+
+      const openBulkTagModal = () => {
+        setBulkAddTagIds([]);
+        setBulkRemoveTagIds([]);
+        if (bulkAllTags.length === 0) {
+          adminFetch('/api/admin/tags').then(d => { setBulkAllTags(d.tags || []); setBulkTagGrouped(d.grouped || {}); }).catch(() => {});
+        }
+        setBulkTagModalOpen(true);
+      };
+
+      const toggleBulkAddTag = (tagId) => {
+        setBulkRemoveTagIds(prev => prev.filter(id => id !== tagId));
+        setBulkAddTagIds(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]);
+      };
+
+      const toggleBulkRemoveTag = (tagId) => {
+        setBulkAddTagIds(prev => prev.filter(id => id !== tagId));
+        setBulkRemoveTagIds(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]);
+      };
+
+      const applyBulkTags = () => {
+        if (bulkAddTagIds.length === 0 && bulkRemoveTagIds.length === 0) return;
+        setBulkTagSaving(true);
+        adminFetch('/api/admin/products/bulk/tags', {
+          method: 'PATCH',
+          body: JSON.stringify({ product_ids: Array.from(selected), add_tag_ids: bulkAddTagIds, remove_tag_ids: bulkRemoveTagIds })
+        }).then(() => { setBulkTagModalOpen(false); setBulkTagSaving(false); })
+          .catch(() => setBulkTagSaving(false));
+      };
+
       const hasMore = products.length < total;
 
       if (loading) return <div className="loading">Loading products...</div>;
@@ -1856,7 +2042,10 @@
         <div>
           <div className="content-header">
             <h1>Products</h1>
-            <button className="btn btn-primary" onClick={() => navigate('product-create')}>+ Add Product</button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-secondary" onClick={() => navigate('bulk-import')}>Import</button>
+              <button className="btn btn-primary" onClick={() => navigate('product-create')}>+ Add Product</button>
+            </div>
           </div>
 
           <div className="filter-bar">
@@ -1871,8 +2060,9 @@
             </select>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
               <option value="">All Statuses</option>
-              <option value="active">active</option>
-              <option value="draft">draft</option>
+              <option value="active">Active</option>
+              <option value="draft">Draft</option>
+              <option value="discontinued">Discontinued</option>
             </select>
             <span className="filter-count">Showing {products.length} of {total} products</span>
           </div>
@@ -1882,12 +2072,67 @@
               <span className="bulk-count">{selected.size} selected</span>
               <button className="btn btn-secondary btn-sm" onClick={() => bulkSetStatus('active')}>Set Active</button>
               <button className="btn btn-secondary btn-sm" onClick={() => bulkSetStatus('draft')}>Set Draft</button>
+              <button className="btn btn-secondary btn-sm" style={{ color: 'var(--red)' }} onClick={() => bulkSetStatus('discontinued')}>Set Discontinued</button>
               <select value={bulkCategory} onChange={e => setBulkCategory(e.target.value)}>
                 <option value="">— Choose Category —</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <button className="btn btn-secondary btn-sm" onClick={bulkSetCategory}>Apply</button>
+              <button className="btn btn-secondary btn-sm" onClick={openBulkTagModal}>Tags</button>
               <button className="btn btn-danger btn-sm" onClick={bulkDelete}>Delete</button>
+            </div>
+          )}
+
+          {/* Bulk Tag Modal */}
+          {bulkTagModalOpen && (
+            <div className="modal-overlay" onClick={() => setBulkTagModalOpen(false)}>
+              <div className="modal" style={{ maxWidth: '540px' }} onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h2>Manage Tags ({selected.size} products)</h2>
+                  <button className="modal-close" onClick={() => setBulkTagModalOpen(false)}>&times;</button>
+                </div>
+                <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: '1rem' }}>
+                    Click once to <strong>add</strong> (green). Click again to <strong>remove</strong> (red). Click again to reset.
+                  </p>
+                  {Object.entries(bulkTagGrouped).map(([cat, tags]) => (
+                    <div key={cat} style={{ marginBottom: '1rem' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>
+                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                        {tags.map(tag => {
+                          const isAdd = bulkAddTagIds.includes(tag.id);
+                          const isRemove = bulkRemoveTagIds.includes(tag.id);
+                          return (
+                            <button key={tag.id}
+                              onClick={() => {
+                                if (isAdd) { setBulkAddTagIds(p => p.filter(i => i !== tag.id)); setBulkRemoveTagIds(p => [...p, tag.id]); }
+                                else if (isRemove) { setBulkRemoveTagIds(p => p.filter(i => i !== tag.id)); }
+                                else { toggleBulkAddTag(tag.id); }
+                              }}
+                              style={{
+                                padding: '0.375rem 0.75rem',
+                                border: '1px solid ' + (isAdd ? '#22c55e' : isRemove ? '#ef4444' : 'var(--stone-200)'),
+                                background: isAdd ? '#dcfce7' : isRemove ? '#fef2f2' : 'white',
+                                color: isAdd ? '#166534' : isRemove ? '#991b1b' : 'var(--stone-600)',
+                                fontSize: '0.75rem', cursor: 'pointer', borderRadius: '100px', fontFamily: 'var(--font-body)', transition: 'all 0.15s'
+                              }}>
+                              {isAdd ? '+ ' : isRemove ? '- ' : ''}{tag.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', padding: '1rem 1.5rem', borderTop: '1px solid var(--stone-200)' }}>
+                  <button className="btn btn-secondary" onClick={() => setBulkTagModalOpen(false)}>Cancel</button>
+                  <button className="btn btn-primary" onClick={applyBulkTags} disabled={bulkTagSaving || (bulkAddTagIds.length === 0 && bulkRemoveTagIds.length === 0)}>
+                    {bulkTagSaving ? 'Applying...' : `Apply (${bulkAddTagIds.length} add, ${bulkRemoveTagIds.length} remove)`}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -1912,7 +2157,7 @@
                   <td>{p.vendor_name || '—'}</td>
                   <td style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                     {p.primary_image ? (
-                      <img src={p.primary_image} alt="" style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px', flexShrink: 0 }} />
+                      <img src={optimizeImg(p.primary_image, 100)} alt="" style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px', flexShrink: 0 }} loading="lazy" />
                     ) : (
                       <span style={{ width: '36px', height: '36px', borderRadius: '4px', background: 'var(--stone-100)', display: 'inline-block', flexShrink: 0 }} />
                     )}
@@ -1986,10 +2231,15 @@
       const [categories, setCategories] = useState([]);
       const [loading, setLoading] = useState(!!editId);
       const [saving, setSaving] = useState(false);
+      const [allTags, setAllTags] = useState([]);
+      const [tagGrouped, setTagGrouped] = useState({});
+      const [productTagIds, setProductTagIds] = useState([]);
+      const [tagSaving, setTagSaving] = useState(false);
 
       useEffect(() => {
         adminFetch('/api/admin/vendors').then(d => setVendors(d.vendors || [])).catch(() => {});
         adminFetch('/api/admin/categories').then(d => setCategories(d.flat || [])).catch(() => {});
+        adminFetch('/api/admin/tags').then(d => { setAllTags(d.tags || []); setTagGrouped(d.grouped || {}); }).catch(() => {});
 
         if (editId) {
           adminFetch('/api/admin/products/' + editId)
@@ -2009,8 +2259,27 @@
               setLoading(false);
             })
             .catch(() => setLoading(false));
+          adminFetch('/api/admin/products/' + editId + '/tags')
+            .then(d => setProductTagIds(d.tag_ids || []))
+            .catch(() => {});
         }
       }, [editId]);
+
+      const toggleTag = (tagId) => {
+        setProductTagIds(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]);
+      };
+
+      const saveTags = async () => {
+        if (!editId) return;
+        setTagSaving(true);
+        try {
+          await adminFetch('/api/admin/products/' + editId + '/tags', {
+            method: 'PUT',
+            body: JSON.stringify({ tag_ids: productTagIds })
+          });
+        } catch (e) { alert('Failed to save tags'); }
+        setTagSaving(false);
+      };
 
       const updateForm = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -2150,6 +2419,7 @@
                 <select value={form.status} onChange={e => updateForm('status', e.target.value)}>
                   <option value="draft">Draft</option>
                   <option value="active">Active</option>
+                  <option value="discontinued">Discontinued</option>
                 </select>
               </div>
               <div className="form-group full">
@@ -2166,6 +2436,34 @@
           {editId && (
             <CollapsibleSection title={`Media (${media.length})`} defaultOpen={true}>
               <ProductMediaManager productId={editId} media={media} setMedia={setMedia} />
+            </CollapsibleSection>
+          )}
+
+          {editId && allTags.length > 0 && (
+            <CollapsibleSection title={`Tags (${productTagIds.length})`} defaultOpen={false}
+              headerRight={<button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); saveTags(); }} disabled={tagSaving}>{tagSaving ? 'Saving...' : 'Save Tags'}</button>}>
+              {Object.entries(tagGrouped).map(([cat, tags]) => (
+                <div key={cat} style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                    {tags.map(tag => {
+                      const active = productTagIds.includes(tag.id);
+                      return (
+                        <button key={tag.id} onClick={() => toggleTag(tag.id)}
+                          style={{
+                            padding: '0.375rem 0.75rem', border: '1px solid ' + (active ? 'var(--stone-800)' : 'var(--stone-200)'),
+                            background: active ? 'var(--stone-800)' : 'white', color: active ? 'white' : 'var(--stone-600)',
+                            fontSize: '0.75rem', cursor: 'pointer', borderRadius: '100px', fontFamily: 'var(--font-body)', transition: 'all 0.15s'
+                          }}>
+                          {tag.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </CollapsibleSection>
           )}
 
@@ -2528,7 +2826,7 @@
                   {isPdf(m.url) ? (
                     <div style={{ width: '100%', height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--stone-100)', color: 'var(--stone-400)', fontSize: '0.75rem' }}>PDF</div>
                   ) : (
-                    <img src={m.url} alt={m.asset_type} />
+                    <img src={optimizeImg(m.url, 400)} alt={m.asset_type} loading="lazy" />
                   )}
                   <div className="media-card-info">
                     <select
@@ -2603,6 +2901,315 @@
       );
     }
 
+    // ========== BulkImportView ==========
+    function BulkImportView({ navigate }) {
+      const [step, setStep] = useState(1);
+      const [importFields, setImportFields] = useState([]);
+      const [vendors, setVendors] = useState([]);
+      const [categories, setCategories] = useState([]);
+      const [importVendor, setImportVendor] = useState('');
+      const [importCategory, setImportCategory] = useState('');
+      const [importSession, setImportSession] = useState(null);
+      const [mapping, setMapping] = useState({});
+      const [importDefaults, setImportDefaults] = useState({ sell_by: 'sqft', price_basis: 'per_sqft', status: 'draft' });
+      const [validationResult, setValidationResult] = useState(null);
+      const [importResult, setImportResult] = useState(null);
+      const [uploading, setUploading] = useState(false);
+      const [validating, setValidating] = useState(false);
+      const [executing, setExecuting] = useState(false);
+      const [error, setError] = useState('');
+
+      useEffect(() => {
+        adminFetch('/api/admin/import/fields').then(d => setImportFields(d.fields || [])).catch(() => {});
+        adminFetch('/api/admin/vendors').then(d => setVendors(d.vendors || [])).catch(() => {});
+        adminFetch('/api/admin/categories').then(d => setCategories(d.categories || d || [])).catch(() => {});
+      }, []);
+
+      // Fuzzy auto-map headers to PIM fields
+      const autoMap = (headers) => {
+        const m = {};
+        const aliases = {
+          'sku': 'vendor_sku', 'vendor sku': 'vendor_sku', 'item #': 'vendor_sku', 'item number': 'vendor_sku', 'item no': 'vendor_sku', 'model': 'vendor_sku',
+          'name': 'name', 'product name': 'name', 'product': 'name', 'title': 'name', 'description': 'name',
+          'collection': 'collection', 'series': 'collection', 'line': 'collection',
+          'category': 'category',
+          'color': 'color', 'colour': 'color',
+          'material': 'material', 'type': 'material',
+          'finish': 'finish', 'surface': 'finish',
+          'size': 'size', 'dimension': 'size', 'dimensions': 'size',
+          'thickness': 'thickness',
+          'cost': 'cost', 'dealer cost': 'cost', 'dealer price': 'cost', 'wholesale': 'cost', 'net price': 'cost',
+          'price': 'retail_price', 'retail': 'retail_price', 'retail price': 'retail_price', 'msrp': 'retail_price', 'list price': 'retail_price', 'srp': 'retail_price',
+          'sqft per box': 'sqft_per_box', 'sf/box': 'sqft_per_box', 'sqft/box': 'sqft_per_box', 'sq ft per box': 'sqft_per_box', 'coverage': 'sqft_per_box', 'sqft/ctn': 'sqft_per_box', 'sf/ctn': 'sqft_per_box',
+          'pieces per box': 'pieces_per_box', 'pcs/box': 'pieces_per_box', 'pcs per box': 'pieces_per_box', 'pcs/ctn': 'pieces_per_box',
+          'weight': 'weight_per_box_lbs', 'weight per box': 'weight_per_box_lbs', 'lbs/box': 'weight_per_box_lbs', 'lbs/ctn': 'weight_per_box_lbs',
+          'variant': 'variant_name', 'variant name': 'variant_name',
+          'short description': 'description_short', 'long description': 'description_long',
+          'freight class': 'freight_class'
+        };
+        headers.forEach((h, idx) => {
+          const key = String(h).toLowerCase().trim();
+          if (aliases[key]) m[idx] = aliases[key];
+        });
+        return m;
+      };
+
+      const handleUpload = async (file) => {
+        if (!importVendor) { setError('Please select a vendor'); return; }
+        setUploading(true);
+        setError('');
+        try {
+          const fd = new FormData();
+          fd.append('file', file);
+          const res = await fetch(API + '/api/admin/import/upload', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: fd
+          });
+          const d = await res.json();
+          if (d.error) { setError(d.error); setUploading(false); return; }
+          setImportSession(d);
+          const autoMapping = autoMap(d.headers);
+          setMapping(autoMapping);
+          setStep(2);
+        } catch (err) { setError(err.message); }
+        setUploading(false);
+      };
+
+      const handleValidate = async () => {
+        setValidating(true);
+        setError('');
+        try {
+          const d = await adminFetch('/api/admin/import/validate', {
+            method: 'POST',
+            body: JSON.stringify({
+              import_session_id: importSession.import_session_id,
+              vendor_id: importVendor,
+              category_id: importCategory || null,
+              mapping,
+              defaults: importDefaults
+            })
+          });
+          if (d.error) { setError(d.error); setValidating(false); return; }
+          setValidationResult(d);
+          setStep(3);
+        } catch (err) { setError(err.message); }
+        setValidating(false);
+      };
+
+      const handleExecute = async () => {
+        setExecuting(true);
+        setError('');
+        try {
+          const d = await adminFetch('/api/admin/import/execute', {
+            method: 'POST',
+            body: JSON.stringify({
+              import_session_id: importSession.import_session_id,
+              vendor_id: importVendor,
+              category_id: importCategory || null,
+              mapping,
+              defaults: importDefaults
+            })
+          });
+          if (d.error) { setError(d.error); setExecuting(false); return; }
+          setImportResult(d.results);
+          setStep(4);
+        } catch (err) { setError(err.message); }
+        setExecuting(false);
+      };
+
+      const stepLabels = ['Upload', 'Map Columns', 'Validate', 'Import'];
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Bulk Product Import</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('products')}>Back to Products</button>
+          </div>
+
+          {/* Stepper */}
+          <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.5rem' }}>
+            {stepLabels.map((label, i) => (
+              <div key={i} style={{ flex: 1, textAlign: 'center', padding: '0.625rem 0', fontSize: '0.8125rem', fontWeight: step === i + 1 ? 600 : 400, color: step > i + 1 ? '#16a34a' : step === i + 1 ? 'var(--stone-800)' : 'var(--stone-400)', borderBottom: '2px solid ' + (step > i + 1 ? '#16a34a' : step === i + 1 ? 'var(--stone-800)' : 'var(--stone-200)') }}>
+                {i + 1}. {label}
+              </div>
+            ))}
+          </div>
+
+          {error && <div style={{ background: '#fef2f2', color: '#dc2626', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.875rem', border: '1px solid #fecaca' }}>{error}</div>}
+
+          {/* Step 1: Upload */}
+          {step === 1 && (
+            <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '2rem', maxWidth: 600 }}>
+              <h3 style={{ marginTop: 0, fontFamily: "'Cormorant Garamond', serif", fontWeight: 400 }}>Upload Spreadsheet</h3>
+              <div style={{ display: 'grid', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Vendor *</label>
+                  <select value={importVendor} onChange={e => setImportVendor(e.target.value)}>
+                    <option value="">Select vendor...</option>
+                    {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Default Category</label>
+                  <select value={importCategory} onChange={e => setImportCategory(e.target.value)}>
+                    <option value="">None (use per-row if mapped)</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>File (.xlsx, .xls, .csv) *</label>
+                  <input type="file" accept=".xlsx,.xls,.csv" onChange={e => { if (e.target.files[0]) handleUpload(e.target.files[0]); }} disabled={uploading} />
+                </div>
+              </div>
+              {uploading && <div style={{ color: 'var(--stone-500)', fontSize: '0.875rem' }}>Uploading and parsing file...</div>}
+            </div>
+          )}
+
+          {/* Step 2: Map Columns */}
+          {step === 2 && importSession && (
+            <div>
+              <div style={{ background: 'var(--stone-50)', border: '1px solid var(--stone-200)', padding: '1rem', marginBottom: '1rem', fontSize: '0.8125rem' }}>
+                <strong>{importSession.file_name}</strong> — {importSession.total_rows} row(s), {importSession.headers.length} column(s) (Sheet: {importSession.sheet_name})
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Default Sell By</label>
+                  <select value={importDefaults.sell_by} onChange={e => setImportDefaults(d => ({ ...d, sell_by: e.target.value }))}>
+                    <option value="sqft">Per Sq Ft</option>
+                    <option value="unit">Per Unit</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Default Price Basis</label>
+                  <select value={importDefaults.price_basis} onChange={e => setImportDefaults(d => ({ ...d, price_basis: e.target.value }))}>
+                    <option value="per_sqft">Per Sq Ft</option>
+                    <option value="per_unit">Per Unit</option>
+                    <option value="per_box">Per Box</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Import Status</label>
+                  <select value={importDefaults.status} onChange={e => setImportDefaults(d => ({ ...d, status: e.target.value }))}>
+                    <option value="draft">Draft</option>
+                    <option value="active">Active</option>
+                  </select>
+                </div>
+              </div>
+
+              <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>Column Mapping</h3>
+              <div className="table-scroll-wrapper">
+                <table className="admin-table" style={{ marginBottom: '1rem' }}>
+                  <thead><tr><th style={{ width: '40%' }}>Spreadsheet Column</th><th>Maps To</th><th style={{ width: '30%' }}>Sample Data</th></tr></thead>
+                  <tbody>
+                    {importSession.headers.map((header, idx) => (
+                      <tr key={idx}>
+                        <td style={{ fontWeight: 500 }}>{header || <span style={{ color: 'var(--stone-400)' }}>(empty)</span>}</td>
+                        <td>
+                          <select value={mapping[idx] || ''} onChange={e => setMapping(m => ({ ...m, [idx]: e.target.value }))} style={{ width: '100%', padding: '0.375rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)' }}>
+                            <option value="">-- Skip --</option>
+                            {Object.entries(importFields.reduce((groups, f) => { const g = f.group || 'Other'; if (!groups[g]) groups[g] = []; groups[g].push(f); return groups; }, {})).map(([group, fields]) => (
+                              group && <optgroup key={group} label={group}>
+                                {fields.filter(f => f.value).map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                              </optgroup>
+                            ))}
+                          </select>
+                        </td>
+                        <td style={{ fontSize: '0.75rem', color: 'var(--stone-500)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {importSession.preview_rows[0] ? String(importSession.preview_rows[0][idx] ?? '') : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Preview table */}
+              <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>Preview (first {importSession.preview_rows.length} rows)</h3>
+              <div className="table-scroll-wrapper" style={{ marginBottom: '1.5rem' }}>
+                <table className="admin-table" style={{ fontSize: '0.75rem' }}>
+                  <thead><tr>{importSession.headers.map((h, i) => <th key={i} style={{ whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {importSession.preview_rows.map((row, ri) => (
+                      <tr key={ri}>{importSession.headers.map((_, ci) => <td key={ci} style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row[ci] != null ? String(row[ci]) : ''}</td>)}</tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-secondary" onClick={() => { setStep(1); setImportSession(null); setMapping({}); }}>Back</button>
+                <button className="btn btn-primary" onClick={handleValidate} disabled={validating || !Object.values(mapping).some(v => v)}>{validating ? 'Validating...' : 'Validate'}</button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Validate */}
+          {step === 3 && validationResult && (
+            <div>
+              <div className="analytics-grid" style={{ marginBottom: '1.5rem' }}>
+                <div className="stat-card"><div className="stat-card-label">Total Rows</div><div className="stat-card-value">{validationResult.total_rows}</div></div>
+                <div className="stat-card"><div className="stat-card-label">Valid</div><div className="stat-card-value" style={{ color: '#16a34a' }}>{validationResult.valid_count}</div></div>
+                <div className="stat-card"><div className="stat-card-label">Errors</div><div className="stat-card-value" style={{ color: validationResult.error_count > 0 ? '#dc2626' : undefined }}>{validationResult.error_count}</div></div>
+              </div>
+
+              {validationResult.rows.length > 0 && (
+                <div className="table-scroll-wrapper" style={{ maxHeight: 400, overflow: 'auto', marginBottom: '1.5rem' }}>
+                  <table className="admin-table" style={{ fontSize: '0.8125rem' }}>
+                    <thead><tr><th>Row</th><th>Status</th><th>SKU</th><th>Name</th><th>Errors</th></tr></thead>
+                    <tbody>
+                      {validationResult.rows.map(r => (
+                        <tr key={r.row_number} style={{ background: r.status === 'error' ? '#fef2f2' : undefined }}>
+                          <td>{r.row_number}</td>
+                          <td><span className={'badge badge-' + (r.status === 'valid' ? 'active' : 'error')} style={r.status === 'error' ? { background: '#fecaca', color: '#dc2626' } : {}}>{r.status}</span></td>
+                          <td style={{ fontSize: '0.75rem' }}>{r.data?._internal_sku || r.data?.vendor_sku || '—'}</td>
+                          <td style={{ fontSize: '0.75rem', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.data?.name || '—'}</td>
+                          <td style={{ fontSize: '0.75rem', color: '#dc2626' }}>{r.errors?.join('; ') || ''}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-secondary" onClick={() => setStep(2)}>Back to Mapping</button>
+                <button className="btn btn-primary" onClick={handleExecute} disabled={executing || validationResult.valid_count === 0}>
+                  {executing ? 'Importing...' : 'Import ' + validationResult.valid_count + ' Valid Row(s)'}
+                </button>
+              </div>
+              {validationResult.error_count > 0 && validationResult.valid_count > 0 && (
+                <p style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.5rem' }}>{validationResult.error_count} error row(s) will be skipped.</p>
+              )}
+            </div>
+          )}
+
+          {/* Step 4: Results */}
+          {step === 4 && importResult && (
+            <div>
+              <div className="analytics-grid" style={{ marginBottom: '1.5rem' }}>
+                <div className="stat-card"><div className="stat-card-label">Imported</div><div className="stat-card-value" style={{ color: '#16a34a' }}>{importResult.imported}</div></div>
+                <div className="stat-card"><div className="stat-card-label">Skipped</div><div className="stat-card-value">{importResult.skipped}</div></div>
+                <div className="stat-card"><div className="stat-card-label">Errors</div><div className="stat-card-value" style={{ color: importResult.errors?.length > 0 ? '#dc2626' : undefined }}>{importResult.errors?.length || 0}</div></div>
+              </div>
+
+              {importResult.errors?.length > 0 && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '1rem', marginBottom: '1.5rem', maxHeight: 200, overflow: 'auto' }}>
+                  <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#dc2626', marginTop: 0, marginBottom: '0.5rem' }}>Error Details</h4>
+                  {importResult.errors.map((e, i) => (
+                    <div key={i} style={{ fontSize: '0.8125rem', marginBottom: '0.25rem' }}>Row {e.row}: {e.error}</div>
+                  ))}
+                </div>
+              )}
+
+              <button className="btn btn-primary" onClick={() => navigate('products')}>Done — Back to Products</button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     // ========== VendorsListView ==========
     function VendorsListView({ navigate }) {
       const [vendors, setVendors] = useState([]);
@@ -2632,7 +3239,10 @@
         <div>
           <div className="content-header">
             <h1>Vendors</h1>
-            <button className="btn btn-primary" onClick={() => navigate('vendor-create')}>+ Add Vendor</button>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="btn btn-secondary" onClick={() => navigate('vendor-health')}>Data Health</button>
+              <button className="btn btn-primary" onClick={() => navigate('vendor-create')}>+ Add Vendor</button>
+            </div>
           </div>
           <div className="table-scroll-wrapper">
           <table className="admin-table">
@@ -2740,6 +3350,319 @@
               </div>
             </div>
           </div>
+        </div>
+      );
+    }
+
+    // ========== VendorHealthView ==========
+    function VendorHealthView({ navigate }) {
+      const [vendors, setVendors] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        adminFetch('/api/admin/vendor-health')
+          .then(data => { setVendors(data.vendors || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, []);
+
+      const pct = (num, den) => den > 0 ? ((num / den) * 100).toFixed(1) : '0.0';
+      const pctColor = (num, den) => {
+        const p = den > 0 ? (num / den) * 100 : 0;
+        if (p >= 90) return '#16a34a';
+        if (p >= 60) return '#ca8a04';
+        return '#dc2626';
+      };
+      const barBg = (num, den) => {
+        const p = den > 0 ? (num / den) * 100 : 0;
+        if (p >= 90) return 'rgba(22,163,74,0.12)';
+        if (p >= 60) return 'rgba(202,138,4,0.12)';
+        return 'rgba(220,38,38,0.12)';
+      };
+
+      const CoverageBar = ({ value, total, label }) => {
+        const p = total > 0 ? (value / total) * 100 : 0;
+        const color = pctColor(value, total);
+        return (
+          <div style={{ flex: 1, minWidth: '100px' }}>
+            <div style={{ fontSize: '0.7rem', color: 'var(--stone-500)', marginBottom: '2px' }}>{label}</div>
+            <div style={{ background: 'var(--stone-100)', borderRadius: '4px', height: '8px', overflow: 'hidden', position: 'relative' }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: Math.min(p, 100) + '%', background: color, borderRadius: '4px', transition: 'width 0.3s' }} />
+            </div>
+            <div style={{ fontSize: '0.7rem', color, fontWeight: 600, marginTop: '1px' }}>{pct(value, total)}%</div>
+          </div>
+        );
+      };
+
+      if (loading) return <div className="loading">Loading vendor health data...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Vendor Data Health</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('vendors')}>Back to Vendors</button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+            {[
+              { label: 'Total Vendors', value: vendors.length },
+              { label: 'Total Products', value: vendors.reduce((s, v) => s + v.total_products, 0) },
+              { label: 'Total SKUs', value: vendors.reduce((s, v) => s + v.total_skus, 0) },
+            ].map((stat, i) => (
+              <div key={i} style={{ background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '1rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--stone-800)' }}>{stat.value.toLocaleString()}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="table-scroll-wrapper">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Vendor</th>
+                <th style={{ textAlign: 'center' }}>Products</th>
+                <th style={{ textAlign: 'center' }}>SKUs</th>
+                <th style={{ minWidth: '120px' }}>Images</th>
+                <th style={{ minWidth: '120px' }}>Pricing</th>
+                <th style={{ minWidth: '120px' }}>Packaging</th>
+                <th style={{ minWidth: '120px' }}>Descriptions</th>
+                <th style={{ textAlign: 'center' }}>Drafts</th>
+                <th>Last Scraped</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vendors.filter(v => v.total_products > 0).map(v => (
+                <tr key={v.vendor_id} style={{ cursor: 'pointer' }} onClick={() => navigate('vendor-health-detail', v.vendor_id)}>
+                  <td style={{ fontWeight: 500 }}>
+                    {v.vendor_name}
+                    {!v.is_active && <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)', marginLeft: '0.5rem' }}>(inactive)</span>}
+                  </td>
+                  <td style={{ textAlign: 'center' }}>{v.total_products}</td>
+                  <td style={{ textAlign: 'center' }}>{v.total_skus}</td>
+                  <td><CoverageBar value={v.skus_with_images} total={v.total_skus} label="Images" /></td>
+                  <td><CoverageBar value={v.skus_with_pricing} total={v.total_skus} label="Pricing" /></td>
+                  <td><CoverageBar value={v.skus_with_packaging} total={v.total_skus} label="Packaging" /></td>
+                  <td><CoverageBar value={v.products_with_description} total={v.total_products} label="Descriptions" /></td>
+                  <td style={{ textAlign: 'center', color: v.products_in_draft > 0 ? '#ca8a04' : 'var(--stone-400)' }}>
+                    {v.products_in_draft || '—'}
+                  </td>
+                  <td style={{ fontSize: '0.8rem', color: 'var(--stone-500)', whiteSpace: 'nowrap' }}>
+                    {v.last_scraped ? new Date(v.last_scraped).toLocaleDateString() : '—'}
+                    {v.last_scrape_status && v.last_scrape_status !== 'completed' && (
+                      <span style={{ marginLeft: '0.25rem', color: v.last_scrape_status === 'failed' ? '#dc2626' : '#ca8a04' }}>
+                        ({v.last_scrape_status})
+                      </span>
+                    )}
+                  </td>
+                  <td className="actions" onClick={e => e.stopPropagation()}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => navigate('vendor-health-detail', v.vendor_id)}>Details</button>
+                  </td>
+                </tr>
+              ))}
+              {vendors.filter(v => v.total_products > 0).length === 0 && (
+                <tr><td colSpan="10" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No vendors with products found</td></tr>
+              )}
+            </tbody>
+          </table>
+          </div>
+
+          {vendors.filter(v => v.total_products === 0).length > 0 && (
+            <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--stone-50)', borderRadius: '8px', border: '1px solid var(--stone-200)' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--stone-500)', marginBottom: '0.5rem' }}>
+                Vendors with no products ({vendors.filter(v => v.total_products === 0).length})
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--stone-400)' }}>
+                {vendors.filter(v => v.total_products === 0).map(v => v.vendor_name).join(', ')}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== VendorHealthDetailView ==========
+    function VendorHealthDetailView({ navigate, editId }) {
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [activeTab, setActiveTab] = useState('images');
+
+      useEffect(() => {
+        if (!editId) return;
+        adminFetch('/api/admin/vendor-health/' + editId)
+          .then(d => { setData(d); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, [editId]);
+
+      const pct = (num, den) => den > 0 ? ((num / den) * 100).toFixed(1) : '0.0';
+      const pctColor = (num, den) => {
+        const p = den > 0 ? (num / den) * 100 : 0;
+        if (p >= 90) return '#16a34a';
+        if (p >= 60) return '#ca8a04';
+        return '#dc2626';
+      };
+
+      if (loading) return <div className="loading">Loading vendor health detail...</div>;
+      if (!data) return <div className="loading">Vendor not found</div>;
+
+      const { vendor, stats, missing, scrape_jobs } = data;
+      const coverageItems = [
+        { label: 'Images', value: stats.skus_with_images, total: stats.total_skus },
+        { label: 'Pricing', value: stats.skus_with_pricing, total: stats.total_skus },
+        { label: 'Packaging', value: stats.skus_with_packaging, total: stats.total_skus },
+        { label: 'Descriptions', value: stats.products_with_description, total: stats.total_products },
+        { label: 'Categories', value: stats.products_with_category, total: stats.total_products },
+        { label: 'Attributes', value: stats.skus_with_attributes, total: stats.total_skus },
+        { label: 'Sell By', value: stats.skus_with_sell_by, total: stats.total_skus },
+      ];
+
+      const tabs = [
+        { key: 'images', label: 'Missing Images', count: stats.total_skus - stats.skus_with_images },
+        { key: 'pricing', label: 'Missing Pricing', count: stats.total_skus - stats.skus_with_pricing },
+        { key: 'packaging', label: 'Missing Packaging', count: stats.total_skus - stats.skus_with_packaging },
+        { key: 'scrapes', label: 'Scrape History', count: scrape_jobs.length },
+      ];
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>{vendor.name} — Data Health</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('vendor-health')}>Back to Health Overview</button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <div style={{ background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>{stats.total_products}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--stone-500)' }}>Products</div>
+            </div>
+            <div style={{ background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>{stats.total_skus}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--stone-500)' }}>SKUs</div>
+            </div>
+            <div style={{ background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: stats.products_in_draft > 0 ? '#ca8a04' : 'var(--stone-800)' }}>{stats.products_in_draft}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--stone-500)' }}>In Draft</div>
+            </div>
+          </div>
+
+          {/* Coverage Bars */}
+          <div style={{ background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+            <h3 style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', fontWeight: 600 }}>Field Coverage</h3>
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              {coverageItems.map((item, i) => {
+                const p = item.total > 0 ? (item.value / item.total) * 100 : 0;
+                const color = pctColor(item.value, item.total);
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: '100px', fontSize: '0.8rem', color: 'var(--stone-600)', textAlign: 'right' }}>{item.label}</div>
+                    <div style={{ flex: 1, background: 'var(--stone-100)', borderRadius: '4px', height: '12px', overflow: 'hidden', position: 'relative' }}>
+                      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: Math.min(p, 100) + '%', background: color, borderRadius: '4px', transition: 'width 0.3s' }} />
+                    </div>
+                    <div style={{ width: '100px', fontSize: '0.8rem', fontWeight: 600, color }}>
+                      {item.value}/{item.total} ({pct(item.value, item.total)}%)
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid var(--stone-200)', marginBottom: '1rem' }}>
+            {tabs.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  padding: '0.5rem 1rem', border: 'none', background: 'none', cursor: 'pointer',
+                  fontSize: '0.8rem', fontWeight: activeTab === tab.key ? 600 : 400,
+                  color: activeTab === tab.key ? 'var(--stone-800)' : 'var(--stone-500)',
+                  borderBottom: activeTab === tab.key ? '2px solid var(--stone-800)' : '2px solid transparent',
+                  marginBottom: '-2px',
+                }}
+              >
+                {tab.label} {tab.count > 0 && <span style={{ background: activeTab === tab.key ? 'var(--stone-800)' : 'var(--stone-300)', color: 'white', borderRadius: '10px', padding: '0 6px', fontSize: '0.7rem', marginLeft: '4px' }}>{tab.count}</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab Content */}
+          {activeTab !== 'scrapes' && (
+            <div className="table-scroll-wrapper">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Internal SKU</th>
+                  <th>Vendor SKU</th>
+                  <th>Product</th>
+                  <th>Collection</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(missing[activeTab] || []).map(row => (
+                  <tr key={row.id}>
+                    <td><code style={{ fontSize: '0.8rem', background: 'var(--stone-100)', padding: '0.1rem 0.3rem' }}>{row.internal_sku}</code></td>
+                    <td style={{ fontSize: '0.8rem', color: 'var(--stone-500)' }}>{row.vendor_sku || '—'}</td>
+                    <td style={{ fontWeight: 500 }}>{row.product_name}</td>
+                    <td style={{ fontSize: '0.8rem', color: 'var(--stone-500)' }}>{row.collection || '—'}</td>
+                  </tr>
+                ))}
+                {(missing[activeTab] || []).length === 0 && (
+                  <tr><td colSpan="4" style={{ textAlign: 'center', color: '#16a34a', padding: '2rem' }}>All clear — no missing {activeTab} data</td></tr>
+                )}
+                {(missing[activeTab] || []).length >= 50 && (
+                  <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '0.75rem', fontSize: '0.8rem' }}>Showing first 50 results. Run the CLI validator for the full list.</td></tr>
+                )}
+              </tbody>
+            </table>
+            </div>
+          )}
+
+          {activeTab === 'scrapes' && (
+            <div className="table-scroll-wrapper">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Products Found</th>
+                  <th>Created</th>
+                  <th>Updated</th>
+                  <th>SKUs Created</th>
+                  <th>Started</th>
+                  <th>Completed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scrape_jobs.map(job => (
+                  <tr key={job.id}>
+                    <td style={{ fontWeight: 500 }}>{job.source_name}</td>
+                    <td><code style={{ fontSize: '0.75rem', background: 'var(--stone-100)', padding: '0.1rem 0.3rem' }}>{job.source_type}</code></td>
+                    <td>
+                      <span style={{
+                        padding: '0.15rem 0.5rem', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 500,
+                        background: job.status === 'completed' ? 'rgba(22,163,74,0.1)' : job.status === 'failed' ? 'rgba(220,38,38,0.1)' : 'rgba(202,138,4,0.1)',
+                        color: job.status === 'completed' ? '#16a34a' : job.status === 'failed' ? '#dc2626' : '#ca8a04',
+                      }}>
+                        {job.status}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>{job.products_found}</td>
+                    <td style={{ textAlign: 'center' }}>{job.products_created}</td>
+                    <td style={{ textAlign: 'center' }}>{job.products_updated}</td>
+                    <td style={{ textAlign: 'center' }}>{job.skus_created}</td>
+                    <td style={{ fontSize: '0.8rem', color: 'var(--stone-500)', whiteSpace: 'nowrap' }}>{job.started_at ? new Date(job.started_at).toLocaleString() : '—'}</td>
+                    <td style={{ fontSize: '0.8rem', color: 'var(--stone-500)', whiteSpace: 'nowrap' }}>{job.completed_at ? new Date(job.completed_at).toLocaleString() : '—'}</td>
+                  </tr>
+                ))}
+                {scrape_jobs.length === 0 && (
+                  <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No scrape jobs found for this vendor</td></tr>
+                )}
+              </tbody>
+            </table>
+            </div>
+          )}
         </div>
       );
     }
@@ -2919,7 +3842,7 @@
             <div className="form-group" style={{ marginTop: '1rem' }}>
               <label>Banner Image URL</label>
               <input value={form.banner_image} onChange={e => setForm(prev => ({ ...prev, banner_image: e.target.value }))} placeholder="https://... (hero banner background image)" />
-              {form.banner_image && <img src={form.banner_image} alt="Banner preview" style={{ marginTop: '0.5rem', maxHeight: '120px', borderRadius: '4px', objectFit: 'cover' }} />}
+              {form.banner_image && <img src={optimizeImg(form.banner_image, 400)} alt="Banner preview" style={{ marginTop: '0.5rem', maxHeight: '120px', borderRadius: '4px', objectFit: 'cover' }} loading="lazy" />}
             </div>
           </div>
         </div>
@@ -3083,6 +4006,7 @@
       const [addingItem, setAddingItem] = useState(false);
       const [addItemSku, setAddItemSku] = useState('');
       const [addItemBoxes, setAddItemBoxes] = useState(1);
+      const [addItemSellBy, setAddItemSellBy] = useState('sqft');
       const [skuSearchResults, setSkuSearchResults] = useState([]);
       const [skuSearching, setSkuSearching] = useState(false);
       const [addItemMode, setAddItemMode] = useState('sku');
@@ -3091,6 +4015,7 @@
       const [customItemVendor, setCustomItemVendor] = useState('');
       const [customItemDesc, setCustomItemDesc] = useState('');
       const [customItemBoxes, setCustomItemBoxes] = useState(1);
+      const [customItemSellBy, setCustomItemSellBy] = useState('sqft');
       const [addItemVendors, setAddItemVendors] = useState([]);
       const [orderActivity, setOrderActivity] = useState(null);
       const [trackingData2, setTrackingData2] = useState(null);
@@ -3103,7 +4028,7 @@
         try {
           const data = await adminFetch('/api/admin/orders/' + editId + '/tracking');
           setTrackingData2(data);
-        } catch { setTrackingData2(null); }
+        } catch (e) { setTrackingData2(null); }
         setTrackingLoading(false);
       };
 
@@ -3112,7 +4037,7 @@
         try {
           const data = await adminFetch('/api/admin/orders/' + editId + '/tracking/refresh', { method: 'POST' });
           setTrackingData2(prev => ({ ...prev, ...data }));
-        } catch {}
+        } catch (e) {}
         setTrackingRefreshing(false);
       };
 
@@ -3788,38 +4713,42 @@
           </div>
 
           <div className="form-card">
-            <h3>Order Items</h3>
+            <h3>Line Items</h3>
             <div className="table-scroll-wrapper">
             <table className="admin-table">
               <thead>
                 <tr>
                   <th>Product</th>
-                  <th>Collection</th>
-                  <th>Type</th>
-                  <th>SqFt</th>
-                  <th>Boxes</th>
-                  <th>Unit Price</th>
-                  <th>Subtotal</th>
-                  {['pending', 'confirmed'].includes(order.status) && ['admin', 'manager'].includes(staffRole) && <th>Actions</th>}
+                  <th style={{ width: 120 }}>SqFt</th>
+                  <th style={{ width: 100 }}>Qty</th>
+                  <th style={{ width: 140 }}>Unit Price</th>
+                  <th style={{ width: 110, textAlign: 'right' }}>Subtotal</th>
+                  {['pending', 'confirmed'].includes(order.status) && ['admin', 'manager'].includes(staffRole) && <th style={{ width: 80 }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
-                {items.map(item => (
+                {items.map(item => {
+                  const qtyLabel = item.sell_by === 'unit' ? 'units' : item.sell_by === 'piece' ? 'pcs' : item.sell_by === 'sqyd' ? 'sqft' : 'boxes';
+                  return (
                   <tr key={item.id}>
-                    <td style={{ fontWeight: 500 }}>{item.product_name || item.current_product_name || '—'}</td>
-                    <td>{item.collection || item.current_collection || '—'}</td>
-                    <td>
-                      <span className={'badge ' + (item.is_sample ? 'badge-draft' : 'badge-active')}>
-                        {item.is_sample ? 'Sample' : 'Product'}
-                      </span>
+                    <td data-label="Product">
+                      <div style={{ fontWeight: 500 }}>
+                        {item.collection || item.current_collection || item.product_name || '—'}
+                        {item.color ? ' ' + item.color : ''}
+                        {item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: '#78716c' }}>
+                        {item.vendor_name || ''}{item.vendor_sku ? ' · ' + item.vendor_sku : ''}
+                        {item.is_sample && <span className="badge badge-draft" style={{ fontSize: '0.6rem', marginLeft: item.vendor_name ? '0.5rem' : '0' }}>Sample</span>}
+                      </div>
                     </td>
-                    <td>{item.sqft_needed ? parseFloat(item.sqft_needed).toFixed(1) : '—'}</td>
-                    <td>{item.num_boxes}</td>
-                    <td>{item.unit_price ? '$' + parseFloat(item.unit_price).toFixed(2) : '—'}</td>
-                    <td>{item.subtotal ? '$' + parseFloat(item.subtotal).toFixed(2) : '—'}</td>
+                    <td data-label="SqFt">{item.sell_by === 'unit' || item.sell_by === 'piece' ? <span style={{ color: 'var(--stone-400)' }}>—</span> : item.sqft_needed ? parseFloat(item.sqft_needed).toFixed(1) : '—'}</td>
+                    <td data-label="Qty">{item.sell_by === 'sqyd' ? (item.sqft_needed || 0) : item.num_boxes} <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>{qtyLabel}</span></td>
+                    <td data-label="Unit Price">{item.unit_price ? '$' + parseFloat(item.unit_price).toFixed(2) : '—'} <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'sqyd' ? '/sqyd' : '/sqft'}</span></td>
+                    <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>{item.subtotal ? '$' + parseFloat(item.subtotal).toFixed(2) : '—'}</td>
                     {['pending', 'confirmed'].includes(order.status) && ['admin', 'manager'].includes(staffRole) && (
-                      <td>
-                        <button className="btn btn-sm btn-secondary" style={{ color: '#dc2626', fontSize: '0.75rem' }}
+                      <td data-label="" className="actions">
+                        <button className="btn btn-danger btn-sm"
                             onClick={async () => {
                               if (!confirm('Remove this item from the order?')) return;
                               try {
@@ -3833,7 +4762,8 @@
                       </td>
                     )}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
             </div>
@@ -3871,7 +4801,7 @@
                     {addItemMode === 'sku' ? (
                       /* SKU search mode */
                       <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                        <div style={{ flex: 2, minWidth: '0' }}>
+                        <div style={{ flex: 2, minWidth: '0', position: 'relative' }}>
                           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Search SKU</label>
                           <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
                             onChange={async (e) => {
@@ -3882,9 +4812,19 @@
                                   const data = await adminFetch('/api/admin/skus/search?q=' + encodeURIComponent(q));
                                   setSkuSearchResults((data.results || []).map(r => ({
                                     sku_id: r.sku_id,
-                                    label: r.product_name + ' — ' + (r.variant_name || r.internal_sku),
+                                    collection: r.collection || '',
+                                    product_name: r.product_name || '',
+                                    variant_name: r.variant_name || '',
+                                    color: r.color || '',
+                                    internal_sku: r.internal_sku || '',
+                                    vendor_sku: r.vendor_sku || '',
                                     price: r.retail_price || 0,
-                                    vendor_name: r.vendor_name
+                                    vendor_name: r.vendor_name || '',
+                                    sell_by: r.sell_by || 'sqft',
+                                    price_basis: r.price_basis || 'per_sqft',
+                                    cut_price: r.cut_price,
+                                    roll_price: r.roll_price,
+                                    roll_width_ft: r.roll_width_ft
                                   })));
                                 } catch (e) {}
                                 setSkuSearching(false);
@@ -3892,13 +4832,18 @@
                             }}
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
                           {skuSearchResults.length > 0 && (
-                            <div style={{ border: '1px solid var(--stone-200)', maxHeight: '150px', overflow: 'auto', background: '#fff' }}>
+                            <div className="search-results" style={{ maxHeight: '240px', overflowY: 'auto' }}>
                               {skuSearchResults.map((r, i) => (
-                                <div key={i} style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}
+                                <div key={i} className="search-result-item"
                                   onClick={async () => {
                                     try {
+                                      const isCarpet = r.price_basis === 'per_sqyd';
+                                      setAddItemSellBy(isCarpet ? 'sqyd' : r.sell_by);
+                                      const payload = isCarpet
+                                        ? { sku_id: r.sku_id, sqft_needed: addItemBoxes, num_boxes: 1 }
+                                        : { sku_id: r.sku_id, num_boxes: addItemBoxes };
                                       const data = await adminFetch('/api/admin/orders/' + editId + '/add-item', {
-                                        method: 'POST', body: JSON.stringify({ sku_id: r.sku_id, num_boxes: addItemBoxes })
+                                        method: 'POST', body: JSON.stringify(payload)
                                       });
                                       if (data.order) setOrder(data.order);
                                       if (data.items) setItems(data.items);
@@ -3907,14 +4852,24 @@
                                       setAddingItem(false); setSkuSearchResults([]);
                                     } catch (err) { alert(err.message); }
                                   }}>
-                                  {r.label}{r.vendor_name ? ' (' + r.vendor_name + ')' : ''} — ${parseFloat(r.price).toFixed(2)}
+                                  <div style={{ fontWeight: 500, fontSize: '0.8125rem' }}>
+                                    {r.collection || r.product_name}
+                                    {r.color ? ' — ' + r.color : ''}
+                                    {r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}
+                                  </div>
+                                  <div className="product-meta">
+                                    {r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
+                                    {r.price ? ' · $' + parseFloat(r.price).toFixed(2) + (r.price_basis === 'per_sqyd' ? '/sqyd' : r.sell_by === 'unit' ? '/ea' : '/sqft') : ''}
+                                  </div>
                                 </div>
                               ))}
                             </div>
                           )}
                         </div>
-                        <div style={{ width: '80px' }}>
-                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Boxes</label>
+                        <div style={{ width: '100px' }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>
+                            {skuSearchResults.length > 0 && skuSearchResults[0].price_basis === 'per_sqyd' ? 'SqFt' : 'Qty'}
+                          </label>
                           <input type="number" min="1" value={addItemBoxes} onChange={e => setAddItemBoxes(parseInt(e.target.value) || 1)}
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
                         </div>
@@ -3944,8 +4899,18 @@
                             placeholder="0.00"
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
                         </div>
+                        <div style={{ width: '90px' }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Sold By *</label>
+                          <select value={customItemSellBy} onChange={e => setCustomItemSellBy(e.target.value)}
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }}>
+                            <option value="sqft">Per SqFt (boxes)</option>
+                            <option value="unit">Per Unit (slabs/prefab)</option>
+                            <option value="piece">Per Piece (mosaics)</option>
+                            <option value="sqyd">Per SqYd (carpet)</option>
+                          </select>
+                        </div>
                         <div style={{ width: '70px' }}>
-                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Boxes *</label>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>{customItemSellBy === 'unit' ? 'Qty *' : customItemSellBy === 'piece' ? 'Qty *' : customItemSellBy === 'sqyd' ? 'SqFt *' : 'Boxes *'}</label>
                           <input type="number" min="1" value={customItemBoxes} onChange={e => setCustomItemBoxes(parseInt(e.target.value) || 1)}
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
                         </div>
@@ -3964,6 +4929,7 @@
                                   unit_price: parseFloat(customItemPrice),
                                   vendor_id: customItemVendor,
                                   num_boxes: customItemBoxes,
+                                  sell_by: customItemSellBy,
                                   description: customItemDesc || undefined
                                 })
                               });
@@ -3977,7 +4943,7 @@
                           Add
                         </button>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -4088,13 +5054,14 @@
                           <th>Product</th>
                           <th>Vendor SKU</th>
                           <th>Qty</th>
-                          <th>Retail</th>
+                          <th>Retail Price</th>
                           <th>Cost</th>
                           <th>Margin</th>
                           {isSentOrLater && <th>Status</th>}
-                          {po.items?.some(i => i.dye_lot) && <th>Dye Lot</th>}
-                          {po.items?.some(i => i.qty_shipped != null) && <th>Shipped</th>}
-                          <th style={{ textAlign: 'right' }}>Subtotal</th>
+                          {isSentOrLater && <th>EDI Status</th>}
+                          {isSentOrLater && <th>Dye Lot</th>}
+                          {isSentOrLater && <th>Qty Shipped</th>}
+                          <th style={{ textAlign: 'right' }}>Subtotal (Cost)</th>
                           {isDraft && <th></th>}
                         </tr>
                       </thead>
@@ -4105,44 +5072,60 @@
                           const margin = retail > 0 ? ((retail - cost) / retail * 100) : 0;
                           return (
                             <tr key={item.id}>
-                              <td>{item.product_name || '—'}</td>
-                              <td>{item.vendor_sku || '—'}</td>
-                              <td>
+                              <td data-label="Product">
+                                <div style={{ fontWeight: 500 }}>{item.product_name || '—'}</div>
+                              </td>
+                              <td data-label="Vendor SKU">{item.vendor_sku || '—'}</td>
+                              <td data-label="Qty">
                                 {isDraft ? (
                                   <input type="number" min="1" defaultValue={item.qty} style={{ width: '60px', padding: '0.2rem 0.4rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)' }}
                                     onBlur={e => { const v = parseInt(e.target.value); if (v && v !== item.qty) updatePOItem(po.id, item.id, { qty: v }); }} />
                                 ) : item.qty}
                               </td>
-                              <td>{item.retail_price ? '$' + retail.toFixed(2) : '—'}</td>
-                              <td>
+                              <td data-label="Retail Price">{item.retail_price ? '$' + retail.toFixed(2) : '—'}</td>
+                              <td data-label="Cost">
                                 {isDraft ? (
                                   <input type="number" step="0.01" min="0" defaultValue={cost.toFixed(2)} style={{ width: '80px', padding: '0.2rem 0.4rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)' }}
                                     onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v) && v !== cost) updatePOItem(po.id, item.id, { cost: v }); }} />
                                 ) : '$' + cost.toFixed(2)}
                               </td>
-                              <td style={{ color: margin <= 0 ? 'var(--red)' : 'inherit', fontWeight: margin <= 0 ? 600 : 400 }}>
+                              <td data-label="Margin" style={{ color: margin <= 0 ? 'var(--red)' : 'inherit', fontWeight: margin <= 0 ? 600 : 400 }}>
                                 {retail > 0 ? margin.toFixed(1) + '%' : '—'}
                               </td>
                               {isSentOrLater && (
-                                <td>
+                                <td data-label="Status">
                                   <select value={item.status || 'pending'} onChange={e => updatePOItemStatus(po.id, item.id, e.target.value)}
-                                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.3rem', border: '1px solid var(--stone-300)' }}>
-                                    <option value="pending">Pending</option>
-                                    <option value="ordered">Ordered</option>
-                                    <option value="shipped">Shipped</option>
-                                    <option value="received">Received</option>
-                                    <option value="cancelled">Cancelled</option>
+                                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.35rem', border: '1px solid var(--stone-300)', borderRadius: '4px', background: 'white' }}>
+                                    {['pending', 'ordered', 'shipped', 'received', 'cancelled'].map(s => (
+                                      <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                                    ))}
                                   </select>
-                                  {item.edi_line_status && (
-                                    <span style={{ fontSize: '0.625rem', marginLeft: '0.25rem', color: item.edi_line_status === 'accepted' ? '#166534' : item.edi_line_status === 'rejected' ? '#991b1b' : '#854d0e' }}>
-                                      ({item.edi_line_status})
-                                    </span>
+                                </td>
+                              )}
+                              {isSentOrLater && (
+                                <td data-label="EDI Status">
+                                  {item.edi_line_status === 'accepted' && (
+                                    <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '9999px', background: '#dcfce7', color: '#166534', fontWeight: 600 }}>Accepted</span>
+                                  )}
+                                  {item.edi_line_status === 'backordered' && (
+                                    <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '9999px', background: '#fef9c3', color: '#854d0e', fontWeight: 600 }}>Backordered</span>
+                                  )}
+                                  {item.edi_line_status === 'rejected' && (
+                                    <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '9999px', background: '#fef2f2', color: '#991b1b', fontWeight: 600 }}>Rejected</span>
                                   )}
                                 </td>
                               )}
-                              {po.items?.some(i => i.dye_lot) && <td style={{ fontSize: '0.75rem' }}>{item.dye_lot || '—'}</td>}
-                              {po.items?.some(i => i.qty_shipped != null) && <td>{item.qty_shipped != null ? item.qty_shipped : '—'}</td>}
-                              <td style={{ textAlign: 'right' }}>${parseFloat(item.subtotal).toFixed(2)}</td>
+                              {isSentOrLater && (
+                                <td data-label="Dye Lot" style={{ fontSize: '0.75rem' }}>{item.dye_lot || '—'}</td>
+                              )}
+                              {isSentOrLater && (
+                                <td data-label="Qty Shipped" style={{ fontSize: '0.8125rem' }}>
+                                  {item.qty_shipped != null ? (
+                                    <span>{item.qty_shipped} / {item.qty}</span>
+                                  ) : '—'}
+                                </td>
+                              )}
+                              <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal).toFixed(2)}</td>
                               {isDraft && (
                                 <td>
                                   <button onClick={() => deletePOItem(po.id, item.id)} title="Delete item"
@@ -4156,7 +5139,7 @@
                         })}
                         {/* Add line item row (draft only) */}
                         {isDraft && addingItemPOId !== po.id && (
-                          <tr><td colSpan="9">
+                          <tr><td colSpan="8">
                             <button onClick={() => { setAddingItemPOId(po.id); setNewPOItem({ product_name: '', vendor_sku: '', qty: 1, cost: '' }); }} style={{ background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500 }}>
                               + Add Line Item
                             </button>
@@ -4671,7 +5654,10 @@
         <div>
           <div className="content-header">
             <h1>Web Scrapers</h1>
-            <button className="btn btn-primary" onClick={() => navigate('scraper-source-create')}>Add Source</button>
+            <div style={{display:'flex',gap:'8px'}}>
+              <button className="btn" style={{background:'#f5f5f4',color:'#1c1917',border:'1px solid #d6d3d1'}} onClick={() => navigate('scraper-health')}>Health Dashboard</button>
+              <button className="btn btn-primary" onClick={() => navigate('scraper-source-create')}>Add Source</button>
+            </div>
           </div>
 
           <div className="table-scroll-wrapper">
@@ -4767,6 +5753,140 @@
               onConfirm={handleDelete}
               onCancel={() => setDeleteTarget(null)}
             />
+          )}
+        </div>
+      );
+    }
+
+    // ========== ScraperHealthView ==========
+    function ScraperHealthView({ navigate }) {
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+
+      const load = () => {
+        setLoading(true);
+        adminFetch('/api/admin/scraper-health')
+          .then(d => { setData(d); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+
+      useEffect(() => { load(); }, []);
+
+      if (loading) return <div className="loading">Loading...</div>;
+      if (!data) return <div className="loading">Failed to load health data.</div>;
+
+      const { summary, sources } = data;
+
+      const summaryCard = (label, value, color, bg) => (
+        <div style={{flex:1,background:bg||'#fafaf9',border:'1px solid #e7e5e4',padding:'20px',textAlign:'center',borderRadius:'4px'}}>
+          <div style={{fontSize:'32px',fontWeight:'600',color:color||'#1c1917',fontFamily:"'Cormorant Garamond',Georgia,serif"}}>{value}</div>
+          <div style={{fontSize:'11px',color:'#78716c',textTransform:'uppercase',letterSpacing:'0.05em',marginTop:'4px'}}>{label}</div>
+        </div>
+      );
+
+      const statusBadge = (status) => {
+        const colors = { critical:'#b91c1c', warning:'#a16207', healthy:'#16a34a' };
+        const bgs = { critical:'#fef2f2', warning:'#fefce8', healthy:'#f0fdf4' };
+        return <span style={{display:'inline-block',padding:'2px 10px',fontSize:'11px',fontWeight:'600',color:colors[status],background:bgs[status],borderRadius:'12px',textTransform:'uppercase'}}>{status}</span>;
+      };
+
+      const progressBar = (pct, thresholds) => {
+        if (pct == null) return <span style={{color:'#a8a29e'}}>—</span>;
+        const color = pct < (thresholds?.[0]||50) ? '#b91c1c' : pct < (thresholds?.[1]||70) ? '#a16207' : '#16a34a';
+        return (
+          <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+            <div style={{flex:1,height:'8px',background:'#e7e5e4',borderRadius:'4px',overflow:'hidden'}}>
+              <div style={{width:Math.min(pct,100)+'%',height:'100%',background:color,borderRadius:'4px'}} />
+            </div>
+            <span style={{fontSize:'12px',color,fontWeight:'500',minWidth:'36px',textAlign:'right'}}>{pct.toFixed(0)}%</span>
+          </div>
+        );
+      };
+
+      const rowBg = (status) => status === 'critical' ? '#fef2f2' : status === 'warning' ? '#fefce8' : 'transparent';
+
+      const deltaDisplay = (delta) => {
+        if (!delta || delta.change == null) return <span style={{color:'#a8a29e'}}>—</span>;
+        if (delta.change > 0) return <span style={{color:'#16a34a',fontWeight:'500'}}>+{delta.change}</span>;
+        if (delta.change < 0) return <span style={{color:'#b91c1c',fontWeight:'500'}}>{delta.change}</span>;
+        return <span style={{color:'#a8a29e'}}>0</span>;
+      };
+
+      const formatDate = (d) => {
+        if (!d) return '—';
+        return new Date(d).toLocaleDateString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+      };
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Scraper Health</h1>
+            <button className="btn" style={{background:'#f5f5f4',color:'#1c1917',border:'1px solid #d6d3d1'}} onClick={load}>Refresh</button>
+          </div>
+
+          <div style={{display:'flex',gap:'12px',marginBottom:'24px'}}>
+            {summaryCard('Total Sources', summary.total_sources)}
+            {summaryCard('Healthy', summary.healthy, '#16a34a', '#f0fdf4')}
+            {summaryCard('Warning', summary.warning, '#a16207', '#fefce8')}
+            {summaryCard('Critical', summary.critical, '#b91c1c', '#fef2f2')}
+          </div>
+
+          <div className="table-scroll-wrapper">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Vendor</th>
+                <th>Source</th>
+                <th>Last Scrape</th>
+                <th>Freshness</th>
+                <th>Success Rate</th>
+                <th>Products</th>
+                <th>Image %</th>
+                <th>Price %</th>
+                <th>Delta</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sources.map(s => (
+                <tr key={s.source_id} style={{background:rowBg(s.status)}}>
+                  <td>{s.vendor_name}</td>
+                  <td>
+                    <a href="#" onClick={e => { e.preventDefault(); navigate('scraper-jobs', s.source_id); }} style={{color:'#1c1917',textDecoration:'underline'}}>{s.source_name}</a>
+                  </td>
+                  <td style={{fontSize:'13px',color:'#57534e'}}>{formatDate(s.last_scraped_at)}</td>
+                  <td>{statusBadge(s.freshness === 'ok' ? 'healthy' : s.freshness === 'stale' ? 'warning' : 'critical')}</td>
+                  <td style={{textAlign:'center'}}>
+                    {s.job_stats.success_rate != null
+                      ? <span style={{fontWeight:'500',color:s.job_stats.success_rate < 50 ? '#b91c1c' : s.job_stats.success_rate < 80 ? '#a16207' : '#16a34a'}}>{s.job_stats.success_rate}%</span>
+                      : <span style={{color:'#a8a29e'}}>—</span>}
+                  </td>
+                  <td style={{textAlign:'center'}}>{s.data_quality.active_products}</td>
+                  <td style={{minWidth:'100px'}}>{progressBar(s.data_quality.image_coverage_pct, [50,70])}</td>
+                  <td style={{minWidth:'100px'}}>{progressBar(s.data_quality.pricing_coverage_pct, [50,70])}</td>
+                  <td style={{textAlign:'center'}}>{deltaDisplay(s.delta)}</td>
+                  <td>{statusBadge(s.status)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
+
+          {sources.filter(s => s.issues.length > 0).length > 0 && (
+            <div style={{marginTop:'24px'}}>
+              <h3 style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontWeight:'400',fontSize:'18px',marginBottom:'12px'}}>Issue Details</h3>
+              {sources.filter(s => s.issues.length > 0).map(s => (
+                <div key={s.source_id} style={{background:rowBg(s.status),border:'1px solid #e7e5e4',padding:'12px 16px',marginBottom:'8px',borderRadius:'4px'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}}>
+                    <strong>{s.vendor_name} — {s.source_name}</strong>
+                    {statusBadge(s.status)}
+                  </div>
+                  <ul style={{margin:'4px 0 0',paddingLeft:'20px',fontSize:'13px',color:'#57534e'}}>
+                    {s.issues.map((issue, i) => <li key={i}>{issue}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       );
@@ -5020,6 +6140,14 @@
       };
 
       useEffect(() => { loadJobs(); }, [sourceId]);
+
+      // Auto-refresh when any job is running
+      useEffect(() => {
+        const hasRunning = jobs.some(j => j.status === 'running');
+        if (!hasRunning) return;
+        const interval = setInterval(loadJobs, 5000);
+        return () => clearInterval(interval);
+      }, [jobs.map(j => j.id + j.status).join(',')]);
 
       const handleStopJob = async (jobId) => {
         if (!confirm('Stop this running scrape job?')) return;
@@ -5355,7 +6483,7 @@
           });
           setInquiry(data.inquiry);
           setSaving(false);
-        } catch { setSaving(false); }
+        } catch (e) { setSaving(false); }
       };
 
       const handleDelete = async () => {
@@ -5363,7 +6491,7 @@
         try {
           await adminFetch(`/api/admin/installation-inquiries/${editId}`, { method: 'DELETE' });
           navigate('inquiries');
-        } catch {}
+        } catch (e) {}
       };
 
       const fmtDate = (d) => {
@@ -7234,6 +8362,7 @@
         { key: 'invoices', label: 'Invoices' },
         { key: 'bills', label: 'Bills' },
         { key: 'expenses', label: 'Expenses' },
+        { key: 'commissions', label: 'Commissions' },
         { key: 'reports', label: 'Reports' }
       ];
 
@@ -7252,7 +8381,244 @@
           {subTab === 'invoices' && <InvoicesSubTab />}
           {subTab === 'bills' && <BillsSubTab />}
           {subTab === 'expenses' && <ExpensesSubTab />}
+          {subTab === 'commissions' && <CommissionsSubTab />}
           {subTab === 'reports' && <ReportsSubTab />}
+        </div>
+      );
+    }
+
+    // ========== Commissions Sub-Tab ==========
+    function CommissionsSubTab() {
+      const [commissions, setCommissions] = useState([]);
+      const [summary, setSummary] = useState(null);
+      const [config, setConfig] = useState(null);
+      const [reps, setReps] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [filter, setFilter] = useState({ status: '', rep_id: '', from: '', to: '' });
+      const [page, setPage] = useState(1);
+      const [total, setTotal] = useState(0);
+      const [selected, setSelected] = useState([]);
+      const [editingId, setEditingId] = useState(null);
+      const [editForm, setEditForm] = useState({ commission_rate: '', commission_amount: '', notes: '' });
+      const [editingConfig, setEditingConfig] = useState(false);
+      const [configForm, setConfigForm] = useState({ rate: '', default_cost_ratio: '' });
+      const [saving, setSaving] = useState(false);
+      const limit = 25;
+
+      const fmtMoney = v => '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      const fmtDate = d => d ? new Date(d).toLocaleDateString() : '—';
+      const fmtPct = v => (parseFloat(v || 0) * 100).toFixed(1) + '%';
+
+      const loadCommissions = () => {
+        setLoading(true);
+        const params = new URLSearchParams({ page, limit });
+        if (filter.status) params.set('status', filter.status);
+        if (filter.rep_id) params.set('rep_id', filter.rep_id);
+        if (filter.from) params.set('from', filter.from);
+        if (filter.to) params.set('to', filter.to);
+        adminFetch('/api/admin/accounting/commissions?' + params.toString())
+          .then(d => { setCommissions(d.commissions || []); setTotal(d.total || 0); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      const loadSummary = () => adminFetch('/api/admin/accounting/commissions/summary').then(d => setSummary(d)).catch(() => {});
+      const loadConfig = () => adminFetch('/api/admin/accounting/commissions/config').then(d => { setConfig(d); setConfigForm({ rate: d.rate, default_cost_ratio: d.default_cost_ratio }); }).catch(() => {});
+      const loadReps = () => adminFetch('/api/admin/accounting/commissions?limit=1000').then(data => {
+        const repMap = {};
+        (data.commissions || []).forEach(c => { if (c.rep_id && c.rep_name) repMap[c.rep_id] = c.rep_name; });
+        setReps(Object.entries(repMap).map(([id, name]) => ({ id, name })));
+      }).catch(() => {});
+
+      useEffect(() => { loadSummary(); loadConfig(); loadReps(); }, []);
+      useEffect(() => { loadCommissions(); }, [filter.status, filter.rep_id, filter.from, filter.to, page]);
+
+      const handleApprove = async (id) => {
+        await adminFetch('/api/admin/accounting/commissions/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'earned' }) });
+        loadCommissions(); loadSummary();
+      };
+      const handlePay = async (id) => {
+        await adminFetch('/api/admin/accounting/commissions/' + id + '/pay', { method: 'POST' });
+        loadCommissions(); loadSummary();
+      };
+      const handleBatchPay = async () => {
+        if (!selected.length) return;
+        if (!confirm('Pay ' + selected.length + ' selected commissions?')) return;
+        await adminFetch('/api/admin/accounting/commissions/batch-pay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: selected }) });
+        setSelected([]);
+        loadCommissions(); loadSummary();
+      };
+      const handleEdit = (c) => {
+        setEditingId(c.id);
+        setEditForm({ commission_rate: c.commission_rate, commission_amount: c.commission_amount, notes: c.notes || '' });
+      };
+      const handleSaveEdit = async () => {
+        setSaving(true);
+        await adminFetch('/api/admin/accounting/commissions/' + editingId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editForm) });
+        setEditingId(null);
+        setSaving(false);
+        loadCommissions(); loadSummary();
+      };
+      const handleSaveConfig = async () => {
+        setSaving(true);
+        await adminFetch('/api/admin/accounting/commissions/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(configForm) });
+        setEditingConfig(false);
+        setSaving(false);
+        loadConfig();
+      };
+
+      const toggleSelect = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+      const toggleAll = () => {
+        const earnable = commissions.filter(c => c.status === 'earned' || c.status === 'pending').map(c => c.id);
+        setSelected(selected.length === earnable.length ? [] : earnable);
+      };
+
+      const statusBadge = (s) => {
+        const colors = { pending: '#f59e0b', earned: '#3b82f6', paid: '#10b981', forfeited: '#ef4444' };
+        return <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, background: (colors[s] || '#6b7280') + '20', color: colors[s] || '#6b7280' }}>{s}</span>;
+      };
+
+      const totalPages = Math.ceil(total / limit);
+
+      return (
+        <div>
+          {/* Summary Cards */}
+          {summary && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1rem', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Pending</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>{fmtMoney(summary.total_pending)}</div>
+              </div>
+              <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1rem', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Earned</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 600, color: '#3b82f6' }}>{fmtMoney(summary.total_earned)}</div>
+              </div>
+              <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1rem', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Paid This Month</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 600, color: '#10b981' }}>{fmtMoney(summary.paid_this_month)}</div>
+              </div>
+              <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1rem', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Avg Rate</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>{fmtPct(summary.avg_rate)}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Filters */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <select className="form-input" style={{ maxWidth: 150 }} value={filter.status} onChange={e => { setFilter({...filter, status: e.target.value}); setPage(1); }}>
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="earned">Earned</option>
+              <option value="paid">Paid</option>
+              <option value="forfeited">Forfeited</option>
+            </select>
+            <select className="form-input" style={{ maxWidth: 180 }} value={filter.rep_id} onChange={e => { setFilter({...filter, rep_id: e.target.value}); setPage(1); }}>
+              <option value="">All Reps</option>
+              {reps.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+            <input type="date" className="form-input" style={{ maxWidth: 140 }} value={filter.from} onChange={e => setFilter({...filter, from: e.target.value})} placeholder="From" />
+            <input type="date" className="form-input" style={{ maxWidth: 140 }} value={filter.to} onChange={e => setFilter({...filter, to: e.target.value})} placeholder="To" />
+            {selected.length > 0 && (
+              <button className="btn btn-primary btn-sm" onClick={handleBatchPay}>Pay Selected ({selected.length})</button>
+            )}
+          </div>
+
+          {/* Commission Config */}
+          {config && (
+            <div style={{ background: 'var(--stone-50)', border: '1px solid var(--stone-200)', padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8125rem' }}>
+              <span style={{ fontWeight: 600 }}>Commission Config:</span>
+              {editingConfig ? (
+                <React.Fragment>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Rate: <input type="number" step="0.01" className="form-input" style={{ width: 80 }} value={configForm.rate} onChange={e => setConfigForm({...configForm, rate: e.target.value})} /></label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Cost Ratio: <input type="number" step="0.01" className="form-input" style={{ width: 80 }} value={configForm.default_cost_ratio} onChange={e => setConfigForm({...configForm, default_cost_ratio: e.target.value})} /></label>
+                  <button className="btn btn-primary btn-sm" onClick={handleSaveConfig} disabled={saving}>Save</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setEditingConfig(false)}>Cancel</button>
+                </React.Fragment>
+              ) : (
+                <React.Fragment>
+                  <span>Rate: {fmtPct(config.rate)}</span>
+                  <span>Default Cost Ratio: {fmtPct(config.default_cost_ratio)}</span>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setEditingConfig(true)} style={{ marginLeft: 'auto' }}>Edit</button>
+                </React.Fragment>
+              )}
+            </div>
+          )}
+
+          {/* Commission Table */}
+          {loading ? <p>Loading...</p> : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th><input type="checkbox" checked={selected.length > 0 && selected.length === commissions.filter(c => ['earned','pending'].includes(c.status)).length} onChange={toggleAll} /></th>
+                    <th>Order #</th>
+                    <th>Rep</th>
+                    <th>Order Total</th>
+                    <th>Vendor Cost</th>
+                    <th>Margin</th>
+                    <th>Rate</th>
+                    <th>Commission</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {commissions.map(c => (
+                    <tr key={c.id}>
+                      <td>
+                        {['earned', 'pending'].includes(c.status) && (
+                          <input type="checkbox" checked={selected.includes(c.id)} onChange={() => toggleSelect(c.id)} />
+                        )}
+                      </td>
+                      <td style={{ fontWeight: 500 }}>{c.order_number}</td>
+                      <td>{c.rep_name}</td>
+                      <td>{fmtMoney(c.order_total)}</td>
+                      <td>{fmtMoney(c.vendor_cost)}</td>
+                      <td>{fmtMoney(c.margin)}</td>
+                      <td>
+                        {editingId === c.id ? (
+                          <input type="number" step="0.01" className="form-input" style={{ width: 70 }} value={editForm.commission_rate} onChange={e => setEditForm({...editForm, commission_rate: e.target.value})} />
+                        ) : fmtPct(c.commission_rate)}
+                      </td>
+                      <td>
+                        {editingId === c.id ? (
+                          <input type="number" step="0.01" className="form-input" style={{ width: 90 }} value={editForm.commission_amount} onChange={e => setEditForm({...editForm, commission_amount: e.target.value})} />
+                        ) : fmtMoney(c.commission_amount)}
+                      </td>
+                      <td>{statusBadge(c.status)}</td>
+                      <td style={{ fontSize: '0.8125rem' }}>{fmtDate(c.created_at)}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.25rem' }}>
+                          {editingId === c.id ? (
+                            <React.Fragment>
+                              <button className="btn btn-primary btn-sm" onClick={handleSaveEdit} disabled={saving} style={{ fontSize: '0.6875rem' }}>Save</button>
+                              <button className="btn btn-secondary btn-sm" onClick={() => setEditingId(null)} style={{ fontSize: '0.6875rem' }}>Cancel</button>
+                            </React.Fragment>
+                          ) : (
+                            <React.Fragment>
+                              {c.status === 'pending' && <button className="btn btn-secondary btn-sm" onClick={() => handleApprove(c.id)} style={{ fontSize: '0.6875rem' }}>Approve</button>}
+                              {(c.status === 'earned' || c.status === 'pending') && <button className="btn btn-primary btn-sm" onClick={() => handlePay(c.id)} style={{ fontSize: '0.6875rem' }}>Pay</button>}
+                              {c.status !== 'paid' && <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(c)} style={{ fontSize: '0.6875rem' }}>Edit</button>}
+                            </React.Fragment>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {commissions.length === 0 && <tr><td colSpan="11" style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-400)' }}>No commissions found</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+              <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
+              <span style={{ padding: '0.25rem 0.5rem', fontSize: '0.8125rem' }}>Page {page} of {totalPages}</span>
+              <button className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</button>
+            </div>
+          )}
         </div>
       );
     }
@@ -7269,6 +8635,7 @@
       const [summary, setSummary] = useState(null);
       const [form, setForm] = useState({ expense_date: new Date().toISOString().split('T')[0], category_id: '', vendor_name: '', description: '', amount: '', payment_method: '', reference_number: '', is_recurring: false, notes: '' });
       const [saving, setSaving] = useState(false);
+      const [receiptFile, setReceiptFile] = useState(null);
 
       const loadCategories = () => adminFetch('/api/admin/accounting/expense-categories').then(d => setCategories(d.categories || [])).catch(() => {});
       const loadExpenses = () => {
@@ -7295,11 +8662,13 @@
 
       const openCreate = () => {
         setEditingExpense(null);
+        setReceiptFile(null);
         setForm({ expense_date: new Date().toISOString().split('T')[0], category_id: '', vendor_name: '', description: '', amount: '', payment_method: '', reference_number: '', is_recurring: false, notes: '' });
         setShowModal(true);
       };
       const openEdit = (exp) => {
         setEditingExpense(exp);
+        setReceiptFile(null);
         setForm({ expense_date: exp.expense_date ? exp.expense_date.split('T')[0] : '', category_id: exp.category_id, vendor_name: exp.vendor_name || '', description: exp.description || '', amount: exp.amount, payment_method: exp.payment_method || '', reference_number: exp.reference_number || '', is_recurring: exp.is_recurring || false, notes: exp.notes || '' });
         setShowModal(true);
       };
@@ -7307,12 +8676,25 @@
         if (!form.category_id || !form.amount) { alert('Category and amount are required'); return; }
         setSaving(true);
         try {
+          let expenseId;
           if (editingExpense) {
             await adminFetch('/api/admin/accounting/expenses/' + editingExpense.id, { method: 'PUT', body: JSON.stringify(form) });
+            expenseId = editingExpense.id;
           } else {
-            await adminFetch('/api/admin/accounting/expenses', { method: 'POST', body: JSON.stringify(form) });
+            const d = await adminFetch('/api/admin/accounting/expenses', { method: 'POST', body: JSON.stringify(form) });
+            expenseId = d.expense?.id;
+          }
+          if (receiptFile && expenseId) {
+            const fd = new FormData();
+            fd.append('file', receiptFile);
+            await fetch(API + '/api/admin/accounting/expenses/' + expenseId + '/receipt', {
+              method: 'POST',
+              headers: getAuthHeaders(),
+              body: fd
+            }).then(r => r.json());
           }
           setShowModal(false);
+          setReceiptFile(null);
           loadExpenses();
           loadSummary();
         } catch (err) { alert(err.message); }
@@ -7321,6 +8703,13 @@
       const handleDelete = async (id) => {
         if (!confirm('Delete this expense?')) return;
         try { await adminFetch('/api/admin/accounting/expenses/' + id, { method: 'DELETE' }); loadExpenses(); loadSummary(); } catch (err) { alert(err.message); }
+      };
+      const viewReceipt = async (id) => {
+        try {
+          const d = await adminFetch('/api/admin/accounting/expenses/' + id + '/receipt-url');
+          if (d.url) window.open(d.url, '_blank');
+          else alert('No receipt found');
+        } catch (err) { alert(err.message); }
       };
 
       const fmtMoney = v => '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -7368,6 +8757,7 @@
                     <td style={{ textAlign: 'right', fontWeight: 500 }}>{fmtMoney(e.amount)}</td>
                     <td style={{ fontSize: '0.8125rem' }}>{e.payment_method || '—'}</td>
                     <td>
+                      {e.receipt_url && <button className="btn btn-secondary btn-sm" style={{ marginRight: '0.25rem' }} onClick={() => viewReceipt(e.id)} title="View Receipt">Receipt</button>}
                       <button className="btn btn-secondary btn-sm" style={{ marginRight: '0.25rem' }} onClick={() => openEdit(e)}>Edit</button>
                       <button className="btn btn-sm" style={{ background: 'var(--red-light)', color: 'var(--red)', border: 'none' }} onClick={() => handleDelete(e.id)}>Del</button>
                     </td>
@@ -7427,6 +8817,11 @@
                   <div className="form-group full" style={{ gridColumn: '1/-1', marginBottom: 0 }}>
                     <label>Notes</label>
                     <textarea rows="2" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+                  </div>
+                  <div className="form-group full" style={{ gridColumn: '1/-1', marginBottom: 0 }}>
+                    <label>Receipt</label>
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setReceiptFile(e.target.files[0] || null)} />
+                    {editingExpense?.receipt_url && !receiptFile && <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>Current receipt attached</span>}
                   </div>
                 </div>
                 <div className="modal-actions">
@@ -7511,6 +8906,17 @@
       const handleSend = async (id) => {
         try { await adminFetch('/api/admin/accounting/invoices/' + id + '/send', { method: 'POST' }); alert('Invoice sent'); loadInvoices(); if (detailId === id) loadDetail(id); } catch (err) { alert(err.message); }
       };
+      const handleSendReminder = async (id) => {
+        if (!confirm('Send a payment reminder email for this invoice?')) return;
+        try { await adminFetch('/api/admin/accounting/invoices/' + id + '/send-reminder', { method: 'POST' }); alert('Reminder sent'); } catch (err) { alert(err.message); }
+      };
+      const handleSendAllReminders = async () => {
+        if (!confirm('Send payment reminders to ALL overdue invoices?')) return;
+        try {
+          const d = await adminFetch('/api/admin/accounting/invoices/send-reminders', { method: 'POST' });
+          alert('Sent ' + d.reminders_sent + ' reminder(s) out of ' + d.total_overdue + ' overdue invoice(s)');
+        } catch (err) { alert(err.message); }
+      };
       const handleVoid = async (id) => {
         if (!confirm('Void this invoice?')) return;
         try { await adminFetch('/api/admin/accounting/invoices/' + id + '/void', { method: 'POST' }); loadInvoices(); if (detailId === id) loadDetail(id); loadStats(); } catch (err) { alert(err.message); }
@@ -7547,6 +8953,7 @@
 
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
               {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-primary btn-sm" onClick={() => handleSend(detailId)}>Send Invoice</button>}
+              {(detail.status === 'overdue' || detail.status === 'partial') && <button className="btn btn-sm" style={{ background: '#fef3c7', color: '#d97706', border: 'none' }} onClick={() => handleSendReminder(detailId)}>Send Reminder</button>}
               {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-sm" style={{ background: '#dcfce7', color: '#166534', border: 'none' }} onClick={() => { setPayForm(f => ({ ...f, amount: parseFloat(detail.balance).toFixed(2) })); setShowPayment(true); }}>Record Payment</button>}
               <a className="btn btn-secondary btn-sm" href={API + '/api/admin/accounting/invoices/' + detailId + '/pdf?preview=true'} target="_blank" rel="noopener">Download PDF</a>
               {detail.status !== 'void' && <button className="btn btn-sm" style={{ background: 'var(--red-light)', color: 'var(--red)', border: 'none' }} onClick={() => handleVoid(detailId)}>Void</button>}
@@ -7623,6 +9030,7 @@
             <input type="text" className="form-input" style={{ maxWidth: 200 }} placeholder="Search..." value={filter.search} onChange={e => setFilter(f => ({ ...f, search: e.target.value }))} onKeyDown={e => e.key === 'Enter' && loadInvoices()} />
             <button className="btn btn-secondary btn-sm" onClick={loadInvoices}>Search</button>
             <div style={{ flex: 1 }}></div>
+            <button className="btn btn-sm" style={{ background: '#fef3c7', color: '#d97706', border: 'none' }} onClick={handleSendAllReminders}>Send All Reminders</button>
             <button className="btn btn-primary btn-sm" onClick={() => { setCreateForm({ customer_email: '', customer_name: '', payment_terms: 'due_on_receipt', notes: '', items: [{ description: '', qty: 1, unit_price: '' }] }); setShowCreate(true); }}>+ New Invoice</button>
           </div>
 
@@ -7942,6 +9350,10 @@
       const [dashboard, setDashboard] = useState(null);
       const [customFrom, setCustomFrom] = useState('');
       const [customTo, setCustomTo] = useState('');
+      const [taxData, setTaxData] = useState(null);
+      const [taxLoading, setTaxLoading] = useState(false);
+      const [taxFrom, setTaxFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+      const [taxTo, setTaxTo] = useState(new Date().toISOString().split('T')[0]);
 
       const revenueChartRef = React.useRef(null);
       const revenueChartInstance = React.useRef(null);
@@ -7949,6 +9361,8 @@
       const expenseChartInstance = React.useRef(null);
       const marginChartRef = React.useRef(null);
       const marginChartInstance = React.useRef(null);
+      const taxChartRef = React.useRef(null);
+      const taxChartInstance = React.useRef(null);
 
       const fmtMoney = v => '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
@@ -7967,8 +9381,17 @@
       const loadDashboard = () => {
         adminFetch('/api/admin/accounting/reports/dashboard').then(d => setDashboard(d)).catch(() => {});
       };
+      const loadTax = () => {
+        setTaxLoading(true);
+        const params = new URLSearchParams();
+        if (taxFrom) params.set('from', taxFrom);
+        if (taxTo) params.set('to', taxTo);
+        adminFetch('/api/admin/accounting/reports/tax?' + params.toString())
+          .then(d => { setTaxData(d); setTaxLoading(false); })
+          .catch(() => setTaxLoading(false));
+      };
 
-      useEffect(() => { loadPnl(); loadAging(); loadDashboard(); }, [period]);
+      useEffect(() => { loadPnl(); loadAging(); loadDashboard(); loadTax(); }, [period]);
 
       // Revenue vs COGS chart
       useEffect(() => {
@@ -8038,6 +9461,26 @@
         }, 50);
         return () => { clearTimeout(timer); if (marginChartInstance.current) marginChartInstance.current.destroy(); };
       }, [dashboard]);
+
+      // Tax monthly bar chart
+      useEffect(() => {
+        if (!taxData || !taxData.monthly_totals || !taxData.monthly_totals.length) return;
+        const timer = setTimeout(() => {
+          if (!taxChartRef.current) return;
+          if (taxChartInstance.current) taxChartInstance.current.destroy();
+          const data = taxData.monthly_totals;
+          const ctx = taxChartRef.current.getContext('2d');
+          taxChartInstance.current = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: data.map(d => d.month),
+              datasets: [{ label: 'Tax Collected', data: data.map(d => d.tax_collected), backgroundColor: 'rgba(184, 150, 12, 0.6)', borderColor: '#b8960c', borderWidth: 1 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + v.toFixed(0) } } } }
+          });
+        }, 50);
+        return () => { clearTimeout(timer); if (taxChartInstance.current) taxChartInstance.current.destroy(); };
+      }, [taxData]);
 
       const renderAgingBar = (aging) => {
         if (!aging) return null;
@@ -8139,6 +9582,22 @@
                 </div>
               </div>
 
+              {/* DSO / DPO KPI Cards */}
+              {dashboard && (
+                <React.Fragment>
+                  <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Days Sales Outstanding (DSO)</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 600, color: dashboard.dso > 45 ? '#dc2626' : dashboard.dso > 30 ? '#d97706' : '#16a34a' }}>{dashboard.dso}</div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', marginTop: '0.25rem' }}>Avg days to collect payment</div>
+                  </div>
+                  <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Days Payable Outstanding (DPO)</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 600, color: '#3b82f6' }}>{dashboard.dpo}</div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', marginTop: '0.25rem' }}>Avg days to pay vendors</div>
+                  </div>
+                </React.Fragment>
+              )}
+
               {/* Revenue vs COGS Chart */}
               <div className="chart-container">
                 <h3>Revenue vs COGS</h3>
@@ -8170,7 +9629,464 @@
                 {renderAgingBar(apAging)}
                 <div style={{ textAlign: 'right', marginTop: '0.75rem', fontWeight: 600 }}>Total: {fmtMoney(apAging ? apAging.total_outstanding : 0)}</div>
               </div>
+
+              {/* Tax Report Section */}
+              <div style={{ gridColumn: '1 / -1', background: 'white', border: '1px solid var(--stone-200)', padding: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '0.875rem' }}>Tax Report</h3>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input type="date" className="form-input" style={{ maxWidth: 140 }} value={taxFrom} onChange={e => setTaxFrom(e.target.value)} />
+                    <input type="date" className="form-input" style={{ maxWidth: 140 }} value={taxTo} onChange={e => setTaxTo(e.target.value)} />
+                    <button className="btn btn-secondary btn-sm" onClick={loadTax}>Generate</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => {
+                      const params = new URLSearchParams();
+                      if (taxFrom) params.set('from', taxFrom);
+                      if (taxTo) params.set('to', taxTo);
+                      window.open(API + '/api/admin/accounting/reports/tax/csv?' + params.toString(), '_blank');
+                    }}>Export CSV</button>
+                  </div>
+                </div>
+
+                {taxLoading && <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--stone-400)' }}>Loading...</div>}
+
+                {taxData && !taxLoading && (
+                  <div>
+                    {/* Total Tax Card */}
+                    <div style={{ background: 'var(--stone-50)', border: '1px solid var(--stone-200)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', display: 'inline-block' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>Total Tax Collected</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>{fmtMoney(taxData.total_tax)}</div>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--stone-400)' }}>{taxData.period.from} to {taxData.period.to}</div>
+                    </div>
+
+                    {/* Tax by Jurisdiction Table */}
+                    {taxData.by_jurisdiction && taxData.by_jurisdiction.length > 0 && (
+                      <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th>Zip Code</th>
+                              <th>City</th>
+                              <th>State</th>
+                              <th># Orders</th>
+                              <th>Taxable Amount</th>
+                              <th>Tax Collected</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {taxData.by_jurisdiction.map((r, i) => (
+                              <tr key={i}>
+                                <td>{r.zip || '—'}</td>
+                                <td>{r.city || '—'}</td>
+                                <td>{r.state || '—'}</td>
+                                <td>{r.order_count}</td>
+                                <td>{fmtMoney(r.taxable_amount)}</td>
+                                <td style={{ fontWeight: 600 }}>{fmtMoney(r.tax_collected)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Monthly Tax Trend Chart */}
+                    {taxData.monthly_totals && taxData.monthly_totals.length > 0 && (
+                      <div>
+                        <h4 style={{ fontSize: '0.8125rem', margin: '0 0 0.5rem', fontWeight: 500 }}>Monthly Tax Trend</h4>
+                        <div style={{ height: '200px' }}><canvas ref={taxChartRef}></canvas></div>
+                      </div>
+                    )}
+
+                    {taxData.by_jurisdiction && taxData.by_jurisdiction.length === 0 && (
+                      <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--stone-400)' }}>No tax data for this period</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
+          )}
+        </div>
+      );
+    }
+
+    // ==================== Site Analytics View ====================
+    function SiteAnalyticsView() {
+      const [tab, setTab] = useState('overview');
+      const [period, setPeriod] = useState('7d');
+      const [loading, setLoading] = useState(true);
+      const [data, setData] = useState(null);
+      const [funnelData, setFunnelData] = useState(null);
+      const [productsData, setProductsData] = useState(null);
+      const [searchData, setSearchData] = useState(null);
+      const [realtimeData, setRealtimeData] = useState(null);
+      const chartRef = useRef(null);
+      const deviceChartRef = useRef(null);
+      const funnelChartRef = useRef(null);
+      const searchChartRef = useRef(null);
+      const chartInstances = useRef({});
+
+      const token = sessionStorage.getItem('staff_token');
+      const headers = { 'X-Staff-Token': token };
+
+      const fetchOverview = useCallback(() => {
+        setLoading(true);
+        fetch(API + '/api/admin/site-analytics?period=' + period, { headers })
+          .then(r => r.json())
+          .then(d => { setData(d); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, [period]);
+
+      const fetchFunnel = useCallback(() => {
+        fetch(API + '/api/admin/site-analytics/funnel?period=' + period, { headers })
+          .then(r => r.json())
+          .then(d => setFunnelData(d))
+          .catch(console.error);
+      }, [period]);
+
+      const fetchProducts = useCallback(() => {
+        fetch(API + '/api/admin/site-analytics/products?period=' + period, { headers })
+          .then(r => r.json())
+          .then(d => setProductsData(d))
+          .catch(console.error);
+      }, [period]);
+
+      const fetchSearches = useCallback(() => {
+        fetch(API + '/api/admin/site-analytics/searches?period=' + period, { headers })
+          .then(r => r.json())
+          .then(d => setSearchData(d))
+          .catch(console.error);
+      }, [period]);
+
+      const fetchRealtime = useCallback(() => {
+        fetch(API + '/api/admin/site-analytics/realtime', { headers })
+          .then(r => r.json())
+          .then(d => setRealtimeData(d))
+          .catch(console.error);
+      }, []);
+
+      useEffect(() => {
+        if (tab === 'overview') fetchOverview();
+        if (tab === 'funnel') fetchFunnel();
+        if (tab === 'products') fetchProducts();
+        if (tab === 'search') fetchSearches();
+        if (tab === 'realtime') fetchRealtime();
+      }, [tab, period]);
+
+      // Real-time auto-refresh
+      useEffect(() => {
+        if (tab !== 'realtime') return;
+        const iv = setInterval(fetchRealtime, 30000);
+        return () => clearInterval(iv);
+      }, [tab]);
+
+      // Traffic chart
+      useEffect(() => {
+        if (tab !== 'overview' || !data?.daily || !chartRef.current) return;
+        if (chartInstances.current.traffic) chartInstances.current.traffic.destroy();
+        chartInstances.current.traffic = new Chart(chartRef.current, {
+          type: 'line',
+          data: {
+            labels: data.daily.map(d => d.stat_date.slice(5)),
+            datasets: [
+              { label: 'Sessions', data: data.daily.map(d => d.total_sessions), borderColor: '#1c1917', backgroundColor: 'rgba(28,25,23,0.1)', fill: true, tension: 0.3 },
+              { label: 'Visitors', data: data.daily.map(d => d.unique_visitors), borderColor: '#c8a97e', backgroundColor: 'transparent', borderDash: [5,5], tension: 0.3 }
+            ]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+        });
+      }, [data, tab]);
+
+      // Device chart
+      useEffect(() => {
+        if (tab !== 'overview' || !data?.devices || !deviceChartRef.current) return;
+        if (chartInstances.current.device) chartInstances.current.device.destroy();
+        const colors = { desktop: '#1c1917', mobile: '#c8a97e', tablet: '#78716c' };
+        chartInstances.current.device = new Chart(deviceChartRef.current, {
+          type: 'doughnut',
+          data: {
+            labels: data.devices.map(d => d.device_type),
+            datasets: [{ data: data.devices.map(d => d.count), backgroundColor: data.devices.map(d => colors[d.device_type] || '#a8a29e') }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+      }, [data, tab]);
+
+      // Funnel chart
+      useEffect(() => {
+        if (tab !== 'funnel' || !funnelData?.steps || !funnelChartRef.current) return;
+        if (chartInstances.current.funnel) chartInstances.current.funnel.destroy();
+        const steps = funnelData.steps;
+        chartInstances.current.funnel = new Chart(funnelChartRef.current, {
+          type: 'bar',
+          data: {
+            labels: steps.map(s => s.step),
+            datasets: [{ label: 'Unique Sessions', data: steps.map(s => s.count), backgroundColor: ['#1c1917','#44403c','#78716c','#a8a29e','#c8a97e'] }]
+          },
+          options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+        });
+      }, [funnelData, tab]);
+
+      // Search chart
+      useEffect(() => {
+        if (tab !== 'search' || !searchData?.top_terms || !searchChartRef.current) return;
+        if (chartInstances.current.search) chartInstances.current.search.destroy();
+        const terms = searchData.top_terms.slice(0, 10);
+        chartInstances.current.search = new Chart(searchChartRef.current, {
+          type: 'bar',
+          data: {
+            labels: terms.map(t => t.term),
+            datasets: [{ label: 'Searches', data: terms.map(t => t.count), backgroundColor: '#1c1917' }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+      }, [searchData, tab]);
+
+      // Cleanup charts on unmount
+      useEffect(() => {
+        return () => { Object.values(chartInstances.current).forEach(c => c && c.destroy()); };
+      }, []);
+
+      const fmtNum = n => Number(n || 0).toLocaleString();
+      const fmtMoney = n => '$' + parseFloat(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      const fmtPct = n => parseFloat(n || 0).toFixed(1) + '%';
+      const fmtDuration = secs => { const m = Math.floor(secs / 60); return m > 0 ? m + 'm ' + (secs % 60) + 's' : secs + 's'; };
+
+      const tabs = [
+        { key: 'overview', label: 'Overview' },
+        { key: 'funnel', label: 'Funnel' },
+        { key: 'products', label: 'Products' },
+        { key: 'search', label: 'Search' },
+        { key: 'realtime', label: 'Real-Time' }
+      ];
+
+      const statCard = (label, value, color) => (
+        <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 600, color: color || 'var(--stone-800)', fontFamily: "'Cormorant Garamond',Georgia,serif" }}>{value}</div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '0.25rem' }}>{label}</div>
+        </div>
+      );
+
+      return (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <h2 style={{ margin: 0, fontFamily: "'Cormorant Garamond',Georgia,serif", fontWeight: 400, fontSize: '1.5rem' }}>Site Analytics</h2>
+            {tab !== 'realtime' && (
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                {['7d','30d','90d'].map(p => (
+                  <button key={p} onClick={() => setPeriod(p)}
+                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem', border: '1px solid var(--stone-300)',
+                      background: period === p ? 'var(--stone-800)' : 'white', color: period === p ? 'white' : 'var(--stone-600)',
+                      cursor: 'pointer' }}>
+                    {p === '7d' ? '7 Days' : p === '30d' ? '30 Days' : '90 Days'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid var(--stone-200)', marginBottom: '1.5rem' }}>
+            {tabs.map(t => (
+              <button key={t.key} onClick={() => setTab(t.key)}
+                style={{ padding: '0.625rem 1rem', fontSize: '0.8rem', fontWeight: tab === t.key ? 600 : 400,
+                  color: tab === t.key ? 'var(--stone-800)' : 'var(--stone-500)',
+                  background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+                  borderBottom: tab === t.key ? '2px solid var(--stone-800)' : '2px solid transparent',
+                  cursor: 'pointer' }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Overview Tab */}
+          {tab === 'overview' && (
+            loading ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--stone-400)' }}>Loading...</div> :
+            data ? (
+              <div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                  {statCard('Sessions', fmtNum(data.totals?.sessions))}
+                  {statCard('Visitors', fmtNum(data.totals?.visitors))}
+                  {statCard('Page Views', fmtNum(data.totals?.page_views))}
+                  {statCard('Orders', fmtNum(data.totals?.orders_completed), '#16a34a')}
+                  {statCard('Revenue', fmtMoney(data.totals?.revenue), '#16a34a')}
+                  {statCard('Avg Duration', fmtDuration(data.totals?.avg_duration || 0))}
+                  {statCard('Bounce Rate', fmtPct(data.totals?.bounce_rate), parseFloat(data.totals?.bounce_rate || 0) > 60 ? '#b91c1c' : undefined)}
+                  {statCard('Cart Abandon', fmtPct(data.totals?.cart_abandonment_rate), parseFloat(data.totals?.cart_abandonment_rate || 0) > 70 ? '#b91c1c' : undefined)}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem' }}>
+                    <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem' }}>Traffic Over Time</h3>
+                    <div style={{ height: 250 }}><canvas ref={chartRef}></canvas></div>
+                  </div>
+                  <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem' }}>
+                    <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem' }}>Device Breakdown</h3>
+                    <div style={{ height: 250 }}><canvas ref={deviceChartRef}></canvas></div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem' }}>
+                    <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem' }}>Top Referrers</h3>
+                    <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
+                      <thead><tr><th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--stone-200)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Source</th><th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '1px solid var(--stone-200)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Count</th></tr></thead>
+                      <tbody>{(data.referrers || []).map((r, i) => (
+                        <tr key={i}><td style={{ padding: '0.375rem 0.5rem', borderBottom: '1px solid var(--stone-100)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.referrer}</td><td style={{ padding: '0.375rem 0.5rem', borderBottom: '1px solid var(--stone-100)', textAlign: 'right' }}>{fmtNum(r.count)}</td></tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                  <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem' }}>
+                    <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem' }}>Top Pages</h3>
+                    <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
+                      <thead><tr><th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--stone-200)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Page</th><th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '1px solid var(--stone-200)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Views</th></tr></thead>
+                      <tbody>{(data.top_pages || []).map((p, i) => (
+                        <tr key={i}><td style={{ padding: '0.375rem 0.5rem', borderBottom: '1px solid var(--stone-100)' }}>{p.page_path}</td><td style={{ padding: '0.375rem 0.5rem', borderBottom: '1px solid var(--stone-100)', textAlign: 'right' }}>{fmtNum(p.views)}</td></tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            ) : null
+          )}
+
+          {/* Funnel Tab */}
+          {tab === 'funnel' && (
+            !funnelData ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--stone-400)' }}>Loading...</div> : (
+              <div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                  {funnelData.steps.map((s, i) => (
+                    <div key={i} style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1rem', textAlign: 'center' }}>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 600, fontFamily: "'Cormorant Garamond',Georgia,serif" }}>{fmtNum(s.count)}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--stone-500)', textTransform: 'uppercase', marginTop: '0.25rem' }}>{s.step}</div>
+                      {s.dropoff != null && (
+                        <div style={{ fontSize: '0.7rem', color: s.dropoff > 70 ? '#b91c1c' : s.dropoff > 40 ? '#c8a97e' : '#16a34a', marginTop: '0.375rem', fontWeight: 500 }}>
+                          {s.dropoff > 0 ? '-' + fmtPct(s.dropoff) + ' dropoff' : 'No dropoff'}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem' }}>
+                  <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem' }}>Conversion Funnel</h3>
+                  <div style={{ height: 300 }}><canvas ref={funnelChartRef}></canvas></div>
+                </div>
+              </div>
+            )
+          )}
+
+          {/* Products Tab */}
+          {tab === 'products' && (
+            !productsData ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--stone-400)' }}>Loading...</div> : (
+              <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem' }}>
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem' }}>Product Performance</h3>
+                <p style={{ margin: '0 0 1rem', fontSize: '0.75rem', color: 'var(--stone-500)' }}>Sorted by opportunity score (high views, low conversion). These are products customers view but don't purchase.</p>
+                <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
+                  <thead><tr>
+                    <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '2px solid var(--stone-800)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Product</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '2px solid var(--stone-800)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Views</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '2px solid var(--stone-800)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Sessions</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '2px solid var(--stone-800)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Carts</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '2px solid var(--stone-800)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Orders</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '2px solid var(--stone-800)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Opportunity</th>
+                  </tr></thead>
+                  <tbody>{(productsData.products || []).map((p, i) => (
+                    <tr key={i}>
+                      <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--stone-100)', maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.product_name || p.sku_id}</td>
+                      <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--stone-100)', textAlign: 'right' }}>{fmtNum(p.view_count)}</td>
+                      <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--stone-100)', textAlign: 'right' }}>{fmtNum(p.unique_sessions)}</td>
+                      <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--stone-100)', textAlign: 'right' }}>{fmtNum(p.cart_count)}</td>
+                      <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--stone-100)', textAlign: 'right' }}>{fmtNum(p.order_count)}</td>
+                      <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--stone-100)', textAlign: 'right' }}>
+                        <span style={{ display: 'inline-block', padding: '0.125rem 0.5rem', fontSize: '0.7rem', fontWeight: 500,
+                          background: parseFloat(p.opportunity_score) > 80 ? '#fef2f2' : parseFloat(p.opportunity_score) > 50 ? '#fefce8' : '#f0fdf4',
+                          color: parseFloat(p.opportunity_score) > 80 ? '#b91c1c' : parseFloat(p.opportunity_score) > 50 ? '#a16207' : '#16a34a' }}>
+                          {fmtPct(p.opportunity_score)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            )
+          )}
+
+          {/* Search Tab */}
+          {tab === 'search' && (
+            !searchData ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--stone-400)' }}>Loading...</div> : (
+              <div>
+                <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem', marginBottom: '1rem' }}>
+                  <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem' }}>Top Search Terms</h3>
+                  <div style={{ height: 250 }}><canvas ref={searchChartRef}></canvas></div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem' }}>
+                    <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem' }}>All Search Terms</h3>
+                    <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
+                      <thead><tr><th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--stone-200)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Term</th><th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '1px solid var(--stone-200)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Count</th></tr></thead>
+                      <tbody>{(searchData.top_terms || []).map((t, i) => (
+                        <tr key={i}><td style={{ padding: '0.375rem 0.5rem', borderBottom: '1px solid var(--stone-100)' }}>{t.term}</td><td style={{ padding: '0.375rem 0.5rem', borderBottom: '1px solid var(--stone-100)', textAlign: 'right' }}>{fmtNum(t.count)}</td></tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                  <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem' }}>
+                    <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', color: '#b91c1c' }}>Zero-Result Searches</h3>
+                    <p style={{ margin: '0 0 0.75rem', fontSize: '0.7rem', color: 'var(--stone-500)' }}>Searches that returned no products. Consider adding these products or creating redirects.</p>
+                    <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
+                      <thead><tr><th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--stone-200)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Term</th><th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '1px solid var(--stone-200)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Count</th></tr></thead>
+                      <tbody>{(searchData.zero_results || []).length === 0
+                        ? <tr><td colSpan="2" style={{ padding: '1rem', textAlign: 'center', color: 'var(--stone-400)', fontSize: '0.8rem' }}>No zero-result searches found</td></tr>
+                        : (searchData.zero_results || []).map((t, i) => (
+                        <tr key={i}><td style={{ padding: '0.375rem 0.5rem', borderBottom: '1px solid var(--stone-100)', color: '#b91c1c' }}>{t.term}</td><td style={{ padding: '0.375rem 0.5rem', borderBottom: '1px solid var(--stone-100)', textAlign: 'right' }}>{fmtNum(t.count)}</td></tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )
+          )}
+
+          {/* Real-Time Tab */}
+          {tab === 'realtime' && (
+            !realtimeData ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--stone-400)' }}>Loading...</div> : (
+              <div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
+                  <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '2rem', textAlign: 'center' }}>
+                    <div style={{ fontSize: '3rem', fontWeight: 600, fontFamily: "'Cormorant Garamond',Georgia,serif", color: 'var(--stone-800)' }}>{fmtNum(realtimeData.active_sessions)}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Sessions (30m)</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--stone-400)', marginTop: '0.5rem' }}>Auto-refreshes every 30s</div>
+                  </div>
+                  <div style={{ background: 'white', border: '1px solid var(--stone-200)', padding: '1.25rem', maxHeight: 500, overflowY: 'auto' }}>
+                    <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem' }}>Live Event Stream</h3>
+                    <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+                      <thead><tr>
+                        <th style={{ textAlign: 'left', padding: '0.375rem 0.5rem', borderBottom: '1px solid var(--stone-200)', fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Time</th>
+                        <th style={{ textAlign: 'left', padding: '0.375rem 0.5rem', borderBottom: '1px solid var(--stone-200)', fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Event</th>
+                        <th style={{ textAlign: 'left', padding: '0.375rem 0.5rem', borderBottom: '1px solid var(--stone-200)', fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Page</th>
+                        <th style={{ textAlign: 'left', padding: '0.375rem 0.5rem', borderBottom: '1px solid var(--stone-200)', fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--stone-500)' }}>Details</th>
+                      </tr></thead>
+                      <tbody>{(realtimeData.recent_events || []).map((e, i) => {
+                        const props = e.properties || {};
+                        let detail = '';
+                        if (props.query) detail = 'q: ' + props.query;
+                        else if (props.product_name) detail = props.product_name;
+                        else if (props.sku_id) detail = 'SKU: ' + props.sku_id.slice(0, 8);
+                        else if (props.category) detail = props.category;
+                        else if (props.collection) detail = props.collection;
+                        const eventColors = { page_view: '#57534e', product_view: '#1d4ed8', add_to_cart: '#16a34a', order_completed: '#c8a97e', search: '#7c3aed', checkout_started: '#ea580c' };
+                        return (
+                          <tr key={i}>
+                            <td style={{ padding: '0.25rem 0.5rem', borderBottom: '1px solid var(--stone-50)', color: 'var(--stone-400)', whiteSpace: 'nowrap' }}>{new Date(e.created_at).toLocaleTimeString()}</td>
+                            <td style={{ padding: '0.25rem 0.5rem', borderBottom: '1px solid var(--stone-50)' }}>
+                              <span style={{ display: 'inline-block', padding: '0.125rem 0.375rem', fontSize: '0.65rem', fontWeight: 500, color: eventColors[e.event_type] || 'var(--stone-600)', background: 'var(--stone-100)' }}>{e.event_type}</span>
+                            </td>
+                            <td style={{ padding: '0.25rem 0.5rem', borderBottom: '1px solid var(--stone-50)', color: 'var(--stone-600)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.page_path}</td>
+                            <td style={{ padding: '0.25rem 0.5rem', borderBottom: '1px solid var(--stone-50)', color: 'var(--stone-500)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{detail}</td>
+                          </tr>
+                        );
+                      })}</tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )
           )}
         </div>
       );
