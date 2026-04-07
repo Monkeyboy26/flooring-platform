@@ -1,4 +1,4 @@
-import { launchBrowser, delay, upsertProduct, upsertSku, upsertSkuAttribute, upsertPackaging, appendLog, addJobError, downloadImage, upsertMediaAsset, resolveImageExtension } from './base.js';
+import { launchBrowser, delay, upsertSkuAttribute, upsertPackaging, appendLog, addJobError, downloadImage, upsertMediaAsset, resolveImageExtension } from './base.js';
 
 const DEFAULT_CONFIG = {
   categories: [
@@ -29,8 +29,22 @@ const DEFAULT_CONFIG = {
     '/prefabricated-countertops/',
     '/soapstone-countertops/',
     '/vanity-tops-countertops/',
-    // Backsplash & Wall
-    '/backsplash-tile/',
+    // Backsplash & Wall — sub-category pages with product grids
+    '/backsplash-tile/subway-tile/',
+    '/backsplash-tile/glass-tile/',
+    '/backsplash-tile/geometric-pattern/',
+    '/backsplash-tile/bevollo-glass-tile/',
+    '/backsplash-tile/rio-lago-pebbles-mosaics/',
+    '/backsplash-tile/waterjet-cut-mosaics/',
+    '/backsplash-tile/stik-wall-tile/',
+    '/backsplash-tile/wood-look-wall-tile/',
+    '/backsplash-tile/brickstaks/',
+    '/backsplash-tile/acoustic-wood-slat/',
+    '/backsplash-tile/stacked-stone-collection/',
+    '/backsplash-tile/encaustic-pattern/',
+    '/backsplash-tile/luxor/',
+    '/backsplash-tile/revaso-recycled-glass/',
+    '/backsplash-tile/specialty-shapes-wall-tile/',
     '/mosaics/collections-mosaics/',
     '/fluted-looks/',
     // Hardscaping
@@ -41,93 +55,50 @@ const DEFAULT_CONFIG = {
     '/waterproof-wood-flooring/woodhills/',
   ],
   maxProductsPerCategory: 500,
-  delayMs: 1500
+  delayMs: 2500
 };
 
 /**
- * MSI Surfaces scraper.
- * Navigates category pages, collects product URLs, then scrapes each product page.
- * MSI is a JS-rendered SPA — requires networkidle2 + explicit selector waits.
+ * MSI Surfaces enrichment scraper.
+ * Crawls MSI website category pages and product detail pages to extract
+ * descriptions, images, and spec attributes. Matches scraped SKU codes
+ * against existing 832-imported SKUs (internal_sku = 'MSI-' + code).
+ * Does NOT create products or SKUs — only enriches existing records.
  */
 export async function run(pool, job, source) {
   const config = { ...DEFAULT_CONFIG, ...(source.config || {}) };
   const baseUrl = source.base_url.replace(/\/$/, '');
-  const vendor_id = source.vendor_id;
 
-  // Map MSI category URL paths to DB category slugs
-  const CATEGORY_MAP = {
-    // Tile
-    '/porcelain-tile/':               'porcelain-tile',
-    '/marble-tile/':                  'natural-stone',
-    '/travertine-tile/':              'natural-stone',
-    '/granite-tile/':                 'natural-stone',
-    '/quartzite-tile/':               'natural-stone',
-    '/slate-tile/':                   'natural-stone',
-    '/sandstone-tile/':               'natural-stone',
-    '/limestone-tile/':               'natural-stone',
-    '/onyx-tile/':                    'natural-stone',
-    '/wood-look-tile-and-planks/':    'wood-look-tile',
-    '/large-format-tile/':            'large-format-tile',
-    '/commercial-tile/':              'commercial-tile',
-    // Luxury Vinyl
-    '/luxury-vinyl-flooring/':        'lvp-plank',
-    '/waterproof-hybrid-rigid-core/': 'lvp-plank',
-    // Hardwood
-    '/w-luxury-genuine-hardwood/':    'engineered-hardwood',
-    // Countertops
-    '/quartz-countertops/':           'quartz-countertops',
-    '/granite-countertops/':          'granite-countertops',
-    '/marble-countertops/':           'marble-countertops',
-    '/quartzite-countertops/':        'quartzite-countertops',
-    '/stile/porcelain-slabs/':        'porcelain-slabs',
-    '/prefabricated-countertops/':    'prefab-countertops',
-    '/soapstone-countertops/':        'soapstone-countertops',
-    '/vanity-tops-countertops/':      'vanity-tops',
-    // Backsplash & Wall
-    '/backsplash-tile/':              'backsplash-tile',
-    '/mosaics/collections-mosaics/':  'mosaic-tile',
-    '/fluted-looks/':                 'fluted-tile',
-    // Hardscaping
-    '/hardscape/rockmount-stacked-stone/': 'stacked-stone',
-    '/hardscape/arterra-porcelain-pavers/': 'pavers',
-    '/evergrass-turf/':               'artificial-turf',
-    // Waterproof Wood
-    '/waterproof-wood-flooring/woodhills/': 'waterproof-wood',
-  };
+  // Optional: filter to only specific category paths (for partial re-scrapes)
+  const onlyCategories = config.onlyCategories || null;
+  const activeCategories = onlyCategories
+    ? config.categories.filter(c => onlyCategories.some(oc => c.includes(oc)))
+    : config.categories;
 
-  // sell_by override per category slug (default is 'sqft')
-  const SELL_BY_MAP = {
-    'quartz-countertops': 'unit',
-    'granite-countertops': 'unit',
-    'marble-countertops': 'unit',
-    'quartzite-countertops': 'unit',
-    'porcelain-slabs': 'unit',
-    'prefab-countertops': 'unit',
-    'soapstone-countertops': 'unit',
-    'vanity-tops': 'unit',
-    'lvp-plank': 'box',
-    'waterproof-wood': 'box',
-  };
-
-  // Vinyl trim/accessories are sold per piece, not per box
-  const TRIM_SELL_BY = 'unit';
-
-  // Build slug→id lookup from DB
-  const categoryIdMap = {};
-  const catResult = await pool.query('SELECT id, slug FROM categories');
-  for (const row of catResult.rows) categoryIdMap[row.slug] = row.id;
+  // Pre-load ALL MSI SKUs into a Map for O(1) lookups (eliminates N+1 queries)
+  const { rows: allMsiSkus } = await pool.query(
+    `SELECT s.id AS sku_id, s.product_id, s.internal_sku
+     FROM skus s JOIN products p ON s.product_id = p.id
+     JOIN vendors v ON p.vendor_id = v.id WHERE v.code = 'MSI'`
+  );
+  const skuIndex = new Map(allMsiSkus.map(r => [r.internal_sku, r]));
 
   let browser;
   let totalFound = 0;
-  let totalCreated = 0;
-  let totalUpdated = 0;
-  let totalSkusCreated = 0;
+  let totalEnriched = 0;
+  let totalSkipped = 0;
+  let totalImagesAdded = 0;
+  let totalAttributesSet = 0;
+  let totalPackagingUpdated = 0;
 
   try {
-    await appendLog(pool, job.id, 'Launching browser...');
+    await appendLog(pool, job.id, `Launching browser (enrichment mode). Pre-loaded ${skuIndex.size} MSI SKUs for matching.`);
     browser = await launchBrowser();
 
-    for (const categoryPath of config.categories) {
+    // Track visited URLs to prevent infinite drill-down loops
+    const visitedUrls = new Set();
+
+    for (const categoryPath of activeCategories) {
       const categoryUrl = baseUrl + (categoryPath.startsWith('/') ? '' : '/') + categoryPath;
       await appendLog(pool, job.id, `Scraping category: ${categoryPath}`);
 
@@ -143,37 +114,31 @@ export async function run(pool, job, source) {
 
       totalFound += productUrls.length;
 
-      // Resolve category_id for this URL path
-      const categorySlug = CATEGORY_MAP[categoryPath] || null;
-      const currentCategoryId = categorySlug ? (categoryIdMap[categorySlug] || null) : null;
-
       for (let i = 0; i < productUrls.length; i++) {
         const url = productUrls[i];
+
+        // Skip already-visited URLs (prevents infinite drill-down loops)
+        const normalizedUrl = url.replace(/\/$/, '').toLowerCase();
+        if (visitedUrls.has(normalizedUrl)) continue;
+        visitedUrls.add(normalizedUrl);
+
         try {
           const data = await scrapeProductPage(browser, url, config);
-          if (!data || !data.name) {
-            await appendLog(pool, job.id, `Skipped ${url} — no product name found`);
-            continue;
-          }
+          if (!data || !data.name) continue;
 
           // Skip non-product pages
           const nameLower = (data.name || '').toLowerCase();
           const collLower = (data.collection || '').toLowerCase();
 
-          // 1. No SKUs + generic/info page name
           if ((!data.skus || data.skus.length === 0)) {
             const isGenericName = /^\d+\s*[x×]\s*\d+\b/i.test(data.name)
               || /^(colors?|features|benefits|about|gallery|installation|maintenance|faq|resources)\b/i.test(data.name)
               || collLower.includes('features and benefits')
               || collLower.includes('installation')
               || nameLower.includes('features and benefits');
-            if (isGenericName) {
-              await appendLog(pool, job.id, `Skipped ${url} — non-product page: "${data.name}"`);
-              continue;
-            }
+            if (isGenericName) continue;
           }
 
-          // 2. Known non-product page patterns (even if they have URL-derived SKUs)
           const isNonProduct =
             nameLower.includes('too many requests') ||
             nameLower.includes('care & maintenance') ||
@@ -196,119 +161,127 @@ export async function run(pool, job, source) {
             nameLower.includes('emerald turf precut') ||
             /^(mosaic tile|glass tile|encaustic tile|wood look wall tile)$/i.test(data.name) ||
             /^\d+\s*x\s*\d+\s+(porcelain|ceramic)/i.test(data.name);
-          if (isNonProduct) {
-            await appendLog(pool, job.id, `Skipped ${url} — non-product page: "${data.name}"`);
-            continue;
-          }
+          if (isNonProduct) continue;
 
-          // 3. Skip if all SKUs are URL-derived (no real ID# codes found)
-          // Real MSI SKUs contain digits (e.g. NADEGRI1818, VTGSELBOU9X48-2MM-12MIL)
-          // URL-derived ones are just uppercase slugs (e.g. ANDOVER, CYRUS, BRAXTON)
+          // Real MSI SKUs contain digits (e.g. NADEGRI1818)
+          // URL-derived ones (ANDOVER, CYRUS) won't match 832 imports — skip them
           const hasRealSku = data.skus && data.skus.some(s => /\d/.test(s.code));
           if (!hasRealSku) {
-            await appendLog(pool, job.id, `Skipped ${url} — no real SKU codes (URL-derived only): "${data.name}"`);
+            // Try drill-down for collection pages
+            let drilled = false;
+            try {
+              const subUrls = await collectSubProductUrls(browser, url, config);
+              if (subUrls.length > 0) {
+                await appendLog(pool, job.id, `Collection page "${data.name}" → drilling into ${subUrls.length} sub-products`);
+                productUrls.splice(i + 1, 0, ...subUrls);
+                totalFound += subUrls.length;
+                drilled = true;
+              }
+            } catch (drillErr) { /* fall through */ }
+            if (drilled) continue;
+            // No real SKU codes and not a drillable collection — skip
             continue;
           }
 
-          // Upsert product
-          const product = await upsertProduct(pool, {
-            vendor_id,
-            name: data.name,
-            collection: data.collection,
-            category_id: currentCategoryId,
-            description_short: data.description ? data.description.slice(0, 255) : null,
-            description_long: data.description
-          });
-
-          if (product.is_new) totalCreated++;
-          else totalUpdated++;
-
-          // Upsert SKU(s) — use extracted ID# variants; fall back to URL-based
-          const skuEntries = data.skus && data.skus.length > 0
-            ? data.skus
-            : extractSkuFromUrl(url).map(code => ({ code, size: '', finish: '', variantName: null }));
-
-          for (const entry of skuEntries) {
-            const vendorSku = entry.code;
-            const cleanSku = vendorSku.replace(/\s+/g, '-').toUpperCase();
-            const internalSku = 'MSI-' + cleanSku;
-            const baseSellBy = SELL_BY_MAP[categorySlug] || 'sqft';
-            // Vinyl trim/accessories are sold per piece, not per box
-            const sellBy = (entry.variant_type === 'trim' || entry.variant_type === 'accessory') ? TRIM_SELL_BY : baseSellBy;
-            const sku = await upsertSku(pool, {
-              product_id: product.id,
-              vendor_sku: vendorSku,
-              internal_sku: internalSku,
-              variant_name: entry.variantName || (skuEntries.length > 1 ? vendorSku : null),
-              sell_by: sellBy,
-              variant_type: entry.variant_type
-            });
-            if (sku.is_new) totalSkusCreated++;
-
-            // Upsert product-level attributes (shared across all variants)
-            for (const [attrSlug, value] of Object.entries(data.attributes || {})) {
-              await upsertSkuAttribute(pool, sku.id, attrSlug, value);
-            }
-
-            // Upsert per-variant size and finish (overrides product-level if present)
-            if (entry.size) {
-              await upsertSkuAttribute(pool, sku.id, 'size', entry.size);
-            }
-            if (entry.finish) {
-              await upsertSkuAttribute(pool, sku.id, 'finish', entry.finish);
-            }
-
-            // Fetch packaging data from MSI inventory API
-            const pkg = await fetchPackagingData(baseUrl, vendorSku);
-            if (pkg) {
-              await upsertPackaging(pool, sku.id, {
-                sqft_per_box: pkg.sqft_per_box,
-                pieces_per_box: pkg.pieces_per_box,
-                weight_per_box_lbs: pkg.weight_per_box_lbs,
-                boxes_per_pallet: pkg.boxes_per_pallet,
-                sqft_per_pallet: pkg.sqft_per_pallet,
-                weight_per_pallet_lbs: pkg.weight_per_pallet_lbs
-              });
-              if (pkg.thickness) {
-                await upsertSkuAttribute(pool, sku.id, 'thickness', pkg.thickness);
-              }
+          // Look up each scraped SKU code against pre-loaded SKU index
+          const matchedSkus = []; // { skuId, productId, code }
+          for (const entry of data.skus) {
+            if (!/\d/.test(entry.code)) continue; // skip non-real codes
+            const match = lookupSkuFromIndex(skuIndex, entry.code);
+            if (match) {
+              matchedSkus.push({ skuId: match.sku_id, productId: match.product_id, code: entry.code });
             }
           }
 
-          // Download and persist images
+          if (matchedSkus.length === 0) {
+            totalSkipped++;
+            continue;
+          }
+
+          // Use the first matched product for enrichment
+          const productId = matchedSkus[0].productId;
+
+          // Enrich product descriptions (only fills NULLs — never overwrites)
+          await enrichProduct(pool, productId, {
+            description_short: data.description ? data.description.slice(0, 255) : null,
+            description_long: data.description || null
+          });
+
+          // Download and persist images — skip individual images already downloaded
           const UPLOADS_BASE = process.env.UPLOADS_PATH || '/app/uploads';
           if (data.images && data.images.length > 0) {
-            let altIndex = 0;
+            const { rows: existingMedia } = await pool.query(
+              "SELECT original_url, asset_type FROM media_assets WHERE product_id = $1",
+              [productId]
+            );
+            const existingUrls = new Set(existingMedia.map(r => r.original_url));
+            let altIndex = existingMedia.filter(r => r.asset_type !== 'primary').length;
+
             for (const img of data.images) {
+              if (existingUrls.has(img.url)) continue; // already downloaded
               try {
                 const ext = resolveImageExtension(img.url);
                 const filename = img.type === 'primary' ? `primary${ext}` : `alt-${++altIndex}${ext}`;
-                const destPath = `${UPLOADS_BASE}/products/${product.id}/${filename}`;
-                const localUrl = `/uploads/products/${product.id}/${filename}`;
+                const destPath = `${UPLOADS_BASE}/products/${productId}/${filename}`;
+                const localUrl = `/uploads/products/${productId}/${filename}`;
                 const downloaded = await downloadImage(img.url, destPath);
                 if (downloaded) {
                   await upsertMediaAsset(pool, {
-                    product_id: product.id,
+                    product_id: productId,
                     sku_id: null,
                     asset_type: img.type,
                     url: localUrl,
                     original_url: img.url,
                     sort_order: img.type === 'primary' ? 0 : altIndex
                   });
+                  totalImagesAdded++;
                 }
-              } catch (imgErr) {
-                // Non-fatal: log and continue
+              } catch (imgErr) { /* Non-fatal */ }
+            }
+          }
+
+          // Upsert spec attributes for all matched SKUs
+          for (const match of matchedSkus) {
+            for (const [attrSlug, value] of Object.entries(data.attributes || {})) {
+              await upsertSkuAttribute(pool, match.skuId, attrSlug, value);
+              totalAttributesSet++;
+            }
+            // Per-variant size and finish
+            const entry = data.skus.find(s => s.code === match.code);
+            if (entry) {
+              if (entry.size) {
+                await upsertSkuAttribute(pool, match.skuId, 'size', entry.size);
+                totalAttributesSet++;
+              }
+              if (entry.finish) {
+                await upsertSkuAttribute(pool, match.skuId, 'finish', entry.finish);
+                totalAttributesSet++;
               }
             }
           }
+
+          // Fetch packaging data from MSI's inventory API for matched SKUs
+          for (const match of matchedSkus) {
+            try {
+              const packaging = await fetchPackagingFromApi(browser, match.code);
+              if (packaging) {
+                await upsertPackaging(pool, match.skuId, packaging);
+                totalPackagingUpdated++;
+              }
+            } catch { /* Non-fatal */ }
+            await delay(500); // rate-limit API requests
+          }
+
+          totalEnriched++;
 
           // Log progress every 10 products
           if ((i + 1) % 10 === 0 || i === productUrls.length - 1) {
             await appendLog(pool, job.id, `Progress: ${i + 1}/${productUrls.length} in ${categoryPath}`, {
               products_found: totalFound,
-              products_created: totalCreated,
-              products_updated: totalUpdated,
-              skus_created: totalSkusCreated
+              products_enriched: totalEnriched,
+              products_skipped: totalSkipped,
+              images_added: totalImagesAdded,
+              attributes_set: totalAttributesSet
             });
           }
         } catch (err) {
@@ -320,16 +293,76 @@ export async function run(pool, job, source) {
       }
     }
 
-    // Final counter update
-    await appendLog(pool, job.id, `Scrape complete. Found: ${totalFound}, Created: ${totalCreated}, Updated: ${totalUpdated}, SKUs: ${totalSkusCreated}`, {
+    // Final stats
+    await appendLog(pool, job.id,
+      `Enrichment complete. Found: ${totalFound}, Enriched: ${totalEnriched}, Skipped (not in DB): ${totalSkipped}, Images: ${totalImagesAdded}, Attributes: ${totalAttributesSet}, Packaging: ${totalPackagingUpdated}`, {
       products_found: totalFound,
-      products_created: totalCreated,
-      products_updated: totalUpdated,
-      skus_created: totalSkusCreated
+      products_enriched: totalEnriched,
+      products_skipped: totalSkipped,
+      images_added: totalImagesAdded,
+      attributes_set: totalAttributesSet
     });
   } finally {
     if (browser) await browser.close();
   }
+}
+
+/**
+ * Look up an existing SKU from the pre-loaded index (synchronous, O(1)).
+ * The 832 scraper creates SKUs with internal_sku = 'MSI-' + vendor_sku.
+ * Returns { sku_id, product_id } or null if not found.
+ */
+function lookupSkuFromIndex(skuIndex, vendorSkuCode) {
+  const cleanCode = vendorSkuCode.replace(/\s+/g, '-').toUpperCase();
+  return skuIndex.get('MSI-' + cleanCode) || null;
+}
+
+/**
+ * Fetch packaging data from MSI's inventory tile details API.
+ * Parses the HTML response for sqft/box, pieces/box, and weight/box.
+ * Returns { sqft_per_box, pieces_per_box, weight_per_box_lbs } or null on failure.
+ */
+async function fetchPackagingFromApi(browser, skuCode) {
+  const page = await browser.newPage();
+  try {
+    const url = `https://www.msisurfaces.com/inventory/tiledetails/?handler=CatagoryPartial&ItemId=${encodeURIComponent(skuCode)}`;
+    const resp = await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
+    if (!resp || resp.status() !== 200) return null;
+
+    return await page.evaluate(() => {
+      const text = document.body.innerText || '';
+      const sqftMatch = text.match(/(\d+\.?\d*)\s*(?:sq\.?\s*ft|SF)\s*(?:per|\/)\s*(?:box|carton)/i);
+      const pcsMatch = text.match(/(\d+)\s*(?:pieces?|pcs?)\s*(?:per|\/)\s*(?:box|carton)/i);
+      const weightMatch = text.match(/(\d+\.?\d*)\s*(?:lbs?|pounds?)\s*(?:per|\/)\s*(?:box|carton)/i);
+      if (!sqftMatch && !pcsMatch && !weightMatch) return null;
+      return {
+        sqft_per_box: sqftMatch ? parseFloat(sqftMatch[1]) : null,
+        pieces_per_box: pcsMatch ? parseInt(pcsMatch[1], 10) : null,
+        weight_per_box_lbs: weightMatch ? parseFloat(weightMatch[1]) : null,
+      };
+    });
+  } catch { return null; }
+  finally { await page.close(); }
+}
+
+/**
+ * Update product descriptions if they are NULL or very short (<40 chars).
+ * Short descriptions are likely just the product name or placeholder text.
+ */
+async function enrichProduct(pool, productId, { description_short, description_long }) {
+  if (!description_short && !description_long) return;
+  await pool.query(
+    `UPDATE products SET
+      description_short = CASE
+        WHEN $2 IS NOT NULL AND (products.description_short IS NULL OR length(products.description_short) < 40)
+        THEN $2 ELSE products.description_short END,
+      description_long = CASE
+        WHEN $3 IS NOT NULL AND (products.description_long IS NULL OR length(products.description_long) < 40)
+        THEN $3 ELSE products.description_long END,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = $1`,
+    [productId, description_short, description_long]
+  );
 }
 
 /**
@@ -350,59 +383,6 @@ function extractSkuFromUrl(url) {
     }
   } catch (e) { /* ignore */ }
   return [];
-}
-
-/**
- * Fetch packaging data from MSI's inventory tile details API.
- * Endpoint: /inventory/tiledetails/?handler=CatagoryPartial&ItemId={SKU_CODE}
- * Returns parsed packaging object or null if not found.
- */
-async function fetchPackagingData(baseUrl, skuCode) {
-  try {
-    const url = `${baseUrl}/inventory/tiledetails/?handler=CatagoryPartial&ItemId=${encodeURIComponent(skuCode)}`;
-    const resp = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
-    });
-    if (!resp.ok) return null;
-
-    const html = await resp.text();
-    if (html.includes('No Records')) return null;
-
-    // Parse tblQty table rows: <td>Label</td><td>Value</td>
-    const fields = {};
-    const rows = [...html.matchAll(/<tr>[\s\S]*?<td[^>]*>([\s\S]*?)<\/td>[\s\S]*?<td[^>]*>\s*([\s\S]*?)\s*<\/td>[\s\S]*?<\/tr>/g)];
-    for (const m of rows) {
-      const label = m[1].replace(/<[^>]+>/g, '').trim();
-      const value = m[2].replace(/<[^>]+>/g, '').replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&').trim();
-      if (label && value) fields[label] = value;
-    }
-
-    const sqftPerBox = parseFloat(fields['Sqft Per Box']) || 0;
-    const piecesPerBox = parseInt(fields['Pcs In Box']) || 0;
-    const pcsPerCrate = parseInt(fields['Pcs Per Crate']) || 0;
-    const weightPerPc = parseFloat(fields['Approx Weight Per Pc']) || 0;
-    const thickness = fields['Approximate Thickness'] || null;
-
-    // Skip items with no real packaging data (e.g. slabs return all zeros)
-    if (!sqftPerBox && !piecesPerBox) return null;
-
-    const boxesPerPallet = (pcsPerCrate && piecesPerBox) ? Math.round(pcsPerCrate / piecesPerBox) : null;
-    const weightPerBox = (weightPerPc && piecesPerBox) ? Math.round(weightPerPc * piecesPerBox * 100) / 100 : null;
-    const sqftPerPallet = (sqftPerBox && boxesPerPallet) ? Math.round(sqftPerBox * boxesPerPallet * 100) / 100 : null;
-    const weightPerPallet = (weightPerPc && pcsPerCrate) ? Math.round(weightPerPc * pcsPerCrate * 100) / 100 : null;
-
-    return {
-      sqft_per_box: sqftPerBox || null,
-      pieces_per_box: piecesPerBox || null,
-      weight_per_box_lbs: weightPerBox,
-      boxes_per_pallet: boxesPerPallet,
-      sqft_per_pallet: sqftPerPallet,
-      weight_per_pallet_lbs: weightPerPallet,
-      thickness
-    };
-  } catch (e) {
-    return null;
-  }
 }
 
 // Phrases that indicate non-description content (footer, newsletter, nav, legal, etc.)
@@ -550,6 +530,98 @@ async function collectProductUrls(browser, categoryUrl, config) {
 }
 
 /**
+ * Collect sub-product URLs from an MSI collection page.
+ * When the scraper lands on a collection overview (e.g., /porcelain/antoni/),
+ * this function extracts links to individual product pages (e.g., /porcelain/antoni/cafe/).
+ */
+async function collectSubProductUrls(browser, collectionUrl, config) {
+  const page = await browser.newPage();
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+  await page.setRequestInterception(true);
+  page.on('request', req => {
+    const type = req.resourceType();
+    if (['font', 'media', 'image'].includes(type)) req.abort();
+    else req.continue();
+  });
+
+  try {
+    await page.goto(collectionUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+    await delay(1000);
+
+    const baseHost = new URL(collectionUrl).origin;
+    const collectionPath = new URL(collectionUrl).pathname.replace(/\/$/, '');
+
+    const urls = await page.evaluate((baseHost, collectionPath) => {
+      const seen = new Set();
+      const results = [];
+
+      // First try: find links that are direct children of the collection path
+      // e.g., if we're on /porcelain/antoni/, find /porcelain/antoni/cafe/
+      const allLinks = document.querySelectorAll('a[href]');
+      allLinks.forEach(a => {
+        let href = a.href || a.getAttribute('href');
+        if (!href || href.includes('javascript:') || href === '#') return;
+        try {
+          const url = new URL(href, baseHost);
+          if (url.origin !== baseHost) return;
+          const path = url.pathname.replace(/\/$/, '');
+          // Must be a child of the collection path
+          if (!path.startsWith(collectionPath + '/')) return;
+          // Must be exactly one level deeper
+          const subPath = path.slice(collectionPath.length + 1);
+          if (!subPath || subPath.includes('/')) return;
+          // Reject common non-product paths
+          if (/\.(pdf|jpg|png|gif|svg|mp4)$/i.test(path)) return;
+          if (/\/(colors|features|benefits|faq|resources|installation|gallery|videos?|warranty)\/?$/i.test(path)) return;
+          const full = url.origin + path + '/';
+          if (seen.has(full)) return;
+          seen.add(full);
+          results.push(full);
+        } catch {}
+      });
+
+      // Fallback: if no direct children found, look for product links anywhere on the page
+      // MSI backsplash collection pages link to products in different URL structures
+      // e.g., /backsplash-tile/glass-tile/ links to /glass-mosaics/product-name/
+      if (results.length === 0) {
+        allLinks.forEach(a => {
+          let href = a.href || a.getAttribute('href');
+          if (!href || href.includes('javascript:') || href === '#') return;
+          try {
+            const url = new URL(href, baseHost);
+            if (url.origin !== baseHost) return;
+            const path = url.pathname.replace(/\/$/, '');
+            // Skip the current collection path itself
+            if (path === collectionPath) return;
+            // Must have at least 2 path segments (collection/product)
+            const segments = path.split('/').filter(Boolean);
+            if (segments.length < 2) return;
+            // Reject file extensions and non-product pages
+            if (/\.(pdf|jpg|png|gif|svg|mp4)$/i.test(path)) return;
+            if (/\/(colors|features|benefits|faq|resources|installation|gallery|videos?|warranty|site-search|corporate|news|blog)\/?/i.test(path)) return;
+            // Reject hub/category pages (single segment)
+            if (segments.length === 1) return;
+            // Only include links that have a product image (visual product cards)
+            if (!a.querySelector('img')) return;
+            const full = url.origin + path + '/';
+            if (seen.has(full)) return;
+            seen.add(full);
+            results.push(full);
+          } catch {}
+        });
+      }
+
+      return results;
+    }, baseHost, collectionPath);
+
+    return urls;
+  } finally {
+    await page.close();
+  }
+}
+
+/**
  * Scrape a single MSI product detail page.
  *
  * MSI's product pages use accordion sections for specs. The "PRODUCT DETAILS & SPECS"
@@ -575,7 +647,20 @@ async function scrapeProductPage(browser, url, config) {
   });
 
   try {
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+    // Load page with rate-limit retry
+    let retries = 0;
+    while (retries < 3) {
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+      const pageTitle = await page.title().catch(() => '');
+      const bodySnippet = await page.evaluate(() => document.body?.innerText?.slice(0, 200) || '').catch(() => '');
+      if (/too many requests|429|rate limit/i.test(pageTitle + bodySnippet)) {
+        retries++;
+        const backoff = 5000 * retries; // 5s, 10s, 15s
+        await delay(backoff);
+        continue;
+      }
+      break;
+    }
     await page.waitForSelector('h1', { timeout: 10000 }).catch(() => {});
 
     // Expand all accordion/collapse sections so spec dt/dd and variant data become visible
@@ -649,6 +734,29 @@ async function scrapeProductPage(browser, url, config) {
             return w;
           }).join(' ');
         }
+        // Strip material/category suffix from product name
+        // "Calacatta Gold Marble" → "Calacatta Gold"
+        // "Adella Gris Porcelain Tile" → "Adella Gris"
+        // "Amber Forrester Luxury Vinyl Planks" → "Amber Forrester"
+        // "Antoni Cafe Porcelain Wood Tile" → "Antoni Cafe"
+        rawName = rawName
+          .replace(/\s+(Porcelain|Ceramic|Marble|Granite|Travertine|Quartzite|Limestone|Slate|Sandstone|Onyx|Basalt)(\s+\w+)?\s+(Tiles?|Planks?|Flooring|Slabs?|Stones?)\s*$/i, '')
+          .replace(/\s+(Porcelain|Ceramic|Marble|Granite|Travertine|Quartzite|Limestone|Slate|Sandstone|Onyx|Basalt)\s*$/i, '')
+          .replace(/\s+Wood\s+(?:Look\s+)?(?:Tiles?|Wall)\s*$/i, '')
+          .replace(/\s+Brick\s+Tiles?\s*$/i, '')
+          .replace(/\s+Bricks?\s*$/i, '')
+          .replace(/\s+(?:Tiles?|Planks?|Flooring)\s*$/i, '')
+          .replace(/\s+(Luxury Vinyl Planks?|Luxury Vinyl Tiles?|Luxury Vinyl|Vinyl Planks?|Vinyl Tiles?|Vinyl Flooring|LVP|LVT|SPC)\s*$/i, '')
+          .replace(/\s+(Engineered Hardwood|Solid Hardwood|Hardwood Flooring|Hardwood)\s*$/i, '')
+          .replace(/\s+(Stacked Stone|Ledger Panel|Porcelain Pavers?)\s*$/i, '')
+          .replace(/\s+Hybrid\s+Rigid\s+Core\s*$/i, '')
+          .replace(/\s+(?:Oak\s+)?Wood\s*$/i, '')
+          .replace(/\s+(Collection|Series)\s*$/i, '')
+          .trim();
+
+        // Strip ® ™ © TM from the raw name in-page
+        rawName = rawName.replace(/[®™©]/g, '').replace(/\bTM\b/g, '').trim();
+
         result.name = rawName;
       }
 
@@ -830,6 +938,16 @@ async function scrapeProductPage(browser, url, config) {
           sku.variantName = sku.variantName.replace(/^[-–—\s]+/, '').trim();
         }
 
+        // 2b. Strip thickness (e.g. "5mm", "8mm") and wear layer (e.g. "12mil", "20mil")
+        //     from variant names for tile and mosaic — these are specs, not variants
+        if (sku.variantName && (sku.variant_type === 'tile' || sku.variant_type === 'mosaic')) {
+          sku.variantName = sku.variantName
+            .replace(/\b\d+(?:\.\d+)?\s*mm\b/gi, '')
+            .replace(/\b\d+\s*mil\b/gi, '')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+        }
+
         // 3. Fix "Tl Molding" → "T-Molding"
         if (sku.variantName) {
           sku.variantName = sku.variantName.replace(/\bTl\s+Molding\b/i, 'T-Molding');
@@ -855,11 +973,13 @@ async function scrapeProductPage(browser, url, config) {
             const dimMatch = code.match(/(\d+)\s*X\s*(\d+)/i);
             const thickMatch = code.match(/(\d+(?:\.\d+)?)\s*MM/i);
             const milMatch = code.match(/(\d+)\s*MIL/i);
+            const isTileOrMosaic = sku.variant_type === 'tile' || sku.variant_type === 'mosaic';
             if (dimMatch || thickMatch) {
               const parts = [];
               if (dimMatch) parts.push(dimMatch[1] + 'x' + dimMatch[2]);
-              if (thickMatch) parts.push(thickMatch[1] + 'mm');
-              if (milMatch) parts.push(milMatch[1] + 'mil');
+              // Only include thickness/mil in variant name for non-tile/mosaic (e.g. vinyl planks)
+              if (thickMatch && !isTileOrMosaic) parts.push(thickMatch[1] + 'mm');
+              if (milMatch && !isTileOrMosaic) parts.push(milMatch[1] + 'mil');
               if (sku.finish) parts.push(sku.finish.charAt(0).toUpperCase() + sku.finish.slice(1).toLowerCase());
               sku.variantName = parts.join(' ');
               if (dimMatch) sku.size = dimMatch[1] + 'x' + dimMatch[2];
@@ -894,8 +1014,16 @@ async function scrapeProductPage(browser, url, config) {
         'edge type': 'edge_type',
         'edge detail': 'edge_type',
         'water absorption': 'water_absorption',
-        'core type': 'material',
-        'installation method': 'style'
+        'core type': 'core_type',
+        'installation method': 'installation_method',
+        'dcof': 'dcof',
+        'dcof acutest': 'dcof',
+        'coefficient of friction': 'dcof',
+        'radiant heat': 'radiant_heat',
+        'radiant heat compatible': 'radiant_heat',
+        'application': 'application',
+        'shape': 'shape',
+        'species': 'species'
       };
 
       const dtElements = document.querySelectorAll('dt');
@@ -909,6 +1037,41 @@ async function scrapeProductPage(browser, url, config) {
         const slug = SPEC_MAP[label];
         if (slug && !result.attributes[slug]) {
           result.attributes[slug] = value;
+        }
+      }
+
+      // --- Table-based spec extraction (fallback when dt/dd finds < 3) ---
+      if (Object.keys(result.attributes).length < 3) {
+        const rows = document.querySelectorAll('table tr');
+        for (const row of rows) {
+          const cells = row.querySelectorAll('td, th');
+          if (cells.length >= 2) {
+            const label = cells[0].textContent.trim().toLowerCase();
+            const value = cells[1].textContent.trim();
+            if (!value || value.length > 200) continue;
+            const slug = SPEC_MAP[label];
+            if (slug && !result.attributes[slug]) {
+              result.attributes[slug] = value;
+            }
+          }
+        }
+      }
+
+      // --- Div-based spec extraction (fallback for styled spec blocks) ---
+      if (Object.keys(result.attributes).length < 3) {
+        const labelEls = document.querySelectorAll('.spec-label, .specs strong, .specs b, .product-specs strong, .product-specs b');
+        for (const el of labelEls) {
+          const label = el.textContent.trim().replace(/:$/, '').toLowerCase();
+          const valueEl = el.nextElementSibling || el.parentElement;
+          if (!valueEl) continue;
+          const value = (valueEl === el.parentElement)
+            ? valueEl.textContent.replace(el.textContent, '').trim()
+            : valueEl.textContent.trim();
+          if (!value || value.length > 200) continue;
+          const slug = SPEC_MAP[label];
+          if (slug && !result.attributes[slug]) {
+            result.attributes[slug] = value;
+          }
         }
       }
 
@@ -991,8 +1154,8 @@ async function scrapeProductPage(browser, url, config) {
       // --- Vinyl/non-dt/dd spec extraction ---
       // Some MSI pages (especially vinyl) display specs as alternating label/value lines:
       //   THICKNESS\n5MM\nWEAR LAYER\n20MIL\n...
-      // Parse these when dt/dd extraction found nothing.
-      if (Object.keys(result.attributes).length === 0) {
+      // Parse these when dt/dd extraction found fewer than 3 attributes.
+      if (Object.keys(result.attributes).length < 3) {
         const bodyLines = (document.body.innerText || '').split('\n').map(l => l.trim()).filter(Boolean);
         const LINE_SPEC_MAP = {
           'thickness': 'thickness',
@@ -1009,7 +1172,18 @@ async function scrapeProductPage(browser, url, config) {
           'environmental': 'certification',
           'series name(s)': 'collection_name',
           'plank size': 'size',
-          'material': 'material'
+          'material': 'material',
+          'core type': 'core_type',
+          'installation method': 'installation_method',
+          'dcof': 'dcof',
+          'dcof acutest': 'dcof',
+          'pei rating': 'pei_rating',
+          'water absorption': 'water_absorption',
+          'finish': 'finish',
+          'rectified/non-rectified': 'rectified',
+          'country of origin': 'country',
+          'radiant heat': 'radiant_heat',
+          'radiant heat compatible': 'radiant_heat'
         };
         for (let li = 0; li < bodyLines.length - 1; li++) {
           const label = bodyLines[li].toLowerCase();
@@ -1116,6 +1290,124 @@ async function scrapeProductPage(browser, url, config) {
 
       return result;
     }, JUNK_PHRASES, COLLECTION_JUNK);
+
+    // ── Post-process: clean collection name and strip prefix from product name ──
+
+    if (data.collection) {
+      // Remove ®, ™, ©, TM superscripts, and "Collection"/"Series" suffix
+      data.collection = data.collection
+        .replace(/[®™©]/g, '')
+        .replace(/TM(?:\b|$)/g, '')
+        .replace(/\s+(Collection|Series)\s*$/i, '')
+        .trim();
+
+      // Title-case ALL CAPS collection names: "ARABESCATO CARRARA" → "Arabescato Carrara"
+      if (data.collection.length > 3 && data.collection === data.collection.toUpperCase()) {
+        data.collection = data.collection
+          .toLowerCase()
+          .replace(/\b\w/g, c => c.toUpperCase());
+      }
+
+      // Reject junk/generic collection names extracted from page chrome
+      const JUNK_COLLECTIONS = [
+        'hover to zoom', 'detail', 'details', 'countertops', 'countertop',
+        'flooring', 'backsplash', 'wall tile', 'floor tile', 'mosaics',
+        'porcelain tile', 'marble tile', 'natural stone', 'click to zoom',
+        'product details', 'specifications', 'stacked stone', 'hardscape',
+        'click to expand', 'view more', 'see more', 'show all',
+        'quartz countertop colors', 'hardscaping', 'natural stone collection',
+        'waterproof hybrid rigid core', 'w luxury genuine hardwood',
+        'waterproof wood', 'golden', 'collections', 'check slab inventory',
+        'solid hardwood collection', 'tub & shower surrounds',
+      ];
+      if (JUNK_COLLECTIONS.includes(data.collection.toLowerCase())) {
+        data.collection = '';
+      }
+    }
+
+    // Strip ®, ™, © from product name
+    if (data.name) {
+      data.name = data.name.replace(/[®™©]/g, '').replace(/TM(?:\b|$)/g, '').trim();
+    }
+
+    // Strip material suffixes that may have been missed by in-page regex
+    // (handles "Porcelain Wood Tile", "Wood Tile", "Brick Tile", "Marble" etc.)
+    if (data.name) {
+      data.name = data.name
+        .replace(/\s+(Porcelain|Ceramic|Marble|Granite|Travertine|Quartzite|Limestone|Slate|Sandstone|Onyx|Basalt)(\s+\w+)?\s+(Tiles?|Planks?|Flooring|Slabs?|Stones?)\s*$/i, '')
+        .replace(/\s+Wood\s+(?:Look\s+)?(?:Tiles?|Wall)\s*$/i, '')
+        .replace(/\s+Brick\s+Tiles?\s*$/i, '')
+        .replace(/\s+Bricks?\s*$/i, '')
+        .replace(/\s+(?:Tiles?|Planks?|Flooring)\s*$/i, '')
+        .replace(/\s+(Porcelain|Ceramic|Marble|Granite|Travertine|Quartzite|Limestone|Slate|Sandstone|Onyx|Basalt)\s*$/i, '')
+        .replace(/\s+(Luxury Vinyl Planks?|Luxury Vinyl Tiles?|Luxury Vinyl|Vinyl Planks?|Vinyl Tiles?|LVP|LVT|SPC)\s*$/i, '')
+        .replace(/\s+(Engineered Hardwood|Solid Hardwood|Hardwood)\s*$/i, '')
+        .replace(/\s+Hybrid\s+Rigid\s+Core\s*$/i, '')
+        .replace(/\s+(?:Oak\s+)?Wood\s*$/i, '')
+        .replace(/\s+(Collection|Series)\s*$/i, '')
+        .trim();
+    }
+
+    // Strip collection prefix from product name (like Elysium/AZ Tile pattern)
+    // "Andover Vintaj" with collection "Andover" → "Vintaj"
+    if (data.collection && data.name) {
+      const collLower = data.collection.toLowerCase();
+      const nameLower = data.name.toLowerCase();
+      if (nameLower.startsWith(collLower + ' ')) {
+        data.name = data.name.slice(data.collection.length).trim();
+      }
+    }
+
+    // Handle marble/stone naming: if product name ended up as just a material word
+    // (e.g., collection="Arabescato Carrara", name="Marble"), swap them.
+    const MATERIAL_WORDS = ['marble', 'granite', 'quartzite', 'travertine', 'limestone',
+      'slate', 'sandstone', 'onyx', 'basalt', 'soapstone', 'porcelain', 'ceramic'];
+    if (data.name && MATERIAL_WORDS.includes(data.name.toLowerCase()) && data.collection) {
+      // The "collection" is actually the product name (stone variety)
+      data.name = data.collection;
+      data.collection = '';
+    }
+    // If name equals collection (single-variety product like "Bianco Dolomite"),
+    // keep collection empty — name IS the product identifier
+    if (data.name && data.collection && data.name.toLowerCase() === data.collection.toLowerCase()) {
+      data.collection = '';
+    }
+    // Also handle empty name after all stripping
+    if (!data.name && data.collection) {
+      data.name = data.collection;
+      data.collection = '';
+    }
+
+    // Extract size from product name for brick/specialty products
+    // "Charcoal 2x10" → name="Charcoal", moves size to variant data
+    if (data.name) {
+      const sizeInName = data.name.match(/^(.+?)\s+(\d+\.?\d*\s*[xX×]\s*\d+\.?\d*)\s*$/);
+      if (sizeInName) {
+        data._extractedSize = sizeInName[2].replace(/\s*[xX×]\s*/g, 'x');
+        data.name = sizeInName[1].trim();
+      }
+    }
+
+    // Strip collection+name prefix from variant names
+    // "Acclima Ayla End Cap" → "End Cap", "Brockton -Tmold 94\"" → "Tmold 94\""
+    if (data.skus && data.name) {
+      const fullPrefix = data.collection
+        ? (data.collection + ' ' + data.name).toLowerCase()
+        : data.name.toLowerCase();
+      const nameOnly = data.name.toLowerCase();
+      for (const sku of data.skus) {
+        if (!sku.variantName) continue;
+        const vLower = sku.variantName.toLowerCase();
+        let stripped = sku.variantName;
+        if (data.collection && vLower.startsWith(fullPrefix + ' ')) {
+          stripped = sku.variantName.slice(fullPrefix.length + 1);
+        } else if (vLower.startsWith(nameOnly + ' ')) {
+          stripped = sku.variantName.slice(nameOnly.length + 1);
+        }
+        // Clean leading dashes and whitespace
+        sku.variantName = stripped.replace(/^[\s\-]+/, '').trim() || sku.variantName;
+      }
+    }
 
     return data;
   } finally {

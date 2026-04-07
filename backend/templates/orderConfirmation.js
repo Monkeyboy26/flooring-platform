@@ -1,3 +1,5 @@
+import { LOGO_URL } from './_config.js';
+
 export function generateOrderConfirmationHTML(orderData) {
   const {
     order_number, created_at, customer_name,
@@ -21,7 +23,7 @@ export function generateOrderConfirmationHTML(orderData) {
     const isSample = item.is_sample;
     const name = esc(item.product_name || 'Product');
     const collection = item.collection ? esc(item.collection) : '';
-    const qty = isSample ? `${item.num_boxes} sample${item.num_boxes > 1 ? 's' : ''}` : `${item.num_boxes} box${item.num_boxes > 1 ? 'es' : ''}`;
+    const qty = isSample ? `${item.num_boxes} sample${item.num_boxes > 1 ? 's' : ''}` : item.sell_by === 'unit' ? `${item.num_boxes}` : `${item.num_boxes} box${item.num_boxes > 1 ? 'es' : ''}`;
     const price = isSample ? 'FREE' : `$${parseFloat(item.subtotal || 0).toFixed(2)}`;
     const sampleBadge = isSample
       ? ' <span style="display:inline-block;background:#c9a668;color:#fff;font-size:10px;padding:2px 6px;border-radius:3px;text-transform:uppercase;font-family:Inter,Arial,sans-serif;">Sample</span>'
@@ -52,8 +54,8 @@ export function generateOrderConfirmationHTML(orderData) {
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e7e5e4;">
 
   <!-- Header -->
-  <tr><td style="padding:32px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:18px;letter-spacing:4px;color:#292524;font-weight:600;">ROMA FLOORING DESIGNS</p>
+  <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
+    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto;width:140px;height:140px;" />
   </td></tr>
 
   <!-- Title -->

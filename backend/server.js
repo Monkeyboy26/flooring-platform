@@ -12,7 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -21,6 +21,7 @@ import createSeoRouter from './services/seoRenderer.js';
 import { generate850 } from './services/ediGenerator.js';
 import { createSftpConnection, uploadFile } from './services/ediSftp.js';
 import { createFtpConnection, uploadFile as ftpUploadFile } from './services/ediFtp.js';
+import sharp from 'sharp';
 import { createRequire } from 'module';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
@@ -319,6 +320,37 @@ async function notifyAllActiveReps(queryable, type, title, message, entityType, 
   }
 }
 
+// ==================== Auto-Task Helper ====================
+
+const AUTO_TASK_DEFAULT_DAYS = {
+  quote_sent: 3, estimate_sent: 3, sample_shipped: 5,
+  order_delivered: 7, deal_stuck: 0, trade_renewal: 0
+};
+
+async function createAutoTask(pool, repId, sourceType, sourceId, title, options = {}) {
+  try {
+    const defaultDays = AUTO_TASK_DEFAULT_DAYS[sourceType] || 3;
+    const dueDate = options.due_date || new Date(Date.now() + defaultDays * 86400000).toISOString().split('T')[0];
+    const result = await pool.query(`
+      INSERT INTO rep_tasks (rep_id, title, description, due_date, priority, source, source_type, source_id,
+        customer_name, customer_email, customer_phone,
+        linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id)
+      VALUES ($1, $2, $3, $4, $5, 'auto', $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ON CONFLICT (rep_id, source_type, source_id) WHERE source = 'auto' AND status != 'dismissed'
+      DO NOTHING
+      RETURNING *
+    `, [repId, title, options.description || null, dueDate, options.priority || 'medium',
+        sourceType, String(sourceId),
+        options.customer_name || null, options.customer_email || null, options.customer_phone || null,
+        options.linked_order_id || null, options.linked_quote_id || null,
+        options.linked_estimate_id || null, options.linked_deal_id || null]);
+    return result.rows[0] || null;
+  } catch (err) {
+    console.error('[AutoTask] Failed to create auto-task:', err.message);
+    return null;
+  }
+}
+
 // ==================== Find-or-Create Customer Helper ====================
 
 async function findOrCreateCustomer(client, { email, firstName, lastName, phone, repId, createdVia }) {
@@ -537,6 +569,96 @@ app.use('/api/checkout', checkoutLimiter);
 app.use('/api/storefront/search/suggest', searchLimiter);
 app.use('/api/trade/register', registrationLimiter);
 app.use('/api/trade/register/upload', registrationLimiter);
+
+// ==================== Image Resize Proxy ====================
+const imgLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false });
+const IMG_CACHE_DIR = path.join(process.cwd(), '_cache');
+if (!fs.existsSync(IMG_CACHE_DIR)) fs.mkdirSync(IMG_CACHE_DIR, { recursive: true });
+
+function isPrivateUrl(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    if (!['http:', 'https:'].includes(u.protocol)) return true;
+    const host = u.hostname.toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') return true;
+    const parts = host.split('.').map(Number);
+    if (parts.length === 4 && !parts.some(isNaN)) {
+      if (parts[0] === 10) return true;
+      if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+      if (parts[0] === 192 && parts[1] === 168) return true;
+      if (parts[0] === 169 && parts[1] === 254) return true;
+    }
+    return false;
+  } catch { return true; }
+}
+
+app.get('/api/img', imgLimiter, async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) return res.status(400).json({ error: 'url required' });
+
+    const w = Math.min(parseInt(req.query.w) || 800, 1200);
+    const h = req.query.h ? Math.min(parseInt(req.query.h), 1200) : undefined;
+    const q = Math.min(parseInt(req.query.q) || 80, 100);
+    const acceptsWebp = (req.headers.accept || '').includes('image/webp');
+    let fmt = req.query.f || 'auto';
+    if (fmt === 'auto') fmt = acceptsWebp ? 'webp' : 'jpeg';
+    if (!['webp', 'jpeg', 'png'].includes(fmt)) fmt = 'jpeg';
+
+    const cacheKey = crypto.createHash('sha256').update(`${url}|${w}|${h || ''}|${q}|${fmt}`).digest('hex');
+    const ext = fmt === 'jpeg' ? 'jpg' : fmt;
+    const cachePath = path.join(IMG_CACHE_DIR, `${cacheKey}.${ext}`);
+
+    // Serve from disk cache
+    if (fs.existsSync(cachePath)) {
+      res.set({
+        'Content-Type': `image/${fmt === 'jpg' ? 'jpeg' : fmt}`,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'X-Cache': 'HIT'
+      });
+      return fs.createReadStream(cachePath).pipe(res);
+    }
+
+    // Fetch source image
+    let inputBuffer;
+    if (url.startsWith('/uploads/') || url.startsWith('/assets/')) {
+      const localPath = path.join(process.cwd(), url.split('?')[0]);
+      if (!fs.existsSync(localPath)) return res.status(404).end();
+      inputBuffer = fs.readFileSync(localPath);
+    } else {
+      if (isPrivateUrl(url)) return res.status(403).json({ error: 'forbidden' });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      try {
+        const resp = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'Roma-ImageProxy/1.0' } });
+        clearTimeout(timeout);
+        if (!resp.ok) return res.status(resp.status).end();
+        inputBuffer = Buffer.from(await resp.arrayBuffer());
+      } catch { clearTimeout(timeout); return res.status(502).end(); }
+    }
+
+    // Resize with sharp
+    const resizeOpts = { width: w, fit: 'inside', withoutEnlargement: true };
+    if (h) resizeOpts.height = h;
+    let pipeline = sharp(inputBuffer).resize(resizeOpts);
+    if (fmt === 'webp') pipeline = pipeline.webp({ quality: q });
+    else if (fmt === 'jpeg') pipeline = pipeline.jpeg({ quality: q, mozjpeg: true });
+    else pipeline = pipeline.png({ quality: q });
+
+    const outputBuffer = await pipeline.toBuffer();
+    fs.writeFile(cachePath, outputBuffer, () => {}); // async write, don't block response
+
+    res.set({
+      'Content-Type': `image/${fmt === 'jpg' ? 'jpeg' : fmt}`,
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'X-Cache': 'MISS'
+    });
+    res.send(outputBuffer);
+  } catch (err) {
+    console.error('[img] resize error:', err.message);
+    res.status(500).end();
+  }
+});
 
 // ==================== S3/MinIO Client ====================
 const S3_BUCKET = process.env.S3_BUCKET || 'trade-documents';
@@ -1091,13 +1213,30 @@ app.get('/api/storefront/featured', async (req, res) => {
       ),
       sku_alt_images AS (
         SELECT DISTINCT ON (sku_id) sku_id, url
-        FROM media_assets WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NOT NULL
+        FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
         ORDER BY sku_id, sort_order
       ),
       product_alt_images AS (
         SELECT DISTINCT ON (product_id) product_id, url
-        FROM media_assets WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NULL
+        FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NULL
         ORDER BY product_id, sort_order
+      ),
+      sku_any_images AS (
+        SELECT DISTINCT ON (sku_id) sku_id, url
+        FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
+        ORDER BY sku_id, sort_order
+      ),
+      product_any_images AS (
+        SELECT DISTINCT ON (product_id) product_id, url
+        FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NULL
+        ORDER BY product_id, sort_order
+      ),
+      sibling_images AS (
+        SELECT DISTINCT ON (s2.product_id) s2.product_id, ma.url
+        FROM media_assets ma
+        JOIN skus s2 ON s2.id = ma.sku_id
+        WHERE ma.asset_type = 'primary' AND ma.sku_id IS NOT NULL
+        ORDER BY s2.product_id, ma.sort_order
       ),
       variant_counts AS (
         SELECT product_id, COUNT(*) as variant_count
@@ -1106,14 +1245,14 @@ app.get('/api/storefront/featured', async (req, res) => {
       )
       SELECT
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
-        p.name as product_name, p.collection, p.description_short,
+        COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short,
         v.name as vendor_name,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.price_basis, pr.cut_price,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-        COALESCE(si.url, pi.url) as primary_image,
+        COALESCE(si.url, pi.url, sany.url, pany.url, sib.url) as primary_image,
         COALESCE(sai.url, pai.url) as alternate_image,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
@@ -1135,6 +1274,9 @@ app.get('/api/storefront/featured', async (req, res) => {
       LEFT JOIN product_images pi ON pi.product_id = p.id
       LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
       LEFT JOIN product_alt_images pai ON pai.product_id = p.id
+      LEFT JOIN sku_any_images sany ON sany.sku_id = s.id
+      LEFT JOIN product_any_images pany ON pany.product_id = p.id
+      LEFT JOIN sibling_images sib ON sib.product_id = p.id
       LEFT JOIN variant_counts vc ON vc.product_id = p.id
       ORDER BY b.times_ordered DESC
     `;
@@ -1159,13 +1301,30 @@ app.get('/api/storefront/featured', async (req, res) => {
         ),
         sku_alt_images AS (
           SELECT DISTINCT ON (sku_id) sku_id, url
-          FROM media_assets WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NOT NULL
+          FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
           ORDER BY sku_id, sort_order
         ),
         product_alt_images AS (
           SELECT DISTINCT ON (product_id) product_id, url
-          FROM media_assets WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NULL
+          FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NULL
           ORDER BY product_id, sort_order
+        ),
+        sku_any_images AS (
+          SELECT DISTINCT ON (sku_id) sku_id, url
+          FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
+          ORDER BY sku_id, sort_order
+        ),
+        product_any_images AS (
+          SELECT DISTINCT ON (product_id) product_id, url
+          FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NULL
+          ORDER BY product_id, sort_order
+        ),
+        sibling_images AS (
+          SELECT DISTINCT ON (s2.product_id) s2.product_id, ma.url
+          FROM media_assets ma
+          JOIN skus s2 ON s2.id = ma.sku_id
+          WHERE ma.asset_type = 'primary' AND ma.sku_id IS NOT NULL
+          ORDER BY s2.product_id, ma.sort_order
         ),
         variant_counts AS (
           SELECT product_id, COUNT(*) as variant_count
@@ -1175,14 +1334,14 @@ app.get('/api/storefront/featured', async (req, res) => {
         SELECT * FROM (
           SELECT DISTINCT ON (p.id)
             s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
-            p.name as product_name, p.collection, p.description_short,
+            COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short,
             v.name as vendor_name,
             COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
             c.name as category_name, c.slug as category_slug,
             pr.retail_price, pr.price_basis, pr.cut_price,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-            COALESCE(si.url, pi.url) as primary_image,
+            COALESCE(si.url, pi.url, sany.url, pany.url, sib.url) as primary_image,
             COALESCE(sai.url, pai.url) as alternate_image,
             CASE
               WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
@@ -1202,13 +1361,16 @@ app.get('/api/storefront/featured', async (req, res) => {
           LEFT JOIN product_images pi ON pi.product_id = p.id
           LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
           LEFT JOIN product_alt_images pai ON pai.product_id = p.id
+          LEFT JOIN sku_any_images sany ON sany.sku_id = s.id
+          LEFT JOIN product_any_images pany ON pany.product_id = p.id
+          LEFT JOIN sibling_images sib ON sib.product_id = p.id
           LEFT JOIN variant_counts vc ON vc.product_id = p.id
           WHERE p.status = 'active' AND s.status = 'active' AND s.is_sample = false
             AND COALESCE(s.variant_type, '') != 'accessory'
             ${existingIds.length > 0 ? 'AND s.id != ALL($2)' : ''}
           ORDER BY p.id, s.created_at
         ) grouped
-        ORDER BY created_at DESC
+        ORDER BY CASE WHEN primary_image IS NOT NULL THEN 0 ELSE 1 END, created_at DESC
         LIMIT $1
       `;
       const padParams = [LIMIT - skus.length];
@@ -1280,30 +1442,66 @@ const SEARCH_SYNONYMS = {
   'calc': 'calacatta',
   'trav': 'travertine',
   'slab': 'countertop slab',
-  'backsplash': 'mosaic wall tile',
+  // Context-aware expansions
+  'backsplash': 'mosaic wall tile backsplash',
   'subway': 'subway wall tile',
   'penny': 'penny round mosaic',
   'hex': 'hexagon mosaic',
   'bullnose': 'bullnose trim',
-  'schluter': 'trim transition',
-  'reducer': 'transition reducer',
-  'quarter round': 'quarter round molding',
+  'schluter': 'trim transition profile',
+  'reducer': 'transition reducer molding',
+  'quarter round': 'quarter round molding trim',
   't-molding': 't molding transition',
   'underlayment': 'underlayment pad',
-  'waterproof': 'waterproof vinyl',
-  'click lock': 'click lock floating',
-  'glue down': 'glue down',
-  'wood look': 'wood look porcelain plank',
-  'marble look': 'marble look porcelain',
-  'stone look': 'stone look porcelain',
+  'waterproof': 'waterproof flooring vinyl laminate',
+  'click lock': 'click lock floating floor',
+  'glue down': 'glue down adhesive',
+  'wood look': 'wood look porcelain plank tile',
+  'marble look': 'marble look porcelain tile',
+  'stone look': 'stone look porcelain tile',
+  // Room/use context
+  'shower': 'shower wall floor tile waterproof',
+  'bathroom': 'bathroom floor wall tile porcelain',
+  'kitchen': 'kitchen floor tile backsplash',
+  'outdoor': 'outdoor patio exterior tile',
+  'patio': 'outdoor patio exterior tile',
+  'fireplace': 'fireplace surround wall tile stone',
+  'pool': 'pool tile waterline mosaic',
+  'stair': 'stair nose molding transition',
+  'stair nose': 'stair nose molding transition',
+  // Material expansions
+  'vinyl plank': 'luxury vinyl plank lvp',
+  'vinyl tile': 'luxury vinyl tile lvt',
+  'engineered': 'engineered hardwood',
+  'solid hardwood': 'solid hardwood floor',
+  'natural stone': 'natural stone marble travertine slate',
+  'ceramic': 'ceramic tile',
+  'porcelain tile': 'porcelain tile floor wall',
+  // Pattern/style
+  'chevron': 'chevron herringbone pattern',
+  'basketweave': 'basketweave mosaic pattern',
+  'arabesque': 'arabesque lantern mosaic',
+  'lantern': 'lantern arabesque mosaic',
+  'picket': 'picket elongated hexagon mosaic',
+  // Trim & accessories
+  'threshold': 'threshold transition molding',
+  'nosing': 'stair nose nosing molding',
+  'baseboard': 'baseboard molding trim',
+  'caulk': 'caulk sealant grout',
+  'sealer': 'sealer grout stone',
+  'thinset': 'thinset mortar adhesive',
+  'mortar': 'mortar thinset adhesive',
+  'backer board': 'backer board cement underlayment',
   // Common misspellings
   'pocelain': 'porcelain',
   'porcelian': 'porcelain',
   'porclain': 'porcelain',
   'procelain': 'porcelain',
+  'porcelin': 'porcelain',
   'calacata': 'calacatta',
   'calacatta': 'calacatta',
   'calcatta': 'calacatta',
+  'calacutta': 'calacatta',
   'cararra': 'carrara',
   'carara': 'carrara',
   'carrarra': 'carrara',
@@ -1311,31 +1509,144 @@ const SEARCH_SYNONYMS = {
   'herringbne': 'herringbone',
   'harwood': 'hardwood',
   'hadwood': 'hardwood',
+  'hardwoood': 'hardwood',
   'laminent': 'laminate',
   'laminat': 'laminate',
-  'laminent': 'laminate',
+  'lamenate': 'laminate',
   'travertene': 'travertine',
   'travertine': 'travertine',
+  'travartine': 'travertine',
   'moasic': 'mosaic',
   'mosaik': 'mosaic',
+  'mosiac': 'mosaic',
   'vinly': 'vinyl',
   'vinal': 'vinyl',
   'vynil': 'vinyl',
   'grout': 'grout',
   'quartz': 'quartz countertop',
   'quartzite': 'quartzite natural stone',
+  'teracotta': 'terracotta',
+  'teracota': 'terracotta',
+  'terakotta': 'terracotta',
+  'encaustic': 'encaustic cement tile',
+  'zellige': 'zellige handmade tile',
 };
+
+// Live synonym dictionary — loaded from DB at startup, refreshed hourly
+let searchSynonyms = { ...SEARCH_SYNONYMS };
+async function loadSynonymsFromDb() {
+  try {
+    const res = await pool.query('SELECT term, expansion FROM search_synonyms');
+    const db = {};
+    for (const row of res.rows) db[row.term.toLowerCase()] = row.expansion;
+    searchSynonyms = { ...SEARCH_SYNONYMS, ...db };
+    console.log(`[Search] Loaded ${res.rows.length} synonyms from DB (${Object.keys(searchSynonyms).length} total)`);
+  } catch (err) {
+    // Table may not exist yet — fall back to hardcoded
+    searchSynonyms = { ...SEARCH_SYNONYMS };
+  }
+}
+// Load on startup, refresh hourly
+loadSynonymsFromDb();
+setInterval(loadSynonymsFromDb, 3600000);
 
 function expandSynonyms(query) {
   const lower = query.toLowerCase().trim();
-  if (SEARCH_SYNONYMS[lower]) return SEARCH_SYNONYMS[lower];
+  if (searchSynonyms[lower]) return { text: query + ' ' + searchSynonyms[lower], expandedFrom: lower };
   const words = lower.split(/\s+/);
   let expanded = false;
-  const result = words.map(w => {
-    if (SEARCH_SYNONYMS[w]) { expanded = true; return SEARCH_SYNONYMS[w]; }
-    return w;
-  });
-  return expanded ? query + ' ' + result.join(' ') : query;
+  let expandedFrom = null;
+  const result = [];
+  // Check bigrams first, then individual words
+  for (let i = 0; i < words.length; i++) {
+    if (i < words.length - 1) {
+      const bigram = words[i] + ' ' + words[i + 1];
+      if (searchSynonyms[bigram]) {
+        expanded = true;
+        expandedFrom = expandedFrom || bigram;
+        result.push(searchSynonyms[bigram]);
+        i++; // skip next word — consumed by bigram
+        continue;
+      }
+    }
+    if (searchSynonyms[words[i]]) {
+      expanded = true;
+      expandedFrom = expandedFrom || words[i];
+      result.push(searchSynonyms[words[i]]);
+    } else {
+      result.push(words[i]);
+    }
+  }
+  if (expanded) {
+    const exp = query + ' ' + result.join(' ');
+    return { text: exp, expandedFrom };
+  }
+  return { text: query, expandedFrom: null };
+}
+
+// ==================== Query Normalization ====================
+
+function normalizeSearchQuery(raw) {
+  let q = raw;
+  // Normalize dimension separators: 12"x24" → 12x24, 12" x 24" → 12x24, 6.5"x48" → 6.5x48
+  q = q.replace(/(\d+(?:\.\d+)?)["″'']?\s*[xX×]\s*(\d+(?:\.\d+)?)["″'']?/g, '$1x$2');
+  // Strip trailing measurement units
+  q = q.replace(/\b(sqft|sq\s*ft|sf|square\s*feet)\b/gi, '');
+  return q.trim();
+}
+
+// ==================== Dimension Parsing ====================
+
+function parseDimensions(query) {
+  // Match patterns like "12x24", "6.5x48", "2.5x8", "6mm", "8mm", "3/4"
+  const dims = {};
+  const sizeMatch = query.match(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+  if (sizeMatch) {
+    dims.width = sizeMatch[1];
+    dims.height = sizeMatch[2];
+    dims.sizePattern = sizeMatch[1] + 'x' + sizeMatch[2];
+  }
+  const thicknessMatch = query.match(/(\d+(?:\.\d+)?)\s*mm\b/i);
+  if (thicknessMatch) dims.thickness = thicknessMatch[1];
+  return Object.keys(dims).length > 0 ? dims : null;
+}
+
+// ==================== LRU Search Cache ====================
+
+class SearchCache {
+  constructor(maxSize, ttlMs) {
+    this.maxSize = maxSize;
+    this.ttlMs = ttlMs;
+    this.cache = new Map();
+  }
+  get(key) {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > this.ttlMs) { this.cache.delete(key); return null; }
+    // Move to end (most recently used)
+    this.cache.delete(key);
+    this.cache.set(key, entry);
+    return entry.value;
+  }
+  set(key, value) {
+    this.cache.delete(key); // refresh position
+    if (this.cache.size >= this.maxSize) {
+      // Delete oldest (first entry)
+      const oldest = this.cache.keys().next().value;
+      this.cache.delete(oldest);
+    }
+    this.cache.set(key, { value, ts: Date.now() });
+  }
+  clear() { this.cache.clear(); }
+  get size() { return this.cache.size; }
+}
+
+const suggestCache = new SearchCache(500, 5 * 60 * 1000); // 5 min TTL
+const popularCache = new SearchCache(1, 10 * 60 * 1000); // 10 min TTL
+
+function clearSearchCaches() {
+  suggestCache.clear();
+  popularCache.clear();
 }
 
 // ==================== Storefront Search Suggest ====================
@@ -1345,13 +1656,56 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
     const raw = (req.query.q || '').trim();
     if (!raw || raw.length < 2) return res.json({ categories: [], collections: [], products: [], total: 0 });
 
-    const sanitized = raw.replace(/[^\w\s'.-]/g, '').trim();
+    const normalized = normalizeSearchQuery(raw);
+    const sanitized = normalized.replace(/[^\w\s'.-]/g, '').trim();
     if (!sanitized) return res.json({ categories: [], collections: [], products: [], total: 0 });
 
-    const expanded = expandSynonyms(sanitized);
-    const tsQuery = expanded.split(/\s+/).filter(Boolean).map(w => w + ':*').join(' & ');
+    // Check cache first
+    const cacheKey = sanitized.toLowerCase();
+    const cached = suggestCache.get(cacheKey);
+    if (cached) return res.json(cached);
 
-    // Run categories, collections, and FTS product search in parallel
+    const { text: expanded, expandedFrom } = expandSynonyms(sanitized);
+    const words = expanded.split(/\s+/).filter(Boolean);
+    const andTsQuery = words.map(w => w + ':*').join(' & ');
+    const orTsQuery = words.map(w => w + ':*').join(' | ');
+    const phraseInput = expanded;
+    const dims = parseDimensions(sanitized);
+
+    // Detect SKU-like patterns (letters+digits+hyphens, at least one digit and one letter)
+    const isSkuLike = /[a-zA-Z]/.test(sanitized) && /\d/.test(sanitized) && /^[\w.-]+$/.test(sanitized.replace(/\s/g, ''));
+
+    // SKU fast path — direct ILIKE prefix match on vendor_sku / internal_sku
+    let skuDirectRows = [];
+    if (isSkuLike) {
+      const skuSearch = sanitized.replace(/\s+/g, '');
+      const skuResult = await pool.query(`
+        SELECT s.id as sku_id, s.product_id, COALESCE(p.display_name, p.name) as product_name, p.collection, s.variant_name,
+          s.vendor_sku, s.internal_sku,
+          v.name as vendor_name,
+          pr.retail_price, pr.price_basis, s.sell_by, pk.sqft_per_box,
+          CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+          COALESCE(
+            (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'primary' LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1),
+            (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type IN ('alternate','lifestyle') LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type IN ('alternate','lifestyle') AND sku_id IS NULL LIMIT 1)
+          ) as primary_image
+        FROM skus s
+        JOIN products p ON p.id = s.product_id AND p.status = 'active'
+        JOIN vendors v ON v.id = p.vendor_id
+        LEFT JOIN pricing pr ON pr.sku_id = s.id
+        LEFT JOIN packaging pk ON pk.sku_id = s.id
+        WHERE s.status = 'active' AND s.is_sample = false
+          AND (s.vendor_sku ILIKE $1 || '%' OR s.internal_sku ILIKE $1 || '%')
+        ORDER BY CASE WHEN LOWER(s.vendor_sku) = LOWER($1) THEN 0 WHEN LOWER(s.internal_sku) = LOWER($1) THEN 0 ELSE 1 END,
+                 s.vendor_sku
+        LIMIT 4
+      `, [skuSearch]);
+      skuDirectRows = skuResult.rows;
+    }
+
+    // Run categories, collections, and progressive FTS product search in parallel
     const [catResult, colResult, ftsResult] = await Promise.all([
       // Categories — trigram + ILIKE (small table, fast)
       pool.query(`
@@ -1379,66 +1733,117 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
         LIMIT 3
       `, [sanitized]),
 
-      // Products — FTS: find matching product IDs first (fast GIN scan), then enrich top results
+      // Products — Progressive FTS: phrase → AND → OR cascade in one query
       pool.query(`
-        WITH fts_products AS (
-          SELECT p.id, ts_rank(p.search_vector, to_tsquery('english', unaccent($1))) as fts_rank,
-                 COUNT(*) OVER() as total_count
+        WITH phrase_products AS (
+          SELECT p.id,
+            ts_rank(p.search_vector, phraseto_tsquery('english', unaccent($3))) * 4.0 as score,
+            'phrase' as match_tier
+          FROM products p
+          WHERE p.status = 'active'
+            AND p.search_vector @@ phraseto_tsquery('english', unaccent($3))
+          LIMIT 12
+        ),
+        and_products AS (
+          SELECT p.id,
+            ts_rank(p.search_vector, to_tsquery('english', unaccent($1))) * 2.0 as score,
+            'and' as match_tier
           FROM products p
           WHERE p.status = 'active'
             AND p.search_vector @@ to_tsquery('english', unaccent($1))
-          ORDER BY ts_rank(p.search_vector, to_tsquery('english', unaccent($1))) DESC
+            AND p.id NOT IN (SELECT id FROM phrase_products)
+          LIMIT 12
+        ),
+        or_products AS (
+          SELECT p.id,
+            ts_rank(p.search_vector, to_tsquery('english', unaccent($2))) * 0.5 as score,
+            'or' as match_tier
+          FROM products p
+          WHERE p.status = 'active'
+            AND p.search_vector @@ to_tsquery('english', unaccent($2))
+            AND p.id NOT IN (SELECT id FROM phrase_products)
+            AND p.id NOT IN (SELECT id FROM and_products)
+            AND (SELECT COUNT(*) FROM phrase_products) + (SELECT COUNT(*) FROM and_products) < 12
+          LIMIT 12
+        ),
+        all_matches AS (
+          SELECT * FROM phrase_products
+          UNION ALL SELECT * FROM and_products
+          UNION ALL SELECT * FROM or_products
+        ),
+        ranked AS (
+          SELECT am.id, am.score + COALESCE(pp.popularity_score, 0) * 0.1
+            + CASE WHEN LOWER(p.name) = LOWER($4) OR LOWER(p.collection) = LOWER($4) THEN 5.0 ELSE 0.0 END as final_score,
+            COUNT(*) OVER() as total_count
+          FROM all_matches am
+          JOIN products p ON p.id = am.id
+          LEFT JOIN product_popularity pp ON pp.product_id = am.id
+          ORDER BY am.score + COALESCE(pp.popularity_score, 0) * 0.1
+            + CASE WHEN LOWER(p.name) = LOWER($4) OR LOWER(p.collection) = LOWER($4) THEN 5.0 ELSE 0.0 END DESC
           LIMIT 8
         ),
         top_skus AS (
-          SELECT DISTINCT ON (fp.id)
-            s.id as sku_id, fp.id as product_id, p.name as product_name, p.collection, s.variant_name,
+          SELECT DISTINCT ON (r.id)
+            s.id as sku_id, r.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection, s.variant_name,
+            s.vendor_sku,
             v.name as vendor_name,
             pr.retail_price, pr.price_basis, s.sell_by, pk.sqft_per_box,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
-            fp.fts_rank, fp.total_count
-          FROM fts_products fp
-          JOIN products p ON p.id = fp.id
+            r.final_score, r.total_count
+          FROM ranked r
+          JOIN products p ON p.id = r.id
           JOIN vendors v ON v.id = p.vendor_id
-          JOIN skus s ON s.product_id = fp.id AND s.status = 'active' AND s.is_sample = false AND COALESCE(s.variant_type, '') != 'accessory'
+          JOIN skus s ON s.product_id = r.id AND s.status = 'active' AND s.is_sample = false AND COALESCE(s.variant_type, '') != 'accessory'
           LEFT JOIN pricing pr ON pr.sku_id = s.id
           LEFT JOIN packaging pk ON pk.sku_id = s.id
-          ORDER BY fp.id, s.created_at
+          ORDER BY r.id, s.created_at
         )
         SELECT ts.*,
           COALESCE(
             (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'primary' LIMIT 1),
-            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1)
+            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1),
+            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type IN ('alternate','lifestyle') LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type IN ('alternate','lifestyle') AND sku_id IS NULL LIMIT 1)
           ) as primary_image
         FROM top_skus ts
-        ORDER BY ts.fts_rank DESC
+        ORDER BY ts.final_score DESC
         LIMIT 6
-      `, [tsQuery])
+      `, [andTsQuery, orTsQuery, phraseInput, sanitized])
     ]);
 
-    // If FTS returned fewer than 6 products, try trigram fallback
+    // Merge SKU direct results (priority) + FTS results
     let prodRows = ftsResult.rows;
     let totalCount = prodRows.length > 0 ? parseInt(prodRows[0].total_count) : 0;
 
+    // Insert SKU direct matches at the top (deduplicate by sku_id)
+    if (skuDirectRows.length > 0) {
+      const ftsSkuIds = new Set(prodRows.map(r => r.sku_id));
+      const uniqueSkuRows = skuDirectRows.filter(r => !ftsSkuIds.has(r.sku_id));
+      prodRows = [...uniqueSkuRows, ...prodRows];
+      totalCount += uniqueSkuRows.length;
+    }
+
+    // If still fewer than 6 products, try trigram fallback
     if (prodRows.length < 6) {
-      const ftsIds = prodRows.map(r => r.product_id);
+      const existingIds = prodRows.map(r => r.product_id).filter(Boolean);
       const trgmResult = await pool.query(`
         WITH trgm_products AS (
           SELECT p.id, greatest(similarity(p.name, $1), similarity(p.collection, $1)) as trgm_score
           FROM products p
           WHERE p.status = 'active'
             AND (p.name % $1 OR p.collection % $1)
-            ${ftsIds.length > 0 ? 'AND p.id != ALL($2::uuid[])' : ''}
+            ${existingIds.length > 0 ? 'AND p.id != ALL($2::uuid[])' : ''}
           ORDER BY greatest(similarity(p.name, $1), similarity(p.collection, $1)) DESC
           LIMIT 8
         ),
         top_skus AS (
           SELECT DISTINCT ON (tp.id)
-            s.id as sku_id, tp.id as product_id, p.name as product_name, p.collection, s.variant_name,
+            s.id as sku_id, tp.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection, s.variant_name,
+            s.vendor_sku,
             v.name as vendor_name,
             pr.retail_price, pr.price_basis, s.sell_by, pk.sqft_per_box,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
-            0::float as fts_rank, tp.trgm_score
+            0::float as final_score, tp.trgm_score
           FROM trgm_products tp
           JOIN products p ON p.id = tp.id
           JOIN vendors v ON v.id = p.vendor_id
@@ -1450,37 +1855,89 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
         SELECT ts.*,
           COALESCE(
             (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'primary' LIMIT 1),
-            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1)
+            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1),
+            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type IN ('alternate','lifestyle') LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type IN ('alternate','lifestyle') AND sku_id IS NULL LIMIT 1)
           ) as primary_image
         FROM top_skus ts
         ORDER BY ts.trgm_score DESC
         LIMIT 6
-      `, ftsIds.length > 0 ? [sanitized, ftsIds] : [sanitized]);
+      `, existingIds.length > 0 ? [sanitized, existingIds] : [sanitized]);
 
-      // Merge: FTS results first (ranked), then trigram results (ranked)
       const trgmRows = trgmResult.rows;
       totalCount += trgmRows.length;
       prodRows = prodRows.concat(trgmRows);
     }
 
-    // Sort merged results: FTS rank first, then trigram score
-    prodRows.sort((a, b) => {
-      const scoreA = (parseFloat(a.fts_rank || 0) * 2) + parseFloat(a.trgm_score || 0);
-      const scoreB = (parseFloat(b.fts_rank || 0) * 2) + parseFloat(b.trgm_score || 0);
-      return scoreB - scoreA;
-    });
+    // Dimension scoring boost — re-sort if dimensions detected
+    if (dims && dims.sizePattern && prodRows.length > 0) {
+      const skuIds = prodRows.map(r => r.sku_id);
+      const dimResult = await pool.query(`
+        SELECT sa.sku_id FROM sku_attributes sa
+        JOIN attributes a ON a.id = sa.attribute_id
+        WHERE sa.sku_id = ANY($1) AND a.slug = 'size' AND sa.value ILIKE '%' || $2 || '%'
+      `, [skuIds, dims.sizePattern]);
+      const matchingSkuIds = new Set(dimResult.rows.map(r => r.sku_id));
+      // Boost matching products by moving them up
+      prodRows.sort((a, b) => {
+        const aMatch = matchingSkuIds.has(a.sku_id) ? 1 : 0;
+        const bMatch = matchingSkuIds.has(b.sku_id) ? 1 : 0;
+        if (aMatch !== bMatch) return bMatch - aMatch;
+        const scoreA = parseFloat(a.final_score || 0) + parseFloat(a.trgm_score || 0);
+        const scoreB = parseFloat(b.final_score || 0) + parseFloat(b.trgm_score || 0);
+        return scoreB - scoreA;
+      });
+    }
+
     prodRows = prodRows.slice(0, 6);
 
-    res.json({
+    // Did-you-mean: if zero product results, try spelling correction
+    let didYouMean = null;
+    if (prodRows.length === 0) {
+      try {
+        const queryWords = sanitized.toLowerCase().split(/\s+/).filter(Boolean);
+        const corrections = [];
+        for (const word of queryWords) {
+          if (word.length < 3) { corrections.push(word); continue; }
+          const vocabResult = await pool.query(`
+            SELECT term, similarity(term, $1) as sim
+            FROM search_vocabulary
+            WHERE term % $1 AND similarity(term, $1) > 0.3
+            ORDER BY similarity(term, $1) DESC
+            LIMIT 1
+          `, [word]);
+          if (vocabResult.rows.length > 0 && vocabResult.rows[0].term !== word) {
+            corrections.push(vocabResult.rows[0].term);
+          } else {
+            corrections.push(word);
+          }
+        }
+        const corrected = corrections.join(' ');
+        if (corrected !== sanitized.toLowerCase()) {
+          didYouMean = corrected;
+        }
+      } catch (err) {
+        // search_vocabulary may not exist yet — skip
+      }
+    }
+
+    const result = {
       categories: catResult.rows.map(r => ({ name: r.name, slug: r.slug, image_url: r.image_url, product_count: parseInt(r.product_count) })),
       collections: colResult.rows.map(r => ({ name: r.collection, product_count: parseInt(r.product_count), image: r.image })),
       products: prodRows.map(r => ({
         sku_id: r.sku_id, product_name: r.product_name, collection: r.collection,
         variant_name: r.variant_name, vendor_name: r.vendor_name, primary_image: r.primary_image,
+        vendor_sku: r.vendor_sku,
         retail_price: r.retail_price, price_basis: r.price_basis, sell_by: r.sell_by, sqft_per_box: r.sqft_per_box, sale_price: r.sale_price
       })),
-      total: totalCount
-    });
+      total: totalCount,
+      ...(didYouMean ? { didYouMean } : {}),
+      ...(expandedFrom ? { expandedFrom, expandedTo: expanded } : {})
+    };
+
+    // Cache the result
+    suggestCache.set(cacheKey, result);
+    res.json(result);
   } catch (err) {
     console.error('Search suggest error:', err);
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -1489,6 +1946,8 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
 
 app.get('/api/storefront/search/popular', async (req, res) => {
   try {
+    const cached = popularCache.get('popular');
+    if (cached) return res.json(cached);
     const result = await pool.query(`
       SELECT properties->>'query' as term, COUNT(*) as cnt
       FROM analytics_events
@@ -1501,7 +1960,9 @@ app.get('/api/storefront/search/popular', async (req, res) => {
       ORDER BY cnt DESC
       LIMIT 8
     `);
-    res.json({ terms: result.rows.map(r => r.term) });
+    const data = { terms: result.rows.map(r => r.term) };
+    popularCache.set('popular', data);
+    res.json(data);
   } catch (err) {
     console.error('Popular searches error:', err);
     res.json({ terms: ['marble tile', 'porcelain', 'calacatta', 'wood look', 'mosaic', 'subway tile', '12x24', 'herringbone'] });
@@ -1519,7 +1980,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
 
     let params = [];
     let paramIndex = 1;
-    let whereClauses = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'", "COALESCE(s.variant_type, '') != 'accessory'",
+    let whereClauses = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'", "COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')",
       "p.collection NOT LIKE 'AHF%'", "(pr.retail_price IS NULL OR pr.retail_price > 0)"];
 
     // Category filter (includes children)
@@ -1536,25 +1997,35 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       paramIndex++;
     }
 
-    // Search — FTS + trigram hybrid (with synonym expansion)
+    // Search — Progressive FTS (AND → OR cascade) + trigram hybrid (with synonym expansion)
     let searchParamIdx = null;
     let searchTsQueryIdx = null;
+    let searchOrTsQueryIdx = null;
     if (searchTerm) {
-      const sanitized = searchTerm.replace(/[^\w\s'.-]/g, '').trim();
+      const normalized = normalizeSearchQuery(searchTerm);
+      const sanitized = normalized.replace(/[^\w\s'.-]/g, '').trim();
       if (sanitized) {
         params.push(sanitized);
         searchParamIdx = paramIndex;
         paramIndex++;
-        const expanded = expandSynonyms(sanitized);
-        const tsQuery = expanded.split(/\s+/).filter(Boolean).map(w => w + ':*').join(' & ');
-        params.push(tsQuery);
+        const { text: expanded } = expandSynonyms(sanitized);
+        const words = expanded.split(/\s+/).filter(Boolean);
+        const andTsQuery = words.map(w => w + ':*').join(' & ');
+        const orTsQuery = words.map(w => w + ':*').join(' | ');
+        params.push(andTsQuery);
         searchTsQueryIdx = paramIndex;
+        paramIndex++;
+        params.push(orTsQuery);
+        searchOrTsQueryIdx = paramIndex;
         paramIndex++;
         whereClauses.push(`(
           p.search_vector @@ to_tsquery('english', unaccent($${searchTsQueryIdx}))
+          OR p.search_vector @@ to_tsquery('english', unaccent($${searchOrTsQueryIdx}))
           OR p.name % $${searchParamIdx}
           OR p.collection % $${searchParamIdx}
           OR (p.collection || ' ' || p.name) ILIKE '%' || $${searchParamIdx} || '%'
+          OR s.vendor_sku ILIKE $${searchParamIdx} || '%'
+          OR s.internal_sku ILIKE $${searchParamIdx} || '%'
         )`);
       }
     }
@@ -1591,7 +2062,14 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       whereClauses.push("pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW())");
     }
 
-    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'product_ids', 'vendor', 'price_min', 'price_max', 'sale'];
+    // Tag filter
+    if (req.query.tags) {
+      const tagSlugs = req.query.tags.split('|').filter(Boolean);
+      const tagPlaceholders = tagSlugs.map(t => { params.push(t); return `$${paramIndex++}`; });
+      whereClauses.push(`p.id IN (SELECT pt.product_id FROM product_tags pt JOIN tag_definitions td ON td.id = pt.tag_id WHERE td.slug IN (${tagPlaceholders.join(',')}))`);
+    }
+
+    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'product_ids', 'vendor', 'price_min', 'price_max', 'sale', 'tags'];
     const attrFilters = {};
     for (const [key, val] of Object.entries(req.query)) {
       if (!reservedParams.includes(key) && val) {
@@ -1612,7 +2090,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     const whereSQL = whereClauses.join(' AND ');
 
     // Sort — relevance-first when searching (unless user explicitly chose a sort)
-    let orderBy = 'product_name ASC, variant_name ASC';
+    let orderBy = 'CASE WHEN primary_image IS NOT NULL THEN 0 ELSE 1 END, product_name ASC, variant_name ASC';
     if (sort === 'discount') orderBy = 'CASE WHEN sale_price IS NOT NULL AND retail_price > 0 THEN (retail_price - sale_price) / retail_price ELSE 0 END DESC, product_name ASC';
     else if (sort === 'price_asc') orderBy = 'retail_price ASC NULLS LAST, product_name ASC';
     else if (sort === 'price_desc') orderBy = 'retail_price DESC NULLS LAST, product_name ASC';
@@ -1620,7 +2098,12 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     else if (sort === 'name_asc') orderBy = 'product_name ASC, variant_name ASC';
     else if (sort === 'name_desc') orderBy = 'product_name DESC, variant_name DESC';
     else if (searchParamIdx && !sort) {
-      orderBy = `(ts_rank(search_vector, to_tsquery('english', unaccent($${searchTsQueryIdx}))) * 2 + greatest(similarity(product_name, $${searchParamIdx}), similarity(collection, $${searchParamIdx}))) DESC, product_name ASC`;
+      orderBy = `(
+        COALESCE(ts_rank(search_vector, to_tsquery('english', unaccent($${searchTsQueryIdx}))), 0) * 2
+        + greatest(similarity(product_name, $${searchParamIdx}), similarity(collection, $${searchParamIdx}))
+        + COALESCE(popularity_score, 0) * 0.1
+        + CASE WHEN LOWER(product_name) = LOWER($${searchParamIdx}) OR LOWER(collection) = LOWER($${searchParamIdx}) THEN 5.0 ELSE 0.0 END
+      ) DESC, product_name ASC`;
     }
 
     // Count query — count distinct products, not individual SKUs
@@ -1651,32 +2134,52 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       sku_alt_images AS (
         SELECT DISTINCT ON (sku_id) sku_id, url
         FROM media_assets
-        WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NOT NULL
+        WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
         ORDER BY sku_id, sort_order
       ),
       product_alt_images AS (
         SELECT DISTINCT ON (product_id) product_id, url
         FROM media_assets
-        WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NULL
+        WHERE asset_type = 'alternate' AND sku_id IS NULL
         ORDER BY product_id, sort_order
+      ),
+      sku_any_images AS (
+        SELECT DISTINCT ON (sku_id) sku_id, url
+        FROM media_assets
+        WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
+        ORDER BY sku_id, sort_order
+      ),
+      product_any_images AS (
+        SELECT DISTINCT ON (product_id) product_id, url
+        FROM media_assets
+        WHERE asset_type = 'alternate' AND sku_id IS NULL
+        ORDER BY product_id, sort_order
+      ),
+      sibling_images AS (
+        SELECT DISTINCT ON (s2.product_id) s2.product_id, ma.url
+        FROM media_assets ma
+        JOIN skus s2 ON s2.id = ma.sku_id
+        WHERE ma.asset_type = 'primary' AND ma.sku_id IS NOT NULL
+        ORDER BY s2.product_id, ma.sort_order
       ),
       variant_counts AS (
         SELECT product_id, COUNT(*) as variant_count
         FROM skus
-        WHERE status = 'active' AND is_sample = false AND COALESCE(variant_type, '') != 'accessory'
+        WHERE status = 'active' AND is_sample = false AND COALESCE(variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
         GROUP BY product_id
       )
       SELECT * FROM (
         SELECT DISTINCT ON (p.id)
           s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
-          p.name as product_name, p.collection, p.description_short, p.search_vector,
+          COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short, p.search_vector,
+          p.slug as product_slug,
           v.name as vendor_name,
           COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
           c.name as category_name, c.slug as category_slug,
           pr.retail_price, pr.price_basis, pr.cut_price,
           CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
           pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-          COALESCE(si.url, pi.url) as primary_image,
+          COALESCE(si.url, pi.url, sany.url, pany.url, sib.url) as primary_image,
           COALESCE(sai.url, pai.url) as alternate_image,
           CASE
             WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
@@ -1684,7 +2187,8 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
             WHEN inv.qty_on_hand > 0 THEN 'low_stock'
             ELSE 'out_of_stock'
           END as stock_status,
-          COALESCE(vc.variant_count, 0) as variant_count
+          COALESCE(vc.variant_count, 0) as variant_count,
+          COALESCE(pp.popularity_score, 0) as popularity_score
         FROM skus s
         JOIN products p ON p.id = s.product_id
         JOIN vendors v ON v.id = p.vendor_id
@@ -1696,7 +2200,11 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         LEFT JOIN product_images pi ON pi.product_id = p.id
         LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
         LEFT JOIN product_alt_images pai ON pai.product_id = p.id
+        LEFT JOIN sku_any_images sany ON sany.sku_id = s.id
+        LEFT JOIN product_any_images pany ON pany.product_id = p.id
+        LEFT JOIN sibling_images sib ON sib.product_id = p.id
         LEFT JOIN variant_counts vc ON vc.product_id = p.id
+        LEFT JOIN product_popularity pp ON pp.product_id = p.id
         WHERE ${whereSQL}
         ORDER BY p.id, s.created_at
       ) grouped
@@ -1747,10 +2255,150 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       });
     }
 
-    res.json({ skus: skus.map(({ search_vector, ...rest }) => rest), total });
+    // Did-you-mean for browse with zero results + search query
+    let didYouMean = null;
+    if (total === 0 && searchTerm) {
+      try {
+        const queryWords = searchTerm.toLowerCase().replace(/[^\w\s'.-]/g, '').trim().split(/\s+/).filter(Boolean);
+        const corrections = [];
+        for (const word of queryWords) {
+          if (word.length < 3) { corrections.push(word); continue; }
+          const vocabResult = await pool.query(`
+            SELECT term, similarity(term, $1) as sim
+            FROM search_vocabulary
+            WHERE term % $1 AND similarity(term, $1) > 0.3
+            ORDER BY similarity(term, $1) DESC LIMIT 1
+          `, [word]);
+          corrections.push(vocabResult.rows.length > 0 && vocabResult.rows[0].term !== word ? vocabResult.rows[0].term : word);
+        }
+        const corrected = corrections.join(' ');
+        if (corrected !== searchTerm.toLowerCase().replace(/[^\w\s'.-]/g, '').trim()) didYouMean = corrected;
+      } catch (e) { /* search_vocabulary may not exist */ }
+    }
+
+    const response = { skus: skus.map(({ search_vector, popularity_score, ...rest }) => rest), total };
+    if (didYouMean) response.didYouMean = didYouMean;
+    res.json(response);
   } catch (err) {
     console.error('Storefront SKU browse error:', err);
     console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Compare up to 4 SKUs side-by-side
+app.get('/api/storefront/skus/compare', async (req, res) => {
+  try {
+    const idsParam = req.query.ids || '';
+    const ids = idsParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, 4);
+    if (ids.length < 2) return res.status(400).json({ error: 'Provide at least 2 SKU ids' });
+
+    const result = await pool.query(`
+      SELECT
+        s.id as sku_id, s.variant_name, s.sell_by,
+        COALESCE(p.display_name, p.name) as product_name, p.collection,
+        v.name as vendor_name,
+        c.name as category_name,
+        pr.retail_price, pr.price_basis,
+        CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+        pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
+        COALESCE(
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
+        ) as primary_image
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      WHERE s.id = ANY($1)
+    `, [ids]);
+
+    // Fetch attributes for all
+    const attrResult = await pool.query(`
+      SELECT sa.sku_id, a.name, a.slug, sa.value
+      FROM sku_attributes sa
+      JOIN attributes a ON a.id = sa.attribute_id
+      WHERE sa.sku_id = ANY($1)
+      ORDER BY a.display_order, a.name
+    `, [ids]);
+
+    const attrMap = {};
+    for (const row of attrResult.rows) {
+      if (!attrMap[row.sku_id]) attrMap[row.sku_id] = [];
+      attrMap[row.sku_id].push({ slug: row.slug, name: row.name, value: row.value });
+    }
+
+    const skus = result.rows.map(s => ({ ...s, attributes: attrMap[s.sku_id] || [] }));
+    // Preserve requested order
+    const ordered = ids.map(id => skus.find(s => s.sku_id === id)).filter(Boolean);
+
+    res.json({ skus: ordered });
+  } catch (err) {
+    console.error('SKU compare error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== Slug-based product detail ====================
+app.get('/api/storefront/products/:categorySlug/:productSlug', optionalTradeAuth, async (req, res) => {
+  try {
+    const { categorySlug, productSlug } = req.params;
+
+    // Look up product by category slug + product slug
+    const productResult = await pool.query(`
+      SELECT p.id as product_id
+      FROM products p
+      JOIN categories c ON c.id = p.category_id
+      WHERE c.slug = $1 AND p.slug = $2 AND p.status = 'active'
+      LIMIT 1
+    `, [categorySlug, productSlug]);
+
+    if (!productResult.rows.length) return res.status(404).json({ error: 'Product not found' });
+    const productId = productResult.rows[0].product_id;
+
+    // Find the default SKU (first non-accessory SKU)
+    const defaultSku = await pool.query(`
+      SELECT id FROM skus
+      WHERE product_id = $1 AND status = 'active' AND is_sample = false
+        AND COALESCE(variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
+      ORDER BY created_at
+      LIMIT 1
+    `, [productId]);
+
+    if (!defaultSku.rows.length) return res.status(404).json({ error: 'No active SKUs found' });
+
+    // Return the default SKU ID so the frontend can fetch full detail via /api/storefront/skus/:id
+    res.json({ resolve_sku_id: defaultSku.rows[0].id });
+  } catch (err) {
+    console.error('Storefront product slug detail error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== SKU redirect (old UUID → new slugs) ====================
+app.get('/api/storefront/sku-redirect/:skuId', async (req, res) => {
+  try {
+    const { skuId } = req.params;
+    const result = await pool.query(`
+      SELECT p.slug as product_slug, c.slug as category_slug
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE s.id = $1
+    `, [skuId]);
+
+    if (!result.rows.length || !result.rows[0].product_slug || !result.rows[0].category_slug) {
+      return res.status(404).json({ error: 'Slug not found' });
+    }
+
+    res.json({
+      categorySlug: result.rows[0].category_slug,
+      productSlug: result.rows[0].product_slug
+    });
+  } catch (err) {
+    console.error('SKU redirect lookup error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -1762,7 +2410,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     const skuResult = await pool.query(`
       SELECT
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.variant_type,
-        p.name as product_name, p.collection, p.category_id, p.description_long, p.description_short,
+        COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, p.description_long, p.description_short,
+        p.slug as product_slug,
         v.name as vendor_name, v.code as vendor_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
@@ -1867,6 +2516,17 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         WHERE product_id = $1 AND sku_id IS NULL AND asset_type IN ('primary', 'alternate')
         ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 ELSE 2 END, sort_order
       `, [sku.product_id]);
+
+      // If still no images, fall back to first sibling SKU's primary image
+      if (mediaResult.rows.length === 0) {
+        mediaResult = await pool.query(`
+          SELECT id, asset_type, url, sort_order, sku_id
+          FROM media_assets
+          WHERE product_id = $1 AND sku_id IS NOT NULL AND asset_type = 'primary'
+          ORDER BY sort_order
+          LIMIT 1
+        `, [sku.product_id]);
+      }
     }
 
     // Deduplicate media by URL
@@ -1887,7 +2547,9 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         COALESCE(
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('alternate','lifestyle') ORDER BY ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type IN ('alternate','lifestyle') ORDER BY ma.sort_order LIMIT 1)
         ) as primary_image,
         (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as sku_image,
         (SELECT ma.url FROM media_assets ma
@@ -1929,6 +2591,75 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       sameSiblings = sameSiblings.map(s => ({ ...s, attributes: sibAttrMap[s.sku_id] || [] }));
     }
 
+    // Cross-product accessory suggestions (for vendors like Shaw where accessories
+    // live in separate type-based products: "T Molding", "Round Stair Tread", etc.)
+    // Uses companion_skus attribute — the authoritative mapping of accessories to
+    // a specific main SKU's color. Color_code matching was evaluated as a fallback
+    // but rejected: Shaw's color_codes are reused across many unrelated colors
+    // (same code = different shades in different collections), so fuzzy matches
+    // would mislead users.
+    let crossProductAccessories = [];
+    const companionSkusAttrX = (sku.attributes || []).find(a => a.slug === 'companion_skus');
+    const companionVskus = companionSkusAttrX
+      ? companionSkusAttrX.value.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+
+    if (companionVskus.length > 0 && sku.variant_type !== 'accessory') {
+      const vendorRow = await pool.query(`SELECT vendor_id FROM products WHERE id = $1`, [sku.product_id]);
+      const vendorIdX = vendorRow.rows[0]?.vendor_id;
+      if (vendorIdX) {
+        const cpaResult = await pool.query(`
+          SELECT DISTINCT ON (s.product_id)
+            s.id as sku_id, s.variant_name, s.sell_by,
+            COALESCE(p.display_name, p.name) as product_name, p.id as accessory_product_id,
+            pr.retail_price, pr.price_basis, pk.sqft_per_box,
+            CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+            COALESCE(
+              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+              (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
+            ) as primary_image,
+            CASE
+              WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+              WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+              WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+              ELSE 'out_of_stock'
+            END as stock_status
+          FROM skus s
+          JOIN products p ON p.id = s.product_id AND p.status = 'active'
+          LEFT JOIN categories c ON c.id = p.category_id
+          LEFT JOIN pricing pr ON pr.sku_id = s.id
+          LEFT JOIN packaging pk ON pk.sku_id = s.id
+          LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+          WHERE p.vendor_id = $1 AND s.status = 'active' AND s.is_sample = false
+            AND s.product_id != $2
+            AND c.name IN ('Transitions & Moldings','Wall Base','Installation & Sundries','Adhesives & Sealants','Underlayment')
+            AND s.vendor_sku = ANY($3::text[])
+          ORDER BY s.product_id, s.created_at
+          LIMIT 30
+        `, [vendorIdX, sku.product_id, companionVskus]);
+
+        if (cpaResult.rows.length > 0) {
+          const ids = cpaResult.rows.map(r => r.sku_id);
+          const attrRes = await pool.query(`
+            SELECT sa.sku_id, a.name, a.slug, sa.value
+            FROM sku_attributes sa
+            JOIN attributes a ON a.id = sa.attribute_id
+            WHERE sa.sku_id = ANY($1) AND a.slug IN ('size','finish')
+          `, [ids]);
+          const attrMap = {};
+          for (const row of attrRes.rows) {
+            if (!attrMap[row.sku_id]) attrMap[row.sku_id] = [];
+            attrMap[row.sku_id].push({ slug: row.slug, name: row.name, value: row.value });
+          }
+          crossProductAccessories = cpaResult.rows.map(r => ({
+            ...r,
+            variant_type: 'accessory',
+            attributes: attrMap[r.sku_id] || []
+          }));
+        }
+      }
+    }
+
     // Collection siblings (other products in same collection, same category, excluding mosaics/hexagons/bullnose)
     let collectionSiblings = [];
     // isAdexVendor already declared above (media section)
@@ -1937,7 +2668,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       if (isAdexVendor) {
         // ADEX: return ALL SKUs in entire collection (all colors, finishes, products) for swatch grid
         const collResult = await pool.query(`
-          SELECT s.id as sku_id, s.variant_name, s.sell_by, p.id as product_id, p.name as product_name, p.collection,
+          SELECT s.id as sku_id, s.variant_name, s.sell_by, p.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection,
             pr.retail_price, pr.price_basis, pk.sqft_per_box,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image,
@@ -1958,13 +2689,15 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       } else {
         const collResult = await pool.query(`
           SELECT DISTINCT ON (p.id)
-            s.id as sku_id, s.variant_name, s.sell_by, p.id as product_id, p.name as product_name, p.collection,
+            s.id as sku_id, s.variant_name, s.sell_by, p.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection,
             pr.retail_price, pr.price_basis, pk.sqft_per_box,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             COALESCE(
               (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
               (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
-            ) as primary_image
+            ) as primary_image,
+            (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) as color,
+            (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) as finish
           FROM products p
           JOIN skus s ON s.product_id = p.id AND s.is_sample = false AND s.status = 'active'
           LEFT JOIN pricing pr ON pr.sku_id = s.id
@@ -2036,7 +2769,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       const gpResult = await pool.query(`
         SELECT DISTINCT ON (p.id)
           s.id as sku_id, s.variant_name, s.variant_type, s.sell_by,
-          p.id as product_id, p.name as product_name, p.collection,
+          p.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection,
           c.name as category_name, c.slug as category_slug,
           pr.retail_price, pr.price_basis, pk.sqft_per_box,
           CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
@@ -2077,11 +2810,35 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       if (ctResult.rows.length) countertopImage = ctResult.rows[0].url;
     }
 
+    // Product tags
+    let productTags = [];
+    try {
+      const tagResult = await pool.query(`
+        SELECT td.slug, td.name, td.category
+        FROM product_tags pt JOIN tag_definitions td ON td.id = pt.tag_id
+        WHERE pt.product_id = $1 ORDER BY td.category, td.display_order
+      `, [sku.product_id]);
+      productTags = tagResult.rows;
+    } catch (e) { /* tag tables may not exist yet */ }
+
+    // Build title_parts from attributes
+    const attrIdx = {};
+    (sku.attributes || []).forEach(a => { attrIdx[a.slug] = a.value; });
+    const titleParts = {
+      collection: sku.collection || null,
+      color: attrIdx.color || null,
+      size: attrIdx.size || null,
+      finish: attrIdx.finish || null
+    };
+
     res.json({
       sku,
+      title_parts: titleParts,
       media: dedupedMedia,
       countertop_image: countertopImage,
+      tags: productTags,
       same_product_siblings: sameSiblings,
+      cross_product_accessories: crossProductAccessories,
       collection_siblings: collectionSiblings,
       collection_attributes: collectionAttributes,
       grouped_products: groupedProducts
@@ -2121,7 +2878,7 @@ app.get('/api/storefront/facets', async (req, res) => {
     let params = [];
     let paramIndex = 1;
     let baseWhere = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'",
-      "COALESCE(s.variant_type, '') != 'accessory'", "p.collection NOT LIKE 'AHF%'"];
+      "COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')", "p.collection NOT LIKE 'AHF%'"];
 
     if (category) {
       params.push(category);
@@ -2172,8 +2929,15 @@ app.get('/api/storefront/facets', async (req, res) => {
       baseWhere.push("pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW())");
     }
 
+    // Tag filter
+    if (req.query.tags) {
+      const tagSlugs = req.query.tags.split('|').filter(Boolean);
+      const tagPlaceholders = tagSlugs.map(t => { params.push(t); return `$${paramIndex++}`; });
+      baseWhere.push(`p.id IN (SELECT pt.product_id FROM product_tags pt JOIN tag_definitions td ON td.id = pt.tag_id WHERE td.slug IN (${tagPlaceholders.join(',')}))`);
+    }
+
     // Collect attribute filters from query params
-    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'vendor', 'price_min', 'price_max', 'product_ids', 'sale'];
+    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'vendor', 'price_min', 'price_max', 'product_ids', 'sale', 'tags'];
     const attrFilters = {};
     for (const [key, val] of Object.entries(req.query)) {
       if (!reservedParams.includes(key) && val) {
@@ -2284,10 +3048,28 @@ app.get('/api/storefront/facets', async (req, res) => {
       WHERE pr.retail_price IS NOT NULL AND pr.retail_price::numeric > 0 AND ${priceWhereFragments.join(' AND ')}
     `;
 
-    const [facetResults, vendorResult, priceResult] = await Promise.all([
+    // Tag facets (disjunctive: skip tag filter from WHERE)
+    const tagWhereFragments = [...baseWhere.filter(w => !w.includes('product_tags')), ...attrWhereFragments.map(f => f.clause)];
+    const tagFacetSQL = `
+      SELECT td.slug, td.name, td.category, COUNT(DISTINCT p.id) as count
+      FROM product_tags pt
+      JOIN tag_definitions td ON td.id = pt.tag_id
+      JOIN products p ON p.id = pt.product_id
+      JOIN skus s ON s.product_id = p.id
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      WHERE ${tagWhereFragments.join(' AND ')}
+      GROUP BY td.id, td.slug, td.name, td.category
+      HAVING COUNT(DISTINCT p.id) > 0
+      ORDER BY td.category, td.display_order
+    `;
+
+    const [facetResults, vendorResult, priceResult, tagFacetResult] = await Promise.all([
       Promise.all(facetPromises),
       pool.query(vendorSQL, attrWhereParams),
-      pool.query(priceSQL, attrWhereParams)
+      pool.query(priceSQL, attrWhereParams),
+      pool.query(tagFacetSQL, attrWhereParams)
     ]);
 
     const facets = facetResults.filter(f => f.values.length > 0);
@@ -2297,8 +3079,9 @@ app.get('/api/storefront/facets', async (req, res) => {
       min: priceRow && priceRow.min_price ? parseFloat(parseFloat(priceRow.min_price).toFixed(2)) : 0,
       max: priceRow && priceRow.max_price ? parseFloat(parseFloat(priceRow.max_price).toFixed(2)) : 1000
     };
+    const tags = tagFacetResult.rows.map(r => ({ slug: r.slug, name: r.name, category: r.category, count: parseInt(r.count) }));
 
-    res.json({ facets, vendors, priceRange });
+    res.json({ facets, vendors, priceRange, tags });
   } catch (err) {
     console.error('Storefront facets error:', err);
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -2331,14 +3114,23 @@ app.get('/api/cart', async (req, res) => {
     if (!session_id) return res.status(400).json({ error: 'session_id is required' });
 
     const result = await pool.query(`
-      SELECT ci.*, p.name as product_name, p.collection,
-        s.sell_by, s.variant_type, s.vendor_sku, c.slug as category_slug,
-        pr.cut_price, pr.roll_price, pr.roll_min_sqft
+      SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection,
+        s.sell_by, s.variant_type, s.vendor_sku, s.variant_name, c.slug as category_slug,
+        pr.cut_price, pr.roll_price, pr.roll_min_sqft,
+        COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
+        CASE
+          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+          ELSE 'out_of_stock'
+        END as stock_status
       FROM cart_items ci
       LEFT JOIN products p ON p.id = ci.product_id
       LEFT JOIN skus s ON s.id = ci.sku_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = ci.sku_id
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN inventory_snapshots inv ON inv.sku_id = ci.sku_id AND inv.warehouse = 'default'
       WHERE ci.session_id = $1
       ORDER BY ci.created_at
     `, [session_id]);
@@ -2389,9 +3181,24 @@ app.post('/api/cart', async (req, res) => {
     let validatedUnitPrice = unit_price || 0;
     let validatedSubtotal = subtotal || 0;
     if (!is_sample && sku_id) {
-      const dbPrice = await pool.query('SELECT retail_price FROM pricing WHERE sku_id = $1', [sku_id]);
+      const dbPrice = await pool.query(
+        `SELECT pr.retail_price, pr.price_basis, pk.sqft_per_box, pk.pieces_per_box
+         FROM pricing pr
+         LEFT JOIN packaging pk ON pk.sku_id = pr.sku_id
+         WHERE pr.sku_id = $1`, [sku_id]);
       if (dbPrice.rows.length) {
-        const dbRetail = parseFloat(dbPrice.rows[0].retail_price);
+        let dbRetail = parseFloat(dbPrice.rows[0].retail_price);
+        const priceBasis = dbPrice.rows[0].price_basis;
+        const sqftBox = parseFloat(dbPrice.rows[0].sqft_per_box) || 0;
+        const pcsBox = parseFloat(dbPrice.rows[0].pieces_per_box) || 0;
+        // Convert per-unit price to per-sqft when sell_by is sqft
+        if (sell_by === 'sqft' && priceBasis === 'per_unit' && sqftBox > 0 && pcsBox > 0) {
+          dbRetail = dbRetail / (sqftBox / pcsBox);
+        }
+        // Convert per-sqft price to per-unit when sell_by is unit
+        if (sell_by === 'unit' && (priceBasis === 'per_sqft' || priceBasis === 'sqft') && sqftBox > 0) {
+          dbRetail = dbRetail * sqftBox;
+        }
         if (Math.abs(parseFloat(validatedUnitPrice) - dbRetail) > 0.01) {
           validatedUnitPrice = dbRetail;
           if (sell_by === 'sqft' && sqft_needed) {
@@ -2436,12 +3243,26 @@ app.put('/api/cart/:id', async (req, res) => {
     if (unit_price != null || subtotal != null) {
       const existing = await pool.query('SELECT sku_id, sell_by FROM cart_items WHERE id = $1 AND session_id = $2', [id, session_id]);
       if (existing.rows.length && existing.rows[0].sku_id) {
-        const dbPrice = await pool.query('SELECT retail_price FROM pricing WHERE sku_id = $1', [existing.rows[0].sku_id]);
+        const dbPrice = await pool.query(
+          `SELECT pr.retail_price, pr.price_basis, pk.sqft_per_box, pk.pieces_per_box
+           FROM pricing pr
+           LEFT JOIN packaging pk ON pk.sku_id = pr.sku_id
+           WHERE pr.sku_id = $1`, [existing.rows[0].sku_id]);
         if (dbPrice.rows.length) {
-          const dbRetail = parseFloat(dbPrice.rows[0].retail_price);
+          let dbRetail = parseFloat(dbPrice.rows[0].retail_price);
+          const priceBasis = dbPrice.rows[0].price_basis;
+          const sqftBox = parseFloat(dbPrice.rows[0].sqft_per_box) || 0;
+          const pcsBox = parseFloat(dbPrice.rows[0].pieces_per_box) || 0;
+          const itemSellBy = existing.rows[0].sell_by;
+          if (itemSellBy === 'sqft' && priceBasis === 'per_unit' && sqftBox > 0 && pcsBox > 0) {
+            dbRetail = dbRetail / (sqftBox / pcsBox);
+          }
+          if (itemSellBy === 'unit' && (priceBasis === 'per_sqft' || priceBasis === 'sqft') && sqftBox > 0) {
+            dbRetail = dbRetail * sqftBox;
+          }
           if (unit_price != null && Math.abs(parseFloat(unit_price) - dbRetail) > 0.01) {
             validatedUnitPrice = dbRetail;
-            if (num_boxes && existing.rows[0].sell_by === 'sqft' && sqft_needed) {
+            if (num_boxes && itemSellBy === 'sqft' && sqft_needed) {
               validatedSubtotal = parseFloat((dbRetail * parseFloat(sqft_needed)).toFixed(2));
             } else if (num_boxes) {
               validatedSubtotal = parseFloat((dbRetail * num_boxes).toFixed(2));
@@ -3127,7 +3948,7 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
     if (!session_id) return res.status(400).json({ error: 'session_id is required' });
 
     const result = await pool.query(`
-      SELECT ci.*, p.name as product_name, p.collection, p.category_id,
+      SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id,
         s.variant_type, s.vendor_sku, c.slug as category_slug
       FROM cart_items ci
       LEFT JOIN products p ON p.id = ci.product_id
@@ -3146,6 +3967,30 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
     const sampleItems = items.filter(i => i.is_sample);
     const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
     const sampleShipping = sampleItems.length > 0 ? 12 : 0;
+
+    // Check stock status for all SKUs
+    const skuIds = items.filter(i => i.sku_id).map(i => i.sku_id);
+    let stockWarnings = [];
+    if (skuIds.length > 0) {
+      const stockResult = await pool.query(`
+        SELECT s.id as sku_id,
+          COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
+          CASE
+            WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+            WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+            WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+            ELSE 'out_of_stock'
+          END as stock_status
+        FROM skus s
+        JOIN products p ON p.id = s.product_id
+        LEFT JOIN vendors v ON v.id = p.vendor_id
+        LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+        WHERE s.id = ANY($1)
+      `, [skuIds]);
+      stockWarnings = stockResult.rows
+        .filter(r => r.stock_status === 'out_of_stock' && r.vendor_has_inventory)
+        .map(r => r.sku_id);
+    }
 
     // Calculate product shipping
     let shippingCost = 0;
@@ -3201,23 +4046,199 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
 
     const totalCents = Math.round(total * 100);
 
+    // Build shipping for Affirm (required for US transactions)
+    const STORE_ADDRESS = { line1: '1440 S. State College Blvd., Suite 6M', city: 'Anaheim', state: 'CA', postal_code: '92806', country: 'US' };
+    const piShipping = (delivery_method === 'pickup' || !destination)
+      ? { name: 'Store Pickup', address: STORE_ADDRESS }
+      : { name: 'Customer', address: { line1: destination.zip || '', city: destination.city || '', state: destination.state || '', postal_code: destination.zip || '', country: 'US' } };
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalCents,
       currency: 'usd',
+      payment_method_types: ['card', 'klarna'],
+      shipping: piShipping,
     });
 
     res.json({
       clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
       amount: total,
       shipping: shippingCost,
       shipping_method: shippingMethod,
       discount_amount: discountAmount,
       promo_code: promoCodeStr,
       tax_rate: taxRate,
-      tax_amount: taxAmount
+      tax_amount: taxAmount,
+      stock_warnings: stockWarnings
     });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create a bank transfer (customer_balance) payment intent — separate from card/klarna
+app.post('/api/checkout/create-bank-transfer-intent', async (req, res) => {
+  try {
+    const { session_id, destination, delivery_method, shipping_option_id, residential, liftgate, promo_code, customer_email } = req.body;
+    if (!session_id) return res.status(400).json({ error: 'session_id is required' });
+    if (!customer_email) return res.status(400).json({ error: 'customer_email is required' });
+
+    const result = await pool.query(`
+      SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id,
+        s.variant_type, s.vendor_sku, c.slug as category_slug
+      FROM cart_items ci
+      LEFT JOIN products p ON p.id = ci.product_id
+      LEFT JOIN skus s ON s.id = ci.sku_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE ci.session_id = $1
+      ORDER BY ci.created_at
+    `, [session_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Cart is empty' });
+    }
+
+    const items = result.rows;
+    const productItems = items.filter(i => !i.is_sample);
+    const sampleItems = items.filter(i => i.is_sample);
+    const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
+    const sampleShipping = sampleItems.length > 0 ? 12 : 0;
+
+    // Enforce $500 minimum for bank transfer
+    if (productSubtotal < 500) {
+      return res.status(400).json({ error: 'Bank transfer requires a minimum product subtotal of $500.' });
+    }
+
+    // Calculate product shipping
+    let shippingCost = 0;
+    let shippingMethod = null;
+    if (delivery_method === 'pickup') {
+      shippingCost = 0;
+      shippingMethod = 'pickup';
+    } else if (destination && destination.zip && productItems.length > 0) {
+      const hasPickupOnly = productItems.some(i => isPickupOnly(i));
+      if (hasPickupOnly) {
+        return res.status(400).json({ error: 'Cart contains items that are available for store pickup only (slabs/prefab). Please select store pickup.' });
+      }
+      try {
+        const shippingResult = await calculateShipping(session_id, destination, { residential, liftgate });
+        const opts = shippingResult.options || [];
+        const selected = (shipping_option_id && opts.find(o => o.id === shipping_option_id)) || opts.find(o => o.is_cheapest) || opts[0];
+        shippingCost = selected ? selected.amount : 0;
+        shippingMethod = shippingResult.method;
+      } catch (shipErr) {
+        console.error('Shipping calc error during bank transfer intent:', shipErr.message);
+      }
+    }
+
+    // Validate promo code if provided
+    let discountAmount = 0;
+    let promoCodeStr = null;
+    if (promo_code) {
+      const promoItems = items.map(row => ({
+        product_id: row.product_id,
+        category_id: row.category_id,
+        subtotal: row.subtotal,
+        is_sample: row.is_sample
+      }));
+      const promoResult = await calculatePromoDiscount(promo_code, promoItems);
+      if (!promoResult.valid) {
+        return res.status(400).json({ error: promoResult.error });
+      }
+      discountAmount = promoResult.discount_amount;
+      promoCodeStr = promoResult.promo.code;
+    }
+
+    // Calculate sales tax
+    const destZip = (delivery_method === 'pickup') ? SHIP_FROM.zip : (destination ? destination.zip : null);
+    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(productSubtotal, destZip, false);
+
+    const total = productSubtotal + shippingCost + sampleShipping + taxAmount - discountAmount;
+
+    if (total <= 0) {
+      return res.status(400).json({ error: 'Order total must be greater than zero' });
+    }
+
+    const totalCents = Math.round(total * 100);
+
+    // Find or create Stripe Customer by email
+    const existingCustomers = await stripe.customers.list({ email: customer_email, limit: 1 });
+    let stripeCustomer;
+    if (existingCustomers.data.length > 0) {
+      stripeCustomer = existingCustomers.data[0];
+    } else {
+      stripeCustomer = await stripe.customers.create({ email: customer_email });
+    }
+
+    // Save stripe_customer_id on the customers table if they have an account
+    const custRow = await pool.query('SELECT id, stripe_customer_id FROM customers WHERE email = $1', [customer_email]);
+    if (custRow.rows.length && !custRow.rows[0].stripe_customer_id) {
+      await pool.query('UPDATE customers SET stripe_customer_id = $1 WHERE id = $2', [stripeCustomer.id, custRow.rows[0].id]);
+    }
+
+    // Create confirmed payment intent with customer_balance
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: totalCents,
+      currency: 'usd',
+      customer: stripeCustomer.id,
+      payment_method_types: ['customer_balance'],
+      payment_method_data: { type: 'customer_balance' },
+      payment_method_options: {
+        customer_balance: {
+          funding_type: 'bank_transfer',
+          bank_transfer: { type: 'us_bank_transfer' }
+        }
+      },
+      confirm: true,
+    });
+
+    // Extract bank transfer instructions from next_action
+    const bankInstructions = paymentIntent.next_action
+      && paymentIntent.next_action.display_bank_transfer_instructions
+      ? paymentIntent.next_action.display_bank_transfer_instructions
+      : null;
+
+    res.json({
+      paymentIntentId: paymentIntent.id,
+      bankInstructions,
+      amount: total,
+      shipping: shippingCost,
+      shipping_method: shippingMethod,
+      discount_amount: discountAmount,
+      promo_code: promoCodeStr,
+      tax_rate: taxRate,
+      tax_amount: taxAmount,
+    });
+  } catch (err) {
+    console.error('Bank transfer intent error:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// Update PaymentIntent shipping with full customer details (for Affirm redirect)
+app.post('/api/checkout/update-payment-intent-shipping', async (req, res) => {
+  try {
+    const { payment_intent_id, shipping } = req.body;
+    if (!payment_intent_id || !shipping || !shipping.name) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    await stripe.paymentIntents.update(payment_intent_id, {
+      shipping: {
+        name: shipping.name,
+        address: {
+          line1: shipping.address.line1 || '',
+          line2: shipping.address.line2 || '',
+          city: shipping.address.city || '',
+          state: shipping.address.state || '',
+          postal_code: shipping.address.postal_code || '',
+          country: 'US',
+        },
+      },
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update PI shipping error:', err.message);
+    res.status(500).json({ error: 'Failed to update payment intent shipping' });
   }
 });
 
@@ -3356,7 +4377,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
   try {
     const { session_id, payment_intent_id, customer_name: bodyName, customer_email: bodyEmail, phone: bodyPhone, shipping, delivery_method,
             po_number, project_id, is_tax_exempt, shipping_option_id, residential, liftgate,
-            create_account, account_password, promo_code } = req.body;
+            create_account, account_password, promo_code, payment_method: reqPaymentMethod } = req.body;
 
     // Pre-fill from customer profile if logged in
     const customer_name = bodyName || (req.customer ? (req.customer.first_name + ' ' + req.customer.last_name) : '');
@@ -3376,15 +4397,20 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       }
     }
 
-    // Verify payment succeeded
+    // Verify payment succeeded (bank_transfer uses requires_action until funds arrive)
+    const isBankTransfer = reqPaymentMethod === 'bank_transfer';
     const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
-    if (paymentIntent.status !== 'succeeded') {
+    if (isBankTransfer) {
+      if (paymentIntent.status !== 'requires_action' && paymentIntent.status !== 'succeeded') {
+        return res.status(400).json({ error: 'Bank transfer payment intent is not in the expected state' });
+      }
+    } else if (paymentIntent.status !== 'succeeded') {
       return res.status(400).json({ error: 'Payment has not been completed' });
     }
 
     // Get cart items
     const cartResult = await client.query(`
-      SELECT ci.*, p.name as product_name, p.collection, p.category_id
+      SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id
       FROM cart_items ci
       LEFT JOIN products p ON p.id = ci.product_id
       WHERE ci.session_id = $1
@@ -3461,6 +4487,11 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
 
     await client.query('BEGIN');
 
+    const orderStatus = isBankTransfer ? 'awaiting_payment' : 'confirmed';
+    const amountPaid = isBankTransfer ? '0.00' : total.toFixed(2);
+    const bankInstructions = isBankTransfer ? (req.body.bank_instructions || null) : null;
+    const bankExpiresAt = isBankTransfer ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null;
+
     const orderResult = await client.query(`
       INSERT INTO orders (order_number, session_id, customer_email, customer_name, phone,
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
@@ -3468,18 +4499,18 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         trade_customer_id, po_number, is_tax_exempt, project_id,
         shipping_carrier, shipping_transit_days, shipping_residential, shipping_liftgate, shipping_is_fallback,
         customer_id, promo_code_id, promo_code, discount_amount, amount_paid,
-        tax_rate, tax_amount)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'confirmed', $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
+        tax_rate, tax_amount, payment_method, bank_transfer_instructions, bank_transfer_expires_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37)
       RETURNING *
     `, [orderNumber, session_id, customer_email, customer_name, phone || null,
         isPickup ? null : shipping.line1, isPickup ? null : (shipping.line2 || null),
         isPickup ? null : shipping.city, isPickup ? null : shipping.state, isPickup ? null : shipping.zip,
         productSubtotal.toFixed(2), shippingCost.toFixed(2), shippingMethod, sampleShipping.toFixed(2), total.toFixed(2),
-        payment_intent_id, isPickup ? 'pickup' : 'shipping',
+        payment_intent_id, isPickup ? 'pickup' : 'shipping', orderStatus,
         tradeCustomerId, po_number || null, is_tax_exempt || false, project_id || null,
         selectedCarrier, selectedTransitDays, isResidential, isLiftgate, isFallback,
-        existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2), total.toFixed(2),
-        taxRate, taxAmount.toFixed(2)]);
+        existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2), amountPaid,
+        taxRate, taxAmount.toFixed(2), reqPaymentMethod || 'stripe', bankInstructions ? JSON.stringify(bankInstructions) : null, bankExpiresAt]);
 
     const order = orderResult.rows[0];
 
@@ -3497,11 +4528,15 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     }
 
     // Record initial charge in order_payments ledger
+    const paymentStatus = isBankTransfer ? 'pending' : 'completed';
+    const paymentDesc = isBankTransfer ? 'Bank transfer payment (awaiting funds)' : 'Original payment';
     const opResult = await client.query(`
       INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status)
-      VALUES ($1, 'charge', $2, $3, 'Original payment', 'completed') RETURNING id
-    `, [order.id, total.toFixed(2), payment_intent_id]);
-    await syncOrderPaymentToInvoice(opResult.rows[0].id, order.id, client);
+      VALUES ($1, 'charge', $2, $3, $4, $5) RETURNING id
+    `, [order.id, total.toFixed(2), payment_intent_id, paymentDesc, paymentStatus]);
+    if (!isBankTransfer) {
+      await syncOrderPaymentToInvoice(opResult.rows[0].id, order.id, client);
+    }
 
     // Record promo code usage
     if (promoCodeId && discountAmount > 0) {
@@ -3545,8 +4580,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       }
     }
 
-    // Generate purchase orders (one per vendor) — only for product items
-    if (productItems.length > 0) {
+    // Generate purchase orders (one per vendor) — only for product items (skip for bank transfer until payment arrives)
+    if (productItems.length > 0 && !isBankTransfer) {
       await generatePurchaseOrders(order.id, client);
     }
 
@@ -3601,7 +4636,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         if (item.sku_id) {
           const sRes = await client.query(`
             SELECT s.variant_name, s.product_id,
-              p.name as product_name, p.collection,
+              COALESCE(p.display_name, p.name) as product_name, p.collection,
               (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
             FROM skus s
             JOIN products p ON p.id = s.product_id
@@ -3662,6 +4697,9 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     // Return order with items (include customer token if account was created)
     const orderItems = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
     const response = { order: { ...order, items: orderItems.rows }, sample_request: sampleRequest || null };
+    if (isBankTransfer && bankInstructions) {
+      response.bank_instructions = bankInstructions;
+    }
     if (newCustomerToken && newCustomerData) {
       response.customer_token = newCustomerToken;
       response.customer = newCustomerData;
@@ -3671,9 +4709,15 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     // Recalculate commission for storefront order (if rep assigned)
     setImmediate(() => recalculateCommission(pool, order.id));
 
-    // Fire-and-forget: send order confirmation email (only if there are product items)
+    // Fire-and-forget: send order email
     const emailOrder = { ...order, items: orderItems.rows };
-    setImmediate(() => sendOrderConfirmation(emailOrder));
+    if (isBankTransfer) {
+      // Send "awaiting payment" email with bank instructions
+      setImmediate(() => sendBankTransferAwaitingEmail(emailOrder, bankInstructions));
+    } else {
+      // Send standard order confirmation
+      setImmediate(() => sendOrderConfirmation(emailOrder));
+    }
 
     // Fire-and-forget: send sample request confirmation email
     if (sampleRequest && customer_email) {
@@ -3690,10 +4734,9 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     }
 
     // Fire-and-forget: notify all active reps about new storefront order
-    setImmediate(() => notifyAllActiveReps(pool, 'new_order',
-      'New Order ' + order.order_number,
-      order.customer_name + ' placed order ' + order.order_number + ' ($' + parseFloat(order.total).toFixed(2) + ')',
-      'order', order.id));
+    const repNotifTitle = isBankTransfer ? 'New Bank Transfer Order ' + order.order_number : 'New Order ' + order.order_number;
+    const repNotifBody = order.customer_name + ' placed order ' + order.order_number + ' ($' + parseFloat(order.total).toFixed(2) + ')' + (isBankTransfer ? ' — awaiting bank transfer' : '');
+    setImmediate(() => notifyAllActiveReps(pool, 'new_order', repNotifTitle, repNotifBody, 'order', order.id));
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -3716,6 +4759,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
 app.post('/api/admin/search/rebuild', staffAuth, requireRole('admin'), async (req, res) => {
   try {
     await pool.query('SELECT refresh_search_vectors()');
+    clearSearchCaches();
     res.json({ success: true, message: 'Search vectors rebuilt' });
   } catch (err) {
     console.error('Search rebuild error:', err);
@@ -3811,7 +4855,7 @@ app.get('/api/admin/analytics', staffAuth, requireRole('admin', 'manager'), asyn
 
       // 4. Top 10 products by revenue
       pool.query(`
-        SELECT oi.product_id, COALESCE(p.name, oi.product_name) as name,
+        SELECT oi.product_id, COALESCE(p.display_name, p.name, oi.product_name) as name,
                COALESCE(SUM(oi.subtotal), 0) as revenue,
                COALESCE(SUM(oi.num_boxes), 0)::int as units_sold
         FROM order_items oi
@@ -4095,16 +5139,238 @@ app.get('/api/admin/site-analytics/realtime', staffAuth, requireRole('admin', 'm
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
+// ==================== Data Quality ====================
+
+app.get('/api/admin/data-quality/summary', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const [overallRes, vendorRes, issuesRes, govRes] = await Promise.all([
+      // Overall score distribution
+      pool.query(`
+        SELECT
+          COUNT(*)::int as total_skus,
+          COUNT(*) FILTER (WHERE quality_score >= 80)::int as good,
+          COUNT(*) FILTER (WHERE quality_score BETWEEN 50 AND 79)::int as fair,
+          COUNT(*) FILTER (WHERE quality_score < 50)::int as poor,
+          ROUND(AVG(quality_score))::int as avg_score,
+          COUNT(*) FILTER (WHERE has_image = 0)::int as missing_image,
+          COUNT(*) FILTER (WHERE has_cost = 0)::int as missing_cost,
+          COUNT(*) FILTER (WHERE has_retail = 0)::int as missing_retail,
+          COUNT(*) FILTER (WHERE has_packaging = 0)::int as missing_packaging,
+          COUNT(*) FILTER (WHERE has_description = 0)::int as missing_description,
+          COUNT(*) FILTER (WHERE has_color = 0)::int as missing_color,
+          COUNT(*) FILTER (WHERE missing_required_attrs > 0)::int as missing_governance
+        FROM sku_quality_scores
+      `),
+      // Per-vendor breakdown
+      pool.query(`
+        SELECT vendor_name, vendor_code,
+          COUNT(*)::int as total,
+          ROUND(AVG(quality_score))::int as avg_score,
+          COUNT(*) FILTER (WHERE quality_score >= 80)::int as good,
+          COUNT(*) FILTER (WHERE quality_score BETWEEN 50 AND 79)::int as fair,
+          COUNT(*) FILTER (WHERE quality_score < 50)::int as poor,
+          COUNT(*) FILTER (WHERE has_image = 0)::int as no_image,
+          COUNT(*) FILTER (WHERE has_cost = 0)::int as no_cost,
+          COUNT(*) FILTER (WHERE has_retail = 0)::int as no_retail,
+          COUNT(*) FILTER (WHERE has_color = 0)::int as no_color
+        FROM sku_quality_scores
+        GROUP BY vendor_name, vendor_code
+        ORDER BY avg_score ASC
+      `),
+      // Lowest scoring SKUs
+      pool.query(`
+        SELECT sku_id, internal_sku, vendor_sku, product_name, collection, vendor_name,
+          category_name, quality_score, has_image, has_cost, has_retail, has_packaging,
+          has_description, has_attributes, has_color, missing_required_attrs, total_required_attrs
+        FROM sku_quality_scores
+        ORDER BY quality_score ASC, vendor_name
+        LIMIT 50
+      `),
+      // Governance gaps by category
+      pool.query(`
+        SELECT category_name, category_slug,
+          COUNT(*)::int as total_skus,
+          SUM(missing_required_attrs)::int as total_missing,
+          ROUND(AVG(CASE WHEN total_required_attrs > 0
+            THEN (1.0 - missing_required_attrs::float / total_required_attrs) * 100
+            ELSE 100 END))::int as attr_completeness
+        FROM sku_quality_scores
+        WHERE total_required_attrs > 0
+        GROUP BY category_name, category_slug
+        ORDER BY attr_completeness ASC
+      `)
+    ]);
+
+    res.json({
+      overall: overallRes.rows[0],
+      vendors: vendorRes.rows,
+      worst_skus: issuesRes.rows,
+      governance: govRes.rows
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.post('/api/admin/data-quality/refresh', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    await pool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY sku_quality_scores');
+    res.json({ success: true, refreshed_at: new Date().toISOString() });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// ==================== AI Enrichment Endpoints ====================
+
+// Status dashboard: gap counts + recent jobs
+app.get('/api/admin/enrichment/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const [descGap, attrGap, catGap, imgGap, recentJobs, costSummary] = await Promise.all([
+      pool.query(`SELECT COUNT(*)::int as cnt FROM products WHERE status = 'active' AND (description_long IS NULL OR LENGTH(description_long) < 20)`),
+      pool.query(`SELECT COUNT(DISTINCT s.id)::int as cnt
+        FROM skus s JOIN products p ON p.id = s.product_id LEFT JOIN categories c ON c.id = p.category_id
+        WHERE s.status = 'active' AND p.status = 'active' AND c.slug IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM category_required_attributes cra
+          WHERE cra.category_slug = c.slug AND cra.is_required = true
+          AND NOT EXISTS (SELECT 1 FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = cra.attribute_slug)
+        )`),
+      pool.query(`SELECT COUNT(*)::int as cnt FROM products WHERE status = 'active' AND category_id IS NULL`),
+      pool.query(`SELECT COUNT(*)::int as cnt FROM media_assets ma JOIN products p ON p.id = ma.product_id WHERE ma.asset_type = 'primary' AND ma.sort_order > 0 AND p.status = 'active'`),
+      pool.query(`SELECT id, job_type, status, total_items, processed_items, updated_items, skipped_items, failed_items, prompt_tokens_used, completion_tokens_used, estimated_cost_usd, triggered_by, started_at, completed_at, created_at FROM enrichment_jobs ORDER BY created_at DESC LIMIT 20`),
+      pool.query(`SELECT job_type, COUNT(*)::int as runs, SUM(prompt_tokens_used)::int as total_prompt_tokens, SUM(completion_tokens_used)::int as total_completion_tokens, SUM(estimated_cost_usd)::numeric as total_cost, SUM(updated_items)::int as total_updated FROM enrichment_jobs WHERE status = 'completed' GROUP BY job_type`),
+    ]);
+
+    res.json({
+      gaps: {
+        missing_descriptions: descGap.rows[0].cnt,
+        missing_attributes: attrGap.rows[0].cnt,
+        uncategorized: catGap.rows[0].cnt,
+        unclassified_images: imgGap.rows[0].cnt,
+      },
+      recent_jobs: recentJobs.rows,
+      cost_summary: costSummary.rows,
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Start enrichment job
+app.post('/api/admin/enrichment/run', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { job_type, scope } = req.body;
+    const validTypes = ['descriptions', 'attributes', 'categorization', 'image_classification'];
+    if (!validTypes.includes(job_type)) return res.status(400).json({ error: 'Invalid job_type' });
+
+    if (!process.env.OPENAI_API_KEY) return res.status(400).json({ error: 'OPENAI_API_KEY not configured' });
+
+    const { rows } = await pool.query(
+      `INSERT INTO enrichment_jobs (job_type, scope, triggered_by, status)
+       VALUES ($1, $2, 'manual', 'pending') RETURNING *`,
+      [job_type, JSON.stringify(scope || {})]
+    );
+    const job = rows[0];
+
+    // Run async in background
+    const { runEnrichmentJob } = await import('./services/aiEnrichment.js');
+    runEnrichmentJob(pool, job.id).catch(err =>
+      console.error(`[Enrichment] Job ${job.id} failed:`, err.message)
+    );
+
+    res.json(job);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Job detail + results
+app.get('/api/admin/enrichment/jobs/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { rows: jobs } = await pool.query('SELECT * FROM enrichment_jobs WHERE id = $1', [req.params.id]);
+    if (!jobs.length) return res.status(404).json({ error: 'Job not found' });
+
+    const { rows: results } = await pool.query(
+      `SELECT * FROM enrichment_results WHERE enrichment_job_id = $1 ORDER BY created_at DESC LIMIT 200`,
+      [req.params.id]
+    );
+
+    res.json({ ...jobs[0], results });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Pending review items
+app.get('/api/admin/enrichment/review', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT er.*, ej.job_type,
+        CASE WHEN er.entity_type = 'product' THEN (SELECT p.name FROM products p WHERE p.id = er.entity_id)
+             WHEN er.entity_type = 'sku' THEN (SELECT s.vendor_sku FROM skus s WHERE s.id = er.entity_id)
+             ELSE NULL END as entity_name,
+        CASE WHEN er.entity_type = 'product' THEN (SELECT p.collection FROM products p WHERE p.id = er.entity_id)
+             ELSE NULL END as entity_collection
+      FROM enrichment_results er
+      JOIN enrichment_jobs ej ON ej.id = er.enrichment_job_id
+      WHERE er.status = 'pending_review'
+      ORDER BY er.created_at DESC
+      LIMIT 200
+    `);
+    res.json(rows);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Approve/reject review item
+app.post('/api/admin/enrichment/review/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { action } = req.body;
+    if (!['approve', 'reject'].includes(action)) return res.status(400).json({ error: 'Invalid action' });
+
+    const { rows } = await pool.query('SELECT * FROM enrichment_results WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Result not found' });
+    const result = rows[0];
+
+    if (result.status !== 'pending_review') return res.status(400).json({ error: 'Not pending review' });
+
+    if (action === 'approve' && result.field_name === 'category_id') {
+      // Apply the categorization
+      await pool.query(
+        `UPDATE products SET category_id = (SELECT id FROM categories WHERE slug = $2),
+                updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1 AND category_id IS NULL
+           AND EXISTS (SELECT 1 FROM categories WHERE slug = $2)`,
+        [result.entity_id, result.new_value]
+      );
+    }
+
+    await pool.query(
+      `UPDATE enrichment_results SET status = $2 WHERE id = $1`,
+      [req.params.id, action === 'approve' ? 'applied' : 'rejected']
+    );
+
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Cancel running job
+app.post('/api/admin/enrichment/cancel/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { cancelEnrichmentJob } = await import('./services/aiEnrichment.js');
+    const cancelled = cancelEnrichmentJob(req.params.id);
+    if (cancelled) {
+      await pool.query(`UPDATE enrichment_jobs SET status = 'cancelled', completed_at = CURRENT_TIMESTAMP WHERE id = $1`, [req.params.id]);
+      res.json({ success: true });
+    } else {
+      // Job may have already finished
+      await pool.query(`UPDATE enrichment_jobs SET status = 'cancelled', completed_at = CURRENT_TIMESTAMP WHERE id = $1 AND status IN ('pending', 'running')`, [req.params.id]);
+      res.json({ success: true, note: 'Job was not actively running' });
+    }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 // List all products (admin view - any status)
 app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
     const offset = Math.max(parseInt(req.query.offset) || 0, 0);
-    const { search, vendor_id, category_id, status, sort, sort_dir } = req.query;
+    const { search, vendor_id, category_id, status, sort, sort_dir, quality, missing } = req.query;
 
     const conditions = [];
     const params = [];
     let paramIdx = 1;
+    let needQualityJoin = false;
 
     if (search) {
       conditions.push(`(p.name ILIKE $${paramIdx} OR p.collection ILIKE $${paramIdx} OR (p.collection || ' ' || p.name) ILIKE $${paramIdx})`);
@@ -4126,10 +5392,38 @@ app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async
       params.push(status);
       paramIdx++;
     }
+    // Quality score filter: good (80+), fair (50-79), poor (<50)
+    if (quality === 'good' || quality === 'fair' || quality === 'poor') {
+      needQualityJoin = true;
+      if (quality === 'good') conditions.push(`qs.avg_quality >= 80`);
+      else if (quality === 'fair') conditions.push(`qs.avg_quality >= 50 AND qs.avg_quality < 80`);
+      else conditions.push(`qs.avg_quality < 50`);
+    }
+    // Missing data filter: no_image, no_price, no_color, no_category, no_description
+    if (missing === 'no_image') {
+      needQualityJoin = true;
+      conditions.push(`qs.has_image = 0`);
+    } else if (missing === 'no_price') {
+      needQualityJoin = true;
+      conditions.push(`qs.has_retail = 0`);
+    } else if (missing === 'no_color') {
+      needQualityJoin = true;
+      conditions.push(`qs.has_color = 0`);
+    } else if (missing === 'no_category') {
+      conditions.push(`p.category_id IS NULL`);
+    } else if (missing === 'no_description') {
+      conditions.push(`(p.description_short IS NULL OR p.description_short = '')`);
+    }
 
     const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
-    const allowedSorts = { name: 'p.name', vendor: 'v.name', category: 'c.name', price: 'price', skus: 'sku_count', status: 'p.status', created: 'p.created_at' };
+    const qualityJoin = needQualityJoin
+      ? `LEFT JOIN (SELECT product_id, ROUND(AVG(quality_score))::int as avg_quality,
+           MIN(has_image) as has_image, MIN(has_retail) as has_retail, MIN(has_color) as has_color
+           FROM sku_quality_scores GROUP BY product_id) qs ON qs.product_id = p.id`
+      : '';
+
+    const allowedSorts = { name: 'p.name', vendor: 'v.name', category: 'c.name', price: 'price', skus: 'sku_count', status: 'p.status', created: 'p.created_at', quality: 'avg_quality' };
     const orderCol = allowedSorts[sort] || 'p.created_at';
     const orderDir = sort_dir === 'asc' ? 'ASC' : 'DESC';
 
@@ -4137,6 +5431,7 @@ app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async
       `SELECT COUNT(*)::int as total FROM products p
        LEFT JOIN vendors v ON v.id = p.vendor_id
        LEFT JOIN categories c ON c.id = p.category_id
+       ${qualityJoin}
        ${whereClause}`, params
     );
 
@@ -4149,10 +5444,16 @@ app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async
         (SELECT ma.url FROM media_assets ma
          WHERE ma.product_id = p.id AND ma.asset_type != 'spec_pdf'
          ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
-           CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image
+           CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image,
+        (SELECT ROUND(AVG(qs2.quality_score))::int FROM sku_quality_scores qs2 WHERE qs2.product_id = p.id) as quality_score,
+        (SELECT json_build_object(
+           'has_image', MIN(qs3.has_image), 'has_cost', MIN(qs3.has_cost), 'has_retail', MIN(qs3.has_retail),
+           'has_color', MIN(qs3.has_color), 'has_description', MIN(qs3.has_description), 'has_packaging', MIN(qs3.has_packaging)
+         ) FROM sku_quality_scores qs3 WHERE qs3.product_id = p.id) as quality_flags
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN categories c ON c.id = p.category_id
+      ${qualityJoin}
       ${whereClause}
       ORDER BY ${orderCol} ${orderDir} NULLS LAST
       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
@@ -4171,10 +5472,60 @@ app.patch('/api/admin/products/bulk/status', staffAuth, requireRole('admin', 'ma
     const { ids, status } = req.body;
     if (!ids || !ids.length) return res.status(400).json({ error: 'ids array is required' });
     if (!['active', 'draft', 'discontinued'].includes(status)) return res.status(400).json({ error: 'status must be active, draft, or discontinued' });
+
+    // Activation guard: check products are ready before setting to 'active'
+    if (status === 'active') {
+      const guardResult = await pool.query(`
+        SELECT p.id,
+          COALESCE(p.display_name, p.name) as name,
+          v.name as vendor_name,
+          (SELECT COUNT(*) FROM skus s WHERE s.product_id = p.id AND s.status = 'active') as sku_count,
+          p.category_id,
+          EXISTS (SELECT 1 FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary') as has_image,
+          (SELECT ROUND(AVG(qs.quality_score))::int FROM sku_quality_scores qs WHERE qs.product_id = p.id) as quality_score
+        FROM products p
+        LEFT JOIN vendors v ON v.id = p.vendor_id
+        WHERE p.id = ANY($1)
+      `, [ids]);
+
+      const blocked = [];
+      const warnings = [];
+      for (const p of guardResult.rows) {
+        const issues = [];
+        if (parseInt(p.sku_count) === 0) issues.push('no active SKUs');
+        if (!p.category_id) issues.push('no category');
+        if (!p.has_image) issues.push('no image');
+        if (p.quality_score != null && p.quality_score < 50) issues.push(`quality score ${p.quality_score} (min 50)`);
+        if (issues.length > 0) blocked.push({ ...p, issues });
+        else if (p.quality_score != null && p.quality_score < 70) {
+          warnings.push(`${p.name}: quality score ${p.quality_score}`);
+        }
+      }
+      if (blocked.length > 0) {
+        const reasons = blocked.slice(0, 5).map(p => `${p.name}: ${p.issues.join(', ')}`);
+        return res.status(400).json({
+          error: `${blocked.length} product(s) cannot be activated`,
+          details: reasons,
+          blocked_ids: blocked.map(p => p.id)
+        });
+      }
+      // Quality warnings (non-blocking) — included in response
+      if (warnings.length > 0) {
+        // Still allow activation but return warnings
+        const result = await pool.query(
+          'UPDATE products SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = ANY($2) RETURNING id',
+          [status, ids]
+        );
+        clearSearchCaches();
+        return res.json({ updated: result.rowCount, quality_warnings: warnings });
+      }
+    }
+
     const result = await pool.query(
       'UPDATE products SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = ANY($2) RETURNING id',
       [status, ids]
     );
+    clearSearchCaches();
     res.json({ updated: result.rowCount });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -4190,6 +5541,7 @@ app.patch('/api/admin/products/bulk/category', staffAuth, requireRole('admin', '
       'UPDATE products SET category_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = ANY($2) RETURNING id',
       [category_id || null, ids]
     );
+    clearSearchCaches();
     res.json({ updated: result.rowCount });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -4283,6 +5635,93 @@ app.get('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
   }
 });
 
+// ==================== Product Tags ====================
+
+// Get all tag definitions grouped by category
+app.get('/api/admin/tags', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, slug, name, category, icon, display_order FROM tag_definitions ORDER BY category, display_order');
+    const grouped = {};
+    for (const row of result.rows) {
+      if (!grouped[row.category]) grouped[row.category] = [];
+      grouped[row.category].push(row);
+    }
+    res.json({ tags: result.rows, grouped });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get tags for a specific product
+app.get('/api/admin/products/:id/tags', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query('SELECT tag_id FROM product_tags WHERE product_id = $1', [req.params.id]);
+    res.json({ tag_ids: result.rows.map(r => r.tag_id) });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Set tags for a product (replace all)
+app.put('/api/admin/products/:id/tags', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tag_ids } = req.body;
+    if (!Array.isArray(tag_ids)) return res.status(400).json({ error: 'tag_ids must be an array' });
+
+    await pool.query('DELETE FROM product_tags WHERE product_id = $1', [id]);
+    if (tag_ids.length > 0) {
+      const values = tag_ids.map((tid, i) => `($1, $${i + 2})`).join(',');
+      await pool.query(`INSERT INTO product_tags (product_id, tag_id) VALUES ${values} ON CONFLICT DO NOTHING`, [id, ...tag_ids]);
+    }
+
+    // Refresh search vector for this product
+    await pool.query('SELECT refresh_search_vectors($1)', [id]);
+    clearSearchCaches();
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Bulk add/remove tags for multiple products
+app.patch('/api/admin/products/bulk/tags', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { product_ids, add_tag_ids, remove_tag_ids } = req.body;
+    if (!Array.isArray(product_ids) || product_ids.length === 0) return res.status(400).json({ error: 'product_ids required' });
+
+    // Remove tags
+    if (Array.isArray(remove_tag_ids) && remove_tag_ids.length > 0) {
+      await pool.query('DELETE FROM product_tags WHERE product_id = ANY($1) AND tag_id = ANY($2)', [product_ids, remove_tag_ids]);
+    }
+
+    // Add tags
+    if (Array.isArray(add_tag_ids) && add_tag_ids.length > 0) {
+      const rows = [];
+      const params = [];
+      let idx = 1;
+      for (const pid of product_ids) {
+        for (const tid of add_tag_ids) {
+          rows.push(`($${idx++}, $${idx++})`);
+          params.push(pid, tid);
+        }
+      }
+      await pool.query(`INSERT INTO product_tags (product_id, tag_id) VALUES ${rows.join(',')} ON CONFLICT DO NOTHING`, params);
+    }
+
+    // Refresh search vectors for affected products
+    for (const pid of product_ids) {
+      await pool.query('SELECT refresh_search_vectors($1)', [pid]);
+    }
+    clearSearchCaches();
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Create product
 app.post('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
@@ -4307,6 +5746,28 @@ app.put('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
     const { id } = req.params;
     const { name, collection, vendor_id, category_id, status, description_short, description_long } = req.body;
 
+    // Activation guard: check product is ready before setting to 'active'
+    if (status === 'active') {
+      const current = await pool.query('SELECT status FROM products WHERE id = $1', [id]);
+      if (current.rows.length && current.rows[0].status !== 'active') {
+        const guard = await pool.query(`
+          SELECT
+            (SELECT COUNT(*) FROM skus s WHERE s.product_id = $1 AND s.status = 'active')::int as sku_count,
+            EXISTS (SELECT 1 FROM media_assets ma WHERE ma.product_id = $1 AND ma.asset_type = 'primary') as has_image,
+            (SELECT ROUND(AVG(qs.quality_score))::int FROM sku_quality_scores qs WHERE qs.product_id = $1) as quality_score
+        `, [id]);
+        const g = guard.rows[0];
+        const issues = [];
+        if (g.sku_count === 0) issues.push('no active SKUs');
+        if (!category_id && !(await pool.query('SELECT category_id FROM products WHERE id = $1', [id])).rows[0]?.category_id) issues.push('no category');
+        if (!g.has_image) issues.push('no image');
+        if (g.quality_score != null && g.quality_score < 50) issues.push(`quality score ${g.quality_score} (min 50)`);
+        if (issues.length > 0) {
+          return res.status(400).json({ error: `Cannot activate: ${issues.join(', ')}` });
+        }
+      }
+    }
+
     const result = await pool.query(`
       UPDATE products SET
         name = COALESCE($1, name),
@@ -4322,6 +5783,7 @@ app.put('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
     `, [name, collection, vendor_id, category_id, status, description_short, description_long, id]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Product not found' });
+    clearSearchCaches();
     res.json({ product: result.rows[0] });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -4514,6 +5976,7 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
     `, [id]);
 
     if (!full.rows.length) return res.status(404).json({ error: 'SKU not found' });
+    clearSearchCaches();
     res.json({ sku: full.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -4774,7 +6237,9 @@ app.get('/api/admin/products/:id/media', staffAuth, requireRole('admin', 'manage
 app.get('/api/admin/vendors', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT v.*, (SELECT COUNT(*)::int FROM products p WHERE p.vendor_id = v.id) as product_count
+      SELECT v.*,
+        (SELECT COUNT(*)::int FROM products p WHERE p.vendor_id = v.id) as product_count,
+        (SELECT COUNT(*)::int FROM products p WHERE p.vendor_id = v.id AND p.status = 'active') as active_product_count
       FROM vendors v
       ORDER BY v.name
     `);
@@ -4898,6 +6363,208 @@ app.get('/api/admin/vendor-health', staffAuth, requireRole('admin', 'manager'), 
   }
 });
 
+// ========== Scraper Health Monitoring ==========
+async function computeScraperHealth() {
+  const result = await pool.query(`
+    WITH recent_jobs AS (
+      SELECT sj.*, ROW_NUMBER() OVER (PARTITION BY sj.vendor_source_id ORDER BY sj.created_at DESC) AS rn
+      FROM scrape_jobs sj
+    ),
+    job_stats AS (
+      SELECT vendor_source_id,
+        COUNT(*)::int AS total_recent,
+        COUNT(*) FILTER (WHERE status = 'completed')::int AS completed_count,
+        COUNT(*) FILTER (WHERE status = 'failed')::int AS failed_count,
+        MAX(completed_at) FILTER (WHERE status = 'completed') AS last_success_at
+      FROM recent_jobs WHERE rn <= 5
+      GROUP BY vendor_source_id
+    ),
+    last_completed AS (
+      SELECT DISTINCT ON (vendor_source_id) vendor_source_id, products_found AS last_products_found
+      FROM recent_jobs WHERE status = 'completed' ORDER BY vendor_source_id, rn
+    ),
+    prev_completed AS (
+      SELECT DISTINCT ON (vendor_source_id) vendor_source_id, products_found AS prev_products_found
+      FROM recent_jobs WHERE status = 'completed' AND rn >= 2 ORDER BY vendor_source_id, rn
+    )
+    SELECT vs.id AS source_id, vs.name AS source_name, vs.scraper_key, vs.schedule,
+      vs.is_active, vs.last_scraped_at, v.id AS vendor_id, v.name AS vendor_name,
+      COALESCE(dq.total_products, 0)::int AS total_products,
+      COALESCE(dq.active_products, 0)::int AS active_products,
+      COALESCE(dq.total_skus, 0)::int AS total_skus,
+      COALESCE(dq.skus_with_images, 0)::int AS skus_with_images,
+      COALESCE(dq.skus_with_pricing, 0)::int AS skus_with_pricing,
+      COALESCE(dq.skus_zero_retail, 0)::int AS skus_zero_retail,
+      js.total_recent, js.completed_count, js.failed_count, js.last_success_at,
+      lc.last_products_found, pc.prev_products_found
+    FROM vendor_sources vs
+    JOIN vendors v ON v.id = vs.vendor_id
+    LEFT JOIN LATERAL (
+      SELECT
+        (SELECT COUNT(*)::int FROM products WHERE vendor_id = v.id) AS total_products,
+        (SELECT COUNT(*)::int FROM products WHERE vendor_id = v.id AND status = 'active') AS active_products,
+        (SELECT COUNT(*)::int FROM skus s JOIN products p ON s.product_id = p.id WHERE p.vendor_id = v.id) AS total_skus,
+        (SELECT COUNT(DISTINCT s.id)::int FROM skus s JOIN products p ON s.product_id = p.id
+         WHERE p.vendor_id = v.id AND EXISTS (
+           SELECT 1 FROM media_assets ma WHERE (ma.sku_id = s.id OR (ma.product_id = p.id AND ma.sku_id IS NULL)) AND ma.asset_type = 'primary'
+         )) AS skus_with_images,
+        (SELECT COUNT(*)::int FROM pricing pr JOIN skus s ON pr.sku_id = s.id JOIN products p ON s.product_id = p.id WHERE p.vendor_id = v.id) AS skus_with_pricing,
+        (SELECT COUNT(*)::int FROM pricing pr JOIN skus s ON pr.sku_id = s.id JOIN products p ON s.product_id = p.id
+         WHERE p.vendor_id = v.id AND pr.retail_price IS NOT NULL AND pr.retail_price = 0) AS skus_zero_retail
+    ) dq ON true
+    LEFT JOIN job_stats js ON js.vendor_source_id = vs.id
+    LEFT JOIN last_completed lc ON lc.vendor_source_id = vs.id
+    LEFT JOIN prev_completed pc ON pc.vendor_source_id = vs.id
+    WHERE vs.is_active = true
+    ORDER BY v.name, vs.name
+  `);
+
+  const scheduleLabel = (s) => {
+    if (!s) return 'Manual';
+    if (s === '0 0 * * 0') return 'Weekly';
+    if (s === '0 0 * * *') return 'Daily';
+    if (s === '0 0 1 * *') return 'Monthly';
+    return s;
+  };
+
+  const scheduleHours = (s) => {
+    if (!s) return null;
+    if (s === '0 0 * * 0') return 168;
+    if (s === '0 0 * * *') return 24;
+    if (s === '0 0 1 * *') return 720;
+    // Try to parse simple cron intervals
+    const parts = (s || '').split(' ');
+    if (parts[1] && parts[1].startsWith('*/')) return parseInt(parts[1].slice(2)) || null;
+    return null;
+  };
+
+  const now = new Date();
+  let healthy = 0, warning = 0, critical = 0;
+
+  const sources = result.rows.map(r => {
+    const issues = [];
+    let status = 'healthy';
+
+    // Freshness check
+    const hoursSince = r.last_scraped_at ? (now - new Date(r.last_scraped_at)) / 3600000 : null;
+    let freshness = 'ok';
+    const interval = scheduleHours(r.schedule);
+    if (hoursSince == null) {
+      freshness = 'critical';
+      issues.push('Never scraped');
+    } else if (interval) {
+      if (hoursSince > interval * 4) { freshness = 'critical'; issues.push(`Last scrape ${Math.round(hoursSince)}h ago (expected every ${interval}h)`); }
+      else if (hoursSince > interval * 2) { freshness = 'stale'; issues.push(`Last scrape ${Math.round(hoursSince)}h ago (expected every ${interval}h)`); }
+    } else {
+      if (hoursSince > 336) { freshness = 'critical'; issues.push(`Last scrape ${Math.round(hoursSince / 24)} days ago`); }
+      else if (hoursSince > 168) { freshness = 'stale'; issues.push(`Last scrape ${Math.round(hoursSince / 24)} days ago`); }
+    }
+
+    // Job success rate
+    const totalRecent = r.total_recent || 0;
+    const failedCount = r.failed_count || 0;
+    const completedCount = r.completed_count || 0;
+    const successRate = totalRecent > 0 ? (completedCount / totalRecent * 100) : null;
+    if (totalRecent > 0 && failedCount / totalRecent > 0.5) {
+      issues.push(`${failedCount} of last ${totalRecent} jobs failed (${(failedCount / totalRecent * 100).toFixed(0)}%)`);
+    } else if (totalRecent > 0 && failedCount / totalRecent > 0.2) {
+      issues.push(`${failedCount} of last ${totalRecent} jobs failed`);
+    }
+
+    // Image coverage
+    const activeProducts = r.active_products || 0;
+    const imgCoverage = activeProducts > 0 ? (r.skus_with_images / r.total_skus * 100) : null;
+    if (imgCoverage != null && imgCoverage < 50) {
+      issues.push(`Image coverage below 50% (${imgCoverage.toFixed(1)}%)`);
+    } else if (imgCoverage != null && imgCoverage < 70) {
+      issues.push(`Image coverage below 70% (${imgCoverage.toFixed(1)}%)`);
+    }
+
+    // Zero retail pricing
+    const pricedSkus = r.skus_with_pricing || 0;
+    const zeroRetailPct = pricedSkus > 0 ? (r.skus_zero_retail / pricedSkus * 100) : 0;
+    if (zeroRetailPct > 5) {
+      issues.push(`${zeroRetailPct.toFixed(1)}% of priced SKUs have $0 retail`);
+    }
+
+    // Product count delta
+    const lastFound = r.last_products_found != null ? parseInt(r.last_products_found) : null;
+    const prevFound = r.prev_products_found != null ? parseInt(r.prev_products_found) : null;
+    let delta = null;
+    if (lastFound != null && prevFound != null && prevFound > 0) {
+      const change = lastFound - prevFound;
+      const changePct = (change / prevFound) * 100;
+      delta = { last: lastFound, prev: prevFound, change };
+      if (changePct < -50) {
+        issues.push(`Product count dropped ${Math.abs(changePct).toFixed(0)}% (${prevFound} → ${lastFound})`);
+      } else if (changePct < -20) {
+        issues.push(`Product count dropped ${Math.abs(changePct).toFixed(0)}% (${prevFound} → ${lastFound})`);
+      }
+    }
+
+    // Determine overall status
+    const hasCritical = freshness === 'critical' ||
+      (totalRecent > 0 && failedCount / totalRecent > 0.5) ||
+      (imgCoverage != null && imgCoverage < 50) ||
+      (delta && prevFound > 0 && (delta.change / prevFound) * 100 < -50);
+    const hasWarning = freshness === 'stale' ||
+      (totalRecent > 0 && failedCount / totalRecent > 0.2) ||
+      (imgCoverage != null && imgCoverage < 70) ||
+      zeroRetailPct > 5 ||
+      (delta && prevFound > 0 && (delta.change / prevFound) * 100 < -20);
+
+    if (hasCritical) { status = 'critical'; critical++; }
+    else if (hasWarning) { status = 'warning'; warning++; }
+    else { healthy++; }
+
+    return {
+      source_id: r.source_id,
+      source_name: r.source_name,
+      scraper_key: r.scraper_key,
+      schedule: r.schedule,
+      schedule_label: scheduleLabel(r.schedule),
+      vendor_id: r.vendor_id,
+      vendor_name: r.vendor_name,
+      last_scraped_at: r.last_scraped_at,
+      freshness,
+      hours_since_scrape: hoursSince != null ? Math.round(hoursSince) : null,
+      job_stats: {
+        total_recent: totalRecent,
+        completed: completedCount,
+        failed: failedCount,
+        success_rate: successRate != null ? Math.round(successRate) : null,
+        last_success_at: r.last_success_at
+      },
+      data_quality: {
+        active_products: activeProducts,
+        total_skus: r.total_skus || 0,
+        image_coverage_pct: imgCoverage != null ? Math.round(imgCoverage * 10) / 10 : null,
+        pricing_coverage_pct: r.total_skus > 0 ? Math.round(pricedSkus / r.total_skus * 1000) / 10 : null,
+        zero_retail_pct: Math.round(zeroRetailPct * 10) / 10
+      },
+      delta,
+      status,
+      issues
+    };
+  });
+
+  return {
+    generated_at: now.toISOString(),
+    summary: { total_sources: sources.length, healthy, warning, critical },
+    sources
+  };
+}
+
+app.get('/api/admin/scraper-health', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const healthData = await computeScraperHealth();
+    res.json(healthData);
+  } catch (err) {
+    console.error('[ScraperHealth] Error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Vendor health detail (single vendor)
 app.get('/api/admin/vendor-health/:vendorId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
@@ -4929,7 +6596,7 @@ app.get('/api/admin/vendor-health/:vendorId', staffAuth, requireRole('admin', 'm
 
     // SKUs missing critical data (images, pricing)
     const missingImages = await pool.query(`
-      SELECT s.id, s.internal_sku, s.vendor_sku, p.name as product_name, p.collection
+      SELECT s.id, s.internal_sku, s.vendor_sku, COALESCE(p.display_name, p.name) as product_name, p.collection
       FROM skus s
       JOIN products p ON s.product_id = p.id
       WHERE p.vendor_id = $1 AND NOT EXISTS (
@@ -4942,7 +6609,7 @@ app.get('/api/admin/vendor-health/:vendorId', staffAuth, requireRole('admin', 'm
     `, [vendorId]);
 
     const missingPricing = await pool.query(`
-      SELECT s.id, s.internal_sku, s.vendor_sku, p.name as product_name, p.collection
+      SELECT s.id, s.internal_sku, s.vendor_sku, COALESCE(p.display_name, p.name) as product_name, p.collection
       FROM skus s
       JOIN products p ON s.product_id = p.id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
@@ -4952,7 +6619,7 @@ app.get('/api/admin/vendor-health/:vendorId', staffAuth, requireRole('admin', 'm
     `, [vendorId]);
 
     const missingPackaging = await pool.query(`
-      SELECT s.id, s.internal_sku, s.vendor_sku, p.name as product_name, p.collection
+      SELECT s.id, s.internal_sku, s.vendor_sku, COALESCE(p.display_name, p.name) as product_name, p.collection
       FROM skus s
       JOIN products p ON s.product_id = p.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -5106,7 +6773,7 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
 
     const items = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+      SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
         sa_c.value as color
       FROM order_items oi
@@ -5278,6 +6945,28 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
         'Order ' + updatedOrder.order_number + ' → ' + status,
         'Admin changed status to ' + status,
         'order', id));
+    }
+
+    // Auto-task: post-delivery follow-up when admin marks order delivered
+    if (status === 'delivered') {
+      const assignRepId = updatedOrder.sales_rep_id;
+      setImmediate(async () => {
+        try {
+          let repId = assignRepId;
+          if (!repId) {
+            const fallback = await pool.query('SELECT id FROM sales_reps WHERE is_active = true ORDER BY created_at LIMIT 1');
+            repId = fallback.rows.length ? fallback.rows[0].id : null;
+          }
+          if (repId) {
+            await createAutoTask(pool, repId, 'order_delivered', id,
+              `Post-delivery follow-up — ${updatedOrder.customer_name} (${updatedOrder.order_number})`, {
+                priority: 'low', customer_name: updatedOrder.customer_name,
+                customer_email: updatedOrder.customer_email, customer_phone: updatedOrder.customer_phone,
+                linked_order_id: id
+              });
+          }
+        } catch (err) { console.error('[AutoTask] order_delivered admin error:', err.message); }
+      });
     }
   } catch (err) {
     await client.query('ROLLBACK');
@@ -5500,7 +7189,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     if (!isCustom) {
       // SKU mode: Look up SKU + product + pricing + cost + color
       const skuResult = await client.query(`
-        SELECT s.*, p.name as product_name, p.collection, p.vendor_id,
+        SELECT s.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
           pr.retail_price, pr.price_basis, pr.cost, pr.cut_price, pr.roll_price,
           pk.sqft_per_box, pk.weight_per_box_lbs, pk.roll_width_ft,
           sa_c.value as color
@@ -5664,7 +7353,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     const balanceInfo = await recalculateBalance(id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+      SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
         sa_c.value as color
       FROM order_items oi
@@ -5762,7 +7451,7 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     const balanceInfo = await recalculateBalance(id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+      SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
         sa_c.value as color
       FROM order_items oi
@@ -5885,31 +7574,157 @@ app.post('/api/admin/orders/:id/payment-requests/:reqId/cancel', staffAuth, requ
   }
 });
 
+// Shared SKU search with FTS, SKU fast path, trigram fallback, and images
+async function searchSkus(pool, rawQuery) {
+  const raw = (rawQuery || '').trim();
+  if (!raw || raw.length < 2) return [];
+
+  const normalized = normalizeSearchQuery(raw);
+  const sanitized = normalized.replace(/[^\w\s'.-]/g, '').trim();
+  if (!sanitized) return [];
+
+  const { text: expanded } = expandSynonyms(sanitized);
+  const words = expanded.split(/\s+/).filter(Boolean);
+  const andTsQuery = words.map(w => w + ':*').join(' & ');
+  const orTsQuery = words.map(w => w + ':*').join(' | ');
+  const phraseInput = expanded;
+
+  // Detect SKU-like patterns
+  const isSkuLike = /[a-zA-Z]/.test(sanitized) && /\d/.test(sanitized) && /^[\w.-]+$/.test(sanitized.replace(/\s/g, ''));
+
+  const baseCols = `
+    s.id as sku_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
+    COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
+    v.name as vendor_name,
+    pr.retail_price, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
+    pk.sqft_per_box, pk.roll_width_ft,
+    sa_c.value as color`;
+  const baseJoins = `
+    FROM skus s
+    JOIN products p ON p.id = s.product_id
+    LEFT JOIN vendors v ON v.id = p.vendor_id
+    LEFT JOIN pricing pr ON pr.sku_id = s.id
+    LEFT JOIN packaging pk ON pk.sku_id = s.id
+    LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = s.id
+      AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)`;
+  const imageSelect = `
+    COALESCE(
+      (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'primary' LIMIT 1),
+      (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1),
+      (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type IN ('alternate','lifestyle') LIMIT 1),
+      (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type IN ('alternate','lifestyle') AND sku_id IS NULL LIMIT 1)
+    ) as primary_image`;
+
+  // 1. SKU fast path — direct prefix match on vendor_sku / internal_sku
+  let skuRows = [];
+  if (isSkuLike) {
+    const skuSearch = sanitized.replace(/\s+/g, '');
+    const skuResult = await pool.query(`
+      SELECT ${baseCols}, ${imageSelect}
+      ${baseJoins}
+      WHERE p.status = 'active' AND s.status = 'active'
+        AND (s.vendor_sku ILIKE $1 || '%' OR s.internal_sku ILIKE $1 || '%')
+      ORDER BY CASE WHEN LOWER(s.vendor_sku) = LOWER($1) THEN 0 WHEN LOWER(s.internal_sku) = LOWER($1) THEN 0 ELSE 1 END,
+               s.vendor_sku
+      LIMIT 8
+    `, [skuSearch]);
+    skuRows = skuResult.rows;
+  }
+
+  // 2. FTS path — phrase → AND → OR progressive matching (returns all SKUs, not distinct product)
+  const ftsResult = await pool.query(`
+    WITH phrase_products AS (
+      SELECT p.id,
+        ts_rank(p.search_vector, phraseto_tsquery('english', unaccent($3))) * 4.0 as score
+      FROM products p
+      WHERE p.status = 'active'
+        AND p.search_vector @@ phraseto_tsquery('english', unaccent($3))
+      LIMIT 20
+    ),
+    and_products AS (
+      SELECT p.id,
+        ts_rank(p.search_vector, to_tsquery('english', unaccent($1))) * 2.0 as score
+      FROM products p
+      WHERE p.status = 'active'
+        AND p.search_vector @@ to_tsquery('english', unaccent($1))
+        AND p.id NOT IN (SELECT id FROM phrase_products)
+      LIMIT 20
+    ),
+    or_products AS (
+      SELECT p.id,
+        ts_rank(p.search_vector, to_tsquery('english', unaccent($2))) * 0.5 as score
+      FROM products p
+      WHERE p.status = 'active'
+        AND p.search_vector @@ to_tsquery('english', unaccent($2))
+        AND p.id NOT IN (SELECT id FROM phrase_products)
+        AND p.id NOT IN (SELECT id FROM and_products)
+        AND (SELECT COUNT(*) FROM phrase_products) + (SELECT COUNT(*) FROM and_products) < 20
+      LIMIT 20
+    ),
+    all_matches AS (
+      SELECT * FROM phrase_products
+      UNION ALL SELECT * FROM and_products
+      UNION ALL SELECT * FROM or_products
+    ),
+    ranked AS (
+      SELECT am.id, am.score
+        + CASE WHEN LOWER(p.name) = LOWER($4) OR LOWER(p.collection) = LOWER($4) THEN 5.0 ELSE 0.0 END as final_score
+      FROM all_matches am
+      JOIN products p ON p.id = am.id
+      ORDER BY am.score
+        + CASE WHEN LOWER(p.name) = LOWER($4) OR LOWER(p.collection) = LOWER($4) THEN 5.0 ELSE 0.0 END DESC
+      LIMIT 20
+    )
+    SELECT ${baseCols}, ${imageSelect}, r.final_score
+    ${baseJoins}
+    JOIN ranked r ON r.id = p.id
+    WHERE s.status = 'active'
+    ORDER BY r.final_score DESC, p.name, s.variant_name
+    LIMIT 20
+  `, [andTsQuery, orTsQuery, phraseInput, sanitized]);
+
+  let ftsRows = ftsResult.rows;
+
+  // 3. Trigram fallback if few results
+  if (skuRows.length + ftsRows.length < 8) {
+    const existingIds = [...new Set([...skuRows, ...ftsRows].map(r => r.sku_id))];
+    const trgmResult = await pool.query(`
+      WITH trgm_products AS (
+        SELECT p.id, greatest(similarity(p.name, $1), similarity(p.collection, $1)) as trgm_score
+        FROM products p
+        WHERE p.status = 'active'
+          AND (p.name % $1 OR p.collection % $1)
+        ORDER BY greatest(similarity(p.name, $1), similarity(p.collection, $1)) DESC
+        LIMIT 10
+      )
+      SELECT ${baseCols}, ${imageSelect}, 0::float as final_score
+      ${baseJoins}
+      JOIN trgm_products tp ON tp.id = p.id
+      WHERE s.status = 'active'
+        ${existingIds.length > 0 ? 'AND s.id != ALL($2::uuid[])' : ''}
+      ORDER BY tp.trgm_score DESC, p.name, s.variant_name
+      LIMIT 10
+    `, existingIds.length > 0 ? [sanitized, existingIds] : [sanitized]);
+    ftsRows = ftsRows.concat(trgmResult.rows);
+  }
+
+  // Merge + deduplicate by sku_id, SKU matches first
+  const seen = new Set();
+  const merged = [];
+  for (const row of [...skuRows, ...ftsRows]) {
+    if (!seen.has(row.sku_id)) {
+      seen.add(row.sku_id);
+      merged.push(row);
+    }
+  }
+  return merged.slice(0, 20);
+}
+
 // SKU search for add-item (admin)
 app.get('/api/admin/skus/search', staffAuth, async (req, res) => {
   try {
-    const { q } = req.query;
-    if (!q || q.length < 2) return res.json({ results: [] });
-    const results = await pool.query(`
-      SELECT s.id as sku_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
-        p.name as product_name, p.collection, p.vendor_id,
-        v.name as vendor_name,
-        pr.retail_price, pr.cost, pr.price_basis, pr.cut_price, pr.roll_price,
-        pk.sqft_per_box, pk.roll_width_ft,
-        sa_c.value as color
-      FROM skus s
-      JOIN products p ON p.id = s.product_id
-      LEFT JOIN vendors v ON v.id = p.vendor_id
-      LEFT JOIN pricing pr ON pr.sku_id = s.id
-      LEFT JOIN packaging pk ON pk.sku_id = s.id
-      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = s.id
-        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
-      WHERE p.status = 'active' AND s.status = 'active'
-        AND (p.name ILIKE $1 OR s.internal_sku ILIKE $1 OR s.vendor_sku ILIKE $1 OR s.variant_name ILIKE $1 OR p.collection ILIKE $1 OR (p.collection || ' ' || p.name) ILIKE $1)
-      ORDER BY p.name, s.variant_name
-      LIMIT 15
-    `, ['%' + q + '%']);
-    res.json({ results: results.rows });
+    const results = await searchSkus(pool, req.query.q);
+    res.json({ results });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -6110,6 +7925,30 @@ app.post('/api/admin/import/validate', staffAuth, requireRole('admin', 'manager'
           }
         }
       }
+
+      // PIM enum validation
+      const VALID_SELL_BY = ['sqft', 'unit', 'sqyd'];
+      const VALID_VARIANT_TYPES = ['accessory', 'floor_tile', 'wall_tile', 'mosaic', 'lvt', 'quarry_tile', 'stone_tile', 'floor_deco'];
+      const VALID_PRICE_BASIS = ['per_sqft', 'per_unit', 'per_sqyd', 'sqft', 'unit'];
+
+      if (mapped.sell_by && mapped.sell_by !== '' && !VALID_SELL_BY.includes(mapped.sell_by)) {
+        errors.push('sell_by: must be one of: ' + VALID_SELL_BY.join(', '));
+      }
+      if (mapped.variant_type && mapped.variant_type !== '' && !VALID_VARIANT_TYPES.includes(mapped.variant_type)) {
+        errors.push('variant_type: must be one of: ' + VALID_VARIANT_TYPES.join(', '));
+      }
+      if (mapped.price_basis && mapped.price_basis !== '' && !VALID_PRICE_BASIS.includes(mapped.price_basis)) {
+        errors.push('price_basis: must be one of: ' + VALID_PRICE_BASIS.join(', '));
+      }
+
+      // Price sanity checks
+      const costVal = mapped.cost ? parseFloat(String(mapped.cost).replace(/[$,]/g, '')) : null;
+      const retailVal = mapped.retail_price ? parseFloat(String(mapped.retail_price).replace(/[$,]/g, '')) : null;
+      if (costVal != null && !isNaN(costVal) && costVal < 0) errors.push('cost: cannot be negative');
+      if (retailVal != null && !isNaN(retailVal) && retailVal < 0) errors.push('retail_price: cannot be negative');
+      if (costVal > 0 && retailVal > 0 && costVal > retailVal) errors.push('Warning: cost ($' + costVal.toFixed(2) + ') > retail ($' + retailVal.toFixed(2) + ') — negative margin');
+      if (costVal > 500) errors.push('Warning: unusually high cost ($' + costVal.toFixed(2) + ')');
+      if (retailVal > 1000) errors.push('Warning: unusually high retail ($' + retailVal.toFixed(2) + ')');
 
       const status = errors.length > 0 ? 'error' : 'valid';
       if (status === 'valid') validCount++;
@@ -6330,13 +8169,13 @@ app.delete('/api/admin/import/templates/:id', staffAuth, requireRole('admin', 'm
 
 // Scrapers that launch a Puppeteer browser (high memory — need concurrency limits)
 const BROWSER_SCRAPERS = new Set([
-  'msi', 'bed', 'tradepro-pricebooks', 'tradepro-inventory', 'bosphorus-inventory',
+  'msi', 'bed', 'goton', 'tradepro-pricebooks', 'tradepro-inventory', 'bosphorus-inventory',
   'triwest-inventory',
   'triwest-provenza', 'triwest-paradigm', 'triwest-quickstep', 'triwest-armstrong',
   'triwest-metroflor', 'triwest-mirage', 'triwest-grandpacific',
   'triwest-bravada', 'triwest-hartco', 'triwest-truetouch',
   'triwest-ahf', 'triwest-flexco', 'triwest-shaw', 'triwest-stanton',
-  'triwest-bruce', 'triwest-congoleum', 'triwest-kraus', 'triwest-sika',
+  'triwest-bruce', 'triwest-congoleum', 'triwest-kraus',
   'triwest-tec', 'triwest-bosphorus',
   'triwest-babool', 'triwest-elysium', 'triwest-forester', 'triwest-hardwoodsspecialty',
   'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit',
@@ -6352,6 +8191,7 @@ const ENRICHMENT_SCRAPERS = new Set([
   'triwest-tec', 'triwest-bosphorus',
   'triwest-babool', 'triwest-elysium', 'triwest-forester', 'triwest-hardwoodsspecialty',
   'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit',
+  'lowes-mapei',
 ]);
 
 // Concurrency control — two separate pools:
@@ -6487,6 +8327,31 @@ async function runScraper(source, configOverride = null) {
       await pool.query(`
         UPDATE vendor_sources SET last_scraped_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1
       `, [source.id]);
+
+      // Post-scrape quality check: compute avg quality + warning count for affected vendor
+      try {
+        const qualityResult = await pool.query(`
+          SELECT ROUND(AVG(qs.quality_score))::int as avg_quality, COUNT(*)::int as skus_affected
+          FROM sku_quality_scores qs
+          JOIN vendors v ON v.code = qs.vendor_code
+          JOIN vendor_sources vs ON vs.vendor_id = v.id
+          WHERE vs.id = $1
+        `, [source.id]);
+        const warningResult = await pool.query(`
+          SELECT (regexp_matches(COALESCE(log,''), '⚠ VALIDATION', 'g'))
+          FROM scrape_jobs WHERE id = $1
+        `, [job.id]);
+        const aq = qualityResult.rows[0];
+        await pool.query(`
+          UPDATE scrape_jobs SET avg_quality_score = $2, skus_affected = $3, warning_count = $4 WHERE id = $1
+        `, [job.id, aq?.avg_quality || null, aq?.skus_affected || 0, warningResult.rowCount || 0]);
+      } catch (qErr) { console.error('Post-scrape quality check failed:', qErr.message); }
+
+      // Post-scrape AI enrichment: auto-queue if significant gaps found
+      try {
+        const { maybeQueuePostScrapeEnrichment } = await import('./services/aiEnrichment.js');
+        await maybeQueuePostScrapeEnrichment(pool, job.id, source);
+      } catch (eErr) { console.error('Post-scrape enrichment hook failed:', eErr.message); }
     } catch (err) {
       clearTimeout(timeoutHandle);
       const wasStopped = abortController.signal.aborted;
@@ -6553,7 +8418,7 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
       categories: []
     },
     'msi': {
-      label: 'MSI Catalog', source_type: 'website', base_url: 'https://www.msisurfaces.com',
+      label: 'MSI Surfaces (Enrichment — Images, Descriptions, Attributes)', source_type: 'website', base_url: 'https://www.msisurfaces.com',
       categories: [
         '/porcelain-tile/',
         '/marble-tile/',
@@ -6594,6 +8459,10 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
     'msi-inventory': {
       label: 'MSI Inventory', source_type: 'website', base_url: 'https://www.msisurfaces.com',
       categories: []
+    },
+    'msi-832': {
+      label: 'MSI EDI 832 Price Catalog (FTP)', source_type: 'edi_ftp',
+      base_url: 'ftp://cftp.msisurfaces.com', categories: []
     },
     'daltile-pricing': {
       label: 'Daltile Price List (PDF)', source_type: 'pdf', base_url: '',
@@ -6719,6 +8588,18 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
       label: 'Generic EDI Poller (855/856/810)', source_type: 'edi_ftp', base_url: '',
       categories: []
     },
+    'triwest-flexco': {
+      label: 'Flexco (Enrichment — Images, Descriptions, Attributes)', source_type: 'website',
+      base_url: 'https://flexcofloors.com', categories: []
+    },
+    'triwest-sika': {
+      label: 'Sika (Enrichment — Images, Descriptions, Spec PDFs)', source_type: 'website',
+      base_url: 'https://usa.sika.com', categories: []
+    },
+    'lowes-mapei': {
+      label: 'Mapei — Fill Missing Products (Grout, Caulk, Thinset)', source_type: 'website',
+      base_url: 'https://www.lowes.com', categories: []
+    },
   };
   try {
     const fs = await import('fs');
@@ -6757,7 +8638,8 @@ app.get('/api/admin/vendor-sources', staffAuth, requireRole('admin', 'manager'),
         v.name as vendor_name,
         (SELECT row_to_json(j) FROM (
           SELECT sj.id, sj.status, sj.started_at, sj.completed_at,
-            sj.products_found, sj.products_created, sj.products_updated
+            sj.products_found, sj.products_created, sj.products_updated,
+            sj.avg_quality_score, sj.warning_count
           FROM scrape_jobs sj WHERE sj.vendor_source_id = vs.id
           ORDER BY sj.created_at DESC LIMIT 1
         ) j) as last_job
@@ -8104,8 +9986,10 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       }
       case 'payment_intent.succeeded': {
         const pi = event.data.object;
-        // Only handle ACH (us_bank_account) settlements
-        if (pi.payment_method_types && pi.payment_method_types.includes('us_bank_account')) {
+        const pmTypes = pi.payment_method_types || [];
+
+        // Handle ACH (us_bank_account) settlements
+        if (pmTypes.includes('us_bank_account')) {
           const orderResult = await pool.query(
             "SELECT * FROM orders WHERE stripe_payment_intent_id = $1 AND payment_method = 'ach'",
             [pi.id]
@@ -8128,24 +10012,65 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             setImmediate(() => generatePurchaseOrders(order.id, pool));
           }
         }
-        break;
-      }
-      case 'payment_intent.payment_failed': {
-        const pi = event.data.object;
-        if (pi.payment_method_types && pi.payment_method_types.includes('us_bank_account')) {
+
+        // Handle bank transfer (customer_balance) settlements
+        if (pmTypes.includes('customer_balance')) {
           const orderResult = await pool.query(
-            "SELECT * FROM orders WHERE stripe_payment_intent_id = $1 AND payment_method = 'ach'",
+            "SELECT * FROM orders WHERE stripe_payment_intent_id = $1 AND payment_method = 'bank_transfer'",
             [pi.id]
           );
           if (orderResult.rows.length) {
             const order = orderResult.rows[0];
-            const failMessage = pi.last_payment_error ? pi.last_payment_error.message : 'ACH payment failed';
+            const settledAmount = (pi.amount_received || pi.amount) / 100;
+            await pool.query(
+              "UPDATE orders SET status = 'confirmed', amount_paid = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+              [settledAmount.toFixed(2), order.id]
+            );
+            await pool.query(
+              "UPDATE order_payments SET status = 'completed', description = 'Bank transfer payment received' WHERE order_id = $1 AND stripe_payment_intent_id = $2",
+              [order.id, pi.id]
+            );
+            // Sync the existing order_payment to invoice
+            const opRow = await pool.query('SELECT id FROM order_payments WHERE order_id = $1 AND stripe_payment_intent_id = $2 LIMIT 1', [order.id, pi.id]);
+            if (opRow.rows.length) {
+              await syncOrderPaymentToInvoice(opRow.rows[0].id, order.id, pool);
+            }
+            await logOrderActivity(pool, order.id, 'payment_received', null, 'System',
+              { method: 'bank_transfer', amount: settledAmount.toFixed(2) });
+            // Generate purchase orders now that payment is confirmed
+            setImmediate(() => generatePurchaseOrders(order.id, pool));
+            // Send order confirmation email
+            const orderItems = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+            const emailOrder = { ...order, status: 'confirmed', amount_paid: settledAmount.toFixed(2), items: orderItems.rows };
+            setImmediate(() => sendOrderConfirmation(emailOrder));
+            // Notify reps
+            setImmediate(() => notifyAllActiveReps(pool, 'payment_received',
+              'Bank Transfer Received — ' + order.order_number,
+              'Bank transfer payment of $' + settledAmount.toFixed(2) + ' received for ' + order.order_number + '. Order confirmed.',
+              'order', order.id));
+          }
+        }
+        break;
+      }
+      case 'payment_intent.payment_failed': {
+        const pi = event.data.object;
+        const pmTypes = pi.payment_method_types || [];
+
+        if (pmTypes.includes('us_bank_account') || pmTypes.includes('customer_balance')) {
+          const payMethod = pmTypes.includes('customer_balance') ? 'bank_transfer' : 'ach';
+          const orderResult = await pool.query(
+            "SELECT * FROM orders WHERE stripe_payment_intent_id = $1 AND payment_method = $2",
+            [pi.id, payMethod]
+          );
+          if (orderResult.rows.length) {
+            const order = orderResult.rows[0];
+            const failMessage = pi.last_payment_error ? pi.last_payment_error.message : (payMethod === 'bank_transfer' ? 'Bank transfer payment failed' : 'ACH payment failed');
             await logOrderActivity(pool, order.id, 'payment_failed', null, 'System',
-              { method: 'ach', error: failMessage });
+              { method: payMethod, error: failMessage });
             // Notify assigned rep
             if (order.sales_rep_id) {
               setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'payment_failed',
-                'ACH payment failed for ' + order.order_number,
+                payMethod.replace('_', ' ') + ' payment failed for ' + order.order_number,
                 failMessage + '. The order remains pending — retry or switch payment method.',
                 'order', order.id));
             }
@@ -8513,7 +10438,7 @@ app.delete('/api/trade/favorites/:id', tradeAuth, async (req, res) => {
 app.get('/api/trade/favorites/:id/items', tradeAuth, async (req, res) => {
   try {
     const items = await pool.query(`
-      SELECT tfi.*, p.name as product_name, p.collection,
+      SELECT tfi.*, COALESCE(p.display_name, p.name) as product_name, p.collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = tfi.product_id AND ma.asset_type != 'spec_pdf'
          ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
            CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image,
@@ -8627,7 +10552,7 @@ app.post('/api/trade/bulk-order', tradeAuth, async (req, res) => {
     for (const item of items) {
       const skuCode = item.sku || item.sku_code;
       const sku = await pool.query(`
-        SELECT s.id, s.vendor_sku, s.internal_sku, p.id as product_id, p.name as product_name, p.collection,
+        SELECT s.id, s.vendor_sku, s.internal_sku, p.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection,
           pr.retail_price, pk.sqft_per_box, s.sell_by
         FROM skus s
         JOIN products p ON p.id = s.product_id
@@ -9667,7 +11592,7 @@ app.post('/api/rep/visits', repAuth, async (req, res) => {
         const sRes = await client.query(`
           SELECT s.variant_name, s.product_id,
             pr.retail_price, pr.price_basis,
-            p.name as product_name, p.collection,
+            COALESCE(p.display_name, p.name) as product_name, p.collection,
             (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
           FROM skus s
           JOIN products p ON p.id = s.product_id
@@ -9795,7 +11720,7 @@ app.put('/api/rep/visits/:id', repAuth, async (req, res) => {
           const sRes = await client.query(`
             SELECT s.variant_name, s.product_id,
               pr.retail_price, pr.price_basis,
-              p.name as product_name, p.collection,
+              COALESCE(p.display_name, p.name) as product_name, p.collection,
               (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
             FROM skus s
             JOIN products p ON p.id = s.product_id
@@ -10015,7 +11940,7 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
       if (item.sku_id) {
         const sRes = await client.query(`
           SELECT s.variant_name, s.product_id,
-            p.name as product_name, p.collection,
+            COALESCE(p.display_name, p.name) as product_name, p.collection,
             (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
           FROM skus s
           JOIN products p ON p.id = s.product_id
@@ -10222,6 +12147,12 @@ app.put('/api/rep/sample-requests/:id/ship', repAuth, async (req, res) => {
       tracking_number ? `Tracking: ${tracking_number}` : 'No tracking number provided',
       'sample_request', sr.id));
 
+    // Auto-task: check in on samples after shipping
+    setImmediate(() => createAutoTask(pool, req.rep.id, 'sample_shipped', sr.id,
+      `Check in on samples — ${sr.customer_name}`, {
+        customer_name: sr.customer_name, customer_email: sr.customer_email, customer_phone: sr.customer_phone
+      }).catch(err => console.error('[AutoTask] sample_shipped error:', err.message)));
+
     res.json({ sample_request: sr });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -10330,7 +12261,7 @@ app.post('/api/rep/sample-requests/:id/add-items', repAuth, async (req, res) => 
       if (item.sku_id) {
         const sRes = await client.query(`
           SELECT s.variant_name, s.product_id,
-            p.name as product_name, p.collection,
+            COALESCE(p.display_name, p.name) as product_name, p.collection,
             (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
           FROM skus s
           JOIN products p ON p.id = s.product_id
@@ -10824,7 +12755,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         // SKU-based item
         const skuResult = await client.query(`
           SELECT s.id as sku_id, s.product_id, s.vendor_sku, s.variant_name, s.sell_by, s.is_sample,
-            p.name as product_name, p.collection, p.category_id,
+            COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id,
             pr.retail_price, pr.cost, pr.price_basis,
             pk.sqft_per_box
           FROM skus s
@@ -11059,7 +12990,7 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
 
     const items = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+      SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
         sa_c.value as color
       FROM order_items oi
@@ -11252,6 +13183,16 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
         'Order ' + updatedOrder.order_number + ' → ' + status,
         req.rep.first_name + ' ' + req.rep.last_name + ' changed status to ' + status,
         'order', id));
+    }
+
+    // Auto-task: post-delivery follow-up when rep marks order delivered
+    if (status === 'delivered') {
+      setImmediate(() => createAutoTask(pool, req.rep.id, 'order_delivered', id,
+        `Post-delivery follow-up — ${updatedOrder.customer_name} (${updatedOrder.order_number})`, {
+          priority: 'low', customer_name: updatedOrder.customer_name,
+          customer_email: updatedOrder.customer_email, customer_phone: updatedOrder.customer_phone,
+          linked_order_id: id
+        }).catch(err => console.error('[AutoTask] order_delivered rep error:', err.message)));
     }
   } catch (err) {
     await client.query('ROLLBACK');
@@ -11454,7 +13395,7 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
     // Return updated order + items
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+      SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
         sa_c.value as color
       FROM order_items oi
@@ -11516,7 +13457,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
 
     if (!isCustom) {
       const skuResult = await client.query(`
-        SELECT s.*, p.name as product_name, p.collection, p.vendor_id,
+        SELECT s.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
           pr.retail_price, pr.price_basis, pr.cost, pr.cut_price, pr.roll_price,
           pk.sqft_per_box, pk.weight_per_box_lbs, pk.roll_width_ft,
           sa_c.value as color
@@ -11680,7 +13621,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     const balanceInfo = await recalculateBalance(id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+      SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
         sa_c.value as color
       FROM order_items oi
@@ -11785,7 +13726,7 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
     const balanceInfo = await recalculateBalance(id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
-      SELECT oi.*, p.name as current_product_name, p.collection as current_collection,
+      SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
         sa_c.value as color
       FROM order_items oi
@@ -11999,7 +13940,13 @@ app.post('/api/rep/orders/:id/collect-payment', repAuth, async (req, res) => {
 // Vendors list for rep (used in custom item dropdown)
 app.get('/api/rep/vendors', repAuth, async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, name, code FROM vendors WHERE is_active = true ORDER BY name');
+    const result = await pool.query(`
+      SELECT v.id, v.name, v.code
+      FROM vendors v
+      WHERE v.is_active = true
+        AND EXISTS (SELECT 1 FROM products p WHERE p.vendor_id = v.id AND p.status = 'active')
+      ORDER BY v.name
+    `);
     res.json({ vendors: result.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -12009,28 +13956,8 @@ app.get('/api/rep/vendors', repAuth, async (req, res) => {
 // SKU search for add-item (rep)
 app.get('/api/rep/skus/search', repAuth, async (req, res) => {
   try {
-    const { q } = req.query;
-    if (!q || q.length < 2) return res.json({ results: [] });
-    const results = await pool.query(`
-      SELECT s.id as sku_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
-        p.name as product_name, p.collection, p.vendor_id,
-        v.name as vendor_name,
-        pr.retail_price, pr.cost, pr.price_basis, pr.cut_price, pr.roll_price,
-        pk.sqft_per_box, pk.roll_width_ft,
-        sa_c.value as color
-      FROM skus s
-      JOIN products p ON p.id = s.product_id
-      LEFT JOIN vendors v ON v.id = p.vendor_id
-      LEFT JOIN pricing pr ON pr.sku_id = s.id
-      LEFT JOIN packaging pk ON pk.sku_id = s.id
-      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = s.id
-        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
-      WHERE p.status = 'active' AND s.status = 'active'
-        AND (p.name ILIKE $1 OR s.internal_sku ILIKE $1 OR s.vendor_sku ILIKE $1 OR s.variant_name ILIKE $1 OR p.collection ILIKE $1 OR (p.collection || ' ' || p.name) ILIKE $1)
-      ORDER BY p.name, s.variant_name
-      LIMIT 15
-    `, ['%' + q + '%']);
-    res.json({ results: results.rows });
+    const results = await searchSkus(pool, req.query.q);
+    res.json({ results });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -12040,7 +13967,7 @@ app.get('/api/rep/skus/search', repAuth, async (req, res) => {
 
 app.get('/api/rep/products', repAuth, async (req, res) => {
   try {
-    const { search, category, collection, vendor, stock_status, page: pageParam, limit: limitParam } = req.query;
+    const { search, category, collection, vendor, stock_status, min_price, max_price, page: pageParam, limit: limitParam } = req.query;
     const page = parseInt(pageParam) || 1;
     const limit = Math.min(parseInt(limitParam) || 30, 100);
     const offset = (page - 1) * limit;
@@ -12151,6 +14078,24 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
       }
     } catch (attrErr) { /* attributes table may not exist yet */ }
 
+    // Wrap for price range filter if needed
+    if (min_price || max_price) {
+      let priceConditions = [];
+      if (min_price && !isNaN(parseFloat(min_price))) {
+        priceConditions.push(`priced.price::numeric >= $${paramIndex}`);
+        params.push(parseFloat(min_price));
+        paramIndex++;
+      }
+      if (max_price && !isNaN(parseFloat(max_price))) {
+        priceConditions.push(`priced.price::numeric <= $${paramIndex}`);
+        params.push(parseFloat(max_price));
+        paramIndex++;
+      }
+      if (priceConditions.length > 0) {
+        query = `SELECT * FROM (${query}) AS priced WHERE priced.price IS NOT NULL AND ${priceConditions.join(' AND ')}`;
+      }
+    }
+
     // Wrap for stock_status filter if needed
     if (stock_status && ['in_stock', 'low_stock', 'out_of_stock', 'unknown'].includes(stock_status)) {
       query = `SELECT * FROM (${query}) AS filtered WHERE filtered.stock_status = $${paramIndex}`;
@@ -12173,11 +14118,11 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
       });
       res.json({ products, total, page, limit });
     } else {
-      const countQuery = query.replace(/SELECT p\.\*.*?FROM products p/s, 'SELECT COUNT(*)::int as total FROM products p');
+      const countQuery = `SELECT COUNT(*)::int as total FROM (${query}) AS counted`;
       const countResult = await pool.query(countQuery, params);
       const total = countResult.rows[0].total;
 
-      query += ` ORDER BY p.name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      query = `SELECT * FROM (${query}) AS sorted ORDER BY sorted.name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       params.push(limit, offset);
       const result = await pool.query(query, params);
 
@@ -12239,6 +14184,81 @@ app.get('/api/rep/products/:id', repAuth, async (req, res) => {
     );
 
     res.json({ product: product.rows[0], skus: skuRows, media: media.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Filterable attributes for rep catalog
+app.get('/api/rep/filterable-attributes', repAuth, async (req, res) => {
+  try {
+    const attrs = await pool.query(`
+      SELECT a.id, a.slug, a.name,
+        ARRAY_AGG(DISTINCT sa.value ORDER BY sa.value) FILTER (WHERE sa.value IS NOT NULL AND sa.value != '') AS values
+      FROM attributes a
+      JOIN sku_attributes sa ON sa.attribute_id = a.id
+      WHERE a.is_filterable = true
+      GROUP BY a.id, a.slug, a.name
+      ORDER BY a.name
+    `);
+    res.json({ attributes: attrs.rows });
+  } catch (err) {
+    console.error(err); res.json({ attributes: [] });
+  }
+});
+
+// Share product with customer (rep)
+app.post('/api/rep/share-product', repAuth, async (req, res) => {
+  try {
+    const { product_id, customer_email, message } = req.body;
+    if (!product_id) return res.status(400).json({ error: 'Product ID is required' });
+    if (!customer_email) return res.status(400).json({ error: 'Customer email is required' });
+
+    const product = await pool.query(`
+      SELECT p.*, v.name as vendor_name, c.name as category_name
+      FROM products p
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE p.id = $1
+    `, [product_id]);
+    if (!product.rows.length) return res.status(404).json({ error: 'Product not found' });
+    const p = product.rows[0];
+
+    const pricing = await pool.query(`
+      SELECT pr.retail_price, s.sell_by FROM pricing pr
+      JOIN skus s ON s.id = pr.sku_id
+      WHERE s.product_id = $1 AND s.status = 'active' AND pr.retail_price IS NOT NULL
+      LIMIT 1
+    `, [product_id]);
+    const price = pricing.rows[0]?.retail_price || null;
+    const sell_by = pricing.rows[0]?.sell_by || null;
+
+    const media = await pool.query(
+      "SELECT url FROM media_assets WHERE product_id = $1 AND asset_type = 'primary' ORDER BY sort_order LIMIT 1",
+      [product_id]
+    );
+    const image_url = media.rows[0]?.url || null;
+
+    const siteUrl = process.env.SITE_URL || 'http://localhost:3000';
+    const product_url = `${siteUrl}/shop/${p.slug || product_id}`;
+
+    const rep = req.rep;
+    await sendProductShare({
+      product_name: p.collection ? `${p.collection} ${p.name}` : p.name,
+      collection: p.collection,
+      price,
+      sell_by,
+      image_url,
+      product_url,
+      rep_first_name: rep.first_name,
+      rep_last_name: rep.last_name,
+      rep_email: rep.email,
+      rep_phone: rep.phone || null,
+      customer_email,
+      message: message || null
+    });
+
+    res.json({ success: true });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -12429,6 +14449,194 @@ app.post('/api/rep/orders/:id/send-invoice', repAuth, async (req, res) => {
 
 // ==================== Rep Purchase Order Endpoints ====================
 
+// List all POs (standalone + order-linked) with filters
+app.get('/api/rep/purchase-orders', repAuth, async (req, res) => {
+  try {
+    const { status, vendor_id, search, date_from, date_to } = req.query;
+    const conditions = [];
+    const params = [];
+    let idx = 1;
+
+    if (status) { conditions.push(`po.status = $${idx++}`); params.push(status); }
+    if (vendor_id) { conditions.push(`po.vendor_id = $${idx++}`); params.push(vendor_id); }
+    if (date_from) { conditions.push(`po.created_at >= $${idx++}`); params.push(date_from); }
+    if (date_to) { conditions.push(`po.created_at <= $${idx++}::date + interval '1 day'`); params.push(date_to); }
+    if (search) {
+      conditions.push(`(po.po_number ILIKE $${idx} OR v.name ILIKE $${idx} OR o.order_number ILIKE $${idx})`);
+      params.push(`%${search}%`);
+      idx++;
+    }
+
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    const result = await pool.query(`
+      SELECT po.id, po.po_number, po.status, po.subtotal, po.created_at, po.updated_at,
+        po.order_id, po.vendor_id,
+        v.name as vendor_name, v.code as vendor_code,
+        o.order_number,
+        (SELECT COUNT(*) FROM purchase_order_items poi WHERE poi.purchase_order_id = po.id) as item_count,
+        sr.first_name || ' ' || sr.last_name as approved_by_name,
+        po.approved_at
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      LEFT JOIN orders o ON o.id = po.order_id
+      LEFT JOIN sales_reps sr ON sr.id = po.approved_by
+      ${where}
+      ORDER BY po.created_at DESC
+      LIMIT 200
+    `, params);
+
+    res.json({ purchase_orders: result.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create standalone PO (no order)
+app.post('/api/rep/purchase-orders', repAuth, async (req, res) => {
+  try {
+    const { vendor_id, notes } = req.body;
+    if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required' });
+
+    const vendor = await pool.query('SELECT id, code, name FROM vendors WHERE id = $1', [vendor_id]);
+    if (!vendor.rows.length) return res.status(404).json({ error: 'Vendor not found' });
+
+    const vendorCode = vendor.rows[0].code || 'XX';
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substr(2, 4).toUpperCase();
+    const poNumber = `PO-${vendorCode}-${timestamp}-${random}`;
+
+    const result = await pool.query(
+      `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes)
+       VALUES (NULL, $1, $2, 'draft', 0, $3) RETURNING *`,
+      [vendor_id, poNumber, notes || null]
+    );
+
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await pool.query(
+      `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, details)
+       VALUES ($1, 'created', $2, $3)`,
+      [result.rows[0].id, repName, JSON.stringify({ standalone: true })]
+    );
+
+    res.json({ purchase_order: { ...result.rows[0], vendor_name: vendor.rows[0].name, vendor_code: vendorCode, item_count: 0 } });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get single PO detail with items + vendor info
+app.get('/api/rep/purchase-orders/:poId/detail', repAuth, async (req, res) => {
+  try {
+    const { poId } = req.params;
+    const po = await pool.query(`
+      SELECT po.*, v.name as vendor_name, v.code as vendor_code,
+        sr.first_name || ' ' || sr.last_name as approved_by_name,
+        o.order_number
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      LEFT JOIN sales_reps sr ON sr.id = po.approved_by
+      LEFT JOIN orders o ON o.id = po.order_id
+      WHERE po.id = $1
+    `, [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+
+    const items = await pool.query(
+      'SELECT * FROM purchase_order_items WHERE purchase_order_id = $1 ORDER BY created_at',
+      [poId]
+    );
+
+    const activity = await pool.query(
+      'SELECT * FROM po_activity_log WHERE purchase_order_id = $1 ORDER BY created_at DESC',
+      [poId]
+    );
+
+    res.json({ purchase_order: { ...po.rows[0], items: items.rows }, activity: activity.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Rep add item to draft PO
+app.post('/api/rep/purchase-orders/:poId/items', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { poId } = req.params;
+    const { product_name, vendor_sku, description, qty, cost, sell_by, sku_id, retail_price } = req.body;
+
+    if (!product_name || cost == null || qty == null) return res.status(400).json({ error: 'product_name, cost, and qty are required' });
+    const parsedCost = parseFloat(cost);
+    const parsedQty = parseInt(qty);
+    if (isNaN(parsedCost) || parsedCost < 0) return res.status(400).json({ error: 'Invalid cost' });
+    if (isNaN(parsedQty) || parsedQty < 1) return res.status(400).json({ error: 'Invalid qty' });
+    const parsedRetail = retail_price != null ? parseFloat(retail_price) : null;
+
+    const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+    if (po.rows[0].status !== 'draft') return res.status(400).json({ error: 'Only draft POs can be edited' });
+
+    await client.query('BEGIN');
+
+    const subtotal = parsedCost * parsedQty;
+    const itemResult = await client.query(
+      `INSERT INTO purchase_order_items (purchase_order_id, sku_id, product_name, vendor_sku, description, qty, sell_by, cost, original_cost, retail_price, subtotal)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, $9, $10) RETURNING *`,
+      [poId, sku_id || null, product_name, vendor_sku || null, description || null, parsedQty, sell_by || 'sqft', parsedCost.toFixed(2), parsedRetail != null && !isNaN(parsedRetail) ? parsedRetail.toFixed(2) : null, subtotal.toFixed(2)]
+    );
+
+    const totals = await client.query(
+      'SELECT COALESCE(SUM(subtotal), 0) as total FROM purchase_order_items WHERE purchase_order_id = $1',
+      [poId]
+    );
+    await client.query(
+      'UPDATE purchase_orders SET subtotal = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [parseFloat(totals.rows[0].total).toFixed(2), poId]
+    );
+
+    await client.query('COMMIT');
+    res.json({ item: itemResult.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Rep delete item from draft PO
+app.delete('/api/rep/purchase-orders/:poId/items/:itemId', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { poId, itemId } = req.params;
+
+    const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+    if (po.rows[0].status !== 'draft') return res.status(400).json({ error: 'Only draft POs can be edited' });
+
+    await client.query('BEGIN');
+
+    const del = await client.query('DELETE FROM purchase_order_items WHERE id = $1 AND purchase_order_id = $2 RETURNING id', [itemId, poId]);
+    if (!del.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'PO item not found' }); }
+
+    const totals = await client.query(
+      'SELECT COALESCE(SUM(subtotal), 0) as total FROM purchase_order_items WHERE purchase_order_id = $1',
+      [poId]
+    );
+    await client.query(
+      'UPDATE purchase_orders SET subtotal = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [parseFloat(totals.rows[0].total).toFixed(2), poId]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
 // List POs for an order
 app.get('/api/rep/orders/:id/purchase-orders', repAuth, async (req, res) => {
   try {
@@ -12498,9 +14706,9 @@ app.put('/api/rep/purchase-orders/:poId/items/bulk-status', repAuth, async (req,
     // Log activity
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
     await client.query(
-      `INSERT INTO po_activity_log (purchase_order_id, action, details, performer_type, performer_id, performer_name)
-       VALUES ($1, 'bulk_item_status_update', $2, 'rep', $3, $4)`,
-      [poId, JSON.stringify({ status, derived_po_status: newPOStatus }), req.rep.id, repName]
+      `INSERT INTO po_activity_log (purchase_order_id, action, details, performer_name)
+       VALUES ($1, 'bulk_item_status_update', $2, $3)`,
+      [poId, JSON.stringify({ status, derived_po_status: newPOStatus }), repName]
     );
 
     await client.query('COMMIT');
@@ -12560,9 +14768,9 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId/status', repAuth, async (r
     // Log activity
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
     await client.query(
-      `INSERT INTO po_activity_log (purchase_order_id, action, details, performer_type, performer_id, performer_name)
-       VALUES ($1, 'item_status_update', $2, 'rep', $3, $4)`,
-      [poId, JSON.stringify({ item_id: itemId, status, derived_po_status: newPOStatus }), req.rep.id, repName]
+      `INSERT INTO po_activity_log (purchase_order_id, action, details, performer_name)
+       VALUES ($1, 'item_status_update', $2, $3)`,
+      [poId, JSON.stringify({ item_id: itemId, status, derived_po_status: newPOStatus }), repName]
     );
 
     await client.query('COMMIT');
@@ -12765,9 +14973,9 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
         const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
         const action = isRevised ? 'revised_and_sent' : 'edi_sent';
         await pool.query(
-          `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, revision, details)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [poId, action, req.rep.id, repName, newRevision, JSON.stringify({ ...ediDetails, approved_via: 'rep_portal' })]
+          `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, revision, details)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [poId, action, repName, newRevision, JSON.stringify({ ...ediDetails, approved_via: 'rep_portal' })]
         );
 
         // Notify assigned rep if different
@@ -12811,9 +15019,9 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
     // Log activity
     const action = isRevised ? 'revised_and_sent' : 'sent';
     await pool.query(
-      `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, recipient_email, revision, details)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [poId, action, req.rep.id, repName, po.vendor_email || null, newRevision,
+      `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, recipient_email, revision, details)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [poId, action, repName, po.vendor_email || null, newRevision,
        JSON.stringify({ email_sent: emailSent, approved_via: 'rep_portal', edi_fallback: ediDetails })]
     );
 
@@ -13332,6 +15540,13 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
     } catch (dealErr) {
       console.error('Auto-deal creation failed (non-fatal):', dealErr.message);
     }
+
+    // Auto-task: follow up on quote
+    setImmediate(() => createAutoTask(pool, req.rep.id, 'quote_sent', id,
+      `Follow up on Quote ${q.quote_number} — ${q.customer_name}`, {
+        customer_name: q.customer_name, customer_email: q.customer_email, customer_phone: q.customer_phone,
+        linked_quote_id: id
+      }).catch(err => console.error('[AutoTask] quote_sent error:', err.message)));
 
     if (emailed) {
       res.json({ success: true, message: 'Quote emailed to ' + q.customer_email, emailed: true });
@@ -14120,6 +16335,13 @@ app.post('/api/rep/estimates/:id/send', repAuth, async (req, res) => {
     };
     const emailResult = await sendEstimateSent(emailData);
     const emailed = emailResult && emailResult.sent;
+
+    // Auto-task: follow up on estimate
+    setImmediate(() => createAutoTask(pool, req.rep.id, 'estimate_sent', id,
+      `Follow up on Estimate ${e.estimate_number} — ${e.customer_name}`, {
+        customer_name: e.customer_name, customer_email: e.customer_email, customer_phone: e.customer_phone,
+        linked_estimate_id: id
+      }).catch(err => console.error('[AutoTask] estimate_sent error:', err.message)));
 
     if (emailed) {
       res.json({ success: true, message: 'Estimate emailed to ' + e.customer_email, emailed: true });
@@ -15115,21 +17337,26 @@ app.put('/api/rep/notifications/:id/read', repAuth, async (req, res) => {
 // GET /api/rep/tasks — List tasks with filters
 app.get('/api/rep/tasks', repAuth, async (req, res) => {
   try {
-    const { status, priority, due_from, due_to, linked_type, search } = req.query;
+    const { status, priority, due_from, due_to, completed_from, linked_type, search, source } = req.query;
     let where = 'WHERE t.rep_id = $1';
     const params = [req.rep.id];
     let idx = 2;
 
     if (status) { where += ` AND t.status = $${idx++}`; params.push(status); }
+    else { where += " AND t.status != 'dismissed'"; }
     if (priority) { where += ` AND t.priority = $${idx++}`; params.push(priority); }
+    if (source) { where += ` AND t.source = $${idx++}`; params.push(source); }
     if (due_from) { where += ` AND t.due_date >= $${idx++}`; params.push(due_from); }
     if (due_to) { where += ` AND t.due_date <= $${idx++}`; params.push(due_to); }
+    if (completed_from) { where += ` AND t.completed_at >= $${idx++}`; params.push(completed_from); }
     if (linked_type === 'customer') { where += ' AND t.linked_customer_ref IS NOT NULL'; }
     else if (linked_type === 'order') { where += ' AND t.linked_order_id IS NOT NULL'; }
     else if (linked_type === 'quote') { where += ' AND t.linked_quote_id IS NOT NULL'; }
     else if (linked_type === 'estimate') { where += ' AND t.linked_estimate_id IS NOT NULL'; }
     else if (linked_type === 'deal') { where += ' AND t.linked_deal_id IS NOT NULL'; }
-    if (search) { where += ` AND (t.title ILIKE $${idx} OR t.description ILIKE $${idx})`; params.push(`%${search}%`); idx++; }
+    if (search) { where += ` AND (t.title ILIKE $${idx} OR t.description ILIKE $${idx} OR t.customer_name ILIKE $${idx})`; params.push(`%${search}%`); idx++; }
+    // Hide snoozed tasks
+    where += ' AND (t.snoozed_until IS NULL OR t.snoozed_until <= CURRENT_DATE)';
 
     const result = await pool.query(`
       SELECT t.*,
@@ -15166,13 +17393,16 @@ app.get('/api/rep/tasks/dashboard', repAuth, async (req, res) => {
       SELECT t.*,
         o.order_number AS linked_order_number,
         q.quote_number AS linked_quote_number,
+        e.estimate_number AS linked_estimate_number,
         d.title AS linked_deal_title
       FROM rep_tasks t
       LEFT JOIN orders o ON o.id = t.linked_order_id
       LEFT JOIN quotes q ON q.id = t.linked_quote_id
+      LEFT JOIN estimates e ON e.id = t.linked_estimate_id
       LEFT JOIN deals d ON d.id = t.linked_deal_id
       WHERE t.rep_id = $1 AND t.status = 'open'
         AND (t.due_date IS NULL OR t.due_date <= $2)
+        AND (t.snoozed_until IS NULL OR t.snoozed_until <= CURRENT_DATE)
       ORDER BY
         CASE WHEN t.due_date < $3 THEN 0 WHEN t.due_date = $3 THEN 1 ELSE 2 END,
         t.due_date ASC,
@@ -15198,10 +17428,10 @@ app.post('/api/rep/tasks', repAuth, async (req, res) => {
     if (!title || !title.trim()) return res.status(400).json({ error: 'Title is required' });
 
     const result = await pool.query(`
-      INSERT INTO rep_tasks (rep_id, title, description, due_date, priority,
+      INSERT INTO rep_tasks (rep_id, title, description, due_date, priority, source,
         linked_customer_type, linked_customer_ref,
         linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, 'manual', $6, $7, $8, $9, $10, $11)
       RETURNING *
     `, [req.rep.id, title.trim(), description || null, due_date || null, priority || 'medium',
         linked_customer_type || null, linked_customer_ref || null,
@@ -15293,6 +17523,47 @@ app.delete('/api/rep/tasks/:id', repAuth, async (req, res) => {
     const result = await pool.query('DELETE FROM rep_tasks WHERE id = $1 AND rep_id = $2 RETURNING id', [id, req.rep.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Task not found' });
     res.json({ success: true });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/rep/tasks/:id/snooze — Snooze task until a future date
+app.put('/api/rep/tasks/:id/snooze', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { snooze_until } = req.body;
+    if (!snooze_until) return res.status(400).json({ error: 'snooze_until date is required' });
+    const snoozeDate = new Date(snooze_until + 'T00:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    if (snoozeDate <= today) return res.status(400).json({ error: 'Snooze date must be in the future' });
+
+    const result = await pool.query(`
+      UPDATE rep_tasks SET snoozed_until = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2 AND rep_id = $3 AND status = 'open'
+      RETURNING *
+    `, [snooze_until, id, req.rep.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Task not found or not open' });
+    res.json({ task: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/rep/tasks/:id/dismiss — Dismiss an auto-generated task
+app.put('/api/rep/tasks/:id/dismiss', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const task = await pool.query('SELECT source FROM rep_tasks WHERE id = $1 AND rep_id = $2', [id, req.rep.id]);
+    if (!task.rows.length) return res.status(404).json({ error: 'Task not found' });
+    if (task.rows[0].source !== 'auto') return res.status(400).json({ error: 'Only auto-generated tasks can be dismissed' });
+
+    const result = await pool.query(`
+      UPDATE rep_tasks SET status = 'dismissed', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND rep_id = $2
+      RETURNING *
+    `, [id, req.rep.id]);
+    res.json({ task: result.rows[0] });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -15622,6 +17893,114 @@ app.get('/api/admin/orders/:id/activity', staffAuth, async (req, res) => {
 });
 
 // ==================== Admin Purchase Order Endpoints ====================
+
+// List all POs (standalone + order-linked) with filters
+app.get('/api/admin/purchase-orders', staffAuth, async (req, res) => {
+  try {
+    const { status, vendor_id, search, date_from, date_to } = req.query;
+    const conditions = [];
+    const params = [];
+    let idx = 1;
+
+    if (status) { conditions.push(`po.status = $${idx++}`); params.push(status); }
+    if (vendor_id) { conditions.push(`po.vendor_id = $${idx++}`); params.push(vendor_id); }
+    if (date_from) { conditions.push(`po.created_at >= $${idx++}`); params.push(date_from); }
+    if (date_to) { conditions.push(`po.created_at <= $${idx++}::date + interval '1 day'`); params.push(date_to); }
+    if (search) {
+      conditions.push(`(po.po_number ILIKE $${idx} OR v.name ILIKE $${idx} OR o.order_number ILIKE $${idx})`);
+      params.push(`%${search}%`);
+      idx++;
+    }
+
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    const result = await pool.query(`
+      SELECT po.id, po.po_number, po.status, po.subtotal, po.created_at, po.updated_at,
+        po.order_id, po.vendor_id,
+        v.name as vendor_name, v.code as vendor_code,
+        o.order_number,
+        (SELECT COUNT(*) FROM purchase_order_items poi WHERE poi.purchase_order_id = po.id) as item_count,
+        sr.first_name || ' ' || sr.last_name as approved_by_name,
+        po.approved_at
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      LEFT JOIN orders o ON o.id = po.order_id
+      LEFT JOIN staff_accounts sr ON sr.id = po.approved_by
+      ${where}
+      ORDER BY po.created_at DESC
+      LIMIT 200
+    `, params);
+
+    res.json({ purchase_orders: result.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create standalone PO (no order)
+app.post('/api/admin/purchase-orders', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { vendor_id, notes } = req.body;
+    if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required' });
+
+    const vendor = await pool.query('SELECT id, code, name FROM vendors WHERE id = $1', [vendor_id]);
+    if (!vendor.rows.length) return res.status(404).json({ error: 'Vendor not found' });
+
+    const vendorCode = vendor.rows[0].code || 'XX';
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substr(2, 4).toUpperCase();
+    const poNumber = `PO-${vendorCode}-${timestamp}-${random}`;
+
+    const result = await pool.query(
+      `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes)
+       VALUES (NULL, $1, $2, 'draft', 0, $3) RETURNING *`,
+      [vendor_id, poNumber, notes || null]
+    );
+
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    await pool.query(
+      `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, details)
+       VALUES ($1, 'created', $2, $3, $4)`,
+      [result.rows[0].id, req.staff.id, staffName, JSON.stringify({ standalone: true })]
+    );
+
+    res.json({ purchase_order: { ...result.rows[0], vendor_name: vendor.rows[0].name, vendor_code: vendorCode, item_count: 0 } });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get single PO detail with items + vendor info
+app.get('/api/admin/purchase-orders/:poId/detail', staffAuth, async (req, res) => {
+  try {
+    const { poId } = req.params;
+    const po = await pool.query(`
+      SELECT po.*, v.name as vendor_name, v.code as vendor_code, v.edi_config,
+        sr.first_name || ' ' || sr.last_name as approved_by_name,
+        o.order_number
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      LEFT JOIN staff_accounts sr ON sr.id = po.approved_by
+      LEFT JOIN orders o ON o.id = po.order_id
+      WHERE po.id = $1
+    `, [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+
+    const items = await pool.query(
+      'SELECT * FROM purchase_order_items WHERE purchase_order_id = $1 ORDER BY created_at',
+      [poId]
+    );
+
+    const activity = await pool.query(
+      'SELECT * FROM po_activity_log WHERE purchase_order_id = $1 ORDER BY created_at DESC',
+      [poId]
+    );
+
+    res.json({ purchase_order: { ...po.rows[0], items: items.rows }, activity: activity.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // List POs for an order (admin)
 app.get('/api/admin/orders/:id/purchase-orders', staffAuth, async (req, res) => {
@@ -16217,13 +18596,14 @@ app.post('/api/admin/purchase-orders/:poId/items', staffAuth, requireRole('admin
   const client = await pool.connect();
   try {
     const { poId } = req.params;
-    const { product_name, vendor_sku, description, qty, cost, sell_by } = req.body;
+    const { product_name, vendor_sku, description, qty, cost, sell_by, sku_id, retail_price } = req.body;
 
     if (!product_name || cost == null || qty == null) return res.status(400).json({ error: 'product_name, cost, and qty are required' });
     const parsedCost = parseFloat(cost);
     const parsedQty = parseInt(qty);
     if (isNaN(parsedCost) || parsedCost < 0) return res.status(400).json({ error: 'Invalid cost' });
     if (isNaN(parsedQty) || parsedQty < 1) return res.status(400).json({ error: 'Invalid qty' });
+    const parsedRetail = retail_price != null ? parseFloat(retail_price) : null;
 
     const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
     if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
@@ -16233,9 +18613,9 @@ app.post('/api/admin/purchase-orders/:poId/items', staffAuth, requireRole('admin
 
     const subtotal = parsedCost * parsedQty;
     const itemResult = await client.query(
-      `INSERT INTO purchase_order_items (purchase_order_id, product_name, vendor_sku, description, qty, sell_by, cost, original_cost, subtotal)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8) RETURNING *`,
-      [poId, product_name, vendor_sku || null, description || null, parsedQty, sell_by || 'sqft', parsedCost.toFixed(2), subtotal.toFixed(2)]
+      `INSERT INTO purchase_order_items (purchase_order_id, sku_id, product_name, vendor_sku, description, qty, sell_by, cost, original_cost, retail_price, subtotal)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, $9, $10) RETURNING *`,
+      [poId, sku_id || null, product_name, vendor_sku || null, description || null, parsedQty, sell_by || 'sqft', parsedCost.toFixed(2), parsedRetail != null && !isNaN(parsedRetail) ? parsedRetail.toFixed(2) : null, subtotal.toFixed(2)]
     );
 
     const totals = await client.query(
@@ -18152,7 +20532,7 @@ async function checkAndSendStockAlerts(skuId, newQtyOnHand) {
   try {
     const alerts = await pool.query(`
       SELECT sa.id, sa.email,
-        p.name as product_name, s.variant_name, s.internal_sku as sku_code, s.id as sku_id,
+        COALESCE(p.display_name, p.name) as product_name, s.variant_name, s.internal_sku as sku_code, s.id as sku_id,
         (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
       FROM stock_alerts sa
       JOIN skus s ON s.id = sa.sku_id
@@ -18198,6 +20578,44 @@ cron.schedule('*/30 * * * *', async () => {
     }
   } catch (err) {
     console.error('[StockAlerts Cron] Error:', err.message);
+  }
+});
+
+// ==================== Bank Transfer Expiration Cron ====================
+
+// Run daily at 5 AM UTC — cancel expired awaiting_payment bank transfer orders
+cron.schedule('0 5 * * *', async () => {
+  try {
+    const expired = await pool.query(`
+      SELECT id, order_number, stripe_payment_intent_id
+      FROM orders
+      WHERE status = 'awaiting_payment'
+        AND payment_method = 'bank_transfer'
+        AND bank_transfer_expires_at IS NOT NULL
+        AND bank_transfer_expires_at < NOW()
+    `);
+    for (const order of expired.rows) {
+      await pool.query(
+        "UPDATE orders SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+        [order.id]
+      );
+      await logOrderActivity(pool, order.id, 'order_cancelled', null, 'System',
+        { reason: 'Bank transfer payment not received within 14 days' });
+      // Cancel the Stripe payment intent
+      if (order.stripe_payment_intent_id) {
+        try {
+          await stripe.paymentIntents.cancel(order.stripe_payment_intent_id);
+        } catch (piErr) {
+          console.error(`[Cron] Failed to cancel PI ${order.stripe_payment_intent_id}:`, piErr.message);
+        }
+      }
+      console.log(`[Cron] Cancelled expired bank transfer order ${order.order_number}`);
+    }
+    if (expired.rows.length > 0) {
+      console.log(`[Cron] Cancelled ${expired.rows.length} expired bank transfer order(s)`);
+    }
+  } catch (err) {
+    console.error('[Cron] Bank transfer expiration check failed:', err.message);
   }
 });
 
@@ -18516,6 +20934,17 @@ cron.schedule('0 7 * * *', async () => {
 
     console.log(`[Analytics] Daily stats aggregated for ${yesterday}`);
 
+    // Refresh search materialized views
+    try {
+      await pool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY product_popularity');
+      await pool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY search_vocabulary');
+      await pool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY sku_quality_scores');
+      clearSearchCaches();
+      console.log('[Analytics] Search materialized views + quality scores refreshed');
+    } catch (mvErr) {
+      console.error('[Analytics] Matview refresh error:', mvErr.message);
+    }
+
     // Send summary email to admin/manager staff
     try {
       const staffRes = await pool.query(
@@ -18576,8 +21005,76 @@ cron.schedule('0 7 * * *', async () => {
     } catch (emailErr) {
       console.error('[Analytics] Email summary error:', emailErr.message);
     }
+
+    // Quality digest email
+    try {
+      const staffRes2 = await pool.query("SELECT email FROM staff_accounts WHERE role IN ('admin','manager') AND is_active = true");
+      if (staffRes2.rows.length > 0) {
+        const overallRes = await pool.query(`
+          SELECT ROUND(AVG(quality_score))::int as avg_score, COUNT(*)::int as total_skus,
+            COUNT(*) FILTER (WHERE quality_score >= 80) as good,
+            COUNT(*) FILTER (WHERE quality_score >= 50 AND quality_score < 80) as fair,
+            COUNT(*) FILTER (WHERE quality_score < 50) as poor,
+            COUNT(*) FILTER (WHERE has_image = 0) as no_image,
+            COUNT(*) FILTER (WHERE has_retail = 0) as no_price,
+            COUNT(*) FILTER (WHERE has_color = 0) as no_color,
+            COUNT(*) FILTER (WHERE has_description = 0) as no_description
+          FROM sku_quality_scores
+        `);
+        const vendorRes = await pool.query(`
+          SELECT vendor_name, ROUND(AVG(quality_score))::int as avg_score, COUNT(*)::int as sku_count,
+            COUNT(*) FILTER (WHERE has_image = 0) as no_image,
+            COUNT(*) FILTER (WHERE has_retail = 0) as no_price,
+            COUNT(*) FILTER (WHERE has_color = 0) as no_color
+          FROM sku_quality_scores
+          GROUP BY vendor_name HAVING ROUND(AVG(quality_score)) < 80
+          ORDER BY AVG(quality_score) ASC
+        `);
+        const worstRes = await pool.query(`
+          SELECT vendor_name, product_name, internal_sku, quality_score
+          FROM sku_quality_scores ORDER BY quality_score ASC, internal_sku LIMIT 10
+        `);
+        const vendors = vendorRes.rows.map(v => {
+          const issues = [];
+          if (v.no_image > 0) issues.push(`${v.no_image} no image`);
+          if (v.no_price > 0) issues.push(`${v.no_price} no price`);
+          if (v.no_color > 0) issues.push(`${v.no_color} no color`);
+          return { ...v, issues };
+        });
+        await sendQualityDigest(
+          staffRes2.rows.map(r => r.email),
+          {
+            generated_at: new Date().toISOString(),
+            overall: overallRes.rows[0],
+            vendors,
+            worst_skus: worstRes.rows
+          }
+        );
+        console.log('[Analytics] Quality digest sent');
+      }
+    } catch (qdErr) {
+      console.error('[Analytics] Quality digest error:', qdErr.message);
+    }
   } catch (err) {
     console.error('[Analytics] Daily aggregation error:', err.message);
+  }
+}, { timezone: 'America/Los_Angeles' });
+
+// Daily scraper health check at 7:15 AM Pacific
+cron.schedule('15 7 * * *', async () => {
+  console.log('[ScraperHealth] Running daily health check...');
+  try {
+    const healthData = await computeScraperHealth();
+    const problemCount = healthData.summary.warning + healthData.summary.critical;
+    console.log(`[ScraperHealth] ${healthData.summary.total_sources} sources: ${healthData.summary.healthy} healthy, ${healthData.summary.warning} warning, ${healthData.summary.critical} critical`);
+    if (problemCount > 0) {
+      const staffRes = await pool.query("SELECT email FROM staff_accounts WHERE role IN ('admin','manager') AND is_active = true");
+      if (staffRes.rows.length > 0) {
+        await sendScraperHealthCheck(staffRes.rows.map(r => r.email), healthData);
+      }
+    }
+  } catch (err) {
+    console.error('[ScraperHealth] Daily health check error:', err.message);
   }
 }, { timezone: 'America/Los_Angeles' });
 
@@ -18592,6 +21089,67 @@ cron.schedule('0 3 * * 0', async () => {
     console.log(`[Analytics] Purged ${sessResult.rowCount} sessions older than 90 days`);
   } catch (err) {
     console.error('[Analytics] Retention cleanup error:', err.message);
+  }
+}, { timezone: 'America/Los_Angeles' });
+
+// Auto-task cron: stuck deals + trade renewal reminders (8 AM Pacific daily)
+cron.schedule('0 8 * * *', async () => {
+  console.log('[AutoTask] Running daily auto-task generation...');
+  try {
+    // A. Deals stuck >7 days in lead/quoted/negotiating
+    const stuckDeals = await pool.query(`
+      SELECT d.id, d.rep_id, d.title, d.customer_name, d.customer_email, d.stage, d.stage_entered_at,
+        d.linked_quote_id, d.linked_estimate_id, d.linked_order_id
+      FROM deals d
+      WHERE d.stage IN ('lead','quoted','negotiating')
+        AND d.stage_entered_at < NOW() - INTERVAL '7 days'
+    `);
+    let stuckCount = 0;
+    for (const deal of stuckDeals.rows) {
+      const daysStuck = Math.floor((Date.now() - new Date(deal.stage_entered_at).getTime()) / 86400000);
+      const created = await createAutoTask(pool, deal.rep_id, 'deal_stuck', deal.id,
+        `Move deal forward — ${deal.title}`, {
+          priority: daysStuck > 14 ? 'high' : 'medium',
+          due_date: new Date().toISOString().split('T')[0],
+          description: `Deal has been in "${deal.stage}" stage for ${daysStuck} days`,
+          customer_name: deal.customer_name, customer_email: deal.customer_email,
+          linked_deal_id: deal.id, linked_quote_id: deal.linked_quote_id,
+          linked_estimate_id: deal.linked_estimate_id, linked_order_id: deal.linked_order_id
+        });
+      if (created) stuckCount++;
+    }
+    console.log(`[AutoTask] Created ${stuckCount} stuck-deal tasks from ${stuckDeals.rows.length} candidates`);
+
+    // B. Trade subscriptions expiring within 30 days
+    const expiringTrade = await pool.query(`
+      SELECT tc.id, tc.company_name, tc.contact_name, tc.email, tc.phone,
+        tc.subscription_expires_at, tc.assigned_rep_id
+      FROM trade_customers tc
+      WHERE tc.subscription_status = 'active'
+        AND tc.subscription_expires_at BETWEEN NOW() AND NOW() + INTERVAL '30 days'
+    `);
+    let renewalCount = 0;
+    for (const tc of expiringTrade.rows) {
+      let repId = tc.assigned_rep_id;
+      if (!repId) {
+        const fallback = await pool.query('SELECT id FROM sales_reps WHERE is_active = true ORDER BY created_at LIMIT 1');
+        repId = fallback.rows.length ? fallback.rows[0].id : null;
+      }
+      if (!repId) continue;
+      const daysUntil = Math.floor((new Date(tc.subscription_expires_at).getTime() - Date.now()) / 86400000);
+      const dueDate = new Date(new Date(tc.subscription_expires_at).getTime() - 14 * 86400000).toISOString().split('T')[0];
+      const created = await createAutoTask(pool, repId, 'trade_renewal', tc.id,
+        `Renewal reminder — ${tc.company_name}`, {
+          priority: daysUntil <= 7 ? 'high' : 'medium',
+          due_date: dueDate,
+          description: `Trade membership expires in ${daysUntil} days (${new Date(tc.subscription_expires_at).toLocaleDateString()})`,
+          customer_name: tc.contact_name, customer_email: tc.email, customer_phone: tc.phone
+        });
+      if (created) renewalCount++;
+    }
+    console.log(`[AutoTask] Created ${renewalCount} renewal tasks from ${expiringTrade.rows.length} candidates`);
+  } catch (err) {
+    console.error('[AutoTask] Daily auto-task cron error:', err.message);
   }
 }, { timezone: 'America/Los_Angeles' });
 
@@ -19102,7 +21660,7 @@ app.post('/api/customer/sample-requests/:id/add-items', customerAuth, async (req
       if (item.sku_id) {
         const sRes = await client.query(`
           SELECT s.variant_name, s.product_id,
-            p.name as product_name, p.collection,
+            COALESCE(p.display_name, p.name) as product_name, p.collection,
             (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
           FROM skus s
           JOIN products p ON p.id = s.product_id
@@ -19386,8 +21944,8 @@ app.get('/api/sitemap.xml', async (req, res) => {
     const baseUrl = (process.env.SITE_URL || 'https://romaflooringdesigns.com').replace(/\/+$/, '');
     const today = new Date().toISOString().split('T')[0];
 
-    const [skusResult, categoriesResult, collectionsResult] = await Promise.all([
-      pool.query(`SELECT s.id, p.name as product_name, s.updated_at FROM skus s JOIN products p ON s.product_id = p.id WHERE p.status = 'active' AND s.status = 'active' AND s.is_sample = false AND COALESCE(s.variant_type, '') != 'accessory' ORDER BY s.id`),
+    const [productsResult, categoriesResult, collectionsResult] = await Promise.all([
+      pool.query(`SELECT DISTINCT ON (p.id) p.id, p.slug as product_slug, c.slug as category_slug, COALESCE(p.display_name, p.name) as product_name, p.updated_at FROM products p JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false AND COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim') LEFT JOIN categories c ON c.id = p.category_id WHERE p.status = 'active' ORDER BY p.id`),
       pool.query(`SELECT slug FROM categories WHERE is_active = true ORDER BY slug`),
       pool.query(`SELECT DISTINCT collection as name FROM products WHERE status = 'active' AND collection IS NOT NULL AND collection != '' ORDER BY collection`)
     ]);
@@ -19412,11 +21970,16 @@ app.get('/api/sitemap.xml', async (req, res) => {
       xml += `  <url><loc>${baseUrl}/collections/${encodeURIComponent(slug)}</loc><lastmod>${today}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>\n`;
     }
 
-    // SKU pages
-    for (const row of skusResult.rows) {
-      const slug = generateSlugBackend(row.product_name);
+    // Product pages (one URL per product, using slug-based paths)
+    for (const row of productsResult.rows) {
       const lastmod = row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : today;
-      xml += `  <url><loc>${baseUrl}/shop/sku/${row.id}/${encodeURIComponent(slug)}</loc><lastmod>${lastmod}</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>\n`;
+      if (row.product_slug && row.category_slug) {
+        xml += `  <url><loc>${baseUrl}/shop/${encodeURIComponent(row.category_slug)}/${encodeURIComponent(row.product_slug)}</loc><lastmod>${lastmod}</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>\n`;
+      } else {
+        // Fallback for products without slugs
+        const slug = generateSlugBackend(row.product_name);
+        xml += `  <url><loc>${baseUrl}/shop/sku/${row.id}/${encodeURIComponent(slug)}</loc><lastmod>${lastmod}</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>\n`;
+      }
     }
 
     xml += '</urlset>';
@@ -19787,6 +22350,15 @@ async function runMigrations() {
       UNIQUE (vendor_id, collection, name)
     `);
     console.log('Migrations: Products unique constraint updated to (vendor_id, collection, name)');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Product slug column for SEO-friendly URLs
+  try {
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS slug TEXT`);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS products_slug_unique ON products (slug) WHERE slug IS NOT NULL`);
+    console.log('Migrations: Product slug column applied');
   } catch (err) {
     console.error('Migration warning:', err.message);
   }

@@ -1,13 +1,21 @@
 /**
  * Engineered Floors — fcB2B Web Services Integration
  *
- * Polls EF's fcB2B web service endpoints for real-time inventory and pricing
+ * Polls EF's fcB2B PriceInquiry endpoint for real-time pricing and inventory
  * data on all active EF SKUs in the database.
  *
- * Endpoints used:
- *   - InventoryInquiry (v2.0) — current stock availability per SKU
- *   - PriceInquiry (v1.0) — current dealer/retail pricing per SKU
- *   - StockCheck (v1.0) — quick single-item availability check
+ * PriceInquiry returns both price AND available quantity per SKU, with separate
+ * entries for Roll (R) and Cut (C) availability. This is more useful than
+ * InventoryInquiry which returns empty quantities for most product types.
+ *
+ * Actual XML response format (from live testing):
+ *   <AvailableItem>
+ *     <AvailableQuantity>145.75</AvailableQuantity>  (or "NA" or empty)
+ *     <Price>5.76</Price>
+ *     <AvailableUnitOfMeasure>SY</AvailableUnitOfMeasure>
+ *     <RollOrCutFlag>R</RollOrCutFlag>  (R=Roll, C=Cut)
+ *     <MinimumQuantityRestriction>150.00</MinimumQuantityRestriction> (optional)
+ *   </AvailableItem>
  *
  * Auth: GET requests with query params ApiKey + Signature (the secret key).
  * Discovery: https://www.engfloors.info/B2B/serviceDiscovery
@@ -32,9 +40,9 @@ import {
 const VENDOR_CODE = 'EF';
 
 const DEFAULT_CONFIG = {
-  api_key: 'ENGFLOORWSV1',
-  secret_key: '1WDE34',
-  client_id: '18110',
+  api_key: process.env.EF_B2B_API_KEY || 'ENGFLOORWSV1',
+  secret_key: process.env.EF_B2B_SECRET_KEY || '1WDE34',
+  client_id: process.env.EF_CLIENT_ID || '18110',
   base_url: 'https://www.engfloors.info/B2B',
   batch_delay_ms: 200,
 };
@@ -95,7 +103,7 @@ function xmlError(xml) {
 }
 
 // ---------------------------------------------------------------------------
-// Web service callers
+// Web service caller
 // ---------------------------------------------------------------------------
 
 function buildUrl(baseUrl, endpoint, config, supplierItemSku) {
@@ -113,123 +121,64 @@ function buildUrl(baseUrl, endpoint, config, supplierItemSku) {
 }
 
 /**
- * Call InventoryInquiry for a single SKU.
- * Returns { available: boolean, items: [{ sku, warehouse, qtyOnHand, qtyInTransit, uom }] }
+ * Call PriceInquiry for a single SKU.
+ * Returns both price AND inventory data.
+ *
+ * Response shape:
+ * {
+ *   available: boolean,
+ *   items: [{
+ *     qty: number | null,     // AvailableQuantity (null if "NA" or empty)
+ *     price: number,          // Price (dealer cost per SY)
+ *     uom: string,            // AvailableUnitOfMeasure (SY, LF, EA)
+ *     rollOrCut: string,      // R=Roll, C=Cut, Roll, Cut
+ *     minQty: number | null,  // MinimumQuantityRestriction
+ *   }],
+ *   error: string | null,
+ * }
  */
-async function inventoryInquiry(baseUrl, config, sku) {
-  const url = buildUrl(baseUrl, 'InventoryInquiry', config, sku);
+async function priceInquiry(baseUrl, config, sku) {
+  const url = buildUrl(baseUrl, 'PriceInquiry', config, sku);
   const res = await httpsGet(url);
   if (res.status !== 200) return { available: false, items: [], error: `HTTP ${res.status}` };
 
   const err = xmlError(res.body);
   if (err) return { available: false, items: [], error: err.message };
 
-  // Parse AvailableItems
   const items = [];
-  const availableXml = xmlAll(res.body, 'AvailableItem');
-  if (availableXml.length === 0) {
-    // Try alternative: items may be direct children of AvailableItems
+  const availableItems = xmlAll(res.body, 'AvailableItem');
+
+  if (availableItems.length === 0) {
+    // Try flat structure (single item directly inside AvailableItems)
     const avSection = res.body.match(/<AvailableItems>(.*?)<\/AvailableItems>/is);
     if (avSection && avSection[1].trim()) {
-      // Parse flat structure
-      const qty = xmlText(avSection[1], 'Quantity') || xmlText(avSection[1], 'QuantityAvailable');
-      if (qty) {
+      const price = xmlText(avSection[1], 'Price');
+      const qtyRaw = xmlText(avSection[1], 'AvailableQuantity');
+      if (price || (qtyRaw && qtyRaw !== 'NA')) {
         items.push({
-          sku,
-          warehouse: xmlText(avSection[1], 'Warehouse') || xmlText(avSection[1], 'Location') || 'default',
-          qtyOnHand: parseFloat(qty) || 0,
-          qtyInTransit: parseFloat(xmlText(avSection[1], 'QuantityInTransit') || '0'),
-          uom: xmlText(avSection[1], 'UnitOfMeasure') || 'SF',
+          qty: (qtyRaw && qtyRaw !== 'NA' && qtyRaw !== '') ? parseFloat(qtyRaw) : null,
+          price: price ? parseFloat(price) : null,
+          uom: xmlText(avSection[1], 'AvailableUnitOfMeasure') || 'SY',
+          rollOrCut: (xmlText(avSection[1], 'RollOrCutFlag') || '').toUpperCase().charAt(0) || null,
+          minQty: parseFloat(xmlText(avSection[1], 'MinimumQuantityRestriction') || '0') || null,
         });
       }
     }
   } else {
-    for (const itemXml of availableXml) {
+    for (const itemXml of availableItems) {
+      const price = xmlText(itemXml, 'Price');
+      const qtyRaw = xmlText(itemXml, 'AvailableQuantity');
       items.push({
-        sku: xmlText(itemXml, 'SupplierItemSKU') || sku,
-        warehouse: xmlText(itemXml, 'Warehouse') || xmlText(itemXml, 'Location') || 'default',
-        qtyOnHand: parseFloat(xmlText(itemXml, 'Quantity') || xmlText(itemXml, 'QuantityAvailable') || '0'),
-        qtyInTransit: parseFloat(xmlText(itemXml, 'QuantityInTransit') || '0'),
-        uom: xmlText(itemXml, 'UnitOfMeasure') || 'SF',
-        dyeLot: xmlText(itemXml, 'DyeLot') || null,
-        shade: xmlText(itemXml, 'Shade') || null,
-        rollWidth: xmlText(itemXml, 'RollWidth') || null,
-        rollLength: xmlText(itemXml, 'RollLength') || null,
+        qty: (qtyRaw && qtyRaw !== 'NA' && qtyRaw !== '') ? parseFloat(qtyRaw) : null,
+        price: price ? parseFloat(price) : null,
+        uom: xmlText(itemXml, 'AvailableUnitOfMeasure') || 'SY',
+        rollOrCut: (xmlText(itemXml, 'RollOrCutFlag') || '').toUpperCase().charAt(0) || null,
+        minQty: parseFloat(xmlText(itemXml, 'MinimumQuantityRestriction') || '0') || null,
       });
     }
   }
 
   return { available: items.length > 0, items };
-}
-
-/**
- * Call PriceInquiry for a single SKU.
- * Returns { available: boolean, prices: [{ sku, priceType, unitPrice, uom }] }
- */
-async function priceInquiry(baseUrl, config, sku) {
-  const url = buildUrl(baseUrl, 'PriceInquiry', config, sku);
-  const res = await httpsGet(url);
-  if (res.status !== 200) return { available: false, prices: [], error: `HTTP ${res.status}` };
-
-  const err = xmlError(res.body);
-  if (err) return { available: false, prices: [], error: err.message };
-
-  const prices = [];
-  const priceItems = xmlAll(res.body, 'AvailableItem') || [];
-  if (priceItems.length === 0) {
-    // Try flat structure in AvailableItems
-    const avSection = res.body.match(/<AvailableItems>(.*?)<\/AvailableItems>/is);
-    if (avSection && avSection[1].trim()) {
-      const price = xmlText(avSection[1], 'UnitPrice') || xmlText(avSection[1], 'Price');
-      if (price) {
-        prices.push({
-          sku,
-          priceType: xmlText(avSection[1], 'PriceType') || xmlText(avSection[1], 'ClassOfTrade') || 'NET',
-          unitPrice: parseFloat(price),
-          uom: xmlText(avSection[1], 'UnitOfMeasure') || 'SF',
-          retail: parseFloat(xmlText(avSection[1], 'RetailPrice') || xmlText(avSection[1], 'MSRP') || '0'),
-        });
-      }
-    }
-  } else {
-    for (const itemXml of priceItems) {
-      const price = xmlText(itemXml, 'UnitPrice') || xmlText(itemXml, 'Price');
-      if (price) {
-        prices.push({
-          sku: xmlText(itemXml, 'SupplierItemSKU') || sku,
-          priceType: xmlText(itemXml, 'PriceType') || xmlText(itemXml, 'ClassOfTrade') || 'NET',
-          unitPrice: parseFloat(price),
-          uom: xmlText(itemXml, 'UnitOfMeasure') || 'SF',
-          retail: parseFloat(xmlText(itemXml, 'RetailPrice') || xmlText(itemXml, 'MSRP') || '0'),
-        });
-      }
-    }
-  }
-
-  return { available: prices.length > 0, prices };
-}
-
-/**
- * Call StockCheck for a single SKU.
- * Returns { available: boolean, qty, uom, warehouse }
- */
-async function stockCheck(baseUrl, config, sku) {
-  const url = buildUrl(baseUrl, 'stockcheck', config, sku);
-  const res = await httpsGet(url);
-  if (res.status !== 200) return { available: false, error: `HTTP ${res.status}` };
-
-  const err = xmlError(res.body);
-  if (err) return { available: false, error: err.message };
-
-  const qty = xmlText(res.body, 'Quantity') || xmlText(res.body, 'QuantityAvailable');
-  if (!qty) return { available: false };
-
-  return {
-    available: true,
-    qty: parseFloat(qty),
-    uom: xmlText(res.body, 'UnitOfMeasure') || 'SF',
-    warehouse: xmlText(res.body, 'Warehouse') || xmlText(res.body, 'Location') || 'default',
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -254,7 +203,7 @@ export async function run(pool, job, source) {
 
   // ── Step 2: Get all active EF SKUs ──
   const skuResult = await pool.query(`
-    SELECT s.id, s.vendor_sku, s.internal_sku, s.variant_name, s.sell_by
+    SELECT s.id, s.vendor_sku, s.sell_by
     FROM skus s
     JOIN products p ON s.product_id = p.id
     WHERE p.vendor_id = $1 AND s.status = 'active'
@@ -269,76 +218,108 @@ export async function run(pool, job, source) {
     return;
   }
 
-  // ── Step 3: Query web services for each SKU ──
+  // ── Step 3: Query PriceInquiry for each SKU ──
   let inventoryUpdated = 0, pricingUpdated = 0, errCount = 0;
-  let inventoryDataFound = 0, pricingDataFound = 0;
-  const batchSize = 50;
+  let inventoryDataFound = 0, pricingDataFound = 0, noDataCount = 0;
+  const batchSize = 100;
   let processed = 0;
 
   for (const sku of skus) {
     const vendorSku = sku.vendor_sku;
     if (!vendorSku) continue;
 
-    // Strip the EF- prefix to get the original vendor SKU for the API
-    const apiSku = vendorSku.startsWith('EF-') ? vendorSku.slice(3) : vendorSku;
-
     try {
-      // ── InventoryInquiry ──
-      const invResult = await inventoryInquiry(baseUrl, cfg, apiSku);
-      if (invResult.error && invResult.error !== 'SKU not available or does not exist') {
-        errCount++;
-        if (errCount <= 10) {
-          await addJobError(pool, job.id, { message: `Inventory error for ${apiSku}: ${invResult.error}` });
-        }
-      }
+      const result = await priceInquiry(baseUrl, cfg, vendorSku);
 
-      if (invResult.available && invResult.items.length > 0) {
-        inventoryDataFound++;
-        for (const item of invResult.items) {
-          await upsertInventorySnapshot(pool, sku.id, item.warehouse, {
-            qty_on_hand_sqft: Math.round(item.qtyOnHand),
-            qty_in_transit_sqft: Math.round(item.qtyInTransit),
+      if (result.error) {
+        errCount++;
+        if (errCount <= 20) {
+          await addJobError(pool, job.id, { message: `Error for ${vendorSku}: ${result.error}` });
+        }
+      } else if (!result.available || result.items.length === 0) {
+        noDataCount++;
+      } else {
+        // ── Process inventory ──
+        // Find the best inventory entry (prefer Roll over Cut for broadloom)
+        let bestQty = null;
+        let rollMinSqft = null;
+
+        for (const item of result.items) {
+          if (item.qty !== null && item.qty > 0) {
+            inventoryDataFound++;
+            // Convert SY to sqft for inventory (1 SY = 9 sqft)
+            const qtySqft = item.uom === 'SY' ? Math.round(item.qty * 9) : Math.round(item.qty);
+            if (bestQty === null || qtySqft > bestQty) bestQty = qtySqft;
+
+            // Track roll minimum
+            if (item.rollOrCut === 'C' && item.minQty) {
+              const minSqft = item.uom === 'SY' ? Math.round(item.minQty * 9) : Math.round(item.minQty);
+              rollMinSqft = minSqft;
+            }
+          }
+        }
+
+        if (bestQty !== null) {
+          await upsertInventorySnapshot(pool, sku.id, 'EF-main', {
+            qty_on_hand_sqft: bestQty,
+            qty_in_transit_sqft: 0,
           });
           inventoryUpdated++;
         }
-      }
 
-      // Rate limit
-      await sleep(cfg.batch_delay_ms);
+        // ── Process pricing ──
+        // EF PriceInquiry returns dealer cost per SY (for broadloom/tile)
+        // Find Roll price and Cut price
+        let rollPrice = null, cutPrice = null;
+        let primaryPrice = null;
 
-      // ── PriceInquiry ──
-      const priceResult = await priceInquiry(baseUrl, cfg, apiSku);
-      if (priceResult.error && priceResult.error !== 'SKU not available or does not exist') {
-        errCount++;
-        if (errCount <= 10) {
-          await addJobError(pool, job.id, { message: `Price error for ${apiSku}: ${priceResult.error}` });
-        }
-      }
+        for (const item of result.items) {
+          if (item.price === null) continue;
+          const flag = item.rollOrCut;
 
-      if (priceResult.available && priceResult.prices.length > 0) {
-        pricingDataFound++;
-        // Find net/dealer cost and retail price
-        let cost = null, retail = null;
-        for (const p of priceResult.prices) {
-          const type = (p.priceType || '').toUpperCase();
-          if (['NET', 'WS', 'DE', 'DI', 'DEALER', 'WHOLESALE'].includes(type)) {
-            cost = p.unitPrice;
+          if (flag === 'R') {
+            rollPrice = item.price;
+            if (primaryPrice === null) primaryPrice = item.price;
+          } else if (flag === 'C') {
+            cutPrice = item.price;
+            if (primaryPrice === null) primaryPrice = item.price;
+          } else {
+            if (primaryPrice === null) primaryPrice = item.price;
           }
-          if (['RS', 'MSR', 'MSRP', 'RETAIL', 'MAP'].includes(type)) {
-            retail = p.unitPrice;
-          }
-          // Fallback: use first price as cost if type unknown
-          if (cost === null) cost = p.unitPrice;
-          if (p.retail) retail = p.retail;
         }
 
-        if (cost !== null) {
-          const priceBasis = sku.sell_by === 'sqft' ? 'per_sqft' : 'per_unit';
-          await upsertPricing(pool, sku.id, {
-            cost: parseFloat(cost).toFixed(2),
-            retail_price: retail ? parseFloat(retail).toFixed(2) : null,
-            price_basis: priceBasis,
-          });
+        if (primaryPrice !== null) {
+          pricingDataFound++;
+
+          // Determine price basis from sell_by
+          const isSqyd = sku.sell_by === 'sqyd';
+          const isUnit = sku.sell_by === 'unit';
+
+          if (isSqyd) {
+            // Broadloom carpet: cost is per SY, store as cut_cost / roll_cost
+            const pricingData = {
+              price_basis: 'per_sqyd',
+            };
+            if (cutPrice !== null) pricingData.cut_cost = parseFloat(cutPrice.toFixed(2));
+            if (rollPrice !== null) pricingData.roll_cost = parseFloat(rollPrice.toFixed(2));
+            if (rollMinSqft !== null) pricingData.roll_min_sqft = rollMinSqft;
+            // Also update base cost (per sqft) = per SY / 9
+            pricingData.cost = parseFloat(((cutPrice || rollPrice || primaryPrice) / 9).toFixed(4));
+            await upsertPricing(pool, sku.id, pricingData);
+          } else if (isUnit) {
+            // Transitions/accessories: price per unit
+            await upsertPricing(pool, sku.id, {
+              cost: parseFloat(primaryPrice.toFixed(2)),
+              price_basis: 'per_unit',
+            });
+          } else {
+            // Carpet tile / LVP: price per SY, convert to per sqft
+            const costPerSqft = parseFloat((primaryPrice / 9).toFixed(4));
+            await upsertPricing(pool, sku.id, {
+              cost: costPerSqft,
+              price_basis: 'per_sqft',
+            });
+          }
           pricingUpdated++;
         }
       }
@@ -347,15 +328,15 @@ export async function run(pool, job, source) {
 
     } catch (err) {
       errCount++;
-      if (errCount <= 10) {
-        await addJobError(pool, job.id, { message: `Exception for ${apiSku}: ${err.message}` });
+      if (errCount <= 20) {
+        await addJobError(pool, job.id, { message: `Exception for ${vendorSku}: ${err.message}` });
       }
     }
 
     processed++;
     if (processed % batchSize === 0) {
       await appendLog(pool, job.id,
-        `Progress: ${processed}/${skus.length} SKUs checked (${inventoryDataFound} inventory, ${pricingDataFound} pricing found)`);
+        `Progress: ${processed}/${skus.length} SKUs (${inventoryDataFound} inv, ${pricingDataFound} price, ${noDataCount} no data, ${errCount} errors)`);
     }
   }
 
@@ -363,12 +344,13 @@ export async function run(pool, job, source) {
   await appendLog(pool, job.id, [
     `EF Web Services sync complete.`,
     `  SKUs checked: ${processed}`,
-    `  Inventory data found: ${inventoryDataFound} (${inventoryUpdated} snapshots upserted)`,
-    `  Pricing data found: ${pricingDataFound} (${pricingUpdated} prices upserted)`,
+    `  Inventory found: ${inventoryDataFound} → ${inventoryUpdated} snapshots upserted`,
+    `  Pricing found: ${pricingDataFound} → ${pricingUpdated} upserted`,
+    `  No data returned: ${noDataCount}`,
     `  Errors: ${errCount}`,
   ].join('\n'), {
     products_found: processed,
-    products_updated: inventoryDataFound + pricingDataFound,
+    products_updated: inventoryUpdated + pricingUpdated,
     skus_created: 0,
   });
 }

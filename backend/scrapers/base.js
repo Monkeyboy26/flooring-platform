@@ -58,27 +58,244 @@ export function buildVariantName(size, ...qualifiers) {
   return parts.join(', ') || null;
 }
 
+function slugify(text) {
+  return (text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+// ──────────────────────────────────────────────
+// Data validation — shared across all scrapers
+// ──────────────────────────────────────────────
+
+const VALID_PRODUCT_STATUSES = ['draft', 'active', 'inactive', 'discontinued'];
+const VALID_SKU_STATUSES = ['active', 'draft', 'inactive'];
+const VALID_SELL_BY = ['sqft', 'unit', 'sqyd'];
+const VALID_VARIANT_TYPES = [null, 'accessory', 'floor_tile', 'wall_tile', 'mosaic', 'lvt', 'quarry_tile', 'stone_tile', 'floor_deco'];
+const VALID_PRICE_BASIS = ['per_sqft', 'per_unit', 'per_sqyd', 'sqft', 'unit'];
+const VALID_ASSET_TYPES = ['primary', 'alternate', 'lifestyle', 'spec_pdf', 'swatch'];
+
+/**
+ * Validate product data before upsert. Returns { valid, warnings, cleaned }.
+ * `cleaned` contains sanitized values; `warnings` lists issues that were auto-fixed.
+ * Throws on critical errors (missing required fields).
+ */
+export function validateProduct({ vendor_id, name, collection, category_id, description_short, description_long }) {
+  const warnings = [];
+
+  if (!vendor_id) throw new Error('validateProduct: vendor_id is required');
+  if (!name || !name.trim()) throw new Error('validateProduct: name is required');
+
+  let cleanName = name.trim();
+  // Collapse excessive whitespace
+  cleanName = cleanName.replace(/\s{2,}/g, ' ');
+  if (cleanName !== name) warnings.push(`Product name whitespace normalized: "${name}" → "${cleanName}"`);
+
+  // Detect suspiciously long names (likely parse errors)
+  if (cleanName.length > 300) {
+    warnings.push(`Product name unusually long (${cleanName.length} chars), truncating`);
+    cleanName = cleanName.slice(0, 300);
+  }
+
+  let cleanCollection = (collection || '').trim().replace(/\s{2,}/g, ' ');
+
+  return {
+    valid: true,
+    warnings,
+    cleaned: { vendor_id, name: cleanName, collection: cleanCollection, category_id: category_id || null, description_short: description_short || null, description_long: description_long || null }
+  };
+}
+
+/**
+ * Validate SKU data before upsert. Returns { valid, warnings, cleaned }.
+ */
+export function validateSku({ product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type }) {
+  const warnings = [];
+
+  if (!product_id) throw new Error('validateSku: product_id is required');
+  if (!internal_sku || !internal_sku.trim()) throw new Error('validateSku: internal_sku is required');
+
+  let cleanVendorSku = (vendor_sku || '').trim();
+  let cleanInternalSku = internal_sku.trim();
+  let cleanVariantName = variant_name ? variant_name.trim().replace(/\s{2,}/g, ' ') : null;
+
+  // Validate sell_by enum
+  let cleanSellBy = sell_by || 'sqft';
+  if (!VALID_SELL_BY.includes(cleanSellBy)) {
+    warnings.push(`Invalid sell_by "${cleanSellBy}", defaulting to "sqft"`);
+    cleanSellBy = 'sqft';
+  }
+
+  // Validate variant_type enum
+  let cleanVariantType = variant_type || null;
+  if (cleanVariantType && !VALID_VARIANT_TYPES.includes(cleanVariantType)) {
+    warnings.push(`Invalid variant_type "${cleanVariantType}", setting to null`);
+    cleanVariantType = null;
+  }
+
+  return {
+    valid: true,
+    warnings,
+    cleaned: { product_id, vendor_sku: cleanVendorSku, internal_sku: cleanInternalSku, variant_name: cleanVariantName, sell_by: cleanSellBy, variant_type: cleanVariantType }
+  };
+}
+
+/**
+ * Validate pricing data before upsert. Returns { valid, warnings, cleaned }.
+ */
+export function validatePricing({ cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price }) {
+  const warnings = [];
+
+  const parsedCost = cost != null ? parseFloat(cost) : null;
+  const parsedRetail = retail_price != null ? parseFloat(retail_price) : null;
+
+  // Price sanity checks
+  if (parsedCost != null) {
+    if (isNaN(parsedCost) || parsedCost < 0) {
+      warnings.push(`Invalid cost "${cost}", setting to null`);
+    } else if (parsedCost > 500) {
+      warnings.push(`Unusually high cost: $${parsedCost}/unit — verify this is correct`);
+    }
+  }
+
+  if (parsedRetail != null) {
+    if (isNaN(parsedRetail) || parsedRetail < 0) {
+      warnings.push(`Invalid retail_price "${retail_price}", setting to null`);
+    } else if (parsedRetail > 1000) {
+      warnings.push(`Unusually high retail price: $${parsedRetail}/unit — verify this is correct`);
+    }
+  }
+
+  // Negative margin check
+  if (parsedCost > 0 && parsedRetail > 0 && parsedCost > parsedRetail) {
+    warnings.push(`Negative margin: cost $${parsedCost} > retail $${parsedRetail}`);
+  }
+
+  // Validate price_basis enum
+  let cleanPriceBasis = price_basis || 'per_sqft';
+  if (!VALID_PRICE_BASIS.includes(cleanPriceBasis)) {
+    warnings.push(`Invalid price_basis "${cleanPriceBasis}", defaulting to "per_sqft"`);
+    cleanPriceBasis = 'per_sqft';
+  }
+
+  return {
+    valid: true,
+    warnings,
+    cleaned: {
+      cost: (parsedCost != null && !isNaN(parsedCost) && parsedCost >= 0) ? parsedCost : null,
+      retail_price: (parsedRetail != null && !isNaN(parsedRetail) && parsedRetail >= 0) ? parsedRetail : null,
+      price_basis: cleanPriceBasis,
+      cut_price: cut_price || null,
+      roll_price: roll_price || null,
+      cut_cost: cut_cost || null,
+      roll_cost: roll_cost || null,
+      roll_min_sqft: roll_min_sqft || null,
+      map_price: map_price || null
+    }
+  };
+}
+
+/**
+ * Validate packaging data. Returns { valid, warnings, cleaned }.
+ */
+export function validatePackaging({ sqft_per_box, pieces_per_box, weight_per_box_lbs, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft, roll_length_ft, freight_class }) {
+  const warnings = [];
+
+  const parsed = {
+    sqft_per_box: sqft_per_box ? parseFloat(sqft_per_box) : null,
+    pieces_per_box: pieces_per_box ? parseInt(pieces_per_box) : null,
+    weight_per_box_lbs: weight_per_box_lbs ? parseFloat(weight_per_box_lbs) : null,
+    boxes_per_pallet: boxes_per_pallet ? parseInt(boxes_per_pallet) : null,
+    sqft_per_pallet: sqft_per_pallet ? parseFloat(sqft_per_pallet) : null,
+    weight_per_pallet_lbs: weight_per_pallet_lbs ? parseFloat(weight_per_pallet_lbs) : null,
+    roll_width_ft: roll_width_ft ? parseFloat(roll_width_ft) : null,
+    roll_length_ft: roll_length_ft ? parseFloat(roll_length_ft) : null,
+    freight_class: freight_class || null
+  };
+
+  // Sanity: sqft_per_box should be reasonable (0.1 to 200)
+  if (parsed.sqft_per_box != null && (parsed.sqft_per_box <= 0 || parsed.sqft_per_box > 200)) {
+    warnings.push(`Suspicious sqft_per_box: ${parsed.sqft_per_box}`);
+  }
+
+  // Sanity: weight_per_box should be reasonable (0.1 to 200 lbs)
+  if (parsed.weight_per_box_lbs != null && (parsed.weight_per_box_lbs <= 0 || parsed.weight_per_box_lbs > 200)) {
+    warnings.push(`Suspicious weight_per_box: ${parsed.weight_per_box_lbs} lbs`);
+  }
+
+  return { valid: true, warnings, cleaned: parsed };
+}
+
+/**
+ * Log validation warnings to scrape job if job context available.
+ * Call after validate*() to persist warnings for review.
+ */
+export async function logValidationWarnings(pool, jobId, skuRef, warnings) {
+  if (!warnings.length || !jobId) return;
+  const prefix = skuRef ? `[${skuRef}] ` : '';
+  for (const w of warnings) {
+    await appendLog(pool, jobId, `⚠ VALIDATION: ${prefix}${w}`);
+  }
+}
+
 /**
  * Upsert product by (vendor_id, collection, name). Returns product id.
+ * Automatically validates and sanitizes input before upserting.
  */
-export async function upsertProduct(pool, { vendor_id, name, collection, category_id, description_short, description_long }) {
-  const result = await pool.query(`
-    INSERT INTO products (vendor_id, name, collection, category_id, status, description_short, description_long)
-    VALUES ($1, $2, $3, $4, 'draft', $5, $6)
-    ON CONFLICT ON CONSTRAINT products_vendor_collection_name_unique DO UPDATE SET
-      category_id = COALESCE(EXCLUDED.category_id, products.category_id),
-      description_short = COALESCE(EXCLUDED.description_short, products.description_short),
-      description_long = COALESCE(EXCLUDED.description_long, products.description_long),
-      updated_at = CURRENT_TIMESTAMP
-    RETURNING id, (xmax = 0) AS is_new
-  `, [vendor_id, name, collection || '', category_id || null, description_short || null, description_long || null]);
+export async function upsertProduct(pool, rawData, opts = {}) {
+  // Validate and sanitize
+  const { warnings, cleaned } = validateProduct(rawData);
+  if (warnings.length && opts.jobId) {
+    logValidationWarnings(pool, opts.jobId, cleaned.name, warnings).catch(() => {});
+  }
+
+  const { vendor_id, name, collection, category_id, description_short, description_long } = cleaned;
+  const slug = slugify((collection || '') + ' ' + name) || null;
+  let result;
+  try {
+    result = await pool.query(`
+      INSERT INTO products (vendor_id, name, collection, category_id, status, description_short, description_long, slug)
+      VALUES ($1, $2, $3, $4, 'draft', $5, $6, $7)
+      ON CONFLICT ON CONSTRAINT products_vendor_collection_name_unique DO UPDATE SET
+        category_id = COALESCE(EXCLUDED.category_id, products.category_id),
+        description_short = COALESCE(EXCLUDED.description_short, products.description_short),
+        description_long = COALESCE(EXCLUDED.description_long, products.description_long),
+        slug = COALESCE(products.slug, EXCLUDED.slug),
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING id, (xmax = 0) AS is_new
+    `, [vendor_id, name, collection || '', category_id || null, description_short || null, description_long || null, slug]);
+  } catch (err) {
+    // Slug collision — retry without slug (will be assigned by backfill script)
+    if (err.code === '23505' && err.constraint === 'products_slug_unique') {
+      result = await pool.query(`
+        INSERT INTO products (vendor_id, name, collection, category_id, status, description_short, description_long)
+        VALUES ($1, $2, $3, $4, 'draft', $5, $6)
+        ON CONFLICT ON CONSTRAINT products_vendor_collection_name_unique DO UPDATE SET
+          category_id = COALESCE(EXCLUDED.category_id, products.category_id),
+          description_short = COALESCE(EXCLUDED.description_short, products.description_short),
+          description_long = COALESCE(EXCLUDED.description_long, products.description_long),
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING id, (xmax = 0) AS is_new
+      `, [vendor_id, name, collection || '', category_id || null, description_short || null, description_long || null]);
+    } else {
+      throw err;
+    }
+  }
+  // Refresh search vector for this product
+  const productId = result.rows[0].id;
+  pool.query('SELECT refresh_search_vectors($1)', [productId]).catch(() => {});
   return result.rows[0];
 }
 
 /**
  * Upsert SKU by internal_sku. Returns sku id.
+ * Automatically validates and sanitizes input before upserting.
  */
-export async function upsertSku(pool, { product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type }) {
+export async function upsertSku(pool, rawData, opts = {}) {
+  const { warnings, cleaned } = validateSku(rawData);
+  if (warnings.length && opts.jobId) {
+    logValidationWarnings(pool, opts.jobId, cleaned.internal_sku, warnings).catch(() => {});
+  }
+
+  const { product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type } = cleaned;
   const result = await pool.query(`
     INSERT INTO skus (product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type)
     VALUES ($1, $2, $3, $4, $5, $6)
@@ -95,11 +312,36 @@ export async function upsertSku(pool, { product_id, vendor_sku, internal_sku, va
 }
 
 /**
+ * Normalize an attribute value based on its slug.
+ * - size: strip quotes/inch marks, collapse whitespace around x → "12x24"
+ * - color: title-case ALL CAPS values
+ * - Other: trim whitespace
+ */
+export function normalizeAttributeValue(slug, value) {
+  if (!value || !value.trim()) return null;
+  let v = value.trim().replace(/\s{2,}/g, ' ');
+
+  if (slug === 'size') {
+    // Normalize sizes: "12" x 24"" → "12x24", "12 x 24" → "12x24"
+    v = v.replace(/["″'']/g, '').replace(/\s*[xX×]\s*/g, 'x').trim();
+  } else if (slug === 'color') {
+    // Title-case ALL CAPS colors: "AUTUMN GREY" → "Autumn Grey"
+    if (v === v.toUpperCase() && v.length > 2 && /[A-Z]/.test(v)) {
+      v = v.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    }
+  }
+
+  return v;
+}
+
+/**
  * Upsert sku_attribute by (sku_id, attribute slug).
  * Looks up attribute_id from slug, then inserts or updates.
+ * Automatically normalizes values based on attribute type.
  */
 export async function upsertSkuAttribute(pool, sku_id, attributeSlug, value) {
-  if (!value || !value.trim()) return;
+  const normalized = normalizeAttributeValue(attributeSlug, value);
+  if (!normalized) return;
   const attr = await pool.query('SELECT id FROM attributes WHERE slug = $1', [attributeSlug]);
   if (!attr.rows.length) return;
   const attribute_id = attr.rows[0].id;
@@ -107,7 +349,7 @@ export async function upsertSkuAttribute(pool, sku_id, attributeSlug, value) {
     INSERT INTO sku_attributes (sku_id, attribute_id, value)
     VALUES ($1, $2, $3)
     ON CONFLICT (sku_id, attribute_id) DO UPDATE SET value = EXCLUDED.value
-  `, [sku_id, attribute_id, value.trim()]);
+  `, [sku_id, attribute_id, normalized]);
 }
 
 /**
@@ -149,11 +391,18 @@ export async function appendLog(pool, jobId, message, counters) {
 
 /**
  * Upsert packaging by sku_id (PK). Returns nothing.
+ * Automatically validates and sanitizes input before upserting.
  */
-export async function upsertPackaging(pool, sku_id, { sqft_per_box, pieces_per_box, weight_per_box_lbs, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft }) {
+export async function upsertPackaging(pool, sku_id, rawData, opts = {}) {
+  const { warnings, cleaned } = validatePackaging(rawData);
+  if (warnings.length && opts.jobId) {
+    logValidationWarnings(pool, opts.jobId, sku_id, warnings).catch(() => {});
+  }
+
+  const { sqft_per_box, pieces_per_box, weight_per_box_lbs, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft, roll_length_ft, freight_class } = cleaned;
   await pool.query(`
-    INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, weight_per_box_lbs, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, weight_per_box_lbs, boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs, roll_width_ft, roll_length_ft, freight_class)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     ON CONFLICT (sku_id) DO UPDATE SET
       sqft_per_box = COALESCE(EXCLUDED.sqft_per_box, packaging.sqft_per_box),
       pieces_per_box = COALESCE(EXCLUDED.pieces_per_box, packaging.pieces_per_box),
@@ -161,14 +410,23 @@ export async function upsertPackaging(pool, sku_id, { sqft_per_box, pieces_per_b
       boxes_per_pallet = COALESCE(EXCLUDED.boxes_per_pallet, packaging.boxes_per_pallet),
       sqft_per_pallet = COALESCE(EXCLUDED.sqft_per_pallet, packaging.sqft_per_pallet),
       weight_per_pallet_lbs = COALESCE(EXCLUDED.weight_per_pallet_lbs, packaging.weight_per_pallet_lbs),
-      roll_width_ft = COALESCE(EXCLUDED.roll_width_ft, packaging.roll_width_ft)
-  `, [sku_id, sqft_per_box || null, pieces_per_box || null, weight_per_box_lbs || null, boxes_per_pallet || null, sqft_per_pallet || null, weight_per_pallet_lbs || null, roll_width_ft || null]);
+      roll_width_ft = COALESCE(EXCLUDED.roll_width_ft, packaging.roll_width_ft),
+      roll_length_ft = COALESCE(EXCLUDED.roll_length_ft, packaging.roll_length_ft),
+      freight_class = COALESCE(EXCLUDED.freight_class, packaging.freight_class)
+  `, [sku_id, sqft_per_box || null, pieces_per_box || null, weight_per_box_lbs || null, boxes_per_pallet || null, sqft_per_pallet || null, weight_per_pallet_lbs || null, roll_width_ft || null, roll_length_ft || null, freight_class || null]);
 }
 
 /**
  * Upsert pricing by sku_id (PK). Returns nothing.
+ * Automatically validates and sanitizes input before upserting.
  */
-export async function upsertPricing(pool, sku_id, { cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price }) {
+export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
+  const { warnings, cleaned } = validatePricing(rawData);
+  if (warnings.length && opts.jobId) {
+    logValidationWarnings(pool, opts.jobId, sku_id, warnings).catch(() => {});
+  }
+
+  const { cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price } = cleaned;
   await pool.query(`
     INSERT INTO pricing (sku_id, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -182,7 +440,7 @@ export async function upsertPricing(pool, sku_id, { cost, retail_price, price_ba
       roll_cost = COALESCE(EXCLUDED.roll_cost, pricing.roll_cost),
       roll_min_sqft = COALESCE(EXCLUDED.roll_min_sqft, pricing.roll_min_sqft),
       map_price = COALESCE(EXCLUDED.map_price, pricing.map_price)
-  `, [sku_id, cost || 0, retail_price || 0, price_basis || 'per_sqft', cut_price || null, roll_price || null, cut_cost || null, roll_cost || null, roll_min_sqft || null, map_price || null]);
+  `, [sku_id, cost != null ? cost : null, retail_price != null ? retail_price : null, price_basis || 'per_sqft', cut_price || null, roll_price || null, cut_cost || null, roll_cost || null, roll_min_sqft || null, map_price || null]);
 }
 
 /**
@@ -236,6 +494,8 @@ export async function downloadImage(imageUrl, destPath) {
  * Returns { id, is_new }.
  */
 export async function upsertMediaAsset(pool, { product_id, sku_id, asset_type, url, original_url, sort_order }) {
+  // Always use HTTPS for image URLs
+  if (url && url.startsWith('http://')) url = url.replace('http://', 'https://');
   const at = asset_type || 'primary';
   const so = sort_order || 0;
   const ou = original_url || null;
@@ -411,6 +671,30 @@ export function fuzzyMatch(scraped, dbName) {
   return jaccard;
 }
 
+// Keywords that suggest a lifestyle/room-scene image (module-level for reuse)
+const LIFESTYLE_KEYWORDS = [
+  'room', 'scene', 'lifestyle', 'installed', 'roomscene', 'setting',
+  'interior', 'kitchen', 'bath', 'bathroom', 'living', 'outdoor', 'pool',
+  'backyard', 'application', 'install', 'showroom',
+  'ambiance', 'vignette', 'hero', 'banner', 'header',
+  'spotlight', 'promo', 'campaign', '1920x1080', '_4k',
+  '.mp4', '.mov', '.webm',
+  'amb0', 'amb1', '_amb_', '-amb-',
+  'crop_upscale',
+  'ambience', 'gallery', 'roomview', 'room-view', 'insitu', 'in-situ',
+  'inspiration', 'decor', 'styled', 'design',
+];
+
+/**
+ * Check whether a URL looks like a lifestyle/room-scene image based on filename keywords.
+ * @param {string} url
+ * @returns {boolean}
+ */
+export function isLifestyleUrl(url) {
+  const filename = url.toLowerCase().split('/').pop().split('?')[0];
+  return LIFESTYLE_KEYWORDS.some(kw => filename.includes(kw));
+}
+
 /**
  * Sort image URLs to prefer product-only shots (white/transparent background)
  * over lifestyle/room-scene images. Returns a new sorted array (does not mutate).
@@ -432,15 +716,7 @@ export function preferProductShot(urls, colorHint, variantHints) {
     'white-bg', 'transparent', 'no-bg', 'nobg', 'variation', 'resize',
   ];
 
-  // Keywords that suggest a lifestyle/room-scene image
-  const LIFESTYLE_KEYWORDS = [
-    'room', 'scene', 'lifestyle', 'installed', 'roomscene', 'setting',
-    'interior', 'kitchen', 'bath', 'bathroom', 'living', 'outdoor', 'pool',
-    'backyard', 'application', 'install', 'showroom',
-    'ambiance', 'vignette', 'hero', 'banner', 'header',
-    'amb0', 'amb1', '_amb_', '-amb-',
-    'crop_upscale',
-  ];
+  // LIFESTYLE_KEYWORDS is defined at module level (shared with isLifestyleUrl)
 
   // Normalize color hint for URL matching
   const colorSlug = colorHint
@@ -468,7 +744,7 @@ export function preferProductShot(urls, colorHint, variantHints) {
       if (filename.includes(kw)) { score += 3; break; }
     }
     for (const kw of LIFESTYLE_KEYWORDS) {
-      if (filename.includes(kw)) { score -= 5; break; }
+      if (filename.includes(kw)) { score -= 20; break; }
     }
 
     // Color-aware boost: if URL filename contains the color name, it's likely
@@ -489,10 +765,90 @@ export function preferProductShot(urls, colorHint, variantHints) {
     return score;
   }
 
-  return urls
+  const sorted = urls
     .map((url, i) => ({ url, score: scoreUrl(url, i) }))
     .sort((a, b) => b.score - a.score)
     .map(x => x.url);
+
+  // Hard guarantee: lifestyle image must never be primary
+  if (sorted.length > 1 && isLifestyleUrl(sorted[0])) {
+    const firstNonLifestyle = sorted.findIndex(u => !isLifestyleUrl(u));
+    if (firstNonLifestyle > 0) {
+      const swap = sorted[firstNonLifestyle];
+      sorted[firstNonLifestyle] = sorted[0];
+      sorted[0] = swap;
+    }
+  }
+
+  return sorted;
+}
+
+/**
+ * Filter a set of images down to those relevant to a specific color/variant.
+ * Checks filenames and alt text for color-related signals.
+ *
+ * @param {Array<{url: string, alt?: string}> | string[]} images - Image objects or URL strings
+ * @param {string} colorName - e.g. "Autumn Grey"
+ * @param {object} [opts]
+ * @param {string[]} [opts.otherColors] - Names of OTHER colors on this page (for exclusion)
+ * @param {string} [opts.productName] - Product name (treated as neutral, not a color signal)
+ * @returns {{ matched: string[], shared: string[] }}
+ */
+export function filterImagesByVariant(images, colorName, opts = {}) {
+  if (!images || !images.length || !colorName) {
+    const urls = (images || []).map(img => typeof img === 'string' ? img : img.url);
+    return { matched: [], shared: urls };
+  }
+
+  const { otherColors = [], productName } = opts;
+
+  // Normalize to slug: "Autumn Grey" → "autumngrey"
+  const toSlug = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Individual words (min 3 chars to avoid noise like "el", "de")
+  const toWords = (s) => s.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(w => w.length >= 3);
+
+  const targetSlug = toSlug(colorName);
+  const targetWords = toWords(colorName);
+
+  // Build exclusion slugs from other colors
+  const otherSlugs = otherColors
+    .map(c => toSlug(c))
+    .filter(s => s.length >= 3 && s !== targetSlug);
+
+  // Product name words are neutral (should not count as color signals)
+  const neutralWords = new Set(productName ? toWords(productName) : []);
+
+  const matched = [];
+  const shared = [];
+
+  for (const img of images) {
+    const url = typeof img === 'string' ? img : img.url;
+    const alt = (typeof img === 'string' ? '' : img.alt) || '';
+
+    // Build search text from filename + alt
+    const filename = url.toLowerCase().split('/').pop().split('?')[0];
+    const searchText = filename + ' ' + alt.toLowerCase();
+    const searchSlug = toSlug(searchText);
+
+    // Check for positive match (target color)
+    const hasTargetSlug = targetSlug.length >= 3 && searchSlug.includes(targetSlug);
+    const targetWordsFiltered = targetWords.filter(w => !neutralWords.has(w));
+    const hasAllTargetWords = targetWordsFiltered.length > 0 &&
+      targetWordsFiltered.every(w => searchText.includes(w));
+
+    // Check for negative match (another color)
+    const hasOtherColor = otherSlugs.some(slug => searchSlug.includes(slug));
+
+    if (hasTargetSlug || hasAllTargetWords) {
+      matched.push(url);
+    } else if (hasOtherColor) {
+      // Skip — belongs to another color
+    } else {
+      shared.push(url);
+    }
+  }
+
+  return { matched, shared };
 }
 
 /**
@@ -557,4 +913,154 @@ export function normalizeTriwestName(rawName) {
   }
 
   return name.trim();
+}
+
+// ──────────────────────────────────────────────
+// Image guardrails — shared utilities for scrapers
+// ──────────────────────────────────────────────
+
+/**
+ * URL-based junk filter for image arrays (no Puppeteer needed).
+ * Use this when you already have a list of image URL strings and want to
+ * strip logos, icons, placeholders, social assets, and other non-product junk.
+ *
+ * Also deduplicates by stripping WordPress thumbnail dimension suffixes
+ * (e.g., -300x200.jpg → .jpg) and query strings before comparing.
+ *
+ * @param {string[]} urls - Raw image URLs
+ * @param {object} [opts]
+ * @param {number} [opts.maxImages=8] - Maximum images to return
+ * @param {string[]} [opts.extraExclude] - Additional substrings to reject
+ * @returns {string[]} Cleaned, deduplicated URLs (order preserved)
+ */
+export function filterImageUrls(urls, opts = {}) {
+  const { maxImages = 8, extraExclude = [] } = opts;
+
+  const EXCLUDE = [
+    'logo', 'icon', 'favicon', 'social', 'sprite', 'pixel', 'tracking',
+    'blank', 'spacer', 'nav', 'menu', 'footer', 'header', 'badge', 'flag',
+    'spinner', 'loader', 'avatar', 'arrow', 'caret', 'chevron', 'close',
+    'search', 'cart', 'phone', 'email', 'map-pin', 'marker', 'play-btn',
+    'share', 'print', 'pdf-icon', 'download-icon',
+    '1x1', '1px', 'transparent.gif', 'transparent.png',
+    'placeholder', 'woocommerce-placeholder',
+    'gravatar', 'wp-emoji', 'smilies',
+    ...extraExclude,
+  ];
+
+  const seen = new Set();
+  const result = [];
+
+  for (const rawUrl of urls) {
+    if (!rawUrl || typeof rawUrl !== 'string') continue;
+    const lower = rawUrl.toLowerCase();
+
+    // Must be an absolute URL
+    if (!lower.startsWith('http')) continue;
+
+    // Reject junk patterns
+    if (EXCLUDE.some(p => lower.includes(p))) continue;
+
+    // Reject non-image extensions
+    const path = lower.split('?')[0];
+    if (path.match(/\.(svg|pdf|mp4|webm|gif)$/)) continue;
+
+    // Normalize: strip WP thumbnail suffixes and query strings for dedup
+    const normalized = path.replace(/-\d+x\d+(\.[a-zA-Z]+)$/, '$1');
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+
+    // Keep the full-size version (strip WP thumbnail suffix from actual URL)
+    result.push(rawUrl.replace(/-\d+x\d+(\.[a-zA-Z]+)(\?|$)/, '$1$2'));
+
+    if (result.length >= maxImages) break;
+  }
+
+  return result;
+}
+
+/**
+ * Save images at the PRODUCT level (sku_id = NULL).
+ * This is the correct default for scrapers where all SKUs of a product share
+ * the same images. The storefront API falls back to product-level images when
+ * no SKU-level images exist.
+ *
+ * Assigns asset types: index 0 → primary, 1-2 → alternate, 3+ → lifestyle.
+ *
+ * @param {import('pg').Pool} pool - Database pool
+ * @param {number} productId - Product ID
+ * @param {string[]} imageUrls - Already-filtered image URLs (use filterImageUrls first)
+ * @param {object} [opts]
+ * @param {number} [opts.maxImages=6] - Max images to save
+ * @returns {Promise<number>} Number of images saved
+ */
+export async function saveProductImages(pool, productId, imageUrls, opts = {}) {
+  const { maxImages = 6 } = opts;
+  const toSave = imageUrls.slice(0, maxImages);
+
+  // Safety net: ensure a lifestyle image is never stored as primary
+  if (toSave.length > 1 && isLifestyleUrl(toSave[0])) {
+    const swapIdx = toSave.findIndex(u => !isLifestyleUrl(u));
+    if (swapIdx > 0) [toSave[0], toSave[swapIdx]] = [toSave[swapIdx], toSave[0]];
+  }
+
+  let saved = 0;
+
+  for (let i = 0; i < toSave.length; i++) {
+    const assetType = i === 0 ? 'primary' : (i <= 2 ? 'alternate' : 'lifestyle');
+    await upsertMediaAsset(pool, {
+      product_id: productId,
+      sku_id: null,
+      asset_type: assetType,
+      url: toSave[i],
+      original_url: toSave[i],
+      sort_order: i,
+    });
+    saved++;
+  }
+
+  return saved;
+}
+
+/**
+ * Save images at the SKU level (sku_id set).
+ * Use when a scraper page is known to show images for a single specific SKU/color.
+ * The storefront API prefers SKU-level images over product-level ones.
+ *
+ * Assigns asset types: index 0 → primary, 1-2 → alternate, 3+ → lifestyle.
+ *
+ * @param {import('pg').Pool} pool - Database pool
+ * @param {number} productId - Product ID
+ * @param {number} skuId - SKU ID
+ * @param {string[]} imageUrls - Already-filtered image URLs (use filterImageUrls first)
+ * @param {object} [opts]
+ * @param {number} [opts.maxImages=8] - Max images to save
+ * @returns {Promise<number>} Number of images saved
+ */
+export async function saveSkuImages(pool, productId, skuId, imageUrls, opts = {}) {
+  const { maxImages = 8 } = opts;
+  const toSave = imageUrls.slice(0, maxImages);
+
+  // Safety net: ensure a lifestyle image is never stored as primary
+  if (toSave.length > 1 && isLifestyleUrl(toSave[0])) {
+    const swapIdx = toSave.findIndex(u => !isLifestyleUrl(u));
+    if (swapIdx > 0) [toSave[0], toSave[swapIdx]] = [toSave[swapIdx], toSave[0]];
+  }
+
+  let saved = 0;
+
+  for (let i = 0; i < toSave.length; i++) {
+    const assetType = i === 0 ? 'primary' : (i <= 2 ? 'alternate' : 'lifestyle');
+    await upsertMediaAsset(pool, {
+      product_id: productId,
+      sku_id: skuId,
+      asset_type: assetType,
+      url: toSave[i],
+      original_url: toSave[i],
+      sort_order: i,
+    });
+    saved++;
+  }
+
+  return saved;
 }

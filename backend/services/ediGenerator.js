@@ -147,7 +147,7 @@ function build850(opts) {
   for (const item of items) {
     lineNum++;
     const qty = item.qty || 0;
-    const unit = (item.sell_by === 'sqft') ? 'SF' : 'EA';
+    const unit = item.sell_by === 'sqft' ? 'SF' : item.sell_by === 'sqyd' ? 'SY' : 'EA';
     const price = parseFloat(item.cost || 0).toFixed(2);
     const vendorSku = item.vendor_sku || '';
 

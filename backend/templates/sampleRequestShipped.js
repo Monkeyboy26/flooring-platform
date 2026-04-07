@@ -1,3 +1,5 @@
+import { LOGO_URL } from './_config.js';
+
 function esc(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -51,8 +53,8 @@ export function generateSampleRequestShippedHTML(data) {
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e7e5e4;">
 
   <!-- Header -->
-  <tr><td style="padding:32px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:18px;letter-spacing:4px;color:#292524;font-weight:600;">ROMA FLOORING DESIGNS</p>
+  <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
+    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto;width:140px;height:140px;" />
   </td></tr>
 
   <!-- Greeting -->

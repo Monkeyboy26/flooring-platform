@@ -32,6 +32,7 @@ CREATE TABLE products (
     name TEXT NOT NULL,
     collection TEXT NOT NULL DEFAULT '',
     category_id UUID REFERENCES categories(id),
+    slug TEXT,
     status VARCHAR(20) DEFAULT 'draft',
     description_long TEXT,
     description_short TEXT,
@@ -39,6 +40,8 @@ CREATE TABLE products (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE UNIQUE INDEX products_slug_unique ON products (slug) WHERE slug IS NOT NULL;
 
 CREATE TABLE skus (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -106,6 +109,8 @@ CREATE TABLE orders (
     total DECIMAL(10,2) NOT NULL,
     stripe_payment_intent_id TEXT,
     status VARCHAR(30) DEFAULT 'pending',
+    bank_transfer_instructions JSONB,
+    bank_transfer_expires_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -203,6 +208,9 @@ CREATE TABLE scrape_jobs (
     products_created INTEGER DEFAULT 0,
     products_updated INTEGER DEFAULT 0,
     skus_created INTEGER DEFAULT 0,
+    avg_quality_score INTEGER,
+    warning_count INTEGER DEFAULT 0,
+    skus_affected INTEGER DEFAULT 0,
     errors JSONB DEFAULT '[]',
     log TEXT DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -336,7 +344,7 @@ CREATE INDEX idx_order_price_adj_item ON order_price_adjustments(order_item_id);
 
 CREATE TABLE purchase_orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
     vendor_id UUID NOT NULL REFERENCES vendors(id),
     po_number TEXT UNIQUE NOT NULL,
     status VARCHAR(30) DEFAULT 'draft',
@@ -351,7 +359,7 @@ CREATE TABLE purchase_orders (
 CREATE TABLE purchase_order_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     purchase_order_id UUID NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
-    order_item_id UUID NOT NULL REFERENCES order_items(id),
+    order_item_id UUID REFERENCES order_items(id),
     sku_id UUID REFERENCES skus(id),
     product_name TEXT,
     vendor_sku TEXT,
@@ -620,6 +628,7 @@ CREATE TABLE customers (
     zip TEXT,
     password_reset_token TEXT,
     password_reset_expires TIMESTAMP,
+    stripe_customer_id TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -1429,8 +1438,15 @@ CREATE TABLE IF NOT EXISTS rep_tasks (
     description TEXT,
     due_date DATE,
     priority VARCHAR(10) NOT NULL DEFAULT 'medium' CHECK (priority IN ('low','medium','high')),
-    status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open','completed')),
+    status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open','completed','dismissed')),
     completed_at TIMESTAMP,
+    source VARCHAR(10) DEFAULT 'manual' CHECK (source IN ('manual','auto')),
+    source_type VARCHAR(30),
+    source_id TEXT,
+    snoozed_until DATE,
+    customer_name TEXT,
+    customer_email TEXT,
+    customer_phone TEXT,
     linked_customer_type VARCHAR(10),
     linked_customer_ref TEXT,
     linked_order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
@@ -1443,6 +1459,10 @@ CREATE TABLE IF NOT EXISTS rep_tasks (
 CREATE INDEX IF NOT EXISTS idx_rep_tasks_rep_status ON rep_tasks(rep_id, status);
 CREATE INDEX IF NOT EXISTS idx_rep_tasks_due ON rep_tasks(due_date) WHERE status = 'open';
 CREATE INDEX IF NOT EXISTS idx_rep_tasks_customer ON rep_tasks(linked_customer_type, linked_customer_ref);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rep_tasks_source_unique
+  ON rep_tasks(rep_id, source_type, source_id)
+  WHERE source = 'auto' AND status != 'dismissed';
+CREATE INDEX IF NOT EXISTS idx_rep_tasks_snoozed ON rep_tasks(snoozed_until) WHERE status = 'open' AND snoozed_until IS NOT NULL;
 
 -- ==================== Full-Text Search ====================
 
@@ -1457,6 +1477,20 @@ BEGIN
     setweight(to_tsvector('english', unaccent(coalesce(v.name, ''))), 'B') ||
     setweight(to_tsvector('english', unaccent(coalesce(
       (SELECT c.name FROM categories c WHERE c.id = p.category_id), ''))), 'B') ||
+    -- Variant names (e.g. "French Oak Natural") at weight B
+    setweight(to_tsvector('english', unaccent(coalesce(
+      (SELECT string_agg(DISTINCT s.variant_name, ' ')
+       FROM skus s WHERE s.product_id = p.id AND s.status = 'active'
+       AND s.variant_name IS NOT NULL AND s.variant_name != ''), ''))), 'B') ||
+    -- SKU codes as literal tokens (no stemming) at weight B
+    setweight(to_tsvector('simple', coalesce(
+      (SELECT string_agg(DISTINCT coalesce(s.vendor_sku, '') || ' ' || coalesce(s.internal_sku, ''), ' ')
+       FROM skus s WHERE s.product_id = p.id AND s.status = 'active'), '')), 'B') ||
+    -- Product tags at weight B
+    setweight(to_tsvector('english', unaccent(coalesce(
+      (SELECT string_agg(td.name, ' ')
+       FROM product_tags pt JOIN tag_definitions td ON td.id = pt.tag_id
+       WHERE pt.product_id = p.id), ''))), 'B') ||
     setweight(to_tsvector('english', unaccent(coalesce(p.description_short, ''))), 'C') ||
     setweight(to_tsvector('english', unaccent(coalesce(
       (SELECT string_agg(DISTINCT sa.value, ' ')
@@ -1472,3 +1506,488 @@ CREATE INDEX IF NOT EXISTS idx_products_search_vector ON products USING GIN(sear
 CREATE INDEX IF NOT EXISTS idx_products_name_trgm ON products USING GIN(name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_products_collection_trgm ON products USING GIN(collection gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_categories_name_trgm ON categories USING GIN(name gin_trgm_ops);
+
+-- ==================== SKU Code Search Indexes ====================
+
+CREATE INDEX IF NOT EXISTS idx_skus_vendor_sku_trgm ON skus USING GIN(vendor_sku gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_skus_internal_sku_trgm ON skus USING GIN(internal_sku gin_trgm_ops);
+
+-- ==================== Product Popularity (materialized view) ====================
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS product_popularity AS
+  WITH view_counts AS (
+    SELECT s.product_id, COUNT(*) as views
+    FROM analytics_events ae
+    JOIN skus s ON s.id = (ae.properties->>'sku_id')::uuid
+    WHERE ae.event_type = 'product_view'
+      AND ae.properties->>'sku_id' IS NOT NULL
+      AND ae.created_at > NOW() - INTERVAL '90 days'
+    GROUP BY s.product_id
+  ),
+  order_counts AS (
+    SELECT oi.product_id, COUNT(*) as orders
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE oi.product_id IS NOT NULL
+      AND o.created_at > NOW() - INTERVAL '180 days'
+    GROUP BY oi.product_id
+  )
+  SELECT p.id as product_id,
+    COALESCE(LN(1 + COALESCE(vc.views, 0)), 0) + COALESCE(LN(1 + COALESCE(oc.orders, 0)), 0) * 3.0 as popularity_score
+  FROM products p
+  LEFT JOIN view_counts vc ON vc.product_id = p.id
+  LEFT JOIN order_counts oc ON oc.product_id = p.id
+  WHERE p.status = 'active';
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_product_popularity_id ON product_popularity(product_id);
+
+-- ==================== Search Vocabulary (materialized view for did-you-mean) ====================
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS search_vocabulary AS
+  SELECT DISTINCT LOWER(term) as term FROM (
+    -- Product names (split into words)
+    SELECT UNNEST(string_to_array(LOWER(name), ' ')) as term FROM products WHERE status = 'active'
+    UNION
+    -- Collection names (split into words)
+    SELECT UNNEST(string_to_array(LOWER(collection), ' ')) as term FROM products WHERE status = 'active' AND collection != ''
+    UNION
+    -- Category names (split into words)
+    SELECT UNNEST(string_to_array(LOWER(name), ' ')) as term FROM categories
+    UNION
+    -- Vendor names (split into words)
+    SELECT UNNEST(string_to_array(LOWER(name), ' ')) as term FROM vendors
+    UNION
+    -- Variant names (split into words)
+    SELECT UNNEST(string_to_array(LOWER(variant_name), ' ')) as term FROM skus WHERE status = 'active' AND variant_name IS NOT NULL AND variant_name != ''
+    UNION
+    -- Attribute values (split into words)
+    SELECT UNNEST(string_to_array(LOWER(value), ' ')) as term FROM sku_attributes
+  ) raw_terms
+  WHERE LENGTH(term) >= 3 AND term ~ '^[a-z]+$';
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_search_vocabulary_term ON search_vocabulary(term);
+CREATE INDEX IF NOT EXISTS idx_search_vocabulary_trgm ON search_vocabulary USING GIN(term gin_trgm_ops);
+
+-- ==================== Search Synonyms Table ====================
+
+CREATE TABLE IF NOT EXISTS search_synonyms (
+    id SERIAL PRIMARY KEY,
+    term VARCHAR(100) NOT NULL UNIQUE,
+    expansion TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ==================== Product Tags ====================
+
+CREATE TABLE IF NOT EXISTS tag_definitions (
+    id SERIAL PRIMARY KEY,
+    slug VARCHAR(80) UNIQUE NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(40) NOT NULL,
+    icon VARCHAR(40),
+    display_order INT DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS product_tags (
+    product_id UUID REFERENCES products(id) ON DELETE CASCADE,
+    tag_id INT REFERENCES tag_definitions(id) ON DELETE CASCADE,
+    PRIMARY KEY (product_id, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_tags_tag ON product_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_product_tags_product ON product_tags(product_id);
+
+-- Seed tag definitions
+INSERT INTO tag_definitions (slug, name, category, display_order) VALUES
+  -- Features
+  ('waterproof', 'Waterproof', 'feature', 1),
+  ('water-resistant', 'Water Resistant', 'feature', 2),
+  ('pet-friendly', 'Pet Friendly', 'feature', 3),
+  ('scratch-resistant', 'Scratch Resistant', 'feature', 4),
+  ('stain-resistant', 'Stain Resistant', 'feature', 5),
+  ('slip-resistant', 'Slip Resistant', 'feature', 6),
+  ('fade-resistant', 'Fade Resistant', 'feature', 7),
+  ('radiant-heat-compatible', 'Radiant Heat Compatible', 'feature', 8),
+  ('commercial-grade', 'Commercial Grade', 'feature', 9),
+  ('eco-friendly', 'Eco Friendly', 'feature', 10),
+  ('low-maintenance', 'Low Maintenance', 'feature', 11),
+  ('soundproof', 'Soundproof', 'feature', 12),
+  -- Rooms
+  ('bathroom', 'Bathroom', 'room', 1),
+  ('kitchen', 'Kitchen', 'room', 2),
+  ('living-room', 'Living Room', 'room', 3),
+  ('bedroom', 'Bedroom', 'room', 4),
+  ('basement', 'Basement', 'room', 5),
+  ('outdoor', 'Outdoor', 'room', 6),
+  ('shower', 'Shower', 'room', 7),
+  ('entryway', 'Entryway', 'room', 8),
+  ('laundry-room', 'Laundry Room', 'room', 9),
+  ('commercial-space', 'Commercial Space', 'room', 10),
+  -- Styles
+  ('modern', 'Modern', 'style', 1),
+  ('traditional', 'Traditional', 'style', 2),
+  ('rustic', 'Rustic', 'style', 3),
+  ('farmhouse', 'Farmhouse', 'style', 4),
+  ('contemporary', 'Contemporary', 'style', 5),
+  ('minimalist', 'Minimalist', 'style', 6),
+  ('mediterranean', 'Mediterranean', 'style', 7),
+  -- Install methods
+  ('click-lock', 'Click Lock', 'install', 1),
+  ('glue-down', 'Glue Down', 'install', 2),
+  ('nail-down', 'Nail Down', 'install', 3),
+  ('peel-and-stick', 'Peel and Stick', 'install', 4),
+  ('floating', 'Floating', 'install', 5),
+  ('diy-friendly', 'DIY Friendly', 'install', 6)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Installation attributes
+INSERT INTO attributes (name, slug, display_order, is_filterable) VALUES
+  ('Installation Method', 'installation_method', 50, true),
+  ('Subfloor Requirements', 'subfloor_requirements', 51, false),
+  ('Acclimation Time', 'acclimation_time', 52, false),
+  ('Expansion Gap', 'expansion_gap', 54, false),
+  ('Radiant Heat Compatible', 'radiant_heat', 55, true)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Additional product attributes (enrichment)
+INSERT INTO attributes (name, slug, display_order, is_filterable) VALUES
+  ('Wear Layer', 'wear_layer', 15, true),
+  ('Certification', 'certification', 16, false),
+  ('Rectified', 'rectified', 17, false),
+  ('Edge Type', 'edge_type', 18, false),
+  ('Core Type', 'core_type', 19, true),
+  ('Style', 'style', 20, false),
+  ('Pattern', 'pattern', 21, false),
+  ('Weight', 'weight', 22, false),
+  ('Width', 'width', 23, false),
+  ('Species', 'species', 24, true),
+  ('UPC', 'upc', 25, false),
+  ('Fiber', 'fiber', 26, true),
+  ('Construction', 'construction', 27, false),
+  ('Color Code', 'color_code', 28, false),
+  ('Roll Width', 'roll_width', 29, false),
+  ('Roll Length', 'roll_length', 30, false),
+  ('Weight per Sq Yd', 'weight_per_sqyd', 31, false),
+  ('Collection', 'collection', 32, false)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Seed additional synonyms (beyond the hardcoded ones in server.js)
+INSERT INTO search_synonyms (term, expansion) VALUES
+  ('bathroom flooring', 'waterproof vinyl porcelain tile bathroom'),
+  ('kitchen flooring', 'porcelain tile hardwood vinyl kitchen'),
+  ('outdoor tile', 'outdoor porcelain paver exterior'),
+  ('shower tile', 'shower porcelain mosaic wall tile waterproof'),
+  ('pool tile', 'pool porcelain mosaic outdoor waterproof'),
+  ('fireplace tile', 'fireplace tile porcelain natural stone marble'),
+  ('stair nosing', 'stair nose trim molding'),
+  ('grey', 'gray grey'),
+  ('gray', 'gray grey'),
+  ('beige', 'beige cream sand'),
+  ('white marble', 'calacatta carrara white marble porcelain'),
+  ('dark wood', 'dark walnut espresso wood hardwood engineered'),
+  ('light wood', 'light oak natural blonde wood hardwood engineered'),
+  ('rustic', 'rustic distressed reclaimed hand scraped'),
+  ('modern', 'modern contemporary sleek porcelain large format'),
+  ('large format', 'large format 24x24 24x48 36x36'),
+  ('small tile', 'mosaic small tile 2x2 4x4'),
+  ('matte', 'matte finish'),
+  ('polished', 'polished finish glossy'),
+  ('textured', 'textured finish brushed'),
+  ('plank', 'plank vinyl hardwood engineered laminate'),
+  ('wide plank', 'wide plank 7 inch hardwood engineered'),
+  ('narrow plank', 'narrow plank 3 inch 4 inch strip'),
+  ('click', 'click lock floating'),
+  ('floating floor', 'floating floor click lock'),
+  ('peel and stick', 'peel stick self adhesive'),
+  ('commercial', 'commercial grade heavy duty high traffic'),
+  ('residential', 'residential home interior'),
+  ('pet friendly', 'pet friendly scratch resistant waterproof'),
+  ('soundproof', 'sound proof acoustic underlayment cork'),
+  ('heated floor', 'radiant heat compatible'),
+  ('thick', 'thick heavy duty 12mm 14mm'),
+  ('thin', 'thin 6mm 8mm overlay'),
+  ('cheap', 'budget affordable value'),
+  ('premium', 'premium luxury high end designer'),
+  ('italian', 'italian italy imported marble porcelain'),
+  ('spanish', 'spanish spain imported porcelain'),
+  ('brazilian', 'brazilian brazil exotic hardwood'),
+  ('countertop', 'countertop slab quartz marble granite'),
+  ('grout', 'grout sealant caulk'),
+  ('adhesive', 'adhesive mortar thinset glue')
+ON CONFLICT (term) DO NOTHING;
+
+-- ==================== PIM Data Governance ====================
+
+-- 1. CHECK constraints on enum-like columns
+ALTER TABLE products DROP CONSTRAINT IF EXISTS products_status_check;
+ALTER TABLE products ADD CONSTRAINT products_status_check
+  CHECK (status IN ('draft', 'active', 'inactive', 'discontinued'));
+
+ALTER TABLE skus DROP CONSTRAINT IF EXISTS skus_status_check;
+ALTER TABLE skus ADD CONSTRAINT skus_status_check
+  CHECK (status IN ('active', 'draft', 'inactive'));
+
+ALTER TABLE skus DROP CONSTRAINT IF EXISTS skus_sell_by_check;
+ALTER TABLE skus ADD CONSTRAINT skus_sell_by_check
+  CHECK (sell_by IN ('sqft', 'unit', 'sqyd'));
+
+ALTER TABLE skus DROP CONSTRAINT IF EXISTS skus_variant_type_check;
+ALTER TABLE skus ADD CONSTRAINT skus_variant_type_check
+  CHECK (variant_type IS NULL OR variant_type IN ('accessory', 'floor_tile', 'wall_tile', 'mosaic', 'lvt', 'quarry_tile', 'stone_tile', 'floor_deco'));
+
+ALTER TABLE pricing DROP CONSTRAINT IF EXISTS pricing_price_basis_check;
+ALTER TABLE pricing ADD CONSTRAINT pricing_price_basis_check
+  CHECK (price_basis IN ('per_sqft', 'per_unit', 'per_sqyd', 'sqft', 'unit'));
+
+ALTER TABLE pricing DROP CONSTRAINT IF EXISTS pricing_cost_positive;
+ALTER TABLE pricing ADD CONSTRAINT pricing_cost_positive CHECK (cost >= 0);
+
+ALTER TABLE pricing DROP CONSTRAINT IF EXISTS pricing_retail_positive;
+ALTER TABLE pricing ADD CONSTRAINT pricing_retail_positive CHECK (retail_price >= 0);
+
+ALTER TABLE media_assets DROP CONSTRAINT IF EXISTS media_assets_type_check;
+ALTER TABLE media_assets ADD CONSTRAINT media_assets_type_check
+  CHECK (asset_type IN ('primary', 'alternate', 'lifestyle', 'spec_pdf', 'swatch'));
+
+-- 2. Attribute governance: required attributes per category
+CREATE TABLE IF NOT EXISTS category_required_attributes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    category_slug TEXT NOT NULL,
+    attribute_slug TEXT NOT NULL,
+    is_required BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(category_slug, attribute_slug)
+);
+
+-- Seed governance rules
+INSERT INTO category_required_attributes (category_slug, attribute_slug, is_required) VALUES
+  -- Tile categories require: color, size, finish, material
+  ('porcelain-tile', 'color', true), ('porcelain-tile', 'size', true), ('porcelain-tile', 'finish', true), ('porcelain-tile', 'material', true),
+  ('ceramic-tile', 'color', true), ('ceramic-tile', 'size', true), ('ceramic-tile', 'finish', true), ('ceramic-tile', 'material', true),
+  ('mosaic-tile', 'color', true), ('mosaic-tile', 'size', true), ('mosaic-tile', 'finish', true),
+  ('natural-stone', 'color', true), ('natural-stone', 'size', true), ('natural-stone', 'finish', true), ('natural-stone', 'material', true),
+  ('backsplash-tile', 'color', true), ('backsplash-tile', 'size', true), ('backsplash-tile', 'finish', true),
+  ('wood-look-tile', 'color', true), ('wood-look-tile', 'size', true), ('wood-look-tile', 'finish', true),
+  ('pool-tile', 'color', true), ('pool-tile', 'size', true),
+  ('large-format-tile', 'color', true), ('large-format-tile', 'size', true), ('large-format-tile', 'finish', true),
+  -- Hardwood categories require: color, species, finish, thickness
+  ('engineered-hardwood', 'color', true), ('engineered-hardwood', 'species', true), ('engineered-hardwood', 'finish', true), ('engineered-hardwood', 'thickness', true),
+  ('solid-hardwood', 'color', true), ('solid-hardwood', 'species', true), ('solid-hardwood', 'finish', true), ('solid-hardwood', 'thickness', true),
+  ('hardwood', 'color', true), ('hardwood', 'species', true), ('hardwood', 'finish', true),
+  -- LVP/Vinyl require: color, thickness, wear_layer, core_type
+  ('luxury-vinyl', 'color', true), ('luxury-vinyl', 'thickness', true), ('luxury-vinyl', 'wear_layer', true),
+  ('lvp-plank', 'color', true), ('lvp-plank', 'thickness', true), ('lvp-plank', 'wear_layer', true),
+  ('waterproof-wood', 'color', true), ('waterproof-wood', 'thickness', true),
+  -- Laminate requires: color, thickness
+  ('laminate', 'color', true), ('laminate', 'thickness', true),
+  ('laminate-flooring', 'color', true), ('laminate-flooring', 'thickness', true),
+  -- Carpet requires: color, fiber
+  ('carpet', 'color', true), ('carpet', 'fiber', true),
+  ('carpet-tile', 'color', true), ('carpet-tile', 'fiber', true),
+  -- Countertops require: color, finish
+  ('countertops', 'color', true), ('countertops', 'finish', true),
+  ('quartz-countertops', 'color', true), ('quartz-countertops', 'finish', true),
+  ('granite-countertops', 'color', true), ('granite-countertops', 'finish', true),
+  ('marble-countertops', 'color', true), ('marble-countertops', 'finish', true)
+ON CONFLICT (category_slug, attribute_slug) DO NOTHING;
+
+-- 3. Search vector auto-refresh trigger
+CREATE OR REPLACE FUNCTION trigger_refresh_search_vector()
+RETURNS trigger AS $$
+BEGIN
+  -- Determine which product_id to refresh
+  IF TG_TABLE_NAME = 'products' THEN
+    PERFORM refresh_search_vectors(NEW.id);
+  ELSIF TG_TABLE_NAME = 'skus' THEN
+    PERFORM refresh_search_vectors(NEW.product_id);
+    -- If product_id changed, also refresh the old product
+    IF TG_OP = 'UPDATE' AND OLD.product_id IS DISTINCT FROM NEW.product_id THEN
+      PERFORM refresh_search_vectors(OLD.product_id);
+    END IF;
+  ELSIF TG_TABLE_NAME = 'sku_attributes' THEN
+    PERFORM refresh_search_vectors(
+      (SELECT product_id FROM skus WHERE id = NEW.sku_id)
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger on products: refresh when name, collection, category, or description changes
+DROP TRIGGER IF EXISTS trg_products_search_vector ON products;
+CREATE TRIGGER trg_products_search_vector
+  AFTER UPDATE OF name, collection, category_id, description_short ON products
+  FOR EACH ROW EXECUTE FUNCTION trigger_refresh_search_vector();
+
+-- Trigger on skus: refresh when variant_name or status changes
+DROP TRIGGER IF EXISTS trg_skus_search_vector ON skus;
+CREATE TRIGGER trg_skus_search_vector
+  AFTER INSERT OR UPDATE OF variant_name, status, product_id ON skus
+  FOR EACH ROW EXECUTE FUNCTION trigger_refresh_search_vector();
+
+-- Trigger on sku_attributes: refresh when attribute values change
+DROP TRIGGER IF EXISTS trg_sku_attributes_search_vector ON sku_attributes;
+CREATE TRIGGER trg_sku_attributes_search_vector
+  AFTER INSERT OR UPDATE OF value ON sku_attributes
+  FOR EACH ROW EXECUTE FUNCTION trigger_refresh_search_vector();
+
+-- 4. Product/SKU status cascade triggers
+
+-- When a product is deactivated, cascade to all its SKUs
+CREATE OR REPLACE FUNCTION cascade_product_deactivation()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.status IN ('inactive', 'discontinued') AND OLD.status NOT IN ('inactive', 'discontinued') THEN
+    UPDATE skus SET status = 'inactive', updated_at = CURRENT_TIMESTAMP
+    WHERE product_id = NEW.id AND status = 'active';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_cascade_product_status ON products;
+CREATE TRIGGER trg_cascade_product_status
+  AFTER UPDATE OF status ON products
+  FOR EACH ROW
+  WHEN (NEW.status IN ('inactive', 'discontinued'))
+  EXECUTE FUNCTION cascade_product_deactivation();
+
+-- When the last active SKU on a product is deactivated, auto-deactivate the product
+CREATE OR REPLACE FUNCTION cascade_sku_deactivation()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.status IN ('inactive', 'draft') AND OLD.status = 'active' THEN
+    IF (SELECT COUNT(*) FROM skus WHERE product_id = NEW.product_id AND status = 'active' AND id != NEW.id) = 0 THEN
+      UPDATE products SET status = 'inactive', updated_at = CURRENT_TIMESTAMP
+      WHERE id = NEW.product_id AND status = 'active';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_cascade_sku_status ON skus;
+CREATE TRIGGER trg_cascade_sku_status
+  AFTER UPDATE OF status ON skus
+  FOR EACH ROW
+  WHEN (NEW.status IN ('inactive', 'draft') AND OLD.status = 'active')
+  EXECUTE FUNCTION cascade_sku_deactivation();
+
+-- 5. SKU quality score materialized view
+CREATE MATERIALIZED VIEW IF NOT EXISTS sku_quality_scores AS
+  SELECT
+    s.id AS sku_id,
+    s.internal_sku,
+    s.vendor_sku,
+    p.id AS product_id,
+    p.name AS product_name,
+    p.collection,
+    v.name AS vendor_name,
+    v.code AS vendor_code,
+    c.slug AS category_slug,
+    c.name AS category_name,
+    -- Individual scores (0 or 1)
+    CASE WHEN EXISTS (
+      SELECT 1 FROM media_assets ma
+      WHERE (ma.sku_id = s.id OR (ma.product_id = p.id AND ma.sku_id IS NULL))
+        AND ma.asset_type = 'primary'
+    ) THEN 1 ELSE 0 END AS has_image,
+    CASE WHEN pr.cost IS NOT NULL AND pr.cost > 0 THEN 1 ELSE 0 END AS has_cost,
+    CASE WHEN pr.retail_price IS NOT NULL AND pr.retail_price > 0 THEN 1 ELSE 0 END AS has_retail,
+    CASE WHEN pk.sqft_per_box IS NOT NULL OR s.sell_by = 'unit' THEN 1 ELSE 0 END AS has_packaging,
+    CASE WHEN p.description_short IS NOT NULL AND LENGTH(p.description_short) > 10 THEN 1 ELSE 0 END AS has_description,
+    CASE WHEN (
+      SELECT COUNT(*) FROM sku_attributes sa WHERE sa.sku_id = s.id
+    ) >= 2 THEN 1 ELSE 0 END AS has_attributes,
+    CASE WHEN EXISTS (
+      SELECT 1 FROM sku_attributes sa
+      JOIN attributes a ON a.id = sa.attribute_id AND a.slug = 'color'
+      WHERE sa.sku_id = s.id
+    ) THEN 1 ELSE 0 END AS has_color,
+    -- Missing required attributes count
+    (SELECT COUNT(*)::int FROM category_required_attributes cra
+     WHERE cra.category_slug = c.slug
+       AND cra.is_required = true
+       AND NOT EXISTS (
+         SELECT 1 FROM sku_attributes sa
+         JOIN attributes a ON a.id = sa.attribute_id
+         WHERE sa.sku_id = s.id AND a.slug = cra.attribute_slug
+       )
+    ) AS missing_required_attrs,
+    -- Total required attributes for this category
+    (SELECT COUNT(*)::int FROM category_required_attributes cra
+     WHERE cra.category_slug = c.slug AND cra.is_required = true
+    ) AS total_required_attrs,
+    -- Composite quality score (0-100)
+    (
+      (CASE WHEN EXISTS (SELECT 1 FROM media_assets ma WHERE (ma.sku_id = s.id OR (ma.product_id = p.id AND ma.sku_id IS NULL)) AND ma.asset_type = 'primary') THEN 25 ELSE 0 END) +
+      (CASE WHEN pr.cost IS NOT NULL AND pr.cost > 0 THEN 20 ELSE 0 END) +
+      (CASE WHEN pr.retail_price IS NOT NULL AND pr.retail_price > 0 THEN 15 ELSE 0 END) +
+      (CASE WHEN pk.sqft_per_box IS NOT NULL OR s.sell_by = 'unit' THEN 10 ELSE 0 END) +
+      (CASE WHEN p.description_short IS NOT NULL AND LENGTH(p.description_short) > 10 THEN 10 ELSE 0 END) +
+      (CASE WHEN (SELECT COUNT(*) FROM sku_attributes sa WHERE sa.sku_id = s.id) >= 2 THEN 10 ELSE 0 END) +
+      -- Required attributes score: 10 points proportional to how many are present
+      (CASE WHEN (SELECT COUNT(*) FROM category_required_attributes cra WHERE cra.category_slug = c.slug AND cra.is_required = true) = 0 THEN 10
+            ELSE (10.0 * (
+              (SELECT COUNT(*) FROM category_required_attributes cra
+               WHERE cra.category_slug = c.slug AND cra.is_required = true
+               AND EXISTS (SELECT 1 FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = cra.attribute_slug))
+              ::float /
+              GREATEST((SELECT COUNT(*) FROM category_required_attributes cra WHERE cra.category_slug = c.slug AND cra.is_required = true), 1)
+            ))::int
+       END)
+    ) AS quality_score
+  FROM skus s
+  JOIN products p ON p.id = s.product_id
+  JOIN vendors v ON v.id = p.vendor_id
+  LEFT JOIN categories c ON c.id = p.category_id
+  LEFT JOIN pricing pr ON pr.sku_id = s.id
+  LEFT JOIN packaging pk ON pk.sku_id = s.id
+  WHERE s.status = 'active' AND p.status = 'active';
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sku_quality_scores_sku ON sku_quality_scores(sku_id);
+CREATE INDEX IF NOT EXISTS idx_sku_quality_scores_score ON sku_quality_scores(quality_score);
+CREATE INDEX IF NOT EXISTS idx_sku_quality_scores_vendor ON sku_quality_scores(vendor_code);
+
+-- ==================== AI Enrichment ====================
+
+CREATE TABLE IF NOT EXISTS enrichment_jobs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    job_type VARCHAR(30) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    scope JSONB DEFAULT '{}',
+    triggered_by VARCHAR(30) DEFAULT 'manual',
+    scrape_job_id UUID REFERENCES scrape_jobs(id),
+    total_items INT DEFAULT 0,
+    processed_items INT DEFAULT 0,
+    skipped_items INT DEFAULT 0,
+    failed_items INT DEFAULT 0,
+    updated_items INT DEFAULT 0,
+    prompt_tokens_used INT DEFAULT 0,
+    completion_tokens_used INT DEFAULT 0,
+    estimated_cost_usd DECIMAL(10,6) DEFAULT 0,
+    errors JSONB DEFAULT '[]',
+    log TEXT DEFAULT '',
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_enrichment_jobs_status ON enrichment_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_enrichment_jobs_type ON enrichment_jobs(job_type);
+
+CREATE TABLE IF NOT EXISTS enrichment_results (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    enrichment_job_id UUID REFERENCES enrichment_jobs(id) NOT NULL,
+    entity_type VARCHAR(20) NOT NULL,
+    entity_id UUID NOT NULL,
+    field_name TEXT NOT NULL,
+    old_value TEXT,
+    new_value TEXT,
+    confidence DECIMAL(3,2),
+    status VARCHAR(20) DEFAULT 'applied',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_enrichment_results_job ON enrichment_results(enrichment_job_id);
+CREATE INDEX IF NOT EXISTS idx_enrichment_results_status ON enrichment_results(status) WHERE status = 'pending_review';

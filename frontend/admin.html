@@ -216,21 +216,65 @@
       background: #fff;
       border: 1px solid var(--stone-200);
       border-radius: var(--radius-sm);
-      max-height: 280px;
+      max-height: 320px;
       overflow-y: auto;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     .search-result-item {
-      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0.75rem;
       cursor: pointer;
       border-bottom: 1px solid var(--stone-100);
       font-size: 0.875rem;
     }
     .search-result-item:hover { background: var(--stone-50); }
+    .sku-thumb {
+      width: 48px; height: 48px;
+      object-fit: cover;
+      border-radius: 4px;
+      flex-shrink: 0;
+      background: var(--stone-100);
+    }
+    .sku-thumb-placeholder {
+      width: 48px; height: 48px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      background: var(--stone-100);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--stone-300);
+    }
+    .sku-info { flex: 1; min-width: 0; }
+    .sku-name {
+      font-weight: 500;
+      font-size: 0.8125rem;
+      color: var(--stone-800);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .search-result-item .product-meta {
       font-size: 0.75rem;
       color: var(--stone-500);
       margin-top: 0.15rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .search-no-results {
+      padding: 1rem;
+      text-align: center;
+      color: var(--stone-400);
+      font-size: 0.8125rem;
+    }
+    .search-loading-indicator {
+      padding: 1rem;
+      text-align: center;
+      color: var(--stone-400);
+      font-size: 0.8125rem;
     }
 
     /* Stat cards */
@@ -325,6 +369,15 @@
     .badge-discontinued { background: var(--red-light); color: var(--red); }
     .badge-inactive { background: var(--red-light); color: var(--red); }
     .badge-pending { background: #fef3c7; color: #d97706; }
+
+    /* Quality score badges */
+    .quality-badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0.5rem; border-radius: var(--radius-full); font-size: 0.6875rem; font-weight: 600; }
+    .quality-good { background: var(--green-light); color: var(--green); }
+    .quality-fair { background: #fef3c7; color: #d97706; }
+    .quality-poor { background: var(--red-light); color: var(--red); }
+    .quality-na { background: var(--stone-100); color: var(--stone-400); }
+    .missing-flags { display: flex; gap: 0.25rem; margin-top: 0.125rem; }
+    .missing-flag { display: inline-block; padding: 0.0625rem 0.375rem; border-radius: var(--radius-full); font-size: 0.5625rem; font-weight: 500; background: #fef2f2; color: #991b1b; white-space: nowrap; }
     .badge-confirmed { background: var(--green-light); color: var(--green); }
     .badge-shipped { background: #dbeafe; color: #2563eb; }
     .badge-delivered { background: var(--green-light); color: #15803d; }
@@ -1393,6 +1446,7 @@
       const allNavItems = [
         { key: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4', roles: ['admin', 'manager', 'sales_rep', 'warehouse'] },
         { key: 'orders', label: 'Orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01', roles: ['admin', 'manager', 'sales_rep', 'warehouse'] },
+        { key: 'purchase-orders', label: 'Purchase Orders', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', roles: ['admin', 'manager', 'warehouse'] },
         { key: 'customers', label: 'Customers', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', roles: ['admin', 'manager'] },
         { key: 'vendors', label: 'Vendors', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', roles: ['admin', 'manager'] },
@@ -1406,11 +1460,13 @@
         { key: 'edi', label: 'EDI', icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4', roles: ['admin', 'manager'] },
         { key: 'accounting', label: 'Accounting', icon: 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z', roles: ['admin', 'manager'] },
         { key: 'site-analytics', label: 'Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', roles: ['admin', 'manager'] },
+        { key: 'data-quality', label: 'Data Quality', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'manager'] },
       ];
 
       const navItems = allNavItems.filter(item => item.roles.includes(staffRole));
 
       const activeBase = view === 'inquiry-detail' ? 'inquiries' :
+                          view === 'purchase-orders' || view === 'purchase-order-detail' ? 'purchase-orders' :
                           view.split('-')[0] === 'product' ? 'products' :
                           view.split('-')[0] === 'vendor' ? 'vendors' :
                           view.split('-')[0] === 'category' ? 'categories' :
@@ -1501,6 +1557,9 @@
             {view === 'edi' && <EDIView navigate={navigate} />}
             {view === 'accounting' && <AccountingView navigate={navigate} />}
             {view === 'site-analytics' && <SiteAnalyticsView />}
+            {view === 'data-quality' && <DataQualityView navigate={navigate} />}
+            {view === 'purchase-orders' && <PurchaseOrdersListView navigate={navigate} staffRole={staffRole} />}
+            {view === 'purchase-order-detail' && <PurchaseOrderDetailView navigate={navigate} editId={editId} staffRole={staffRole} />}
           </div>
         </div>
       );
@@ -1875,6 +1934,8 @@
       const [filterVendor, setFilterVendor] = useState('');
       const [filterCategory, setFilterCategory] = useState('');
       const [filterStatus, setFilterStatus] = useState('');
+      const [filterQuality, setFilterQuality] = useState('');
+      const [filterMissing, setFilterMissing] = useState('');
       const [vendors, setVendors] = useState([]);
       const [sortCol, setSortCol] = useState('vendor');
       const [sortDir, setSortDir] = useState('asc');
@@ -1891,6 +1952,8 @@
         if (filterVendor) params.set('vendor_id', filterVendor);
         if (filterCategory) params.set('category_id', filterCategory);
         if (filterStatus) params.set('status', filterStatus);
+        if (filterQuality) params.set('quality', filterQuality);
+        if (filterMissing) params.set('missing', filterMissing);
         params.set('sort', sortCol);
         params.set('sort_dir', sortDir);
         return params.toString();
@@ -1930,7 +1993,7 @@
       useEffect(() => {
         if (loading) return; // skip initial mount
         loadFresh();
-      }, [filterVendor, filterCategory, filterStatus, sortCol, sortDir]);
+      }, [filterVendor, filterCategory, filterStatus, filterQuality, filterMissing, sortCol, sortDir]);
 
       // Debounced search
       useEffect(() => {
@@ -2052,7 +2115,7 @@
             <input type="text" placeholder="Search products..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             <select value={filterVendor} onChange={e => setFilterVendor(e.target.value)}>
               <option value="">All Vendors</option>
-              {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+              {vendors.filter(v => v.active_product_count > 0).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
             </select>
             <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
               <option value="">All Categories</option>
@@ -2063,6 +2126,20 @@
               <option value="active">Active</option>
               <option value="draft">Draft</option>
               <option value="discontinued">Discontinued</option>
+            </select>
+            <select value={filterQuality} onChange={e => setFilterQuality(e.target.value)}>
+              <option value="">All Quality</option>
+              <option value="good">Good (80+)</option>
+              <option value="fair">Fair (50-79)</option>
+              <option value="poor">Poor (&lt;50)</option>
+            </select>
+            <select value={filterMissing} onChange={e => setFilterMissing(e.target.value)}>
+              <option value="">All Data</option>
+              <option value="no_image">Missing Image</option>
+              <option value="no_price">Missing Price</option>
+              <option value="no_color">Missing Color</option>
+              <option value="no_category">Missing Category</option>
+              <option value="no_description">Missing Description</option>
             </select>
             <span className="filter-count">Showing {products.length} of {total} products</span>
           </div>
@@ -2146,12 +2223,24 @@
                 <SortHeader col="category">Category</SortHeader>
                 <SortHeader col="price">Price</SortHeader>
                 <SortHeader col="skus">SKUs</SortHeader>
+                <SortHeader col="quality">Quality</SortHeader>
                 <SortHeader col="status">Status</SortHeader>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {products.map(p => (
+              {products.map(p => {
+                const qs = p.quality_score;
+                const qClass = qs >= 80 ? 'quality-good' : qs >= 50 ? 'quality-fair' : qs != null ? 'quality-poor' : 'quality-na';
+                const flags = p.quality_flags || {};
+                const missingItems = [];
+                if (flags.has_image === 0) missingItems.push('No image');
+                if (flags.has_retail === 0) missingItems.push('No price');
+                if (flags.has_cost === 0) missingItems.push('No cost');
+                if (flags.has_color === 0) missingItems.push('No color');
+                if (flags.has_description === 0) missingItems.push('No desc');
+                if (!p.category_name) missingItems.push('No category');
+                return (
                 <tr key={p.id}>
                   <td><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} /></td>
                   <td>{p.vendor_name || '—'}</td>
@@ -2166,15 +2255,24 @@
                   <td>{p.category_name || '—'}</td>
                   <td>{p.price ? '$' + parseFloat(p.price).toFixed(2) : '—'}</td>
                   <td>{p.sku_count}</td>
+                  <td>
+                    <span className={'quality-badge ' + qClass}>{qs != null ? qs : '—'}</span>
+                    {missingItems.length > 0 && (
+                      <div className="missing-flags">
+                        {missingItems.map(m => <span key={m} className="missing-flag">{m}</span>)}
+                      </div>
+                    )}
+                  </td>
                   <td><span className={'badge badge-' + (p.status || 'draft')}>{p.status || 'draft'}</span></td>
                   <td className="actions">
                     <button className="btn btn-secondary btn-sm" onClick={() => navigate('product-edit', p.id)}>Edit</button>
                     <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(p)}>Delete</button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {products.length === 0 && (
-                <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No products found</td></tr>
+                <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No products found</td></tr>
               )}
             </tbody>
           </table>
@@ -4009,6 +4107,7 @@
       const [addItemSellBy, setAddItemSellBy] = useState('sqft');
       const [skuSearchResults, setSkuSearchResults] = useState([]);
       const [skuSearching, setSkuSearching] = useState(false);
+      const skuSearchTimer = useRef(null);
       const [addItemMode, setAddItemMode] = useState('sku');
       const [customItemName, setCustomItemName] = useState('');
       const [customItemPrice, setCustomItemPrice] = useState('');
@@ -4804,35 +4903,45 @@
                         <div style={{ flex: 2, minWidth: '0', position: 'relative' }}>
                           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Search SKU</label>
                           <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
-                            onChange={async (e) => {
+                            onChange={(e) => {
                               const q = e.target.value; setAddItemSku(q);
+                              if (skuSearchTimer.current) clearTimeout(skuSearchTimer.current);
                               if (q.length >= 2) {
                                 setSkuSearching(true);
-                                try {
-                                  const data = await adminFetch('/api/admin/skus/search?q=' + encodeURIComponent(q));
-                                  setSkuSearchResults((data.results || []).map(r => ({
-                                    sku_id: r.sku_id,
-                                    collection: r.collection || '',
-                                    product_name: r.product_name || '',
-                                    variant_name: r.variant_name || '',
-                                    color: r.color || '',
-                                    internal_sku: r.internal_sku || '',
-                                    vendor_sku: r.vendor_sku || '',
-                                    price: r.retail_price || 0,
-                                    vendor_name: r.vendor_name || '',
-                                    sell_by: r.sell_by || 'sqft',
-                                    price_basis: r.price_basis || 'per_sqft',
-                                    cut_price: r.cut_price,
-                                    roll_price: r.roll_price,
-                                    roll_width_ft: r.roll_width_ft
-                                  })));
-                                } catch (e) {}
-                                setSkuSearching(false);
-                              } else { setSkuSearchResults([]); }
+                                skuSearchTimer.current = setTimeout(async () => {
+                                  try {
+                                    const data = await adminFetch('/api/admin/skus/search?q=' + encodeURIComponent(q));
+                                    setSkuSearchResults((data.results || []).map(r => ({
+                                      sku_id: r.sku_id,
+                                      collection: r.collection || '',
+                                      product_name: r.product_name || '',
+                                      variant_name: r.variant_name || '',
+                                      color: r.color || '',
+                                      internal_sku: r.internal_sku || '',
+                                      vendor_sku: r.vendor_sku || '',
+                                      price: r.retail_price || 0,
+                                      vendor_name: r.vendor_name || '',
+                                      sell_by: r.sell_by || 'sqft',
+                                      price_basis: r.price_basis || 'per_sqft',
+                                      cut_price: r.cut_price,
+                                      roll_price: r.roll_price,
+                                      roll_width_ft: r.roll_width_ft,
+                                      primary_image: r.primary_image || null
+                                    })));
+                                  } catch (e) {}
+                                  setSkuSearching(false);
+                                }, 250);
+                              } else { setSkuSearchResults([]); setSkuSearching(false); }
                             }}
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                          {skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
+                            <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
+                          )}
+                          {!skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
+                            <div className="search-results"><div className="search-no-results">No results found</div></div>
+                          )}
                           {skuSearchResults.length > 0 && (
-                            <div className="search-results" style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                            <div className="search-results">
                               {skuSearchResults.map((r, i) => (
                                 <div key={i} className="search-result-item"
                                   onClick={async () => {
@@ -4852,14 +4961,20 @@
                                       setAddingItem(false); setSkuSearchResults([]);
                                     } catch (err) { alert(err.message); }
                                   }}>
-                                  <div style={{ fontWeight: 500, fontSize: '0.8125rem' }}>
-                                    {r.collection || r.product_name}
-                                    {r.color ? ' — ' + r.color : ''}
-                                    {r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}
-                                  </div>
-                                  <div className="product-meta">
-                                    {r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
-                                    {r.price ? ' · $' + parseFloat(r.price).toFixed(2) + (r.price_basis === 'per_sqyd' ? '/sqyd' : r.sell_by === 'unit' ? '/ea' : '/sqft') : ''}
+                                  {r.primary_image
+                                    ? <img className="sku-thumb" src={optimizeImg(r.primary_image, 96)} alt="" loading="lazy" />
+                                    : <div className="sku-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
+                                  }
+                                  <div className="sku-info">
+                                    <div className="sku-name">
+                                      {r.collection || r.product_name}
+                                      {r.color ? ' — ' + r.color : ''}
+                                      {r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}
+                                    </div>
+                                    <div className="product-meta">
+                                      {r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
+                                      {r.price ? ' · $' + parseFloat(r.price).toFixed(2) + (r.price_basis === 'per_sqyd' ? '/sqyd' : r.sell_by === 'unit' ? '/ea' : '/sqft') : ''}
+                                    </div>
                                   </div>
                                 </div>
                               ))}
@@ -4882,7 +4997,7 @@
                           <select value={customItemVendor} onChange={e => setCustomItemVendor(e.target.value)}
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }}>
                             <option value="">Select vendor...</option>
-                            {addItemVendors.map(v => (
+                            {addItemVendors.filter(v => v.active_product_count > 0).map(v => (
                               <option key={v.id} value={v.id}>{v.name}</option>
                             ))}
                           </select>
@@ -5671,18 +5786,21 @@
                 <th>Schedule</th>
                 <th>Last Scraped</th>
                 <th>Last Status</th>
+                <th>Quality</th>
                 <th>Active</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {sources.length === 0 && (
-                <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '3rem' }}>
+                <tr><td colSpan="10" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '3rem' }}>
                   No scraper sources configured yet.
                 </td></tr>
               )}
               {sources.map(s => {
                 const lastJob = s.last_job;
+                const qs = lastJob && lastJob.avg_quality_score;
+                const qClass = qs >= 80 ? 'quality-good' : qs >= 50 ? 'quality-fair' : qs != null ? 'quality-poor' : 'quality-na';
                 return (
                   <tr key={s.id}>
                     <td>{s.vendor_name}</td>
@@ -5701,6 +5819,11 @@
                     <td>
                       {lastJob ? (
                         <span className={'badge badge-' + lastJob.status}>{lastJob.status}</span>
+                      ) : <span style={{ color: 'var(--stone-400)' }}>—</span>}
+                    </td>
+                    <td>
+                      {qs != null ? (
+                        <span className={'quality-badge ' + qClass}>{qs}{lastJob.warning_count > 0 && <span style={{ marginLeft: '0.25rem', fontSize: '0.625rem', opacity: 0.8 }}>({lastJob.warning_count} warn)</span>}</span>
                       ) : <span style={{ color: 'var(--stone-400)' }}>—</span>}
                     </td>
                     <td>
@@ -6193,17 +6316,22 @@
                 <th>Created</th>
                 <th>Updated</th>
                 <th>SKUs</th>
+                <th>Quality</th>
+                <th>Warnings</th>
                 <th>Duration</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {jobs.length === 0 && (
-                <tr><td colSpan="10" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '3rem' }}>
+                <tr><td colSpan="12" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '3rem' }}>
                   No scrape jobs found.
                 </td></tr>
               )}
-              {jobs.map(j => (
+              {jobs.map(j => {
+                const qs = j.avg_quality_score;
+                const qClass = qs >= 80 ? 'quality-good' : qs >= 50 ? 'quality-fair' : qs != null ? 'quality-poor' : 'quality-na';
+                return (
                 <tr key={j.id}>
                   <td style={{ fontSize: '0.8125rem' }}>{formatDate(j.started_at || j.created_at)}</td>
                   <td>{j.source_name}</td>
@@ -6213,6 +6341,16 @@
                   <td>{j.products_created}</td>
                   <td>{j.products_updated}</td>
                   <td>{j.skus_created}</td>
+                  <td>
+                    {qs != null ? (
+                      <span className={'quality-badge ' + qClass}>{qs}</span>
+                    ) : <span style={{ color: 'var(--stone-400)' }}>—</span>}
+                  </td>
+                  <td>
+                    {j.warning_count > 0 ? (
+                      <span style={{ color: '#d97706', fontWeight: 600 }}>{j.warning_count}</span>
+                    ) : <span style={{ color: 'var(--stone-400)' }}>0</span>}
+                  </td>
                   <td>{formatDuration(j.started_at, j.completed_at)}</td>
                   <td className="actions">
                     {j.status === 'running' && (
@@ -6221,7 +6359,8 @@
                     <button className="btn btn-sm btn-secondary" onClick={() => navigate('scraper-job-detail', j.id)}>Details</button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
           </div>
@@ -10089,6 +10228,1145 @@
             )
           )}
         </div>
+      );
+    }
+
+    // ========== PurchaseOrdersListView ==========
+    function PurchaseOrdersListView({ navigate, staffRole }) {
+      const [pos, setPOs] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [statusGroup, setStatusGroup] = useState('open');
+      const [vendorFilter, setVendorFilter] = useState('');
+      const [search, setSearch] = useState('');
+      const [vendors, setVendors] = useState([]);
+      const [showCreate, setShowCreate] = useState(false);
+      const [newVendorId, setNewVendorId] = useState('');
+      const [newNotes, setNewNotes] = useState('');
+      const [creating, setCreating] = useState(false);
+
+      const load = () => {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (vendorFilter) params.set('vendor_id', vendorFilter);
+        if (search) params.set('search', search);
+        adminFetch('/api/admin/purchase-orders?' + params.toString())
+          .then(data => { setPOs(data.purchase_orders || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      useEffect(load, [vendorFilter]);
+
+      useEffect(() => {
+        adminFetch('/api/admin/vendors').then(data => setVendors(data.vendors || [])).catch(() => {});
+      }, []);
+
+      const handleSearch = () => load();
+
+      const createPO = async () => {
+        if (!newVendorId) return;
+        setCreating(true);
+        try {
+          const data = await adminFetch('/api/admin/purchase-orders', {
+            method: 'POST', body: JSON.stringify({ vendor_id: newVendorId, notes: newNotes || null })
+          });
+          if (data.error) throw new Error(data.error);
+          setShowCreate(false); setNewVendorId(''); setNewNotes('');
+          navigate('purchase-order-detail', data.purchase_order.id);
+        } catch (err) { alert(err.message); }
+        setCreating(false);
+      };
+
+      const statusBadge = (s) => {
+        const cls = { draft: 'badge-draft', sent: 'badge-sent', acknowledged: 'badge-acknowledged', fulfilled: 'badge-fulfilled', cancelled: 'badge-cancelled' };
+        return <span className={'badge ' + (cls[s] || 'badge-draft')}>{s}</span>;
+      };
+
+      if (loading) return <div className="loading">Loading purchase orders...</div>;
+
+      const openStatuses = ['draft', 'sent', 'acknowledged'];
+      const closedStatuses = ['fulfilled', 'cancelled'];
+
+      const filtered = pos.filter(o => {
+        const inGroup = statusGroup === 'open' ? openStatuses.includes(o.status) : closedStatuses.includes(o.status);
+        return inGroup;
+      });
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Purchase Orders</h1>
+            {['admin', 'manager'].includes(staffRole) && (
+              <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ New Purchase Order</button>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button className={statusGroup === 'open' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setStatusGroup('open')}>Open</button>
+            <button className={statusGroup === 'closed' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setStatusGroup('closed')}>Closed</button>
+            <select value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}
+              style={{ marginLeft: '0.5rem', padding: '0.4rem 0.6rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '6px' }}>
+              <option value="">All Vendors</option>
+              {vendors.filter(v => v.active_product_count > 0).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+            <input type="text" placeholder="Search PO#, vendor, order#..." value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
+              style={{ marginLeft: '0.5rem', padding: '0.4rem 0.6rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '6px', width: '220px' }} />
+            <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>{filtered.length} PO{filtered.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="table-scroll-wrapper">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>PO #</th>
+                <th>Vendor</th>
+                <th>Order #</th>
+                <th>Items</th>
+                <th>Subtotal</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(po => (
+                <tr key={po.id}>
+                  <td style={{ fontWeight: 500 }}>{po.po_number}</td>
+                  <td>{po.vendor_name}</td>
+                  <td>{po.order_number ? <span style={{ color: 'var(--gold)', cursor: 'pointer' }} onClick={() => navigate('order-detail', po.order_id)}>{po.order_number}</span> : <span style={{ color: 'var(--stone-400)', fontStyle: 'italic' }}>Standalone</span>}</td>
+                  <td>{po.item_count}</td>
+                  <td>${parseFloat(po.subtotal || 0).toFixed(2)}</td>
+                  <td>{statusBadge(po.status)}</td>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(po.created_at).toLocaleDateString()}</td>
+                  <td className="actions">
+                    <button className="btn btn-secondary btn-sm" onClick={() => navigate('purchase-order-detail', po.id)}>View</button>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-400)' }}>No {statusGroup} purchase orders found</td></tr>}
+            </tbody>
+          </table>
+          </div>
+
+          {/* Create PO Modal */}
+          {showCreate && (
+            <div className="modal-backdrop" onClick={() => setShowCreate(false)}>
+              <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+                <div className="modal-header"><h2>New Purchase Order</h2></div>
+                <div className="modal-body">
+                  <div className="form-group">
+                    <label>Vendor *</label>
+                    <select value={newVendorId} onChange={e => setNewVendorId(e.target.value)}
+                      style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-300)', borderRadius: '6px' }}>
+                      <option value="">Select vendor...</option>
+                      {vendors.filter(v => v.active_product_count > 0).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Notes</label>
+                    <textarea value={newNotes} onChange={e => setNewNotes(e.target.value)} placeholder="Optional notes..."
+                      style={{ width: '100%', minHeight: '80px', padding: '0.5rem', border: '1px solid var(--stone-300)', borderRadius: '6px', fontFamily: 'Inter, sans-serif', resize: 'vertical' }} />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
+                  <button className="btn btn-primary" disabled={!newVendorId || creating} onClick={createPO}>
+                    {creating ? 'Creating...' : 'Create PO'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== PurchaseOrderDetailView ==========
+    function PurchaseOrderDetailView({ navigate, editId, staffRole }) {
+      const [po, setPO] = useState(null);
+      const [items, setItems] = useState([]);
+      const [activity, setActivity] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [poUpdating, setPoUpdating] = useState(false);
+      const [addingItem, setAddingItem] = useState(false);
+      const [addItemMode, setAddItemMode] = useState('sku');
+      const [addItemSku, setAddItemSku] = useState('');
+      const [skuSearchResults, setSkuSearchResults] = useState([]);
+      const [skuSearching, setSkuSearching] = useState(false);
+      const skuSearchTimer = useRef(null);
+      const [newPOItem, setNewPOItem] = useState({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'sqft' });
+
+      const load = async () => {
+        setLoading(true);
+        try {
+          const data = await adminFetch('/api/admin/purchase-orders/' + editId + '/detail');
+          setPO(data.purchase_order);
+          setItems(data.purchase_order.items || []);
+          setActivity(data.activity || []);
+        } catch (err) { console.error(err); }
+        setLoading(false);
+      };
+      useEffect(() => { load(); }, [editId]);
+
+      const isDraft = po && po.status === 'draft';
+      const isSentOrLater = po && ['sent', 'acknowledged', 'fulfilled'].includes(po.status);
+      const canManage = ['admin', 'manager'].includes(staffRole);
+
+      const updatePOStatus = async (newStatus) => {
+        const labels = { sent: 'Mark as Sent', acknowledged: 'Mark as Acknowledged', fulfilled: 'Mark as Fulfilled', cancelled: 'Cancel', draft: 'Revert to Draft' };
+        if (!confirm((labels[newStatus] || newStatus) + ' this PO?')) return;
+        setPoUpdating(true);
+        try {
+          await adminFetch('/api/admin/purchase-orders/' + editId + '/status', {
+            method: 'PUT', body: JSON.stringify({ status: newStatus })
+          });
+          load();
+        } catch (err) { alert(err.message); }
+        setPoUpdating(false);
+      };
+
+      const updatePONotes = async (notes) => {
+        try {
+          await adminFetch('/api/admin/purchase-orders/' + editId, {
+            method: 'PUT', body: JSON.stringify({ notes })
+          });
+        } catch (err) { alert(err.message); }
+      };
+
+      const updatePOItem = async (itemId, updates) => {
+        try {
+          await adminFetch('/api/admin/purchase-orders/' + editId + '/items/' + itemId, {
+            method: 'PUT', body: JSON.stringify(updates)
+          });
+          load();
+        } catch (err) { alert(err.message); }
+      };
+
+      const addPOItem = async (itemData) => {
+        try {
+          await adminFetch('/api/admin/purchase-orders/' + editId + '/items', {
+            method: 'POST', body: JSON.stringify(itemData)
+          });
+          load();
+        } catch (err) { alert(err.message); }
+      };
+
+      const deletePOItem = async (itemId) => {
+        if (!confirm('Delete this line item?')) return;
+        try {
+          await adminFetch('/api/admin/purchase-orders/' + editId + '/items/' + itemId, {
+            method: 'DELETE'
+          });
+          load();
+        } catch (err) { alert(err.message); }
+      };
+
+      const sendPOToVendor = async () => {
+        const ediEnabled = po.edi_config && JSON.parse(po.edi_config).enabled;
+        const method = ediEnabled ? 'EDI' : 'email';
+        if (!confirm('Send this PO to the vendor via ' + method + '?')) return;
+        setPoUpdating(true);
+        try {
+          const result = await adminFetch('/api/admin/purchase-orders/' + editId + '/send', { method: 'POST' });
+          if (result.sent_via === 'edi') {
+            alert('PO sent via EDI successfully (' + (result.edi?.docs_sent || 1) + ' document(s))');
+          } else if (result.email_sent === false) {
+            alert('PO status updated but email could not be sent. Check server SMTP configuration.');
+          }
+          load();
+        } catch (err) { alert(err.message); }
+        setPoUpdating(false);
+      };
+
+      const updatePOItemStatus = async (itemId, status) => {
+        try {
+          await adminFetch('/api/admin/purchase-orders/' + editId + '/items/' + itemId + '/status', {
+            method: 'PUT', body: JSON.stringify({ status })
+          });
+          load();
+        } catch (err) { alert(err.message); }
+      };
+
+      const bulkUpdatePOItemStatus = async (status) => {
+        if (!confirm('Set all non-terminal items to ' + status + '?')) return;
+        try {
+          await adminFetch('/api/admin/purchase-orders/' + editId + '/items/bulk-status', {
+            method: 'PUT', body: JSON.stringify({ status })
+          });
+          load();
+        } catch (err) { alert(err.message); }
+      };
+
+      const handleSkuSearch = (q) => {
+        setAddItemSku(q);
+        if (skuSearchTimer.current) clearTimeout(skuSearchTimer.current);
+        if (q.length >= 2) {
+          setSkuSearching(true);
+          skuSearchTimer.current = setTimeout(async () => {
+            try {
+              const data = await adminFetch('/api/admin/skus/search?q=' + encodeURIComponent(q));
+              setSkuSearchResults((data.results || []).map(r => ({
+                sku_id: r.sku_id, product_name: r.product_name || r.collection || '', variant_name: r.variant_name || '',
+                color: r.color || '', vendor_sku: r.vendor_sku || '', internal_sku: r.internal_sku || '',
+                vendor_name: r.vendor_name || '', sell_by: r.sell_by || 'sqft', cost: r.vendor_cost || 0,
+                retail_price: r.retail_price || 0, price_basis: r.price_basis || 'per_sqft',
+                sqft_per_box: r.sqft_per_box || 1,
+                primary_image: r.primary_image || null
+              })));
+            } catch (e) {}
+            setSkuSearching(false);
+          }, 250);
+        } else { setSkuSearchResults([]); setSkuSearching(false); }
+      };
+
+      const selectSkuResult = async (r) => {
+        const isPerSqft = r.price_basis === 'per_sqft' || r.price_basis === 'sqft';
+        const sqftPerBox = parseFloat(r.sqft_per_box || 1);
+        const rawCost = parseFloat(r.cost || 0);
+        const rawRetail = parseFloat(r.retail_price || 0);
+        const itemCost = isPerSqft ? rawCost * sqftPerBox : rawCost;
+        const itemRetail = isPerSqft ? rawRetail * sqftPerBox : rawRetail;
+        await addPOItem({
+          sku_id: r.sku_id, product_name: r.product_name + (r.color ? ' — ' + r.color : ''),
+          vendor_sku: r.vendor_sku || r.internal_sku, qty: 1,
+          cost: itemCost.toFixed(2), retail_price: itemRetail > 0 ? itemRetail.toFixed(2) : null,
+          sell_by: r.sell_by
+        });
+        setAddItemSku(''); setSkuSearchResults([]); setAddingItem(false);
+      };
+
+      const actionLabel = (action) => {
+        const labels = { sent: 'Sent', resent: 'Resent', revised_and_sent: 'Revised & Sent', acknowledged: 'Acknowledged', fulfilled: 'Fulfilled', cancelled: 'Cancelled', reverted: 'Reverted to Draft', created: 'Created', notes_updated: 'Notes Updated', edi_sent: 'Sent via EDI', edi_acknowledged: 'EDI Acknowledged', edi_shipped: 'EDI Ship Notice', edi_invoiced: 'EDI Invoice Received' };
+        return labels[action] || action;
+      };
+
+      const statusBadge = (s) => {
+        const cls = { draft: 'badge-draft', sent: 'badge-sent', acknowledged: 'badge-acknowledged', fulfilled: 'badge-fulfilled', cancelled: 'badge-cancelled' };
+        return <span className={'badge ' + (cls[s] || 'badge-draft')}>{s}</span>;
+      };
+
+      if (loading) return <div className="loading">Loading purchase order...</div>;
+      if (!po) return <div className="loading">Purchase order not found</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <button className="btn btn-secondary btn-sm" onClick={() => navigate('purchase-orders')}>&larr; Back to Purchase Orders</button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+            <h1 style={{ margin: 0 }}><code style={{ fontSize: 'inherit', background: 'var(--stone-50)', padding: '0.1rem 0.5rem', borderRadius: '6px', border: '1px solid var(--stone-200)' }}>{po.po_number}</code></h1>
+            {statusBadge(po.status)}
+          </div>
+
+          {/* PO Status Stepper */}
+          {(() => {
+            const steps = ['draft', 'sent', 'acknowledged', 'fulfilled'];
+            const stepLabels = { draft: 'Draft', sent: 'Sent', acknowledged: 'Acknowledged', fulfilled: 'Fulfilled' };
+            const stepTimestamps = {
+              draft: po.created_at,
+              sent: activity.find(a => a.action === 'sent' || a.action === 'edi_sent')?.created_at,
+              acknowledged: activity.find(a => a.action === 'acknowledged' || a.action === 'edi_acknowledged')?.created_at,
+              fulfilled: activity.find(a => a.action === 'fulfilled')?.created_at
+            };
+            const isCancelled = po.status === 'cancelled';
+            const currentIdx = isCancelled
+              ? (stepTimestamps.acknowledged ? 2 : stepTimestamps.sent ? 1 : 0)
+              : steps.indexOf(po.status);
+            const getStepState = (idx) => {
+              if (isCancelled) return idx <= currentIdx ? 'cancelled' : 'upcoming';
+              if (idx < currentIdx) return 'completed';
+              if (idx === currentIdx) return 'current';
+              return 'upcoming';
+            };
+
+            return (
+              <div className="form-card">
+                <h3>PO Status</h3>
+
+                {isCancelled && (
+                  <div className="stepper-cancelled-banner">Purchase Order Cancelled</div>
+                )}
+
+                <div className="order-stepper">
+                  {steps.slice(1).map((step, idx) => {
+                    const prevState = getStepState(idx);
+                    const curState = getStepState(idx + 1);
+                    const connClass = (prevState === 'completed' && (curState === 'completed' || curState === 'current'))
+                      ? 'completed'
+                      : (prevState === 'cancelled' ? 'completed' : 'upcoming');
+                    const pct = 100 / (steps.length - 1);
+                    const leftPct = idx * pct;
+                    return (
+                      <div key={'conn-' + idx} className={'stepper-connector ' + connClass}
+                        style={{ left: 'calc(' + (leftPct + pct * 0.15) + '% + 18px)', width: 'calc(' + (pct * 0.7) + '% - 36px)' }} />
+                    );
+                  })}
+                  {steps.map((step, idx) => {
+                    const state = getStepState(idx);
+                    const ts = stepTimestamps[step];
+                    return (
+                      <div key={step} className={'stepper-step ' + state}>
+                        <div className="stepper-circle">
+                          {state === 'completed' ? '\u2713' : state === 'cancelled' ? '\u2717' : (idx + 1)}
+                        </div>
+                        <div className="stepper-label">{stepLabels[step]}</div>
+                        {ts && (state === 'completed' || state === 'current' || state === 'cancelled') && (
+                          <div className="stepper-timestamp">{new Date(ts).toLocaleDateString()}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {canManage && (
+                  <div className="stepper-actions">
+                    {isDraft && items.length > 0 && (
+                      <button className="btn btn-primary" disabled={poUpdating} onClick={sendPOToVendor}>
+                        {poUpdating ? 'Sending...' : 'Send to Vendor'}
+                      </button>
+                    )}
+                    {po.status === 'sent' && (
+                      <button className="btn btn-primary" disabled={poUpdating} onClick={() => updatePOStatus('acknowledged')}>Mark Acknowledged</button>
+                    )}
+                    {po.status === 'acknowledged' && (
+                      <button className="btn btn-primary" disabled={poUpdating} onClick={() => updatePOStatus('fulfilled')}>Mark Fulfilled</button>
+                    )}
+                    {['sent', 'acknowledged'].includes(po.status) && (
+                      <button className="stepper-revert-link" disabled={poUpdating} onClick={() => updatePOStatus('draft')}>Revert to Draft</button>
+                    )}
+                    {!['cancelled', 'fulfilled'].includes(po.status) && (
+                      <button className="stepper-cancel-link" disabled={poUpdating} onClick={() => updatePOStatus('cancelled')}>Cancel PO</button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* PO Info Card */}
+          <div className="form-card">
+            <h3>PO Information</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+              <div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Vendor</div>
+                <div style={{ fontWeight: 500 }}>{po.vendor_name}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PO Number</div>
+                <div style={{ fontWeight: 500 }}><code style={{ fontSize: '0.875rem', background: 'var(--stone-50)', padding: '0.1rem 0.35rem', borderRadius: '4px', border: '1px solid var(--stone-200)' }}>{po.po_number}</code></div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</div>
+                <div>{statusBadge(po.status)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Order</div>
+                <div>{po.order_number
+                  ? <span style={{ color: 'var(--gold)', cursor: 'pointer', fontWeight: 500 }} onClick={() => navigate('order-detail', po.order_id)}>{po.order_number}</span>
+                  : <span style={{ color: 'var(--stone-400)', fontStyle: 'italic' }}>Standalone</span>}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Created</div>
+                <div style={{ fontSize: '0.875rem' }}>{new Date(po.created_at).toLocaleString()}</div>
+              </div>
+              {po.approved_by_name && (
+                <div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Approved By</div>
+                  <div style={{ fontSize: '0.875rem' }}>{po.approved_by_name}{po.approved_at ? ' on ' + new Date(po.approved_at).toLocaleDateString() : ''}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Line Items Card */}
+          <div className="form-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, paddingBottom: 0, borderBottom: 'none' }}>Line Items</h3>
+              {isDraft && canManage && !addingItem && (
+                <button className="btn btn-sm btn-secondary" onClick={() => { setAddingItem(true); setAddItemMode('sku'); }}>+ Add Item</button>
+              )}
+            </div>
+
+            {/* SKU search / custom add */}
+            {isDraft && canManage && addingItem && (
+              <div style={{ marginBottom: '1rem', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)' }}>
+                {/* Mode toggle */}
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  <button className={addItemMode === 'sku' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary'} onClick={() => setAddItemMode('sku')}>Search SKU</button>
+                  <button className={addItemMode === 'custom' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary'} onClick={() => setAddItemMode('custom')}>Custom Item</button>
+                  <div style={{ flex: 1 }}></div>
+                  <button className="btn btn-sm btn-secondary" onClick={() => { setAddingItem(false); setSkuSearchResults([]); setAddItemSku(''); }}>Cancel</button>
+                </div>
+
+                {addItemMode === 'sku' ? (
+                  <div style={{ position: 'relative' }}>
+                    <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
+                      onChange={e => handleSkuSearch(e.target.value)}
+                      style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                    {skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
+                      <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
+                    )}
+                    {!skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
+                      <div className="search-results"><div className="search-no-results">No results found</div></div>
+                    )}
+                    {skuSearchResults.length > 0 && (
+                      <div className="search-results">
+                        {skuSearchResults.map((r, i) => (
+                          <div key={i} className="search-result-item" onClick={() => selectSkuResult(r)}>
+                            {r.primary_image
+                              ? <img className="sku-thumb" src={optimizeImg(r.primary_image, 96)} alt="" loading="lazy" />
+                              : <div className="sku-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
+                            }
+                            <div className="sku-info">
+                              <div className="sku-name">
+                                {r.product_name}{r.color ? ' — ' + r.color : ''}{r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}
+                              </div>
+                              <div className="product-meta">
+                                {r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
+                                {r.cost ? ' · Cost $' + parseFloat(r.cost).toFixed(2) + '/' + (r.sell_by === 'unit' ? 'ea' : 'sqft') : ''}
+                                {r.retail_price ? ' · Retail $' + parseFloat(r.retail_price).toFixed(2) : ''}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : addItemMode === 'custom' ? (
+                  /* Custom item mode */
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ minWidth: '160px', flex: 2 }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Product Name *</label>
+                      <input type="text" value={newPOItem.product_name} onChange={e => setNewPOItem({...newPOItem, product_name: e.target.value})}
+                        style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                    </div>
+                    <div style={{ minWidth: '100px', flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Vendor SKU</label>
+                      <input type="text" value={newPOItem.vendor_sku} onChange={e => setNewPOItem({...newPOItem, vendor_sku: e.target.value})}
+                        style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                    </div>
+                    <div style={{ width: '90px' }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Cost *</label>
+                      <input type="number" step="0.01" min="0" value={newPOItem.cost} onChange={e => setNewPOItem({...newPOItem, cost: e.target.value})}
+                        placeholder="0.00"
+                        style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                    </div>
+                    <div style={{ width: '90px' }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Sell By</label>
+                      <select value={newPOItem.sell_by} onChange={e => setNewPOItem({...newPOItem, sell_by: e.target.value})}
+                        style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }}>
+                        <option value="sqft">Per SqFt</option>
+                        <option value="unit">Per Unit</option>
+                      </select>
+                    </div>
+                    <div style={{ width: '70px' }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>{newPOItem.sell_by === 'unit' ? 'Qty *' : 'Boxes *'}</label>
+                      <input type="number" min="1" value={newPOItem.qty} onChange={e => setNewPOItem({...newPOItem, qty: parseInt(e.target.value) || 1})}
+                        style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                    </div>
+                    <button className="btn btn-sm btn-primary" disabled={!newPOItem.product_name || !newPOItem.cost}
+                      onClick={() => { addPOItem(newPOItem); setNewPOItem({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'sqft' }); setAddingItem(false); }}>
+                      Add
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            <div className="table-scroll-wrapper">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Vendor SKU</th>
+                  <th>Qty</th>
+                  <th>Retail Price</th>
+                  <th>Cost</th>
+                  <th>Margin</th>
+                  {isSentOrLater && <th>Status</th>}
+                  <th style={{ textAlign: 'right' }}>Subtotal</th>
+                  {isDraft && canManage && <th></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(item => {
+                  const costVal = parseFloat(item.cost);
+                  const retailVal = parseFloat(item.retail_price || 0);
+                  const margin = retailVal > 0 ? ((retailVal - costVal) / retailVal * 100) : 0;
+                  return (
+                  <tr key={item.id}>
+                    <td data-label="Product">
+                      <div style={{ fontWeight: 500 }}>{item.product_name}</div>
+                      <div style={{ fontSize: '0.6875rem', color: '#78716c' }}>
+                        {item.vendor_sku || ''}{item.description ? (item.vendor_sku ? ' · ' : '') + item.description : ''}
+                      </div>
+                    </td>
+                    <td data-label="Vendor SKU" style={{ fontSize: '0.8125rem' }}>{item.vendor_sku || '—'}</td>
+                    <td data-label="Qty">
+                      {isDraft && canManage ? (
+                        <input type="number" min="1" defaultValue={item.qty}
+                          onBlur={e => { const v = parseInt(e.target.value); if (v && v !== item.qty) updatePOItem(item.id, { qty: v }); }}
+                          style={{ width: '60px', padding: '0.2rem 0.35rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '4px' }} />
+                      ) : item.qty}
+                    </td>
+                    <td data-label="Retail Price">{item.retail_price ? '$' + retailVal.toFixed(2) : '—'}</td>
+                    <td data-label="Cost">
+                      {isDraft && canManage ? (
+                        <input type="number" step="0.01" min="0" defaultValue={costVal.toFixed(2)}
+                          onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v) && v !== costVal) updatePOItem(item.id, { cost: v }); }}
+                          style={{ width: '80px', padding: '0.2rem 0.35rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '4px' }} />
+                      ) : '$' + costVal.toFixed(2)}
+                    </td>
+                    <td data-label="Margin" style={{ color: margin <= 0 ? 'var(--red)' : 'inherit', fontWeight: margin <= 0 ? 600 : 400 }}>
+                      {retailVal > 0 ? margin.toFixed(1) + '%' : '—'}
+                    </td>
+                    {isSentOrLater && (
+                      <td data-label="Status">
+                        <select value={item.status || 'pending'} onChange={e => updatePOItemStatus(item.id, e.target.value)}
+                          style={{ fontSize: '0.75rem', padding: '0.2rem 0.35rem', border: '1px solid var(--stone-300)', borderRadius: '4px', background: 'white' }}>
+                          {['pending', 'ordered', 'shipped', 'received', 'cancelled'].map(s => (
+                            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                          ))}
+                        </select>
+                      </td>
+                    )}
+                    <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal).toFixed(2)}</td>
+                    {isDraft && canManage && (
+                      <td className="actions">
+                        <button className="btn btn-danger btn-sm" onClick={() => deletePOItem(item.id)}>Remove</button>
+                      </td>
+                    )}
+                  </tr>
+                  );
+                })}
+                {items.length === 0 && <tr><td colSpan={isSentOrLater ? 8 : (isDraft && canManage ? 8 : 7)} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--stone-400)' }}>No items yet</td></tr>}
+              </tbody>
+            </table>
+            </div>
+            <div style={{ textAlign: 'right', marginTop: '0.75rem', fontWeight: 600, fontSize: '0.9rem' }}>
+              PO Total: ${parseFloat(po.subtotal || 0).toFixed(2)}
+            </div>
+
+            {/* Bulk status update for sent POs */}
+            {isSentOrLater && canManage && (
+              <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button className="btn btn-sm btn-secondary" onClick={() => bulkUpdatePOItemStatus('received')}>Mark All Received</button>
+              </div>
+            )}
+          </div>
+
+          {/* Notes Card */}
+          <div className="form-card">
+            <h3>Notes</h3>
+            {isDraft && canManage ? (
+              <textarea defaultValue={po.notes || ''} placeholder="Add notes for this PO..."
+                onBlur={e => { if (e.target.value !== (po.notes || '')) updatePONotes(e.target.value); }}
+                style={{ width: '100%', minHeight: '80px', padding: '0.5rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '6px', fontFamily: 'Inter, sans-serif', resize: 'vertical' }} />
+            ) : (
+              <div style={{ fontSize: '0.8125rem', color: po.notes ? 'inherit' : 'var(--stone-400)' }}>
+                {po.notes || 'No notes'}
+              </div>
+            )}
+          </div>
+
+          {/* Activity Log Card */}
+          <div className="form-card">
+            <h3>Activity Log</h3>
+            {activity.length > 0 ? (
+              <div style={{ fontSize: '0.8125rem' }}>
+                {activity.map((a, i) => (
+                  <div key={i} style={{ padding: '0.75rem 0 0.75rem 1.25rem', borderBottom: i < activity.length - 1 ? '1px solid var(--stone-100)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', borderLeft: '2px solid var(--gold-light)' }}>
+                    <div style={{ position: 'absolute', left: '-5px', top: '50%', transform: 'translateY(-50%)', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--gold)', border: '2px solid white' }}></div>
+                    <div>
+                      <span style={{ fontWeight: 500 }}>{actionLabel(a.action)}</span>
+                      {a.performer_name && <span style={{ color: 'var(--stone-500)' }}> by {a.performer_name}</span>}
+                      {a.recipient_email && <span style={{ color: 'var(--stone-500)' }}> to {a.recipient_email}</span>}
+                      {a.revision > 0 && <span style={{ color: 'var(--stone-400)', fontSize: '0.75rem' }}> (Rev. {a.revision})</span>}
+                    </div>
+                    <div style={{ color: 'var(--stone-400)', fontSize: '0.75rem', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
+                      {new Date(a.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>No activity yet</div>
+            )}
+          </div>
+
+          {/* PDF Download */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <a href={'/api/staff/purchase-orders/' + editId + '/pdf'} target="_blank" className="btn btn-secondary">Download PDF</a>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== DataQualityView ==========
+    function DataQualityView({ navigate }) {
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [refreshing, setRefreshing] = useState(false);
+      const [activeTab, setActiveTab] = useState('overview');
+
+      const load = useCallback(async () => {
+        try {
+          const resp = await fetch('/api/admin/data-quality/summary', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('staff_token') } });
+          if (resp.ok) setData(await resp.json());
+        } catch (e) { console.error(e); }
+        setLoading(false);
+      }, []);
+
+      useEffect(() => { load(); }, [load]);
+
+      const handleRefresh = async () => {
+        setRefreshing(true);
+        try {
+          await fetch('/api/admin/data-quality/refresh', { method: 'POST', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('staff_token') } });
+          await load();
+        } catch (e) { console.error(e); }
+        setRefreshing(false);
+      };
+
+      if (loading) return React.createElement('div', { className: 'loading-spinner' }, 'Loading data quality report...');
+      if (!data) return React.createElement('div', { className: 'empty-state' }, 'Failed to load data quality report.');
+
+      const { overall: o, vendors, worst_skus, governance } = data;
+      const scoreColor = (s) => s >= 80 ? '#16a34a' : s >= 50 ? '#d97706' : '#dc2626';
+
+      const tabs = [
+        { key: 'overview', label: 'Overview' },
+        { key: 'vendors', label: 'By Vendor' },
+        { key: 'issues', label: 'Worst SKUs' },
+        { key: 'governance', label: 'Attribute Gaps' },
+        { key: 'enrichment', label: 'AI Enrichment' },
+      ];
+
+      return React.createElement('div', null,
+        React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' } },
+          React.createElement('h2', { style: { margin: 0 } }, 'Data Quality'),
+          React.createElement('button', { className: 'btn btn-secondary', onClick: handleRefresh, disabled: refreshing },
+            refreshing ? 'Refreshing...' : 'Refresh Scores'
+          )
+        ),
+
+        // Score summary cards
+        React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem' } },
+          React.createElement('div', { className: 'stat-card' },
+            React.createElement('div', { className: 'stat-value', style: { color: scoreColor(o.avg_score) } }, o.avg_score),
+            React.createElement('div', { className: 'stat-label' }, 'Avg Quality Score')
+          ),
+          React.createElement('div', { className: 'stat-card' },
+            React.createElement('div', { className: 'stat-value' }, o.total_skus.toLocaleString()),
+            React.createElement('div', { className: 'stat-label' }, 'Active SKUs')
+          ),
+          React.createElement('div', { className: 'stat-card' },
+            React.createElement('div', { className: 'stat-value', style: { color: '#16a34a' } }, o.good.toLocaleString()),
+            React.createElement('div', { className: 'stat-label' }, 'Good (80+)')
+          ),
+          React.createElement('div', { className: 'stat-card' },
+            React.createElement('div', { className: 'stat-value', style: { color: '#d97706' } }, o.fair.toLocaleString()),
+            React.createElement('div', { className: 'stat-label' }, 'Fair (50-79)')
+          ),
+          React.createElement('div', { className: 'stat-card' },
+            React.createElement('div', { className: 'stat-value', style: { color: '#dc2626' } }, o.poor.toLocaleString()),
+            React.createElement('div', { className: 'stat-label' }, 'Poor (<50)')
+          )
+        ),
+
+        // Missing data cards
+        React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' } },
+          [
+            ['No Image', o.missing_image],
+            ['No Cost', o.missing_cost],
+            ['No Retail', o.missing_retail],
+            ['No Packaging', o.missing_packaging],
+            ['No Description', o.missing_description],
+            ['No Color Attr', o.missing_color],
+            ['Gov. Gaps', o.missing_governance]
+          ].map(([label, count]) =>
+            React.createElement('div', { key: label, style: { background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' } },
+              React.createElement('div', { style: { fontSize: '1.25rem', fontWeight: 600, color: count > 0 ? '#dc2626' : '#16a34a' } }, count.toLocaleString()),
+              React.createElement('div', { style: { fontSize: '0.75rem', color: 'var(--stone-500)' } }, label)
+            )
+          )
+        ),
+
+        // Tab navigation
+        React.createElement('div', { style: { display: 'flex', gap: '0.25rem', borderBottom: '2px solid var(--stone-200)', marginBottom: '1rem' } },
+          tabs.map(t =>
+            React.createElement('button', {
+              key: t.key,
+              onClick: () => setActiveTab(t.key),
+              style: {
+                padding: '0.5rem 1rem', cursor: 'pointer', border: 'none', background: 'none',
+                borderBottom: activeTab === t.key ? '2px solid var(--stone-800)' : '2px solid transparent',
+                marginBottom: '-2px', fontWeight: activeTab === t.key ? 600 : 400,
+                color: activeTab === t.key ? 'var(--stone-800)' : 'var(--stone-500)', fontSize: '0.875rem'
+              }
+            }, t.label)
+          )
+        ),
+
+        // Tab content
+        activeTab === 'overview' && React.createElement('div', null,
+          React.createElement('h3', { style: { fontSize: '1rem', marginBottom: '0.75rem' } }, 'Score Distribution by Vendor'),
+          React.createElement('div', { className: 'table-container' },
+            React.createElement('table', { className: 'admin-table' },
+              React.createElement('thead', null,
+                React.createElement('tr', null,
+                  ['Vendor', 'SKUs', 'Avg', 'Good', 'Fair', 'Poor'].map(h =>
+                    React.createElement('th', { key: h }, h)
+                  )
+                )
+              ),
+              React.createElement('tbody', null,
+                vendors.map(v =>
+                  React.createElement('tr', { key: v.vendor_code },
+                    React.createElement('td', null, v.vendor_name),
+                    React.createElement('td', null, v.total),
+                    React.createElement('td', { style: { fontWeight: 600, color: scoreColor(v.avg_score) } }, v.avg_score),
+                    React.createElement('td', { style: { color: '#16a34a' } }, v.good),
+                    React.createElement('td', { style: { color: '#d97706' } }, v.fair),
+                    React.createElement('td', { style: { color: v.poor > 0 ? '#dc2626' : 'inherit' } }, v.poor)
+                  )
+                )
+              )
+            )
+          )
+        ),
+
+        activeTab === 'vendors' && React.createElement('div', null,
+          React.createElement('h3', { style: { fontSize: '1rem', marginBottom: '0.75rem' } }, 'Detailed Vendor Breakdown'),
+          React.createElement('div', { className: 'table-container' },
+            React.createElement('table', { className: 'admin-table' },
+              React.createElement('thead', null,
+                React.createElement('tr', null,
+                  ['Vendor', 'SKUs', 'Avg Score', 'No Image', 'No Cost', 'No Retail', 'No Color'].map(h =>
+                    React.createElement('th', { key: h }, h)
+                  )
+                )
+              ),
+              React.createElement('tbody', null,
+                vendors.map(v =>
+                  React.createElement('tr', { key: v.vendor_code },
+                    React.createElement('td', null, v.vendor_name),
+                    React.createElement('td', null, v.total),
+                    React.createElement('td', { style: { fontWeight: 600, color: scoreColor(v.avg_score) } }, v.avg_score),
+                    React.createElement('td', { style: { color: v.no_image > 0 ? '#dc2626' : '#16a34a' } }, v.no_image),
+                    React.createElement('td', { style: { color: v.no_cost > 0 ? '#dc2626' : '#16a34a' } }, v.no_cost),
+                    React.createElement('td', { style: { color: v.no_retail > 0 ? '#dc2626' : '#16a34a' } }, v.no_retail),
+                    React.createElement('td', { style: { color: v.no_color > 0 ? '#d97706' : '#16a34a' } }, v.no_color)
+                  )
+                )
+              )
+            )
+          )
+        ),
+
+        activeTab === 'issues' && React.createElement('div', null,
+          React.createElement('h3', { style: { fontSize: '1rem', marginBottom: '0.75rem' } }, '50 Lowest Scoring SKUs'),
+          React.createElement('div', { className: 'table-container' },
+            React.createElement('table', { className: 'admin-table' },
+              React.createElement('thead', null,
+                React.createElement('tr', null,
+                  ['Score', 'SKU', 'Product', 'Vendor', 'Category', 'Missing'].map(h =>
+                    React.createElement('th', { key: h }, h)
+                  )
+                )
+              ),
+              React.createElement('tbody', null,
+                worst_skus.map(s => {
+                  const missing = [];
+                  if (!s.has_image) missing.push('image');
+                  if (!s.has_cost) missing.push('cost');
+                  if (!s.has_retail) missing.push('retail');
+                  if (!s.has_packaging) missing.push('packaging');
+                  if (!s.has_description) missing.push('desc');
+                  if (!s.has_color) missing.push('color');
+                  if (s.missing_required_attrs > 0) missing.push(s.missing_required_attrs + ' attrs');
+                  return React.createElement('tr', { key: s.sku_id },
+                    React.createElement('td', { style: { fontWeight: 600, color: scoreColor(s.quality_score) } }, s.quality_score),
+                    React.createElement('td', { style: { fontFamily: 'monospace', fontSize: '0.8125rem' } }, s.internal_sku || s.vendor_sku),
+                    React.createElement('td', null,
+                      React.createElement('div', { style: { fontWeight: 500 } }, s.product_name),
+                      s.collection && React.createElement('div', { style: { fontSize: '0.75rem', color: 'var(--stone-400)' } }, s.collection)
+                    ),
+                    React.createElement('td', null, s.vendor_name),
+                    React.createElement('td', null, s.category_name || '—'),
+                    React.createElement('td', null,
+                      missing.map(m =>
+                        React.createElement('span', { key: m, style: { display: 'inline-block', background: '#fef2f2', color: '#dc2626', padding: '1px 6px', borderRadius: '4px', fontSize: '0.6875rem', marginRight: '4px', marginBottom: '2px' } }, m)
+                      )
+                    )
+                  );
+                })
+              )
+            )
+          )
+        ),
+
+        activeTab === 'governance' && React.createElement('div', null,
+          React.createElement('h3', { style: { fontSize: '1rem', marginBottom: '0.75rem' } }, 'Required Attribute Completeness by Category'),
+          React.createElement('div', { className: 'table-container' },
+            React.createElement('table', { className: 'admin-table' },
+              React.createElement('thead', null,
+                React.createElement('tr', null,
+                  ['Category', 'Active SKUs', 'Completeness', 'Total Missing Attrs'].map(h =>
+                    React.createElement('th', { key: h }, h)
+                  )
+                )
+              ),
+              React.createElement('tbody', null,
+                governance.map(g =>
+                  React.createElement('tr', { key: g.category_slug },
+                    React.createElement('td', { style: { fontWeight: 500 } }, g.category_name),
+                    React.createElement('td', null, g.total_skus),
+                    React.createElement('td', null,
+                      React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem' } },
+                        React.createElement('div', { style: { flex: 1, background: 'var(--stone-100)', borderRadius: '4px', height: '8px', maxWidth: '120px' } },
+                          React.createElement('div', { style: { width: g.attr_completeness + '%', background: scoreColor(g.attr_completeness), borderRadius: '4px', height: '100%' } })
+                        ),
+                        React.createElement('span', { style: { fontSize: '0.8125rem', fontWeight: 600, color: scoreColor(g.attr_completeness) } }, g.attr_completeness + '%')
+                      )
+                    ),
+                    React.createElement('td', { style: { color: g.total_missing > 0 ? '#dc2626' : '#16a34a' } }, g.total_missing.toLocaleString())
+                  )
+                )
+              )
+            )
+          )
+        ),
+
+        activeTab === 'enrichment' && React.createElement(EnrichmentPanel, null)
+      );
+    }
+
+    // ========== AI Enrichment Panel ==========
+    function EnrichmentPanel() {
+      const [status, setStatus] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [running, setRunning] = useState(false);
+      const [reviewItems, setReviewItems] = useState([]);
+      const [selectedVendor, setSelectedVendor] = useState('');
+      const [vendors, setVendors] = useState([]);
+      const authHeaders = { 'Authorization': 'Bearer ' + localStorage.getItem('staff_token'), 'Content-Type': 'application/json' };
+
+      const loadStatus = useCallback(async () => {
+        try {
+          const resp = await fetch('/api/admin/enrichment/status', { headers: authHeaders });
+          if (resp.ok) {
+            const data = await resp.json();
+            setStatus(data);
+            const hasRunning = data.recent_jobs?.some(j => j.status === 'running');
+            setRunning(hasRunning);
+          }
+        } catch (e) { console.error(e); }
+        setLoading(false);
+      }, []);
+
+      const loadReview = useCallback(async () => {
+        try {
+          const resp = await fetch('/api/admin/enrichment/review', { headers: authHeaders });
+          if (resp.ok) setReviewItems(await resp.json());
+        } catch (e) { console.error(e); }
+      }, []);
+
+      const loadVendors = useCallback(async () => {
+        try {
+          const resp = await fetch('/api/admin/vendors', { headers: authHeaders });
+          if (resp.ok) { const data = await resp.json(); setVendors(data.vendors || data || []); }
+        } catch (e) { console.error(e); }
+      }, []);
+
+      useEffect(() => { loadStatus(); loadReview(); loadVendors(); }, []);
+
+      // Auto-poll while jobs running
+      useEffect(() => {
+        if (!running) return;
+        const interval = setInterval(() => { loadStatus(); }, 5000);
+        return () => clearInterval(interval);
+      }, [running]);
+
+      const runJob = async (jobType) => {
+        try {
+          const scope = selectedVendor ? { vendor_id: selectedVendor } : {};
+          await fetch('/api/admin/enrichment/run', { method: 'POST', headers: authHeaders, body: JSON.stringify({ job_type: jobType, scope }) });
+          setRunning(true);
+          setTimeout(loadStatus, 1000);
+        } catch (e) { console.error(e); }
+      };
+
+      const cancelJob = async (jobId) => {
+        try {
+          await fetch(`/api/admin/enrichment/cancel/${jobId}`, { method: 'POST', headers: authHeaders });
+          setTimeout(loadStatus, 1000);
+        } catch (e) { console.error(e); }
+      };
+
+      const handleReview = async (id, action) => {
+        try {
+          await fetch(`/api/admin/enrichment/review/${id}`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ action }) });
+          setReviewItems(prev => prev.filter(r => r.id !== id));
+        } catch (e) { console.error(e); }
+      };
+
+      if (loading) return React.createElement('div', { className: 'loading-spinner' }, 'Loading enrichment data...');
+      if (!status) return React.createElement('div', { className: 'empty-state' }, 'Failed to load enrichment status.');
+
+      const { gaps, recent_jobs, cost_summary } = status;
+
+      const jobTypes = [
+        { key: 'descriptions', label: 'Descriptions', gap: gaps.missing_descriptions, icon: 'T' },
+        { key: 'attributes', label: 'Attributes', gap: gaps.missing_attributes, icon: 'A' },
+        { key: 'categorization', label: 'Categories', gap: gaps.uncategorized, icon: 'C' },
+        { key: 'image_classification', label: 'Images', gap: gaps.unclassified_images, icon: 'I' },
+      ];
+
+      const formatDuration = (start, end) => {
+        if (!start) return '--';
+        const s = new Date(start);
+        const e = end ? new Date(end) : new Date();
+        const secs = Math.round((e - s) / 1000);
+        if (secs < 60) return secs + 's';
+        return Math.round(secs / 60) + 'm ' + (secs % 60) + 's';
+      };
+
+      const statusBadge = (s) => {
+        const colors = { pending: '#6b7280', running: '#2563eb', completed: '#16a34a', failed: '#dc2626', cancelled: '#d97706' };
+        return React.createElement('span', { style: { display: 'inline-block', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 500, color: '#fff', background: colors[s] || '#6b7280' } }, s);
+      };
+
+      return React.createElement('div', null,
+        // Vendor scope selector
+        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' } },
+          React.createElement('label', { style: { fontSize: '0.875rem', fontWeight: 500 } }, 'Scope:'),
+          React.createElement('select', {
+            value: selectedVendor,
+            onChange: e => setSelectedVendor(e.target.value),
+            style: { padding: '0.375rem 0.75rem', borderRadius: '6px', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }
+          },
+            React.createElement('option', { value: '' }, 'All Vendors'),
+            vendors.map(v => React.createElement('option', { key: v.id, value: v.id }, v.name))
+          )
+        ),
+
+        // A. Status Cards with Run buttons
+        React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' } },
+          jobTypes.map(jt =>
+            React.createElement('div', { key: jt.key, style: { background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '10px', padding: '1rem' } },
+              React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' } },
+                React.createElement('div', { style: { fontSize: '0.8125rem', color: 'var(--stone-500)', fontWeight: 500 } }, 'Missing ' + jt.label),
+                React.createElement('span', { style: { width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', background: 'var(--stone-200)', fontWeight: 600, fontSize: '0.8125rem' } }, jt.icon)
+              ),
+              React.createElement('div', { style: { fontSize: '1.75rem', fontWeight: 700, color: jt.gap > 0 ? '#dc2626' : '#16a34a', marginBottom: '0.75rem' } }, jt.gap.toLocaleString()),
+              React.createElement('button', {
+                className: 'btn btn-primary',
+                style: { width: '100%', fontSize: '0.8125rem', padding: '0.375rem' },
+                disabled: jt.gap === 0 || running,
+                onClick: () => runJob(jt.key)
+              }, running ? 'Running...' : 'Run ' + jt.label)
+            )
+          )
+        ),
+
+        // B. Jobs Table
+        React.createElement('h3', { style: { fontSize: '1rem', marginBottom: '0.75rem' } }, 'Recent Jobs'),
+        React.createElement('div', { className: 'table-container', style: { marginBottom: '1.5rem' } },
+          React.createElement('table', { className: 'admin-table' },
+            React.createElement('thead', null,
+              React.createElement('tr', null,
+                ['Type', 'Status', 'Progress', 'Updated', 'Tokens', 'Cost', 'Duration', ''].map(h =>
+                  React.createElement('th', { key: h }, h)
+                )
+              )
+            ),
+            React.createElement('tbody', null,
+              (recent_jobs || []).map(j => {
+                const pct = j.total_items > 0 ? Math.round(j.processed_items / j.total_items * 100) : 0;
+                return React.createElement('tr', { key: j.id },
+                  React.createElement('td', { style: { fontWeight: 500, textTransform: 'capitalize' } }, j.job_type.replace('_', ' ')),
+                  React.createElement('td', null, statusBadge(j.status)),
+                  React.createElement('td', null,
+                    React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '120px' } },
+                      React.createElement('div', { style: { flex: 1, background: 'var(--stone-100)', borderRadius: '4px', height: '8px' } },
+                        React.createElement('div', { style: { width: pct + '%', background: j.status === 'running' ? '#2563eb' : '#16a34a', borderRadius: '4px', height: '100%', transition: 'width 0.3s' } })
+                      ),
+                      React.createElement('span', { style: { fontSize: '0.75rem', whiteSpace: 'nowrap' } }, j.processed_items + '/' + j.total_items)
+                    )
+                  ),
+                  React.createElement('td', null, (j.updated_items || 0).toLocaleString()),
+                  React.createElement('td', { style: { fontSize: '0.8125rem', fontFamily: 'monospace' } }, ((j.prompt_tokens_used || 0) + (j.completion_tokens_used || 0)).toLocaleString()),
+                  React.createElement('td', { style: { fontSize: '0.8125rem' } }, '$' + parseFloat(j.estimated_cost_usd || 0).toFixed(4)),
+                  React.createElement('td', { style: { fontSize: '0.8125rem' } }, formatDuration(j.started_at, j.completed_at)),
+                  React.createElement('td', null,
+                    j.status === 'running' && React.createElement('button', {
+                      className: 'btn btn-secondary', style: { fontSize: '0.75rem', padding: '2px 8px' },
+                      onClick: () => cancelJob(j.id)
+                    }, 'Cancel')
+                  )
+                );
+              })
+            )
+          )
+        ),
+
+        // C. Review Queue
+        reviewItems.length > 0 && React.createElement('div', { style: { marginBottom: '1.5rem' } },
+          React.createElement('h3', { style: { fontSize: '1rem', marginBottom: '0.75rem' } }, 'Review Queue (' + reviewItems.length + ')'),
+          React.createElement('div', { className: 'table-container' },
+            React.createElement('table', { className: 'admin-table' },
+              React.createElement('thead', null,
+                React.createElement('tr', null,
+                  ['Product', 'Field', 'Suggested Value', 'Confidence', 'Actions'].map(h =>
+                    React.createElement('th', { key: h }, h)
+                  )
+                )
+              ),
+              React.createElement('tbody', null,
+                reviewItems.map(r =>
+                  React.createElement('tr', { key: r.id },
+                    React.createElement('td', null,
+                      React.createElement('div', { style: { fontWeight: 500 } }, r.entity_name || r.entity_id.slice(0, 8)),
+                      r.entity_collection && React.createElement('div', { style: { fontSize: '0.75rem', color: 'var(--stone-400)' } }, r.entity_collection)
+                    ),
+                    React.createElement('td', null, r.field_name),
+                    React.createElement('td', { style: { fontWeight: 500 } }, r.new_value),
+                    React.createElement('td', null,
+                      React.createElement('span', { style: { fontWeight: 600, color: parseFloat(r.confidence) >= 0.7 ? '#d97706' : '#dc2626' } },
+                        (parseFloat(r.confidence) * 100).toFixed(0) + '%'
+                      )
+                    ),
+                    React.createElement('td', null,
+                      React.createElement('div', { style: { display: 'flex', gap: '0.375rem' } },
+                        React.createElement('button', { className: 'btn btn-primary', style: { fontSize: '0.75rem', padding: '2px 10px' }, onClick: () => handleReview(r.id, 'approve') }, 'Approve'),
+                        React.createElement('button', { className: 'btn btn-secondary', style: { fontSize: '0.75rem', padding: '2px 10px' }, onClick: () => handleReview(r.id, 'reject') }, 'Reject')
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        ),
+
+        // D. Cost Summary
+        cost_summary && cost_summary.length > 0 && React.createElement('div', null,
+          React.createElement('h3', { style: { fontSize: '1rem', marginBottom: '0.75rem' } }, 'Cost Summary'),
+          React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' } },
+            cost_summary.map(cs =>
+              React.createElement('div', { key: cs.job_type, style: { background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '10px', padding: '1rem' } },
+                React.createElement('div', { style: { fontSize: '0.8125rem', fontWeight: 600, textTransform: 'capitalize', marginBottom: '0.5rem' } }, cs.job_type.replace('_', ' ')),
+                React.createElement('div', { style: { fontSize: '0.8125rem', color: 'var(--stone-600)' } },
+                  React.createElement('div', null, cs.runs + ' runs'),
+                  React.createElement('div', null, (cs.total_updated || 0).toLocaleString() + ' items updated'),
+                  React.createElement('div', null, ((cs.total_prompt_tokens || 0) + (cs.total_completion_tokens || 0)).toLocaleString() + ' tokens'),
+                  React.createElement('div', { style: { fontWeight: 600, marginTop: '0.25rem' } }, '$' + parseFloat(cs.total_cost || 0).toFixed(4))
+                )
+              )
+            )
+          )
+        )
       );
     }
 

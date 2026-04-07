@@ -1,6 +1,8 @@
 import {
   launchBrowser, delay, upsertMediaAsset, upsertSkuAttribute,
-  appendLog, addJobError, downloadImage, resolveImageExtension, preferProductShot
+  appendLog, addJobError, downloadImage, resolveImageExtension, preferProductShot,
+  extractLargeImages, collectSiteWideImages, fuzzyMatch,
+  extractSpecPDFs, normalizeTriwestName
 } from './base.js';
 
 const BASE_URL = 'https://www.stantoncarpet.com';
@@ -14,7 +16,7 @@ const MAX_ERRORS = 30;
  * Enriches EXISTING Tri-West SKUs — never creates new products.
  * Tech: LANSA + WordPress, Brandfolder CDN
  *
- * Runs AFTER triwest-catalog.js populates SKUs in the DB.
+ * Runs AFTER import-triwest-832.cjs populates SKUs in the DB.
  */
 export async function run(pool, job, source) {
   const config = source.config || {};
@@ -36,33 +38,48 @@ export async function run(pool, job, source) {
   }
 
   try {
-    // Load existing TW SKUs for this brand
+    // Load existing TW products for this brand (includes SKU-less products from DNav)
+    const prodResult = await pool.query(`
+      SELECT p.id AS product_id, p.name, p.collection, p.description_long
+      FROM products p
+      WHERE p.vendor_id = $1 AND p.collection LIKE $2
+    `, [vendor_id, `${brandPrefix}%`]);
+
+    // Also load SKU data for products that have it
     const skuResult = await pool.query(`
-      SELECT s.id AS sku_id, s.vendor_sku, s.internal_sku, s.variant_name,
-             p.id AS product_id, p.name, p.collection, p.description_long
+      SELECT s.id AS sku_id, s.vendor_sku, s.internal_sku, s.variant_name, s.product_id
       FROM skus s
       JOIN products p ON p.id = s.product_id
       WHERE p.vendor_id = $1 AND p.collection LIKE $2
     `, [vendor_id, `${brandPrefix}%`]);
 
-    await appendLog(pool, job.id, `Found ${skuResult.rows.length} ${brandPrefix} SKUs to enrich`);
+    await appendLog(pool, job.id, `Found ${prodResult.rows.length} ${brandPrefix} products (${skuResult.rows.length} SKUs) to enrich`);
 
-    if (skuResult.rows.length === 0) {
-      await appendLog(pool, job.id, `No ${brandPrefix} SKUs found — run triwest-catalog first`);
+    if (prodResult.rows.length === 0) {
+      await appendLog(pool, job.id, `No ${brandPrefix} products found — run import-triwest-832 first`);
       return;
     }
 
-    // Group SKUs by product (collection + name)
-    const productGroups = new Map();
+    // Build SKU lookup by product_id
+    const skusByProduct = new Map();
     for (const row of skuResult.rows) {
-      const key = `${row.collection}||${row.name}`;
-      if (!productGroups.has(key)) {
-        productGroups.set(key, { product_id: row.product_id, name: row.name, collection: row.collection, skus: [] });
-      }
-      productGroups.get(key).skus.push(row);
+      if (!skusByProduct.has(row.product_id)) skusByProduct.set(row.product_id, []);
+      skusByProduct.get(row.product_id).push(row);
     }
 
-    await appendLog(pool, job.id, `Grouped into ${productGroups.size} products`);
+    // Group products by collection + name
+    const productGroups = new Map();
+    for (const row of prodResult.rows) {
+      const key = `${row.collection}||${row.name}`;
+      if (!productGroups.has(key)) {
+        productGroups.set(key, {
+          product_id: row.product_id, name: row.name, collection: row.collection,
+          skus: skusByProduct.get(row.product_id) || [],
+        });
+      }
+    }
+
+    await appendLog(pool, job.id, `Grouped into ${productGroups.size} products (${skuResult.rows.length} with SKUs)`);
 
     // Launch browser
     browser = await launchBrowser();
@@ -70,10 +87,10 @@ export async function run(pool, job, source) {
     await page.setUserAgent(USER_AGENT);
     await page.setViewport({ width: 1440, height: 900 });
 
-    // Navigate to brand website
-    await appendLog(pool, job.id, `Navigating to ${BASE_URL}...`);
-    await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 30000 });
-    await delay(2000);
+    // Collect site-wide images to exclude
+    await appendLog(pool, job.id, `Collecting site-wide images from ${BASE_URL}...`);
+    const siteWideImages = await collectSiteWideImages(page, BASE_URL);
+    await appendLog(pool, job.id, `Found ${siteWideImages.size} site-wide images to exclude`);
 
     // Scrape product pages and enrich
     let processed = 0;
@@ -81,10 +98,10 @@ export async function run(pool, job, source) {
       processed++;
 
       try {
-        const productData = await findProductOnSite(page, group, delayMs);
+        const productData = await findProductOnSite(page, group, delayMs, siteWideImages);
 
         if (!productData) {
-          skusSkipped += group.skus.length;
+          skusSkipped++;
           continue;
         }
 
@@ -113,8 +130,22 @@ export async function run(pool, job, source) {
           }
         }
 
+        // Upsert spec PDFs
+        if (productData.specPdfs && productData.specPdfs.length > 0) {
+          for (let i = 0; i < productData.specPdfs.length; i++) {
+            await upsertMediaAsset(pool, {
+              product_id: group.product_id,
+              sku_id: null,
+              asset_type: 'spec_pdf',
+              url: productData.specPdfs[i].url,
+              original_url: productData.specPdfs[i].url,
+              sort_order: i,
+            });
+          }
+        }
+
         // Upsert specs as SKU attributes
-        if (productData.specs) {
+        if (productData.specs && group.skus.length > 0) {
           for (const sku of group.skus) {
             for (const [attrSlug, value] of Object.entries(productData.specs)) {
               if (value) await upsertSkuAttribute(pool, sku.sku_id, attrSlug, value);
@@ -126,7 +157,7 @@ export async function run(pool, job, source) {
         }
       } catch (err) {
         await logError(`${group.collection} / ${group.name}: ${err.message}`);
-        skusSkipped += group.skus.length;
+        skusSkipped++;
       }
 
       if (processed % 10 === 0) {
@@ -146,7 +177,7 @@ export async function run(pool, job, source) {
 
 /**
  * Find a product on stantoncarpet.com and extract images/specs.
- * Returns { images: string[], description: string, specs: object } or null.
+ * Returns { images: string[], description: string, specs: object, specPdfs: array } or null.
  *
  * Stanton Carpet (covers carpet, hardwood, LVP, laminate).
  * LANSA backend (IBM AS/400) + WordPress frontend.
@@ -161,47 +192,62 @@ export async function run(pool, job, source) {
  * Title: h1.h1.title
  * Brands: Stanton, Stanton Hard Surface, Antrim, Rosecore, Crescent, Cavan
  */
-async function findProductOnSite(page, productGroup, delayMs) {
-  const firstSku = productGroup.skus[0];
+async function findProductOnSite(page, productGroup, delayMs, siteWideImages) {
+  const firstSku = productGroup.skus[0] || {};
   const vendorSku = firstSku.vendor_sku || '';
-  const colorName = productGroup.name;
+  const rawColorName = productGroup.name;
+  const colorName = normalizeTriwestName(rawColorName);
   // Strip brand prefix: "Stanton Whatever" → "Whatever"
-  const collection = productGroup.collection.replace(/^Stanton\s*/i, '').trim();
+  const rawCollection = productGroup.collection.replace(/^Stanton\s*/i, '').trim();
+  const collection = normalizeTriwestName(rawCollection);
 
   // Build product URL — LANSA uses UPPERCASE style/color names
   // Both /product/ and /products/ work; LANSA paths are case-insensitive
-  const styleSlug = collection.replace(/\s+/g, ' ').trim().toUpperCase();
-  const colorSlug = colorName.replace(/\s+/g, ' ').trim().toUpperCase();
+  const styleSlugUpper = collection.replace(/\s+/g, ' ').trim().toUpperCase();
+  const colorSlugUpper = colorName.replace(/\s+/g, ' ').trim().toUpperCase();
+  // Also try URL-encoded lowercase variant since LANSA may be case-insensitive
+  const styleSlugLower = collection.replace(/\s+/g, ' ').trim().toLowerCase();
+  const colorSlugLower = colorName.replace(/\s+/g, ' ').trim().toLowerCase();
 
   let loaded = false;
 
-  // Attempt 1: Direct product URL (try both /products/ and /product/)
-  if (styleSlug && colorSlug) {
-    for (const prefix of ['/products/', '/product/']) {
+  // Attempt 1: Direct product URL (try both /products/ and /product/, UPPERCASE then lowercase)
+  if (styleSlugUpper && colorSlugUpper) {
+    const slugPairs = [
+      [styleSlugUpper, colorSlugUpper],
+      [styleSlugLower, colorSlugLower],
+    ];
+    for (const [styleSl, colorSl] of slugPairs) {
       if (loaded) break;
-      try {
-        const url = `${BASE_URL}${prefix}${encodeURIComponent(styleSlug)}/${encodeURIComponent(colorSlug)}`;
-        const response = await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
-        await delay(delayMs);
-        const pageUrl = page.url();
-        if (response && response.status() === 200 && (pageUrl.includes('/product') || pageUrl.includes('/products'))) {
-          const hasProduct = await page.evaluate(() => !!document.querySelector('img#main-product-image, .prddtl-main-image, h1.title'));
-          if (hasProduct) loaded = true;
-        }
-      } catch { /* try next */ }
+      for (const prefix of ['/products/', '/product/']) {
+        if (loaded) break;
+        try {
+          const url = `${BASE_URL}${prefix}${encodeURIComponent(styleSl)}/${encodeURIComponent(colorSl)}`;
+          const response = await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
+          await delay(delayMs);
+          const pageUrl = page.url();
+          if (response && response.status() === 200 && (pageUrl.includes('/product') || pageUrl.includes('/products'))) {
+            const hasProduct = await page.evaluate(() => !!document.querySelector('img#main-product-image, .prddtl-main-image, h1.title'));
+            if (hasProduct) loaded = true;
+          }
+        } catch { /* try next */ }
+      }
     }
   }
 
   // Attempt 2: Try with just style name (some pages list all colors)
-  if (!loaded && styleSlug) {
-    try {
-      const url = `${BASE_URL}/products/${encodeURIComponent(styleSlug)}`;
-      const response = await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
-      await delay(delayMs);
-      if (response && response.status() === 200 && page.url().includes('/product')) {
-        loaded = true;
-      }
-    } catch { /* try fallback */ }
+  if (!loaded && styleSlugUpper) {
+    for (const styleSl of [styleSlugUpper, styleSlugLower]) {
+      if (loaded) break;
+      try {
+        const url = `${BASE_URL}/products/${encodeURIComponent(styleSl)}`;
+        const response = await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
+        await delay(delayMs);
+        if (response && response.status() === 200 && page.url().includes('/product')) {
+          loaded = true;
+        }
+      } catch { /* try fallback */ }
+    }
   }
 
   // Attempt 3: Browse finehardwood page and find matching link
@@ -237,6 +283,13 @@ async function findProductOnSite(page, productGroup, delayMs) {
   }
 
   if (!loaded) return null;
+
+  // Extract spec PDFs from the detail page
+  const specPdfs = await extractSpecPDFs(page);
+
+  // Extract large images using utility (filters site-wide images)
+  const largeImgs = await extractLargeImages(page, siteWideImages, 150);
+  const utilityImages = largeImgs.map(img => img.src);
 
   const data = await page.evaluate(() => {
     // 1. Images — Brandfolder CDN at cdn.bfldr.com/PMOA7OGQ/
@@ -330,6 +383,10 @@ async function findProductOnSite(page, productGroup, delayMs) {
     return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
   });
 
-  if (data.images.length === 0 && !data.description && !data.specs) return null;
-  return data;
+  // Merge utility-extracted images with page-extracted images
+  const mergedImages = [...new Set([...utilityImages, ...data.images])];
+  data.images = mergedImages;
+
+  if (data.images.length === 0 && !data.description && !data.specs && specPdfs.length === 0) return null;
+  return { ...data, specPdfs };
 }

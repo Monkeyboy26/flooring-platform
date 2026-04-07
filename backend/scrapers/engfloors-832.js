@@ -1,19 +1,19 @@
 /**
- * Engineered Floors — EDI 832 SFTP Importer
+ * Engineered Floors — EDI 832 FTP Importer
  *
- * Connects to ftp.engfloors.org via SFTP, downloads the latest 832 (Price/Sales Catalog)
+ * Connects to ftp.engfloors.org via FTP, downloads the latest 832 (Price/Sales Catalog)
  * file, parses EDI segments, and upserts products/SKUs/pricing/packaging into the database.
  *
- * Unlike web scrapers, this module uses SFTP + EDI parsing — no Puppeteer needed.
+ * Unlike web scrapers, this module uses FTP + EDI parsing — no Puppeteer needed.
  *
  * Config (vendor_sources.config):
- *   sftp_host, sftp_port, sftp_user, sftp_pass — connection credentials
+ *   ftp_host, ftp_port, ftp_user, ftp_pass — connection credentials
  *   processed_files — array of filenames already imported (auto-maintained)
  */
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-const SftpClient = require('ssh2-sftp-client');
+const { Client: FtpClient } = require('basic-ftp');
 
 import fs from 'fs';
 import {
@@ -28,12 +28,12 @@ import {
 
 const VENDOR_CODE = 'EF';
 
-// Default SFTP credentials (overridden by vendor_sources.config or env vars)
-const DEFAULT_SFTP = {
-  host: 'ftp.engfloors.org',
-  port: 22,
-  username: '18110',
-  password: 'wSQiFrDM',
+// Default FTP credentials (overridden by vendor_sources.config or env vars)
+const DEFAULT_FTP = {
+  host: process.env.EF_FTP_HOST || 'ftp.engfloors.org',
+  port: parseInt(process.env.EF_FTP_PORT || '21', 10),
+  user: process.env.EF_FTP_USER || '18110',
+  password: process.env.EF_FTP_PASS || '',
 };
 
 // Directories to scan on the remote server (OpenAS2 + standard EDI paths)
@@ -50,6 +50,9 @@ const REMOTE_DIRS = [
   '/home/18110', '/sftpusers/18110',
   '/',
 ];
+
+// Transition suffix patterns — used to derive collection name from accessory products
+const TRANSITION_SUFFIXES = /\s+(2-stair Treads|End Cap|Flush Stairnose|Overlap Stairnose|Quarter|Reducer|T-Mold|Wall Base|Universal Stairnose|Stair Tread)$/i;
 
 // Map EDI category text → category slugs in our DB
 const CATEGORY_MAP = {
@@ -86,11 +89,12 @@ const PID_CODES = {
   '73': 'color',
   '74': 'pattern',
   '75': 'finish',
-  '35': 'species',
+  '35': 'dye_code',
   '37': 'material',
   '38': 'style',
   DIM: 'dimensions',
   MAC: 'material_class',
+  TRN: 'trade_name',
   '12': 'quality',
   '77': 'collection',
 };
@@ -120,10 +124,15 @@ const MEA_CODES = { TH: 'thickness', WD: 'width', LN: 'length', WT: 'weight', WL
 
 function tokenizeSegments(raw) {
   let text = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  if (text.includes('~')) {
+  // Count tildes vs newlines to detect true segment terminator
+  const tildeCount = (text.match(/~/g) || []).length;
+  const lineCount = (text.match(/\n/g) || []).length;
+  if (tildeCount > 10 && tildeCount >= lineCount * 0.5) {
+    // ~ is the real segment terminator (standard EDI)
     return text.split('~').map(s => s.trim()).filter(Boolean);
   }
-  return text.split('\n').map(s => s.trim()).filter(Boolean);
+  // Newline-terminated (or ~ only in ISA envelope) — strip trailing ~
+  return text.split('\n').map(s => s.replace(/~\s*$/, '').trim()).filter(Boolean);
 }
 
 function parseSegment(segStr) {
@@ -161,6 +170,7 @@ function parseCTP(seg) {
     unit_price: seg.el[3] ? parseFloat(seg.el[3]) : null,
     quantity: seg.el[4] ? parseFloat(seg.el[4]) : null,
     unit_of_measure: seg.el[5] || null,
+    basis_code: seg.el[9] || null, // ST=style/retail, CT=contract/cost, PL=pallet
   };
 }
 
@@ -182,15 +192,60 @@ function parseMEA(seg) {
   };
 }
 
+function parseSLN(seg) {
+  const result = { sub_line_number: seg.el[1] || null, relationship_code: seg.el[3] || null, identifiers: {} };
+  for (let i = 9; i < seg.el.length - 1; i += 2) {
+    const qual = seg.el[i], val = seg.el[i + 1];
+    if (qual && val) result.identifiers[LIN_QUALIFIERS[qual] || qual.toLowerCase()] = val;
+  }
+  return result;
+}
+
+function mergeProductContext(item, productCtx) {
+  if (!productCtx) return;
+  for (const [k, v] of Object.entries(productCtx.identifiers)) {
+    if (!item.identifiers[k]) item.identifiers[k] = v;
+  }
+  item.descriptions = [...productCtx.descriptions, ...item.descriptions];
+  if (!item.packaging && productCtx.packaging) item.packaging = productCtx.packaging;
+  if (item.pricing.length === 0) item.pricing = [...productCtx.pricing];
+  const slnQuals = new Set(item.measurements.map(m => m.qualifier));
+  for (const pm of productCtx.measurements) {
+    if (!slnQuals.has(pm.qualifier)) item.measurements.push(pm);
+  }
+}
+
 function parse832(raw) {
   const segments = tokenizeSegments(raw).map(parseSegment);
   const catalog = { items: [], summary: { total_items: 0, segment_count: segments.length } };
   let currentItem = null;
+  let productContext = null;
+  let hadSLN = false;
+
+  function flushCurrentItem() {
+    if (!currentItem) return;
+    if (productContext) mergeProductContext(currentItem, productContext);
+    finalizeItem(currentItem);
+    catalog.items.push(currentItem);
+    currentItem = null;
+  }
+
+  function flushProduct() {
+    if (hadSLN && currentItem) {
+      flushCurrentItem();
+    } else if (currentItem && !hadSLN) {
+      finalizeItem(currentItem);
+      catalog.items.push(currentItem);
+      currentItem = null;
+    }
+    productContext = null;
+    hadSLN = false;
+  }
 
   for (const seg of segments) {
     switch (seg.id) {
       case 'LIN': {
-        if (currentItem) { finalizeItem(currentItem); catalog.items.push(currentItem); }
+        flushProduct();
         const lin = parseLIN(seg);
         currentItem = {
           line_number: lin.line_number, identifiers: lin.identifiers,
@@ -204,30 +259,86 @@ function parse832(raw) {
         };
         break;
       }
-      case 'PO4': { if (currentItem) currentItem.packaging = parsePO4(seg); break; }
-      case 'CTP': { if (currentItem) currentItem.pricing.push(parseCTP(seg)); break; }
-      case 'PID': { if (currentItem) currentItem.descriptions.push(parsePID(seg)); break; }
-      case 'MEA': { if (currentItem) currentItem.measurements.push(parseMEA(seg)); break; }
+      case 'SLN': {
+        if (!hadSLN && currentItem) {
+          productContext = {
+            line_number: currentItem.line_number,
+            identifiers: { ...currentItem.identifiers },
+            descriptions: [...currentItem.descriptions],
+            packaging: currentItem.packaging,
+            pricing: [...currentItem.pricing],
+            measurements: [...currentItem.measurements],
+          };
+          hadSLN = true;
+          currentItem = null;
+        } else if (currentItem) {
+          flushCurrentItem();
+        }
+        const sln = parseSLN(seg);
+        currentItem = {
+          line_number: productContext ? productContext.line_number : null,
+          identifiers: sln.identifiers,
+          descriptions: [], packaging: null, pricing: [], measurements: [],
+          vendor_sku: sln.identifiers.sku || null,
+          upc: null, product_name: null, color: null,
+          collection: null, category: null, cost: null, retail_price: null,
+          unit_of_measure: null, sqft_per_box: null, pieces_per_box: null,
+          weight_per_box_lbs: null, sell_by: null,
+          cut_price: null, roll_price: null, cut_cost: null, roll_cost: null, roll_min_sqft: null,
+          roll_width_ft: null, map_price: null,
+        };
+        break;
+      }
+      case 'PO4': {
+        const target = productContext || currentItem;
+        if (target) target.packaging = parsePO4(seg);
+        break;
+      }
+      case 'CTP': {
+        const target = productContext || currentItem;
+        if (target) target.pricing.push(parseCTP(seg));
+        break;
+      }
+      case 'PID': {
+        if (currentItem) currentItem.descriptions.push(parsePID(seg));
+        else if (productContext) productContext.descriptions.push(parsePID(seg));
+        break;
+      }
+      case 'MEA': {
+        if (currentItem) currentItem.measurements.push(parseMEA(seg));
+        else if (productContext) productContext.measurements.push(parseMEA(seg));
+        break;
+      }
+      case 'MTX': {
+        const mtxType = seg.el[1] || null;
+        const mtxText = seg.el[2] || null;
+        if (mtxText && currentItem) {
+          if (!currentItem.images) currentItem.images = [];
+          currentItem.images.push({ type: mtxType, url: mtxText });
+        }
+        break;
+      }
       case 'G39': {
-        if (currentItem) {
+        const target = productContext || currentItem;
+        if (target) {
           for (let i = 2; i < Math.min(seg.el.length, 6); i += 2) {
             const qual = seg.el[i], val = seg.el[i + 1];
             if (qual && val) {
               const key = LIN_QUALIFIERS[qual] || qual.toLowerCase();
-              if (!currentItem.identifiers[key]) currentItem.identifiers[key] = val;
+              if (!target.identifiers[key]) target.identifiers[key] = val;
             }
           }
           if (seg.el[17]) {
-            currentItem.descriptions.push({ description_type: 'F', characteristic_code: '08', characteristic_label: 'description', description: seg.el[17] });
+            target.descriptions.push({ description_type: 'F', characteristic_code: '08', characteristic_label: 'description', description: seg.el[17] });
           }
-          if (seg.el[9] && seg.el[10] && !currentItem.packaging) {
-            currentItem.packaging = { size_per_pack: parseFloat(seg.el[9]), unit_of_measure: seg.el[10], pieces_per_pack: seg.el[11] ? parseInt(seg.el[11], 10) : null };
+          if (seg.el[9] && seg.el[10] && !target.packaging) {
+            target.packaging = { size_per_pack: parseFloat(seg.el[9]), unit_of_measure: seg.el[10], pieces_per_pack: seg.el[11] ? parseInt(seg.el[11], 10) : null };
           }
         }
         break;
       }
       case 'CTT': case 'SE': {
-        if (currentItem) { finalizeItem(currentItem); catalog.items.push(currentItem); currentItem = null; }
+        flushProduct();
         if (seg.id === 'CTT') catalog.summary.total_items = seg.el[1] ? parseInt(seg.el[1], 10) : catalog.items.length;
         break;
       }
@@ -235,47 +346,138 @@ function parse832(raw) {
     }
   }
 
-  if (currentItem) { finalizeItem(currentItem); catalog.items.push(currentItem); }
+  flushProduct();
   if (!catalog.summary.total_items) catalog.summary.total_items = catalog.items.length;
   return catalog;
 }
 
+// MAC (material class) → category slug mapping
+const MAC_CATEGORY_MAP = {
+  CARINDR: 'carpet-tile',   // Carpet Indoor Residential
+  CARINDC: 'carpet-tile',   // Carpet Indoor Commercial
+  CARTILR: 'carpet-tile',   // Carpet Tile Residential
+  CARTILC: 'carpet-tile',   // Carpet Tile Commercial
+  VINTILR: 'luxury-vinyl',  // Vinyl Tile/LVP Residential
+  VINTILC: 'luxury-vinyl',  // Vinyl Tile/LVP Commercial
+  VINMISR: 'installation-sundries', // Vinyl Misc (accessories)
+};
+
+function cleanProductName(raw) {
+  if (!raw) return null;
+  let name = raw
+    .replace(/\s*\([^)]*sq(?:ft|yd)[^)]*\)/gi, '')
+    .replace(/\s+\d+\.?\d*[xX]\d+\.?\d*/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  name = name.replace(/\b\w+/g, w =>
+    w.length <= 3 && /^(i{1,3}|ii|iv|v|vi|vii|viii|ix|x|spc|lvp|lvt)$/i.test(w)
+      ? w.toLowerCase()
+      : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+  );
+  return name || null;
+}
+
 function finalizeItem(item) {
-  item.vendor_sku = item.identifiers.vendor_item_number || item.identifiers.model_number || item.identifiers.sku || item.identifiers.part_number || null;
+  if (!item.vendor_sku) {
+    item.vendor_sku = item.identifiers.vendor_item_number || item.identifiers.model_number || item.identifiers.sku || item.identifiers.part_number || null;
+  }
   item.upc = item.identifiers.upc || null;
 
-  const descPid = item.descriptions.find(d => d.characteristic_code === '08') || item.descriptions.find(d => d.description_type === 'F');
-  item.product_name = descPid ? descPid.description : null;
+  // Product name: prefer TRN (trade name), skip PID 08 entries that look like SKU cross-refs
+  const trnPid = item.descriptions.find(d => d.characteristic_code === 'TRN');
+  if (trnPid) {
+    item.product_name = cleanProductName(trnPid.description);
+  } else {
+    const descPid = item.descriptions.find(d =>
+      d.characteristic_code === '08' && d.description && !/^\d+-[A-Z0-9]+-\d+-/.test(d.description)
+    ) || item.descriptions.find(d => d.description_type === 'F' && d.characteristic_code !== '08');
+    item.product_name = descPid ? cleanProductName(descPid.description) : null;
+  }
 
   const colorPid = item.descriptions.find(d => d.characteristic_label === 'color');
   item.color = colorPid ? colorPid.description : null;
 
+  // Collection: from PID 77, or manufacturer brand from LIN MF
   const collPid = item.descriptions.find(d => d.characteristic_label === 'collection');
-  item.collection = collPid ? collPid.description : null;
+  item.collection = collPid ? collPid.description : (item.identifiers.mf || null);
 
+  // Category: from PID GEN, or MAC (material class) code
   const catPid = item.descriptions.find(d => d.characteristic_label === 'category' || d.characteristic_code === 'GEN');
-  item.category = catPid ? catPid.description : null;
+  if (catPid) {
+    item.category = catPid.description;
+  } else {
+    const macPid = item.descriptions.find(d => d.characteristic_code === 'MAC');
+    if (macPid && macPid.description) {
+      item.category = MAC_CATEGORY_MAP[macPid.description.toUpperCase()] || macPid.description;
+    }
+  }
 
-  // Packaging
+  // Brand from LIN MF identifier (e.g. "Dream Weaver", "Pentz", "J+J Flooring")
+  item.brand = item.identifiers.mf || item.identifiers.manufacturer_brand || null;
+
+  // MEA SU (surface area per unit) → sqft_per_box
+  const surfMea = item.measurements.find(m => m.qualifier === 'SU');
+  if (surfMea && surfMea.value) {
+    const suUom = (surfMea.unit_of_measure || '').toUpperCase();
+    if (suUom === 'SF' || suUom === 'FT2') {
+      item.sqft_per_box = surfMea.value;
+      if (!item.sell_by) item.sell_by = 'sqft';
+    } else if (suUom === 'SY') {
+      item.sqft_per_box = surfMea.value * 9;
+      if (!item.sell_by) item.sell_by = 'sqft';
+    } else if (suUom === 'EA') {
+      if (!item.sell_by) item.sell_by = 'unit';
+    }
+  }
+
+  // Packaging → sqft_per_box / pieces_per_box (if not already set from MEA SU)
   if (item.packaging) {
     const uom = (item.packaging.unit_of_measure || '').toUpperCase();
-    if (uom === 'SF' || uom === 'SY' || uom === 'FT2') { item.sqft_per_box = item.packaging.size_per_pack; item.sell_by = 'sqft'; }
-    else if (uom === 'EA' || uom === 'PC') { item.sell_by = 'unit'; }
-    else if (uom === 'LF') { item.sell_by = 'unit'; }
-    else if (item.packaging.size_per_pack) { item.sqft_per_box = item.packaging.size_per_pack; item.sell_by = 'sqft'; }
+    if (!item.sqft_per_box) {
+      if (uom === 'SF' || uom === 'FT2') { item.sqft_per_box = item.packaging.size_per_pack; if (!item.sell_by) item.sell_by = 'sqft'; }
+      else if (uom === 'SY') { item.sqft_per_box = item.packaging.size_per_pack * 9; if (!item.sell_by) item.sell_by = 'sqft'; }
+      else if (uom === 'EA' || uom === 'PC') { if (!item.sell_by) item.sell_by = 'unit'; }
+      else if (uom === 'LF') { if (!item.sell_by) item.sell_by = 'unit'; }
+      else if (item.packaging.size_per_pack) { item.sqft_per_box = item.packaging.size_per_pack; if (!item.sell_by) item.sell_by = 'sqft'; }
+    }
     item.pieces_per_box = item.packaging.pieces_per_pack || null;
     item.weight_per_box_lbs = item.packaging.gross_weight || null;
   }
 
-  // Pricing — cost (wholesale net) and retail (MSRP)
-  const netPrice = item.pricing.find(p => p.price_type === 'NET') || item.pricing.find(p => p.class_of_trade === 'WS') || item.pricing.find(p => p.class_of_trade === 'DE') || item.pricing[0];
-  if (netPrice) { item.cost = netPrice.unit_price; item.unit_of_measure = netPrice.unit_of_measure || item.unit_of_measure; }
+  // ── Pricing ──
+  // Handle LPR with basis_code levels: CT=cost, ST=retail, PL=pallet
+  const lprPrices = item.pricing.filter(p => p.price_type === 'LPR');
+  if (lprPrices.length > 0) {
+    const ctPrice = lprPrices.find(p => p.basis_code === 'CT');
+    const stPrice = lprPrices.find(p => p.basis_code === 'ST');
+    const plPrice = lprPrices.find(p => p.basis_code === 'PL');
 
-  const retailPrice = item.pricing.find(p => p.price_type === 'MSR') || item.pricing.find(p => p.class_of_trade === 'RS') || item.pricing.find(p => p.price_type === 'CAT');
-  if (retailPrice) item.retail_price = retailPrice.unit_price;
+    const costEntry = ctPrice || plPrice || lprPrices[0];
+    if (costEntry) { item.cost = costEntry.unit_price; item.unit_of_measure = costEntry.unit_of_measure || item.unit_of_measure; }
 
-  const mapPrice = item.pricing.find(p => p.price_type === 'MAP');
-  if (mapPrice) item.map_price = mapPrice.unit_price;
+    const retailEntry = stPrice || ctPrice || lprPrices[0];
+    if (retailEntry) item.retail_price = retailEntry.unit_price;
+
+    const mapPrice = item.pricing.find(p => p.price_type === 'MAP');
+    if (mapPrice) item.map_price = mapPrice.unit_price;
+  } else {
+    // Standard EDI pricing fallback
+    const netPrice = item.pricing.find(p => p.price_type === 'NET') || item.pricing.find(p => p.class_of_trade === 'WS') || item.pricing.find(p => p.class_of_trade === 'DE') || item.pricing[0];
+    if (netPrice) { item.cost = netPrice.unit_price; item.unit_of_measure = netPrice.unit_of_measure || item.unit_of_measure; }
+
+    const retailPrice = item.pricing.find(p => p.price_type === 'MSR') || item.pricing.find(p => p.class_of_trade === 'RS') || item.pricing.find(p => p.price_type === 'CAT');
+    if (retailPrice) item.retail_price = retailPrice.unit_price;
+
+    const mapPrice = item.pricing.find(p => p.price_type === 'MAP');
+    if (mapPrice) item.map_price = mapPrice.unit_price;
+  }
+
+  // Convert SY prices to SF (1 SY = 9 SF)
+  if (item.unit_of_measure && item.unit_of_measure.toUpperCase() === 'SY') {
+    if (item.cost) item.cost = parseFloat((item.cost / 9).toFixed(4));
+    if (item.retail_price) item.retail_price = parseFloat((item.retail_price / 9).toFixed(4));
+    item.unit_of_measure = 'SF';
+  }
 
   if (!item.sell_by && item.unit_of_measure) {
     const puom = item.unit_of_measure.toUpperCase();
@@ -283,77 +485,59 @@ function finalizeItem(item) {
     else if (puom === 'EA' || puom === 'PC') item.sell_by = 'unit';
   }
 
-  // Carpet pricing: extract cut (MSRP/retail) and roll (contract/volume) prices
-  const isCarpetCat = /carpet|broadloom/i.test(item.category || '');
-  if (isCarpetCat && item.pricing.length > 0) {
-    // Cut price = retail/MSRP (higher, default)
-    const msrpPrice = item.pricing.find(p => p.price_type === 'MSR') || item.pricing.find(p => p.class_of_trade === 'RS');
-    // Roll price = contract/volume (lower, discount for full rolls)
-    const contractPrice = item.pricing.find(p => p.price_type === 'CON') || item.pricing.find(p => p.class_of_trade === 'CT');
-
-    if (msrpPrice) item.cut_price = msrpPrice.unit_price;
-    if (contractPrice) item.roll_price = contractPrice.unit_price;
-
-    // If only one price tier, set both to the same
-    if (item.cut_price && !item.roll_price) item.roll_price = item.cut_price;
-    if (item.roll_price && !item.cut_price) item.cut_price = item.roll_price;
-
-    // Cost tiers: wholesale/dealer net for cut, distributor for roll
-    const cutCostPrice = item.pricing.find(p => p.price_type === 'NET') || item.pricing.find(p => p.class_of_trade === 'WS');
-    const rollCostPrice = item.pricing.find(p => p.class_of_trade === 'DI') || item.pricing.find(p => p.class_of_trade === 'DE');
-
-    if (cutCostPrice) item.cut_cost = cutCostPrice.unit_price;
-    if (rollCostPrice) item.roll_cost = rollCostPrice.unit_price;
-    if (item.cut_cost && !item.roll_cost) item.roll_cost = item.cut_cost;
-    if (item.roll_cost && !item.cut_cost) item.cut_cost = item.roll_cost;
-
-    // Roll width from measurements (WD qualifier)
+  // Carpet pricing: extract cut/roll tiers from LPR basis codes
+  const isCarpetCat = /carpet/i.test(item.category || '');
+  if (isCarpetCat && lprPrices.length > 0) {
+    const stP = lprPrices.find(p => p.basis_code === 'ST');
+    const ctP = lprPrices.find(p => p.basis_code === 'CT');
+    if (stP) { item.cut_price = stP.unit_price; item.roll_price = stP.unit_price; }
+    if (ctP) { item.cut_cost = ctP.unit_price; item.roll_cost = ctP.unit_price; }
+    // Convert SY to SF for carpet cut/roll prices
+    if (stP && (stP.unit_of_measure || '').toUpperCase() === 'SY') {
+      if (item.cut_price) item.cut_price = parseFloat((item.cut_price / 9).toFixed(4));
+      if (item.roll_price) item.roll_price = parseFloat((item.roll_price / 9).toFixed(4));
+    }
+    if (ctP && (ctP.unit_of_measure || '').toUpperCase() === 'SY') {
+      if (item.cut_cost) item.cut_cost = parseFloat((item.cut_cost / 9).toFixed(4));
+      if (item.roll_cost) item.roll_cost = parseFloat((item.roll_cost / 9).toFixed(4));
+    }
+    // Roll width from WD measurement
     const widthMea = item.measurements.find(m => m.qualifier === 'WD');
     if (widthMea && widthMea.value) {
-      // Width may be in inches — convert to feet if > 24 (likely inches)
       const w = widthMea.value;
-      const uom = (widthMea.unit_of_measure || '').toUpperCase();
-      item.roll_width_ft = (uom === 'IN' || w > 24) ? w / 12 : w;
-    }
-
-    // Roll min sqft: calculate from packaging roll length * roll width
-    // PO4 size_per_pack for carpet often represents linear feet per roll
-    if (item.roll_width_ft && item.packaging && item.packaging.size_per_pack) {
-      const uom = (item.packaging.unit_of_measure || '').toUpperCase();
-      if (uom === 'LF' || uom === 'FT') {
-        item.roll_min_sqft = item.roll_width_ft * item.packaging.size_per_pack;
-      }
+      const wuom = (widthMea.unit_of_measure || '').toUpperCase();
+      item.roll_width_ft = (wuom === 'IN' || w > 24) ? w / 12 : w;
     }
   }
 }
 
 
 // ---------------------------------------------------------------------------
-// SFTP helpers
+// FTP helpers
 // ---------------------------------------------------------------------------
 
-function getSftpConfig(source) {
+function getFtpConfig(source) {
   const cfg = source.config || {};
   return {
-    host: cfg.sftp_host || process.env.ENGFLOORS_SFTP_HOST || DEFAULT_SFTP.host,
-    port: parseInt(cfg.sftp_port || process.env.ENGFLOORS_SFTP_PORT || DEFAULT_SFTP.port, 10),
-    username: cfg.sftp_user || process.env.ENGFLOORS_SFTP_USER || DEFAULT_SFTP.username,
-    password: cfg.sftp_pass || process.env.ENGFLOORS_SFTP_PASS || DEFAULT_SFTP.password,
+    host: cfg.ftp_host || process.env.ENGFLOORS_FTP_HOST || process.env.ENGFLOORS_SFTP_HOST || DEFAULT_FTP.host,
+    port: parseInt(cfg.ftp_port || process.env.ENGFLOORS_FTP_PORT || process.env.ENGFLOORS_SFTP_PORT || DEFAULT_FTP.port, 10),
+    user: cfg.ftp_user || process.env.ENGFLOORS_FTP_USER || process.env.ENGFLOORS_SFTP_USER || DEFAULT_FTP.user,
+    password: cfg.ftp_pass || process.env.ENGFLOORS_FTP_PASS || process.env.ENGFLOORS_SFTP_PASS || DEFAULT_FTP.password,
   };
 }
 
 /**
  * Scan remote directories for 832-like files.
- * Returns array of { name, size, modifyTime, remotePath }.
+ * Returns array of { name, size, modifiedAt, remotePath }.
  */
-async function findRemote832Files(sftp, log) {
+async function findRemote832Files(ftpClient) {
   const allFiles = [];
 
   for (const dir of REMOTE_DIRS) {
     try {
-      const listing = await sftp.list(dir);
+      const listing = await ftpClient.list(dir);
       const matching = listing
-        .filter(f => f.type === '-')
+        .filter(f => f.type === 1) // basic-ftp: 1=file, 2=directory
         .filter(f => {
           const name = f.name.toLowerCase();
           return name.includes('832') || name.includes('catalog') || name.includes('pricelist')
@@ -366,8 +550,8 @@ async function findRemote832Files(sftp, log) {
     }
   }
 
-  // Sort newest first
-  allFiles.sort((a, b) => b.modifyTime - a.modifyTime);
+  // Sort newest first (basic-ftp returns Date objects for modifiedAt)
+  allFiles.sort((a, b) => (b.modifiedAt?.getTime() || 0) - (a.modifiedAt?.getTime() || 0));
   return allFiles;
 }
 
@@ -382,10 +566,13 @@ function groupIntoProducts(items) {
   for (const item of items) {
     if (!item.vendor_sku && !item.product_name) continue;
 
+    // Skip Pentz brand items — these are handled by the PC vendor importer
+    if (item.brand && /^pentz$/i.test(item.brand.trim())) continue;
+
     const collection = item.collection || '';
     const category = item.category || '';
-    const isAccessory = /accessory|trim|molding|transition|reducer|stairnose|t-bar|quarter.round|threshold/i.test(category)
-      || /accessory|trim|molding|transition|reducer|stairnose|t-bar|quarter.round|threshold/i.test(item.product_name || '');
+    const isAccessory = /accessory|sundries|trim|molding|transition|reducer|stairnose|t-bar|quarter|threshold|end.?cap|t.?mold|ovrlp|flshst|2strtr/i.test(category)
+      || /accessory|sundries|trim|molding|transition|reducer|stairnose|t-bar|quarter|threshold|end.?cap|t.?mold|ovrlp|flshst|2strtr/i.test(item.product_name || '');
 
     let baseName = item.product_name || item.vendor_sku || 'Unknown';
     if (item.color && !isAccessory) {
@@ -398,9 +585,18 @@ function groupIntoProducts(items) {
       baseName = baseName.replace(/\s{2,}/g, ' ').trim();
     }
 
+    // Derive collection: strip transition suffixes and roman numerals from base name
+    let derivedCollection = collection;
+    if (!derivedCollection) {
+      derivedCollection = baseName
+        .replace(TRANSITION_SUFFIXES, '')
+        .replace(/\s+(I{1,3}|IV|V|VI{0,3})\s*$/, '')
+        .trim();
+    }
+
     const key = `${collection}|||${baseName}|||${isAccessory ? 'acc' : 'main'}`;
     if (!products.has(key)) {
-      products.set(key, { baseName, collection, category, isAccessory, items: [] });
+      products.set(key, { baseName, collection: derivedCollection, category, isAccessory, items: [] });
     }
     products.get(key).items.push(item);
   }
@@ -422,21 +618,22 @@ function makeInternalSku(vendorSku, productName) {
 // ---------------------------------------------------------------------------
 
 export async function run(pool, job, source) {
-  const sftpConfig = getSftpConfig(source);
+  const ftpConfig = getFtpConfig(source);
   const processedFiles = (source.config || {}).processed_files || [];
 
-  await appendLog(pool, job.id, `Connecting to ${sftpConfig.host}:${sftpConfig.port} as ${sftpConfig.username}...`);
+  await appendLog(pool, job.id, `Connecting to ${ftpConfig.host}:${ftpConfig.port} as ${ftpConfig.user}...`);
 
-  const sftp = new SftpClient();
+  const ftp = new FtpClient();
+  ftp.ftp.verbose = false;
   let localPath = null;
   let downloadedFileName = null;
 
   try {
     // ── Step 1: Connect and find files ──
-    await sftp.connect(sftpConfig);
-    await appendLog(pool, job.id, 'SFTP connected. Scanning for 832 files...');
+    await ftp.access({ ...ftpConfig, secure: false });
+    await appendLog(pool, job.id, 'FTP connected. Scanning for 832 files...');
 
-    const remoteFiles = await findRemote832Files(sftp);
+    const remoteFiles = await findRemote832Files(ftp);
     await appendLog(pool, job.id, `Found ${remoteFiles.length} 832 candidate file(s)`);
 
     if (remoteFiles.length === 0) {
@@ -447,7 +644,7 @@ export async function run(pool, job, source) {
     // Log all found files
     for (const f of remoteFiles) {
       const sizeKb = (f.size / 1024).toFixed(1);
-      const mod = new Date(f.modifyTime).toISOString().slice(0, 19);
+      const mod = f.modifiedAt ? f.modifiedAt.toISOString().slice(0, 19) : 'unknown';
       const already = processedFiles.includes(f.name) ? ' [already processed]' : '';
       await appendLog(pool, job.id, `  ${f.remotePath} (${sizeKb}KB, ${mod})${already}`);
     }
@@ -465,15 +662,15 @@ export async function run(pool, job, source) {
 
     // ── Step 2: Download ──
     localPath = `/tmp/engfloors_832_${Date.now()}.edi`;
-    await sftp.fastGet(target.remotePath, localPath);
+    await ftp.downloadTo(localPath, target.remotePath);
     await appendLog(pool, job.id, `Downloaded to ${localPath}`);
 
   } catch (err) {
-    await addJobError(pool, job.id, `SFTP error: ${err.message}`);
-    await appendLog(pool, job.id, `SFTP connection failed: ${err.message}`);
+    await addJobError(pool, job.id, `FTP error: ${err.message}`);
+    await appendLog(pool, job.id, `FTP connection failed: ${err.message}`);
     throw err;
   } finally {
-    await sftp.end().catch(() => {});
+    ftp.close();
   }
 
   // ── Step 3: Parse EDI ──
@@ -500,6 +697,7 @@ export async function run(pool, job, source) {
   for (const row of catResult.rows) catCache[row.slug] = row.id;
   const resolveCatId = (categoryText) => {
     if (!categoryText) return null;
+    if (catCache[categoryText]) return catCache[categoryText]; // already a slug (from MAC)
     const slug = CATEGORY_MAP[categoryText.toLowerCase().trim()];
     return slug ? (catCache[slug] || null) : null;
   };

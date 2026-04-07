@@ -1,11 +1,14 @@
 import {
   launchBrowser, delay, upsertMediaAsset, upsertSkuAttribute,
-  appendLog, addJobError, downloadImage, resolveImageExtension, preferProductShot
+  appendLog, addJobError, preferProductShot, filterImageUrls,
+  extractLargeImages, collectSiteWideImages,
+  extractSpecPDFs, normalizeTriwestName
 } from './base.js';
 
 const BASE_URL = 'https://www.jmcork.com';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const MAX_ERRORS = 30;
+const BATCH_SIZE = 15;
 
 /**
  * JM Cork enrichment scraper for Tri-West.
@@ -14,7 +17,7 @@ const MAX_ERRORS = 30;
  * Enriches EXISTING Tri-West SKUs — never creates new products.
  * Tech: Unknown (specialty cork brand)
  *
- * Runs AFTER triwest-catalog.js populates SKUs in the DB.
+ * Runs AFTER import-triwest-832.cjs populates SKUs in the DB.
  */
 export async function run(pool, job, source) {
   const config = source.config || {};
@@ -27,6 +30,8 @@ export async function run(pool, job, source) {
   let skusEnriched = 0;
   let skusSkipped = 0;
   let imagesAdded = 0;
+  let pdfsAdded = 0;
+  let pagesSinceLaunch = 0;
 
   async function logError(msg) {
     errorCount++;
@@ -36,50 +41,83 @@ export async function run(pool, job, source) {
   }
 
   try {
+    // Load existing TW products for this brand (includes SKU-less products from DNav)
+    const prodResult = await pool.query(`
+      SELECT p.id AS product_id, p.name, p.collection, p.description_long
+      FROM products p
+      WHERE p.vendor_id = $1 AND p.collection LIKE $2
+    `, [vendor_id, `${brandPrefix}%`]);
+
+    // Also load SKU data for products that have it
     const skuResult = await pool.query(`
-      SELECT s.id AS sku_id, s.vendor_sku, s.internal_sku, s.variant_name,
-             p.id AS product_id, p.name, p.collection, p.description_long
+      SELECT s.id AS sku_id, s.vendor_sku, s.internal_sku, s.variant_name, s.product_id
       FROM skus s
       JOIN products p ON p.id = s.product_id
       WHERE p.vendor_id = $1 AND p.collection LIKE $2
     `, [vendor_id, `${brandPrefix}%`]);
 
-    await appendLog(pool, job.id, `Found ${skuResult.rows.length} ${brandPrefix} SKUs to enrich`);
+    await appendLog(pool, job.id, `Found ${prodResult.rows.length} ${brandPrefix} products (${skuResult.rows.length} SKUs) to enrich`);
 
-    if (skuResult.rows.length === 0) {
-      await appendLog(pool, job.id, `No ${brandPrefix} SKUs found — run triwest-catalog first`);
+    if (prodResult.rows.length === 0) {
+      await appendLog(pool, job.id, `No ${brandPrefix} products found — run import-triwest-832 first`);
       return;
     }
 
-    const productGroups = new Map();
+    // Build SKU lookup by product_id
+    const skusByProduct = new Map();
     for (const row of skuResult.rows) {
-      const key = `${row.collection}||${row.name}`;
-      if (!productGroups.has(key)) {
-        productGroups.set(key, { product_id: row.product_id, name: row.name, collection: row.collection, skus: [] });
-      }
-      productGroups.get(key).skus.push(row);
+      if (!skusByProduct.has(row.product_id)) skusByProduct.set(row.product_id, []);
+      skusByProduct.get(row.product_id).push(row);
     }
 
-    await appendLog(pool, job.id, `Grouped into ${productGroups.size} products`);
+    // Group products by collection + name
+    const productGroups = new Map();
+    for (const row of prodResult.rows) {
+      const key = `${row.collection}||${row.name}`;
+      if (!productGroups.has(key)) {
+        productGroups.set(key, {
+          product_id: row.product_id, name: row.name, collection: row.collection,
+          skus: skusByProduct.get(row.product_id) || [],
+        });
+      }
+    }
+
+    // Check which products already have a primary image — skip those
+    const existingImages = await pool.query(`
+      SELECT DISTINCT ma.product_id
+      FROM media_assets ma
+      JOIN products p ON p.id = ma.product_id
+      WHERE p.vendor_id = $1 AND ma.asset_type = 'primary'
+    `, [vendor_id]);
+    const alreadyHaveImages = new Set(existingImages.rows.map(r => r.product_id));
+
+    // Filter to products that still need enrichment
+    const toEnrich = [...productGroups.entries()].filter(([, g]) => !alreadyHaveImages.has(g.product_id));
+    const skippedExisting = productGroups.size - toEnrich.length;
+
+    await appendLog(pool, job.id, `Grouped into ${productGroups.size} products (${skippedExisting} already have images, ${toEnrich.length} to enrich, ${skuResult.rows.length} with SKUs)`);
 
     browser = await launchBrowser();
-    const page = await browser.newPage();
+    let page = await browser.newPage();
     await page.setUserAgent(USER_AGENT);
     await page.setViewport({ width: 1440, height: 900 });
 
-    await appendLog(pool, job.id, `Navigating to ${BASE_URL}...`);
-    await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 30000 });
-    await delay(2000);
+    // Collect site-wide images to exclude
+    await appendLog(pool, job.id, `Collecting site-wide images from ${BASE_URL}...`);
+    const siteWideImages = await collectSiteWideImages(page, BASE_URL);
+    await appendLog(pool, job.id, `Found ${siteWideImages.size} site-wide images to exclude`);
+    pagesSinceLaunch++;
 
     let processed = 0;
-    for (const [key, group] of productGroups) {
+    for (const [key, group] of toEnrich) {
       processed++;
 
       try {
-        const productData = await findProductOnSite(page, group, delayMs);
+        const productData = await findProductOnSite(page, group, delayMs, siteWideImages);
+        pagesSinceLaunch++;
 
         if (!productData) {
-          skusSkipped += group.skus.length;
+          skusSkipped++;
           continue;
         }
 
@@ -91,9 +129,15 @@ export async function run(pool, job, source) {
         }
 
         if (productData.images && productData.images.length > 0) {
-          const sorted = preferProductShot(productData.images, group.name);
-          for (let i = 0; i < Math.min(sorted.length, 8); i++) {
-            const assetType = i === 0 ? 'primary' : (sorted[i].includes('room') || sorted[i].includes('scene') ? 'lifestyle' : 'alternate');
+          const filtered = filterImageUrls(productData.images, { maxImages: 8 });
+          const sorted = preferProductShot(filtered, group.name);
+          for (let i = 0; i < sorted.length; i++) {
+            const urlLower = sorted[i].toLowerCase();
+            const isLifestyle = urlLower.includes('room') || urlLower.includes('scene')
+              || urlLower.includes('lifestyle') || urlLower.includes('installed');
+            const assetType = i === 0 ? 'primary'
+              : (isLifestyle || i > 2) ? 'lifestyle'
+              : 'alternate';
             await upsertMediaAsset(pool, {
               product_id: group.product_id,
               sku_id: null,
@@ -106,7 +150,22 @@ export async function run(pool, job, source) {
           }
         }
 
-        if (productData.specs) {
+        // Upsert spec PDFs
+        if (productData.pdfs && productData.pdfs.length > 0) {
+          for (let i = 0; i < productData.pdfs.length; i++) {
+            await upsertMediaAsset(pool, {
+              product_id: group.product_id,
+              sku_id: null,
+              asset_type: 'spec_pdf',
+              url: productData.pdfs[i].url,
+              original_url: productData.pdfs[i].url,
+              sort_order: i,
+            });
+            pdfsAdded++;
+          }
+        }
+
+        if (productData.specs && group.skus.length > 0) {
           for (const sku of group.skus) {
             for (const [attrSlug, value] of Object.entries(productData.specs)) {
               if (value) await upsertSkuAttribute(pool, sku.sku_id, attrSlug, value);
@@ -118,16 +177,29 @@ export async function run(pool, job, source) {
         }
       } catch (err) {
         await logError(`${group.collection} / ${group.name}: ${err.message}`);
-        skusSkipped += group.skus.length;
+        skusSkipped++;
+      }
+
+      // Recycle browser periodically to avoid memory leaks
+      if (pagesSinceLaunch >= BATCH_SIZE) {
+        await appendLog(pool, job.id, `Recycling browser after ${BATCH_SIZE} pages...`);
+        try { await page.close(); } catch { }
+        try { await browser.close(); } catch { }
+        await delay(5000);
+        browser = await launchBrowser();
+        page = await browser.newPage();
+        await page.setUserAgent(USER_AGENT);
+        await page.setViewport({ width: 1440, height: 900 });
+        pagesSinceLaunch = 0;
       }
 
       if (processed % 10 === 0) {
-        await appendLog(pool, job.id, `Progress: ${processed}/${productGroups.size} products, ${imagesAdded} images added`);
+        await appendLog(pool, job.id, `Progress: ${processed}/${toEnrich.length} products, ${imagesAdded} images, ${pdfsAdded} PDFs`);
       }
     }
 
     await appendLog(pool, job.id,
-      `Complete. Products: ${productGroups.size}, SKUs enriched: ${skusEnriched}, Skipped: ${skusSkipped}, Images: ${imagesAdded}, Errors: ${errorCount}`,
+      `Complete. Products: ${toEnrich.length} enriched (${skippedExisting} skipped), SKUs enriched: ${skusEnriched}, Skipped: ${skusSkipped}, Images: ${imagesAdded}, PDFs: ${pdfsAdded}, Errors: ${errorCount}`,
       { products_found: productGroups.size, products_updated: skusEnriched }
     );
 
@@ -138,12 +210,16 @@ export async function run(pool, job, source) {
 
 /**
  * Attempts to find product on JM Cork site.
- * Returns { images: [], description: string, specs: {} } or null.
+ * Returns { images: [], description: string, specs: {}, specPdfs: [] } or null.
  */
-async function findProductOnSite(page, group, delayMs) {
+async function findProductOnSite(page, group, delayMs, siteWideImages) {
   try {
+    const normalizedName = normalizeTriwestName(group.name);
+    const normalizedCollection = normalizeTriwestName(group.collection);
     const searchTerms = [
       group.name,
+      normalizedName,
+      normalizedCollection,
       group.collection.replace(/^JM\s+Cork\s*/i, '').trim(),
       group.skus[0]?.variant_name
     ].filter(Boolean);
@@ -169,7 +245,7 @@ async function findProductOnSite(page, group, delayMs) {
             await page.goto(match.href, { waitUntil: 'networkidle2', timeout: 10000 });
             await delay(1000);
 
-            const data = await extractProductData(page, group.name);
+            const data = await extractProductData(page, group.name, siteWideImages);
             if (data) return data;
           }
         }
@@ -189,15 +265,15 @@ async function findProductOnSite(page, group, delayMs) {
         ]);
         await delay(1000);
 
-        const data = await extractProductData(page, group.name);
+        const data = await extractProductData(page, group.name, siteWideImages);
         if (data) return data;
       }
     } catch (searchErr) {
       // Search failed
     }
 
-    // Strategy 3: Generic extraction
-    const genericData = await extractProductData(page, group.name);
+    // Strategy 3: Generic extraction from current page
+    const genericData = await extractProductData(page, group.name, siteWideImages);
     return genericData;
 
   } catch (err) {
@@ -206,22 +282,16 @@ async function findProductOnSite(page, group, delayMs) {
 }
 
 /**
- * Extracts product data from current page.
+ * Extracts product data from current page using extractLargeImages consistently.
  */
-async function extractProductData(page, productName) {
+async function extractProductData(page, productName, siteWideImages) {
   try {
-    const images = await page.$$eval('img', imgs =>
-      imgs
-        .map(img => img.src || img.dataset.src || img.dataset.original)
-        .filter(src => src &&
-          src.startsWith('http') &&
-          !src.includes('logo') &&
-          !src.includes('icon') &&
-          !src.includes('banner') &&
-          !src.includes('nav') &&
-          (src.includes('.jpg') || src.includes('.jpeg') || src.includes('.png') || src.includes('.webp'))
-        )
-    );
+    // Use extractLargeImages for consistent image filtering
+    const largeImgs = await extractLargeImages(page, siteWideImages || new Set(), 150);
+    const images = largeImgs.map(img => img.src);
+
+    // Extract spec PDFs
+    const specPdfs = await extractSpecPDFs(page);
 
     const description = await page.evaluate(() => {
       const selectors = ['.description', '.product-description', 'p', 'article p', '.content'];
@@ -270,7 +340,8 @@ async function extractProductData(page, productName) {
     return {
       images: images.length > 0 ? images : null,
       description,
-      specs: Object.keys(specs).length > 0 ? specs : null
+      specs: Object.keys(specs).length > 0 ? specs : null,
+      pdfs: specPdfs,
     };
   } catch (err) {
     return null;

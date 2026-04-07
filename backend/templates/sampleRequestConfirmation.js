@@ -1,3 +1,5 @@
+import { LOGO_URL } from './_config.js';
+
 function esc(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -5,9 +7,10 @@ function esc(str) {
 
 export function generateSampleRequestConfirmationHTML(data) {
   const {
-    customer_name, request_number, items = [],
+    customer_name, request_number, delivery_method, items = [],
     shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip
   } = data;
+  const isPickup = delivery_method === 'pickup';
 
   const itemRows = items.map(item => {
     const name = esc(item.product_name || 'Product');
@@ -59,8 +62,8 @@ export function generateSampleRequestConfirmationHTML(data) {
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e7e5e4;">
 
   <!-- Header -->
-  <tr><td style="padding:32px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:18px;letter-spacing:4px;color:#292524;font-weight:600;">ROMA FLOORING DESIGNS</p>
+  <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
+    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto;width:140px;height:140px;" />
   </td></tr>
 
   <!-- Greeting -->
@@ -86,10 +89,12 @@ export function generateSampleRequestConfirmationHTML(data) {
 
   ${addressBlock}
 
-  <!-- Shipping Note -->
+  <!-- Shipping/Pickup Note -->
   <tr><td style="padding:0 40px 40px;">
-    <div style="background:#fefce8;border:1px solid #fde68a;padding:12px 16px;">
-      <p style="margin:0;font-size:13px;color:#854d0e;">Samples ship for a flat rate of $12. You will not be charged for the product itself.</p>
+    <div style="background:${isPickup ? '#f0fdf4' : '#fefce8'};border:1px solid ${isPickup ? '#bbf7d0' : '#fde68a'};padding:12px 16px;">
+      <p style="margin:0;font-size:13px;color:${isPickup ? '#166534' : '#854d0e'};">${isPickup
+        ? 'In-store pickup \u2014 completely free! We will notify you when your samples are ready.'
+        : 'Samples ship for a flat rate of $12. You will not be charged for the product itself.'}</p>
     </div>
   </td></tr>
 

@@ -1,5 +1,9 @@
 import { launchBrowser, delay, upsertInventorySnapshot, appendLog, addJobError } from './base.js';
 import { triwestLogin, triwestLoginFromCookies, PORTAL_BASE, screenshot } from './triwest-auth.js';
+import {
+  MANUFACTURER_NAMES,
+  searchByManufacturer, getAllManufacturerCodes, navigateToSearchForm,
+} from './triwest-search.js';
 
 const MAX_ERRORS = 30;
 
@@ -7,16 +11,15 @@ const MAX_ERRORS = 30;
  * Tri-West DNav inventory scraper.
  *
  * Lighter scraper that runs every 4-8 hours.
- * Loads existing Tri-West SKUs from DB, checks stock levels in DNav,
- * and upserts inventory_snapshots.
+ * Logs into the DNav portal, searches by manufacturer, extracts stock quantities
+ * from the Quantity column, and upserts inventory_snapshots.
  *
- * Template: tradepro-inventory.js
+ * Quantity format in DNav: "1,243 CT" (cartons), "500 SF" (sqft), "120 EA" (each)
+ * For CT quantities, we convert to sqft using sqft_per_box from the packaging table.
  */
 export async function run(pool, job, source) {
   const config = source.config || {};
-  const discoveryMode = config.discovery_mode === true;
-  const delayMs = config.delay_ms || 1500;
-  const freshnessHours = config.freshness_hours || 8;
+  const delayMs = config.delay_ms || 2000;
   const vendor_id = source.vendor_id;
 
   let browser = null;
@@ -33,11 +36,13 @@ export async function run(pool, job, source) {
   }
 
   try {
-    // Load all Tri-West SKUs from DB upfront
+    // Load all Tri-West SKUs from DB upfront, including packaging data for unit conversion
     const skuResult = await pool.query(`
-      SELECT s.id, s.vendor_sku, s.internal_sku, s.sell_by
+      SELECT s.id, s.vendor_sku, s.internal_sku, s.sell_by,
+             p2.sqft_per_box
       FROM skus s
       JOIN products p ON p.id = s.product_id
+      LEFT JOIN packaging p2 ON p2.sku_id = s.id
       WHERE p.vendor_id = $1 AND s.vendor_sku IS NOT NULL
     `, [vendor_id]);
 
@@ -51,96 +56,138 @@ export async function run(pool, job, source) {
     await appendLog(pool, job.id, `Loaded ${skuResult.rows.length} Tri-West SKUs from DB (${skuMap.size} lookup keys)`);
 
     if (skuMap.size === 0) {
-      await appendLog(pool, job.id, 'No Tri-West SKUs in DB — run triwest-catalog first');
+      await appendLog(pool, job.id, 'No Tri-West SKUs in DB — run import-triwest-832 first');
       return;
     }
 
-    // Login
+    // Login — returns authenticated browser + page
     let cookies;
+    let page;
     try {
-      cookies = await triwestLogin(pool, job.id);
+      const session = await triwestLogin(pool, job.id);
+      browser = session.browser;
+      page = session.page;
+      cookies = session.cookies;
     } catch (err) {
       await appendLog(pool, job.id, `Puppeteer login failed: ${err.message} — trying cookie fallback...`);
       cookies = await triwestLoginFromCookies(pool, job.id);
-    }
-
-    // Launch browser
-    browser = await launchBrowser();
-    const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    await page.setViewport({ width: 1440, height: 900 });
-
-    // Set cookies
-    const cookiePairs = cookies.split('; ').map(pair => {
-      const [name, ...rest] = pair.split('=');
-      return { name, value: rest.join('='), domain: 'tri400.triwestltd.com' };
-    });
-    await page.setCookie(...cookiePairs);
-
-    // Navigate to portal
-    await page.goto(PORTAL_BASE, { waitUntil: 'networkidle2', timeout: 30000 });
-    await delay(2000);
-
-    if (page.url().includes('login') || page.url().includes('Login')) {
-      throw new Error('Session cookies not accepted — redirected to login');
-    }
-
-    // Discovery mode
-    if (discoveryMode) {
-      await appendLog(pool, job.id, '=== INVENTORY DISCOVERY MODE ===');
-      await screenshot(page, 'triwest-inventory-dashboard');
-      await discoverInventoryPages(page, pool, job);
-      await appendLog(pool, job.id, '=== DISCOVERY COMPLETE ===');
-      return;
+      browser = await launchBrowser();
+      page = await browser.newPage();
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      await page.setViewport({ width: 1440, height: 900 });
+      const cookiePairs = cookies.split('; ').map(pair => {
+        const [name, ...rest] = pair.split('=');
+        return { name, value: rest.join('='), domain: 'tri400.triwestltd.com' };
+      });
+      await page.setCookie(...cookiePairs);
+      await page.goto(`${PORTAL_BASE}/main/`, { waitUntil: 'networkidle2', timeout: 30000 });
+      await delay(3000);
     }
 
     // Extract warehouse name from portal
     const warehouse = await extractWarehouse(page);
     await appendLog(pool, job.id, `Warehouse location: ${warehouse}`);
+    await appendLog(pool, job.id, 'Portal loaded, starting inventory extraction...');
 
-    // Scrape inventory data
-    const inventoryItems = await scrapeInventoryData(page, pool, job, delayMs);
-    await appendLog(pool, job.id, `Extracted ${inventoryItems.length} inventory entries`);
+    // Determine which manufacturers to scrape
+    const configMfgrs = config.manufacturers;
+    let mfgrCodes;
 
-    // Match and upsert
-    for (const item of inventoryItems) {
-      if (!item.itemNumber) continue;
+    if (configMfgrs && Array.isArray(configMfgrs) && configMfgrs.length > 0) {
+      mfgrCodes = configMfgrs.map(c => ({ value: c.toUpperCase(), text: MANUFACTURER_NAMES[c.toUpperCase()] || c }));
+    } else {
+      mfgrCodes = await getAllManufacturerCodes(page);
+    }
 
-      const skuKey = item.itemNumber.toUpperCase();
-      const normalizedKey = item.itemNumber.replace(/[-\s.]/g, '').toUpperCase();
-      const dbSku = skuMap.get(skuKey) || skuMap.get(normalizedKey);
+    await appendLog(pool, job.id, `Scanning ${mfgrCodes.length} manufacturers for inventory`);
 
-      if (!dbSku) {
-        totalUnmatched++;
-        if (totalUnmatched <= 20) {
-          await appendLog(pool, job.id, `  Unmatched SKU: ${item.itemNumber}`);
+    for (let m = 0; m < mfgrCodes.length; m++) {
+      const mfgr = mfgrCodes[m];
+      const mfgrCode = mfgr.value;
+      const brandName = MANUFACTURER_NAMES[mfgrCode] || mfgr.text || mfgrCode;
+
+      await appendLog(pool, job.id, `[${m + 1}/${mfgrCodes.length}] Inventory: ${brandName} (${mfgrCode})`);
+
+      const rows = await searchByManufacturer(page, mfgrCode, pool, job.id);
+
+      for (const row of rows) {
+        if (!row.itemNumber) continue;
+
+        const skuKey = row.itemNumber.toUpperCase();
+        const normalizedKey = row.itemNumber.replace(/[-\s.]/g, '').toUpperCase();
+        const dbSku = skuMap.get(skuKey) || skuMap.get(normalizedKey);
+
+        if (!dbSku) {
+          totalUnmatched++;
+          if (totalUnmatched <= 20) {
+            await appendLog(pool, job.id, `  Unmatched SKU: ${row.itemNumber}`);
+          }
+          continue;
         }
-        continue;
+
+        totalMatched++;
+
+        try {
+          // Convert quantity to sqft based on unit type
+          let qtySqft = 0;
+
+          if (row.unit === 'SF') {
+            // Already in sqft
+            qtySqft = row.quantity;
+          } else if (row.unit === 'CT' || row.unit === 'BOX') {
+            // Cartons — convert using sqft_per_box
+            const sqftPerBox = row.sqftPerBox || parseFloat(dbSku.sqft_per_box) || 0;
+            if (sqftPerBox > 0) {
+              qtySqft = Math.round(row.quantity * sqftPerBox);
+            } else {
+              // Can't convert without sqft_per_box — store carton count as-is
+              qtySqft = row.quantity;
+            }
+          } else {
+            // EA, PC, ST — store raw quantity
+            qtySqft = row.quantity;
+          }
+
+          await upsertInventorySnapshot(pool, dbSku.id, warehouse, {
+            qty_on_hand_sqft: qtySqft,
+            qty_in_transit_sqft: 0, // Not available in search results
+          });
+
+          totalUpserted++;
+        } catch (err) {
+          await logError(`Inventory upsert failed for ${row.itemNumber}: ${err.message}`);
+        }
       }
 
-      totalMatched++;
-
-      try {
-        await upsertInventorySnapshot(pool, dbSku.id, warehouse, {
-          qty_on_hand_sqft: item.qtySqft || 0,
-          qty_in_transit_sqft: item.qtyTransitSqft || 0,
-        });
-
-        totalUpserted++;
-      } catch (err) {
-        await logError(`Inventory upsert failed for ${item.itemNumber}: ${err.message}`);
-      }
-
-      if (totalMatched % 100 === 0) {
+      if (totalMatched % 100 === 0 && totalMatched > 0) {
         await appendLog(pool, job.id, `Progress: ${totalMatched} matched, ${totalUpserted} upserted`, {
           products_found: totalMatched,
           products_updated: totalUpserted
         });
       }
+
+      // Navigate back to search form for next manufacturer
+      if (m < mfgrCodes.length - 1) {
+        const navResult = await navigateToSearchForm(page, PORTAL_BASE);
+        if (navResult === 'relogin' || !navResult) {
+          // Session expired or nav failed — re-login either way
+          await appendLog(pool, job.id, `Session expired after ${brandName}, re-logging in...`);
+          await browser.close().catch(() => {});
+          try {
+            const session = await triwestLogin(pool, job.id);
+            browser = session.browser;
+            page = session.page;
+          } catch (err) {
+            await appendLog(pool, job.id, `Re-login failed: ${err.message}`);
+            break;
+          }
+        }
+        await delay(delayMs);
+      }
     }
 
     await appendLog(pool, job.id,
-      `Complete. Items: ${inventoryItems.length}, Matched: ${totalMatched}, Upserted: ${totalUpserted}, Unmatched: ${totalUnmatched}, Errors: ${errorCount}`,
+      `Complete. Matched: ${totalMatched}, Upserted: ${totalUpserted}, Unmatched: ${totalUnmatched}, Errors: ${errorCount}`,
       { products_found: totalMatched, products_updated: totalUpserted }
     );
 
@@ -160,11 +207,10 @@ async function extractWarehouse(page) {
   const location = await page.evaluate(() => {
     // Look for account/location info in header
     const headerText = (document.querySelector('header, [class*="header"]')?.textContent || '').trim();
-    // DNav portals often show company/location in the header
     const locMatch = headerText.match(/(?:warehouse|location|ship to)[:\s]+(.+?)(?:\n|$)/i);
     if (locMatch) return locMatch[1].trim();
 
-    // Look for "Santa Fe Springs" or other TW warehouse names
+    // Look for known TW warehouse names
     const bodyText = document.body.innerText;
     const warehouseMatch = bodyText.match(/(?:Santa Fe Springs|Los Angeles|Anaheim)/i);
     if (warehouseMatch) return `TW ${warehouseMatch[0]}`;
@@ -173,95 +219,4 @@ async function extractWarehouse(page) {
   });
 
   return location || 'TW Santa Fe Springs, CA';
-}
-
-/**
- * Discovery mode for inventory pages.
- */
-async function discoverInventoryPages(page, pool, job) {
-  const inventoryLinks = await page.evaluate(() => {
-    const links = Array.from(document.querySelectorAll('a[href]'));
-    return links
-      .filter(a => {
-        const text = a.textContent.toLowerCase();
-        return text.includes('inventory') || text.includes('stock') ||
-               text.includes('available') || text.includes('warehouse');
-      })
-      .map(a => ({ text: a.textContent.trim(), href: a.href }));
-  });
-
-  await appendLog(pool, job.id, `Inventory-related links: ${JSON.stringify(inventoryLinks)}`);
-
-  for (const link of inventoryLinks.slice(0, 5)) {
-    try {
-      await page.goto(link.href, { waitUntil: 'networkidle2', timeout: 15000 });
-      await screenshot(page, `triwest-inventory-${link.text.replace(/\s+/g, '-').slice(0, 20)}`);
-      const text = await page.evaluate(() => document.body.innerText.slice(0, 500));
-      await appendLog(pool, job.id, `  [${link.text}] — ${text.slice(0, 200)}`);
-    } catch (err) {
-      await appendLog(pool, job.id, `  [${link.text}] — Error: ${err.message}`);
-    }
-    await delay(1000);
-  }
-}
-
-/**
- * Scrape inventory data from the DNav portal.
- * Returns array of { itemNumber, qtySqft, qtyTransitSqft }.
- *
- * Placeholder — will be refined after discovery mode.
- */
-async function scrapeInventoryData(page, pool, job, delayMs) {
-  const allItems = [];
-
-  // Try to find inventory / stock levels section
-  const inventoryLinks = await page.evaluate(() => {
-    const links = Array.from(document.querySelectorAll('a[href]'));
-    return links
-      .filter(a => {
-        const text = a.textContent.toLowerCase();
-        return text.includes('inventory') || text.includes('stock');
-      })
-      .map(a => ({ text: a.textContent.trim(), href: a.href }));
-  });
-
-  if (inventoryLinks.length > 0) {
-    try {
-      await page.goto(inventoryLinks[0].href, { waitUntil: 'networkidle2', timeout: 30000 });
-      await delay(2000);
-    } catch (err) {
-      await appendLog(pool, job.id, `Failed to navigate to inventory: ${err.message}`);
-    }
-  }
-
-  // Extract inventory from tables
-  const entries = await page.evaluate(() => {
-    const results = [];
-    const tables = document.querySelectorAll('table');
-
-    for (const table of tables) {
-      const rows = Array.from(table.querySelectorAll('tr'));
-      for (let i = 1; i < rows.length; i++) {
-        const cells = Array.from(rows[i].querySelectorAll('td'));
-        if (cells.length < 2) continue;
-
-        const text = rows[i].textContent;
-        const itemMatch = text.match(/\b([A-Z]{2,5}[-.]?[A-Z0-9]{3,}[-.]?[A-Z0-9]*)\b/);
-        const qtyMatch = text.match(/([\d,]+\.?\d*)\s*(?:SF|sqft|sq\s*ft|pcs|units)/i);
-
-        if (itemMatch) {
-          results.push({
-            itemNumber: itemMatch[1],
-            qtySqft: qtyMatch ? parseFloat(qtyMatch[1].replace(/,/g, '')) : 0,
-            qtyTransitSqft: 0,
-          });
-        }
-      }
-    }
-
-    return results;
-  });
-
-  allItems.push(...entries);
-  return allItems;
 }

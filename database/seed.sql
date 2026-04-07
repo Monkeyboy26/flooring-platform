@@ -162,6 +162,28 @@ INSERT INTO attributes (id, name, slug, display_order) VALUES
 ('d50e8400-e29b-41d4-a716-446655440014', 'DCOF', 'dcof', 14)
 ON CONFLICT DO NOTHING;
 
+-- Additional product attributes (enrichment)
+INSERT INTO attributes (name, slug, display_order, is_filterable) VALUES
+  ('Wear Layer', 'wear_layer', 15, true),
+  ('Certification', 'certification', 16, false),
+  ('Rectified', 'rectified', 17, false),
+  ('Edge Type', 'edge_type', 18, false),
+  ('Core Type', 'core_type', 19, true),
+  ('Style', 'style', 20, false),
+  ('Pattern', 'pattern', 21, false),
+  ('Weight', 'weight', 22, false),
+  ('Width', 'width', 23, false),
+  ('Species', 'species', 24, true),
+  ('UPC', 'upc', 25, false),
+  ('Fiber', 'fiber', 26, true),
+  ('Construction', 'construction', 27, false),
+  ('Color Code', 'color_code', 28, false),
+  ('Roll Width', 'roll_width', 29, false),
+  ('Roll Length', 'roll_length', 30, false),
+  ('Weight per Sq Yd', 'weight_per_sqyd', 31, false),
+  ('Collection', 'collection', 32, false)
+ON CONFLICT (slug) DO NOTHING;
+
 -- SKU Attributes: values per product SKU
 INSERT INTO sku_attributes (sku_id, attribute_id, value) VALUES
 -- Calacatta Gold Marble
@@ -906,9 +928,9 @@ ON CONFLICT DO NOTHING;
 
 -- ==================== Tri-West Vendor Sources ====================
 INSERT INTO vendor_sources (vendor_id, source_type, name, base_url, config, scraper_key, schedule, is_active) VALUES
--- Portal scrapers (hub)
-('550e8400-e29b-41d4-a716-446655440008', 'portal', 'Tri-West DNav - Catalog', 'https://tri400.triwestltd.com/danciko/d24', '{"discovery_mode": true}', 'triwest-catalog', '0 2 * * 0', true),
-('550e8400-e29b-41d4-a716-446655440008', 'portal', 'Tri-West DNav - Pricing', 'https://tri400.triwestltd.com/danciko/d24', '{}', 'triwest-pricing', '0 3 * * 0', true),
+-- FTP 832 catalog import (replaces portal catalog + pricing scrapers)
+('550e8400-e29b-41d4-a716-446655440008', 'edi', 'Tri-West FTP - 832 Catalog', 'ftp://ftp.triwestltd.com', '{}', 'triwest-832', '0 2 * * 0', true),
+-- Portal scraper (inventory only — 832 lacks real-time stock levels)
 ('550e8400-e29b-41d4-a716-446655440008', 'portal', 'Tri-West DNav - Inventory', 'https://tri400.triwestltd.com/danciko/d24', '{"freshness_hours": 8}', 'triwest-inventory', '0 */8 * * *', true),
 -- Brand enrichment scrapers (spokes)
 ('550e8400-e29b-41d4-a716-446655440008', 'website', 'Provenza', 'https://www.provenzafloors.com', '{}', 'triwest-provenza', '0 4 1 * *', true),

@@ -234,6 +234,9 @@ function cleanEdiText(text) {
     s = s.replace(re, full);
   }
 
+  // Final collapse: catch any double spaces re-introduced by above transforms
+  s = s.replace(/\s{2,}/g, ' ');
+
   return s.trim();
 }
 
@@ -558,11 +561,14 @@ function finalizeItem(item) {
   const qualPid = item.descriptions.find(d => d.characteristic_code === '12');
   item.subcategory = qualPid ? cleanEdiText(qualPid.description) : null;
 
-  // --- Collection from PID*F*CO (preferred) or PID*F*77 ---
+  // --- Collection from PID*F*CO (preferred) or PID*F*77, fallback to price_list ---
   const coPid = item.descriptions.find(d => d.characteristic_code === 'CO');
   const collPid = item.descriptions.find(d => d.characteristic_code === '77');
   const rawCollection = coPid ? coPid.description : (collPid ? collPid.description : null);
   item.collection = cleanAndTitle(rawCollection);
+
+  // Note: price_list-based collection fallback removed — collections are now derived
+  // from the product name (stripping roman numerals + width suffixes) in the import loop.
 
   // --- Color (from LIN-level PID, if present) ---
   const colorPid = item.descriptions.find(d => d.characteristic_code === '73');
@@ -1095,9 +1101,15 @@ export async function run(pool, job, source) {
     const descShort = descParts.length > 0 ? descParts.join(' | ') : (item.subcategory || null);
     const descLong = longParts.length > 0 ? longParts.join(' ') : null;
 
-    // Migrate existing empty-collection product to new collection if applicable
+    // Derive collection from product name: strip roman numeral + width suffixes
     const productName = item.product_name || (looksLikeSkuCode(item.vendor_sku) ? null : cleanAndTitle(item.vendor_sku)) || 'Unknown';
-    const productCollection = item.collection || '';
+    if (!item.collection) {
+      item.collection = productName
+        .replace(/\s+\d{2}\s*$/, '')              // strip width suffix (12, 15, 20, etc.)
+        .replace(/\s+(I{1,3}|IV|V|VI{0,3})\s*$/, '') // strip roman numeral suffix
+        .trim();
+    }
+    const productCollection = item.collection || productName;
     if (productCollection) {
       await pool.query(
         `UPDATE products SET collection = $1, updated_at = NOW()

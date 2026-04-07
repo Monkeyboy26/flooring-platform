@@ -1,6 +1,8 @@
 import {
   launchBrowser, delay, upsertMediaAsset, upsertSkuAttribute,
-  appendLog, addJobError, downloadImage, resolveImageExtension, preferProductShot
+  appendLog, addJobError, downloadImage, resolveImageExtension, preferProductShot,
+  extractLargeImages, collectSiteWideImages, fuzzyMatch,
+  extractSpecPDFs, normalizeTriwestName
 } from './base.js';
 
 const BASE_URL = 'https://www.hartco.com';
@@ -14,7 +16,7 @@ const MAX_ERRORS = 30;
  * Enriches EXISTING Tri-West SKUs — never creates new products.
  * Tech: AEM CMS, Handlebars/Ractive templates
  *
- * Runs AFTER triwest-catalog.js populates SKUs in the DB.
+ * Runs AFTER import-triwest-832.cjs populates SKUs in the DB.
  */
 export async function run(pool, job, source) {
   const config = source.config || {};
@@ -36,33 +38,48 @@ export async function run(pool, job, source) {
   }
 
   try {
-    // Load existing TW SKUs for this brand
+    // Load existing TW products for this brand (includes SKU-less products from DNav)
+    const prodResult = await pool.query(`
+      SELECT p.id AS product_id, p.name, p.collection, p.description_long
+      FROM products p
+      WHERE p.vendor_id = $1 AND p.collection LIKE $2
+    `, [vendor_id, `${brandPrefix}%`]);
+
+    // Also load SKU data for products that have it
     const skuResult = await pool.query(`
-      SELECT s.id AS sku_id, s.vendor_sku, s.internal_sku, s.variant_name,
-             p.id AS product_id, p.name, p.collection, p.description_long
+      SELECT s.id AS sku_id, s.vendor_sku, s.internal_sku, s.variant_name, s.product_id
       FROM skus s
       JOIN products p ON p.id = s.product_id
       WHERE p.vendor_id = $1 AND p.collection LIKE $2
     `, [vendor_id, `${brandPrefix}%`]);
 
-    await appendLog(pool, job.id, `Found ${skuResult.rows.length} ${brandPrefix} SKUs to enrich`);
+    await appendLog(pool, job.id, `Found ${prodResult.rows.length} ${brandPrefix} products (${skuResult.rows.length} SKUs) to enrich`);
 
-    if (skuResult.rows.length === 0) {
-      await appendLog(pool, job.id, `No ${brandPrefix} SKUs found — run triwest-catalog first`);
+    if (prodResult.rows.length === 0) {
+      await appendLog(pool, job.id, `No ${brandPrefix} products found — run import-triwest-832 first`);
       return;
     }
 
-    // Group SKUs by product (collection + name)
-    const productGroups = new Map();
+    // Build SKU lookup by product_id
+    const skusByProduct = new Map();
     for (const row of skuResult.rows) {
-      const key = `${row.collection}||${row.name}`;
-      if (!productGroups.has(key)) {
-        productGroups.set(key, { product_id: row.product_id, name: row.name, collection: row.collection, skus: [] });
-      }
-      productGroups.get(key).skus.push(row);
+      if (!skusByProduct.has(row.product_id)) skusByProduct.set(row.product_id, []);
+      skusByProduct.get(row.product_id).push(row);
     }
 
-    await appendLog(pool, job.id, `Grouped into ${productGroups.size} products`);
+    // Group products by collection + name
+    const productGroups = new Map();
+    for (const row of prodResult.rows) {
+      const key = `${row.collection}||${row.name}`;
+      if (!productGroups.has(key)) {
+        productGroups.set(key, {
+          product_id: row.product_id, name: row.name, collection: row.collection,
+          skus: skusByProduct.get(row.product_id) || [],
+        });
+      }
+    }
+
+    await appendLog(pool, job.id, `Grouped into ${productGroups.size} products (${skuResult.rows.length} with SKUs)`);
 
     // Launch browser
     browser = await launchBrowser();
@@ -70,21 +87,20 @@ export async function run(pool, job, source) {
     await page.setUserAgent(USER_AGENT);
     await page.setViewport({ width: 1440, height: 900 });
 
-    // Navigate to brand website
-    await appendLog(pool, job.id, `Navigating to ${BASE_URL}...`);
-    await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 30000 });
-    await delay(2000);
+    // Collect site-wide images to exclude
+    await appendLog(pool, job.id, `Collecting site-wide images from ${BASE_URL}...`);
+    const siteWideImages = await collectSiteWideImages(page, BASE_URL);
+    await appendLog(pool, job.id, `Found ${siteWideImages.size} site-wide images to exclude`);
 
-    // Scrape product pages and enrich
     let processed = 0;
     for (const [key, group] of productGroups) {
       processed++;
 
       try {
-        const productData = await findProductOnSite(page, group, delayMs);
+        const productData = await findProductOnSite(page, group, delayMs, siteWideImages);
 
         if (!productData) {
-          skusSkipped += group.skus.length;
+          skusSkipped++;
           continue;
         }
 
@@ -113,8 +129,21 @@ export async function run(pool, job, source) {
           }
         }
 
+        // Extract and upsert spec PDFs
+        const specPdfs = await extractSpecPDFs(page);
+        for (let i = 0; i < specPdfs.length; i++) {
+          await upsertMediaAsset(pool, {
+            product_id: group.product_id,
+            sku_id: null,
+            asset_type: 'spec_pdf',
+            url: specPdfs[i].url,
+            original_url: specPdfs[i].url,
+            sort_order: i,
+          });
+        }
+
         // Upsert specs as SKU attributes
-        if (productData.specs) {
+        if (productData.specs && group.skus.length > 0) {
           for (const sku of group.skus) {
             for (const [attrSlug, value] of Object.entries(productData.specs)) {
               if (value) await upsertSkuAttribute(pool, sku.sku_id, attrSlug, value);
@@ -126,7 +155,7 @@ export async function run(pool, job, source) {
         }
       } catch (err) {
         await logError(`${group.collection} / ${group.name}: ${err.message}`);
-        skusSkipped += group.skus.length;
+        skusSkipped++;
       }
 
       if (processed % 10 === 0) {
@@ -156,49 +185,63 @@ export async function run(pool, job, source) {
  * Image CDN: /cdn/content/sites/4/{file}?size=detail
  * Specs in table rows with th/td pairs.
  */
-async function findProductOnSite(page, productGroup, delayMs) {
-  const firstSku = productGroup.skus[0];
+async function findProductOnSite(page, productGroup, delayMs, siteWideImages) {
+  const firstSku = productGroup.skus[0] || {};
   const vendorSku = firstSku.vendor_sku || '';
   const colorName = productGroup.name;
-  const searchTerm = vendorSku || colorName;
+  const normalizedName = normalizeTriwestName(colorName);
 
-  try {
-    await page.goto(`${BASE_URL}/en-us/search-results.html?searchTerm=${encodeURIComponent(searchTerm)}`, {
-      waitUntil: 'networkidle2',
-      timeout: 20000,
-    });
-    await delay(delayMs);
+  // Try vendor SKU first, then normalized name, then raw color name
+  const searchTerms = [vendorSku, normalizedName, colorName].filter(Boolean);
 
-    // Wait for client-side rendering of product cards
-    await page.waitForSelector('.card a, .browse-products .card', { timeout: 8000 }).catch(() => null);
+  for (const searchTerm of searchTerms) {
+    try {
+      await page.goto(`${BASE_URL}/en-us/search-results.html?searchTerm=${encodeURIComponent(searchTerm)}`, {
+        waitUntil: 'networkidle2',
+        timeout: 20000,
+      });
+      await delay(delayMs);
 
-    // Find the best matching product detail link
-    const detailUrl = await page.evaluate((name, sku) => {
-      const cards = document.querySelectorAll('.card');
-      const nameLower = name.toLowerCase();
-      const skuLower = sku.toLowerCase();
+      // Wait for client-side rendering of product cards (AEM/Ractive sites need longer)
+      await page.waitForSelector('.card a, .browse-products .card', { timeout: 12000 }).catch(() => null);
 
-      for (const card of cards) {
-        const text = card.textContent.toLowerCase();
-        const link = card.querySelector('a[href*="/en-us/"]');
-        if (link && skuLower && text.includes(skuLower)) return link.href;
-      }
-      for (const card of cards) {
-        const text = card.textContent.toLowerCase();
-        const link = card.querySelector('a[href*="/en-us/"]');
-        if (link && text.includes(nameLower)) return link.href;
-      }
-      const firstLink = document.querySelector('.card a[href*="/en-us/products/"], .card a[href*=".html"]');
-      return firstLink ? firstLink.href : null;
-    }, colorName, vendorSku);
+      // Find the best matching product detail link
+      const detailUrl = await page.evaluate((name, sku) => {
+        const cards = document.querySelectorAll('.card');
+        const nameLower = name.toLowerCase();
+        const skuLower = sku.toLowerCase();
 
-    if (!detailUrl) return null;
+        for (const card of cards) {
+          const text = card.textContent.toLowerCase();
+          const link = card.querySelector('a[href*="/en-us/"]');
+          if (link && skuLower && text.includes(skuLower)) return link.href;
+        }
+        for (const card of cards) {
+          const text = card.textContent.toLowerCase();
+          const link = card.querySelector('a[href*="/en-us/"]');
+          if (link && text.includes(nameLower)) return link.href;
+        }
+        const firstLink = document.querySelector('.card a[href*="/en-us/products/"], .card a[href*=".html"]');
+        return firstLink ? firstLink.href : null;
+      }, colorName, vendorSku);
 
-    await page.goto(detailUrl, { waitUntil: 'networkidle2', timeout: 20000 });
-    await delay(delayMs);
-  } catch {
-    return null;
+      if (!detailUrl) continue;
+
+      await page.goto(detailUrl, { waitUntil: 'networkidle2', timeout: 20000 });
+      await delay(delayMs);
+
+      const data = await extractHartcoData(page, siteWideImages);
+      if (data) return data;
+    } catch { /* try next search term */ }
   }
+
+  return null;
+}
+
+async function extractHartcoData(page, siteWideImages) {
+  // Use extractLargeImages for filtered results
+  const largeImages = await extractLargeImages(page, siteWideImages, 150);
+  const utilityImages = largeImages.map(img => img.src);
 
   const data = await page.evaluate(() => {
     const images = [];
@@ -269,6 +312,10 @@ async function findProductOnSite(page, productGroup, delayMs) {
 
     return { images, description, specs: Object.keys(specs).length > 0 ? specs : null };
   });
+
+  // Merge utility-extracted images with page-extracted images
+  const mergedImages = [...new Set([...utilityImages, ...data.images])];
+  data.images = mergedImages;
 
   if (data.images.length === 0 && !data.description && !data.specs) return null;
   return data;

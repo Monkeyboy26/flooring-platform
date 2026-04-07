@@ -99,9 +99,9 @@ export function parse855(txnSet) {
           statusDesc: '',
           qtyOrdered: parseFloat(seg[2]) || 0,
         };
-        // Find vendor SKU in VP qualifier
+        // Find vendor SKU — VP (Shaw) or SK (EF) qualifier
         for (let i = 5; i < seg.length - 1; i++) {
-          if (seg[i] === 'VP') {
+          if (seg[i] === 'VP' || seg[i] === 'SK') {
             lineItem.vendorSku = seg[i + 1] || '';
             break;
           }
@@ -151,6 +151,7 @@ export function parse856(txnSet) {
 
   let currentHL = null;  // current hierarchy level
   let pendingVendorSku = null; // LIN often appears before SN1
+  let pendingDyeLot = null;    // EF puts dye lot in LIN as DL qualifier
 
   for (const seg of segs) {
     switch (seg[0]) {
@@ -165,6 +166,7 @@ export function parse856(txnSet) {
         // Level codes: S=shipment, O=order, I=item
         currentHL = seg[3] || '';
         pendingVendorSku = null;
+        pendingDyeLot = null;
         break;
       }
       case 'TD5': {
@@ -182,6 +184,11 @@ export function parse856(txnSet) {
           if (val && !result.trackingNumbers.includes(val)) {
             result.trackingNumbers.push(val);
           }
+        } else if (qual === 'S1' || qual === 'SN') {
+          // Shipment identification (EF uses S1)
+          if (val && !result.trackingNumbers.includes(val)) {
+            result.trackingNumbers.push(val);
+          }
         } else if (qual === 'BM') {
           // Bill of Lading
           result.bolNumber = val;
@@ -196,17 +203,22 @@ export function parse856(txnSet) {
         break;
       }
       case 'LIN': {
-        // LIN often comes before SN1 in 856 — buffer the vendor SKU
+        // LIN often comes before SN1 in 856 — buffer vendor SKU and dye lot
+        // Supports VP (Shaw), SK (EF) for SKU, and DL (EF) for dye lot
         for (let i = 1; i < seg.length - 1; i++) {
-          if (seg[i] === 'VP') {
+          if (seg[i] === 'VP' || seg[i] === 'SK') {
             pendingVendorSku = seg[i + 1] || '';
-            break;
+          } else if (seg[i] === 'DL') {
+            pendingDyeLot = seg[i + 1] || '';
           }
         }
         // Also apply to last item if SN1 already created it
         const lastItem = result.lineItems[result.lineItems.length - 1];
         if (lastItem && !lastItem.vendorSku && pendingVendorSku) {
           lastItem.vendorSku = pendingVendorSku;
+        }
+        if (lastItem && !lastItem.dyeLot && pendingDyeLot) {
+          lastItem.dyeLot = pendingDyeLot;
         }
         break;
       }
@@ -216,9 +228,10 @@ export function parse856(txnSet) {
           qtyShipped: parseFloat(seg[2]) || 0,
           unitOfMeasure: seg[3] || '',
           vendorSku: pendingVendorSku || null,
-          dyeLot: null,
+          dyeLot: pendingDyeLot || null,
         };
         pendingVendorSku = null;
+        pendingDyeLot = null;
         result.lineItems.push(item);
         break;
       }
@@ -277,9 +290,9 @@ export function parse810(txnSet) {
           description: '',
           subtotal: 0,
         };
-        // Find vendor SKU
+        // Find vendor SKU — VP (Shaw) or SK (EF) qualifier
         for (let i = 5; i < seg.length - 1; i++) {
-          if (seg[i] === 'VP') {
+          if (seg[i] === 'VP' || seg[i] === 'SK') {
             item.vendorSku = seg[i + 1] || '';
             break;
           }
@@ -289,10 +302,16 @@ export function parse810(txnSet) {
         break;
       }
       case 'PID': {
-        // PID*F*08***description
+        // PID*item_description_type*product_char_code***description
+        // Types: F=free-form, S=structured. EF sends multiple PIDs (brand, style, color).
+        // Prefer later PID entries (style/color) over earlier ones (brand) — the last
+        // non-empty description wins as the most specific.
         const lastItem = result.lineItems[result.lineItems.length - 1];
         if (lastItem && seg[5]) {
-          lastItem.description = seg[5];
+          // Always overwrite — later PIDs are more specific (style > brand)
+          lastItem.description = lastItem.description
+            ? lastItem.description + ' - ' + seg[5]
+            : seg[5];
         }
         break;
       }

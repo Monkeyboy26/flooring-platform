@@ -1,3 +1,5 @@
+import { LOGO_URL } from './_config.js';
+
 function getTrackingUrl(carrier, trackingNumber) {
   if (!carrier || !trackingNumber) return null;
   const c = carrier.toLowerCase();
@@ -13,6 +15,11 @@ const statusContent = {
     title: 'Your Order Has Shipped',
     message: 'Great news! Your order is on its way.',
     icon: '&#x2708;'
+  },
+  ready_for_pickup: {
+    title: 'Your Order Is Ready for Pickup',
+    message: 'Your order is ready and waiting for you at our showroom. Please bring a valid photo ID when you come to pick up your order.',
+    icon: '&#x1F3E0;'
   },
   delivered: {
     title: 'Your Order Has Been Delivered',
@@ -65,8 +72,8 @@ export function generateOrderStatusUpdateHTML(orderData, status) {
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e7e5e4;">
 
   <!-- Header -->
-  <tr><td style="padding:32px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:18px;letter-spacing:4px;color:#292524;font-weight:600;">ROMA FLOORING DESIGNS</p>
+  <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
+    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto;width:140px;height:140px;" />
   </td></tr>
 
   <!-- Status Icon + Title -->
@@ -92,6 +99,17 @@ export function generateOrderStatusUpdateHTML(orderData, status) {
   </td></tr>
 
   ${trackingSection}
+
+  ${status === 'ready_for_pickup' ? `
+  <!-- Pickup Location -->
+  <tr><td style="padding:0 40px 32px;">
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:20px;text-align:center;">
+      <p style="margin:0 0 4px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#166534;">Pickup Location</p>
+      <p style="margin:4px 0 0;font-family:Inter,Arial,sans-serif;font-size:14px;font-weight:500;color:#292524;">Roma Flooring Designs</p>
+      <p style="margin:4px 0 0;font-family:Inter,Arial,sans-serif;font-size:13px;color:#57534e;">1440 S. State College Blvd #6M, Anaheim, CA 92806</p>
+      <p style="margin:8px 0 0;font-family:Inter,Arial,sans-serif;font-size:13px;color:#57534e;">Mon\u2013Fri 8am\u20135pm, Sat 9am\u20132pm</p>
+    </div>
+  </td></tr>` : ''}
 
   <!-- Contact -->
   <tr><td style="padding:0 40px 40px;">

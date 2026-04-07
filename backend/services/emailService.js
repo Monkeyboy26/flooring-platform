@@ -16,6 +16,14 @@ import { generateVisitRecapHTML } from '../templates/visitRecap.js';
 import { generateSampleRequestConfirmationHTML } from '../templates/sampleRequestConfirmation.js';
 import { generateSampleRequestShippedHTML } from '../templates/sampleRequestShipped.js';
 import { generateStockAlertHTML } from '../templates/stockAlert.js';
+import { generateInvoiceSentHTML } from '../templates/invoiceSent.js';
+import { generateInvoiceReminderHTML } from '../templates/invoiceReminder.js';
+import { generateSampleRequestVendorHTML } from '../templates/sampleRequestVendor.js';
+import { generateWelcomeSetPasswordHTML } from '../templates/welcomeSetPassword.js';
+import { generateDailyAnalyticsSummaryHTML } from '../templates/dailyAnalyticsSummary.js';
+import { generateDailyHealthCheckHTML } from '../templates/dailyHealthCheck.js';
+import { generateEstimateSentHTML } from '../templates/estimateSent.js';
+import { generateProductShareHTML } from '../templates/productShare.js';
 
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
@@ -90,7 +98,7 @@ export async function sendQuoteSent(quoteData) {
  * Send order status update email to customer.
  */
 export async function sendOrderStatusUpdate(orderData, status) {
-  if (!['shipped', 'delivered', 'cancelled'].includes(status)) return;
+  if (!['shipped', 'delivered', 'cancelled', 'ready_for_pickup'].includes(status)) return;
   if (!transporter) {
     console.log(`[Email] Skipping status update (${status}) for ${orderData.order_number} — SMTP not configured`);
     return;
@@ -101,6 +109,7 @@ export async function sendOrderStatusUpdate(orderData, status) {
 
     const subjectMap = {
       shipped: `Your Order Has Shipped — ${orderData.order_number}`,
+      ready_for_pickup: `Your Order Is Ready for Pickup — ${orderData.order_number}`,
       delivered: `Your Order Has Been Delivered — ${orderData.order_number}`,
       cancelled: `Order Cancelled — ${orderData.order_number}`
     };
@@ -642,5 +651,480 @@ export async function sendStockAlert(data) {
     console.log(`[Email] Stock alert sent to ${data.email} for ${data.product_name}`);
   } catch (err) {
     console.error(`[Email] Failed to send stock alert to ${data.email}:`, err.message);
+  }
+}
+
+/**
+ * Send invoice email to customer.
+ */
+export async function sendInvoiceSent(invoice) {
+  if (!transporter) {
+    console.log(`[Email] Skipping invoice email for ${invoice.invoice_number} — SMTP not configured`);
+    return;
+  }
+  try {
+    const html = generateInvoiceSentHTML(invoice);
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: invoice.customer_email,
+      subject: `Invoice ${invoice.invoice_number} — Roma Flooring Designs`,
+      html
+    });
+    console.log(`[Email] Invoice sent to ${invoice.customer_email} for ${invoice.invoice_number}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send invoice ${invoice.invoice_number}:`, err.message);
+  }
+}
+
+/**
+ * Send overdue invoice reminder to customer.
+ */
+export async function sendInvoiceReminder(invoice) {
+  if (!transporter) {
+    console.log(`[Email] Skipping invoice reminder for ${invoice.invoice_number} — SMTP not configured`);
+    return;
+  }
+  try {
+    const html = generateInvoiceReminderHTML(invoice);
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: invoice.customer_email,
+      subject: `Payment Reminder — Invoice ${invoice.invoice_number}`,
+      html
+    });
+    console.log(`[Email] Invoice reminder sent to ${invoice.customer_email} for ${invoice.invoice_number}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send invoice reminder ${invoice.invoice_number}:`, err.message);
+  }
+}
+
+/**
+ * Send sample request PDF to vendor via email.
+ */
+export async function sendSampleRequestToVendor({ vendor_email, vendor_name, request_number, pdf_buffer }) {
+  if (!transporter) {
+    console.log(`[Email] Skipping sample request email for ${request_number} to ${vendor_email} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const html = generateSampleRequestVendorHTML({
+      vendor_name,
+      request_number,
+      customer_name: '',
+      items: []
+    });
+
+    const emailBody = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background-color:#fafaf9;font-family:Inter,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;">
+<tr><td align="center" style="padding:40px 20px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e7e5e4;">
+  <tr><td style="padding:32px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
+    <h1 style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;font-weight:400;color:#1c1917;">Roma Flooring Designs</h1>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="margin:0 0 8px;font-size:15px;color:#1c1917;">Hi ${vendor_name},</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#57534e;">We are requesting product samples for one of our customers. Please see the attached PDF for the full sample request details.</p>
+    <div style="background:#f5f5f4;display:inline-block;padding:10px 24px;font-size:15px;font-weight:500;color:#1c1917;">
+      ${request_number}
+    </div>
+    <p style="margin:16px 0 0;font-size:14px;color:#57534e;">Please send the samples to our showroom at your earliest convenience. Thank you!</p>
+  </td></tr>
+  <tr><td style="padding:24px 40px;background:#fafaf9;border-top:1px solid #e7e5e4;text-align:center;">
+    <p style="margin:0 0 4px;font-size:12px;color:#78716c;">Questions? Contact us at (714) 999-0009</p>
+    <p style="margin:0;color:#a8a29e;font-size:11px;">Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: vendor_email,
+      subject: `Sample Request — ${request_number}`,
+      html: emailBody,
+      attachments: [{ filename: `Sample-Request-${request_number}.pdf`, content: pdf_buffer, contentType: 'application/pdf' }]
+    });
+    console.log(`[Email] Sample request ${request_number} sent to ${vendor_email}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send sample request ${request_number} to ${vendor_email}:`, err.message);
+    return { sent: false, error: err.message };
+  }
+}
+
+/**
+ * Send sample shipping payment request email to customer with Stripe checkout link.
+ */
+export async function sendSampleShippingPayment({ customer_name, customer_email, request_number, checkout_url, amount }) {
+  if (!transporter) {
+    console.log(`[Email] Skipping sample shipping payment for ${request_number} — SMTP not configured`);
+    return;
+  }
+  try {
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#fafaf9;font-family:Inter,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf9;padding:40px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e7e5e4;">
+  <tr><td style="padding:40px;text-align:center;">
+    <h1 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:300;color:#1c1917;margin:0 0 24px;">Roma Flooring Designs</h1>
+    <p style="color:#57534e;font-size:16px;margin:0 0 8px;">Hi ${customer_name},</p>
+    <p style="color:#57534e;font-size:14px;margin:0 0 8px;">Thank you for your sample request <strong>${request_number}</strong>!</p>
+    <p style="color:#57534e;font-size:14px;margin:0 0 24px;">
+      Your samples are free, but a flat-rate shipping fee of <strong>$${parseFloat(amount).toFixed(2)}</strong> applies. Please complete payment below so we can ship your samples.
+    </p>
+    <a href="${checkout_url}" style="display:inline-block;background:#1c1917;color:#fff;padding:14px 40px;text-decoration:none;font-size:16px;font-weight:500;margin:0 0 24px;">Pay Shipping &mdash; $${parseFloat(amount).toFixed(2)}</a>
+    <p style="color:#78716c;font-size:12px;margin:0;">This payment link expires in 72 hours. If you have questions, contact us at (714) 999-0009.</p>
+  </td></tr>
+  <tr><td style="padding:16px 40px;background:#fafaf9;border-top:1px solid #e7e5e4;text-align:center;">
+    <p style="color:#a8a29e;font-size:11px;margin:0;">Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: customer_email,
+      subject: `Shipping Payment Required — Sample Request ${request_number}`,
+      html
+    });
+    console.log(`[Email] Sample shipping payment request sent to ${customer_email} for ${request_number}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send sample shipping payment for ${request_number}:`, err.message);
+  }
+}
+
+/**
+ * Send welcome / set-your-password email to a newly auto-created customer.
+ */
+/**
+ * Send order invoice email to customer with PDF attachment.
+ * If checkout_url is provided, includes a "Pay Now" payment button.
+ */
+export async function sendOrderInvoiceEmail({ order, items, balance, checkout_url, message, pdf_buffer }) {
+  if (!transporter) {
+    console.log(`[Email] Skipping order invoice email for ${order.order_number} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const LOGO_URL = (process.env.SITE_URL || 'http://localhost:3001') + '/assets/logo/roma-square.png';
+    const total = parseFloat(order.total || 0);
+    const amountPaid = parseFloat(order.amount_paid || 0);
+    const balanceDue = balance > 0.01 ? balance : 0;
+
+    const itemRows = (items || []).map(i => {
+      const isUnit = i.sell_by === 'unit';
+      const qty = i.is_sample ? '1 sample' : (i.num_boxes + (isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')));
+      const price = i.is_sample ? '$0.00' : '$' + parseFloat(i.subtotal || 0).toFixed(2);
+      return `<tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #e7e5e4;font-size:13px;color:#1c1917;">${i.product_name || ''}${i.is_sample ? ' <span style="color:#c8a97e;">(Sample)</span>' : ''}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e7e5e4;font-size:13px;color:#57534e;text-align:center;">${qty}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e7e5e4;font-size:13px;color:#1c1917;text-align:right;">${price}</td>
+      </tr>`;
+    }).join('');
+
+    const totalsRows = [
+      `<tr><td style="padding:4px 0;font-size:13px;color:#57534e;">Subtotal</td><td style="padding:4px 0;font-size:13px;color:#1c1917;text-align:right;">$${parseFloat(order.subtotal || 0).toFixed(2)}</td></tr>`
+    ];
+    if (parseFloat(order.shipping || 0) > 0)
+      totalsRows.push(`<tr><td style="padding:4px 0;font-size:13px;color:#57534e;">Shipping</td><td style="padding:4px 0;font-size:13px;color:#1c1917;text-align:right;">$${parseFloat(order.shipping).toFixed(2)}</td></tr>`);
+    if (parseFloat(order.tax_amount || 0) > 0)
+      totalsRows.push(`<tr><td style="padding:4px 0;font-size:13px;color:#57534e;">Tax</td><td style="padding:4px 0;font-size:13px;color:#1c1917;text-align:right;">$${parseFloat(order.tax_amount).toFixed(2)}</td></tr>`);
+    if (parseFloat(order.discount_amount || 0) > 0)
+      totalsRows.push(`<tr><td style="padding:4px 0;font-size:13px;color:#57534e;">Discount</td><td style="padding:4px 0;font-size:13px;color:#16a34a;text-align:right;">-$${parseFloat(order.discount_amount).toFixed(2)}</td></tr>`);
+    totalsRows.push(`<tr><td style="padding:8px 0 4px;font-size:14px;font-weight:600;color:#1c1917;border-top:2px solid #1c1917;">Total</td><td style="padding:8px 0 4px;font-size:14px;font-weight:600;color:#1c1917;text-align:right;border-top:2px solid #1c1917;">$${total.toFixed(2)}</td></tr>`);
+    totalsRows.push(`<tr><td style="padding:4px 0;font-size:13px;color:#57534e;">Amount Paid</td><td style="padding:4px 0;font-size:13px;color:#1c1917;text-align:right;">$${amountPaid.toFixed(2)}</td></tr>`);
+    if (balanceDue > 0) {
+      totalsRows.push(`<tr><td style="padding:4px 0;font-size:14px;font-weight:600;color:#b91c1c;">Balance Due</td><td style="padding:4px 0;font-size:14px;font-weight:600;color:#b91c1c;text-align:right;">$${balanceDue.toFixed(2)}</td></tr>`);
+    } else {
+      totalsRows.push(`<tr><td style="padding:4px 0;font-size:13px;font-weight:500;color:#16a34a;">Balance Due</td><td style="padding:4px 0;font-size:13px;font-weight:500;color:#16a34a;text-align:right;">$0.00</td></tr>`);
+    }
+
+    const paySection = balanceDue > 0 && checkout_url ? `
+      <tr><td style="padding:24px 40px;text-align:center;background:#fefce8;border-top:1px solid #fde68a;">
+        <p style="margin:0 0 12px;font-size:15px;font-weight:500;color:#92400e;">Payment of $${balanceDue.toFixed(2)} is due</p>
+        <a href="${checkout_url}" style="display:inline-block;background:#1c1917;color:#fff;padding:14px 40px;text-decoration:none;font-size:15px;font-weight:500;">Pay Now</a>
+        <p style="margin:12px 0 0;font-size:12px;color:#a16207;">This payment link expires in 72 hours.</p>
+      </td></tr>` : '';
+
+    const msgSection = message ? `
+      <tr><td style="padding:0 40px 24px;">
+        <div style="padding:12px 16px;background:#fafaf9;border:1px solid #e7e5e4;font-size:13px;color:#57534e;line-height:1.6;">
+          <strong style="color:#1c1917;">Message from your rep:</strong><br/>${message.replace(/\n/g, '<br/>')}
+        </div>
+      </td></tr>` : '';
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#fafaf9;font-family:Inter,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf9;padding:40px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border:1px solid #e7e5e4;">
+  <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
+    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="100" height="100" style="display:block;margin:0 auto;width:100px;height:100px;" />
+  </td></tr>
+  <tr><td style="padding:32px 40px 16px;text-align:center;">
+    <h1 style="margin:0 0 8px;font-family:'Cormorant Garamond',Georgia,serif;font-size:26px;font-weight:400;color:#1c1917;">Invoice</h1>
+    <p style="margin:0;font-size:14px;color:#57534e;">Order <strong>${order.order_number}</strong> &mdash; ${new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+  </td></tr>
+  ${msgSection}
+  <tr><td style="padding:0 40px 24px;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <thead><tr>
+        <th style="padding:8px 12px;background:#1c1917;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;text-align:left;">Product</th>
+        <th style="padding:8px 12px;background:#1c1917;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;text-align:center;">Qty</th>
+        <th style="padding:8px 12px;background:#1c1917;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;text-align:right;">Amount</th>
+      </tr></thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+  </td></tr>
+  <tr><td style="padding:0 40px 24px;">
+    <table width="50%" cellpadding="0" cellspacing="0" style="margin-left:auto;">
+      ${totalsRows.join('')}
+    </table>
+  </td></tr>
+  ${paySection}
+  <tr><td style="padding:20px 40px;background:#f5f5f4;border-top:1px solid #e7e5e4;text-align:center;">
+    <p style="margin:0 0 4px;font-size:12px;color:#78716c;">A PDF copy of this invoice is attached.</p>
+    <p style="margin:0 0 4px;font-size:12px;color:#78716c;">Questions? Contact us at Sales@romaflooringdesigns.com or (714) 999-0009</p>
+    <p style="margin:0;font-size:11px;color:#a8a29e;">Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+
+    const mailOpts = {
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: order.customer_email,
+      subject: balanceDue > 0
+        ? `Invoice & Payment Request — Order ${order.order_number}`
+        : `Invoice — Order ${order.order_number}`,
+      html
+    };
+    if (pdf_buffer) {
+      mailOpts.attachments = [{
+        filename: `invoice-${order.order_number}.pdf`,
+        content: pdf_buffer,
+        contentType: 'application/pdf'
+      }];
+    }
+    await transporter.sendMail(mailOpts);
+    console.log(`[Email] Order invoice sent to ${order.customer_email} for ${order.order_number}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send order invoice for ${order.order_number}:`, err.message);
+    return { sent: false };
+  }
+}
+
+/**
+ * Send daily analytics summary email to admin/manager staff.
+ */
+export async function sendDailyAnalyticsSummary(staffEmails, summaryData) {
+  if (!transporter) {
+    console.log(`[Email] Skipping daily analytics summary — SMTP not configured`);
+    return;
+  }
+  if (!staffEmails || staffEmails.length === 0) {
+    console.log(`[Email] Skipping daily analytics summary — no recipients`);
+    return;
+  }
+  try {
+    const html = generateDailyAnalyticsSummaryHTML(summaryData);
+    const dateStr = new Date(summaryData.stat_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: staffEmails.join(', '),
+      subject: `Daily Analytics — ${dateStr}`,
+      html
+    });
+    console.log(`[Email] Daily analytics summary sent to ${staffEmails.length} recipient(s)`);
+  } catch (err) {
+    console.error(`[Email] Failed to send daily analytics summary:`, err.message);
+  }
+}
+
+/**
+ * Send nightly quality digest email to admin/manager staff.
+ */
+export async function sendQualityDigest(staffEmails, qualityData) {
+  if (!transporter) {
+    console.log(`[Email] Skipping quality digest — SMTP not configured`);
+    return;
+  }
+  if (!staffEmails || staffEmails.length === 0) {
+    console.log(`[Email] Skipping quality digest — no recipients`);
+    return;
+  }
+  try {
+    const { generateQualityDigestHTML } = await import('../templates/qualityDigest.js');
+    const html = generateQualityDigestHTML(qualityData);
+    const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: staffEmails.join(', '),
+      subject: `Data Quality Digest — ${dateStr} — Avg ${qualityData.overall.avg_score}`,
+      html
+    });
+    console.log(`[Email] Quality digest sent to ${staffEmails.length} recipient(s)`);
+  } catch (err) {
+    console.error(`[Email] Failed to send quality digest:`, err.message);
+  }
+}
+
+/**
+ * Send estimate email to customer.
+ */
+export async function sendEstimateSent(estimateData) {
+  if (!transporter) {
+    console.log(`[Email] Skipping estimate email for ${estimateData.estimate_number} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const html = generateEstimateSentHTML(estimateData);
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: estimateData.customer_email,
+      replyTo: estimateData.rep_email,
+      subject: `Your Construction Estimate — ${estimateData.estimate_number}`,
+      html
+    });
+    console.log(`[Email] Estimate email sent to ${estimateData.customer_email} for ${estimateData.estimate_number}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send estimate email for ${estimateData.estimate_number}:`, err.message);
+    return { sent: false };
+  }
+}
+
+export async function sendWelcomeSetPassword(toEmail, firstName, resetUrl) {
+  if (!transporter) {
+    console.log(`[Email] Skipping welcome set-password for ${toEmail} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const html = generateWelcomeSetPasswordHTML(firstName, resetUrl);
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: toEmail,
+      subject: 'Welcome to Roma Flooring Designs — Set Your Password',
+      html
+    });
+    console.log(`[Email] Welcome set-password sent to ${toEmail}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send welcome set-password to ${toEmail}:`, err.message);
+    return { sent: false };
+  }
+}
+
+/**
+ * Send product share email from rep to customer.
+ */
+export async function sendProductShare(data) {
+  if (!transporter) {
+    console.log(`[Email] Skipping product share for ${data.customer_email} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const html = generateProductShareHTML(data);
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: data.customer_email,
+      replyTo: data.rep_email,
+      subject: `Check This Out — ${data.product_name}`,
+      html
+    });
+    console.log(`[Email] Product share sent to ${data.customer_email} for "${data.product_name}"`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send product share to ${data.customer_email}:`, err.message);
+    return { sent: false };
+  }
+}
+
+/**
+ * Send daily scraper health check to admin/manager staff.
+ */
+export async function sendScraperHealthCheck(staffEmails, healthData) {
+  if (!transporter) {
+    console.log(`[Email] Skipping scraper health check — SMTP not configured`);
+    return;
+  }
+  if (!staffEmails || staffEmails.length === 0) {
+    console.log(`[Email] Skipping scraper health check — no recipients`);
+    return;
+  }
+  try {
+    const html = generateDailyHealthCheckHTML(healthData);
+    const problemCount = healthData.summary.warning + healthData.summary.critical;
+    const subject = problemCount > 0
+      ? `[Scraper Health] ${problemCount} issue${problemCount !== 1 ? 's' : ''} detected`
+      : `[Scraper Health] All ${healthData.summary.total_sources} sources healthy`;
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: staffEmails.join(', '),
+      subject,
+      html
+    });
+    console.log(`[Email] Scraper health check sent to ${staffEmails.length} recipient(s) (${problemCount} issues)`);
+  } catch (err) {
+    console.error(`[Email] Failed to send scraper health check:`, err.message);
+  }
+}
+
+/**
+ * Send "Order Received — Awaiting Bank Transfer" email with bank instructions.
+ */
+export async function sendBankTransferAwaitingEmail(orderData, bankInstructions) {
+  if (!transporter) {
+    console.log(`[Email] Skipping bank transfer awaiting email for ${orderData.order_number} — SMTP not configured`);
+    return;
+  }
+  try {
+    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const bi = bankInstructions || {};
+    const fa = (bi.financial_addresses || [])[0] || {};
+    const aba = fa.aba || {};
+    const total = parseFloat(orderData.total || 0).toFixed(2);
+    const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#fafaf9;font-family:Inter,Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;background:white;border:1px solid #e7e5e4;">
+<div style="background:#1c1917;color:white;padding:24px;text-align:center;font-family:'Cormorant Garamond',Georgia,serif;font-size:20px;">Roma Flooring Designs</div>
+<div style="padding:32px 24px;">
+<div style="text-align:center;margin-bottom:24px;"><div style="display:inline-block;width:48px;height:48px;border-radius:50%;background:#fef3c7;text-align:center;line-height:48px;font-size:24px;">⏳</div></div>
+<h1 style="text-align:center;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;font-weight:400;margin:0 0 8px;">Order Received — Awaiting Payment</h1>
+<p style="text-align:center;color:#78716c;font-size:14px;margin:0 0 24px;">Order ${esc(orderData.order_number)}</p>
+<p style="font-size:14px;color:#44403c;line-height:1.6;">Hi ${esc(orderData.customer_name)},</p>
+<p style="font-size:14px;color:#44403c;line-height:1.6;">Thank you for your order! To complete your purchase, please send a bank transfer using the details below. Your order will be confirmed once payment is received (typically 1–3 business days).</p>
+<div style="background:#fefce8;border:1px solid #fde68a;padding:20px;margin:24px 0;">
+<h3 style="margin:0 0 12px;font-size:15px;color:#92400e;">Bank Transfer Details</h3>
+<table style="width:100%;font-size:14px;border-collapse:collapse;">
+<tr><td style="padding:6px 0;color:#78716c;">Bank Name</td><td style="padding:6px 0;font-weight:600;text-align:right;">${esc(aba.bank_name || 'See Stripe dashboard')}</td></tr>
+<tr><td style="padding:6px 0;color:#78716c;">Routing Number</td><td style="padding:6px 0;font-weight:600;text-align:right;">${esc(aba.routing_number || '—')}</td></tr>
+<tr><td style="padding:6px 0;color:#78716c;">Account Number</td><td style="padding:6px 0;font-weight:600;text-align:right;">${esc(aba.account_number || '—')}</td></tr>
+<tr><td style="padding:6px 0;color:#78716c;">Reference</td><td style="padding:6px 0;font-weight:600;text-align:right;">${esc(bi.reference || '—')}</td></tr>
+<tr style="border-top:1px solid #fde68a;"><td style="padding:8px 0;color:#78716c;">Amount Due</td><td style="padding:8px 0;font-weight:700;text-align:right;font-size:16px;">$${total}</td></tr>
+</table>
+</div>
+<div style="background:#fef2f2;border:1px solid #fecaca;padding:12px 16px;font-size:13px;color:#991b1b;margin-bottom:24px;">
+<strong>Important:</strong> Please include the reference number in your transfer memo so we can match your payment.
+</div>
+<p style="font-size:13px;color:#78716c;line-height:1.6;">Payment must be received within 14 days. If not received, the order will be automatically cancelled.</p>
+</div>
+<div style="background:#f5f5f4;padding:16px 24px;text-align:center;font-size:12px;color:#a8a29e;">Roma Flooring Designs · 1440 S. State College Blvd. #6M, Anaheim, CA 92806</div>
+</div></body></html>`;
+    await transporter.sendMail({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: orderData.customer_email,
+      subject: `Order Received — Awaiting Payment — ${orderData.order_number}`,
+      html
+    });
+    console.log(`[Email] Bank transfer awaiting email sent to ${orderData.customer_email} for ${orderData.order_number}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send bank transfer awaiting email for ${orderData.order_number}:`, err.message);
   }
 }

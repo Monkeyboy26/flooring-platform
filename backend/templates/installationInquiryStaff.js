@@ -1,10 +1,11 @@
+import { LOGO_URL } from './_config.js';
 function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 export function generateInstallationInquiryStaffHTML(inquiry) {
   const productSection = inquiry.product_name ? `
     <div style="background:#f5f5f4;border-left:3px solid #b8860b;padding:16px 20px;margin:0 0 24px;">
       <p style="margin:0 0 4px;font-weight:500;color:#1c1917;">Product Reference</p>
-      <p style="margin:0;color:#57534e;line-height:1.6;">${esc(inquiry.product_name)}${inquiry.collection ? ` — ${esc(inquiry.collection)}` : ''}</p>
+      <p style="margin:0;color:#57534e;line-height:1.6;">${inquiry.collection ? `${esc(inquiry.collection)} ` : ''}${esc(inquiry.product_name)}</p>
     </div>` : '';
 
   const messageSection = inquiry.message ? `
@@ -20,8 +21,8 @@ export function generateInstallationInquiryStaffHTML(inquiry) {
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e7e5e4;">
   <tr><td style="padding:40px 40px 20px;text-align:center;border-bottom:1px solid #e7e5e4;">
-    <h1 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:300;color:#1c1917;margin:0;">Roma Flooring Designs</h1>
-    <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#78716c;margin:8px 0 0;">Installation Inquiry</p>
+    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto 12px;width:140px;height:140px;" />
+    <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#78716c;margin:0;">Installation Inquiry</p>
   </td></tr>
   <tr><td style="padding:40px;">
     <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;font-weight:400;color:#1c1917;margin:0 0 24px;">New Installation Inquiry — ${esc(inquiry.customer_name)}</h2>

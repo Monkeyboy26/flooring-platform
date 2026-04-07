@@ -3,6 +3,7 @@ version: '3.8'
 services:
   db:
     restart: unless-stopped
+    ports: []
     deploy:
       resources:
         limits:
@@ -12,9 +13,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - backend_net
 
   minio:
     restart: unless-stopped
+    ports: []
     deploy:
       resources:
         limits:
@@ -24,9 +28,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - backend_net
 
   api:
     restart: unless-stopped
+    ports: []
     deploy:
       resources:
         limits:
@@ -38,6 +45,9 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - frontend_net
+      - backend_net
 
   frontend:
     restart: unless-stopped
@@ -59,6 +69,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - frontend_net
 
   certbot:
     image: certbot/certbot
@@ -101,6 +113,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - backend_net
+
+networks:
+  frontend_net:
+  backend_net:
 
 volumes:
   backup_data:

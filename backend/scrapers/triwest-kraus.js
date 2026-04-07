@@ -1,11 +1,14 @@
 import {
   launchBrowser, delay, upsertMediaAsset, upsertSkuAttribute,
-  appendLog, addJobError, downloadImage, resolveImageExtension, preferProductShot
+  appendLog, addJobError, preferProductShot, filterImageUrls,
+  extractLargeImages, collectSiteWideImages,
+  extractSpecPDFs, normalizeTriwestName
 } from './base.js';
 
 const BASE_URL = 'https://krausflooring.com';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const MAX_ERRORS = 30;
+const BATCH_SIZE = 15;
 
 /**
  * Kraus enrichment scraper for Tri-West.
@@ -14,7 +17,7 @@ const MAX_ERRORS = 30;
  * Enriches EXISTING Tri-West SKUs — never creates new products.
  * Tech: WordPress + WooCommerce
  *
- * Runs AFTER triwest-catalog.js populates SKUs in the DB.
+ * Runs AFTER import-triwest-832.cjs populates SKUs in the DB.
  */
 export async function run(pool, job, source) {
   const config = source.config || {};
@@ -27,6 +30,8 @@ export async function run(pool, job, source) {
   let skusEnriched = 0;
   let skusSkipped = 0;
   let imagesAdded = 0;
+  let pdfsAdded = 0;
+  let pagesSinceLaunch = 0;
 
   async function logError(msg) {
     errorCount++;
@@ -36,50 +41,96 @@ export async function run(pool, job, source) {
   }
 
   try {
+    // Load existing TW products for this brand (includes SKU-less products from DNav)
+    const prodResult = await pool.query(`
+      SELECT p.id AS product_id, p.name, p.collection, p.description_long
+      FROM products p
+      WHERE p.vendor_id = $1 AND p.collection LIKE $2
+    `, [vendor_id, `${brandPrefix}%`]);
+
+    // Also load SKU data for products that have it
     const skuResult = await pool.query(`
-      SELECT s.id AS sku_id, s.vendor_sku, s.internal_sku, s.variant_name,
-             p.id AS product_id, p.name, p.collection, p.description_long
+      SELECT s.id AS sku_id, s.vendor_sku, s.internal_sku, s.variant_name, s.product_id
       FROM skus s
       JOIN products p ON p.id = s.product_id
       WHERE p.vendor_id = $1 AND p.collection LIKE $2
     `, [vendor_id, `${brandPrefix}%`]);
 
-    await appendLog(pool, job.id, `Found ${skuResult.rows.length} ${brandPrefix} SKUs to enrich`);
+    await appendLog(pool, job.id, `Found ${prodResult.rows.length} ${brandPrefix} products (${skuResult.rows.length} SKUs) to enrich`);
 
-    if (skuResult.rows.length === 0) {
-      await appendLog(pool, job.id, `No ${brandPrefix} SKUs found — run triwest-catalog first`);
+    if (prodResult.rows.length === 0) {
+      await appendLog(pool, job.id, `No ${brandPrefix} products found — run import-triwest-832 first`);
       return;
     }
 
-    const productGroups = new Map();
+    // Build SKU lookup by product_id
+    const skusByProduct = new Map();
     for (const row of skuResult.rows) {
-      const key = `${row.collection}||${row.name}`;
-      if (!productGroups.has(key)) {
-        productGroups.set(key, { product_id: row.product_id, name: row.name, collection: row.collection, skus: [] });
-      }
-      productGroups.get(key).skus.push(row);
+      if (!skusByProduct.has(row.product_id)) skusByProduct.set(row.product_id, []);
+      skusByProduct.get(row.product_id).push(row);
     }
 
-    await appendLog(pool, job.id, `Grouped into ${productGroups.size} products`);
+    // Group products by collection + name
+    const productGroups = new Map();
+    for (const row of prodResult.rows) {
+      const key = `${row.collection}||${row.name}`;
+      if (!productGroups.has(key)) {
+        productGroups.set(key, {
+          product_id: row.product_id, name: row.name, collection: row.collection,
+          skus: skusByProduct.get(row.product_id) || [],
+        });
+      }
+    }
+
+    // Check which products already have a primary image — skip those
+    const existingImages = await pool.query(`
+      SELECT DISTINCT ma.product_id
+      FROM media_assets ma
+      JOIN products p ON p.id = ma.product_id
+      WHERE p.vendor_id = $1 AND ma.asset_type = 'primary'
+    `, [vendor_id]);
+    const alreadyHaveImages = new Set(existingImages.rows.map(r => r.product_id));
+
+    // Filter to products that still need enrichment
+    const toEnrich = [...productGroups.entries()].filter(([, g]) => !alreadyHaveImages.has(g.product_id));
+    const skippedExisting = productGroups.size - toEnrich.length;
+
+    await appendLog(pool, job.id, `Grouped into ${productGroups.size} products (${skippedExisting} already have images, ${toEnrich.length} to enrich, ${skuResult.rows.length} with SKUs)`);
 
     browser = await launchBrowser();
-    const page = await browser.newPage();
+    let page = await browser.newPage();
     await page.setUserAgent(USER_AGENT);
     await page.setViewport({ width: 1440, height: 900 });
 
-    await appendLog(pool, job.id, `Navigating to ${BASE_URL}...`);
-    await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 30000 });
-    await delay(2000);
+    // Collect site-wide images to exclude
+    await appendLog(pool, job.id, `Collecting site-wide images from ${BASE_URL}...`);
+    const siteWideImages = await collectSiteWideImages(page, BASE_URL);
+    await appendLog(pool, job.id, `Found ${siteWideImages.size} site-wide images to exclude`);
+    pagesSinceLaunch++;
 
     let processed = 0;
-    for (const [key, group] of productGroups) {
+    for (const [key, group] of toEnrich) {
       processed++;
 
+      // Recycle browser periodically to avoid memory leaks
+      if (pagesSinceLaunch >= BATCH_SIZE) {
+        await appendLog(pool, job.id, `Recycling browser after ${BATCH_SIZE} pages...`);
+        try { await page.close(); } catch { }
+        try { await browser.close(); } catch { }
+        await delay(5000);
+        browser = await launchBrowser();
+        page = await browser.newPage();
+        await page.setUserAgent(USER_AGENT);
+        await page.setViewport({ width: 1440, height: 900 });
+        pagesSinceLaunch = 0;
+      }
+
       try {
-        const productData = await findProductOnSite(page, group, delayMs);
+        const productData = await findProductOnSite(page, group, delayMs, siteWideImages);
+        pagesSinceLaunch++;
 
         if (!productData) {
-          skusSkipped += group.skus.length;
+          skusSkipped++;
           continue;
         }
 
@@ -91,9 +142,15 @@ export async function run(pool, job, source) {
         }
 
         if (productData.images && productData.images.length > 0) {
-          const sorted = preferProductShot(productData.images, group.name);
-          for (let i = 0; i < Math.min(sorted.length, 8); i++) {
-            const assetType = i === 0 ? 'primary' : (sorted[i].includes('room') || sorted[i].includes('scene') ? 'lifestyle' : 'alternate');
+          const filtered = filterImageUrls(productData.images, { maxImages: 8 });
+          const sorted = preferProductShot(filtered, group.name);
+          for (let i = 0; i < sorted.length; i++) {
+            const urlLower = sorted[i].toLowerCase();
+            const isLifestyle = urlLower.includes('room') || urlLower.includes('scene')
+              || urlLower.includes('lifestyle') || urlLower.includes('installed');
+            const assetType = i === 0 ? 'primary'
+              : (isLifestyle || i > 2) ? 'lifestyle'
+              : 'alternate';
             await upsertMediaAsset(pool, {
               product_id: group.product_id,
               sku_id: null,
@@ -106,7 +163,22 @@ export async function run(pool, job, source) {
           }
         }
 
-        if (productData.specs) {
+        // Upsert spec PDFs
+        if (productData.pdfs && productData.pdfs.length > 0) {
+          for (let i = 0; i < productData.pdfs.length; i++) {
+            await upsertMediaAsset(pool, {
+              product_id: group.product_id,
+              sku_id: null,
+              asset_type: 'spec_pdf',
+              url: productData.pdfs[i].url,
+              original_url: productData.pdfs[i].url,
+              sort_order: i,
+            });
+            pdfsAdded++;
+          }
+        }
+
+        if (productData.specs && group.skus.length > 0) {
           for (const sku of group.skus) {
             for (const [attrSlug, value] of Object.entries(productData.specs)) {
               if (value) await upsertSkuAttribute(pool, sku.sku_id, attrSlug, value);
@@ -118,16 +190,16 @@ export async function run(pool, job, source) {
         }
       } catch (err) {
         await logError(`${group.collection} / ${group.name}: ${err.message}`);
-        skusSkipped += group.skus.length;
+        skusSkipped++;
       }
 
       if (processed % 10 === 0) {
-        await appendLog(pool, job.id, `Progress: ${processed}/${productGroups.size} products, ${imagesAdded} images added`);
+        await appendLog(pool, job.id, `Progress: ${processed}/${toEnrich.length} products, ${imagesAdded} images, ${pdfsAdded} PDFs`);
       }
     }
 
     await appendLog(pool, job.id,
-      `Complete. Products: ${productGroups.size}, SKUs enriched: ${skusEnriched}, Skipped: ${skusSkipped}, Images: ${imagesAdded}, Errors: ${errorCount}`,
+      `Complete. Products: ${toEnrich.length} enriched (${skippedExisting} skipped), SKUs enriched: ${skusEnriched}, Skipped: ${skusSkipped}, Images: ${imagesAdded}, PDFs: ${pdfsAdded}, Errors: ${errorCount}`,
       { products_found: productGroups.size, products_updated: skusEnriched }
     );
 
@@ -148,49 +220,71 @@ export async function run(pool, job, source) {
  *    - Description from .woocommerce-product-details__short-description or .product-description
  *    - Specs from WooCommerce additional information table
  */
-async function findProductOnSite(page, group, delayMs) {
-  const productSlug = group.name
+async function findProductOnSite(page, group, delayMs, siteWideImages) {
+  const normalized = normalizeTriwestName(group.name);
+  const productSlug = normalized
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-  // Try direct product URL
-  const productUrl = `${BASE_URL}/product/${productSlug}/`;
+  // Also try collection-based slug
+  const collectionSlug = group.collection
+    .replace(/^Kraus\s+/i, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  // Try direct product URLs
+  const slugsToTry = [...new Set([productSlug, collectionSlug])];
   let foundPage = false;
 
-  try {
-    const response = await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-    if (response && response.status() === 200) {
-      foundPage = true;
-      await delay(delayMs);
+  for (const slug of slugsToTry) {
+    const productUrl = `${BASE_URL}/product/${slug}/`;
+    try {
+      const response = await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 20000 });
+      if (response && response.status() === 200) {
+        foundPage = true;
+        await delay(delayMs);
+        break;
+      }
+    } catch {
+      continue;
     }
-  } catch {
-    // Will try search fallback
   }
 
   // Fallback to WooCommerce product search
   if (!foundPage) {
-    const searchTerm = group.name;
-    const searchUrl = `${BASE_URL}/?s=${encodeURIComponent(searchTerm)}&post_type=product`;
-    await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-    await delay(delayMs);
+    const searchTerms = [normalized, group.collection.replace(/^Kraus\s+/i, '')];
+    for (const searchTerm of searchTerms) {
+      const searchUrl = `${BASE_URL}/?s=${encodeURIComponent(searchTerm)}&post_type=product`;
+      try {
+        await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 20000 });
+        await delay(delayMs);
 
-    // Click first product result
-    const firstProduct = await page.$('.woocommerce-loop-product__link, .product a, a[href*="/product/"]');
-    if (!firstProduct) {
-      return null;
+        const firstProduct = await page.$('.woocommerce-loop-product__link, .product a, a[href*="/product/"]');
+        if (firstProduct) {
+          await Promise.all([
+            page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }),
+            firstProduct.click()
+          ]);
+          await delay(delayMs);
+          foundPage = true;
+          break;
+        }
+      } catch {
+        continue;
+      }
     }
-
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }),
-      firstProduct.click()
-    ]);
-    await delay(delayMs);
   }
+
+  if (!foundPage) return null;
 
   const productData = { images: [], specs: {} };
 
-  // Extract images from WooCommerce product gallery
+  // Extract images using extractLargeImages + WooCommerce gallery
+  const largeImgs = await extractLargeImages(page, siteWideImages, 150);
+  const utilityImages = largeImgs.map(img => img.src);
+
   const galleryImages = await page.$$eval(
     '.woocommerce-product-gallery img, .product-images img, img[src*="/wp-content/uploads/"]',
     imgs => imgs
@@ -198,9 +292,9 @@ async function findProductOnSite(page, group, delayMs) {
       .filter(src => src && !src.includes('logo') && !src.includes('icon') && !src.includes('placeholder'))
   ).catch(() => []);
 
-  productData.images = [...new Set(galleryImages)]; // Remove duplicates
+  productData.images = [...new Set([...utilityImages, ...galleryImages])];
 
-  // Extract description from WooCommerce short description or product description
+  // Extract description
   const description = await page.$eval(
     '.woocommerce-product-details__short-description, .product-description, .entry-content > p:first-of-type',
     el => el.textContent.trim()
@@ -209,6 +303,10 @@ async function findProductOnSite(page, group, delayMs) {
   if (description) {
     productData.description = description;
   }
+
+  // Extract spec PDFs
+  const specPdfs = await extractSpecPDFs(page).catch(() => []);
+  productData.pdfs = specPdfs;
 
   // Extract specs from WooCommerce additional information table
   const specs = await page.$$eval(
@@ -219,7 +317,7 @@ async function findProductOnSite(page, group, delayMs) {
         const th = row.querySelector('th');
         const td = row.querySelector('td');
         if (th && td) {
-          const key = th.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+          const key = th.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
           const value = td.textContent.trim();
           result[key] = value;
         }
@@ -228,23 +326,23 @@ async function findProductOnSite(page, group, delayMs) {
     }
   ).catch(() => {});
 
-  // Map WooCommerce specs to attribute slugs
+  // Map WooCommerce specs to attribute slugs (use underscores)
   if (specs) {
     if (specs.thickness) productData.specs['thickness'] = specs.thickness;
     if (specs.width) productData.specs['width'] = specs.width;
     if (specs.length) productData.specs['length'] = specs.length;
-    if (specs['wear-layer']) productData.specs['wear-layer'] = specs['wear-layer'];
-    if (specs.surface || specs.finish) productData.specs['surface-finish'] = specs.surface || specs.finish;
+    if (specs.wear_layer) productData.specs['wear_layer'] = specs.wear_layer;
+    if (specs.surface || specs.finish) productData.specs['finish'] = specs.surface || specs.finish;
     if (specs.species) productData.specs['species'] = specs.species;
-    if (specs.edge || specs['edge-profile']) productData.specs['edge-profile'] = specs.edge || specs['edge-profile'];
+    if (specs.edge || specs.edge_profile) productData.specs['edge_profile'] = specs.edge || specs.edge_profile;
     if (specs.construction) productData.specs['construction'] = specs.construction;
-    if (specs.installation || specs['installation-method']) {
-      productData.specs['installation-method'] = specs.installation || specs['installation-method'];
+    if (specs.installation || specs.installation_method) {
+      productData.specs['installation_method'] = specs.installation || specs.installation_method;
     }
-    if (specs['core-type']) productData.specs['core-type'] = specs['core-type'];
+    if (specs.core_type) productData.specs['core_type'] = specs.core_type;
   }
 
-  return productData.images.length > 0 || productData.description || Object.keys(productData.specs).length > 0
+  return productData.images.length > 0 || productData.description || Object.keys(productData.specs).length > 0 || productData.pdfs?.length > 0
     ? productData
     : null;
 }

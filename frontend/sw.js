@@ -1,10 +1,10 @@
-const CACHE_NAME = 'roma-v42';
+const CACHE_NAME = 'roma-v57';
 const IMAGE_CACHE = 'roma-images-v1';
 const IMAGE_CACHE_LIMIT = 500;
 const SHELL_ASSETS = [
   '/storefront.html',
-  '/storefront.css?v=45',
-  '/storefront-app.js?v=89',
+  '/storefront.css?v=47',
+  '/storefront-app.js?v=103',
   '/favicon.svg',
   '/manifest.json'
 ];
@@ -34,6 +34,25 @@ async function trimCache(cacheName, limit) {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
+
+  // Image resize proxy — cache first (immutable responses)
+  if (url.pathname === '/api/img') {
+    e.respondWith(
+      caches.open(IMAGE_CACHE).then(cache =>
+        cache.match(e.request).then(cached => {
+          if (cached) return cached;
+          return fetch(e.request).then(res => {
+            if (res.ok) {
+              cache.put(e.request, res.clone());
+              trimCache(IMAGE_CACHE, IMAGE_CACHE_LIMIT);
+            }
+            return res;
+          }).catch(() => new Response('', { status: 503 }));
+        })
+      )
+    );
+    return;
+  }
 
   // API — network only
   if (url.pathname.startsWith('/api/')) return;

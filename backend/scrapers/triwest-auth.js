@@ -37,25 +37,16 @@ export async function triwestFetch(urlPath, cookies, options = {}) {
 
 /**
  * Log into Tri-West DNav (Décor 24) dealer portal via Puppeteer.
+ * Returns the authenticated browser + page for direct use by scrapers.
  *
- * DNav uses jQuery-based forms with possible JS-generated hidden fields.
- * Puppeteer with a real Chromium instance handles these correctly.
+ * DNav sessions are cookie-based but don't transfer well between browser
+ * instances, so callers should use the returned page directly.
  *
- * Flow:
- *   1. Launch Puppeteer browser
- *   2. Navigate to DNav portal login
- *   3. Fill username + password
- *   4. Submit form
- *   5. Wait for redirect (successful login redirects to dashboard)
- *   6. Extract all cookies from the page
- *   7. Close browser
- *   8. Return cookie string for use with fetch()
- *
- * Requires TRIWEST_USERNAME and TRIWEST_PASSWORD environment variables.
+ * The caller is responsible for closing the browser when done.
  *
  * @param {Pool} pool - DB pool for logging
  * @param {number} jobId - Scrape job ID for logging
- * @returns {string} Combined cookie string
+ * @returns {{ browser, page, cookies: string }} Authenticated browser, page, and cookie string
  */
 export async function triwestLogin(pool, jobId) {
   const username = process.env.TRIWEST_USERNAME;
@@ -72,7 +63,7 @@ export async function triwestLogin(pool, jobId) {
   try {
     const page = await browser.newPage();
     await page.setUserAgent(USER_AGENT);
-    await page.setViewport({ width: 1280, height: 800 });
+    await page.setViewport({ width: 1440, height: 900 });
 
     // Navigate to DNav portal
     await appendLog(pool, jobId, `Navigating to DNav portal: ${PORTAL_BASE}`);
@@ -109,18 +100,12 @@ export async function triwestLogin(pool, jobId) {
     });
     await appendLog(pool, jobId, `Page info: ${JSON.stringify(pageInfo, null, 2)}`);
 
-    // Find and fill username field
+    // Find and fill username field — DNav uses #d24user_login
     const usernameSelector = await findSelector(page, [
+      '#d24user_login',
+      'input[name="d24user_login"]',
       'input[name="username"]',
-      'input[name="userid"]',
-      'input[name="user"]',
-      'input[name="login"]',
-      'input[name*="user"]',
-      'input[name*="User"]',
-      'input[type="text"]:first-of-type',
       '#username',
-      '#userid',
-      '#user',
     ]);
 
     if (!usernameSelector) {
@@ -131,12 +116,11 @@ export async function triwestLogin(pool, jobId) {
     await page.click(usernameSelector, { clickCount: 3 });
     await page.type(usernameSelector, username, { delay: 50 });
 
-    // Find and fill password field
+    // Find and fill password field — DNav uses #d24pwd
     const passwordSelector = await findSelector(page, [
+      '#d24pwd',
+      'input[name="d24pwd"]',
       'input[type="password"]',
-      'input[name="password"]',
-      'input[name="passwd"]',
-      'input[name*="pass"]',
       '#password',
     ]);
 
@@ -151,17 +135,11 @@ export async function triwestLogin(pool, jobId) {
     await appendLog(pool, jobId, 'Credentials filled, submitting...');
     await delay(1000);
 
-    // Submit form
-    let submitted = false;
-
+    // Submit form — DNav uses #login_SubmitBttn
     const submitSelector = await findSelector(page, [
-      'button[type="submit"]',
+      '#login_SubmitBttn',
+      '#login_form input[type="submit"]',
       'input[type="submit"]',
-      'input[type="button"][value*="Login"]',
-      'input[type="button"][value*="Sign"]',
-      'button.btn-primary',
-      '#loginButton',
-      '#login-btn',
     ]);
 
     if (submitSelector) {
@@ -169,31 +147,8 @@ export async function triwestLogin(pool, jobId) {
         page.click(submitSelector),
         page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {}),
       ]);
-      submitted = true;
-    }
-
-    // Fallback: find login/sign-in button by text
-    if (!submitted) {
-      const signInClicked = await page.evaluate(() => {
-        const elements = Array.from(document.querySelectorAll('button, a, input[type="button"]'));
-        const btn = elements.find(el => {
-          const text = (el.textContent || el.value || '').trim().toLowerCase();
-          return text === 'sign in' || text === 'login' || text === 'log in' || text === 'submit';
-        });
-        if (btn) { btn.click(); return true; }
-        const form = document.querySelector('form');
-        if (form) { form.submit(); return true; }
-        return false;
-      });
-
-      if (signInClicked) {
-        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
-        submitted = true;
-      }
-    }
-
-    // Last resort: press Enter in password field
-    if (!submitted) {
+    } else {
+      // Fallback: press Enter in password field
       await page.focus(passwordSelector);
       await page.keyboard.press('Enter');
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
@@ -207,33 +162,29 @@ export async function triwestLogin(pool, jobId) {
     await screenshot(page, 'triwest-post-login');
 
     const pageText = await page.evaluate(() => document.body.innerText.slice(0, 2000)).catch(() => '');
-    const lowerText = pageText.toLowerCase();
 
-    const loginFailed = (
-      lowerText.includes('invalid') || lowerText.includes('incorrect') ||
-      lowerText.includes('try again') || lowerText.includes('wrong password') ||
-      lowerText.includes('authentication failed')
-    ) && (
-      currentUrl.includes('login') || currentUrl.includes('Login') || currentUrl.includes('signin')
-    );
-
-    if (loginFailed) {
-      await screenshot(page, 'triwest-login-failed');
-      throw new Error('Login failed: invalid credentials or blocked');
+    // Check if we're on the dashboard (URL contains /main/)
+    if (!currentUrl.includes('/main/')) {
+      // Still on login page — credentials might be wrong
+      if (pageText.includes('not found') || pageText.includes('invalid') || pageText.includes('incorrect')) {
+        await screenshot(page, 'triwest-login-failed');
+        throw new Error('Login failed: invalid credentials');
+      }
+      throw new Error(`Login failed: unexpected post-login URL: ${currentUrl}`);
     }
 
-    // Extract cookies from the browser session
-    const cookies = await page.cookies();
-    const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+    // Extract cookies for use with fetch() as well
+    const rawCookies = await page.cookies();
+    const cookieString = rawCookies.map(c => `${c.name}=${c.value}`).join('; ');
 
-    if (!cookieString) {
-      throw new Error('Login failed: no cookies received');
-    }
+    await appendLog(pool, jobId, `Login successful — ${rawCookies.length} cookies extracted, on dashboard`);
 
-    await appendLog(pool, jobId, `Login successful — ${cookies.length} cookies extracted`);
-    return cookieString;
-  } finally {
+    // Return browser + page so caller can use the same authenticated session
+    return { browser, page, cookies: cookieString };
+  } catch (err) {
+    // On error, close the browser before re-throwing
     await browser.close().catch(() => {});
+    throw err;
   }
 }
 
