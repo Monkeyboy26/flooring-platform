@@ -9,3 +9,6 @@ certbot/
 *.sql.gz
 postgres_data/
 minio_data/
+backend/_cache/
+flooring_pim.db
+*.db

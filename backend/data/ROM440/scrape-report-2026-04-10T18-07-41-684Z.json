@@ -1,0 +1,35 @@
+{
+  "startedAt": "2026-04-10T18:07:38.928Z",
+  "finishedAt": "2026-04-10T18:07:41.685Z",
+  "elapsedMs": 2755,
+  "dryRun": false,
+  "filters": {
+    "LIMIT": null,
+    "ONLY": "89101-SN",
+    "CATEGORY": null
+  },
+  "totals": {
+    "processed": 1,
+    "primary": 1,
+    "alternate": 0,
+    "spec": 1,
+    "notFound": 0,
+    "mismatches": 0,
+    "skipped": 0,
+    "uniquePages": 1,
+    "pageFetches": 1,
+    "pageCacheHits": 0,
+    "imageDownloads": 1
+  },
+  "byClass": {
+    "Carved Wood": {
+      "processed": 1,
+      "primary": 1,
+      "alternate": 0,
+      "spec": 1,
+      "skipped": 0
+    }
+  },
+  "notFound": [],
+  "mismatches": []
+}

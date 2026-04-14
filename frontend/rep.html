@@ -10,9 +10,9 @@
   <meta name="apple-mobile-web-app-title" content="Roma Rep">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>Sales Rep Portal - Roma Flooring Designs</title>
-  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
-  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
-  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
+  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z"></script>
+  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1"></script>
+  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" integrity="sha384-x/ilTFv/u/eu6YSmkFDZl5V5Mm/pkxxcVv2cVJOrr1J0rvILhMvRBCy6yA75wYBj"></script>
   <script src="https://js.stripe.com/terminal/v1/"></script>
   <script src="https://js.stripe.com/v3/"></script>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
@@ -1675,9 +1675,13 @@
   <script type="text/babel" data-presets="env,react">
     const { useState, useEffect, useCallback, useRef } = React;
 
-        const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? 'http://localhost:3001'
-      : `${window.location.protocol}//${window.location.hostname}:3001`;
+        const API = (() => {
+      const h = window.location.hostname;
+      if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:3001';
+      const allowed = ['romaflooringdesigns.com', 'www.romaflooringdesigns.com'];
+      if (!allowed.includes(h)) return '';  // same-origin fallback
+      return `${window.location.protocol}//${h}:3001`;
+    })();
 
     // ========== Image Optimization Helper ==========
     function optimizeImg(url, width) {
@@ -1715,6 +1719,22 @@
       });
     }
 
+    // Fetch PDF/HTML as blob URL (avoids leaking token in URL)
+    function repOpenDoc(path, newTab) {
+      const token = sessionStorage.getItem('rep_token');
+      return fetch(API + path, {
+        headers: { 'X-Rep-Token': token || '' }
+      }).then(r => {
+        if (r.status === 401) { sessionStorage.removeItem('rep_token'); sessionStorage.removeItem('rep_info'); window.location.reload(); throw new Error('Unauthorized'); }
+        if (!r.ok) throw new Error('Failed to load document');
+        return r.blob();
+      }).then(blob => {
+        const url = URL.createObjectURL(blob);
+        if (newTab) { window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); }
+        return url;
+      });
+    }
+
     function repUpload(path, formData) {
       const token = sessionStorage.getItem('rep_token');
       return fetch(API + path, {
@@ -1735,7 +1755,7 @@
         const r = await fetch(API + '/api/config/stripe-key');
         const data = await r.json();
         if (data.key) stripeInstance = Stripe(data.key);
-      } catch (e) { console.warn('Failed to load Stripe key:', e); }
+      } catch (e) { /* Stripe key load failed */ }
     })();
 
     // Mobile detection (used to decide card payment flow)
@@ -2372,8 +2392,8 @@
         setAuthed(true);
       };
 
-      const handleLogout = () => {
-        repFetch('/api/rep/logout', { method: 'POST' }).catch(() => {});
+      const handleLogout = async () => {
+        try { await repFetch('/api/rep/logout', { method: 'POST' }); } catch(e) {}
         sessionStorage.removeItem('rep_token');
         sessionStorage.removeItem('rep_info');
         setAuthed(false);
@@ -3996,6 +4016,7 @@
       const [skuResults, setSkuResults] = useState([]);
       const [skuSearching, setSkuSearching] = useState(false);
       const skuSearchTimer = useRef(null);
+      const skuSearchCounter = useRef(0);
       const [addBoxes, setAddBoxes] = useState(1);
       const [showCustom, setShowCustom] = useState(false);
       const [customItem, setCustomItem] = useState({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'sqft' });
@@ -4087,14 +4108,18 @@
       const searchSku = (q) => {
         setSkuSearch(q);
         if (skuSearchTimer.current) clearTimeout(skuSearchTimer.current);
+        const thisSearch = ++skuSearchCounter.current;
         if (q.length < 2) { setSkuResults([]); setSkuSearching(false); return; }
         setSkuSearching(true);
         skuSearchTimer.current = setTimeout(async () => {
           try {
             const data = await repFetch('/api/rep/skus/search?q=' + encodeURIComponent(q));
+            if (thisSearch !== skuSearchCounter.current) return;
             setSkuResults(data.results || []);
-          } catch (e) {}
-          setSkuSearching(false);
+          } catch (e) {
+            if (thisSearch !== skuSearchCounter.current) return;
+          }
+          if (thisSearch === skuSearchCounter.current) setSkuSearching(false);
         }, 250);
       };
 
@@ -4491,6 +4516,7 @@
               <div className="mobile-stack" style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
                 <div style={{ flex: 2, minWidth: '0', position: 'relative' }}>
                   <input type="text" value={skuSearch} placeholder="Search SKU or product name..."
+                    onBlur={() => setTimeout(() => { setSkuResults([]); setSkuSearching(false); }, 200)}
                     onChange={e => searchSku(e.target.value)}
                     style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: "'Inter', sans-serif" }} />
                   {skuSearching && skuResults.length === 0 && skuSearch.length >= 2 && (
@@ -4537,11 +4563,11 @@
                   <div className="resp-grid-2" style={{ gap: '0.75rem' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label>Item Name *</label>
-                      <input type="text" value={customItem.product_name} onChange={e => setCustomItem(c => ({ ...c, product_name: e.target.value }))} placeholder="e.g. Custom transition strip" />
+                      <input type="text" maxLength={200} value={customItem.product_name} onChange={e => setCustomItem(c => ({ ...c, product_name: e.target.value }))} placeholder="e.g. Custom transition strip" />
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label>Description</label>
-                      <input type="text" value={customItem.description} onChange={e => setCustomItem(c => ({ ...c, description: e.target.value }))} placeholder="Optional notes" />
+                      <input type="text" maxLength={500} value={customItem.description} onChange={e => setCustomItem(c => ({ ...c, description: e.target.value }))} placeholder="Optional notes" />
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label>Sold By *</label>
@@ -4759,7 +4785,7 @@
             ) : (
               <div>
                 <div className="mobile-stack" style={{ display: 'flex', gap: '0.5rem', maxWidth: '360px' }}>
-                  <input type="text" value={promoCode} onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoError(''); }}
+                  <input type="text" maxLength={50} value={promoCode} onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoError(''); }}
                     onKeyDown={e => e.key === 'Enter' && applyPromo()}
                     placeholder="Enter promo code" style={{ flex: 1, padding: '0.75rem 1rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }} />
                   <button className="btn btn-primary btn-sm" onClick={applyPromo} disabled={promoLoading || !promoCode.trim() || items.length === 0}>
@@ -4792,7 +4818,7 @@
             {form.payment_method === 'check' && (
               <div style={{ marginTop: '0.5rem' }}>
                 <label style={{ fontSize: '0.8125rem', fontWeight: 500, display: 'block', marginBottom: '0.25rem' }}>Check Number *</label>
-                <input type="text" value={form.check_number || ''} onChange={e => setForm(f => ({ ...f, check_number: e.target.value }))}
+                <input type="text" maxLength={20} value={form.check_number || ''} onChange={e => setForm(f => ({ ...f, check_number: e.target.value }))}
                   placeholder="Enter check number" style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }} />
               </div>
             )}
@@ -4977,19 +5003,24 @@
       const [skuResults, setSkuResults] = useState([]);
       const [skuSearching, setSkuSearching] = useState(false);
       const skuSearchTimer = useRef(null);
+      const skuSearchCounter = useRef(0);
       const [saving, setSaving] = useState(false);
 
       const searchSku = (q) => {
         setSkuSearch(q);
         if (skuSearchTimer.current) clearTimeout(skuSearchTimer.current);
+        const thisSearch = ++skuSearchCounter.current;
         if (q.length < 2) { setSkuResults([]); setSkuSearching(false); return; }
         setSkuSearching(true);
         skuSearchTimer.current = setTimeout(async () => {
           try {
             const data = await repFetch('/api/rep/skus/search?q=' + encodeURIComponent(q));
+            if (thisSearch !== skuSearchCounter.current) return;
             setSkuResults(data.results || []);
-          } catch (e) {}
-          setSkuSearching(false);
+          } catch (e) {
+            if (thisSearch !== skuSearchCounter.current) return;
+          }
+          if (thisSearch === skuSearchCounter.current) setSkuSearching(false);
         }, 250);
       };
 
@@ -5123,7 +5154,7 @@
             <h3>Products (max 5)</h3>
             <div className="form-group" style={{ position: 'relative' }}>
               <label>Search Products</label>
-              <input value={skuSearch} onChange={e => searchSku(e.target.value)} placeholder="Search by product name, SKU, or collection..." />
+              <input value={skuSearch} onBlur={() => setTimeout(() => { setSkuResults([]); setSkuSearching(false); }, 200)} onChange={e => searchSku(e.target.value)} placeholder="Search by product name, SKU, or collection..." />
               {skuSearching && skuResults.length === 0 && skuSearch.length >= 2 && (
                 <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
               )}
@@ -5646,6 +5677,7 @@
                           type="text"
                           placeholder="Search to add a sample..."
                           value={addSkuSearch}
+                          onBlur={() => setTimeout(() => { setAddSkuResults([]); setAddSkuSearching(false); }, 200)}
                           onChange={e => searchSkuToAdd(e.target.value)}
                           style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem', boxSizing: 'border-box' }}
                         />
@@ -6219,19 +6251,24 @@
       const [skuResults, setSkuResults] = useState([]);
       const [skuSearching, setSkuSearching] = useState(false);
       const skuSearchTimer = useRef(null);
+      const skuSearchCounter = useRef(0);
       const [saving, setSaving] = useState(false);
 
       const searchSku = (q) => {
         setSkuSearch(q);
         if (skuSearchTimer.current) clearTimeout(skuSearchTimer.current);
+        const thisSearch = ++skuSearchCounter.current;
         if (q.length < 2) { setSkuResults([]); setSkuSearching(false); return; }
         setSkuSearching(true);
         skuSearchTimer.current = setTimeout(async () => {
           try {
             const data = await repFetch('/api/rep/skus/search?q=' + encodeURIComponent(q));
+            if (thisSearch !== skuSearchCounter.current) return;
             setSkuResults(data.results || []);
-          } catch (e) {}
-          setSkuSearching(false);
+          } catch (e) {
+            if (thisSearch !== skuSearchCounter.current) return;
+          }
+          if (thisSearch === skuSearchCounter.current) setSkuSearching(false);
         }, 250);
       };
 
@@ -6325,7 +6362,7 @@
             <h3>Products</h3>
             <div className="form-group" style={{ position: 'relative' }}>
               <label>Search Products</label>
-              <input value={skuSearch} onChange={e => searchSku(e.target.value)} placeholder="Search by product name, SKU, or collection..." />
+              <input value={skuSearch} onBlur={() => setTimeout(() => { setSkuResults([]); setSkuSearching(false); }, 200)} onChange={e => searchSku(e.target.value)} placeholder="Search by product name, SKU, or collection..." />
               {skuSearching && skuResults.length === 0 && skuSearch.length >= 2 && (
                 <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
               )}
@@ -6917,7 +6954,7 @@
     // ========== DocumentPreviewModal ==========
     function DocumentPreviewModal({ url, title, onClose }) {
       const iframeRef = React.useRef(null);
-      const previewUrl = url + (url.includes('?') ? '&' : '?') + 'preview=true';
+      useEffect(() => { return () => { if (url && url.startsWith('blob:')) URL.revokeObjectURL(url); }; }, [url]);
       return (
         <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
           <div style={{ background: 'white', width: '90vw', height: '85vh', display: 'flex', flexDirection: 'column' }}>
@@ -6926,11 +6963,11 @@
               <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: 'var(--stone-500)' }}>{'\u2715'}</button>
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <iframe ref={iframeRef} src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} />
+              <iframe ref={iframeRef} src={url} sandbox="allow-same-origin" style={{ width: '100%', height: '100%', border: 'none' }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', padding: '0.75rem 1rem', borderTop: '1px solid var(--stone-200)' }}>
               <button className="btn btn-secondary" onClick={() => {
-                try { iframeRef.current.contentWindow.print(); } catch(e) { window.open(previewUrl, '_blank'); }
+                try { iframeRef.current.contentWindow.print(); } catch(e) { window.open(url, '_blank'); }
               }}>Print</button>
               <button className="btn btn-primary" onClick={() => window.open(url, '_blank')}>Download PDF</button>
             </div>
@@ -6974,6 +7011,7 @@
       const [skuSearchResults, setSkuSearchResults] = useState([]);
       const [skuSearching, setSkuSearching] = useState(false);
       const skuSearchTimer = useRef(null);
+      const skuSearchCounter = useRef(0);
       const [addItemMode, setAddItemMode] = useState('sku');
       const [customItemName, setCustomItemName] = useState('');
       const [customItemPrice, setCustomItemPrice] = useState('');
@@ -7030,7 +7068,7 @@
         try {
           const data = await repFetch('/api/rep/orders/' + editId + '/activity');
           setOrderActivity(data.activity || []);
-        } catch (err) { console.error('Failed to load order activity:', err); }
+        } catch (err) { /* order activity load failed */ }
       }, [editId]);
 
       const loadPOs = useCallback(() => {
@@ -7234,15 +7272,13 @@
                 </span>
               )}
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => {
-                  const token = sessionStorage.getItem('rep_token');
-                  setDocPreview({ url: API + '/api/rep/orders/' + editId + '/packing-slip?token=' + encodeURIComponent(token), title: 'Packing Slip' });
+                <button className="btn btn-secondary btn-sm" onClick={async () => {
+                  try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/packing-slip?preview=true'); setDocPreview({ url, title: 'Packing Slip' }); } catch(e) { alert('Failed to load packing slip'); }
                 }}>
                   Packing Slip
                 </button>
-                <button className="btn btn-secondary btn-sm" onClick={() => {
-                  const token = sessionStorage.getItem('rep_token');
-                  setDocPreview({ url: API + '/api/rep/orders/' + editId + '/invoice?token=' + encodeURIComponent(token), title: 'Invoice' });
+                <button className="btn btn-secondary btn-sm" onClick={async () => {
+                  try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/invoice?preview=true'); setDocPreview({ url, title: 'Invoice' }); } catch(e) { alert('Failed to load invoice'); }
                 }}>
                   Invoice
                 </button>
@@ -7333,7 +7369,7 @@
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Tracking Number *</label>
-                    <input className="form-control" type="text" placeholder="Enter tracking number" value={trackingData.tracking_number} onChange={e => setTrackingData({ ...trackingData, tracking_number: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                    <input className="form-control" type="text" maxLength={80} placeholder="Enter tracking number" value={trackingData.tracking_number} onChange={e => setTrackingData({ ...trackingData, tracking_number: e.target.value })} style={{ fontSize: '0.8125rem' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Ship Date</label>
@@ -7755,17 +7791,20 @@
                     {addItemMode === 'sku' ? (
                       /* SKU search mode */
                       <div className="mobile-stack" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                        <div style={{ flex: 2, minWidth: '0' }}>
+                        <div style={{ flex: 2, minWidth: '0', position: 'relative' }}>
                           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Search SKU</label>
                           <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
+                            onBlur={() => setTimeout(() => { setSkuSearchResults([]); setSkuSearching(false); }, 200)}
                             onChange={(e) => {
                               const q = e.target.value; setAddItemSku(q);
                               if (skuSearchTimer.current) clearTimeout(skuSearchTimer.current);
+                              const thisSearch = ++skuSearchCounter.current;
                               if (q.length >= 2) {
                                 setSkuSearching(true);
                                 skuSearchTimer.current = setTimeout(async () => {
                                   try {
                                     const data = await repFetch('/api/rep/skus/search?q=' + encodeURIComponent(q));
+                                    if (thisSearch !== skuSearchCounter.current) return;
                                     setSkuSearchResults((data.results || []).map(r => ({
                                       sku_id: r.sku_id,
                                       collection: r.collection || '',
@@ -7783,8 +7822,11 @@
                                       roll_width_ft: r.roll_width_ft,
                                       primary_image: r.primary_image || null
                                     })));
-                                  } catch (e) {}
-                                  setSkuSearching(false);
+                                  } catch (err) {
+                                    if (thisSearch !== skuSearchCounter.current) return;
+                                    /* SKU search error */
+                                  }
+                                  if (thisSearch === skuSearchCounter.current) setSkuSearching(false);
                                 }, 250);
                               } else { setSkuSearchResults([]); setSkuSearching(false); }
                             }}
@@ -7857,7 +7899,7 @@
                         </div>
                         <div style={{ minWidth: '160px', flex: 2 }}>
                           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Product Name *</label>
-                          <input type="text" value={customItemName} onChange={e => setCustomItemName(e.target.value)}
+                          <input type="text" maxLength={200} value={customItemName} onChange={e => setCustomItemName(e.target.value)}
                             placeholder="e.g. Custom transition strip"
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
                         </div>
@@ -7884,7 +7926,7 @@
                         </div>
                         <div style={{ minWidth: '140px', flex: 1 }}>
                           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Description</label>
-                          <input type="text" value={customItemDesc} onChange={e => setCustomItemDesc(e.target.value)}
+                          <input type="text" maxLength={500} value={customItemDesc} onChange={e => setCustomItemDesc(e.target.value)}
                             placeholder="Optional notes"
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
                         </div>
@@ -7944,12 +7986,8 @@
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
-                        onClick={() => {
-                          const token = sessionStorage.getItem('rep_token');
-                          setDocPreview({
-                            url: API + '/api/rep/purchase-orders/' + po.id + '/pdf?token=' + encodeURIComponent(token),
-                            title: 'Purchase Order - ' + po.po_number
-                          });
+                        onClick={async () => {
+                          try { const url = await repOpenDoc('/api/rep/purchase-orders/' + po.id + '/pdf?preview=true'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number }); } catch(e) { alert('Failed to load PO'); }
                         }}>
                         View PO
                       </button>
@@ -8212,7 +8250,7 @@
                   {collectMethod === 'check' && (
                     <div style={{ marginBottom: '0.75rem' }}>
                       <label style={{ fontSize: '0.8125rem', fontWeight: 500, display: 'block', marginBottom: '0.25rem' }}>Check Number *</label>
-                      <input type="text" value={collectCheckNumber} onChange={e => setCollectCheckNumber(e.target.value)}
+                      <input type="text" maxLength={20} value={collectCheckNumber} onChange={e => setCollectCheckNumber(e.target.value)}
                         placeholder="Enter check number" style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }} />
                     </div>
                   )}
@@ -9170,11 +9208,11 @@
                 </div>
                 <div className="form-group">
                   <label>State</label>
-                  <input type="text" value={form.shipping_state} onChange={e => setForm(f => ({ ...f, shipping_state: e.target.value }))} disabled={isReadonly} />
+                  <input type="text" maxLength={2} value={form.shipping_state} onChange={e => setForm(f => ({ ...f, shipping_state: e.target.value }))} disabled={isReadonly} />
                 </div>
                 <div className="form-group">
                   <label>ZIP Code</label>
-                  <input type="text" value={form.shipping_zip} onChange={e => setForm(f => ({ ...f, shipping_zip: e.target.value }))} disabled={isReadonly} />
+                  <input type="text" maxLength={10} value={form.shipping_zip} onChange={e => setForm(f => ({ ...f, shipping_zip: e.target.value }))} disabled={isReadonly} />
                 </div>
               </div>
             </div>
@@ -9250,11 +9288,11 @@
                     <div className="resp-grid-2" style={{ gap: '0.75rem' }}>
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label>Item Name *</label>
-                        <input type="text" placeholder="e.g. Custom threshold piece" value={customItem.product_name} onChange={e => setCustomItem(c => ({ ...c, product_name: e.target.value }))} />
+                        <input type="text" maxLength={200} placeholder="e.g. Custom threshold piece" value={customItem.product_name} onChange={e => setCustomItem(c => ({ ...c, product_name: e.target.value }))} />
                       </div>
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label>Description</label>
-                        <input type="text" placeholder="e.g. 36in marble saddle, honed finish" value={customItem.description} onChange={e => setCustomItem(c => ({ ...c, description: e.target.value }))} />
+                        <input type="text" maxLength={500} placeholder="e.g. 36in marble saddle, honed finish" value={customItem.description} onChange={e => setCustomItem(c => ({ ...c, description: e.target.value }))} />
                       </div>
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label>Sold By *</label>
@@ -9425,7 +9463,7 @@
             ) : (
               <div>
                 <div className="mobile-stack" style={{ display: 'flex', gap: '0.5rem', maxWidth: '360px' }}>
-                  <input type="text" value={promoCode} onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoError(''); }}
+                  <input type="text" maxLength={50} value={promoCode} onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoError(''); }}
                     onKeyDown={e => e.key === 'Enter' && applyRepPromo()}
                     placeholder="Enter promo code" style={{ flex: 1 }} />
                   <button className="btn btn-primary btn-sm" onClick={applyRepPromo} disabled={promoLoading || !promoCode.trim()}>
@@ -9530,7 +9568,7 @@
                   {convertMethod === 'check' && (
                     <div style={{ marginTop: '0.5rem' }}>
                       <label style={{ fontSize: '0.8125rem', fontWeight: 500, display: 'block', marginBottom: '0.25rem' }}>Check Number *</label>
-                      <input type="text" value={convertCheckNumber || ''} onChange={e => setConvertCheckNumber(e.target.value)}
+                      <input type="text" maxLength={20} value={convertCheckNumber || ''} onChange={e => setConvertCheckNumber(e.target.value)}
                         placeholder="Enter check number" style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }} />
                     </div>
                   )}
@@ -10107,7 +10145,9 @@
                 <button className="btn btn-secondary btn-sm" onClick={deleteEstimate} style={{ color: 'var(--red)' }}>Delete</button>
               )}
               {estimate && (
-                <a className="btn btn-secondary btn-sm" href={API + '/api/rep/estimates/' + estimate.id + '/pdf?preview=true&token=' + sessionStorage.getItem('rep_token')} target="_blank" rel="noopener noreferrer">Preview PDF</a>
+                <button className="btn btn-secondary btn-sm" onClick={async () => {
+                  try { const url = await repOpenDoc('/api/rep/estimates/' + estimate.id + '/pdf?preview=true'); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); } catch(e) { alert('Failed to load PDF'); }
+                }}>Preview PDF</button>
               )}
               {estimate && !isReadonly && (
                 <button className="btn btn-secondary btn-sm" onClick={loadPreview} disabled={previewLoading}>
@@ -10587,7 +10627,7 @@
                     </div>
                   )}
                   <div style={{ border: '1px solid var(--stone-200)', borderRadius: 'var(--radius-sm)', maxHeight: 400, overflowY: 'auto' }}>
-                    <iframe srcDoc={previewHtml} style={{ width: '100%', height: 400, border: 'none' }} />
+                    <iframe srcDoc={previewHtml} sandbox="" style={{ width: '100%', height: 400, border: 'none' }} />
                   </div>
                 </div>
                 <div className="modal-footer">
@@ -11563,6 +11603,7 @@
       const [skuSearchResults, setSkuSearchResults] = useState([]);
       const [skuSearching, setSkuSearching] = useState(false);
       const skuSearchTimer = useRef(null);
+      const skuSearchCounter = useRef(0);
       const [newPOItem, setNewPOItem] = useState({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'sqft' });
 
       const load = async () => {
@@ -11572,7 +11613,7 @@
           setPO(data.purchase_order);
           setItems(data.purchase_order.items || []);
           setActivity(data.activity || []);
-        } catch (err) { console.error(err); }
+        } catch (err) { /* PO detail load failed */ }
         setLoading(false);
       };
       useEffect(() => { load(); }, [editId]);
@@ -11640,11 +11681,13 @@
       const handleSkuSearch = (q) => {
         setAddItemSku(q);
         if (skuSearchTimer.current) clearTimeout(skuSearchTimer.current);
+        const thisSearch = ++skuSearchCounter.current;
         if (q.length >= 2) {
           setSkuSearching(true);
           skuSearchTimer.current = setTimeout(async () => {
             try {
               const data = await repFetch('/api/rep/skus/search?q=' + encodeURIComponent(q));
+              if (thisSearch !== skuSearchCounter.current) return;
               setSkuSearchResults((data.results || []).map(r => ({
                 sku_id: r.sku_id, product_name: r.product_name || r.collection || '', variant_name: r.variant_name || '',
                 color: r.color || '', vendor_sku: r.vendor_sku || '', internal_sku: r.internal_sku || '',
@@ -11653,8 +11696,10 @@
                 sqft_per_box: r.sqft_per_box || 1,
                 primary_image: r.primary_image || null
               })));
-            } catch (e) {}
-            setSkuSearching(false);
+            } catch (e) {
+              if (thisSearch !== skuSearchCounter.current) return;
+            }
+            if (thisSearch === skuSearchCounter.current) setSkuSearching(false);
           }, 250);
         } else { setSkuSearchResults([]); setSkuSearching(false); }
       };
@@ -11827,6 +11872,7 @@
                 {addItemMode === 'sku' ? (
                   <div style={{ position: 'relative' }}>
                     <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
+                      onBlur={() => setTimeout(() => { setSkuSearchResults([]); setSkuSearching(false); }, 200)}
                       onChange={e => handleSkuSearch(e.target.value)}
                       style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)', borderRadius: '6px' }} />
                     {skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
@@ -11862,12 +11908,12 @@
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                     <div style={{ flex: 2, minWidth: '140px' }}>
                       <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Product Name *</label>
-                      <input type="text" value={newPOItem.product_name} onChange={e => setNewPOItem({...newPOItem, product_name: e.target.value})}
+                      <input type="text" maxLength={200} value={newPOItem.product_name} onChange={e => setNewPOItem({...newPOItem, product_name: e.target.value})}
                         style={{ width: '100%', padding: '0.4rem 0.5rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '6px' }} />
                     </div>
                     <div style={{ flex: 1, minWidth: '100px' }}>
                       <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Vendor SKU</label>
-                      <input type="text" value={newPOItem.vendor_sku} onChange={e => setNewPOItem({...newPOItem, vendor_sku: e.target.value})}
+                      <input type="text" maxLength={100} value={newPOItem.vendor_sku} onChange={e => setNewPOItem({...newPOItem, vendor_sku: e.target.value})}
                         style={{ width: '100%', padding: '0.4rem 0.5rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '6px' }} />
                     </div>
                     <div style={{ width: '70px' }}>
@@ -12005,7 +12051,7 @@
 
           {/* PDF Download */}
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <a href={'/api/rep/purchase-orders/' + editId + '/pdf'} target="_blank" className="btn btn-secondary">Download PDF</a>
+            <button className="btn btn-secondary" onClick={() => repOpenDoc('/api/rep/purchase-orders/' + editId + '/pdf', true).catch(() => alert('Failed to load PDF'))}>Download PDF</button>
           </div>
         </div>
       );

@@ -1,0 +1,447 @@
+107AEM	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/knobs/107.html
+107DBAC	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/knobs/107.html
+136BG-10	no-redirect	
+136MB-10	no-redirect	
+136SBZ-10	no-redirect	
+136SN-10	no-redirect	
+156BG-10	no-redirect	
+156MB-10	no-redirect	
+156SBZ-10	no-redirect	
+156SN-10	no-redirect	
+176BG-10	no-redirect	
+176MB-10	no-redirect	
+176SBZ-10	no-redirect	
+176SN-10	no-redirect	
+188-128SN	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/188-pull.html
+220MB-10	no-redirect	
+220SBZ-10	no-redirect	
+220SN-10	no-redirect	
+259SN	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/knobs/259.html
+2980MB-20	no-redirect	
+2980SBZ-20	no-redirect	
+2980SN-20	no-redirect	
+2981MB-20	no-redirect	
+2981SBZ-20	no-redirect	
+2981SN-20	no-redirect	
+331-128BNBDL	no-redirect	
+331-128PC	no-redirect	
+331-96PC	no-redirect	
+331BNBDL	no-redirect	
+331DBAC	no-redirect	
+331L-DBAC	no-redirect	
+331L-SN	no-redirect	
+331SN	no-redirect	
+351-128BNBDL	no-redirect	
+351-128PC	no-redirect	
+351-96DBAC	no-redirect	
+351-96PC	no-redirect	
+351-96SN	no-redirect	
+351BNBDL	no-redirect	
+351DBAC	no-redirect	
+351L-BNBDL	no-redirect	
+351L-PC	no-redirect	
+351PC	no-redirect	
+3910-MB-30	no-redirect	
+3910-SBZ-30	no-redirect	
+3910-SN-30	no-redirect	
+3910-SN-B	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/knobs/3910.html
+3940-DBAC-R	no-redirect	
+40MB-30	no-redirect	
+40SBZ-30	no-redirect	
+40SN-30	no-redirect	
+519-160ABSB	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/519-pull.html
+535-128BNB	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html
+535-128BNBDL	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html
+535-128SN	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html
+535-160BNB	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html
+535-160BNBDL	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html
+535-160DBAC	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html
+535-96BNBDL	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html
+535-96DBAC	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html
+535-96SN	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html
+535BNBDL	no-redirect	
+535DBAC	no-redirect	
+535L-BNB	no-redirect	
+535L-BNBDL	no-redirect	
+535L-SN	no-redirect	
+536-128BNB	no-redirect	
+536-128BNBDL	no-redirect	
+536-128SN	no-redirect	
+536-96BNB	no-redirect	
+536-96BNBDL	no-redirect	
+536-96DBAC	no-redirect	
+536-96SN	no-redirect	
+618ABSB	no-redirect	
+618BNMDL	no-redirect	
+618DACM	no-redirect	
+618DBAC	no-redirect	
+618L-BNMDL	no-redirect	
+618L-DACM	no-redirect	
+625-128BG-20	no-redirect	
+625-128MB-20	no-redirect	
+625-128SBZ-20	no-redirect	
+625-128SN-20	no-redirect	
+625-160BG-10	no-redirect	
+625-160MB-10	no-redirect	
+625-160SBZ-10	no-redirect	
+625-160SN-10	no-redirect	
+625-96BG-25	no-redirect	
+625-96MB-25	no-redirect	
+625-96SBZ-25	no-redirect	
+625-96SN-25	no-redirect	
+635-128MB-20	no-redirect	
+635-128SBZ-20	no-redirect	
+635-128SN-20	no-redirect	
+635-160MB-10	no-redirect	
+635-160SBZ-10	no-redirect	
+635-160SN-10	no-redirect	
+635-96MB-25	no-redirect	
+635-96SBZ-25	no-redirect	
+635-96SN-25	no-redirect	
+645-128MB-10	no-redirect	
+645-128SN-10	no-redirect	
+645-160MB-10	no-redirect	
+645-160SN-10	no-redirect	
+645-96MB-10	no-redirect	
+645-96SN-10	no-redirect	
+667-128BNBDL	no-redirect	
+667-128DBAC	no-redirect	
+667-128NI	no-redirect	
+667-128PC	no-redirect	
+667-128SN	no-redirect	
+667-12BNBDL	no-redirect	
+667-12DBAC	no-redirect	
+667-12NI	no-redirect	
+667-12SN	no-redirect	
+667-160BNBDL	no-redirect	
+667-160DBAC	no-redirect	
+667-160NI	no-redirect	
+667-160PC	no-redirect	
+667-18BNBDL	no-redirect	
+667-18DBAC	no-redirect	
+667-18NI	no-redirect	
+667-18PC	no-redirect	
+667-18SN	no-redirect	
+667-224BNBDL	no-redirect	
+667-224DBAC	no-redirect	
+667-224NI	no-redirect	
+667-224PC	no-redirect	
+667-224SN	no-redirect	
+667-305BNBDL	no-redirect	
+667-305DBAC	no-redirect	
+667-305NI	no-redirect	
+667-305PC	no-redirect	
+667-305SN	no-redirect	
+667-3BNBDL	no-redirect	
+667-3DBAC	no-redirect	
+667-3NI	no-redirect	
+667-3PC	no-redirect	
+667-3SN	no-redirect	
+667-96BNBDL	no-redirect	
+667-96DBAC	no-redirect	
+667-96NI	no-redirect	
+667-96PC	no-redirect	
+667-96SN	no-redirect	
+667L-BNBDL	no-redirect	
+667L-DBAC	no-redirect	
+667L-NI	no-redirect	
+667L-PC	no-redirect	
+667NI	no-redirect	
+667PC	no-redirect	
+667S-BNBDL	no-redirect	
+667S-DBAC	no-redirect	
+667S-NI	no-redirect	
+667S-PC	no-redirect	
+718-128ABSB	no-redirect	
+718-128BNMDL	no-redirect	
+718-128DACM	no-redirect	
+718-128DBAC	no-redirect	
+718ABSB	no-redirect	
+718BNMDL	no-redirect	
+718DBAC	no-redirect	
+737-128ABSB	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/737-pull.html
+737-128SN	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/737-pull.html
+737-160BNBDL	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/737-pull.html
+737-160SN	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/737-pull.html
+737-96BNBDL	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/737-pull.html
+749-128ABSB	no-redirect	
+749-128B-ABSB	no-redirect	
+749-128B-DACM	no-redirect	
+749-128B-DBAC	no-redirect	
+749-128B-SIM	no-redirect	
+749-128DACM	no-redirect	
+749-128DBAC	no-redirect	
+749-160ABSB	no-redirect	
+749-160DACM	no-redirect	
+749-160DBAC	no-redirect	
+749-160SIM	no-redirect	
+749-224ABSB	no-redirect	
+749-224DACM	no-redirect	
+749-224DBAC	no-redirect	
+749-224SIM	no-redirect	
+749-96B-ABSB	no-redirect	
+749-96B-DACM	no-redirect	
+749-96B-SIM	no-redirect	
+749DACM	no-redirect	
+749SIM	no-redirect	
+798-160BNBDL	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/798-pull.html
+8004-DBAC-R	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/retail-packed-knobs-pulls/8004-r.html
+818-128ABSB	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/818-pull.html
+818-12ABSB	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/818-pull.html
+818-96SN	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/818-pull.html
+915ABSB	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/knobs/915.html
+B812-96AB	no-redirect	
+B812-96ABM-D	no-redirect	
+B812-96AEM	no-redirect	
+B812-96BC	no-redirect	
+B812-96BNB	no-redirect	
+B812-96DACM	no-redirect	
+B812-96DBAC	no-redirect	
+B812-96ORB	no-redirect	
+B812-96PC	no-redirect	
+B812-96R-BNB	no-redirect	
+B812-96R-BNBDL	no-redirect	
+B812-96R-DACM	no-redirect	
+B812-96R-DBAC	no-redirect	
+B812-96R-ORB	no-redirect	
+B812-96R-SN	no-redirect	
+B812-96SBN	no-redirect	
+B812-ABSB	no-redirect	
+B812-AEM	no-redirect	
+B812-ASM	no-redirect	
+B812-BC	no-redirect	
+B812-BNB	no-redirect	
+B812-DACM	no-redirect	
+B812-ORB	no-redirect	
+B812-SBN	no-redirect	
+CH3503	no-redirect	
+CL101-SN	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/clearance/pulls/cl101.html
+K063PC-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K063PC-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K063SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K063SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K083BORB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K083BORB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K083SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K083SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K1213BORB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K1213BORB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K1213SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K1213SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K121BORB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K121BORB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K121SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K121SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K2083PC-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K2083PC-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K2083SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K2083SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K2363BORB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K2363BORB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K2363SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K2363SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K236BORB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K236BORB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K236SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K236SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K2943BG-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K2943BG-6	slug-mismatch	https://www.hardwareresources.com/no-route
+K2943MB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K2943MB-6	slug-mismatch	https://www.hardwareresources.com/no-route
+K2943SBZ-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K2943SBZ-6	slug-mismatch	https://www.hardwareresources.com/no-route
+K2943SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K2943SN-6	slug-mismatch	https://www.hardwareresources.com/no-route
+K294BG-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K294BG-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K294MB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K294MB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K294SBZ-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K294SBZ-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K294SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K294SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K3133BORB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K3133BORB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K3133MB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K3133MB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K3133SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K3133SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K313BORB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K313BORB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K313MB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K313MB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K313SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K313SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K3583BORB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K3583BORB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K3583SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K3583SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K3833BORB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K3833BORB-6	slug-mismatch	https://www.hardwareresources.com/no-route
+K3833MB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K3833MB-6	slug-mismatch	https://www.hardwareresources.com/no-route
+K3833PC-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K3833PC-6	slug-mismatch	https://www.hardwareresources.com/no-route
+K3833SBZ-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K3833SBZ-6	slug-mismatch	https://www.hardwareresources.com/no-route
+K3833SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K3833SN-6	slug-mismatch	https://www.hardwareresources.com/no-route
+K39496SS-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K39496SS-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K394SS-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K394SS-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K4133BORB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K4133BORB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K4133SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K4133SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K413BORB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K413BORB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K413SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K413SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K4413BORB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K4413PC-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K4413PC-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K4413SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K4413SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K441BORB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K441PC-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K441PC-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K441SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K441SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K460BORB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K460BORB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K460SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K460SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K5123SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K5123SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K512SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K512SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K591BORB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K591BORB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K591PC-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K591PC-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K591SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K591SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K7553BORB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K7553BORB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K7553SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K7553SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K755BORB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K755BORB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K755SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K755SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K778BG-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K778BG-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K778BORB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K778BORB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K778MB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K778MB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K778PC-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K778PC-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K778SBZ-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K778SBZ-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K778SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K778SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K8173PC-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K8173PC-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K8173SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K8173SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K83796BORB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K83796BORB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K83796MB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K83796MB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K83796SBZ-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K83796SBZ-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K83796SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K83796SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K8683BORB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K8683BORB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K8683SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K8683SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K8993PC-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K8993PC-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K8993SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K8993SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K9403BORB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K9403BORB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K9403SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K9403SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K940BORB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K940BORB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K940SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K940SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K9813BORB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K9813BORB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K9813SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K9813SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K9973BORB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K9973BORB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K9973MB-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K9973MB-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K9973SN-2	slug-mismatch	https://www.hardwareresources.com/no-route
+K9973SN-8	slug-mismatch	https://www.hardwareresources.com/no-route
+K997BORB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K997BORB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K997MB-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K997MB-4	slug-mismatch	https://www.hardwareresources.com/no-route
+K997SN-10	slug-mismatch	https://www.hardwareresources.com/no-route
+K997SN-4	slug-mismatch	https://www.hardwareresources.com/no-route
+KDT-KITP-1	no-redirect	
+Q2-128CPG-100	no-redirect	
+Q2-128MB-100	no-redirect	
+Q2-128PC-100	no-redirect	
+Q2-128SN-100	no-redirect	
+Q2-160CPG-100	no-redirect	
+Q2-160MB-100	no-redirect	
+Q2-160PC-100	no-redirect	
+Q2-160SN-100	no-redirect	
+Q2-96CPG-100	no-redirect	
+Q2-96MB-100	no-redirect	
+Q2-96PC-100	no-redirect	
+Q2-96SN-100	no-redirect	
+Q4-128CPG-100	no-redirect	
+Q4-128MB-100	no-redirect	
+Q4-128PC-100	no-redirect	
+Q4-128SN-100	no-redirect	
+Q4-160CPG-100	no-redirect	
+Q4-160MB-100	no-redirect	
+Q4-160PC-100	no-redirect	
+Q4-160SN-100	no-redirect	
+Q4-3CPG-100	no-redirect	
+Q4-3MB-100	no-redirect	
+Q4-3PC-100	no-redirect	
+Q4-3SN-100	no-redirect	
+Q4-96CPG-100	no-redirect	
+Q4-96MB-100	no-redirect	
+Q4-96PC-100	no-redirect	
+Q4-96SN-100	no-redirect	
+Q5-4BC-100	no-redirect	
+Q5-4SN-100	no-redirect	
+Q5-96BC-100	no-redirect	
+Q5-96SN-100	no-redirect	
+Q6-128CPG-100	no-redirect	
+Q6-128MB-100	no-redirect	
+Q6-128PC-100	no-redirect	
+Q6-128SN-100	no-redirect	
+Q6-160CPG-100	no-redirect	
+Q6-160MB-100	no-redirect	
+Q6-160PC-100	no-redirect	
+Q6-160SN-100	no-redirect	
+Q6-96CPG-100	no-redirect	
+Q6-96MB-100	no-redirect	
+Q6-96PC-100	no-redirect	
+Q6-96SN-100	no-redirect	
+Q7-96SS-100	no-redirect	
+Q8K-CPG-100	no-redirect	
+Q8K-DBAC-100	no-redirect	
+Q8K-MB-100	no-redirect	
+Q8K-SN-100	no-redirect	
+S3910-SN-B	no-redirect	
+WB150-AB	no-redirect	
+WP150-AB	no-redirect	
+Z110-DACM	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/knobs/z110.html
+Z260-12BNBDL	not-in-skus-map	https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/z261-pull.html
+Z718-12ABSB	no-redirect	
+Z718-12BNMDL	no-redirect	
+Z718-12DACM	no-redirect	
+Z718-12DBAC	no-redirect	

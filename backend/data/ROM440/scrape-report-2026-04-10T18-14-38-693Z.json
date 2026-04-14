@@ -1,0 +1,64 @@
+{
+  "startedAt": "2026-04-10T18:13:21.700Z",
+  "finishedAt": "2026-04-10T18:14:38.693Z",
+  "elapsedMs": 76990,
+  "dryRun": false,
+  "filters": {
+    "LIMIT": null,
+    "ONLY": null,
+    "CATEGORY": "Sinks"
+  },
+  "totals": {
+    "processed": 33,
+    "primary": 26,
+    "alternate": 37,
+    "spec": 26,
+    "notFound": 7,
+    "mismatches": 0,
+    "skipped": 7,
+    "uniquePages": 26,
+    "pageFetches": 26,
+    "pageCacheHits": 0,
+    "imageDownloads": 63
+  },
+  "byClass": {
+    "Sinks": {
+      "processed": 33,
+      "primary": 26,
+      "alternate": 37,
+      "spec": 26,
+      "skipped": 7
+    }
+  },
+  "notFound": [
+    {
+      "sku": "H8810",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HA200",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HA225",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HMS175",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HMS190",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HMS200",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HMS250",
+      "reason": "no-redirect"
+    }
+  ],
+  "mismatches": []
+}

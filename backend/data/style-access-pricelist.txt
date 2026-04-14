@@ -1,0 +1,418 @@
+                                                                             PRICE LIST
+                                                                             EFFECTIVE DATE       February 2nd, 2026
+
+
+      Q1 2026 Price Increase
+      2025 Fall / Winter New Series
+
+
+                                                                                                                             PC /   SF /    SF /    CT /   SF /     UOM Carton       UOM      Field SF
+Brand Series           SKU               Description                         Size        Type     Material             UOM
+                                                                                                                              CT     PC      CT     PAL    PAL     Weight Weight     Price     Price
+LGC   Accessories      CORNER92707B      Glass corner shelf 6mm curved       10x14       Misc     Glass                PC       4     -       -      120     -        1.6    6.5 $ 11.00
+LGC   Accessories      CORNER10MM        Glass corner 10mm curved w/ clips   10x14       Misc     Glass                PC       3     -       -      120     -        2.0    6.0 $ 18.00
+LGC   Accessories      CORNERRECTA       Glass shelf 6mm rectangle 12x3      12x3        Misc     Glass                PC       4     -       -      240     -        0.9    3.6 $ 13.50
+COMT Anchor            CTANIRO2HEX1P     Iron 2in Hex matte                  12.7x10.4   Mosaic   Porcelain Pressed    SH      10   0.920    9.20     99     -        2.4   24.3 $     5.35
+COMT Anchor            CTANPAT2HEX1P     Patina 2in Hex matte                12.7x10.4   Mosaic   Porcelain Pressed    SH      10   0.920    9.20     99     -        2.4   24.3 $     5.35
+COMT Anchor            CTANPEW2HEX1P     Pewter 2in Hex matte                12.7x10.4   Mosaic   Porcelain Pressed    SH      10   0.920    9.20     99     -        2.4   24.3 $     5.35
+LGC   Artisan          ARTHEX001         Travertine 2" Hex                   11.2x11.2   Mosaic   Glass                SH      14   0.870   12.18     54     658      2.0   28.0 $ 14.00
+LGC   Artisan          ARTHEX002         Grigio 2" Hex                       11.2x11.2   Mosaic   Glass                SH      14   0.870   12.18     54     658      2.0   28.0 $ 14.00
+LGC   Artisan          ARTHEX003         Onyx 2" Hex                         11.2x11.2   Mosaic   Glass                SH      14   0.870   12.18     54     658      2.0   28.0 $ 14.00
+LGC   Artisan          ARTHEX004         Carrara 2" Hex                      11.2x11.2   Mosaic   Glass                SH      14   0.870   12.18     54     658      2.0   28.0 $ 14.00
+LGC   Back To Basics   CEBAC006001       Bianco Gloss                        2x10        Wall Tile Ceramic Pressed     CT      30   0.161    4.84    130     629     15.7   15.7 $ 22.02 $ 4.55
+LGC   Back To Basics   CEBAC006002       Bianco Satin                        2x10        Wall Tile Ceramic Pressed     CT      30   0.161    4.84    130     629     15.7   15.7 $ 22.02 $ 4.55
+LGC   Back To Basics   CEBAC006003       Nero Gloss                          2x10        Wall Tile Ceramic Pressed     CT      30   0.161    4.84    130     629     15.7   15.7 $ 26.86 $ 5.55
+LGC   Back To Basics   CEBAC006004       Ceruleo Gloss                       2x10        Wall Tile Ceramic Pressed     CT      30   0.161    4.84    130     629     15.7   15.7 $ 25.17 $ 5.20
+LGC   Back To Basics   CEBAC006005       Cipria                              2x10        Wall Tile Ceramic Pressed     CT      30   0.161    4.84    130     629     15.7   15.7 $ 22.02 $ 4.55
+LGC   Back To Basics   CEBAC006006       Rosa Antico                         2x10        Wall Tile Ceramic Pressed     CT      30   0.161    4.84    130     629     15.7   15.7 $ 25.17 $ 5.20
+LGC   Back To Basics   CEBAC006007       Senape                              2x10        Wall Tile Ceramic Pressed     CT      30   0.161    4.84    130     629     15.7   15.7 $ 25.17 $ 5.20
+LGC   Back To Basics   CEBAC006008       Muschio                             2x10        Wall Tile Ceramic Pressed     CT      30   0.161    4.84    130     629     15.7   15.7 $ 25.17 $ 5.20
+LGC   Back To Basics   CEBAC006009       Perla                               2x10        Wall Tile Ceramic Pressed     CT      30   0.161    4.84    130     629     15.7   15.7 $ 22.02 $ 4.55
+LGC   Back To Basics   CEBAC006010       Fango                               2x10        Wall Tile Ceramic Pressed     CT      30   0.161    4.84    130     629     15.7   15.7 $ 25.17 $ 5.20
+LGC   Back To Basics   CEBAC006011       Tortora                             2x10        Wall Tile Ceramic Pressed     CT      30   0.161    4.84    130     629     15.7   15.7 $ 22.02 $ 4.55
+LGC   Back To Basics   CEBAC001002       Bianco Jolly Satin                  0.5x10      Trim     Ceramic Pressed      PC      20     -       -       60     -        0.1    2.0 $     4.50
+LGC   Back To Basics   CEBAC001004       Ceruleo Jolly Gloss                 0.5x10      Trim     Ceramic Pressed      PC      20     -       -       60     -        0.1    2.0 $     4.75
+LGC   Back To Basics   CEBAC001005       Cipria Jolly Gloss                  0.5x10      Trim     Ceramic Pressed      PC      20     -       -       60     -        0.1    2.0 $     4.50
+LGC   Back To Basics   CEBAC001006       Rosa Antico Jolly Gloss             0.5x10      Trim     Ceramic Pressed      PC      20     -       -       60     -        0.1    2.0 $     4.75
+LGC   Back To Basics   CEBAC001007       Senape Jolly Gloss                  0.5x10      Trim     Ceramic Pressed      PC      20     -       -       60     -        0.1    2.0 $     4.75
+LGC   Back To Basics   CEBAC001008       Muschio Jolly Gloss                 0.5x10      Trim     Ceramic Pressed      PC      20     -       -       60     -        0.1    2.0 $     4.75
+LGC   Back To Basics   CEBAC001009       Perla Jolly Gloss                   0.5x10      Trim     Ceramic Pressed      PC      20     -       -       60     -        0.1    2.0 $     4.50
+LGC   Back To Basics   CEBAC001010       Fango Jolly Gloss                   0.5x10      Trim     Ceramic Pressed      PC      20     -       -       60     -        0.1    2.0 $     4.75
+LGC   Back To Basics   CEBAC001011       Tortora Jolly Gloss                 0.5x10      Trim     Ceramic Pressed      PC      20     -       -       60     -        0.1    2.0 $     4.50
+LGC   Back To Basics   CEBAC001012       Bianco Jolly Gloss                  0.5x10      Trim     Ceramic Pressed      PC      20     -       -       60     -        0.1    2.0 $     4.50
+LGC   Back To Basics   CEBAC001013       Nero Jolly Gloss                    2x10        Trim     Ceramic Pressed      PC      20     -       -       60     -        0.1    2.0 $     5.00
+LGC   Beat             CEBEA005001       Ultramarine Flat Satin              2x8         Wall Tile Ceramic Pressed     CT      60   0.108    6.46    108     698     15.4   15.4 $ 33.92 $ 5.25
+LGC   Beat             BEAULTR28FLAT     Ultramarine Flat Satin              2x8         Wall Tile Ceramic Pressed     CT      60   0.108    6.46    108     698     15.4   15.4 $ 33.92 $ 5.25
+LGC   Beat             CEBEA005002       Milk Flat Satin                     2x8         Wall Tile Ceramic Pressed     CT      60   0.108    6.46    108     698     15.4   15.4 $ 33.92 $ 5.25
+LGC   Beat             BEAMILK28FLAT     Milk Flat Satin                     2x8         Wall Tile Ceramic Pressed     CT           0.108    6.46                                  $ 33.92 $ 5.25
+LGC   Beat             CEBEA005003       Lemonade Flat Satin                 2x8         Wall Tile Ceramic Pressed     CT      60   0.108    6.46    108     698     15.4   15.4 $ 33.92 $ 5.25
+LGC   Beat             BEALEMO28FLAT     Lemonade Flat Satin                 2x8         Wall Tile Ceramic Pressed     CT      60   0.108    6.46    108     698     15.4   15.4 $ 33.92 $ 5.25
+LGC   Beat             CEBEA005004       Powder Flat Satin                   2x8         Wall Tile Ceramic Pressed     CT      60   0.108    6.46    108     698     15.4   15.4 $ 33.92 $ 5.25
+LGC   Beat             BEAPOWD28FLAT     Powder Flat Satin                   2x8         Wall Tile Ceramic Pressed     CT      60   0.108    6.46    108     698     15.4   15.4 $ 33.92 $ 5.25
+LGC   Beat             CEBEA005005       Cinnamon Flat Satin                 2x8         Wall Tile Ceramic Pressed     CT      60   0.108    6.46    108     698     15.4   15.4 $ 33.92 $ 5.25
+LGC   Beat             BEACINN28FLAT     Cinnamon Flat Satin                 2x8         Wall Tile Ceramic Pressed     CT      60   0.108    6.46    108     698     15.4   15.4 $ 33.92 $ 5.25
+LGC   Beat             CEBEA005006       Sage Flat Satin                     2x8         Wall Tile Ceramic Pressed     CT      60   0.108    6.46    108     698     15.4   15.4 $ 33.92 $ 5.25
+LGC   Beat             BEASAGE28FLAT     Sage Flat Satin                     2x8         Wall Tile Ceramic Pressed     CT      60   0.108    6.46    108     698     15.4   15.4 $ 33.92 $ 5.25
+LGC   Beat             CEBEA005007       Milk Flat Gloss                     2x8         Wall Tile Ceramic Pressed     CT      60   0.108    6.46    108     698     15.4   15.4 $ 33.92 $ 5.25
+LGC   Beat             BEAMILK28FLATGL   Milk Flat Gloss                     2x8         Wall Tile Ceramic Pressed     CT           0.108    6.46                                  $ 33.92 $ 5.25
+LGC   Beat             CEBEA005008       Ultramarine Dixie Satin             2x8         Wall Tile Ceramic Pressed     CT      57   0.108    6.13    108     662     15.7   15.7 $ 39.85 $ 6.50
+LGC   Beat             BEAULTR28DIXI     Ultramarine Dixie Satin             2x8         Wall Tile Ceramic Pressed     CT      57   0.108    6.13    108     662     15.7   15.7 $ 39.85 $ 6.50
+LGC   Beat             CEBEA005009       Milk Dixie Satin                    2x8         Wall Tile Ceramic Pressed     CT      57   0.108    6.13    108     662     15.7   15.7 $ 32.18 $ 5.25
+LGC   Beat             BEAMILK28DIXI     Milk Dixie Satin                    2x8         Wall Tile Ceramic Pressed     CT           0.108    6.13                                  $ 32.18 $ 5.25
+LGC   Beat             CEBEA005010       Lemonade Dixie Satin                2x8         Wall Tile Ceramic Pressed     CT      57   0.108    6.13    108     662     15.7   15.7 $ 39.85 $ 6.50
+LGC   Beat             BEALEMO28DIXI     Lemonade Dixie Satin                2x8         Wall Tile Ceramic Pressed     CT      57   0.108    6.13    108     662     15.7   15.7 $ 39.85 $ 6.50
+LGC   Beat             CEBEA005011       Powder Dixie Satin                  2x8         Wall Tile Ceramic Pressed     CT      57   0.108    6.13    108     662     15.7   15.7 $ 32.18 $ 5.25
+LGC   Beat             BEAPOWD28DIXI     Powder Dixie Satin                  2x8         Wall Tile Ceramic Pressed     CT      57   0.108    6.13    108     662     15.7   15.7 $ 32.18 $ 5.25
+LGC   Beat             CEBEA005012       Cinnamon Dixie Satin                2x8         Wall Tile Ceramic Pressed     CT      57   0.108    6.13    108     662     15.7   15.7 $ 39.85 $ 6.50
+                                                                                                                   PC /   SF /    SF /    CT /   SF /     UOM Carton         UOM      Field SF
+Brand Series       SKU               Description                     Size        Type      Material          UOM
+                                                                                                                    CT     PC      CT     PAL    PAL     Weight Weight       Price     Price
+LGC   Beat         BEACINN28DIXI     Cinnamon Dixie Satin            2x8         Wall Tile Ceramic Pressed   CT      57   0.108    6.13    108     662     15.7   15.7 $ 39.85 $ 6.50
+LGC   Beat         CEBEA005013       Sage Dixie Satin                2x8         Wall Tile Ceramic Pressed   CT      57   0.108    6.13    108     662     15.7   15.7 $ 32.18 $ 5.25
+LGC   Beat         BEASAGE28DIXI     Sage Dixie Satin                2x8         Wall Tile Ceramic Pressed   CT      57   0.108    6.13    108     662     15.7   15.7 $ 32.18 $ 5.25
+LGC   Beat         CEBEA005014       Milk Dixie Gloss                2x8         Wall Tile Ceramic Pressed   CT      57   0.108    6.13    108     662     15.7   15.7 $ 32.18 $ 5.25
+LGC   Beat         BEAMILK28DIXIGL   Milk Dixie Gloss                2x8         Wall Tile Ceramic Pressed   CT           0.108    6.13                                  $ 32.18 $ 5.25
+LGC   Beat         CEBEA005015       Ultramarine Charleston Satin    2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 33.54 $ 6.50
+LGC   Beat         BEAULTR28CHAR     Ultramarine Charleston Satin    2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 33.54 $ 6.50
+LGC   Beat         CEBEA005016       Milk Charleston Satin           2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 27.09 $ 5.25
+LGC   Beat         BEAMILK28CHAR     Milk Charleston Satin           2x8         Wall Tile Ceramic Pressed   CT           0.108    5.16                                  $ 27.09 $ 5.25
+LGC   Beat         CEBEA005017       Lemon Charleston Satin          2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 33.54 $ 6.50
+LGC   Beat         BEALEMO28CHAR     Lemon Charleston Satin          2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 33.54 $ 6.50
+LGC   Beat         CEBEA005018       Powder Charleston Satin         2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 27.09 $ 5.25
+LGC   Beat         BEAPOWD28CHAR     Powder Charleston Satin         2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 27.09 $ 5.25
+LGC   Beat         CEBEA005019       Cinnamon Charleston Satin       2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 33.54 $ 6.50
+LGC   Beat         BEACINN28CHAR     Cinnamon Charleston Satin       2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 33.54 $ 6.50
+LGC   Beat         CEBEA005020       Sage Charleston Satin           2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 27.09 $ 5.25
+LGC   Beat         BEASAGE28CHAR     Sage Charleston Satin           2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 27.09 $ 5.25
+LGC   Beat         CEBEA005021       Milk Charleston Gloss           2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 27.09 $ 5.25
+LGC   Beat         BEAMILK28CHARGL   Milk Charleston Gloss           2x8         Wall Tile Ceramic Pressed   CT           0.108    5.16                                  $ 27.09 $ 5.25
+LGC   Beat         CEBEA005022       Ultramarine Swing Satin         2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 33.54 $ 6.50
+LGC   Beat         BEAULTR28SWNG     Ultramarine Swing Satin         2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 33.54 $ 6.50
+LGC   Beat         CEBEA005023       Milk Swing Satin                2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 27.09 $ 5.25
+LGC   Beat         BEAMILK28SWNG     Milk Swing Satin                2x8         Wall Tile Ceramic Pressed   CT           0.108    5.16                                  $ 27.09 $ 5.25
+LGC   Beat         CEBEA005024       Lemon Swing Satin               2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 33.54 $ 6.50
+LGC   Beat         BEALEMO28SWNG     Lemon Swing Satin               2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 33.54 $ 6.50
+LGC   Beat         CEBEA005025       Powder Swing Satin              2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 27.09 $ 5.25
+LGC   Beat         BEAPOWD28SWNG     Powder Swing Satin              2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 27.09 $ 5.25
+LGC   Beat         CEBEA005026       Cinnamon Swing Satin            2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 33.54 $ 6.50
+LGC   Beat         BEACINN28SWNG     Cinnamon Swing Satin            2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 33.54 $ 6.50
+LGC   Beat         CEBEA005027       Sage Swing Satin                2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 27.09 $ 5.25
+LGC   Beat         BEASAGE28SWNG     Sage Swing Satin                2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 27.09 $ 5.25
+LGC   Beat         CEBEA005028       Milk Swing Gloss                2x8         Wall Tile Ceramic Pressed   CT      48   0.108    5.16    108     557     15.7   15.7 $ 27.09 $ 5.25
+LGC   Beat         BEAMILK28SWNGGL Milk Swing Gloss                  2x8         Wall Tile Ceramic Pressed   CT           0.108    5.16                                  $ 27.09 $ 5.25
+LGC   Beat         CEBEA001001       Ultramarine Jolly Satin         0.5x8       Trim      Ceramic Pressed   PC      20     -       -       60     -        0.1    2.0 $       5.50
+LGC   Beat         BEAULTRTRIM       Ultramarine Jolly Satin         0.5x8       Trim      Ceramic Pressed   PC      20     -       -       60     -        0.1    2.0 $       5.50
+LGC   Beat         CEBEA001002       Milk Jolly Satin                0.5x8       Trim      Ceramic Pressed   PC      20     -       -       60     -        0.1    2.0 $       5.00
+LGC   Beat         BEAMILKTRIM       Milk Jolly Satin                0.5x8       Trim      Ceramic Pressed   PC             -       -                                    $     5.00
+LGC   Beat         CEBEA001003       Lemon Jolly Satin               0.5x8       Trim      Ceramic Pressed   PC      20     -       -       60     -        0.1    2.0 $       5.50
+LGC   Beat         BEALEMOTRIM       Lemon Jolly Satin               0.5x8       Trim      Ceramic Pressed   PC      20     -       -       60     -        0.1    2.0 $       5.50
+LGC   Beat         CEBEA001004       Powder Jolly Satin              0.5x8       Trim      Ceramic Pressed   PC      20     -       -       60     -        0.1    2.0 $       5.00
+LGC   Beat         BEAPOWDTRIM       Powder Jolly Satin              0.5x8       Trim      Ceramic Pressed   PC      20     -       -       60     -        0.1    2.0 $       5.00
+LGC   Beat         CEBEA001005       Cinnamon Jolly Satin            0.5x8       Trim      Ceramic Pressed   PC      20     -       -       60     -        0.1    2.0 $       5.50
+LGC   Beat         BEACINNTRIM       Cinnamon Jolly Satin            0.5x8       Trim      Ceramic Pressed   PC      20     -       -       60     -        0.1    2.0 $       5.50
+LGC   Beat         CEBEA001006       Sage Jolly Satin                0.5x8       Trim      Ceramic Pressed   PC      20     -       -       60     -        0.1    2.0 $       5.00
+LGC   Beat         BEASAGETRIM       Sage Jolly Satin                0.5x8       Trim      Ceramic Pressed   PC      20     -       -       60     -        0.1    2.0 $       5.00
+LGC   Beat         CEBEA001007       Milk Jolly Gloss                0.5x8       Trim      Ceramic Pressed   PC      20     -       -       60     -        0.1    2.0 $       5.00
+LGC   Beat         BEAMILKTRIMGL     Milk Jolly Gloss                0.5x8       Trim      Ceramic Pressed   PC             -       -                                    $     5.00
+LGC   Botanicals   BOTAIN3HEX        Ainsley 3" Hex                  11.7x10.2   Mosaic    Glass             SH      10   0.831    8.31     54     449      2.4   24.0 $ 14.50
+LGC   Botanicals   BOTBRY3HEX        Bryn 3" Hex                     11.7x10.2   Mosaic    Glass             SH      10   0.831    8.31     54     449      2.4   24.0 $ 14.50
+LGC   Botanicals   BOTCAL3HEX        Calla 3" Hex                    11.7x10.2   Mosaic    Glass             SH      10   0.831    8.31     54     449      2.4   24.0 $ 14.50
+LGC   Botanicals   BOTDAP3HEX        Daphne 3" Hex                   11.7x10.2   Mosaic    Glass             SH      10   0.831    8.31     54     449      2.4   24.0 $ 14.50
+LGC   Botanicals   BOTELO3HEX        Elowen Deco 3" Hex              11.7x10.2   Mosaic    Glass             SH      10   0.831    8.31     54     449      2.4   24.0 $ 14.50
+LGC   Botanicals   BOTFRE3HEX        Freya 3" Hex                    11.7x10.2   Mosaic    Glass             SH      10   0.831    8.31     54     449      2.4   24.0 $ 14.50
+LGC   Burlington   CEBRL060013S      Burlington Ivory 2cm antislip   24x24       Floor Tile Porcelain        CT       2   3.874    7.75     32     248     72.6   72.6 $ 33.25 $ 4.29
+LGC   Burlington   CEBRL060014S      Burlington Sand 2cm antislip    24x24       Floor Tile Porcelain        CT       2   3.874    7.75     32     248     72.6   72.6 $ 33.25 $ 4.29
+COMT Carrollton    CTWL01281P        White Gloss                     2x8         Wall Tile Ceramic Pressed   CT    100    0.111   11.10     84     932     29.7   29.7 $ 22.09 $ 1.99
+COMT Carrollton    CTWL02281P        Biscuit Gloss                   2x8         Wall Tile Ceramic Pressed   CT    100    0.111   11.10     84     932     29.7   29.7 $ 22.09 $ 1.99
+COMT Carrollton    CTWL05281P        Gray Gloss                      2x8         Wall Tile Ceramic Pressed   CT    100    0.111   11.10     84     932     29.7   29.7 $ 22.09 $ 1.99
+COMT Carrollton    CTWL01312         White Gloss                     3x12        Wall Tile Ceramic Pressed   CT      62   0.242   15.00     65     975     41.4   41.4 $ 26.25 $ 1.75
+COMT Carrollton    NHUSWHT312        White Gloss Undulated           3x12        Wall Tile Ceramic Pressed   CT      44   0.250   11.00     80     880     34.8   34.8 $ 20.35 $ 1.85
+COMT Carrollton    OGWWHTMT312       OG White Matte Undulated 3x12   3x12        Wall Tile Ceramic Pressed   CT      44   0.242   10.66     56     597     30.4   30.4 $ 19.72 $ 1.85
+COMT Carrollton    CTWL0136          White Gloss                     3x6         Wall Tile Ceramic Pressed   CT    132    0.125   16.50     60     990     41.5   41.5 $ 25.58 $ 1.55
+COMT Carrollton    CTWL0236          Biscuit Gloss                   3x6         Wall Tile Ceramic Pressed   CT    132    0.125   16.50     60     990     42.3   42.3 $ 25.58 $ 1.55
+                                                                                                                                     PC /   SF /    SF /    CT /   SF /     UOM Carton         UOM      Field SF
+Brand Series         SKU             Description                             Size        Type       Material                 UOM
+                                                                                                                                      CT     PC      CT     PAL    PAL     Weight Weight       Price     Price
+COMT Carrollton      CTWL0336        White Matte                             3x6         Wall Tile Ceramic Pressed             CT    132    0.125   16.50     60     990     41.5   41.5 $ 25.58 $ 1.55
+COMT Carrollton      CTWL0536        Gray Gloss                              3x6         Wall Tile Ceramic Pressed             CT    132    0.125   16.50     60     990     42.3   42.3 $ 25.58 $ 1.55
+COMT Carrollton      CTWL01412       White Gloss                             4x12        Wall Tile Ceramic Pressed             CT      40   0.333   13.33     81   1,080     34.0   34.0 $ 21.33 $ 1.60
+COMT Carrollton      CTWL02412       Biscuit Gloss                           4x12        Wall Tile Ceramic Pressed             CT      40   0.333   13.33     81   1,080     34.0   34.0 $ 21.33 $ 1.60
+COMT Carrollton      CTWL03412       White Matte                             4x12        Wall Tile Ceramic Pressed             CT      40   0.333   13.33     81   1,080     34.0   34.0 $ 21.33 $ 1.60
+COMT Carrollton      CTWL05412       Gray Gloss                              4x12        Wall Tile Ceramic Pressed             CT      40   0.333   13.33     81   1,080     34.0   34.0 $ 21.33 $ 1.60
+COMT Carrollton      CTWL01416       White Gloss                             4x16        Wall Tile Ceramic Pressed             CT      25   0.444   11.11     80     889     28.9   28.9 $ 17.78 $ 1.60
+COMT Carrollton      CTWL02416       Biscuit Gloss                           4x16        Wall Tile Ceramic Pressed             CT      25   0.444   11.11     80     889     28.9   28.9 $ 17.78 $ 1.60
+COMT Carrollton      CTWL03416       White Matte                             4x16        Wall Tile Ceramic Pressed             CT      25   0.444   11.11     80     889     28.9   28.9 $ 17.78 $ 1.60
+COMT Carrollton      CTWL05416       Gray Gloss                              4x16        Wall Tile Ceramic Pressed             CT      25   0.444   11.11     80     889     28.9   28.9 $ 17.78 $ 1.60
+COMT Carrollton      JOLCHAL         Charcoal Gloss Universal Jolly          0.5x12      Trim       Ceramic Pressed            PC      60   0.042    2.52     50     126      0.1    6.0 $       3.75
+COMT Carrollton      JOLGRYL         Light Grey Gloss Universal Jolly        0.5x12      Trim       Ceramic Pressed            PC      60   0.042    2.52     50     126      0.1    6.0 $       3.75
+COMT Carrollton      JOLWHTL         White Gloss Universal Jolly             0.5x12      Trim       Ceramic Pressed            PC      60   0.042    2.52     50     126      0.1    6.0 $       3.75
+COMT Carrollton      JOLWHTU         White Matte Universal Jolly             0.5x12      Trim       Ceramic Pressed            PC      60   0.042    2.52     50     126      0.1    6.0 $       3.75
+COMT Carrollton      CTMS011HEXG     White 1" Hex gloss                      10x11.6     Mosaic     Porcelain Pressed         SH       11   0.809    8.90     99     881      1.9   20.9 $       4.80
+COMT Carrollton      CTMS021HEXG     Biscuit 1" Hex gloss                    10x11.6     Mosaic     Porcelain Pressed         SH       11   0.809    8.90     99     881      1.9   20.9 $       4.80
+COMT Carrollton      CTMS051HEXG     Gray 1" Hex gloss                       10x11.6     Mosaic     Porcelain Pressed         SH       11   0.809    8.90     99     881      1.9   20.9 $       4.80
+COMT Carrollton      CTMS012HEXM     White 2" Hex matte                      12.7x10.9   Mosaic     Porcelain Pressed         SH       11   0.960   10.56     99   1,045      2.3   25.5 $       4.25
+COMT Carrollton      CTMS022HEXM     Biscuit 2" Hex matte                    12.7x10.9   Mosaic     Porcelain Pressed         SH       11   0.960   10.56     99   1,045      2.3   25.5 $       4.25
+COMT Carrollton      CTMS052HEXM     Gray 2" Hex matte                       12.7x10.9   Mosaic     Porcelain Pressed         SH       11   0.960   10.56     99   1,045      2.3   25.5 $       4.25
+LGC    Casablanca    CSFLBLU56       Ocean Blue undulated                    5.5x6       Floor Tile Porcelain Rectified        CT      30   0.180    5.37     84     451     23.9   23.9 $ 56.39 $ 10.50
+LGC    Casablanca    CSFLBLU56DECO   Ocean Blue Flower Deco undulated        5.5x6       Floor Tile Porcelain Rectified        CT      30   0.180    5.37     84     451     23.9   23.9 $ 56.39 $ 10.50
+LGC    Casablanca    CSFLCHA56DECO   Champagne Flower Deco undulated         5.5x6       Floor Tile Porcelain Rectified        CT      30   0.180    5.37     84     451     23.9   23.9 $ 56.39 $ 10.50
+LGC    Casablanca    CSFLCLO56       Cloud undulated                         5.5x6       Floor Tile Porcelain Rectified        CT      30   0.180    5.37     84     451     23.9   23.9 $ 56.39 $ 10.50
+LGC    Casablanca    CSFLEME56DECO   Emerald Flower Deco undulated           5.5x6       Floor Tile Porcelain Rectified        CT      30   0.180    5.37     84     451     23.9   23.9 $ 56.39 $ 10.50
+LGC    Casablanca    CSFLGRY56       Pearl Gray undulated                    5.5x6       Floor Tile Porcelain Rectified        CT      30   0.180    5.37     84     451     23.9   23.9 $ 56.39 $ 10.50
+LGC    Casablanca    CSWLBLU26       Ocean Blue extruded gloss               2x6         Wall Tile Ceramic Extruded            CT      66   0.080    5.35    105     562     17.6   17.6 $ 128.40 $ 24.00
+LGC    Casablanca    CSWLCHA26       Champagne extruded gloss                2x6         Wall Tile Ceramic Extruded            CT      66   0.080    5.35    105     562     17.6   17.6 $ 107.00 $ 20.00
+LGC    Casablanca    CSWLCLO26       Cloud extruded gloss                    2x6         Wall Tile Ceramic Extruded            CT      66   0.080    5.35    105     562     17.6   17.6 $ 107.00 $ 20.00
+LGC    Casablanca    CSWLEME26       Emerald extruded gloss                  2x6         Wall Tile Ceramic Extruded            CT      66   0.080    5.35    105     562     17.6   17.6 $ 128.40 $ 24.00
+LGC    Casablanca    CSWLGRY26       Pearl Gray extruded gloss               2x6         Wall Tile Ceramic Extruded            CT      66   0.080    5.35    105     562     17.6   17.6 $ 107.00 $ 20.00
+LGC    Casablanca    CSWLSAF26       Saffron extruded gloss                  2x6         Wall Tile Ceramic Extruded            CT      66   0.080    5.35    105     562     17.6   17.6 $ 128.40 $ 24.00
+COMT Classics        CTCLCAR2HEX1P   Carrara 2in Hex matte                   12.7x10.4   Mosaic     Porcelain Pressed         SH       10   0.920    9.20     99     -        2.4    -     $     5.00
+COMT Classics        CTCLVEN2HEX1P   Venetian Gray 2in matte                 12.7x10.4   Mosaic     Porcelain Pressed         SH       10   0.920    9.20     99     -        2.4    -     $     5.00
+COMT Classics 2.0    CLA2LIN312      Calacatta Lincoln satin                 3x12        Wall Tile Ceramic Pressed             CT      50   0.242   12.11     80     -       35.2    -     $ 30.28 $ 2.50
+COMT Classics 2.0    CLA2MAC312      Macael White satin                      3x12        Wall Tile Ceramic Pressed             CT      50   0.242   12.11     80     -       35.2    -     $ 30.28 $ 2.50
+COMT Classics 2.0    CLA2LINTRIM     Calacatta Lincoln Jolly Trim            0.5x12      Trim       Ceramic Pressed            PC      60     -       -       45     -        0.1    -     $     2.40
+COMT Classics 2.0    CLA2MACTRIM     Macael White Jolly Trim                 0.5x12      Trim       Ceramic Pressed            PC      60     -       -       45     -        0.1    -     $     2.40
+COMT Classics 2.0    CLA2LINHER      Calacatta Linc. 1x3 Herringbone gloss   12.4x10.8   Mosaic     Porcelain Pressed         SH       10   0.932    9.32     99     -        2.2    -     $     6.25
+COMT Classics 2.0    CLA2MACHER      Macael White 1x3 Herringbone gloss      12.4x10.8   Mosaic     Porcelain Pressed         SH       10   0.932    9.32     99     -        2.2    -     $     6.25
+COMT Classics 2.0    CLA2LINROUND    Calacatta Linc. 1" Penny matte          12.4x11.6   Mosaic     Porcelain Pressed         SH       10   1.000   10.00     90     -        2.0    -     $     6.55
+COMT Classics 2.0    CLA2MACROUND    Macael White 1" Penny matte             12.4x11.6   Mosaic     Porcelain Pressed         SH       10   1.000   10.00     90     -        2.0    -     $     6.55
+LGC    Coastline     COST01221P      Big Sur lantern                         12.1x9.8    Mosaic     Glass                     SH       14   0.826   11.56     54     624      2.0   28.0 $ 16.50
+LGC    Coastline     COST02221P      La Jolla lantern                        12.1x9.8    Mosaic     Glass                     SH       14   0.826   11.56     54     624      2.0   28.0 $ 16.50
+LGC    Coastline     COST03221P      Monterey lantern                        12.1x9.8    Mosaic     Glass                     SH       14   0.826   11.56     54     624      2.0   28.0 $ 16.50
+COMT Durstone        CEDRS030001     White matte                             12x24       Floor Tile Porcelain Rectified        CT       5   1.937    9.68     56     542     38.5   38.5 $ 21.78 $ 2.25
+COMT Durstone        CEDRS030004     Taupe matte                             12x24       Floor Tile Porcelain Rectified        CT       5   1.937    9.68     56     542     38.5   38.5 $ 21.78 $ 2.25
+COMT Durstone        CEDURS030001    White matte                             12x24       Floor Tile Porcelain                  CT       6   1.937   11.62     48     558     44.0   44.0 $ 26.15 $ 2.25
+COMT Durstone        CEDRS060017     White matte                             24x48       Floor Tile Porcelain Rectified        CT       2   7.747   15.49     30     465     64.2   64.2 $ 48.02 $ 3.10
+COMT Durstone        CEDRS060020     Taupe matte                             24x48       Floor Tile Porcelain Rectified        CT       2   7.747   15.49     30     465     64.2   64.2 $ 48.02 $ 3.10
+COMT Durstone        CEDRS060021     White antislip finish R11               24x48       Floor Tile Porcelain Rectified        CT       2   7.747   15.49     30     465     64.2   64.2 $ 51.89 $ 3.35
+COMT Durstone        CEDRS060022     Taupe antislip finish R11               24x48       Floor Tile Porcelain Rectified        CT       2   7.747   15.49     30     465     64.2   64.2 $ 51.89 $ 3.35
+COMT Elements        ELCARPENNY      Carbon 1in Penny unglazed               12.3x11.4   Mosaic     Through-Body Porcelain Pressed
+                                                                                                                               SH      10   0.973    9.73     90     876      1.6   16.0 $       5.60
+COMT Elements        ELLEAPENNY      Lead 1in Penny unglazed                 12.3x11.4   Mosaic     Through-Body Porcelain Pressed
+                                                                                                                               SH      10   0.973    9.73     90     876      1.6   16.0 $       5.60
+COMT Elements        ELOXYPENNY      Oxygen 1in Penny unglazed               12.3x11.4   Mosaic     Through-Body Porcelain Pressed
+                                                                                                                               SH      10   0.973    9.73     90     876      1.6   16.0 $       5.60
+COMT Elements        ELPLAPENNY      Platinum 1in Penny unglazed             12.3x11.4   Mosaic     Through-Body Porcelain Pressed
+                                                                                                                               SH      10   0.973    9.73     90     876      1.6   16.0 $       5.60
+COMT Elements        ELCAR2HEX       Carbon Hex 2in unglazed                 12.7x11     Mosaic     Through-Body Porcelain Pressed
+                                                                                                                               SH      11   0.967   10.64     90     958      1.8   19.8 $       5.60
+COMT Elements        ELLEA2HEX       Lead Hex 2in unglazed                   12.7x11     Mosaic     Through-Body Porcelain Pressed
+                                                                                                                               SH      11   0.967   10.64     90     958      1.8   19.8 $       5.60
+COMT Elements        ELOXY2HEX       Oxygen Hex 2in unglazed                 12.7x11     Mosaic     Through-Body Porcelain Pressed
+                                                                                                                               SH      11   0.967   10.64     90     958      1.8   19.8 $       5.60
+COMT Elements        ELPLA2HEX       Platinum Hex 2in unglazed               12.7x11     Mosaic     Through-Body Porcelain Pressed
+                                                                                                                               SH      11   0.967   10.64     90     958      1.8   19.8 $       5.60
+LGC    Finish Line   NHBLKPRG        Black Penny Round Gloss                 12.4x11.6   Mosaic     Porcelain Pressed         SH       10   1.000   10.00     90     900      1.5   15.0 $       4.75
+LGC    Finish Line   NHBLKPRM        Black Penny Round Matte                 12.4x11.6   Mosaic     Porcelain Pressed         SH       10   1.000   10.00     90     900      1.5   15.0 $       4.75
+LGC    Finish Line   NHWHTPRG        White Penny Round Gloss                 12.4x11.6   Mosaic     Porcelain Pressed         SH       10   1.000   10.00     90     900      1.5   15.0 $       4.25
+                                                                                                                  PC /   SF /    SF /    CT /   SF /     UOM Carton       UOM      Field SF
+Brand Series        SKU           Description                    Size        Type      Material             UOM
+                                                                                                                   CT     PC      CT     PAL    PAL     Weight Weight     Price     Price
+LGC   Finish Line   NHWHTPRM      White Penny Round Matte        12.4x11.6   Mosaic    Porcelain Pressed    SH      10   1.000   10.00     90     900      1.5   15.0 $     4.25
+LGC   Linea         LINARD220L    Ardesia gloss undulated        2x20        Wall Tile Ceramic Pressed      CT      20   0.269    5.38    126     678     21.3   21.3 $ 44.39 $ 8.25
+LGC   Linea         LINCEN220L    Cenere gloss undulated         2x20        Wall Tile Ceramic Pressed      CT      20   0.269    5.38    126     678     21.3   21.3 $ 43.04 $ 8.00
+LGC   Linea         LINGHI220L    Ghiaccio gloss undulated       2x20        Wall Tile Ceramic Pressed      CT      20   0.269    5.38    126     678     21.3   21.3 $ 43.04 $ 8.00
+LGC   Linea         LINMOK220L    Moka gloss undulated           2x20        Wall Tile Ceramic Pressed      CT      20   0.269    5.38    126     678     21.3   21.3 $ 44.39 $ 8.25
+LGC   Linea         LINPRU220L    Prussia gloss undulated        2x20        Wall Tile Ceramic Pressed      CT      20   0.269    5.38    126     678     21.3   21.3 $ 44.39 $ 8.25
+LGC   Linea         LINSAB220L    Sabbia gloss undulated         2x20        Wall Tile Ceramic Pressed      CT      20   0.269    5.38    126     678     21.3   21.3 $ 43.04 $ 8.00
+LGC   Linea         LINTER220L    Terracotta gloss undulated     2x20        Wall Tile Ceramic Pressed      CT      20   0.269    5.38    126     678     21.3   21.3 $ 44.39 $ 8.25
+LGC   Linea         LINVER220L    Verde Menta gloss undulated    2x20        Wall Tile Ceramic Pressed      CT      20   0.269    5.38    126     678     21.3   21.3 $ 44.39 $ 8.25
+LGC   Linea         LINARD312L    Ardesia gloss undulated        3x12        Wall Tile Ceramic Pressed      CT      44   0.245   10.78     72     776     33.4   33.4 $ 58.21 $ 5.40
+LGC   Linea         LINARD312U    Ardesia matte undulated        3x12        Wall Tile Ceramic Pressed      CT      44   0.245   10.78     72     776     33.4   33.4 $ 58.21 $ 5.40
+LGC   Linea         LINCEN312L    Cenere gloss undulated         3x12        Wall Tile Ceramic Pressed      CT      44   0.245   10.78     72     776     33.4   33.4 $ 55.52 $ 5.15
+LGC   Linea         LINGHI312L    Ghiaccio gloss undulated       3x12        Wall Tile Ceramic Pressed      CT      44   0.245   10.78     72     776     33.4   33.4 $ 55.52 $ 5.15
+LGC   Linea         LINGHI312U    Ghiaccio matte undulated       3x12        Wall Tile Ceramic Pressed      CT      44   0.245   10.78     72     776     33.4   33.4 $ 55.52 $ 5.15
+LGC   Linea         LINMOK312L    Moka gloss undulated           3x12        Wall Tile Ceramic Pressed      CT      44   0.245   10.78     72     776     33.4   33.4 $ 58.21 $ 5.40
+LGC   Linea         LINPRU312L    Prussia gloss undulated        3x12        Wall Tile Ceramic Pressed      CT      44   0.245   10.78     72     776     33.4   33.4 $ 58.21 $ 5.40
+LGC   Linea         LINPRU312U    Prussia matte undulated        3x12        Wall Tile Ceramic Pressed      CT      44   0.245   10.78     72     776     33.4   33.4 $ 58.21 $ 5.40
+LGC   Linea         LINSAB312L    Sabbia gloss undulated         3x12        Wall Tile Ceramic Pressed      CT      44   0.245   10.78     72     776     33.4   33.4 $ 55.52 $ 5.15
+LGC   Linea         LINTER312L    Terracotta gloss undulated     3x12        Wall Tile Ceramic Pressed      CT      44   0.245   10.78     72     776     33.4   33.4 $ 58.21 $ 5.40
+LGC   Linea         LINTER312U    Terracotta matte undulated     3x12        Wall Tile Ceramic Pressed      CT      44   0.245   10.78     72     776     33.4   33.4 $ 58.21 $ 5.40
+LGC   Linea         LINVER312L    Verde Menta gloss undulated    3x12        Wall Tile Ceramic Pressed      CT      44   0.245   10.78     72     776     33.4   33.4 $ 58.21 $ 5.40
+LGC   Linea         LINARDTRIML   Ardesia gloss Jolly Trim       0.5x12      Trim      Ceramic Pressed      PC      50     -       -       85     -        0.1    7.0 $     5.55
+LGC   Linea         LINARDTRIMU   Ardesia matte Jolly Trim       0.5x12      Trim      Ceramic Pressed      PC      50     -       -       85     -        0.1    7.0 $     5.55
+LGC   Linea         LINCENTRIML   Cenere gloss Jolly Trim        0.5x12      Trim      Ceramic Pressed      PC      50     -       -       85     -        0.1    7.0 $     5.40
+LGC   Linea         LINGHITRIML   Ghiaccio gloss Jolly Trim      0.5x12      Trim      Ceramic Pressed      PC      50     -       -       85     -        0.1    7.0 $     5.40
+LGC   Linea         LINGHITRIMU   Ghiaccio matte Jolly Trim      0.5x12      Trim      Ceramic Pressed      PC      50     -       -       85     -        0.1    7.0 $     5.40
+LGC   Linea         LINMOKTRIML   Moka gloss Jolly Trim          0.5x12      Trim      Ceramic Pressed      PC      50     -       -       85     -        0.1    7.0 $     5.55
+LGC   Linea         LINPRUTRIML   Prussia gloss Jolly Trim       0.5x12      Trim      Ceramic Pressed      PC      50     -       -       85     -        0.1    7.0 $     5.55
+LGC   Linea         LINPRUTRIMU   Prussia matte Jolly Trim       0.5x12      Trim      Ceramic Pressed      PC      50     -       -       85     -        0.1    7.0 $     5.55
+LGC   Linea         LINSABTRIML   Sabbia gloss Jolly Trim        0.5x12      Trim      Ceramic Pressed      PC      50     -       -       85     -        0.1    7.0 $     5.40
+LGC   Linea         LINTERTRIML   Terracotta gloss Jolly Trim    0.5x12      Trim      Ceramic Pressed      PC      50     -       -       85     -        0.1    7.0 $     5.55
+LGC   Linea         LINTERTRIMU   Terracotta matte Jolly Trim    0.5x12      Trim      Ceramic Pressed      PC      50     -       -       85     -        0.1    7.0 $     5.55
+LGC   Linea         LINVERTRIML   Verde Menta gloss Jolly Trim   0.5x12      Trim      Ceramic Pressed      PC      50     -       -       85     -        0.1    7.0 $     5.55
+LGC   Marrakesh     MARBAH88      Bahia Deco matte               8x8         Floor Tile Porcelain Pressed   CT      13   0.431    5.60     87     487     22.8   22.8 $ 51.80 $ 9.25
+LGC   Marrakesh     MARMAC88      Macaal Deco matte              8x8         Floor Tile Porcelain Pressed   CT      13   0.431    5.60     87     487     22.8   22.8 $ 51.80 $ 9.25
+LGC   Marrakesh     MARMEL88      Melah Deco matte               8x8         Floor Tile Porcelain Pressed   CT      13   0.431    5.60     87     487     22.8   22.8 $ 51.80 $ 9.25
+LGC   Marrakesh     MARRUB88      Rubeli Deco matte              8x8         Floor Tile Porcelain Pressed   CT      13   0.431    5.60     87     487     22.8   22.8 $ 51.80 $ 9.25
+LGC   Marrakesh     MARBER258     Berber Black gloss             2.5x8       Wall Tile Ceramic Pressed      CT      38   0.136    5.17    112     579     17.4   17.4 $ 54.29 $ 10.50
+LGC   Marrakesh     MARMED258     Medina Green gloss             2.5x8       Wall Tile Ceramic Pressed      CT      38   0.136    5.17    112     579     17.4   17.4 $ 54.29 $ 10.50
+LGC   Marrakesh     MARMKN258     Meknes Marine gloss            2.5x8       Wall Tile Ceramic Pressed      CT      38   0.136    5.17    112     579     17.4   17.4 $ 54.29 $ 10.50
+LGC   Marrakesh     MARSAH258     Sahara White gloss             2.5x8       Wall Tile Ceramic Pressed      CT      38   0.136    5.17    112     579     17.4   17.4 $ 54.29 $ 10.50
+LGC   Marrakesh     MARSID258     Sidi Salt gloss                2.5x8       Wall Tile Ceramic Pressed      CT      38   0.136    5.17    112     579     17.4   17.4 $ 54.29 $ 10.50
+LGC   Marrakesh     MARTAN258     Tantan Beige gloss             2.5x8       Wall Tile Ceramic Pressed      CT      38   0.136    5.17    112     579     17.4   17.4 $ 54.29 $ 10.50
+LGC   Marrakesh     MARBER44      Berber Black gloss             4x4         Wall Tile Ceramic Pressed      CT      44   0.108    4.73    120     568     16.5   16.5 $ 49.67 $ 10.50
+LGC   Marrakesh     MARMED44      Medina Green gloss             4x4         Wall Tile Ceramic Pressed      CT      44   0.108    4.73    120     568     16.5   16.5 $ 49.67 $ 10.50
+LGC   Marrakesh     MARMKN44      Meknes Marine gloss            4x4         Wall Tile Ceramic Pressed      CT      44   0.108    4.73    120     568     16.5   16.5 $ 49.67 $ 10.50
+LGC   Marrakesh     MARSAH44      Sahara White gloss             4x4         Wall Tile Ceramic Pressed      CT      44   0.108    4.73    120     568     16.5   16.5 $ 49.67 $ 10.50
+LGC   Marrakesh     MARSID44      Sidi Salt gloss                4x4         Wall Tile Ceramic Pressed      CT      44   0.108    4.73    120     568     16.5   16.5 $ 49.67 $ 10.50
+LGC   Marrakesh     MARTAN44      Tantan Beige gloss             4x4         Wall Tile Ceramic Pressed      CT      44   0.108    4.73    120     568     16.5   16.5 $ 49.67 $ 10.50
+LGC   Marrakesh     MARBERTRIM    Berber Black gloss BN          1x8         Trim      Ceramic Pressed      PC      88     -       -      120     -        0.2   15.8 $     8.85
+LGC   Marrakesh     MARMEDTRIM    Medina Green gloss BN          1x8         Trim      Ceramic Pressed      PC      88     -       -      120     -        0.2   15.8 $     8.85
+LGC   Marrakesh     MARMKNTRIM    Meknes Marine gloss BN         1x8         Trim      Ceramic Pressed      PC      88     -       -      120     -        0.2   15.8 $     8.85
+LGC   Marrakesh     MARSAHTRIM    Sahara White gloss BN          1x8         Trim      Ceramic Pressed      PC      88     -       -      120     -        0.2   15.8 $     8.85
+LGC   Marrakesh     MARSIDTRIM    Sidi Salt gloss BN             1x8         Trim      Ceramic Pressed      PC      88     -       -      120     -        0.2   15.8 $     8.85
+LGC   Marrakesh     MARTANTRIM    Tantan Beige gloss BN          1x8         Trim      Ceramic Pressed      PC      88     -       -      120     -        0.2   15.8 $     8.85
+LGC   Melody        MELEAS55      Easton White undulated gloss   5x5         Wall Tile Ceramic Pressed      CT      30   0.180    5.40    114     616     16.5   16.5 $ 45.90 $ 8.50
+LGC   Melody        MELEASAUD55   Easton White Audrey Décor      5x5         Wall Tile Ceramic Pressed      CT      30   0.180    5.40    114     616     16.5   16.5 $ 54.00 $ 10.00
+LGC   Melody        MELEASCHL55   Easton White Chloe Décor       5x5         Wall Tile Ceramic Pressed      CT      30   0.180    5.40    114     616     16.5   16.5 $ 54.00 $ 10.00
+LGC   Melody        MELEME55      Eme Ash undulated gloss        5x5         Wall Tile Ceramic Pressed      CT      30   0.180    5.40    114     616     16.5   16.5 $ 45.90 $ 8.50
+LGC   Melody        MELEMEAUD55   Eme Ash Audrey Décor           5x5         Wall Tile Ceramic Pressed      CT      30   0.180    5.40    114     616     16.5   16.5 $ 54.00 $ 10.00
+LGC   Melody        MELEMECHL55   Eme Ash Chloe Décor            5x5         Wall Tile Ceramic Pressed      CT      30   0.180    5.40    114     616     16.5   16.5 $ 54.00 $ 10.00
+LGC   Melody        MELLYR55      Lyric Blue undulated gloss     5x5         Wall Tile Ceramic Pressed      CT      30   0.180    5.40    114     616     16.5   16.5 $ 45.90 $ 8.50
+LGC   Melody        MELLYRAUD55   Lyric Blue Audrey Décor        5x5         Wall Tile Ceramic Pressed      CT      30   0.180    5.40    114     616     16.5   16.5 $ 54.00 $ 10.00
+                                                                                                                               PC /   SF /    SF /    CT /   SF /     UOM Carton       UOM      Field SF
+Brand Series             SKU              Description                    Size        Type       Material                 UOM
+                                                                                                                                CT     PC      CT     PAL    PAL     Weight Weight     Price     Price
+LGC   Melody             MELLYRCHL55      Lyric Blue Chloe Décor         5x5         Wall Tile Ceramic Pressed           CT      30   0.180    5.40    114     616     16.5   16.5 $ 54.00 $ 10.00
+LGC   Melody             MELMIN55         Mint Grey undulated gloss      5x5         Wall Tile Ceramic Pressed           CT      30   0.180    5.40    114     616     16.5   16.5 $ 45.90 $ 8.50
+LGC   Melody             MELMINAUD55      Mint Grey Audrey Décor         5x5         Wall Tile Ceramic Pressed           CT      30   0.180    5.40    114     616     16.5   16.5 $ 54.00 $ 10.00
+LGC   Melody             MELMINCHL55      Mint Grey Chloe Décor          5x5         Wall Tile Ceramic Pressed           CT      30   0.180    5.40    114     616     16.5   16.5 $ 54.00 $ 10.00
+LGC   Melody             MELEASTRIM       Easton White geometric jolly   0.5x10      Trim       Ceramic Pressed          PC      10     -       -      230     -        0.1    0.9 $     8.50
+LGC   Melody             MELEMETRIM       Eme Ash geometric jolly        0.5x10      Trim       Ceramic Pressed          PC      10     -       -      230     -        0.1    0.9 $     8.50
+LGC   Melody             MELLYRTRIM       Lyric Blue geometric jolly     0.5x10      Trim       Ceramic Pressed          PC      10     -       -      230     -        0.1    0.9 $     8.50
+LGC   Melody             MELMINTRIM       Mint Grey geometric jolly      0.5x10      Trim       Ceramic Pressed          PC      10     -       -      230     -        0.1    0.9 $     8.50
+LGC   MidMod Mosaics     MMCEL16GL        Celeste 1x6 Bars               11.7x11.5   Mosaic     Porcelain Pressed        SH      10   0.934    9.34     90     841      2.7   26.8 $     8.50
+LGC   MidMod Mosaics     MMCIT16GL        Citrine 1x6 Bars               11.7x11.5   Mosaic     Porcelain Pressed        SH      10   0.934    9.34     90     841      2.7   26.8 $     8.50
+LGC   MidMod Mosaics     MMOAT16GL        Oat 1x6 Bars                   11.7x11.5   Mosaic     Porcelain Pressed        SH      10   0.934    9.34     90     841      2.7   26.8 $     8.50
+LGC   MidMod Mosaics     MMSAL16GL        Salt 1x6 Bars                  11.7x11.5   Mosaic     Porcelain Pressed        SH      10   0.934    9.34     90     841      2.7   26.8 $     8.50
+LGC   MidMod Mosaics     MMCELQTRMT       Celeste 1.25" Disks            13.3x12.2   Mosaic     Porcelain Pressed        SH      10   1.124   11.24    108   1,214      2.4   23.6 $     7.25
+LGC   MidMod Mosaics     MMCITQTRMT       Citrine 1.25" Disks            13.3x12.2   Mosaic     Porcelain Pressed        SH      10   1.124   11.24    108   1,214      2.4   23.6 $     7.25
+LGC   MidMod Mosaics     MMOATQTRMT       Oat 1.25" Disks                13.3x12.2   Mosaic     Porcelain Pressed        SH      10   1.124   11.24    108   1,214      2.4   23.6 $     7.25
+LGC   MidMod Mosaics     MMSALQTRMT       Salt 1.25" Disks               13.3x12.2   Mosaic     Porcelain Pressed        SH      10   1.124   11.24    108   1,214      2.4   23.6 $     7.25
+LGC   Natural Elements   NECUBEA1         Cashmere Cube                  11.1x9.8    Mosaic     Glass                    SH      11   0.753    8.28     63     522      2.5   27.5 $ 21.50
+LGC   Natural Elements   NEHEXLEAF02      Mink Hex Leaves                11.9x11.1   Mosaic     Glass                    SH      11   0.917   10.09     63     636      3.5   38.5 $ 21.50
+LGC   Natural Elements   NEHEXLEAF8004    Blue Heron Hex Leaves          11.9x11.1   Mosaic     Glass                    SH      11   0.917   10.09     63     636      3.5   38.5 $ 21.50
+LGC   Natural Elements   NETEAR7804       Snow Fall Tear Drop            11.9x11.1   Mosaic     Glass                    SH      10   0.917    9.17     54     495      3.5   35.0 $ 21.50
+LGC   Natural Elements   NETEAR7805       Mist Tear Drop                 11.9x11.1   Mosaic     Glass                    SH      10   0.917    9.17     54     495      3.5   35.0 $ 21.50
+LGC   Natural Elements   NECHEV305        Skyline Chevron                12x10.9     Mosaic     Natural Stone            SH      10   0.906    9.06     54     489      3.0   30.0 $ 21.50
+LGC   Natural Elements   NELEAF7904       Lace Leaves                    12x11.8     Mosaic     Glass                    SH      10   0.979    9.79     54     529      3.5   35.0 $ 28.00
+LGC   Natural Elements   NELEAF7905       Dove Leaves                    12x11.8     Mosaic     Glass                    SH      10   0.979    9.79     54     529      3.5   35.0 $ 28.00
+LGC   New Dimensions NDDKOAKCHE1236 Dark Oak Chevron                     12x36       Wall Tile Ceramic Pressed           CT       4   2.905   11.62     51     593     40.1   40.1 $ 55.66      $ 4.79
+LGC   New Dimensions NDIVORBEV1236        Ivory Bevel                    12x36       Wall Tile Ceramic Pressed           CT       4   2.905   11.62     51     593     40.1   40.1 $ 55.66      $ 4.79
+LGC   New Dimensions NDIVORHER1236        Ivory Herringbone              12x36       Wall Tile Ceramic Pressed           CT       4   2.905   11.62     51     593     40.1   40.1 $ 55.66      $ 4.79
+LGC   New Dimensions NDLTOAKLIN1236       Light Oak Linear               12x36       Wall Tile Ceramic Pressed           CT       4   2.905   11.62     51     593     40.1   40.1 $ 55.66      $ 4.79
+LGC   New Dimensions NDMOONCON1236 Moon Concave                          12x36       Wall Tile Ceramic Pressed           CT       4   2.905   11.62     51     593     40.1   40.1 $ 55.66      $ 4.79
+LGC   New Dimensions NDMOONSPA1236        Moon Spackle                   12x36       Wall Tile Ceramic Pressed           CT       4   2.905   11.62     51     593     40.1   40.1 $ 55.66      $ 4.79
+LGC   Northern Lights    NLASTWHEEL       Asteroid Hex Wheel             10.2x8.9    Mosaic     Through-Body Glass       SH      11   0.630    6.95     66     459      1.7   18.8 $ 15.50
+LGC   Northern Lights    NLCOSWHEEL       Cosmos Hex Wheel               10.2x8.9    Mosaic     Through-Body Glass       SH      11   0.630    6.95     66     459      1.7   18.8 $ 15.50
+LGC   Northern Lights    NLGLXWHEEL       Galaxy Hex Wheel               10.2x8.9    Mosaic     Through-Body Glass       SH      11   0.630    6.95     66     459      1.7   18.8 $ 15.50
+LGC   Northern Lights    NLMONWHEEL       Moon Hex Wheel                 10.2x8.9    Mosaic     Through-Body Glass       SH      11   0.630    6.95     66     459      1.7   18.8 $ 15.50
+LGC   Northern Lights    NLNEPWHEEL       Neptune Hex Wheel              10.2x8.9    Mosaic     Through-Body Glass       SH      11   0.630    6.95     66     459      1.7   18.8 $ 15.50
+LGC   Northern Lights    NLASTRAIN        Asteroid Raindrop              11.6x11.1   Mosaic     Through-Body Glass       SH      11   0.900    9.85     54     532      2.4   26.0 $ 17.50
+LGC   Northern Lights    NLCOSRAIN        Cosmos Raindrop                11.6x11.1   Mosaic     Through-Body Glass       SH      11   0.900    9.85     54     532      2.4   26.0 $ 17.50
+LGC   Northern Lights    NLGLXRAIN        Galaxy Raindrop                11.6x11.1   Mosaic     Through-Body Glass       SH      11   0.900    9.85     54     532      2.4   26.0 $ 17.50
+LGC   Northern Lights    NLMONRAIN        Moon Raindrop                  11.6x11.1   Mosaic     Through-Body Glass       SH      11   0.900    9.85     54     532      2.4   26.0 $ 17.50
+LGC   Northern Lights    NLNEPRAIN        Neptune Raindrop               11.6x11.1   Mosaic     Through-Body Glass       SH      11   0.900    9.85     54     532      2.4   26.0 $ 17.50
+LGC   Organic Strands    ORG01221P        Ivory 2in Lantern              12.1x9.8    Mosaic     Glass                    SH      14   0.826   11.56     54     624      2.1   29.7 $ 12.50
+LGC   Organic Strands    ORG02221P        Beige 2in Lantern              12.1x9.8    Mosaic     Glass                    SH      14   0.826   11.56     54     624      2.1   29.7 $ 12.50
+LGC   Organic Strands    ORG03221P        Light Grey 2in Lantern         12.1x9.8    Mosaic     Glass                    SH      14   0.826   11.56     54     624      2.1   29.7 $ 12.50
+LGC   Organic Strands    ORG04221P        Grey 2in Lantern               12.1x9.8    Mosaic     Glass                    SH      14   0.826   11.56     54     624      2.1   29.7 $ 12.50
+LGC   Parisian Chequer PCBLANC1212        Blanche                        12x12       Floor Tile Porcelain Rectified      CT       6   0.968    5.81     80     465     23.8   23.8 $ 23.18      $ 3.99
+LGC   Parisian Chequer PCCREM1212         Crème                          12x12       Floor Tile Porcelain Rectified      CT       6   0.968    5.81     80     465     23.8   23.8 $ 23.18      $ 3.99
+LGC   Parisian Chequer PCNOIR1212         Noir                           12x12       Floor Tile Porcelain Rectified      CT       6   0.968    5.81     80     465     23.8   23.8 $ 23.18      $ 3.99
+COMT Pure                CTPUBLK12121L    Jet Black glazed pol.          12x12       Floor Tile Porcelain Rectified      CT      11   0.956   10.52     60     631     42.7   42.7 $ 44.71 $ 4.25
+COMT Pure                CTPUBLK12121P    Jet Black matte                12x12       Floor Tile Porcelain Rectified      CT      11   0.956   10.52     60     631     42.7   42.7 $ 44.71 $ 4.25
+COMT Pure                CTPUWHT12121LV   Frost White glazed pol.        12x12       Floor Tile Porcelain Rectified      CT      11   0.956   10.52     60     631     42.7   42.7 $ 31.03 $ 2.95
+COMT Pure                CTPUWHT12121PV   Frost White matte              12x12       Floor Tile Porcelain Rectified      CT      11   0.956   10.52     60     631     42.7   42.7 $ 31.03 $ 2.95
+COMT Pure                CTPUBLK12241L    Jet Black glazed pol.          12x24       Floor Tile Porcelain Rectified      CT       8   1.936   15.49     40     620     59.5   59.5 $ 54.99 $ 3.55
+COMT Pure                CTPUBLK12241P    Jet Black matte                12x24       Floor Tile Porcelain Rectified      CT       8   1.936   15.49     40     620     61.6   61.6 $ 54.99 $ 3.55
+COMT Pure                CTPUWHT12241LV   Frost White glazed pol.        12x24       Floor Tile Porcelain Rectified      CT       8   1.936   15.49     40     620     61.6   61.6 $ 39.03 $ 2.52
+COMT Pure                CTPUWHT12241PV   Frost White matte              12x24       Floor Tile Porcelain Rectified      CT       8   1.936   15.49     40     620     61.6   61.6 $ 39.03 $ 2.52
+COMT Pure                CTPUBLK24241L    Jet Black glazed pol.          24x24       Floor Tile Porcelain Rectified      CT       4   3.873   15.49     40     620     61.6   61.6 $ 54.99 $ 3.55
+COMT Pure                CTPUBLK24241P    Jet Black matte                24x24       Floor Tile Porcelain Rectified      CT       4   3.873   15.49     40     620     61.6   61.6 $ 54.99 $ 3.55
+COMT Pure                CTPUWHT24241LV   Frost White glazed pol.        24x24       Floor Tile Porcelain Rectified      CT       4   3.873   15.49     40     620     61.6   61.6 $ 39.03 $ 2.52
+COMT Pure                CTPUWHT24241P    Frost White matte              24x24       Floor Tile Porcelain                CT       4   3.875   15.49     32     496     68.4   68.4 $ 39.03 $ 2.52
+COMT Pure                CTPUWHT24241PV   Frost White matte              24x24       Floor Tile Porcelain Rectified      CT       4   3.873   15.49     40     620     61.6   61.6 $ 39.03 $ 2.52
+COMT Pure                CTPUWHT24481L    Frost White glazed pol.        24x48       Floor Tile Porcelain Rectified      CT       2   7.750   15.50     28     434     64.2   64.2 $ 52.70 $ 3.40
+LGC   Retrospectives     RSCOVENTGARD88   Covent Garden pressed          8x8         Floor Tile Porcelain Pressed >0.5   CT      13   0.431    5.60     87     487     23.5   23.5 $ 36.68 $ 6.55
+LGC   Retrospectives     RSNOTHILL88      Notting Hill pressed           8x8         Floor Tile Porcelain Pressed >0.5   CT      13   0.431    5.60     87     487     23.5   23.5 $ 35.28 $ 6.30
+                                                                                                                                PC /   SF /    SF /    CT /   SF /     UOM Carton       UOM      Field SF
+Brand Series              SKU                Description             Size             Type      Material                  UOM
+                                                                                                                                 CT     PC      CT     PAL    PAL     Weight Weight     Price     Price
+LGC   Retrospectives      RSROYALBLUE88      Royal Blues pressed     8x8              Floor Tile Porcelain Pressed >0.5   CT      13   0.431    5.60     87     487     23.5   23.5 $ 36.68 $ 6.55
+LGC   Retrospectives      RSENCHANTED36L     Enchanted Mist gloss    3x6              Wall Tile Ceramic Pressed           CT      44   0.122    5.37    120     644     17.6   17.6 $ 38.93 $ 7.25
+LGC   Retrospectives      RSNOTHILL36L       Notting Hill gloss      3x6              Wall Tile Ceramic Pressed           CT      44   0.122    5.37    120     644     17.6   17.6 $ 38.93 $ 7.25
+LGC   Retrospectives      RSROYALGARD36L     Royal Garden gloss      3x6              Wall Tile Ceramic Pressed           CT      44   0.122    5.37    120     644     17.6   17.6 $ 38.93 $ 7.25
+LGC   Retrospectives      RSENCHANTED16BN Enchanted Mist gloss BN    1x6              Trim      Ceramic Pressed           EA    132      -       -      120     -        0.2   19.8 $     4.70
+LGC   Retrospectives      RSNOTHILL16BN      Notting Hill gloss BN   1x6              Trim      Ceramic Pressed           EA    132      -       -      120     -        0.2   19.8 $     4.70
+LGC   Retrospectives      RSROYALGARD16BN Royal Garden gloss BN      1x6              Trim      Ceramic Pressed           EA    132      -       -      120     -        0.2   19.8 $     4.70
+LGC   Simple Stone        SIMBIANCOPEB       Bianco Pebble           12.1x12.1        Mosaic    Glass                     SH      10   1.021   10.21     54     551      2.5   25.4 $ 16.65
+LGC   Simple Stone        SIMNEROPEB         Nero Pebble             12.1x12.1        Mosaic    Glass                     SH      10   1.021   10.21     54     551      2.5   25.4 $ 16.65
+LGC   Simple Stone        SIMOROPEB          Oro Pebble              12.1x12.1        Mosaic    Glass                     SH      10   1.021   10.21     54     551      2.5   25.4 $ 16.65
+LGC   Simple Stone        SIMBIANCOCHEVRO Bianco Chevron             12.2x11          Mosaic    Glass                     SH      11   0.936   10.30     72     742      2.5   27.5 $ 16.65
+LGC   Simple Stone        SIMBIANCOPNYRD     Bianco Penny Round      12.2x11          Mosaic    Glass                     SH      11   0.978   10.76     72     775      2.5   27.5 $ 16.65
+LGC   Simple Stone        SIMNEROCHEVRON     Nero Chevron            12.2x11          Mosaic    Glass                     SH      11   0.936   10.30     72     742      2.5   27.5 $ 16.65
+LGC   Simple Stone        SIMNEROPNYRD       Nero Penny Round        12.2x11          Mosaic    Glass                     SH      11   0.978   10.76     72     775      2.5   27.5 $ 16.65
+LGC   Simple Stone        SIMOROCHEVRON      Oro Chevron             12.2x11          Mosaic    Glass                     SH      11   0.936   10.30     72     742      2.5   27.5 $ 16.65
+LGC   Simple Stone        SIMOROPNYRD        Oro Penny Round         12.2x11          Mosaic    Glass                     SH      11   0.978   10.76     72     775      2.5   27.5 $ 16.65
+LGC   Spatula             SPATEMB37          Ember                   3.5x7            Floor Tile Through-Body Porcelain   CT      60   0.184   11.04     48     530     41.9   41.9 $ 92.18      $ 8.35
+LGC   Spatula             SPATEMB77          Ember                   7x7              Floor Tile Through-Body Porcelain   CT      30   0.368   11.04     48     530     41.9   41.9 $ 92.18      $ 8.35
+LGC   Spatula             SPATMID37          Midnight Slate          3.5x7            Floor Tile Through-Body Porcelain   CT      60   0.184   11.04     48     530     41.9   41.9 $ 92.18      $ 8.35
+LGC   Spatula             SPATMID77          Midnight Slate          7x7              Floor Tile Through-Body Porcelain   CT      30   0.368   11.04     48     530     41.9   41.9 $ 92.18      $ 8.35
+LGC   Spatula             SPATPLA37          Plaster                 3.5x7            Floor Tile Through-Body Porcelain   CT      60   0.184   11.04     48     530     41.9   41.9 $ 92.18      $ 8.35
+LGC   Spatula             SPATPLA77          Plaster                 7x7              Floor Tile Through-Body Porcelain   CT      30   0.368   11.04     48     530     41.9   41.9 $ 92.18      $ 8.35
+LGC   Spatula             SPATSAG37          Sage Mist               3.5x7            Floor Tile Through-Body Porcelain   CT      60   0.184   11.04     48     530     41.9   41.9 $ 92.18      $ 8.35
+LGC   Spatula             SPATSAG77          Sage Mist               7x7              Floor Tile Through-Body Porcelain   CT      30   0.368   11.04     48     530     41.9   41.9 $ 92.18      $ 8.35
+LGC   Spatula             SPATSAN37          Sandstone               3.5x7            Floor Tile Through-Body Porcelain   CT      60   0.184   11.04     48     530     41.9   41.9 $ 92.18      $ 8.35
+LGC   Spatula             SPATSAN77          Sandstone               7x7              Floor Tile Through-Body Porcelain   CT      30   0.368   11.04     48     530     41.9   41.9 $ 92.18      $ 8.35
+LGC   Spatula             SPATTER37          Terra Silk              3.5x7            Floor Tile Through-Body Porcelain   CT      60   0.184   11.04     48     530     41.9   41.9 $ 92.18      $ 8.35
+LGC   Spatula             SPATTER77          Terra Silk              7x7              Floor Tile Through-Body Porcelain   CT      30   0.368   11.04     48     530     41.9   41.9 $ 92.18      $ 8.35
+LGC   Zellige Bespoke ZBDESPEA26OVL          Desert Pearl            2x6 Long Oval    Wall Tile Terracotta                CT    100    0.097    9.68     48     465     43.5   43.5   ####### # $ 16.50
+LGC   Zellige Bespoke ZBDESPEA44L            Desert Pearl            4x4              Wall Tile Terracotta                CT    100    0.108   10.76     48     516     48.5   48.5   ####### # ###### #
+LGC   Zellige Bespoke ZBDESPEACH             Desert Pearl            2x2 Crosshatch   Mosaic    Terracotta                SH      11   0.980   10.76     45     484      4.2   46.2 $ 34.00
+LGC   Zellige Bespoke ZBDESPEACIRC           Desert Pearl            2in Circle       Mosaic    Terracotta                SH      11   0.980   10.76     45     484      4.2   46.2 $ 34.00
+LGC   Zellige Bespoke ZBESPNOI26OVL          Espresso Noire          2x6 Long Oval    Wall Tile Terracotta                CT    100    0.097    9.68     48     465     43.5   43.5   ####### # $ 16.50
+LGC   Zellige Bespoke ZBESPNOI44L            Espresso Noire          4x4              Wall Tile Terracotta                CT    100    0.108   10.76     48     516     48.5   48.5   ####### # ###### #
+LGC   Zellige Bespoke ZBESPNOICH             Espresso Noire          2x2 Crosshatch   Mosaic    Terracotta                SH      11   0.980   10.76     45     484      4.2   46.2 $ 34.00
+LGC   Zellige Bespoke ZBESPNOICIRC           Espresso Noire          2in Circle       Mosaic    Terracotta                SH      11   0.980   10.76     45     484      4.2   46.2 $ 34.00
+LGC   Zellige Bespoke ZBINDMIS26OVL          Indigo Mist             2x6 Long Oval    Wall Tile Terracotta                CT    100    0.097    9.68     48     465     43.5   43.5   ####### # $ 16.50
+LGC   Zellige Bespoke ZBINDMIS44L            Indigo Mist             4x4              Wall Tile Terracotta                CT    100    0.108   10.76     48     516     48.5   48.5   ####### # ###### #
+LGC   Zellige Bespoke ZBINDMISCH             Indigo Mist             2x2 Crosshatch   Mosaic    Terracotta                SH      11   0.980   10.76     45     484      4.2   46.2 $ 34.00
+LGC   Zellige Bespoke ZBINDMISCIRC           Indigo Mist             2in Circle       Mosaic    Terracotta                SH      11   0.980   10.76     45     484      4.2   46.2 $ 34.00
+LGC   Zellige Bespoke ZBNOMSAN26OVL          Nomad Sand              2x6 Long Oval    Wall Tile Terracotta                CT    100    0.097    9.68     48     465     43.5   43.5   ####### # $ 16.50
+LGC   Zellige Bespoke ZBNOMSAN44L            Nomad Sand              4x4              Wall Tile Terracotta                CT    100    0.108   10.76     48     516     48.5   48.5   ####### # ###### #
+LGC   Zellige Bespoke ZBNOMSANCH             Nomad Sand              2x2 Crosshatch   Mosaic    Terracotta                SH      11   0.980   10.76     45     484      4.2   46.2 $ 34.00
+LGC   Zellige Bespoke ZBNOMSANCIRC           Nomad Sand              2in Circle       Mosaic    Terracotta                SH      11   0.980   10.76     45     484      4.2   46.2 $ 34.00
+LGC   Zellige Bespoke ZBSUNCLA26OVL          Sundried Clay           2x6 Long Oval    Wall Tile Terracotta                CT    100    0.097    9.68     48     465     43.5   43.5   ####### # $ 16.50
+LGC   Zellige Bespoke ZBSUNCLA44L            Sundried Clay           4x4              Wall Tile Terracotta                CT    100    0.108   10.76     48     516     48.5   48.5   ####### # ###### #
+LGC   Zellige Bespoke ZBSUNCLACH             Sundried Clay           2x2 Crosshatch   Mosaic    Terracotta                SH      11   0.980   10.76     45     484      4.2   46.2 $ 34.00
+LGC   Zellige Bespoke ZBSUNCLACIRC           Sundried Clay           2in Circle       Mosaic    Terracotta                SH      11   0.980   10.76     45     484      4.2   46.2 $ 34.00
+LGC   Zellige Bespoke ZBTWIBLO26OVL          Twilight Bloom          2x6 Long Oval    Wall Tile Terracotta                CT    100    0.097    9.68     48     465     43.5   43.5   ####### # $ 16.50
+LGC   Zellige Bespoke ZBTWIBLO44L            Twilight Bloom          4x4              Wall Tile Terracotta                CT    100    0.108   10.76     48     516     48.5   48.5   ####### # ###### #
+LGC   Zellige Bespoke ZBTWIBLOCH             Twilight Bloom          2x2 Crosshatch   Mosaic    Terracotta                SH      11   0.980   10.76     45     484      4.2   46.2 $ 34.00
+LGC   Zellige Bespoke ZBTWIBLOCIRC           Twilight Bloom          2in Circle       Mosaic    Terracotta                SH      11   0.980   10.76     45     484      4.2   46.2 $ 34.00
+LGC   Zellige Classique   ZELALHAM26L        Al Hamra                2x6              Wall Tile Terracotta                CT    100    0.081    8.07     48     387     48.5   48.5 $ 112.98 $ 14.00
+LGC   Zellige Classique   ZELATLWHI26L       Atlas White             2x6              Wall Tile Terracotta                CT    100    0.081    8.07     48     387     48.5   48.5 $ 112.98 $ 14.00
+LGC   Zellige Classique   ZELBLUCIT26L       Blue City               2x6              Wall Tile Terracotta                CT    100    0.081    8.07     48     387     48.5   48.5 $ 112.98 $ 14.00
+LGC   Zellige Classique   ZELGRIPER26L       Gris Perle              2x6              Wall Tile Terracotta                CT    100    0.081    8.07     48     387     48.5   48.5 $ 112.98 $ 14.00
+LGC   Zellige Classique   ZELMINTEA26L       Mint Tea                2x6              Wall Tile Terracotta                CT    100    0.081    8.07     48     387     48.5   48.5 $ 112.98 $ 14.00
+LGC   Zellige Classique   ZELSAHROS26L       Sahara Rose             2x6              Wall Tile Terracotta                CT    100    0.081    8.07     48     387     48.5   48.5 $ 112.98 $ 14.00
+LGC   Zellige Classique   ZELWOOL26L         Lambswool               2x6              Wall Tile Terracotta                CT    100    0.081    8.07     48     387     48.5   48.5 $ 112.98 $ 14.00
+LGC   Zellige Classique   ZELALHAM44L        Al Hamra                4x4              Wall Tile Terracotta                CT    100    0.107   10.76     48     516     43.0   43.0 $ 150.64 $ 14.00
+LGC   Zellige Classique   ZELATLWHI44L       Atlas White             4x4              Wall Tile Terracotta                CT    100    0.107   10.76     48     516     43.0   43.0 $ 150.64 $ 14.00
+LGC   Zellige Classique   ZELBLUCIT44L       Blue City               4x4              Wall Tile Terracotta                CT    100    0.107   10.76     48     516     43.0   43.0 $ 150.64 $ 14.00
+LGC   Zellige Classique   ZELGRIPER44L       Gris Perle              4x4              Wall Tile Terracotta                CT    100    0.107   10.76     48     516     43.0   43.0 $ 150.64 $ 14.00
+                                                                                                                            PC /   SF /    SF /    CT /   SF /     UOM Carton     UOM     Field SF
+Brand Series              SKU            Description                               Size        Type      Material     UOM
+                                                                                                                             CT     PC      CT     PAL    PAL     Weight Weight   Price    Price
+LGC   Zellige Classique   ZELMINTEA44L   Mint Tea                                  4x4         Wall Tile Terracotta   CT    100    0.107   10.76     48     516     43.0   43.0 $ 150.64 $ 14.00
+LGC   Zellige Classique   ZELSAHROS44L   Sahara Rose                               4x4         Wall Tile Terracotta   CT    100    0.107   10.76     48     516     43.0   43.0 $ 150.64 $ 14.00
+LGC   Zellige Classique   ZELWOOL44L     Lambswool                                 4x4         Wall Tile Terracotta   CT    100    0.107   10.76     48     516     43.0   43.0 $ 150.64 $ 14.00
+LGC   Zellige Classique   ZELPAP01MOS    Papillon in Al Hamra                      10.5x10     Mosaic    Terracotta   SH      16   0.729   11.67     54     630      2.7   42.4 $ 34.00
+LGC   Zellige Classique   ZELSTA01MOS    Starburst in Atlas White                  10x10       Mosaic    Terracotta   SH      18   0.694   12.50     54     675      2.4   42.8 $ 34.00
+LGC   Zellige Classique   ZELART01MOS    Art in Atlas White                        11.3x11.3   Mosaic    Terracotta   SH      11   0.879    9.67     54     522      3.9   42.8 $ 22.50
+LGC   Zellige Classique   ZELSTCR01MOS   Star & Cross in Atlas / Lambs             11.8x11.8   Mosaic    Terracotta   SH      11   0.968   10.65     54     575      4.3   47.1 $ 34.00
+LGC   Zellige Classique   ZELTAP01MOS    Tapis in Atlas White, Sahara Rose         12x12       Mosaic    Terracotta   SH      11   1.000   11.00     54     594      3.9   42.5 $ 22.50
+LGC   Zellige Classique   ZELCHO01MOS    Chouari in At. White, Blanc, Gris Perle   14.3x13.3   Mosaic    Terracotta   SH      10   1.311   13.11     54     708      4.3   42.8 $ 22.50
+LGC   Zellige Classique   ZELTRI01MOS    Triangle in Atlas White                   9x11.75     Mosaic    Terracotta   SH      14   0.734   10.28     54     555      3.1   42.7 $ 34.00
+

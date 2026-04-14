@@ -1,0 +1,253 @@
+{
+  "startedAt": "2026-04-10T18:15:09.848Z",
+  "finishedAt": "2026-04-10T18:35:49.817Z",
+  "elapsedMs": 1239965,
+  "dryRun": false,
+  "filters": {
+    "LIMIT": null,
+    "ONLY": null,
+    "CATEGORY": "Moulding"
+  },
+  "totals": {
+    "processed": 364,
+    "primary": 320,
+    "alternate": 336,
+    "spec": 319,
+    "notFound": 44,
+    "mismatches": 0,
+    "skipped": 44,
+    "uniquePages": 63,
+    "pageFetches": 63,
+    "pageCacheHits": 298,
+    "imageDownloads": 656
+  },
+  "byClass": {
+    "Moulding": {
+      "processed": 364,
+      "primary": 320,
+      "alternate": 336,
+      "spec": 319,
+      "skipped": 44
+    }
+  },
+  "notFound": [
+    {
+      "sku": "BASE5-HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/base/base5-61071-28.html"
+    },
+    {
+      "sku": "BM3CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/bm3.html"
+    },
+    {
+      "sku": "CONCOV-5-HMP",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "CONCR4-HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/concrcov.html"
+    },
+    {
+      "sku": "CONCR5-HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/concrcov.html"
+    },
+    {
+      "sku": "COV-6-OK",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/cove-crown.html"
+    },
+    {
+      "sku": "DC2HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/dentil-crown.html"
+    },
+    {
+      "sku": "DEN18OK",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/den18.html"
+    },
+    {
+      "sku": "DEN1HMP",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DEN21CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/den21.html"
+    },
+    {
+      "sku": "DEN21POP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/den21.html"
+    },
+    {
+      "sku": "FLT3ALD",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/columns/flt.html"
+    },
+    {
+      "sku": "LR001-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/light-rail/lr001.html"
+    },
+    {
+      "sku": "LR002-HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/light-rail/lr002.html"
+    },
+    {
+      "sku": "LR005-F-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/light-rail/lr005-f.html"
+    },
+    {
+      "sku": "LR005-F-POP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/light-rail/lr005-f.html"
+    },
+    {
+      "sku": "MC4HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/rope-crown.html"
+    },
+    {
+      "sku": "MC4POP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/rope-crown.html"
+    },
+    {
+      "sku": "MC5BCH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/corner/mc5b.html"
+    },
+    {
+      "sku": "MC5POP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/corner/mc5.html"
+    },
+    {
+      "sku": "MC7ALD",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/cove-crown.html"
+    },
+    {
+      "sku": "MC9ALD",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/cove-crown.html"
+    },
+    {
+      "sku": "OME-RMH14HMP-RL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "RC2CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/rope-crown.html"
+    },
+    {
+      "sku": "RMH12THMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/rope/rmht.html"
+    },
+    {
+      "sku": "RMH12TOK",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/rope/rmht.html"
+    },
+    {
+      "sku": "RMH250BHMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/rope/rmhb.html"
+    },
+    {
+      "sku": "RMH250OK",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/columns/rmh.html"
+    },
+    {
+      "sku": "RMH34THMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/rope/rmht.html"
+    },
+    {
+      "sku": "RMH58TOK",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/rope/rmht.html"
+    },
+    {
+      "sku": "SC11OK",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html"
+    },
+    {
+      "sku": "SC14ALD",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html"
+    },
+    {
+      "sku": "SC14OK",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html"
+    },
+    {
+      "sku": "SC1ALD",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html"
+    },
+    {
+      "sku": "SC2ALD",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html"
+    },
+    {
+      "sku": "SC2HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html"
+    },
+    {
+      "sku": "SC2OK",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html"
+    },
+    {
+      "sku": "SC2POP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html"
+    },
+    {
+      "sku": "SC2R-HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/rope-crown.html"
+    },
+    {
+      "sku": "SC3ALD",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html"
+    },
+    {
+      "sku": "SC3OK",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html"
+    },
+    {
+      "sku": "SC5CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html"
+    },
+    {
+      "sku": "SC5OK",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html"
+    },
+    {
+      "sku": "STMW-ALD",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/shelf-stemware/stmw.html"
+    }
+  ],
+  "mismatches": []
+}

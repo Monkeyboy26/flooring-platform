@@ -121,6 +121,9 @@ export async function run(pool, job, source) {
         continue;
       }
 
+      // Clean collection name: strip trailing slashes, normalize whitespace
+      productData.name = productData.name.replace(/\s*\/\s*$/, '').trim();
+
       // Resolve PIM category
       const { id: categoryId, slug: catSlug } = resolveCategory(productData, categoryLookup);
 
@@ -148,7 +151,7 @@ export async function run(pool, job, source) {
           );
 
           // Product-level images (from color-specific carousel images, already sorted by preferProductShot)
-          for (let gi = 0; gi < colorImages.length && gi < 6; gi++) {
+          for (let gi = 0; gi < colorImages.length && gi < 12; gi++) {
             const assetType = gi === 0 ? 'primary' : 'alternate';
             await upsertMediaAsset(pool, {
               product_id: product.id,
@@ -267,6 +270,42 @@ export async function run(pool, job, source) {
       [uniqueIds]
     );
     await appendLog(pool, job.id, `Activated ${activateResult.rowCount} products`);
+
+    // Activate SKUs for touched products
+    const skuActivate = await pool.query(
+      `UPDATE skus SET status = 'active', updated_at = CURRENT_TIMESTAMP
+       WHERE product_id = ANY($1) AND status = 'draft'`,
+      [uniqueIds]
+    );
+    if (skuActivate.rowCount > 0) {
+      await appendLog(pool, job.id, `Activated ${skuActivate.rowCount} SKUs`);
+    }
+  }
+
+  // ── Phase 3b: Name cleanup ──
+
+  // Strip trailing slashes from names and collections
+  const slashClean = await pool.query(
+    `UPDATE products SET
+      name = TRIM(REGEXP_REPLACE(name, '\\s*/\\s*$', '')),
+      collection = TRIM(REGEXP_REPLACE(collection, '\\s*/\\s*$', '')),
+      updated_at = CURRENT_TIMESTAMP
+    WHERE vendor_id = $1 AND (name LIKE '%/' OR collection LIKE '%/')`,
+    [vendor_id]
+  );
+  if (slashClean.rowCount > 0) {
+    await appendLog(pool, job.id, `Cleaned trailing slashes from ${slashClean.rowCount} product names`);
+  }
+
+  // Set display_name = collection where missing
+  const dnResult = await pool.query(
+    `UPDATE products SET display_name = collection, updated_at = CURRENT_TIMESTAMP
+    WHERE vendor_id = $1 AND (display_name IS NULL OR display_name = '')
+    AND collection IS NOT NULL AND collection != ''`,
+    [vendor_id]
+  );
+  if (dnResult.rowCount > 0) {
+    await appendLog(pool, job.id, `Set display_name on ${dnResult.rowCount} products`);
   }
 
   await appendLog(pool, job.id,
@@ -461,15 +500,21 @@ function parseDetailPage(html, url) {
     else if (label.includes('minimum')) result.specs.minimumPurchase = value;
   }
 
-  // ── Parse carousel thumbnails → variant-specific images ──
-  // <swiper-slide data-product-id="8469"><img src=".../th-calypso-0.jpg"/></swiper-slide>
-  const thumbSlideRegex = /data-product-id="(\d+)"[^>]*>\s*<img[^>]*src="([^"]+)"/g;
-  let thumbMatch;
-  while ((thumbMatch = thumbSlideRegex.exec(html)) !== null) {
-    const variantPid = thumbMatch[1];
-    const thumbUrl = thumbMatch[2];
-    // Convert thumbnail URL to full-size by removing th- prefix, normalize path
-    const fullUrl = normalizeImgUrl(thumbUrl.replace(/\/th-/, '/'));
+  // ── Parse product images and map to variant IDs ──
+  // Bosphorus CDN URLs contain variant IDs in the path:
+  //   Main carousel: /products//8469/calypso-0.jpg (full-size, variant ID in path)
+  //   Thumb carousel: /products/8469/th-calypso-0.jpg (data-product-id on <img> tag)
+  // After normalizeImgUrl both become /products/8469/...
+
+  // 1. Thumbnail carousel: <img class="image-carousel-thumbs" src="..." data-product-id="8469">
+  //    data-product-id is directly on the <img> tag (attribute order varies)
+  const thumbTagRegex = /<img\b[^>]*data-product-id="(\d+)"[^>]*>/g;
+  let thumbTag;
+  while ((thumbTag = thumbTagRegex.exec(html)) !== null) {
+    const variantPid = thumbTag[1];
+    const srcMatch = thumbTag[0].match(/src="([^"]+)"/);
+    if (!srcMatch) continue;
+    const fullUrl = normalizeImgUrl(srcMatch[1].replace(/\/th-/, '/'));
     if (!result.imagesByVariantId.has(variantPid)) {
       result.imagesByVariantId.set(variantPid, []);
     }
@@ -480,15 +525,29 @@ function parseDetailPage(html, url) {
     }
   }
 
-  // ── Parse gallery images from HTML (collection-level fallback) ──
-  const imgRegex = /src="(https?:\/\/www\.bosphorusimports\.com\/cdn\/uploads\/capsule\/products\/[^"]+)"/g;
+  // 2. All product images (main carousel + gallery): extract variant ID from URL path
+  const productImgRegex = /src="(https?:\/\/www\.bosphorusimports\.com\/cdn\/uploads\/capsule\/products\/\/?[^"]+)"/g;
   const seenImgs = new Set(result.images.map(u => u.split('?')[0]));
   let imgMatch;
-  while ((imgMatch = imgRegex.exec(html)) !== null) {
+  while ((imgMatch = productImgRegex.exec(html)) !== null) {
     const imgUrl = normalizeImgUrl(imgMatch[1]);
-    // Skip thumbnails (th- prefix)
-    if (/\/th-/.test(imgUrl)) continue;
+    if (/\/th-/.test(imgUrl)) continue; // skip thumbnails
     const base = imgUrl.split('?')[0];
+
+    // Map to variant via URL path: /products/8469/calypso-0.jpg
+    const vidMatch = base.match(/\/products\/(\d+)\//);
+    if (vidMatch) {
+      const variantPid = vidMatch[1];
+      if (!result.imagesByVariantId.has(variantPid)) {
+        result.imagesByVariantId.set(variantPid, []);
+      }
+      const existing = result.imagesByVariantId.get(variantPid);
+      if (!existing.some(u => u.split('?')[0] === base)) {
+        existing.push(imgUrl);
+      }
+    }
+
+    // Also add to collection-level images as fallback
     if (!seenImgs.has(base)) {
       seenImgs.add(base);
       result.images.push(imgUrl);

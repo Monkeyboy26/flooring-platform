@@ -1,0 +1,2036 @@
+{
+  "startedAt": "2026-04-10T21:48:41.391Z",
+  "finishedAt": "2026-04-10T22:24:19.223Z",
+  "elapsedMs": 2137446,
+  "dryRun": false,
+  "filters": {
+    "LIMIT": null,
+    "ONLY": null,
+    "CATEGORY": "Decorative Hardware"
+  },
+  "totals": {
+    "processed": 1737,
+    "primary": 1290,
+    "alternate": 8026,
+    "spec": 1266,
+    "notFound": 447,
+    "mismatches": 2,
+    "skipped": 465,
+    "uniquePages": 105,
+    "pageFetches": 105,
+    "pageCacheHits": 184,
+    "imageDownloads": 9316
+  },
+  "byClass": {
+    "Decorative Hardware": {
+      "processed": 1737,
+      "primary": 1290,
+      "alternate": 8026,
+      "spec": 1266,
+      "skipped": 465
+    }
+  },
+  "notFound": [
+    {
+      "sku": "107AEM",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/knobs/107.html"
+    },
+    {
+      "sku": "107DBAC",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/knobs/107.html"
+    },
+    {
+      "sku": "136BG-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "136MB-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "136SBZ-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "136SN-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "156BG-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "156MB-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "156SBZ-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "156SN-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "176BG-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "176MB-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "176SBZ-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "176SN-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "188-128SN",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/188-pull.html"
+    },
+    {
+      "sku": "220MB-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "220SBZ-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "220SN-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "259SN",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/knobs/259.html"
+    },
+    {
+      "sku": "2980MB-20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "2980SBZ-20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "2980SN-20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "2981MB-20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "2981SBZ-20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "2981SN-20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "331-128BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "331-128PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "331-96PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "331BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "331DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "331L-DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "331L-SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "331SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "351-128BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "351-128PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "351-96DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "351-96PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "351-96SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "351BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "351DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "351L-BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "351L-PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "351PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3910-MB-30",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3910-SBZ-30",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3910-SN-30",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3910-SN-B",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/knobs/3910.html"
+    },
+    {
+      "sku": "3940-DBAC-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "40MB-30",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "40SBZ-30",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "40SN-30",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "519-160ABSB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/519-pull.html"
+    },
+    {
+      "sku": "535-128BNB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html"
+    },
+    {
+      "sku": "535-128BNBDL",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html"
+    },
+    {
+      "sku": "535-128SN",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html"
+    },
+    {
+      "sku": "535-160BNB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html"
+    },
+    {
+      "sku": "535-160BNBDL",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html"
+    },
+    {
+      "sku": "535-160DBAC",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html"
+    },
+    {
+      "sku": "535-96BNBDL",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html"
+    },
+    {
+      "sku": "535-96DBAC",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html"
+    },
+    {
+      "sku": "535-96SN",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/clearance/pulls/535-pull.html"
+    },
+    {
+      "sku": "535BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "535DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "535L-BNB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "535L-BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "535L-SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "536-128BNB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "536-128BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "536-128SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "536-96BNB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "536-96BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "536-96DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "536-96SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "618ABSB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "618BNMDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "618DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "618DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "618L-BNMDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "618L-DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "625-128BG-20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "625-128MB-20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "625-128SBZ-20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "625-128SN-20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "625-160BG-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "625-160MB-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "625-160SBZ-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "625-160SN-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "625-96BG-25",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "625-96MB-25",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "625-96SBZ-25",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "625-96SN-25",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "635-128MB-20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "635-128SBZ-20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "635-128SN-20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "635-160MB-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "635-160SBZ-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "635-160SN-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "635-96MB-25",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "635-96SBZ-25",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "635-96SN-25",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "645-128MB-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "645-128SN-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "645-160MB-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "645-160SN-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "645-96MB-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "645-96SN-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-128BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-128DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-128NI",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-128PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-128SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-12BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-12DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-12NI",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-12SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-160BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-160DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-160NI",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-160PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-18BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-18DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-18NI",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-18PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-18SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-224BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-224DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-224NI",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-224PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-224SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-305BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-305DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-305NI",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-305PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-305SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-3BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-3DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-3NI",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-3PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-3SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-96BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-96DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-96NI",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-96PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667-96SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667L-BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667L-DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667L-NI",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667L-PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667NI",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667S-BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667S-DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667S-NI",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "667S-PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "718-128ABSB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "718-128BNMDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "718-128DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "718-128DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "718ABSB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "718BNMDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "718DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "737-128ABSB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/737-pull.html"
+    },
+    {
+      "sku": "737-128SN",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/737-pull.html"
+    },
+    {
+      "sku": "737-160BNBDL",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/737-pull.html"
+    },
+    {
+      "sku": "737-160SN",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/737-pull.html"
+    },
+    {
+      "sku": "737-96BNBDL",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/737-pull.html"
+    },
+    {
+      "sku": "749-128ABSB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-128B-ABSB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-128B-DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-128B-DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-128B-SIM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-128DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-128DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-160ABSB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-160DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-160DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-160SIM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-224ABSB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-224DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-224DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-224SIM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-96B-ABSB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-96B-DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749-96B-SIM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "749SIM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "798-160BNBDL",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/798-pull.html"
+    },
+    {
+      "sku": "8004-DBAC-R",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/retail-packed-knobs-pulls/8004-r.html"
+    },
+    {
+      "sku": "818-128ABSB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/818-pull.html"
+    },
+    {
+      "sku": "818-12ABSB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/818-pull.html"
+    },
+    {
+      "sku": "818-96SN",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/818-pull.html"
+    },
+    {
+      "sku": "915ABSB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/knobs/915.html"
+    },
+    {
+      "sku": "B812-96AB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96ABM-D",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96AEM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96BC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96BNB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96ORB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96R-BNB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96R-BNBDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96R-DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96R-DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96R-ORB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96R-SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-96SBN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-ABSB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-AEM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-ASM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-BC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-BNB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-ORB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "B812-SBN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "CH3503",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "CL101-SN",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/clearance/pulls/cl101.html"
+    },
+    {
+      "sku": "K063PC-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K063PC-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K063SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K063SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K083BORB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K083BORB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K083SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K083SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K1213BORB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K1213BORB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K1213SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K1213SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K121BORB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K121BORB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K121SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K121SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2083PC-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2083PC-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2083SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2083SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2363BORB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2363BORB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2363SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2363SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K236BORB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K236BORB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K236SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K236SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2943BG-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2943BG-6",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2943MB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2943MB-6",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2943SBZ-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2943SBZ-6",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2943SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K2943SN-6",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K294BG-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K294BG-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K294MB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K294MB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K294SBZ-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K294SBZ-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K294SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K294SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3133BORB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3133BORB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3133MB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3133MB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3133SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3133SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K313BORB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K313BORB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K313MB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K313MB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K313SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K313SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3583BORB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3583BORB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3583SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3583SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3833BORB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3833BORB-6",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3833MB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3833MB-6",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3833PC-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3833PC-6",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3833SBZ-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3833SBZ-6",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3833SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K3833SN-6",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K39496SS-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K39496SS-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K394SS-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K394SS-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K4133BORB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K4133BORB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K4133SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K4133SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K413BORB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K413BORB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K413SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K413SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K4413BORB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K4413PC-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K4413PC-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K4413SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K4413SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K441BORB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K441PC-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K441PC-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K441SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K441SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K460BORB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K460BORB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K460SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K460SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K5123SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K5123SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K512SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K512SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K591BORB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K591BORB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K591PC-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K591PC-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K591SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K591SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K7553BORB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K7553BORB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K7553SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K7553SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K755BORB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K755BORB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K755SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K755SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K778BG-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K778BG-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K778BORB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K778BORB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K778MB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K778MB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K778PC-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K778PC-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K778SBZ-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K778SBZ-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K778SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K778SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K8173PC-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K8173PC-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K8173SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K8173SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K83796BORB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K83796BORB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K83796MB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K83796MB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K83796SBZ-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K83796SBZ-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K83796SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K83796SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K8683BORB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K8683BORB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K8683SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K8683SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K8993PC-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K8993PC-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K8993SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K8993SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9403BORB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9403BORB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9403SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9403SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K940BORB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K940BORB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K940SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K940SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9813BORB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9813BORB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9813SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9813SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9973BORB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9973BORB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9973MB-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9973MB-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9973SN-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K9973SN-8",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K997BORB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K997BORB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K997MB-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K997MB-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K997SN-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "K997SN-4",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KDT-KITP-1",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q2-128CPG-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q2-128MB-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q2-128PC-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q2-128SN-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q2-160CPG-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q2-160MB-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q2-160PC-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q2-160SN-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q2-96CPG-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q2-96MB-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q2-96PC-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q2-96SN-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-128CPG-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-128MB-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-128PC-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-128SN-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-160CPG-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-160MB-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-160PC-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-160SN-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-3CPG-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-3MB-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-3PC-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-3SN-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-96CPG-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-96MB-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-96PC-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q4-96SN-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q5-4BC-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q5-4SN-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q5-96BC-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q5-96SN-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q6-128CPG-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q6-128MB-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q6-128PC-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q6-128SN-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q6-160CPG-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q6-160MB-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q6-160PC-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q6-160SN-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q6-96CPG-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q6-96MB-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q6-96PC-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q6-96SN-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q7-96SS-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q8K-CPG-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q8K-DBAC-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q8K-MB-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Q8K-SN-100",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "S3910-SN-B",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "WB150-AB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "WP150-AB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Z110-DACM",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/knobs/z110.html"
+    },
+    {
+      "sku": "Z260-12BNBDL",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-hardware/cabinet-knobs-pulls/pulls/z261-pull.html"
+    },
+    {
+      "sku": "Z718-12ABSB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Z718-12BNMDL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Z718-12DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "Z718-12DBAC",
+      "reason": "no-redirect"
+    }
+  ],
+  "mismatches": [
+    {
+      "sku": "929-18MB",
+      "magentoId": "151766",
+      "filename": "929-12MB_5_d55288",
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/2/929-12MB_5_d55288.jpg?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "929-18NI",
+      "magentoId": "151772",
+      "filename": "929-12NI_5_d55288",
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/2/929-12NI_5_d55288.jpg?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    }
+  ]
+}

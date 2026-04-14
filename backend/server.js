@@ -1,17 +1,13 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import cors from 'cors';
-import pg from 'pg';
 import crypto from 'crypto';
 import Stripe from 'stripe';
 import EasyPostClient from '@easypost/api';
-import multer from 'multer';
 import XLSX from 'xlsx';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
-import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
@@ -22,522 +18,40 @@ import { generate850 } from './services/ediGenerator.js';
 import { createSftpConnection, uploadFile } from './services/ediSftp.js';
 import { createFtpConnection, uploadFile as ftpUploadFile } from './services/ediFtp.js';
 import sharp from 'sharp';
-import { createRequire } from 'module';
+import { pool } from './db.js';
+import { createAuthMiddleware } from './lib/auth.js';
+import { calculateSalesTax, isPickupOnly, getNextBusinessDay } from './lib/helpers.js';
+import { recalculateBalance, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice } from './lib/orderHelpers.js';
+import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
+import { createCustomerHelpers } from './lib/customerHelpers.js';
+import { generatePDF, generatePDFBuffer, generatePOHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
+import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
+import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
+import createCartRoutes from './routes/cart.js';
+import createCustomerRoutes from './routes/customer.js';
+import createAnalyticsRoutes from './routes/analytics.js';
+
+const { staffAuth, repAuth, tradeAuth, optionalTradeAuth, customerAuth, optionalCustomerAuth, requireRole, hashPassword, verifyPassword, validatePassword, logAudit } = createAuthMiddleware(pool);
+const { findOrCreateCustomer } = createCustomerHelpers(hashPassword, sendWelcomeSetPassword);
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 const easypost = process.env.EASYPOST_API_KEY ? new EasyPostClient(process.env.EASYPOST_API_KEY) : null;
+const UPLOADS_DIR = process.env.UPLOADS_PATH || './uploads';
 
 // Shipping configuration
 const WEIGHT_THRESHOLD_LBS = 150; // parcel vs LTL cutoff
 const SHIP_FROM = { zip: '92806', city: 'Anaheim', state: 'CA', country: 'US' };
 
-// ==================== Sales Tax (CA Static Rates) ====================
+// Sales tax, helpers, documents, auth — extracted to lib/ modules
 
-const __require = createRequire(import.meta.url);
-const CA_TAX_RATES = __require('./data/ca-tax-rates.json');
 
-function calculateSalesTax(subtotal, shippingZip, isTaxExempt) {
-  if (isTaxExempt) return { rate: 0, amount: 0 };
-  if (!shippingZip || !shippingZip.startsWith('9')) return { rate: 0, amount: 0 };
-  const prefix = shippingZip.substring(0, 3);
-  const rate = CA_TAX_RATES[prefix] || 0.0725;
-  const amount = parseFloat((subtotal * rate).toFixed(2));
-  return { rate, amount };
-}
-
-// ==================== Logo (base64 for PDF embedding) ====================
-
-let LOGO_DATA_URI = '';
-try {
-  const logoPath = path.join(path.dirname(new URL(import.meta.url).pathname), 'assets', 'logo', 'roma-transparent.png');
-  const logoBuffer = fs.readFileSync(logoPath);
-  LOGO_DATA_URI = `data:image/png;base64,${logoBuffer.toString('base64')}`;
-} catch (e) {
-  console.warn('Logo file not found — PDFs will render without logo');
-}
-
-// ==================== Document Helpers ====================
-
-function itemDescriptionCell(collection, color, variant) {
-  const sub = [color, variant].filter(Boolean).join(' · ');
-  if (!collection && !sub) return '—';
-  let html = collection ? `<strong>${collection}</strong>` : '';
-  if (sub) html += `<div style="font-size:0.75rem;color:#57534e;margin-top:2px;">${sub}</div>`;
-  return html;
-}
-
-function getDocumentBaseCSS() {
-  return `
-    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap');
-    body { font-family: 'Inter', Arial, sans-serif; margin: 0; padding: 2rem; color: #1c1917; font-size: 13px; line-height: 1.5; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; padding-bottom: 0.5rem; border-bottom: 1px solid #c8a97e; }
-    .header-left { display: flex; align-items: center; gap: 12px; }
-    .header-logo { width: 60px; height: 60px; object-fit: contain; }
-    .company { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.75rem; font-weight: 300; margin-bottom: 0.25rem; }
-    .company-info { font-size: 0.75rem; color: #57534e; line-height: 1.6; }
-    .doc-title { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.5rem; font-weight: 400; color: #c8a97e; font-style: italic; }
-    .doc-meta { font-size: 0.8125rem; color: #57534e; line-height: 1.8; text-align: right; }
-    .info-block { margin-bottom: 1.5rem; padding: 1rem; padding-left: 1rem; background: #fdfcfb; border: none; border-left: 3px solid #c8a97e; }
-    .info-block h3 { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.1em; color: #a8998a; margin: 0 0 0.5rem; }
-    .info-columns { display: flex; gap: 2rem; margin-bottom: 1.5rem; }
-    .info-columns .info-block { flex: 1; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
-    th { background: #f5f0eb; color: #44403c; padding: 0.625rem 0.75rem; text-align: left; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #c8a97e; }
-    td { padding: 0.625rem 0.75rem; border-bottom: 1px solid #f0ede8; font-size: 0.8125rem; }
-    .totals { text-align: right; margin-top: 1rem; }
-    .totals .line { display: flex; justify-content: flex-end; gap: 2rem; font-size: 0.875rem; padding: 0.25rem 0; }
-    .totals .total-line { font-weight: 600; font-size: 1.0625rem; border-top: 2px solid #c8a97e; padding-top: 0.5rem; margin-top: 0.5rem; }
-    .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #c8a97e; font-size: 0.6875rem; color: #a8998a; text-align: center; }
-    .badge { display: inline-block; padding: 2px 8px; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; border-radius: 3px; }
-    .badge-status { background: #e7e5e4; color: #57534e; }
-    .badge-revised { background: #fef3c7; color: #92400e; }
-    .badge-sent { background: #dbeafe; color: #1e40af; }
-    .badge-fulfilled { background: #dcfce7; color: #166534; }
-    .badge-cancelled { background: #fee2e2; color: #991b1b; }
-    .notes-section { margin-top: 1.5rem; padding: 1rem; padding-left: 1rem; background: #fdfcfb; border: none; border-left: 3px solid #c8a97e; }
-    .notes-section h4 { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.1em; color: #a8998a; margin: 0 0 0.5rem; }
-  `;
-}
-
-function getDocumentHeader(title) {
-  const logoImg = LOGO_DATA_URI ? `<img src="${LOGO_DATA_URI}" class="header-logo" alt="Roma Flooring Designs"/>` : '';
-  return `
-    <div class="header">
-      <div class="header-left">
-        ${logoImg}
-        <div>
-          <div class="company">Roma Flooring Designs</div>
-          <div class="company-info">
-            1440 S. State College Blvd #6M<br/>
-            Anaheim, CA 92806<br/>
-            (714) 999-0009<br/>
-            Sales@romaflooringdesigns.com
-          </div>
-        </div>
-      </div>
-      <div>
-        <div class="doc-title">${title}</div>
-      </div>
-    </div>
-  `;
-}
-
-function getDocumentFooter() {
-  return `
-    <div class="footer">
-      <p style="margin: 0 0 0.25rem;">Roma Flooring Designs</p>
-      <p style="margin: 0;">License #830966 &nbsp;|&nbsp; www.romaflooringdesigns.com</p>
-    </div>
-  `;
-}
-
-async function generatePDF(html, filename, req, res) {
-  // Preview mode: return HTML directly for iframe rendering
-  if (req.query.preview === 'true') {
-    res.set('Content-Type', 'text/html');
-    return res.send(html);
-  }
-  try {
-    const puppeteer = await import('puppeteer');
-    const browser = await puppeteer.default.launch({
-      headless: true,
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'domcontentloaded' });
-    const pdf = await page.pdf({ format: 'Letter', margin: { top: '0.75in', bottom: '0.75in', left: '0.75in', right: '0.75in' } });
-    await browser.close();
-    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${filename}"` });
-    res.send(pdf);
-  } catch (pdfErr) {
-    // Fallback: return HTML if Puppeteer unavailable
-    res.set('Content-Type', 'text/html');
-    res.send(html);
-  }
-}
-
-async function generatePOHtml(poId) {
-  const po = await pool.query(`
-    SELECT po.*, v.name as vendor_name, v.code as vendor_code, v.email as vendor_email,
-      sa.first_name || ' ' || sa.last_name as approved_by_name,
-      o.order_number
-    FROM purchase_orders po
-    JOIN vendors v ON v.id = po.vendor_id
-    LEFT JOIN staff_accounts sa ON sa.id = po.approved_by
-    LEFT JOIN orders o ON o.id = po.order_id
-    WHERE po.id = $1
-  `, [poId]);
-  if (!po.rows.length) return null;
-  const p = po.rows[0];
-  const items = await pool.query(`
-    SELECT poi.*, pr.collection, sk.variant_name, sa_c.value as color
-    FROM purchase_order_items poi
-    LEFT JOIN skus sk ON sk.id = poi.sku_id
-    LEFT JOIN products pr ON pr.id = sk.product_id
-    LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = poi.sku_id
-      AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
-    WHERE poi.purchase_order_id = $1 ORDER BY poi.created_at
-  `, [poId]);
-
-  const html = `<!DOCTYPE html><html><head><style>
-    ${getDocumentBaseCSS()}
-  </style></head><body>
-    ${getDocumentHeader('Purchase Order')}
-    <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
-      <strong>${p.po_number}</strong>
-      ${p.is_revised ? ' <span class="badge badge-revised">REVISED</span>' : ''}
-      <br/>
-      Date: ${new Date(p.created_at).toLocaleDateString()}
-      ${p.order_number ? '<br/>Order: ' + p.order_number : ''}
-    </div>
-    <div class="info-columns">
-      <div class="info-block">
-        <h3>Vendor</h3>
-        <strong>${p.vendor_name}</strong><br/>
-        Code: ${p.vendor_code}
-      </div>
-      <div class="info-block">
-        <h3>Ship To</h3>
-        <strong>Roma Flooring Designs</strong><br/>
-        1440 S. State College Blvd., Suite 6M<br/>
-        Anaheim, CA 92806
-      </div>
-    </div>
-    <table>
-      <thead><tr>
-        <th>Description</th><th>Vendor SKU</th>
-        <th style="text-align:right">Qty</th>
-        <th style="text-align:right">Cost</th><th style="text-align:right">Subtotal</th>
-      </tr></thead>
-      <tbody>
-        ${items.rows.map(i => {
-          const isUnit = i.sell_by === 'unit';
-          return `<tr>
-            <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td>
-            <td>${i.vendor_sku || '—'}</td>
-            <td style="text-align:right">${i.qty}${isUnit ? '' : ' box' + (i.qty > 1 ? 'es' : '')}</td>
-            <td style="text-align:right">$${parseFloat(i.cost).toFixed(2)}${isUnit ? '/ea' : '/sqft'}</td>
-            <td style="text-align:right">$${parseFloat(i.subtotal).toFixed(2)}</td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>
-    <div class="totals">
-      <div class="line total-line"><span>PO Total:</span><span>$${parseFloat(p.subtotal || 0).toFixed(2)}</span></div>
-    </div>
-    ${p.notes ? `<div class="notes-section"><h4>Notes</h4><div>${p.notes}</div></div>` : ''}
-    ${p.approved_by_name ? `<div style="margin-top:1rem;font-size:0.8125rem;color:#57534e;">Approved by ${p.approved_by_name} on ${new Date(p.approved_at).toLocaleDateString()}</div>` : ''}
-    ${getDocumentFooter()}
-  </body></html>`;
-
-  return { html, po: p, items: items.rows };
-}
-
-async function generatePDFBuffer(html) {
-  const puppeteer = await import('puppeteer');
-  const browser = await puppeteer.default.launch({
-    headless: true,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'domcontentloaded' });
-  const pdf = await page.pdf({ format: 'Letter', margin: { top: '0.75in', bottom: '0.75in', left: '0.75in', right: '0.75in' } });
-  await browser.close();
-  return Buffer.from(pdf);
-}
-
-function getNextBusinessDay() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  if (d.getDay() === 0) d.setDate(d.getDate() + 1); // Sun → Mon
-  if (d.getDay() === 6) d.setDate(d.getDate() + 2); // Sat → Mon
-  return d.toISOString().split('T')[0];
-}
-
-// Pickup-only detection: slabs and prefab countertops cannot be shipped
-function isPickupOnly(item) {
-  if (item.variant_type === 'slab') return true;
-  const vsku = (item.vendor_sku || '').toUpperCase();
-  if (['RSL', 'VSL', 'CSL', 'PSL'].some(p => vsku.startsWith(p))) return true;
-  const slug = (item.category_slug || '').toLowerCase();
-  if (slug === 'prefab-countertops' || slug === 'countertops') return true;
-  return false;
-}
-
-// ==================== Order Balance Helper ====================
-
-async function recalculateBalance(orderId, client) {
-  const db = client || pool;
-  const result = await db.query('SELECT total, amount_paid FROM orders WHERE id = $1', [orderId]);
-  if (!result.rows.length) return null;
-  const total = parseFloat(result.rows[0].total);
-  const amount_paid = parseFloat(result.rows[0].amount_paid);
-  const balance = parseFloat((total - amount_paid).toFixed(2));
-  let balance_status = 'paid';
-  if (balance > 0.01) balance_status = 'balance_due';
-  else if (balance < -0.01) balance_status = 'credit';
-  return { amount_paid, total, balance, balance_status };
-}
-
-// ==================== Order Activity Log Helper ====================
-
-async function logOrderActivity(queryable, orderId, action, performerId, performerName, details = {}) {
-  try {
-    await queryable.query(
-      `INSERT INTO order_activity_log (order_id, action, performed_by, performer_name, details)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [orderId, action, performerId || null, performerName || null, JSON.stringify(details)]
-    );
-  } catch (err) {
-    console.error('Failed to log order activity:', err.message);
-  }
-}
-
-// ==================== Rep Notification Helper ====================
-
-async function createRepNotification(queryable, repId, type, title, message, entityType, entityId) {
-  try {
-    await queryable.query(
-      `INSERT INTO rep_notifications (rep_id, type, title, message, entity_type, entity_id)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [repId, type, title, message || null, entityType || null, entityId || null]
-    );
-  } catch (err) {
-    console.error('Failed to create rep notification:', err.message);
-  }
-}
-
-async function notifyAllActiveReps(queryable, type, title, message, entityType, entityId) {
-  try {
-    const reps = await queryable.query('SELECT id FROM sales_reps WHERE is_active = true');
-    for (const rep of reps.rows) {
-      await createRepNotification(queryable, rep.id, type, title, message, entityType, entityId);
-    }
-  } catch (err) {
-    console.error('Failed to notify all reps:', err.message);
-  }
-}
-
-// ==================== Auto-Task Helper ====================
-
-const AUTO_TASK_DEFAULT_DAYS = {
-  quote_sent: 3, estimate_sent: 3, sample_shipped: 5,
-  order_delivered: 7, deal_stuck: 0, trade_renewal: 0
-};
-
-async function createAutoTask(pool, repId, sourceType, sourceId, title, options = {}) {
-  try {
-    const defaultDays = AUTO_TASK_DEFAULT_DAYS[sourceType] || 3;
-    const dueDate = options.due_date || new Date(Date.now() + defaultDays * 86400000).toISOString().split('T')[0];
-    const result = await pool.query(`
-      INSERT INTO rep_tasks (rep_id, title, description, due_date, priority, source, source_type, source_id,
-        customer_name, customer_email, customer_phone,
-        linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id)
-      VALUES ($1, $2, $3, $4, $5, 'auto', $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      ON CONFLICT (rep_id, source_type, source_id) WHERE source = 'auto' AND status != 'dismissed'
-      DO NOTHING
-      RETURNING *
-    `, [repId, title, options.description || null, dueDate, options.priority || 'medium',
-        sourceType, String(sourceId),
-        options.customer_name || null, options.customer_email || null, options.customer_phone || null,
-        options.linked_order_id || null, options.linked_quote_id || null,
-        options.linked_estimate_id || null, options.linked_deal_id || null]);
-    return result.rows[0] || null;
-  } catch (err) {
-    console.error('[AutoTask] Failed to create auto-task:', err.message);
-    return null;
-  }
-}
-
-// ==================== Find-or-Create Customer Helper ====================
-
-async function findOrCreateCustomer(client, { email, firstName, lastName, phone, repId, createdVia }) {
-  const normalEmail = email.toLowerCase().trim();
-
-  // 1. Check if customer exists by email
-  const existing = await client.query('SELECT * FROM customers WHERE email = $1', [normalEmail]);
-
-  if (existing.rows.length > 0) {
-    const cust = existing.rows[0];
-    // Backfill missing fields (phone, name, rep) if they were empty
-    const updates = [];
-    const vals = [];
-    let idx = 1;
-    if (!cust.phone && phone) { updates.push(`phone = $${idx++}`); vals.push(phone); }
-    if (!cust.first_name && firstName) { updates.push(`first_name = $${idx++}`); vals.push(firstName); }
-    if (!cust.last_name && lastName) { updates.push(`last_name = $${idx++}`); vals.push(lastName); }
-    if (!cust.assigned_rep_id && repId) {
-      updates.push(`assigned_rep_id = $${idx++}`); vals.push(repId);
-      updates.push(`assigned_at = NOW()`);
-    }
-    if (updates.length > 0) {
-      vals.push(cust.id);
-      await client.query(`UPDATE customers SET ${updates.join(', ')} WHERE id = $${idx}`, vals);
-    }
-    return { customer: cust, created: false };
-  }
-
-  // 2. Create new customer with random placeholder password
-  const placeholder = crypto.randomBytes(32).toString('hex');
-  const { hash, salt } = hashPassword(placeholder);
-
-  const result = await client.query(
-    `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, password_set, assigned_rep_id, assigned_at, created_via)
-     VALUES ($1, $2, $3, $4, $5, $6, false, $7, NOW(), $8)
-     RETURNING *`,
-    [normalEmail, hash, salt, firstName || '', lastName || '', phone || null, repId || null, createdVia || 'rep']
-  );
-
-  const newCustomer = result.rows[0];
-
-  // 3. Generate password-set token (7-day expiry)
-  const token = crypto.randomBytes(32).toString('hex');
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  await client.query(
-    'UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3',
-    [token, expires, newCustomer.id]
-  );
-
-  // 4. Send welcome email asynchronously (fire after transaction commits)
-  const resetUrl = `${process.env.FRONTEND_URL || 'https://romaflooringdesigns.com'}/account?action=set-password&token=${token}`;
-  setImmediate(() => {
-    sendWelcomeSetPassword(newCustomer.email, newCustomer.first_name, resetUrl).catch(err => {
-      console.error('Failed to send welcome email:', err);
-    });
-  });
-
-  return { customer: newCustomer, created: true };
-}
-
-// ==================== Commission Recalculation Helper ====================
-
-async function recalculateCommission(queryable, orderId) {
-  try {
-    // Fetch order
-    const orderRes = await queryable.query(
-      'SELECT id, total, status, sales_rep_id, amount_paid FROM orders WHERE id = $1',
-      [orderId]
-    );
-    if (!orderRes.rows.length) return;
-    const order = orderRes.rows[0];
-    if (!order.sales_rep_id) return;
-
-    // Fetch commission config
-    const configRes = await queryable.query('SELECT rate, default_cost_ratio FROM commission_config LIMIT 1');
-    if (!configRes.rows.length) return;
-    const config = configRes.rows[0];
-    const rate = parseFloat(config.rate);
-    const defaultCostRatio = parseFloat(config.default_cost_ratio);
-
-    // Calculate vendor cost from purchase_order_items (excluding cancelled POs)
-    const costRes = await queryable.query(`
-      SELECT COALESCE(SUM(poi.subtotal), 0) as vendor_cost
-      FROM purchase_order_items poi
-      JOIN purchase_orders po ON po.id = poi.purchase_order_id
-      WHERE po.order_id = $1 AND po.status != 'cancelled'
-    `, [orderId]);
-    let vendorCost = parseFloat(costRes.rows[0].vendor_cost);
-
-    // Fallback: if no PO data, estimate cost
-    const orderTotal = parseFloat(order.total);
-    if (vendorCost === 0) {
-      vendorCost = orderTotal * defaultCostRatio;
-    }
-
-    const margin = Math.max(0, orderTotal - vendorCost);
-    const commissionAmount = margin * rate;
-
-    // Determine status
-    let commissionStatus = 'pending';
-    if (['cancelled', 'refunded'].includes(order.status)) {
-      commissionStatus = 'forfeited';
-    } else if (order.status === 'delivered' && parseFloat(order.amount_paid) >= orderTotal) {
-      commissionStatus = 'earned';
-    }
-
-    // Upsert — preserve 'paid' status
-    await queryable.query(`
-      INSERT INTO rep_commissions (order_id, rep_id, order_total, vendor_cost, margin, commission_rate, commission_amount, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      ON CONFLICT (order_id) DO UPDATE SET
-        rep_id = EXCLUDED.rep_id,
-        order_total = EXCLUDED.order_total,
-        vendor_cost = EXCLUDED.vendor_cost,
-        margin = EXCLUDED.margin,
-        commission_rate = EXCLUDED.commission_rate,
-        commission_amount = EXCLUDED.commission_amount,
-        status = CASE WHEN rep_commissions.status = 'paid' THEN 'paid' ELSE EXCLUDED.status END,
-        updated_at = CURRENT_TIMESTAMP
-    `, [orderId, order.sales_rep_id, orderTotal.toFixed(2), vendorCost.toFixed(2),
-        margin.toFixed(2), rate, commissionAmount.toFixed(2), commissionStatus]);
-  } catch (err) {
-    console.error('Failed to recalculate commission:', err.message);
-  }
-}
-
-// Sync an order_payment to invoice_payments (AR receipt) if an invoice exists for the order
-async function syncOrderPaymentToInvoice(orderPaymentId, orderId, queryable) {
-  try {
-    const invRes = await queryable.query(
-      "SELECT id, total, amount_paid FROM invoices WHERE order_id = $1 AND status != 'void' LIMIT 1",
-      [orderId]
-    );
-    if (!invRes.rows.length) return;
-    const invoice = invRes.rows[0];
-
-    // Check if already synced
-    const existing = await queryable.query(
-      'SELECT id FROM invoice_payments WHERE order_payment_id = $1',
-      [orderPaymentId]
-    );
-    if (existing.rows.length) return;
-
-    // Get payment details
-    const opRes = await queryable.query(
-      'SELECT amount, payment_method, reference_number FROM order_payments WHERE id = $1',
-      [orderPaymentId]
-    );
-    if (!opRes.rows.length) return;
-    const op = opRes.rows[0];
-
-    await queryable.query(
-      `INSERT INTO invoice_payments (invoice_id, order_payment_id, amount, payment_method, reference_number, payment_date)
-       VALUES ($1, $2, $3, $4, $5, CURRENT_DATE)`,
-      [invoice.id, orderPaymentId, op.amount, op.payment_method || 'stripe', op.reference_number]
-    );
-
-    // Update invoice amount_paid and status
-    const totals = await queryable.query(
-      'SELECT COALESCE(SUM(amount), 0) as total_paid FROM invoice_payments WHERE invoice_id = $1',
-      [invoice.id]
-    );
-    const totalPaid = parseFloat(totals.rows[0].total_paid);
-    const invoiceTotal = parseFloat(invoice.total);
-    const newStatus = totalPaid >= invoiceTotal ? 'paid' : totalPaid > 0 ? 'partial' : 'sent';
-
-    await queryable.query(
-      `UPDATE invoices SET amount_paid = $1, status = $2, paid_at = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
-      [totalPaid, newStatus, newStatus === 'paid' ? new Date() : null, invoice.id]
-    );
-  } catch (err) {
-    console.error('syncOrderPaymentToInvoice error:', err.message);
-  }
-}
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
-const pool = new pg.Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  database: process.env.DB_NAME || 'flooring_pim',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres'
-});
 
 app.disable('x-powered-by');
+app.set('trust proxy', 1); // Trust first proxy (nginx)
 
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:3000').split(',').map(s => s.trim());
 app.use(cors({
@@ -571,9 +85,10 @@ app.use('/api/trade/register', registrationLimiter);
 app.use('/api/trade/register/upload', registrationLimiter);
 
 // ==================== Image Resize Proxy ====================
-const imgLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false });
+const imgLimiter = rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
 const IMG_CACHE_DIR = path.join(process.cwd(), '_cache');
 if (!fs.existsSync(IMG_CACHE_DIR)) fs.mkdirSync(IMG_CACHE_DIR, { recursive: true });
+const imgInflight = new Map(); // cacheKey → Promise<Buffer> — dedup concurrent requests
 
 function isPrivateUrl(urlStr) {
   try {
@@ -609,48 +124,55 @@ app.get('/api/img', imgLimiter, async (req, res) => {
     const ext = fmt === 'jpeg' ? 'jpg' : fmt;
     const cachePath = path.join(IMG_CACHE_DIR, `${cacheKey}.${ext}`);
 
+    const contentType = `image/${fmt === 'jpg' ? 'jpeg' : fmt}`;
+
     // Serve from disk cache
     if (fs.existsSync(cachePath)) {
-      res.set({
-        'Content-Type': `image/${fmt === 'jpg' ? 'jpeg' : fmt}`,
-        'Cache-Control': 'public, max-age=31536000, immutable',
-        'X-Cache': 'HIT'
-      });
+      res.set({ 'Content-Type': contentType, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Cache': 'HIT' });
       return fs.createReadStream(cachePath).pipe(res);
     }
 
-    // Fetch source image
-    let inputBuffer;
-    if (url.startsWith('/uploads/') || url.startsWith('/assets/')) {
-      const localPath = path.join(process.cwd(), url.split('?')[0]);
-      if (!fs.existsSync(localPath)) return res.status(404).end();
-      inputBuffer = fs.readFileSync(localPath);
-    } else {
-      if (isPrivateUrl(url)) return res.status(403).json({ error: 'forbidden' });
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      try {
-        const resp = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'Roma-ImageProxy/1.0' } });
-        clearTimeout(timeout);
-        if (!resp.ok) return res.status(resp.status).end();
-        inputBuffer = Buffer.from(await resp.arrayBuffer());
-      } catch { clearTimeout(timeout); return res.status(502).end(); }
+    // Deduplicate concurrent requests for the same image+size
+    if (!imgInflight.has(cacheKey)) {
+      const work = (async () => {
+        let inputBuffer;
+        if (url.startsWith('/uploads/') || url.startsWith('/assets/')) {
+          const localPath = path.join(process.cwd(), url.split('?')[0]);
+          if (!fs.existsSync(localPath)) return null;
+          inputBuffer = fs.readFileSync(localPath);
+        } else {
+          if (isPrivateUrl(url)) return null;
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 10000);
+          try {
+            const resp = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'Roma-ImageProxy/1.0' } });
+            clearTimeout(timeout);
+            if (!resp.ok) return null;
+            inputBuffer = Buffer.from(await resp.arrayBuffer());
+          } catch { clearTimeout(timeout); return null; }
+        }
+        const resizeOpts = { width: w, fit: 'inside', withoutEnlargement: true };
+        if (h) resizeOpts.height = h;
+        let pipeline = sharp(inputBuffer).resize(resizeOpts);
+        if (fmt === 'webp') pipeline = pipeline.webp({ quality: q });
+        else if (fmt === 'jpeg') pipeline = pipeline.jpeg({ quality: q, mozjpeg: true });
+        else pipeline = pipeline.png({ quality: q });
+        const outputBuffer = await pipeline.toBuffer();
+        if (outputBuffer.length > 500) {
+          fs.writeFile(cachePath, outputBuffer, () => {});
+        }
+        return outputBuffer;
+      })();
+      imgInflight.set(cacheKey, work);
+      work.finally(() => imgInflight.delete(cacheKey));
     }
 
-    // Resize with sharp
-    const resizeOpts = { width: w, fit: 'inside', withoutEnlargement: true };
-    if (h) resizeOpts.height = h;
-    let pipeline = sharp(inputBuffer).resize(resizeOpts);
-    if (fmt === 'webp') pipeline = pipeline.webp({ quality: q });
-    else if (fmt === 'jpeg') pipeline = pipeline.jpeg({ quality: q, mozjpeg: true });
-    else pipeline = pipeline.png({ quality: q });
-
-    const outputBuffer = await pipeline.toBuffer();
-    fs.writeFile(cachePath, outputBuffer, () => {}); // async write, don't block response
+    const outputBuffer = await imgInflight.get(cacheKey);
+    if (!outputBuffer) return res.status(502).end();
 
     res.set({
-      'Content-Type': `image/${fmt === 'jpg' ? 'jpeg' : fmt}`,
-      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Content-Type': contentType,
+      'Cache-Control': outputBuffer.length > 500 ? 'public, max-age=31536000, immutable' : 'no-cache',
       'X-Cache': 'MISS'
     });
     res.send(outputBuffer);
@@ -660,60 +182,7 @@ app.get('/api/img', imgLimiter, async (req, res) => {
   }
 });
 
-// ==================== S3/MinIO Client ====================
-const S3_BUCKET = process.env.S3_BUCKET || 'trade-documents';
-let s3 = null;
-if (process.env.S3_ENDPOINT) {
-  s3 = new S3Client({
-    endpoint: process.env.S3_ENDPOINT,
-    region: process.env.S3_REGION || 'us-east-1',
-    credentials: {
-      accessKeyId: process.env.S3_ACCESS_KEY || 'minioadmin',
-      secretAccessKey: process.env.S3_SECRET_KEY || 'minioadmin'
-    },
-    forcePathStyle: true
-  });
-  // Ensure bucket exists
-  (async () => {
-    try {
-      await s3.send(new HeadBucketCommand({ Bucket: S3_BUCKET }));
-    } catch {
-      try {
-        await s3.send(new CreateBucketCommand({ Bucket: S3_BUCKET }));
-        console.log(`[S3] Created bucket: ${S3_BUCKET}`);
-      } catch (err) {
-        console.error('[S3] Failed to create bucket:', err.message);
-      }
-    }
-  })();
-}
-
-async function uploadToS3(fileKey, buffer, mimeType) {
-  if (!s3) throw new Error('S3 not configured');
-  await s3.send(new PutObjectCommand({
-    Bucket: S3_BUCKET,
-    Key: fileKey,
-    Body: buffer,
-    ContentType: mimeType
-  }));
-  return fileKey;
-}
-
-async function getPresignedUrl(fileKey) {
-  if (!s3) throw new Error('S3 not configured');
-  const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: fileKey });
-  return getSignedUrl(s3, command, { expiresIn: 3600 });
-}
-
-const docUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, allowed.includes(ext));
-  }
-});
+// S3, uploads, auth — extracted to lib/ modules
 
 app.get('/api/products', optionalTradeAuth, async (req, res) => {
   try {
@@ -1124,60 +593,8 @@ app.get('/api/categories', async (req, res) => {
   }
 });
 
-// ==================== Site Analytics Ingest ====================
-
-const ALLOWED_EVENT_TYPES = new Set([
-  'page_view', 'product_view', 'add_to_cart', 'remove_from_cart', 'checkout_started',
-  'order_completed', 'search', 'filter_toggle', 'sort_change', 'category_select',
-  'collection_select', 'wishlist_add', 'wishlist_remove', 'sample_request',
-  'trade_signup_start', 'trade_signup_complete', 'trade_login', 'customer_login',
-  'quick_view_open', 'image_gallery', 'scroll_depth', 'time_on_page',
-  'cart_drawer_open', 'page_change'
-]);
-
-app.post('/api/analytics/event', (req, res) => {
-  res.json({ ok: true });
-  setImmediate(async () => {
-    try {
-      const events = Array.isArray(req.body.events) ? req.body.events.slice(0, 50) : [];
-      if (events.length === 0) return;
-      const values = [];
-      const params = [];
-      let idx = 1;
-      for (const evt of events) {
-        if (!evt.event_type || !ALLOWED_EVENT_TYPES.has(evt.event_type)) continue;
-        values.push(`($${idx}, $${idx+1}, $${idx+2}, $${idx+3}, $${idx+4}, $${idx+5})`);
-        params.push(evt.session_id || null, evt.visitor_id || null, evt.event_type,
-          JSON.stringify(evt.properties || {}), evt.page_path || null, evt.referrer || null);
-        idx += 6;
-      }
-      if (values.length === 0) return;
-      await pool.query(
-        `INSERT INTO analytics_events (session_id, visitor_id, event_type, properties, page_path, referrer)
-         VALUES ${values.join(', ')}`,
-        params
-      );
-    } catch (err) { console.error('[Analytics] Event insert error:', err.message); }
-  });
-});
-
-app.post('/api/analytics/session', (req, res) => {
-  res.json({ ok: true });
-  setImmediate(async () => {
-    try {
-      const { session_id, visitor_id, user_agent, referrer, device_type, utm_source, utm_medium, utm_campaign } = req.body;
-      if (!session_id) return;
-      await pool.query(`
-        INSERT INTO analytics_sessions (session_id, visitor_id, user_agent, referrer, device_type, utm_source, utm_medium, utm_campaign)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (session_id) DO UPDATE SET
-          last_seen_at = CURRENT_TIMESTAMP,
-          page_count = analytics_sessions.page_count + 1
-      `, [session_id, visitor_id || null, user_agent || null, referrer || null,
-          device_type || null, utm_source || null, utm_medium || null, utm_campaign || null]);
-    } catch (err) { console.error('[Analytics] Session upsert error:', err.message); }
-  });
-});
+// Analytics routes — extracted to routes/analytics.js
+app.use(createAnalyticsRoutes({ pool }));
 
 // ==================== Featured Products (best-sellers) ====================
 
@@ -2542,7 +1959,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     // Same-product siblings (other SKUs of the same product)
     const siblingsResult = await pool.query(`
       SELECT
-        s.id as sku_id, s.variant_name, s.internal_sku, s.variant_type, s.sell_by,
+        s.id as sku_id, s.variant_name, s.internal_sku, s.vendor_sku, s.variant_type, s.sell_by,
         pr.retail_price, pr.price_basis, pk.sqft_per_box,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         COALESCE(
@@ -2724,6 +2141,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         SELECT a.slug, a.name, ARRAY_AGG(DISTINCT sa.value) as values
         FROM products p
         JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+          AND COALESCE(s.variant_type, '') <> 'accessory'
         JOIN sku_attributes sa ON sa.sku_id = s.id
         JOIN attributes a ON a.id = sa.attribute_id
         WHERE LOWER(p.collection) = LOWER($1) AND p.status = 'active'
@@ -3107,229 +2525,8 @@ app.post('/api/calculate', async (req, res) => {
   }
 });
 
-// Cart endpoints
-app.get('/api/cart', async (req, res) => {
-  try {
-    const { session_id } = req.query;
-    if (!session_id) return res.status(400).json({ error: 'session_id is required' });
-
-    const result = await pool.query(`
-      SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection,
-        s.sell_by, s.variant_type, s.vendor_sku, s.variant_name, c.slug as category_slug,
-        pr.cut_price, pr.roll_price, pr.roll_min_sqft,
-        COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
-        CASE
-          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
-          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
-          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
-          ELSE 'out_of_stock'
-        END as stock_status
-      FROM cart_items ci
-      LEFT JOIN products p ON p.id = ci.product_id
-      LEFT JOIN skus s ON s.id = ci.sku_id
-      LEFT JOIN categories c ON c.id = p.category_id
-      LEFT JOIN pricing pr ON pr.sku_id = ci.sku_id
-      LEFT JOIN vendors v ON v.id = p.vendor_id
-      LEFT JOIN inventory_snapshots inv ON inv.sku_id = ci.sku_id AND inv.warehouse = 'default'
-      WHERE ci.session_id = $1
-      ORDER BY ci.created_at
-    `, [session_id]);
-    const cart = result.rows.map(item => ({
-      ...item,
-      pickup_only: !item.is_sample && isPickupOnly(item)
-    }));
-    res.json({ cart });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/cart', async (req, res) => {
-  try {
-    const { session_id, product_id, sku_id, sqft_needed, num_boxes, include_overage, unit_price, subtotal, is_sample, sell_by, price_tier } = req.body;
-    if (!session_id || !num_boxes) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-    if (!is_sample && (!unit_price || !subtotal)) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    // Sample-specific validation
-    if (is_sample) {
-      // Check sample limit (max 5 per session)
-      const countResult = await pool.query(
-        'SELECT COUNT(*) FROM cart_items WHERE session_id = $1 AND is_sample = true',
-        [session_id]
-      );
-      if (parseInt(countResult.rows[0].count) >= 5) {
-        return res.status(400).json({ error: 'Sample limit reached (max 5)' });
-      }
-
-      // Check for duplicate product sample
-      if (product_id) {
-        const dupResult = await pool.query(
-          'SELECT id FROM cart_items WHERE session_id = $1 AND product_id = $2 AND is_sample = true',
-          [session_id, product_id]
-        );
-        if (dupResult.rows.length > 0) {
-          return res.status(400).json({ error: 'You already have a sample of this product in your cart' });
-        }
-      }
-    }
-
-    // Server-side price validation: override client price with DB price
-    let validatedUnitPrice = unit_price || 0;
-    let validatedSubtotal = subtotal || 0;
-    if (!is_sample && sku_id) {
-      const dbPrice = await pool.query(
-        `SELECT pr.retail_price, pr.price_basis, pk.sqft_per_box, pk.pieces_per_box
-         FROM pricing pr
-         LEFT JOIN packaging pk ON pk.sku_id = pr.sku_id
-         WHERE pr.sku_id = $1`, [sku_id]);
-      if (dbPrice.rows.length) {
-        let dbRetail = parseFloat(dbPrice.rows[0].retail_price);
-        const priceBasis = dbPrice.rows[0].price_basis;
-        const sqftBox = parseFloat(dbPrice.rows[0].sqft_per_box) || 0;
-        const pcsBox = parseFloat(dbPrice.rows[0].pieces_per_box) || 0;
-        // Convert per-unit price to per-sqft when sell_by is sqft
-        if (sell_by === 'sqft' && priceBasis === 'per_unit' && sqftBox > 0 && pcsBox > 0) {
-          dbRetail = dbRetail / (sqftBox / pcsBox);
-        }
-        // Convert per-sqft price to per-unit when sell_by is unit
-        if (sell_by === 'unit' && (priceBasis === 'per_sqft' || priceBasis === 'sqft') && sqftBox > 0) {
-          dbRetail = dbRetail * sqftBox;
-        }
-        if (Math.abs(parseFloat(validatedUnitPrice) - dbRetail) > 0.01) {
-          validatedUnitPrice = dbRetail;
-          if (sell_by === 'sqft' && sqft_needed) {
-            validatedSubtotal = parseFloat((dbRetail * parseFloat(sqft_needed)).toFixed(2));
-          } else {
-            validatedSubtotal = parseFloat((dbRetail * num_boxes).toFixed(2));
-          }
-        }
-      }
-    }
-
-    const result = await pool.query(`
-      INSERT INTO cart_items (session_id, product_id, sku_id, sqft_needed, num_boxes, include_overage, unit_price, subtotal, is_sample, sell_by, price_tier)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      RETURNING *
-    `, [session_id, product_id || null, sku_id || null, sqft_needed || null, num_boxes, include_overage || false, validatedUnitPrice, validatedSubtotal, is_sample || false, sell_by || null, price_tier || null]);
-
-    // Return with product info
-    const item = result.rows[0];
-    if (item.product_id) {
-      const prod = await pool.query('SELECT name, collection FROM products WHERE id = $1', [item.product_id]);
-      if (prod.rows.length) {
-        item.product_name = prod.rows[0].name;
-        item.collection = prod.rows[0].collection;
-      }
-    }
-    res.json({ item });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.put('/api/cart/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { session_id, num_boxes, sqft_needed, subtotal, unit_price, price_tier } = req.body;
-    if (!session_id) return res.status(400).json({ error: 'session_id is required' });
-
-    // Server-side price validation
-    let validatedUnitPrice = unit_price;
-    let validatedSubtotal = subtotal;
-    if (unit_price != null || subtotal != null) {
-      const existing = await pool.query('SELECT sku_id, sell_by FROM cart_items WHERE id = $1 AND session_id = $2', [id, session_id]);
-      if (existing.rows.length && existing.rows[0].sku_id) {
-        const dbPrice = await pool.query(
-          `SELECT pr.retail_price, pr.price_basis, pk.sqft_per_box, pk.pieces_per_box
-           FROM pricing pr
-           LEFT JOIN packaging pk ON pk.sku_id = pr.sku_id
-           WHERE pr.sku_id = $1`, [existing.rows[0].sku_id]);
-        if (dbPrice.rows.length) {
-          let dbRetail = parseFloat(dbPrice.rows[0].retail_price);
-          const priceBasis = dbPrice.rows[0].price_basis;
-          const sqftBox = parseFloat(dbPrice.rows[0].sqft_per_box) || 0;
-          const pcsBox = parseFloat(dbPrice.rows[0].pieces_per_box) || 0;
-          const itemSellBy = existing.rows[0].sell_by;
-          if (itemSellBy === 'sqft' && priceBasis === 'per_unit' && sqftBox > 0 && pcsBox > 0) {
-            dbRetail = dbRetail / (sqftBox / pcsBox);
-          }
-          if (itemSellBy === 'unit' && (priceBasis === 'per_sqft' || priceBasis === 'sqft') && sqftBox > 0) {
-            dbRetail = dbRetail * sqftBox;
-          }
-          if (unit_price != null && Math.abs(parseFloat(unit_price) - dbRetail) > 0.01) {
-            validatedUnitPrice = dbRetail;
-            if (num_boxes && itemSellBy === 'sqft' && sqft_needed) {
-              validatedSubtotal = parseFloat((dbRetail * parseFloat(sqft_needed)).toFixed(2));
-            } else if (num_boxes) {
-              validatedSubtotal = parseFloat((dbRetail * num_boxes).toFixed(2));
-            }
-          }
-        }
-      }
-    }
-
-    const result = await pool.query(`
-      UPDATE cart_items
-      SET num_boxes = COALESCE($1, num_boxes),
-          sqft_needed = COALESCE($2, sqft_needed),
-          subtotal = COALESCE($3, subtotal),
-          unit_price = COALESCE($4, unit_price),
-          price_tier = COALESCE($5, price_tier),
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = $6 AND session_id = $7
-      RETURNING *
-    `, [num_boxes, sqft_needed, validatedSubtotal, validatedUnitPrice, price_tier, id, session_id]);
-
-    if (!result.rows.length) return res.status(404).json({ error: 'Cart item not found' });
-
-    const item = result.rows[0];
-    if (item.product_id) {
-      const prod = await pool.query('SELECT name, collection FROM products WHERE id = $1', [item.product_id]);
-      if (prod.rows.length) {
-        item.product_name = prod.rows[0].name;
-        item.collection = prod.rows[0].collection;
-      }
-    }
-    res.json({ item });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.delete('/api/cart/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { session_id } = req.query;
-    if (!session_id) return res.status(400).json({ error: 'session_id is required' });
-    const result = await pool.query('DELETE FROM cart_items WHERE id = $1 AND session_id = $2 RETURNING id', [id, session_id]);
-    if (!result.rows.length) return res.status(404).json({ error: 'Cart item not found' });
-    res.json({ deleted: id });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Tax estimate for checkout
-app.get('/api/cart/tax-estimate', async (req, res) => {
-  try {
-    const { zip, session_id } = req.query;
-    if (!session_id) return res.status(400).json({ error: 'session_id is required' });
-
-    const result = await pool.query(
-      `SELECT COALESCE(SUM(subtotal), 0) as subtotal FROM cart_items WHERE session_id = $1 AND is_sample = false`,
-      [session_id]
-    );
-    const subtotal = parseFloat(result.rows[0].subtotal) || 0;
-    const { rate, amount } = calculateSalesTax(subtotal, zip, false);
-    res.json({ rate, amount, subtotal });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// Cart routes — extracted to routes/cart.js
+app.use(createCartRoutes({ pool, calculateSalesTax, isPickupOnly }));
 
 // ==================== Shipping API ====================
 
@@ -4242,6 +3439,33 @@ app.post('/api/checkout/update-payment-intent-shipping', async (req, res) => {
   }
 });
 
+// ==================== Sequential Number Generation ====================
+
+async function getNextOrderNumber() {
+  const result = await pool.query("SELECT nextval('order_number_seq')");
+  return 'RD-' + result.rows[0].nextval;
+}
+
+async function getNextQuoteNumber() {
+  const result = await pool.query("SELECT nextval('quote_number_seq')");
+  return 'RDQ-' + result.rows[0].nextval;
+}
+
+async function getNextEstimateNumber() {
+  const result = await pool.query("SELECT nextval('estimate_number_seq')");
+  return 'RDE-' + result.rows[0].nextval;
+}
+
+async function getNextSampleNumber() {
+  const result = await pool.query("SELECT nextval('sample_number_seq')");
+  return 'RDS-' + result.rows[0].nextval;
+}
+
+async function getNextPONumber(vendorCode) {
+  const result = await pool.query("SELECT nextval('po_number_seq')");
+  return 'RDP-' + (vendorCode || 'XX') + '-' + result.rows[0].nextval;
+}
+
 // ==================== Purchase Order Generation ====================
 
 async function generatePurchaseOrders(orderId, client) {
@@ -4284,9 +3508,7 @@ async function generatePurchaseOrders(orderId, client) {
   const createdPOs = [];
 
   for (const group of Object.values(vendorGroups)) {
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substr(2, 4).toUpperCase();
-    const poNumber = `PO-${group.vendor_code}-${timestamp}-${random}`;
+    const poNumber = await getNextPONumber(group.vendor_code);
 
     // Calculate subtotal — cost per box * qty (boxes), or cost per sqyd * sqyd for carpet
     let poSubtotal = 0;
@@ -4370,7 +3592,7 @@ async function generatePurchaseOrders(orderId, client) {
 app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, async (req, res) => {
   // Honeypot: hidden field that real users never fill in
   if (req.body.company_url) {
-    return res.json({ success: true, order_number: 'ORD-' + Math.random().toString(36).substring(2, 10).toUpperCase() });
+    return res.json({ success: true, order_number: 'RD-' + Date.now() });
   }
 
   const client = await pool.connect();
@@ -4483,7 +3705,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     const tradeCustomerId = req.tradeCustomer ? req.tradeCustomer.id : null;
     const existingCustomerId = req.customer ? req.customer.id : null;
 
-    const orderNumber = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    const orderNumber = await getNextOrderNumber();
 
     await client.query('BEGIN');
 
@@ -4588,9 +3810,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     // Create sample request if there are sample items
     let sampleRequest = null;
     if (sampleItems.length > 0) {
-      const srTs = Date.now().toString(36);
-      const srRand = Math.random().toString(36).substring(2, 6).toUpperCase();
-      const srNumber = `SR-${srTs}-${srRand}`;
+      const srNumber = await getNextSampleNumber();
 
       // Resolve customer_id: use existing customer, newly created customer, or find/create one
       let srCustomerId = existingCustomerId;
@@ -4863,7 +4083,7 @@ app.get('/api/admin/analytics', staffAuth, requireRole('admin', 'manager'), asyn
         LEFT JOIN skus s ON s.id = oi.sku_id
         LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
         WHERE o.status != 'cancelled' ${dateFilter}
-        GROUP BY oi.product_id, p.name, oi.product_name
+        GROUP BY oi.product_id, p.display_name, p.name, oi.product_name
         ORDER BY revenue DESC
         LIMIT 10
       `, params),
@@ -6056,28 +5276,6 @@ app.delete('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), as
 
 // ==================== Media Upload API ====================
 
-const UPLOADS_DIR = process.env.UPLOADS_PATH || './uploads';
-
-const mediaUpload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const dir = path.join(UPLOADS_DIR, 'products', req.params.id);
-      fs.mkdirSync(dir, { recursive: true });
-      cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
-      cb(null, `${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`);
-    }
-  }),
-  limits: { fileSize: 15 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, allowed.includes(ext));
-  }
-});
-
 // 3A. Upload file
 app.post('/api/admin/products/:id/media/upload', staffAuth, requireRole('admin', 'manager'), mediaUpload.single('file'), async (req, res) => {
   try {
@@ -6788,7 +5986,7 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
 
     const payments = await pool.query('SELECT * FROM order_payments WHERE order_id = $1 ORDER BY created_at', [id]);
     const paymentRequests = await pool.query('SELECT * FROM payment_requests WHERE order_id = $1 ORDER BY created_at DESC', [id]);
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
 
     res.json({ order: order.rows[0], items: items.rows, payments: payments.rows, payment_requests: paymentRequests.rows, balance: balanceInfo });
   } catch (err) {
@@ -7011,7 +6209,7 @@ app.put('/api/admin/orders/:id/delivery-method', staffAuth, requireRole('admin',
       `, [id, newTotal]);
       await logOrderActivity(pool, id, 'delivery_method_changed', req.staff.id, staffName,
         { from: oldDeliveryMethod, to: 'pickup' });
-      const balanceInfo = await recalculateBalance(id);
+      const balanceInfo = await recalculateBalance(pool, id);
       return res.json({ order: updated.rows[0], balance: balanceInfo });
     }
 
@@ -7057,7 +6255,7 @@ app.put('/api/admin/orders/:id/delivery-method', staffAuth, requireRole('admin',
 
     await logOrderActivity(pool, id, 'delivery_method_changed', req.staff.id, staffName,
       { from: oldDeliveryMethod, to: 'shipping', shipping_cost: shippingCost.toFixed(2) });
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
     return res.json({ order: updated.rows[0], balance: balanceInfo });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -7147,7 +6345,7 @@ app.post('/api/admin/orders/:id/refund', staffAuth, requireRole('admin', 'manage
         'order', id));
     }
 
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
     res.json({ order: result.rows[0], balance: balanceInfo });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -7300,7 +6498,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
         // Create new draft PO for this vendor
         const vendorResult = await client.query('SELECT code FROM vendors WHERE id = $1', [itemVendorId]);
         const vendorCode = vendorResult.rows[0]?.code || 'CUST';
-        const poNumber = `PO-${vendorCode}-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        const poNumber = await getNextPONumber(vendorCode);
         const newPO = await client.query(
           `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal)
            VALUES ($1, $2, $3, 'draft', 0) RETURNING id`,
@@ -7350,7 +6548,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
 
     await client.query('COMMIT');
 
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
@@ -7448,7 +6646,7 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
 
     await client.query('COMMIT');
 
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
@@ -7495,7 +6693,7 @@ app.post('/api/admin/orders/:id/payment-request', staffAuth, requireRole('admin'
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
     const o = order.rows[0];
 
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
     if (!balanceInfo || balanceInfo.balance_status !== 'balance_due') {
       return res.status(400).json({ error: 'No balance due on this order' });
     }
@@ -7731,16 +6929,6 @@ app.get('/api/admin/skus/search', staffAuth, async (req, res) => {
 });
 
 // ==================== Spreadsheet Import API ====================
-
-const importUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const ext = file.originalname.toLowerCase().split('.').pop();
-    if (['xlsx', 'xls', 'csv'].includes(ext)) cb(null, true);
-    else cb(new Error('Only XLSX, XLS, and CSV files are allowed'));
-  }
-});
 
 // In-memory cache for parsed spreadsheet data between upload and import
 const importSessions = new Map();
@@ -8774,31 +7962,6 @@ app.post('/api/admin/scrape-jobs/:id/stop', staffAuth, requireRole('admin', 'man
 });
 
 // Upload price list PDF for a vendor source
-const pricelistUpload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const dir = path.join(UPLOADS_DIR, 'pricelists', req.params.id);
-      fs.mkdirSync(dir, { recursive: true });
-      cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-      const timestamp = Date.now();
-      const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-      cb(null, `${timestamp}-${safeName}`);
-    }
-  }),
-  limits: { fileSize: 50 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const ext = file.originalname.toLowerCase().split('.').pop();
-    const allowed = ['pdf', 'xlsb', 'xlsx', 'xls'];
-    if (allowed.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF and Excel files are allowed'));
-    }
-  }
-});
-
 app.post('/api/admin/vendor-sources/:id/upload-pricelist', staffAuth, requireRole('admin', 'manager'), pricelistUpload.single('file'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -8873,225 +8036,7 @@ app.get('/api/admin/scrape-jobs/:id', staffAuth, requireRole('admin', 'manager')
   }
 });
 
-// ==================== Sales Rep Auth Helpers ====================
-
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-  return { hash, salt };
-}
-
-function verifyPassword(password, hash, salt) {
-  const derived = crypto.scryptSync(password, salt, 64);
-  const stored = Buffer.from(hash, 'hex');
-  return crypto.timingSafeEqual(derived, stored);
-}
-
-function validatePassword(password) {
-  if (!password || password.length < 8) return 'Password must be at least 8 characters';
-  if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
-  if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
-  return null;
-}
-
-async function repAuth(req, res, next) {
-  const token = req.headers['x-rep-token'];
-  if (!token) return res.status(401).json({ error: 'Authentication required' });
-
-  try {
-    const result = await pool.query(`
-      SELECT rs.id as session_id, sr.id, sr.email, sr.first_name, sr.last_name, sr.is_active
-      FROM rep_sessions rs
-      JOIN sales_reps sr ON sr.id = rs.rep_id
-      WHERE rs.token = $1 AND rs.expires_at > CURRENT_TIMESTAMP
-    `, [token]);
-
-    if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
-    if (!result.rows[0].is_active) return res.status(403).json({ error: 'Account deactivated' });
-
-    req.rep = {
-      id: result.rows[0].id,
-      email: result.rows[0].email,
-      first_name: result.rows[0].first_name,
-      last_name: result.rows[0].last_name
-    };
-    next();
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-}
-
-// ==================== Trade Auth Middleware ====================
-
-async function tradeAuth(req, res, next) {
-  const token = req.headers['x-trade-token'];
-  if (!token) return res.status(401).json({ error: 'Authentication required' });
-
-  try {
-    const result = await pool.query(`
-      SELECT ts.id as session_id, tc.id, tc.email, tc.company_name, tc.contact_name, tc.status,
-        mt.name as tier_name, mt.discount_percent
-      FROM trade_sessions ts
-      JOIN trade_customers tc ON tc.id = ts.trade_customer_id
-      LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
-      WHERE ts.token = $1 AND ts.expires_at > CURRENT_TIMESTAMP
-    `, [token]);
-
-    if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
-    if (result.rows[0].status !== 'approved') return res.status(403).json({ error: 'Account not approved' });
-
-    req.tradeCustomer = {
-      id: result.rows[0].id,
-      email: result.rows[0].email,
-      company_name: result.rows[0].company_name,
-      contact_name: result.rows[0].contact_name,
-      tier_name: result.rows[0].tier_name,
-      discount_percent: parseFloat(result.rows[0].discount_percent) || 0
-    };
-    next();
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-}
-
-async function optionalTradeAuth(req, res, next) {
-  const token = req.headers['x-trade-token'];
-  if (!token) {
-    req.tradeCustomer = null;
-    return next();
-  }
-
-  try {
-    const result = await pool.query(`
-      SELECT ts.id as session_id, tc.id, tc.email, tc.company_name, tc.contact_name, tc.status,
-        mt.name as tier_name, mt.discount_percent
-      FROM trade_sessions ts
-      JOIN trade_customers tc ON tc.id = ts.trade_customer_id
-      LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
-      WHERE ts.token = $1 AND ts.expires_at > CURRENT_TIMESTAMP
-    `, [token]);
-
-    if (result.rows.length && result.rows[0].status === 'approved') {
-      req.tradeCustomer = {
-        id: result.rows[0].id,
-        email: result.rows[0].email,
-        company_name: result.rows[0].company_name,
-        contact_name: result.rows[0].contact_name,
-        tier_name: result.rows[0].tier_name,
-        discount_percent: parseFloat(result.rows[0].discount_percent) || 0
-      };
-    } else {
-      req.tradeCustomer = null;
-    }
-    next();
-  } catch (err) {
-    req.tradeCustomer = null;
-    next();
-  }
-}
-
-// ==================== Customer Auth Middleware ====================
-
-async function customerAuth(req, res, next) {
-  const token = req.headers['x-customer-token'];
-  if (!token) return res.status(401).json({ error: 'Authentication required' });
-
-  try {
-    const result = await pool.query(`
-      SELECT cs.id as session_id, c.id, c.email, c.first_name, c.last_name, c.phone,
-        c.address_line1, c.address_line2, c.city, c.state, c.zip
-      FROM customer_sessions cs
-      JOIN customers c ON c.id = cs.customer_id
-      WHERE cs.token = $1 AND cs.expires_at > CURRENT_TIMESTAMP
-    `, [token]);
-
-    if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
-
-    req.customer = result.rows[0];
-    next();
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-}
-
-async function optionalCustomerAuth(req, res, next) {
-  const token = req.headers['x-customer-token'];
-  if (!token) {
-    req.customer = null;
-    return next();
-  }
-
-  try {
-    const result = await pool.query(`
-      SELECT cs.id as session_id, c.id, c.email, c.first_name, c.last_name, c.phone,
-        c.address_line1, c.address_line2, c.city, c.state, c.zip
-      FROM customer_sessions cs
-      JOIN customers c ON c.id = cs.customer_id
-      WHERE cs.token = $1 AND cs.expires_at > CURRENT_TIMESTAMP
-    `, [token]);
-
-    if (result.rows.length) {
-      req.customer = result.rows[0];
-    } else {
-      req.customer = null;
-    }
-    next();
-  } catch (err) {
-    req.customer = null;
-    next();
-  }
-}
-
-// ==================== Staff Auth Middleware ====================
-
-async function staffAuth(req, res, next) {
-  const token = req.headers['x-staff-token'];
-  if (!token) return res.status(401).json({ error: 'Authentication required' });
-
-  try {
-    const result = await pool.query(`
-      SELECT ss.id as session_id, sa.id, sa.email, sa.first_name, sa.last_name, sa.role, sa.is_active
-      FROM staff_sessions ss
-      JOIN staff_accounts sa ON sa.id = ss.staff_id
-      WHERE ss.token = $1 AND ss.expires_at > CURRENT_TIMESTAMP
-    `, [token]);
-
-    if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
-    if (!result.rows[0].is_active) return res.status(403).json({ error: 'Account deactivated' });
-
-    req.staff = {
-      id: result.rows[0].id,
-      email: result.rows[0].email,
-      first_name: result.rows[0].first_name,
-      last_name: result.rows[0].last_name,
-      role: result.rows[0].role
-    };
-    next();
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-}
-
-function requireRole(...roles) {
-  return (req, res, next) => {
-    if (!req.staff) return res.status(401).json({ error: 'Authentication required' });
-    if (!roles.includes(req.staff.role)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-    next();
-  };
-}
-
-async function logAudit(staffId, action, entityType, entityId, details, ipAddress) {
-  try {
-    await pool.query(
-      'INSERT INTO audit_log (staff_id, action, entity_type, entity_id, details, ip_address) VALUES ($1, $2, $3, $4, $5, $6)',
-      [staffId, action, entityType || null, entityId || null, JSON.stringify(details || {}), ipAddress || null]
-    );
-  } catch (err) {
-    console.error('Audit log error:', err.message);
-  }
-}
+// Auth middleware — extracted to lib/auth.js
 
 // ==================== Staff Auth Endpoints ====================
 
@@ -10605,7 +9550,7 @@ app.post('/api/trade/bulk-order/confirm', tradeAuth, async (req, res) => {
     if (!items || !items.length) return res.status(400).json({ error: 'Items are required' });
 
     const total = items.reduce((sum, i) => sum + (parseFloat(i.subtotal) || 0), 0);
-    const orderNumber = 'ORD-' + Date.now();
+    const orderNumber = await getNextOrderNumber();
 
     await client.query('BEGIN');
 
@@ -10693,7 +9638,7 @@ app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
-    const orderNumber = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    const orderNumber = await getNextOrderNumber();
     const orderResult = await client.query(`
       INSERT INTO orders (order_number, customer_email, customer_name, phone,
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
@@ -10777,50 +9722,50 @@ app.get('/api/trade/quotes/:id/pdf', (req, res, next) => {
     const isExpired = q.expires_at && new Date(q.expires_at) < new Date();
     const expiryStr = q.expires_at ? new Date(q.expires_at).toLocaleDateString() : 'N/A';
 
-    const html = `<!DOCTYPE html><html><head><style>
-      ${getDocumentBaseCSS()}
-      .expired-badge { display: inline-block; background: #dc2626; color: white; padding: 2px 8px; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
-      .valid-badge { display: inline-block; background: #16a34a; color: white; padding: 2px 8px; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
-    </style></head><body>
-      ${getDocumentHeader('Quote')}
-      <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
-        <strong>${q.quote_number || 'Q-' + q.id.substring(0, 8).toUpperCase()}</strong><br/>
-        Date: ${new Date(q.created_at).toLocaleDateString()}<br/>
-        Valid Until: ${expiryStr} ${isExpired ? '<span class="expired-badge">Expired</span>' : '<span class="valid-badge">Valid</span>'}
-      </div>
-      <div class="info-block">
-        <h3>Prepared For</h3>
-        <strong>${c.company_name || q.customer_name || ''}</strong><br/>
-        ${c.contact_name || q.customer_name || ''}<br/>
-        ${q.customer_email || c.email || ''}
-        ${q.phone ? '<br/>' + q.phone : ''}
-        ${q.shipping_address_line1 ? '<br/>' + q.shipping_address_line1 : ''}
-        ${q.shipping_address_line2 ? '<br/>' + q.shipping_address_line2 : ''}
-        ${q.shipping_city ? '<br/>' + q.shipping_city + ', ' + (q.shipping_state || '') + ' ' + (q.shipping_zip || '') : ''}
-      </div>
-      <table>
-        <thead><tr><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th></tr></thead>
-        <tbody>
-          ${items.rows.map(i => {
-            const isUnit = i.sell_by === 'unit';
-            const qty = i.num_boxes || i.quantity || 1;
-            return `<tr>
-            <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td>
-            <td style="text-align:right">${qty}${isUnit ? '' : ' box' + (qty > 1 ? 'es' : '')}</td>
-            <td style="text-align:right">$${parseFloat(i.unit_price || 0).toFixed(2)}${isUnit ? '/ea' : '/sqft'}</td>
-            <td style="text-align:right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
-          </tr>`; }).join('')}
-        </tbody>
-      </table>
-      <div class="totals">
-        <div class="line"><span>Subtotal:</span><span>$${parseFloat(q.subtotal || 0).toFixed(2)}</span></div>
-        ${parseFloat(q.shipping || 0) > 0 ? `<div class="line"><span>Shipping:</span><span>$${parseFloat(q.shipping).toFixed(2)}</span></div>` : ''}
-        ${parseFloat(q.tax || 0) > 0 ? `<div class="line"><span>Tax:</span><span>$${parseFloat(q.tax).toFixed(2)}</span></div>` : ''}
-        <div class="line total-line"><span>Total:</span><span>$${parseFloat(q.total || 0).toFixed(2)}</span></div>
-      </div>
-      <div class="footer">
-        <p>This quote is valid for 14 days from the date of issue. Prices are subject to change after expiry.</p>
-        <p>Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
+    const html = `<!DOCTYPE html><html><head><style>${getDocumentBaseCSS()}</style></head><body>
+      <div class="page">
+        ${getDocumentHeader('Quote')}
+        <div class="doc-banner">
+          <div class="doc-banner-left">
+            <div class="meta-group"><p class="meta-label">Quote</p><p class="meta-value">${q.quote_number || 'Q-' + q.id.substring(0, 8).toUpperCase()}</p></div>
+            <div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${new Date(q.created_at).toLocaleDateString()}</p></div>
+            <div class="meta-group"><p class="meta-label">Valid Until</p><p class="meta-value-sm">${expiryStr}</p></div>
+          </div>
+          <div>${isExpired ? '<span class="badge badge-expired">Expired</span>' : '<span class="badge badge-valid">Valid</span>'}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-card">
+            <h3>Prepared For</h3>
+            <p><strong>${c.company_name || q.customer_name || ''}</strong><br/>
+            ${c.contact_name || q.customer_name || ''}<br/>
+            ${q.customer_email || c.email || ''}
+            ${q.phone ? '<br/>' + q.phone : ''}
+            ${q.shipping_address_line1 ? '<br/>' + q.shipping_address_line1 : ''}
+            ${q.shipping_address_line2 ? '<br/>' + q.shipping_address_line2 : ''}
+            ${q.shipping_city ? '<br/>' + q.shipping_city + ', ' + (q.shipping_state || '') + ' ' + (q.shipping_zip || '') : ''}</p>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Description</th><th class="text-right">Qty</th><th class="text-right">Unit Price</th><th class="text-right">Subtotal</th></tr></thead>
+          <tbody>
+            ${items.rows.map(i => {
+              const isUnit = i.sell_by === 'unit';
+              const qty = i.num_boxes || i.quantity || 1;
+              return `<tr>
+              <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td>
+              <td class="text-right">${qty}${isUnit ? '' : ' box' + (qty > 1 ? 'es' : '')}</td>
+              <td class="text-right">$${parseFloat(i.unit_price || 0).toFixed(2)}${isUnit ? '/ea' : '/sqft'}</td>
+              <td class="text-right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
+            </tr>`; }).join('')}
+          </tbody>
+        </table>
+        <div class="totals-wrapper"><div class="totals-box">
+          <div class="totals-line"><span>Subtotal</span><span>$${parseFloat(q.subtotal || 0).toFixed(2)}</span></div>
+          ${parseFloat(q.shipping || 0) > 0 ? `<div class="totals-line"><span>Shipping</span><span>$${parseFloat(q.shipping).toFixed(2)}</span></div>` : ''}
+          ${parseFloat(q.tax || 0) > 0 ? `<div class="totals-line"><span>Tax</span><span>$${parseFloat(q.tax).toFixed(2)}</span></div>` : ''}
+          <div class="totals-line grand-total"><span>Total</span><span>$${parseFloat(q.total || 0).toFixed(2)}</span></div>
+        </div></div>
+        ${getDocumentFooter('<p>This quote is valid for 14 days from the date of issue. Prices are subject to change after expiry.</p>')}
       </div>
     </body></html>`;
 
@@ -10845,48 +9790,42 @@ async function generateOrderPackingSlipHtml(orderId) {
     WHERE oi.order_id = $1 ORDER BY oi.id
   `, [orderId]);
   const o = order.rows[0];
-
   const isPickup = o.delivery_method === 'pickup';
-  const shipToBlock = isPickup
-    ? `<div class="info-block">
-        <h3>Store Pickup</h3>
-        <strong>Roma Flooring Designs</strong><br/>
-        1440 S. State College Blvd., Suite 6M<br/>
-        Anaheim, CA 92806
-      </div>`
-    : `<div class="info-block">
-        <h3>Ship To</h3>
-        <strong>${o.customer_name}</strong><br/>
-        ${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>
-        ${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}
-      </div>`;
 
-  return { html: `<!DOCTYPE html><html><head><style>
-    ${getDocumentBaseCSS()}
-  </style></head><body>
-    ${getDocumentHeader('Packing Slip')}
-    <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
-      <strong>${o.order_number}</strong><br/>
-      Date: ${new Date(o.created_at).toLocaleDateString()}
+  const shipTo = isPickup
+    ? `<p><strong>Roma Flooring Designs</strong><br/>1440 S. State College Blvd., Suite 6M<br/>Anaheim, CA 92806</p>`
+    : `<p><strong>${o.customer_name}</strong><br/>${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}</p>`;
+
+  return { html: `<!DOCTYPE html><html><head><style>${getDocumentBaseCSS()}</style></head><body>
+    <div class="page">
+      ${getDocumentHeader('Packing Slip')}
+      <div class="doc-banner">
+        <div class="doc-banner-left">
+          <div class="meta-group"><p class="meta-label">Order</p><p class="meta-value">${o.order_number}</p></div>
+          <div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${new Date(o.created_at).toLocaleDateString()}</p></div>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="info-card"><h3>${isPickup ? 'Store Pickup' : 'Ship To'}</h3>${shipTo}</div>
+      </div>
+      <table>
+        <thead><tr><th>Description</th><th class="text-right">Qty</th><th class="text-right">SqFt/Box</th><th class="text-right">Total SqFt</th></tr></thead>
+        <tbody>
+          ${items.rows.map(i => {
+            const isUnit = i.sell_by === 'unit';
+            const sqftPerBox = i.sqft_per_box ? parseFloat(i.sqft_per_box) : null;
+            const totalSqft = i.sqft_needed ? parseFloat(i.sqft_needed) : (sqftPerBox ? sqftPerBox * i.num_boxes : null);
+            return `<tr>
+              <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}${i.is_sample ? ' <span class="text-muted text-small">(Sample)</span>' : ''}</td>
+              <td class="text-right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
+              <td class="text-right">${isUnit ? '\u2014' : (sqftPerBox ? sqftPerBox.toFixed(2) : '\u2014')}</td>
+              <td class="text-right">${isUnit ? '\u2014' : (totalSqft ? totalSqft.toFixed(1) : '\u2014')}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      ${getDocumentFooter()}
     </div>
-    ${shipToBlock}
-    <table>
-      <thead><tr><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">SqFt/Box</th><th style="text-align:right">Total SqFt</th></tr></thead>
-      <tbody>
-        ${items.rows.map(i => {
-          const isUnit = i.sell_by === 'unit';
-          const sqftPerBox = i.sqft_per_box ? parseFloat(i.sqft_per_box) : null;
-          const totalSqft = i.sqft_needed ? parseFloat(i.sqft_needed) : (sqftPerBox ? sqftPerBox * i.num_boxes : null);
-          return `<tr>
-            <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}${i.is_sample ? ' <span style="color:#c8a97e;font-size:0.75rem;">(Sample)</span>' : ''}</td>
-            <td style="text-align:right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
-            <td style="text-align:right">${isUnit ? '—' : (sqftPerBox ? sqftPerBox.toFixed(2) : '—')}</td>
-            <td style="text-align:right">${isUnit ? '—' : (totalSqft ? totalSqft.toFixed(1) : '—')}</td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>
-    ${getDocumentFooter()}
   </body></html>`, filename: `packing-slip-${o.order_number}.pdf` };
 }
 
@@ -10903,82 +9842,67 @@ async function generateOrderInvoiceHtml(orderId) {
     WHERE oi.order_id = $1 ORDER BY oi.id
   `, [orderId]);
   const o = order.rows[0];
-
   const isPickup = o.delivery_method === 'pickup';
   const total = parseFloat(o.total || 0);
   const amountPaid = parseFloat(o.amount_paid || 0);
   const balanceDue = parseFloat((total - amountPaid).toFixed(2));
   const taxAmount = parseFloat(o.tax_amount || 0);
 
-  const billToBlock = `<div class="info-block">
-    <h3>Bill To</h3>
-    <strong>${o.customer_name}</strong><br/>
-    ${o.customer_email}${o.phone ? '<br/>' + o.phone : ''}
-  </div>`;
-  const shipToBlock = isPickup
-    ? `<div class="info-block">
-        <h3>Store Pickup</h3>
-        <strong>Roma Flooring Designs</strong><br/>
-        1440 S. State College Blvd., Suite 6M<br/>
-        Anaheim, CA 92806
-      </div>`
-    : `<div class="info-block">
-        <h3>Ship To</h3>
-        <strong>${o.customer_name}</strong><br/>
-        ${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>
-        ${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}
-      </div>`;
+  const shipTo = isPickup
+    ? `<p><strong>Roma Flooring Designs</strong><br/>1440 S. State College Blvd., Suite 6M<br/>Anaheim, CA 92806</p>`
+    : `<p><strong>${o.customer_name}</strong><br/>${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}</p>`;
 
-  return { html: `<!DOCTYPE html><html><head><style>
-    ${getDocumentBaseCSS()}
-  </style></head><body>
-    ${getDocumentHeader('Invoice')}
-    <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
-      <strong>${o.order_number}</strong><br/>
-      Date: ${new Date(o.created_at).toLocaleDateString()}
-      ${o.po_number ? '<br/>PO: ' + o.po_number : ''}
-    </div>
-    <div class="info-columns">
-      ${billToBlock}
-      ${shipToBlock}
-    </div>
-    <table>
-      <thead><tr>
-        <th>Description</th>
-        <th style="text-align:right">SqFt</th><th style="text-align:right">Qty</th>
-        <th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th>
-      </tr></thead>
-      <tbody>
-        ${items.rows.map(i => {
-          const isUnit = i.sell_by === 'unit';
-          return `<tr>
-          <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}${i.is_sample ? ' <span style="color:#c8a97e;font-size:0.75rem;font-weight:600;">(Sample)</span>' : ''}</td>
-          <td style="text-align:right">${isUnit ? '—' : (i.sqft_needed ? parseFloat(i.sqft_needed).toFixed(1) : '—')}</td>
-          <td style="text-align:right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
-          <td style="text-align:right">${i.is_sample ? '<span style="color:#78716c;">$0.00</span>' : (i.unit_price ? '$' + parseFloat(i.unit_price).toFixed(2) + (isUnit ? '/ea' : '/sf') : '—')}</td>
-          <td style="text-align:right">${i.is_sample ? '<span style="color:#78716c;">$0.00</span>' : '$' + parseFloat(i.subtotal || 0).toFixed(2)}</td>
-        </tr>`;}).join('')}
-      </tbody>
-    </table>
-    <div class="totals">
-      <div class="line"><span>Subtotal:</span><span>$${parseFloat(o.subtotal || 0).toFixed(2)}</span></div>
-      ${parseFloat(o.shipping || 0) > 0 ? `<div class="line"><span>Shipping${o.shipping_method ? ' (' + (o.shipping_method === 'ltl_freight' ? 'LTL Freight' : 'Parcel') + ')' : ''}:</span><span>$${parseFloat(o.shipping).toFixed(2)}</span></div>` : ''}
-      ${isPickup ? '<div class="line"><span>Shipping (Store Pickup):</span><span style="color:#16a34a">FREE</span></div>' : ''}
-      ${parseFloat(o.sample_shipping || 0) > 0 ? `<div class="line"><span>Sample Shipping:</span><span>$${parseFloat(o.sample_shipping).toFixed(2)}</span></div>` : ''}
-      ${parseFloat(o.discount_amount || 0) > 0 ? `<div class="line"><span>Discount${o.promo_code ? ' (' + o.promo_code + ')' : ''}:</span><span style="color:#16a34a">-$${parseFloat(o.discount_amount).toFixed(2)}</span></div>` : ''}
-      ${taxAmount > 0 ? `<div class="line"><span>Tax:</span><span>$${taxAmount.toFixed(2)}</span></div>` : ''}
-      <div class="line total-line"><span>Total:</span><span>$${total.toFixed(2)}</span></div>
-      <div class="line" style="margin-top:0.25rem;"><span>Amount Paid:</span><span>$${amountPaid.toFixed(2)}</span></div>
-      ${balanceDue > 0.01 ? `<div class="line" style="font-weight:600;color:#b91c1c;"><span>Balance Due:</span><span>$${balanceDue.toFixed(2)}</span></div>` : `<div class="line" style="font-weight:500;color:#16a34a;"><span>Balance Due:</span><span>$0.00</span></div>`}
-    </div>
-    ${o.payment_method || o.stripe_payment_intent_id ? `
-      <div class="notes-section">
-        <h4>Payment Information</h4>
-        ${o.payment_method ? '<div>Method: ' + (o.payment_method === 'stripe' ? 'Payment Request' : o.payment_method.charAt(0).toUpperCase() + o.payment_method.slice(1)) + '</div>' : ''}
-        ${o.stripe_payment_intent_id ? '<div style="font-size:0.75rem;color:#78716c;">Ref: ' + o.stripe_payment_intent_id + '</div>' : ''}
+  return { html: `<!DOCTYPE html><html><head><style>${getDocumentBaseCSS()}</style></head><body>
+    <div class="page">
+      ${getDocumentHeader('Invoice')}
+      <div class="doc-banner">
+        <div class="doc-banner-left">
+          <div class="meta-group"><p class="meta-label">Invoice</p><p class="meta-value">${o.order_number}</p></div>
+          <div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${new Date(o.created_at).toLocaleDateString()}</p></div>
+          ${o.po_number ? `<div class="meta-group"><p class="meta-label">PO Ref</p><p class="meta-value-sm">${o.po_number}</p></div>` : ''}
+        </div>
+        <div>
+          ${balanceDue > 0.01 ? '<span class="badge badge-pending">Balance Due</span>' : '<span class="badge badge-paid">Paid</span>'}
+        </div>
       </div>
-    ` : ''}
-    ${getDocumentFooter()}
+      <div class="info-row">
+        <div class="info-card"><h3>Bill To</h3><p><strong>${o.customer_name}</strong><br/>${o.customer_email}${o.phone ? '<br/>' + o.phone : ''}</p></div>
+        <div class="info-card"><h3>${isPickup ? 'Store Pickup' : 'Ship To'}</h3>${shipTo}</div>
+      </div>
+      <table>
+        <thead><tr><th>Description</th><th class="text-right">SqFt</th><th class="text-right">Qty</th><th class="text-right">Unit Price</th><th class="text-right">Subtotal</th></tr></thead>
+        <tbody>
+          ${items.rows.map(i => {
+            const isUnit = i.sell_by === 'unit';
+            return `<tr>
+              <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}${i.is_sample ? ' <span class="text-muted text-small">(Sample)</span>' : ''}</td>
+              <td class="text-right">${isUnit ? '\u2014' : (i.sqft_needed ? parseFloat(i.sqft_needed).toFixed(1) : '\u2014')}</td>
+              <td class="text-right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
+              <td class="text-right">${i.is_sample ? '<span class="text-muted">$0.00</span>' : (i.unit_price ? '$' + parseFloat(i.unit_price).toFixed(2) + (isUnit ? '/ea' : '/sf') : '\u2014')}</td>
+              <td class="text-right">${i.is_sample ? '<span class="text-muted">$0.00</span>' : '$' + parseFloat(i.subtotal || 0).toFixed(2)}</td>
+            </tr>`;}).join('')}
+        </tbody>
+      </table>
+      <div class="totals-wrapper"><div class="totals-box">
+        <div class="totals-line"><span>Subtotal</span><span>$${parseFloat(o.subtotal || 0).toFixed(2)}</span></div>
+        ${parseFloat(o.shipping || 0) > 0 ? `<div class="totals-line"><span>Shipping${o.shipping_method ? ' (' + (o.shipping_method === 'ltl_freight' ? 'LTL Freight' : 'Parcel') + ')' : ''}</span><span>$${parseFloat(o.shipping).toFixed(2)}</span></div>` : ''}
+        ${isPickup ? '<div class="totals-line"><span>Shipping (Store Pickup)</span><span class="discount">FREE</span></div>' : ''}
+        ${parseFloat(o.sample_shipping || 0) > 0 ? `<div class="totals-line"><span>Sample Shipping</span><span>$${parseFloat(o.sample_shipping).toFixed(2)}</span></div>` : ''}
+        ${parseFloat(o.discount_amount || 0) > 0 ? `<div class="totals-line"><span>Discount${o.promo_code ? ' (' + o.promo_code + ')' : ''}</span><span class="discount">-$${parseFloat(o.discount_amount).toFixed(2)}</span></div>` : ''}
+        ${taxAmount > 0 ? `<div class="totals-line"><span>Tax</span><span>$${taxAmount.toFixed(2)}</span></div>` : ''}
+        <div class="totals-line grand-total"><span>Total</span><span>$${total.toFixed(2)}</span></div>
+        <div class="totals-line"><span>Amount Paid</span><span>$${amountPaid.toFixed(2)}</span></div>
+        ${balanceDue > 0.01 ? `<div class="totals-line balance-due"><span>Balance Due</span><span>$${balanceDue.toFixed(2)}</span></div>` : `<div class="totals-line paid-full"><span>Balance Due</span><span>$0.00</span></div>`}
+      </div></div>
+      ${o.payment_method || o.stripe_payment_intent_id ? `
+        <div class="notes-block">
+          <h4>Payment Information</h4>
+          ${o.payment_method ? '<div>Method: ' + (o.payment_method === 'stripe' ? 'Payment Request' : o.payment_method.charAt(0).toUpperCase() + o.payment_method.slice(1)) + '</div>' : ''}
+          ${o.stripe_payment_intent_id ? '<div class="text-muted text-small">Ref: ' + o.stripe_payment_intent_id + '</div>' : ''}
+        </div>
+      ` : ''}
+      ${getDocumentFooter('<p>Thank you for your business.</p>')}
+    </div>
   </body></html>`, filename: `invoice-${o.order_number}.pdf` };
 }
 
@@ -10993,54 +9917,36 @@ async function generateSampleRequestConfirmationHtml(sampleRequestId) {
     WHERE sri.sample_request_id = $1 ORDER BY sri.sort_order
   `, [sampleRequestId]);
   const s = sr.rows[0];
-
   const isPickup = s.delivery_method === 'pickup';
-  const deliveryBlock = isPickup
-    ? `<div class="info-block">
-        <h3>Store Pickup</h3>
-        <strong>Roma Flooring Designs</strong><br/>
-        1440 S. State College Blvd., Suite 6M<br/>
-        Anaheim, CA 92806
-      </div>`
-    : `<div class="info-block">
-        <h3>Ship To</h3>
-        <strong>${s.customer_name}</strong><br/>
-        ${s.shipping_address_line1 || ''}${s.shipping_address_line2 ? '<br/>' + s.shipping_address_line2 : ''}<br/>
-        ${s.shipping_city || ''}, ${s.shipping_state || ''} ${s.shipping_zip || ''}
-      </div>`;
 
-  return { html: `<!DOCTYPE html><html><head><style>
-    ${getDocumentBaseCSS()}
-  </style></head><body>
-    ${getDocumentHeader('Sample Request Confirmation')}
-    <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
-      <strong>${s.request_number}</strong><br/>
-      Date: ${new Date(s.created_at).toLocaleDateString()}
-    </div>
-    <div class="info-columns">
-      <div class="info-block">
-        <h3>Customer</h3>
-        <strong>${s.customer_name}</strong><br/>
-        ${s.customer_email || ''}${s.customer_phone ? '<br/>' + s.customer_phone : ''}
+  const deliveryTo = isPickup
+    ? `<p><strong>Roma Flooring Designs</strong><br/>1440 S. State College Blvd., Suite 6M<br/>Anaheim, CA 92806</p>`
+    : `<p><strong>${s.customer_name}</strong><br/>${s.shipping_address_line1 || ''}${s.shipping_address_line2 ? '<br/>' + s.shipping_address_line2 : ''}<br/>${s.shipping_city || ''}, ${s.shipping_state || ''} ${s.shipping_zip || ''}</p>`;
+
+  return { html: `<!DOCTYPE html><html><head><style>${getDocumentBaseCSS()}</style></head><body>
+    <div class="page">
+      ${getDocumentHeader('Sample Request')}
+      <div class="doc-banner">
+        <div class="doc-banner-left">
+          <div class="meta-group"><p class="meta-label">Request</p><p class="meta-value">${s.request_number}</p></div>
+          <div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${new Date(s.created_at).toLocaleDateString()}</p></div>
+        </div>
+        <div><span class="badge badge-confirmed">${isPickup ? 'Pickup' : 'Shipping'}</span></div>
       </div>
-      ${deliveryBlock}
+      <div class="info-row">
+        <div class="info-card"><h3>Customer</h3><p><strong>${s.customer_name}</strong><br/>${s.customer_email || ''}${s.customer_phone ? '<br/>' + s.customer_phone : ''}</p></div>
+        <div class="info-card"><h3>${isPickup ? 'Store Pickup' : 'Ship To'}</h3>${deliveryTo}</div>
+      </div>
+      <table>
+        <thead><tr><th>Description</th></tr></thead>
+        <tbody>
+          ${items.rows.map(i => `<tr><td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td></tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="notes-block"><h4>Note</h4><div>Samples are complimentary.${!isPickup ? ' Shipping fee: $12.00' : ''}</div></div>
+      ${s.notes ? `<div class="notes-block" style="margin-top:0.75rem;"><h4>Additional Notes</h4><div>${s.notes}</div></div>` : ''}
+      ${getDocumentFooter()}
     </div>
-    <table>
-      <thead><tr>
-        <th>Description</th>
-      </tr></thead>
-      <tbody>
-        ${items.rows.map(i => `<tr>
-          <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-    <div class="notes-section">
-      <h4>Note</h4>
-      <div>Samples are complimentary.${!isPickup ? ' Shipping fee: $12.00' : ''}</div>
-    </div>
-    ${s.notes ? `<div class="notes-section"><h4>Additional Notes</h4><div>${s.notes}</div></div>` : ''}
-    ${getDocumentFooter()}
   </body></html>`, filename: `sample-request-${s.request_number}.pdf` };
 }
 
@@ -11103,7 +10009,7 @@ app.post('/api/staff/orders/:id/send-invoice', staffAuth, async (req, res) => {
       console.error('[PDF] Buffer generation failed, sending without attachment:', pdfErr.message);
     }
 
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
     const balanceDue = balanceInfo && balanceInfo.balance > 0.01 ? balanceInfo.balance : 0;
     let checkoutUrl = null;
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
@@ -11207,6 +10113,9 @@ app.post('/api/rep/login', async (req, res) => {
 
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Invalidate all existing sessions for this rep (session rotation)
+    await pool.query('DELETE FROM rep_sessions WHERE rep_id = $1', [rep.id]);
 
     await pool.query(
       'INSERT INTO rep_sessions (rep_id, token, expires_at) VALUES ($1, $2, $3)',
@@ -11915,9 +10824,7 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
       phone: customer_phone, repId: req.rep.id, createdVia: 'sample_request'
     });
 
-    const ts = Date.now().toString(36);
-    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const request_number = `SR-${ts}-${rand}`;
+    const request_number = await getNextSampleNumber();
 
     const srRes = await client.query(`
       INSERT INTO sample_requests (request_number, rep_id, customer_name, customer_email, customer_phone,
@@ -12582,6 +11489,9 @@ app.post('/api/rep/terminal/create-payment-intent', repAuth, async (req, res) =>
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: 'A positive amount is required' });
     }
+    if (amount > 50000) {
+      return res.status(400).json({ error: 'Amount exceeds maximum of $50,000' });
+    }
     const amountCents = Math.round(amount * 100);
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
@@ -12603,6 +11513,9 @@ app.post('/api/rep/card/create-payment-intent', repAuth, async (req, res) => {
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: 'A positive amount is required' });
     }
+    if (amount > 50000) {
+      return res.status(400).json({ error: 'Amount exceeds maximum of $50,000' });
+    }
     const amountCents = Math.round(amount * 100);
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
@@ -12622,6 +11535,9 @@ app.post('/api/rep/ach/create-payment-intent', repAuth, async (req, res) => {
     const { amount, customer_name, customer_email } = req.body;
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: 'A positive amount is required' });
+    }
+    if (amount > 50000) {
+      return res.status(400).json({ error: 'Amount exceeds maximum of $50,000' });
     }
     if (!customer_name || !customer_email) {
       return res.status(400).json({ error: 'Customer name and email are required for ACH payments' });
@@ -12839,7 +11755,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     }
 
     const total = subtotal - discountAmount;
-    const orderNumber = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    const orderNumber = await getNextOrderNumber();
     const paidInStore = ['cash', 'check', 'card', 'offline'].includes(payment_method);
     const orderStatus = paidInStore ? 'confirmed' : 'pending';
 
@@ -13014,7 +11930,7 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
 
     const payments = await pool.query('SELECT * FROM order_payments WHERE order_id = $1 ORDER BY created_at', [id]);
     const paymentRequests = await pool.query('SELECT * FROM payment_requests WHERE order_id = $1 ORDER BY created_at DESC', [id]);
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
 
     res.json({
       order: order.rows[0],
@@ -13241,7 +12157,7 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
         setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'delivery_method_changed',
           `${order.order_number} delivery → pickup`, `${repName} changed delivery to pickup`, 'order', id));
       }
-      const balanceInfo = await recalculateBalance(id);
+      const balanceInfo = await recalculateBalance(pool, id);
       return res.json({ order: updated.rows[0], balance: balanceInfo });
     }
 
@@ -13291,7 +12207,7 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
       setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'delivery_method_changed',
         `${order.order_number} delivery → shipping`, `${repName} changed delivery to shipping ($${shippingCost.toFixed(2)})`, 'order', id));
     }
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
     return res.json({ order: updated.rows[0], balance: balanceInfo });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -13414,7 +12330,7 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
       ORDER BY opa.created_at DESC
     `, [id]);
 
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
     res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, price_adjustments: adjustments.rows, balance: balanceInfo });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -13561,7 +12477,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       } else {
         const vendorResult = await client.query('SELECT code FROM vendors WHERE id = $1', [itemVendorId]);
         const vendorCode = vendorResult.rows[0]?.code || 'CUST';
-        const poNumber = `PO-${vendorCode}-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        const poNumber = await getNextPONumber(vendorCode);
         const newPO = await client.query(
           `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal)
            VALUES ($1, $2, $3, 'draft', 0) RETURNING id`,
@@ -13618,7 +12534,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
         'order', id));
     }
 
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
@@ -13723,7 +12639,7 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
         'order', id));
     }
 
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
@@ -13770,7 +12686,7 @@ app.post('/api/rep/orders/:id/payment-request', repAuth, async (req, res) => {
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
     const o = order.rows[0];
 
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
     if (!balanceInfo || balanceInfo.balance_status !== 'balance_due') {
       return res.status(400).json({ error: 'No balance due on this order' });
     }
@@ -13844,7 +12760,7 @@ app.post('/api/rep/orders/:id/collect-payment', repAuth, async (req, res) => {
     }
     const order = orderResult.rows[0];
 
-    const balanceInfo = await recalculateBalance(id, client);
+    const balanceInfo = await recalculateBalance(pool, id, client);
     if (!balanceInfo || balanceInfo.balance_status !== 'balance_due') {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'No balance due on this order' });
@@ -13913,7 +12829,7 @@ app.post('/api/rep/orders/:id/collect-payment', repAuth, async (req, res) => {
     }
 
     // Auto-confirm pending orders when fully paid
-    const updatedBalance = await recalculateBalance(id, client);
+    const updatedBalance = await recalculateBalance(pool, id, client);
     if (updatedBalance && updatedBalance.balance_status === 'paid' && order.status === 'pending') {
       await client.query("UPDATE orders SET status = 'confirmed' WHERE id = $1", [id]);
       await logOrderActivity(client, id, 'status_changed', req.rep.id, repName,
@@ -13927,7 +12843,7 @@ app.post('/api/rep/orders/:id/collect-payment', repAuth, async (req, res) => {
     await client.query('COMMIT');
 
     // Return updated balance
-    const finalBalance = await recalculateBalance(id);
+    const finalBalance = await recalculateBalance(pool, id);
     res.json({ success: true, balance: finalBalance });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -14383,7 +13299,7 @@ app.post('/api/rep/orders/:id/send-invoice', repAuth, async (req, res) => {
     }
 
     // 3. Check balance — if due, create Stripe payment request
-    const balanceInfo = await recalculateBalance(id);
+    const balanceInfo = await recalculateBalance(pool, id);
     const balanceDue = balanceInfo && balanceInfo.balance > 0.01 ? balanceInfo.balance : 0;
     let checkoutUrl = null;
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
@@ -14502,9 +13418,7 @@ app.post('/api/rep/purchase-orders', repAuth, async (req, res) => {
     if (!vendor.rows.length) return res.status(404).json({ error: 'Vendor not found' });
 
     const vendorCode = vendor.rows[0].code || 'XX';
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substr(2, 4).toUpperCase();
-    const poNumber = `PO-${vendorCode}-${timestamp}-${random}`;
+    const poNumber = await getNextPONumber(vendorCode);
 
     const result = await pool.query(
       `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes)
@@ -14858,7 +13772,7 @@ app.get('/api/rep/purchase-orders/:id/pdf', async (req, res, next) => {
   next();
 }, repAuth, async (req, res) => {
   try {
-    const result = await generatePOHtml(req.params.id);
+    const result = await generatePOHtml(pool, req.params.id);
     if (!result) return res.status(404).json({ error: 'Purchase order not found' });
     await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res);
   } catch (err) {
@@ -14999,7 +13913,7 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
     // Email path (default or EDI fallback)
     if (po.vendor_email) {
       try {
-        const poData = await generatePOHtml(poId);
+        const poData = await generatePOHtml(pool, poId);
         if (poData) {
           const pdfBuffer = await generatePDFBuffer(poData.html);
           const result = await sendPurchaseOrderToVendor({
@@ -15127,7 +14041,7 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
     }
 
-    const quoteNumber = 'QT-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    const quoteNumber = await getNextQuoteNumber();
 
     await client.query('BEGIN');
 
@@ -15640,7 +14554,7 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
       phone: q.phone, repId: req.rep.id, createdVia: 'quote_convert'
     });
 
-    const orderNumber = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    const orderNumber = await getNextOrderNumber();
     const paidInStore = ['cash', 'check', 'card', 'offline'].includes(payment_method);
     const orderStatus = paidInStore ? 'confirmed' : 'pending';
 
@@ -15870,7 +14784,7 @@ app.post('/api/rep/estimates', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'Customer name and email are required' });
     }
 
-    const estimateNumber = 'EST-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    const estimateNumber = await getNextEstimateNumber();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     await client.query('BEGIN');
@@ -16188,60 +15102,60 @@ app.get('/api/rep/estimates/:id/pdf', (req, res, next) => {
       </tr>`;
     }).join('');
 
-    const html = `<!DOCTYPE html><html><head><style>
-      ${getDocumentBaseCSS()}
-    </style></head><body>
-      ${getDocumentHeader('Estimate')}
-      <div class="doc-meta" style="margin-top: -1.5rem; margin-bottom: 1.5rem;">
-        <strong>${e.estimate_number}</strong><br/>
-        Date: ${new Date(e.created_at).toLocaleDateString()}<br/>
-        Valid Until: ${expiryStr} ${isExpired ? '<span style="display:inline-block;background:#dc2626;color:white;padding:2px 8px;font-size:0.6875rem;font-weight:600;text-transform:uppercase;">Expired</span>' : '<span style="display:inline-block;background:#16a34a;color:white;padding:2px 8px;font-size:0.6875rem;font-weight:600;text-transform:uppercase;">Valid</span>'}
-      </div>
-      <div class="info-columns">
-        <div class="info-block">
-          <h3>Prepared For</h3>
-          <strong>${e.customer_name || ''}</strong><br/>
-          ${e.customer_email || ''}
-          ${e.phone ? '<br/>' + e.phone : ''}
+    const termsHtml = `${parseFloat(e.tax_amount || 0) > 0 ? '<p>* Sales tax applies to materials only. Labor and services are not taxed.</p>' : ''}
+      <p>Valid for 30 days from the date of issue. Labor rates may vary based on site conditions.</p>`;
+
+    const html = `<!DOCTYPE html><html><head><style>${getDocumentBaseCSS()}</style></head><body>
+      <div class="page">
+        ${getDocumentHeader('Estimate')}
+        <div class="doc-banner">
+          <div class="doc-banner-left">
+            <div class="meta-group"><p class="meta-label">Estimate</p><p class="meta-value">${e.estimate_number}</p></div>
+            <div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${new Date(e.created_at).toLocaleDateString()}</p></div>
+            <div class="meta-group"><p class="meta-label">Valid Until</p><p class="meta-value-sm">${expiryStr}</p></div>
+          </div>
+          <div>${isExpired ? '<span class="badge badge-expired">Expired</span>' : '<span class="badge badge-valid">Valid</span>'}</div>
         </div>
-        <div class="info-block">
-          <h3>Project Location</h3>
-          ${e.project_name ? '<strong>' + e.project_name + '</strong><br/>' : ''}
-          ${e.project_address_line1 || ''}
-          ${e.project_address_line2 ? '<br/>' + e.project_address_line2 : ''}
-          ${e.project_city ? '<br/>' + e.project_city + ', ' + (e.project_state || '') + ' ' + (e.project_zip || '') : ''}
+        <div class="info-row">
+          <div class="info-card">
+            <h3>Prepared For</h3>
+            <p><strong>${e.customer_name || ''}</strong><br/>
+            ${e.customer_email || ''}${e.phone ? '<br/>' + e.phone : ''}</p>
+          </div>
+          <div class="info-card">
+            <h3>Project Location</h3>
+            <p>${e.project_name ? '<strong>' + e.project_name + '</strong><br/>' : ''}
+            ${e.project_address_line1 || ''}${e.project_address_line2 ? '<br/>' + e.project_address_line2 : ''}
+            ${e.project_city ? '<br/>' + e.project_city + ', ' + (e.project_state || '') + ' ' + (e.project_zip || '') : ''}</p>
+          </div>
         </div>
-      </div>
 
-      ${materialItems.length > 0 ? `
-      <h3 style="font-size:0.8125rem;text-transform:uppercase;letter-spacing:0.05em;color:#78716c;margin:1.5rem 0 0.5rem;">Materials</h3>
-      <table>
-        <thead><tr><th>#</th><th>Description</th><th style="text-align:right">Area</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Subtotal</th></tr></thead>
-        <tbody>${materialRowsHtml}</tbody>
-      </table>
-      ` : ''}
+        ${materialItems.length > 0 ? `
+        <div class="section-title">Materials</div>
+        <table>
+          <thead><tr><th>#</th><th>Description</th><th class="text-right">Area</th><th class="text-right">Qty</th><th class="text-right">Unit Price</th><th class="text-right">Subtotal</th></tr></thead>
+          <tbody>${materialRowsHtml}</tbody>
+        </table>
+        ` : ''}
 
-      ${laborItems.length > 0 ? `
-      <h3 style="font-size:0.8125rem;text-transform:uppercase;letter-spacing:0.05em;color:#78716c;margin:1.5rem 0 0.5rem;">Labor &amp; Services</h3>
-      <table>
-        <thead><tr><th>#</th><th>Service</th><th>Description</th><th style="text-align:right">Rate</th><th style="text-align:right">Area/Qty</th><th style="text-align:right">Subtotal</th></tr></thead>
-        <tbody>${laborRowsHtml}</tbody>
-      </table>
-      ` : ''}
+        ${laborItems.length > 0 ? `
+        <div class="section-title">Labor &amp; Services</div>
+        <table>
+          <thead><tr><th>#</th><th>Service</th><th>Description</th><th class="text-right">Rate</th><th class="text-right">Area/Qty</th><th class="text-right">Subtotal</th></tr></thead>
+          <tbody>${laborRowsHtml}</tbody>
+        </table>
+        ` : ''}
 
-      <div class="totals">
-        <div class="line"><span>Materials Subtotal:</span><span>$${parseFloat(e.materials_subtotal || 0).toFixed(2)}</span></div>
-        <div class="line"><span>Labor &amp; Services:</span><span>$${parseFloat(e.labor_subtotal || 0).toFixed(2)}</span></div>
-        ${parseFloat(e.tax_amount || 0) > 0 ? `<div class="line"><span>Tax (materials only)*:</span><span>$${parseFloat(e.tax_amount).toFixed(2)}</span></div>` : ''}
-        <div class="line total-line"><span>Grand Total:</span><span>$${parseFloat(e.total || 0).toFixed(2)}</span></div>
-      </div>
+        <div class="totals-wrapper"><div class="totals-box">
+          <div class="totals-line"><span>Materials Subtotal</span><span>$${parseFloat(e.materials_subtotal || 0).toFixed(2)}</span></div>
+          <div class="totals-line"><span>Labor &amp; Services</span><span>$${parseFloat(e.labor_subtotal || 0).toFixed(2)}</span></div>
+          ${parseFloat(e.tax_amount || 0) > 0 ? `<div class="totals-line"><span>Tax (materials only)*</span><span>$${parseFloat(e.tax_amount).toFixed(2)}</span></div>` : ''}
+          <div class="totals-line grand-total"><span>Grand Total</span><span>$${parseFloat(e.total || 0).toFixed(2)}</span></div>
+        </div></div>
 
-      ${e.notes ? `<div class="notes-section"><h4>Notes</h4><p style="margin:0;font-size:0.8125rem;color:#57534e;white-space:pre-wrap;">${e.notes}</p></div>` : ''}
+        ${e.notes ? `<div class="notes-block"><h4>Notes</h4><p style="margin:0;white-space:pre-wrap;">${e.notes}</p></div>` : ''}
 
-      <div class="footer">
-        ${parseFloat(e.tax_amount || 0) > 0 ? '<p style="font-size:0.625rem;color:#a8a29e;">* Sales tax applies to materials only. Labor and services are not taxed.</p>' : ''}
-        <p>Valid for 30 days from the date of issue. Labor rates may vary based on site conditions.</p>
-        <p>Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
+        ${getDocumentFooter(termsHtml)}
       </div>
     </body></html>`;
 
@@ -16378,7 +15292,7 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
 
     await client.query('BEGIN');
 
-    const quoteNumber = 'QT-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    const quoteNumber = await getNextQuoteNumber();
 
     // Build labor note
     const laborCategoryLabels = {
@@ -16526,7 +15440,7 @@ app.post('/api/rep/estimates/:id/convert-to-order', repAuth, async (req, res) =>
       phone: e.phone, repId: req.rep.id, createdVia: 'estimate_convert'
     });
 
-    const orderNumber = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+    const orderNumber = await getNextOrderNumber();
     const paidInStore = ['cash', 'check', 'card', 'offline'].includes(payment_method);
     const orderStatus = paidInStore ? 'confirmed' : 'pending';
 
@@ -17947,9 +16861,7 @@ app.post('/api/admin/purchase-orders', staffAuth, requireRole('admin', 'manager'
     if (!vendor.rows.length) return res.status(404).json({ error: 'Vendor not found' });
 
     const vendorCode = vendor.rows[0].code || 'XX';
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substr(2, 4).toUpperCase();
-    const poNumber = `PO-${vendorCode}-${timestamp}-${random}`;
+    const poNumber = await getNextPONumber(vendorCode);
 
     const result = await pool.query(
       `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes)
@@ -18260,10 +17172,10 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
       return res.status(400).json({ error: 'EDI send failed and vendor has no email configured for fallback.' });
     }
 
-    const poData = await generatePOHtml(poId);
+    const poData = await generatePOHtml(pool, poId);
     if (!poData) return res.status(404).json({ error: 'Purchase order not found' });
 
-    const updatedData = await generatePOHtml(poId);
+    const updatedData = await generatePOHtml(pool, poId);
     let pdfBuffer;
     try {
       pdfBuffer = await generatePDFBuffer(updatedData.html);
@@ -18719,7 +17631,7 @@ app.get('/api/staff/purchase-orders/:id/pdf', async (req, res, next) => {
   next();
 }, staffAuth, async (req, res) => {
   try {
-    const result = await generatePOHtml(req.params.id);
+    const result = await generatePOHtml(pool, req.params.id);
     if (!result) return res.status(404).json({ error: 'Purchase order not found' });
     await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res);
   } catch (err) {
@@ -19167,16 +18079,7 @@ app.post('/api/admin/customers/:id/notes', staffAuth, requireRole('admin', 'mana
 
 // ==================== Accounting Module ====================
 
-// --- Receipt upload multer ---
-const receiptUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, allowed.includes(ext));
-  }
-});
+// receiptUpload — extracted to lib/uploads.js
 
 // --- Expense Categories ---
 app.get('/api/admin/accounting/expense-categories', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -19675,7 +18578,12 @@ app.post('/api/admin/accounting/invoices/:id/void', staffAuth, requireRole('admi
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
-app.get('/api/admin/accounting/invoices/:id/pdf', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+app.get('/api/admin/accounting/invoices/:id/pdf', (req, res, next) => {
+  if (!req.headers['x-staff-token'] && req.query.token) {
+    req.headers['x-staff-token'] = req.query.token;
+  }
+  next();
+}, staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const inv = await pool.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
     if (!inv.rows.length) return res.status(404).json({ error: 'Not found' });
@@ -19694,43 +18602,52 @@ app.get('/api/admin/accounting/invoices/:id/pdf', staffAuth, requireRole('admin'
     const itemRows = items.rows.map(it => {
       const isUnit = it.sell_by === 'unit';
       const qty = parseFloat(it.qty);
-      return `<tr><td>${itemDescriptionCell(it.collection, it.color, it.variant_name)}</td><td style="text-align:center">${qty}${it.sell_by ? (isUnit ? '' : ' box' + (qty > 1 ? 'es' : '')) : ''}</td>
-       <td style="text-align:right">$${parseFloat(it.unit_price).toFixed(2)}${it.sell_by ? (isUnit ? '/ea' : '/sqft') : ''}</td>
-       <td style="text-align:right">$${parseFloat(it.subtotal).toFixed(2)}</td></tr>`;
+      return `<tr><td>${itemDescriptionCell(it.collection, it.color, it.variant_name)}</td>
+        <td class="text-center">${qty}${it.sell_by ? (isUnit ? '' : ' box' + (qty > 1 ? 'es' : '')) : ''}</td>
+        <td class="text-right">$${parseFloat(it.unit_price).toFixed(2)}${it.sell_by ? (isUnit ? '/ea' : '/sqft') : ''}</td>
+        <td class="text-right">$${parseFloat(it.subtotal).toFixed(2)}</td></tr>`;
     }).join('');
 
     const paymentRows = payments.rows.length ? payments.rows.map(p =>
       `<tr><td>${new Date(p.payment_date).toLocaleDateString()}</td><td>${p.payment_method}</td>
-       <td>${p.reference_number || '—'}</td><td style="text-align:right">$${parseFloat(p.amount).toFixed(2)}</td></tr>`
+       <td>${p.reference_number || '\u2014'}</td><td class="text-right">$${parseFloat(p.amount).toFixed(2)}</td></tr>`
     ).join('') : '';
 
+    const balanceDue = parseFloat(invoice.balance);
+    const statusClass = 'badge-' + (invoice.status || 'draft');
+
     const html = `<!DOCTYPE html><html><head><style>${getDocumentBaseCSS()}</style></head><body>
-      ${getDocumentHeader('Invoice')}
-      <div class="info-columns">
-        <div class="info-block"><h3>Bill To</h3><p>${invoice.customer_name || ''}<br>${invoice.customer_email || ''}<br>${invoice.billing_address || ''}</p></div>
-        <div class="info-block"><h3>Invoice Details</h3>
-          <p>Invoice #: <strong>${invoice.invoice_number}</strong><br>
-          Issue Date: ${new Date(invoice.issue_date).toLocaleDateString()}<br>
-          Due Date: ${new Date(invoice.due_date).toLocaleDateString()}<br>
-          Terms: ${(invoice.payment_terms || '').replace(/_/g, ' ')}<br>
-          Status: <span class="badge badge-${invoice.status}">${invoice.status}</span></p></div>
+      <div class="page">
+        ${getDocumentHeader('Invoice')}
+        <div class="doc-banner">
+          <div class="doc-banner-left">
+            <div class="meta-group"><p class="meta-label">Invoice</p><p class="meta-value">${invoice.invoice_number}</p></div>
+            <div class="meta-group"><p class="meta-label">Issue Date</p><p class="meta-value-sm">${new Date(invoice.issue_date).toLocaleDateString()}</p></div>
+            <div class="meta-group"><p class="meta-label">Due Date</p><p class="meta-value-sm">${new Date(invoice.due_date).toLocaleDateString()}</p></div>
+            <div class="meta-group"><p class="meta-label">Terms</p><p class="meta-value-sm">${(invoice.payment_terms || '').replace(/_/g, ' ')}</p></div>
+          </div>
+          <div><span class="badge ${statusClass}">${invoice.status}</span></div>
+        </div>
+        <div class="info-row">
+          <div class="info-card"><h3>Bill To</h3><p><strong>${invoice.customer_name || ''}</strong><br>${invoice.customer_email || ''}${invoice.billing_address ? '<br>' + invoice.billing_address : ''}</p></div>
+        </div>
+        <table><thead><tr><th>Description</th><th class="text-center">Qty</th><th class="text-right">Unit Price</th><th class="text-right">Amount</th></tr></thead>
+        <tbody>${itemRows}</tbody></table>
+        <div class="totals-wrapper"><div class="totals-box">
+          <div class="totals-line"><span>Subtotal</span><span>$${parseFloat(invoice.subtotal).toFixed(2)}</span></div>
+          ${parseFloat(invoice.tax_amount) > 0 ? `<div class="totals-line"><span>Tax</span><span>$${parseFloat(invoice.tax_amount).toFixed(2)}</span></div>` : ''}
+          ${parseFloat(invoice.shipping) > 0 ? `<div class="totals-line"><span>Shipping</span><span>$${parseFloat(invoice.shipping).toFixed(2)}</span></div>` : ''}
+          ${parseFloat(invoice.discount_amount) > 0 ? `<div class="totals-line"><span>Discount</span><span class="discount">-$${parseFloat(invoice.discount_amount).toFixed(2)}</span></div>` : ''}
+          <div class="totals-line grand-total"><span>Total</span><span>$${parseFloat(invoice.total).toFixed(2)}</span></div>
+          <div class="totals-line"><span>Amount Paid</span><span>$${parseFloat(invoice.amount_paid).toFixed(2)}</span></div>
+          ${balanceDue > 0.01 ? `<div class="totals-line balance-due"><span>Balance Due</span><span>$${balanceDue.toFixed(2)}</span></div>` : `<div class="totals-line paid-full"><span>Balance Due</span><span>$0.00</span></div>`}
+        </div></div>
+        ${paymentRows ? `<div class="section-title">Payment History</div>
+          <table><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th class="text-right">Amount</th></tr></thead>
+          <tbody>${paymentRows}</tbody></table>` : ''}
+        ${invoice.notes ? `<div class="notes-block"><h3>Notes</h3><p>${invoice.notes}</p></div>` : ''}
+        ${getDocumentFooter('<p>Thank you for your business.</p>')}
       </div>
-      <table><thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Amount</th></tr></thead>
-      <tbody>${itemRows}</tbody></table>
-      <div class="totals">
-        <div class="line"><span>Subtotal:</span><span>$${parseFloat(invoice.subtotal).toFixed(2)}</span></div>
-        ${parseFloat(invoice.tax_amount) > 0 ? `<div class="line"><span>Tax:</span><span>$${parseFloat(invoice.tax_amount).toFixed(2)}</span></div>` : ''}
-        ${parseFloat(invoice.shipping) > 0 ? `<div class="line"><span>Shipping:</span><span>$${parseFloat(invoice.shipping).toFixed(2)}</span></div>` : ''}
-        ${parseFloat(invoice.discount_amount) > 0 ? `<div class="line"><span>Discount:</span><span>-$${parseFloat(invoice.discount_amount).toFixed(2)}</span></div>` : ''}
-        <div class="line total-line"><span>Total:</span><span>$${parseFloat(invoice.total).toFixed(2)}</span></div>
-        <div class="line"><span>Amount Paid:</span><span>$${parseFloat(invoice.amount_paid).toFixed(2)}</span></div>
-        <div class="line total-line"><span>Balance Due:</span><span>$${parseFloat(invoice.balance).toFixed(2)}</span></div>
-      </div>
-      ${paymentRows ? `<h3 style="margin-top:2rem;font-size:0.875rem;">Payment History</h3>
-        <table><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th style="text-align:right">Amount</th></tr></thead>
-        <tbody>${paymentRows}</tbody></table>` : ''}
-      ${invoice.notes ? `<div class="info-block"><h3>Notes</h3><p>${invoice.notes}</p></div>` : ''}
-      ${getDocumentFooter()}
     </body></html>`;
 
     await generatePDF(html, `${invoice.invoice_number}.pdf`, req, res);
@@ -21153,629 +20070,14 @@ cron.schedule('0 8 * * *', async () => {
   }
 }, { timezone: 'America/Los_Angeles' });
 
-// ==================== Customer Accounts ====================
-
-app.post('/api/customer/register', async (req, res) => {
-  try {
-    const { email, password, first_name, last_name, phone } = req.body;
-    if (!email || !password || !first_name || !last_name) {
-      return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.status(400).json({ error: 'Invalid email address' });
-    }
-    if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters with 1 uppercase letter and 1 number' });
-    }
-
-    const existing = await pool.query('SELECT id, password_set FROM customers WHERE email = $1', [email.toLowerCase()]);
-    if (existing.rows.length) {
-      // If account was auto-created by rep (password not set), let them claim it
-      if (existing.rows[0].password_set === false) {
-        const { hash, salt } = hashPassword(password);
-        await pool.query(
-          `UPDATE customers SET password_hash = $1, password_salt = $2, first_name = $3, last_name = $4,
-           phone = COALESCE($5, phone), password_set = true, password_reset_token = NULL, password_reset_expires = NULL,
-           updated_at = CURRENT_TIMESTAMP WHERE id = $6`,
-          [hash, salt, first_name, last_name, phone || null, existing.rows[0].id]
-        );
-        const custResult = await pool.query(
-          'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip FROM customers WHERE id = $1',
-          [existing.rows[0].id]
-        );
-        const customer = custResult.rows[0];
-        const token = crypto.randomBytes(32).toString('hex');
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
-          [customer.id, token, expiresAt]);
-        return res.json({ token, customer });
-      }
-      return res.status(400).json({ error: 'An account with this email already exists' });
-    }
-
-    const { hash, salt } = hashPassword(password);
-    const result = await pool.query(
-      `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, password_set)
-       VALUES ($1, $2, $3, $4, $5, $6, true) RETURNING id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip`,
-      [email.toLowerCase(), hash, salt, first_name, last_name, phone || null]
-    );
-    const customer = result.rows[0];
-
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
-      [customer.id, token, expiresAt]);
-
-    res.json({ token, customer });
-  } catch (err) {
-    console.error('Customer register error:', err);
-    res.status(500).json({ error: 'Registration failed' });
-  }
-});
-
-app.post('/api/customer/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-
-    const result = await pool.query(
-      'SELECT id, email, password_hash, password_salt, first_name, last_name, phone, password_set, address_line1, address_line2, city, state, zip FROM customers WHERE email = $1',
-      [email.toLowerCase()]
-    );
-    if (!result.rows.length) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
-    const cust = result.rows[0];
-
-    // Block login for auto-created accounts that haven't set a password yet
-    if (cust.password_set === false) {
-      return res.status(403).json({
-        error: 'password_not_set',
-        message: 'Please set your password first. Check your email for the welcome link.'
-      });
-    }
-
-    if (!verifyPassword(password, cust.password_hash, cust.password_salt)) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
-      [cust.id, token, expiresAt]);
-
-    res.json({
-      token,
-      customer: { id: cust.id, email: cust.email, first_name: cust.first_name, last_name: cust.last_name, phone: cust.phone, address_line1: cust.address_line1, address_line2: cust.address_line2, city: cust.city, state: cust.state, zip: cust.zip }
-    });
-  } catch (err) {
-    console.error('Customer login error:', err);
-    res.status(500).json({ error: 'Login failed' });
-  }
-});
-
-app.post('/api/customer/logout', customerAuth, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM customer_sessions WHERE id = $1', [req.customer.session_id]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/customer/me', customerAuth, async (req, res) => {
-  res.json({ customer: req.customer });
-});
-
-app.put('/api/customer/profile', customerAuth, async (req, res) => {
-  try {
-    const { first_name, last_name, phone, address_line1, address_line2, city, state, zip } = req.body;
-    const result = await pool.query(
-      `UPDATE customers SET first_name = COALESCE($1, first_name), last_name = COALESCE($2, last_name),
-        phone = COALESCE($3, phone), address_line1 = COALESCE($4, address_line1),
-        address_line2 = COALESCE($5, address_line2), city = COALESCE($6, city),
-        state = COALESCE($7, state), zip = COALESCE($8, zip), updated_at = CURRENT_TIMESTAMP
-       WHERE id = $9
-       RETURNING id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip`,
-      [first_name, last_name, phone, address_line1, address_line2, city, state, zip, req.customer.id]
-    );
-    res.json({ customer: result.rows[0] });
-  } catch (err) {
-    console.error('Customer profile update error:', err);
-    res.status(500).json({ error: 'Failed to update profile' });
-  }
-});
-
-app.put('/api/customer/password', customerAuth, async (req, res) => {
-  try {
-    const { current_password, new_password } = req.body;
-    if (!current_password || !new_password) {
-      return res.status(400).json({ error: 'Current and new password are required' });
-    }
-    if (new_password.length < 8 || !/[A-Z]/.test(new_password) || !/[0-9]/.test(new_password)) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters with 1 uppercase letter and 1 number' });
-    }
-
-    const result = await pool.query('SELECT password_hash, password_salt FROM customers WHERE id = $1', [req.customer.id]);
-    const cust = result.rows[0];
-    if (!verifyPassword(current_password, cust.password_hash, cust.password_salt)) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
-    }
-
-    const { hash, salt } = hashPassword(new_password);
-    await pool.query('UPDATE customers SET password_hash = $1, password_salt = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-      [hash, salt, req.customer.id]);
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Customer password change error:', err);
-    res.status(500).json({ error: 'Failed to change password' });
-  }
-});
-
-app.post('/api/customer/forgot-password', async (req, res) => {
-  try {
-    const { email } = req.body;
-    // Always return success to not leak whether email exists
-    if (!email) return res.json({ success: true });
-
-    const result = await pool.query('SELECT id, email FROM customers WHERE email = $1', [email.toLowerCase()]);
-    if (result.rows.length) {
-      const resetToken = crypto.randomBytes(32).toString('hex');
-      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-      await pool.query(
-        'UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3',
-        [resetToken, expires, result.rows[0].id]
-      );
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      const resetUrl = `${frontendUrl}?reset_token=${resetToken}`;
-      sendPasswordReset(result.rows[0].email, resetUrl).catch(err => console.error('[Email] Password reset error:', err.message));
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Forgot password error:', err);
-    res.json({ success: true });
-  }
-});
-
-app.post('/api/customer/reset-password', async (req, res) => {
-  try {
-    const { token, new_password } = req.body;
-    if (!token || !new_password) {
-      return res.status(400).json({ error: 'Token and new password are required' });
-    }
-    if (new_password.length < 8 || !/[A-Z]/.test(new_password) || !/[0-9]/.test(new_password)) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters with 1 uppercase letter and 1 number' });
-    }
-
-    const result = await pool.query(
-      'SELECT id FROM customers WHERE password_reset_token = $1 AND password_reset_expires > CURRENT_TIMESTAMP',
-      [token]
-    );
-    if (!result.rows.length) {
-      return res.status(400).json({ error: 'Invalid or expired reset link' });
-    }
-
-    const { hash, salt } = hashPassword(new_password);
-    await pool.query(
-      'UPDATE customers SET password_hash = $1, password_salt = $2, password_set = true, password_reset_token = NULL, password_reset_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-      [hash, salt, result.rows[0].id]
-    );
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Reset password error:', err);
-    res.status(500).json({ error: 'Failed to reset password' });
-  }
-});
-
-// ==================== Wishlist Endpoints ====================
-
-app.get('/api/wishlist', customerAuth, async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT product_id FROM wishlists WHERE customer_id = $1 ORDER BY created_at DESC',
-      [req.customer.id]
-    );
-    res.json({ product_ids: result.rows.map(r => r.product_id) });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/wishlist', customerAuth, async (req, res) => {
-  try {
-    const { product_id } = req.body;
-    if (!product_id) return res.status(400).json({ error: 'product_id is required' });
-    await pool.query(
-      'INSERT INTO wishlists (customer_id, product_id) VALUES ($1, $2) ON CONFLICT (customer_id, product_id) DO NOTHING',
-      [req.customer.id, product_id]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.delete('/api/wishlist/:productId', customerAuth, async (req, res) => {
-  try {
-    await pool.query(
-      'DELETE FROM wishlists WHERE customer_id = $1 AND product_id = $2',
-      [req.customer.id, req.params.productId]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/wishlist/sync', customerAuth, async (req, res) => {
-  try {
-    const { product_ids } = req.body;
-    if (Array.isArray(product_ids)) {
-      for (const pid of product_ids) {
-        await pool.query(
-          'INSERT INTO wishlists (customer_id, product_id) VALUES ($1, $2) ON CONFLICT (customer_id, product_id) DO NOTHING',
-          [req.customer.id, pid]
-        );
-      }
-    }
-    const result = await pool.query(
-      'SELECT product_id FROM wishlists WHERE customer_id = $1 ORDER BY created_at DESC',
-      [req.customer.id]
-    );
-    res.json({ product_ids: result.rows.map(r => r.product_id) });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// ==================== Product Reviews ====================
-
-app.get('/api/storefront/products/:productId/reviews', async (req, res) => {
-  try {
-    const { productId } = req.params;
-    const reviews = await pool.query(`
-      SELECT pr.id, pr.rating, pr.title, pr.body, pr.created_at, c.first_name
-      FROM product_reviews pr
-      JOIN customers c ON c.id = pr.customer_id
-      WHERE pr.product_id = $1
-      ORDER BY pr.created_at DESC
-    `, [productId]);
-    const stats = await pool.query(`
-      SELECT COALESCE(AVG(rating), 0) as average_rating, COUNT(*)::int as review_count
-      FROM product_reviews WHERE product_id = $1
-    `, [productId]);
-    res.json({
-      reviews: reviews.rows,
-      average_rating: parseFloat(parseFloat(stats.rows[0].average_rating).toFixed(1)),
-      review_count: stats.rows[0].review_count
-    });
-  } catch (err) {
-    console.error('Get reviews error:', err);
-    res.status(500).json({ error: 'Failed to fetch reviews' });
-  }
-});
-
-app.post('/api/storefront/products/:productId/reviews', customerAuth, async (req, res) => {
-  try {
-    const { productId } = req.params;
-    const { rating, title, body } = req.body;
-    if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be 1-5' });
-    const result = await pool.query(`
-      INSERT INTO product_reviews (product_id, customer_id, rating, title, body)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (product_id, customer_id)
-      DO UPDATE SET rating = EXCLUDED.rating, title = EXCLUDED.title, body = EXCLUDED.body, created_at = CURRENT_TIMESTAMP
-      RETURNING id, rating, title, body, created_at
-    `, [productId, req.customer.id, rating, title || null, body || null]);
-    res.json({ review: { ...result.rows[0], first_name: req.customer.first_name } });
-  } catch (err) {
-    console.error('Submit review error:', err);
-    res.status(500).json({ error: 'Failed to submit review' });
-  }
-});
-
-// ==================== Stock Alerts ====================
-
-app.post('/api/storefront/stock-alerts', optionalCustomerAuth, async (req, res) => {
-  try {
-    const { sku_id, email } = req.body;
-    if (!sku_id || !email) return res.status(400).json({ error: 'sku_id and email required' });
-    const customerId = req.customer ? req.customer.id : null;
-    await pool.query(`
-      INSERT INTO stock_alerts (sku_id, email, customer_id)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (sku_id, email) DO UPDATE SET status = 'active', customer_id = COALESCE(EXCLUDED.customer_id, stock_alerts.customer_id)
-    `, [sku_id, email, customerId]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Stock alert subscribe error:', err);
-    res.status(500).json({ error: 'Failed to subscribe' });
-  }
-});
-
-app.delete('/api/storefront/stock-alerts/:id', async (req, res) => {
-  try {
-    const { email } = req.query;
-    if (!email) return res.status(400).json({ error: 'email is required' });
-    const result = await pool.query("UPDATE stock_alerts SET status = 'cancelled' WHERE id = $1 AND email = $2 RETURNING id", [req.params.id, email]);
-    if (!result.rows.length) return res.status(404).json({ error: 'Alert not found' });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Stock alert cancel error:', err);
-    res.status(500).json({ error: 'Failed to cancel alert' });
-  }
-});
-
-app.get('/api/storefront/stock-alerts/check', optionalCustomerAuth, async (req, res) => {
-  try {
-    const { sku_id, email } = req.query;
-    if (!sku_id || !email) return res.json({ subscribed: false });
-    const result = await pool.query(
-      "SELECT id FROM stock_alerts WHERE sku_id = $1 AND email = $2 AND status = 'active'",
-      [sku_id, email]
-    );
-    res.json({ subscribed: result.rows.length > 0, alert_id: result.rows[0]?.id });
-  } catch (err) {
-    console.error('Stock alert check error:', err);
-    res.status(500).json({ error: 'Failed to check alert' });
-  }
-});
-
-app.get('/api/customer/orders', customerAuth, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT id, order_number, customer_name, customer_email, status, subtotal, shipping, total, amount_paid,
-        delivery_method, shipping_method, tracking_number, shipping_carrier, shipped_at, created_at
-       FROM orders WHERE customer_id = $1 ORDER BY created_at DESC`,
-      [req.customer.id]
-    );
-    res.json({ orders: result.rows });
-  } catch (err) {
-    console.error('Customer orders error:', err);
-    res.status(500).json({ error: 'Failed to fetch orders' });
-  }
-});
-
-app.get('/api/customer/orders/:id', customerAuth, async (req, res) => {
-  try {
-    const orderResult = await pool.query(
-      `SELECT id, order_number, customer_email, customer_name, phone,
-        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
-        delivery_method, subtotal, shipping, shipping_method, sample_shipping, total, amount_paid,
-        status, tracking_number, shipping_carrier, shipped_at, delivered_at, created_at,
-        promo_code, discount_amount
-      FROM orders WHERE id = $1 AND customer_id = $2`,
-      [req.params.id, req.customer.id]
-    );
-    if (!orderResult.rows.length) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-    const itemsResult = await pool.query(`
-      SELECT oi.*,
-        poi.status as fulfillment_status
-      FROM order_items oi
-      LEFT JOIN LATERAL (
-        SELECT status FROM purchase_order_items
-        WHERE order_item_id = oi.id AND status != 'cancelled'
-        ORDER BY CASE status
-          WHEN 'received' THEN 4
-          WHEN 'shipped' THEN 3
-          WHEN 'ordered' THEN 2
-          WHEN 'pending' THEN 1
-          ELSE 0
-        END DESC
-        LIMIT 1
-      ) poi ON true
-      WHERE oi.order_id = $1
-    `, [req.params.id]);
-    const items = itemsResult.rows;
-    const balanceInfo = await recalculateBalance(req.params.id);
-    const totalItems = items.filter(i => !i.is_sample).length;
-    const receivedItems = items.filter(i => !i.is_sample && i.fulfillment_status === 'received').length;
-    res.json({ order: orderResult.rows[0], items, balance: balanceInfo, fulfillment_summary: { total: totalItems, received: receivedItems } });
-  } catch (err) {
-    console.error('Customer order detail error:', err);
-    res.status(500).json({ error: 'Failed to fetch order' });
-  }
-});
-
-// ==================== Customer Sample Requests ====================
-
-app.get('/api/customer/sample-requests', customerAuth, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT sr.*, json_agg(json_build_object(
-          'id', sri.id, 'product_id', sri.product_id, 'sku_id', sri.sku_id,
-          'product_name', sri.product_name, 'collection', sri.collection,
-          'variant_name', sri.variant_name, 'primary_image', sri.primary_image,
-          'status', sri.status, 'sort_order', sri.sort_order
-        ) ORDER BY sri.sort_order) AS items
-       FROM sample_requests sr
-       LEFT JOIN sample_request_items sri ON sri.sample_request_id = sr.id
-       WHERE sr.customer_id = $1
-       GROUP BY sr.id
-       ORDER BY sr.created_at DESC`,
-      [req.customer.id]
-    );
-    // Clean up null items (from LEFT JOIN with no items)
-    const requests = result.rows.map(r => ({
-      ...r,
-      items: r.items && r.items[0] && r.items[0].id ? r.items : []
-    }));
-    res.json({ sample_requests: requests });
-  } catch (err) {
-    console.error('Customer sample requests error:', err);
-    res.status(500).json({ error: 'Failed to fetch sample requests' });
-  }
-});
-
-app.post('/api/customer/sample-requests/:id/add-items', customerAuth, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { items } = req.body;
-    if (!items || !items.length) {
-      return res.status(400).json({ error: 'At least one item is required' });
-    }
-
-    const srRes = await client.query(
-      'SELECT * FROM sample_requests WHERE id = $1 AND customer_id = $2',
-      [req.params.id, req.customer.id]
-    );
-    if (!srRes.rows.length) {
-      return res.status(404).json({ error: 'Sample request not found' });
-    }
-    const sr = srRes.rows[0];
-    if (sr.status !== 'requested') {
-      return res.status(400).json({ error: 'Can only add items to open sample requests' });
-    }
-
-    // Check current item count
-    const countRes = await client.query(
-      'SELECT COUNT(*)::int as cnt FROM sample_request_items WHERE sample_request_id = $1',
-      [sr.id]
-    );
-    const currentCount = countRes.rows[0].cnt;
-    if (currentCount + items.length > 5) {
-      return res.status(400).json({ error: `Maximum 5 items per sample request (currently ${currentCount})` });
-    }
-
-    await client.query('BEGIN');
-
-    const addedItems = [];
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      let productName = 'Unknown';
-      let collection = null;
-      let variantName = null;
-      let primaryImage = null;
-      let productId = item.product_id || null;
-      let skuId = item.sku_id || null;
-
-      if (item.sku_id) {
-        const sRes = await client.query(`
-          SELECT s.variant_name, s.product_id,
-            COALESCE(p.display_name, p.name) as product_name, p.collection,
-            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
-          FROM skus s
-          JOIN products p ON p.id = s.product_id
-          WHERE s.id = $1
-        `, [item.sku_id]);
-        if (sRes.rows.length) {
-          const s = sRes.rows[0];
-          productId = s.product_id;
-          productName = s.product_name;
-          collection = s.collection;
-          variantName = s.variant_name;
-          primaryImage = s.primary_image;
-        }
-      } else if (item.product_id) {
-        const pRes = await client.query(`
-          SELECT p.name, p.collection,
-            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
-          FROM products p WHERE p.id = $1
-        `, [item.product_id]);
-        if (pRes.rows.length) {
-          productName = pRes.rows[0].name;
-          collection = pRes.rows[0].collection;
-          primaryImage = pRes.rows[0].primary_image;
-        }
-      }
-
-      const itemRes = await client.query(`
-        INSERT INTO sample_request_items (sample_request_id, product_id, sku_id, product_name, collection, variant_name, primary_image, sort_order)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
-      `, [sr.id, productId, skuId, productName, collection, variantName, primaryImage, currentCount + i]);
-      addedItems.push(itemRes.rows[0]);
-    }
-
-    await client.query('COMMIT');
-    res.json({ items: addedItems });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Add sample items error:', err);
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  } finally {
-    client.release();
-  }
-});
-
-// Customer sample request PDF
-app.get('/api/customer/sample-requests/:id/pdf', customerAuth, async (req, res) => {
-  try {
-    const sr = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND customer_id = $2', [req.params.id, req.customer.id]);
-    if (!sr.rows.length) return res.status(404).json({ error: 'Sample request not found' });
-    const result = await generateSampleRequestConfirmationHtml(req.params.id);
-    if (!result) return res.status(404).json({ error: 'Sample request not found' });
-    await generatePDF(result.html, result.filename, req, res);
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// ==================== Customer Quotes & Visits ====================
-
-app.get('/api/customer/quotes', customerAuth, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT q.*, (SELECT COUNT(*)::int FROM quote_items qi WHERE qi.quote_id = q.id) as item_count
-      FROM quotes q WHERE q.customer_id = $1 AND q.status != 'draft'
-      ORDER BY q.created_at DESC
-    `, [req.customer.id]);
-    res.json({ quotes: result.rows });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/customer/quotes/:id', customerAuth, async (req, res) => {
-  try {
-    const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND customer_id = $2 AND status != \'draft\'', [req.params.id, req.customer.id]);
-    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
-    const items = await pool.query(`
-      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
-      FROM quote_items qi
-      LEFT JOIN skus s ON s.id = qi.sku_id
-      LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
-      LEFT JOIN vendors v ON v.id = p.vendor_id
-      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
-        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
-      WHERE qi.quote_id = $1 ORDER BY qi.id
-    `, [req.params.id]);
-    res.json({ quote: quote.rows[0], items: items.rows });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/customer/visits', customerAuth, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT sv.*, (SELECT COUNT(*)::int FROM showroom_visit_items WHERE visit_id = sv.id) as item_count
-      FROM showroom_visits sv WHERE sv.customer_id = $1 AND sv.status = 'sent'
-      ORDER BY sv.created_at DESC
-    `, [req.customer.id]);
-    res.json({ visits: result.rows });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/customer/visits/:id', customerAuth, async (req, res) => {
-  try {
-    const visit = await pool.query('SELECT * FROM showroom_visits WHERE id = $1 AND customer_id = $2 AND status = \'sent\'', [req.params.id, req.customer.id]);
-    if (!visit.rows.length) return res.status(404).json({ error: 'Visit not found' });
-    const items = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order, id', [req.params.id]);
-    res.json({ visit: visit.rows[0], items: items.rows });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// Customer routes — extracted to routes/customer.js
+app.use(createCustomerRoutes({
+  pool, customerAuth, optionalCustomerAuth,
+  hashPassword, verifyPassword,
+  sendPasswordReset, sendWelcomeSetPassword,
+  recalculateBalance: (orderId, client) => recalculateBalance(pool, orderId, client),
+  generatePDF, generateSampleRequestConfirmationHtml
+}));
 
 // ==================== Installation Inquiries ====================
 
@@ -22362,6 +20664,18 @@ async function runMigrations() {
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
+
+  // Sequential number sequences
+  try {
+    await pool.query(`CREATE SEQUENCE IF NOT EXISTS order_number_seq START WITH 10001`);
+    await pool.query(`CREATE SEQUENCE IF NOT EXISTS quote_number_seq START WITH 1001`);
+    await pool.query(`CREATE SEQUENCE IF NOT EXISTS estimate_number_seq START WITH 1001`);
+    await pool.query(`CREATE SEQUENCE IF NOT EXISTS sample_number_seq START WITH 1001`);
+    await pool.query(`CREATE SEQUENCE IF NOT EXISTS po_number_seq START WITH 1001`);
+    console.log('Migrations: Sequential number sequences applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
 }
 
 // ==================== Email Template Preview (Dev Only) ====================
@@ -22384,7 +20698,7 @@ import { generateSampleRequestShippedHTML } from './templates/sampleRequestShipp
 
 const EMAIL_PREVIEW_TEMPLATES = {
   orderConfirmation: () => generateOrderConfirmationHTML({
-    order_number: 'ORD-20260217-A1B2',
+    order_number: 'RD-10001',
     created_at: new Date().toISOString(),
     customer_name: 'Maria Santos',
     shipping_address_line1: '742 Evergreen Terrace',
@@ -22405,7 +20719,7 @@ const EMAIL_PREVIEW_TEMPLATES = {
   }),
 
   orderStatusUpdate: () => generateOrderStatusUpdateHTML({
-    order_number: 'ORD-20260217-A1B2',
+    order_number: 'RD-10001',
     customer_name: 'Maria Santos',
     tracking_number: '1Z999AA10123456784',
     shipping_carrier: 'UPS',
@@ -22413,7 +20727,7 @@ const EMAIL_PREVIEW_TEMPLATES = {
   }),
 
   quoteSent: () => generateQuoteSentHTML({
-    quote_number: 'QT-20260217-X9Y8',
+    quote_number: 'RDQ-1001',
     customer_name: 'James Chen',
     customer_email: 'james@example.com',
     subtotal: '3,450.00',
@@ -22502,7 +20816,7 @@ const EMAIL_PREVIEW_TEMPLATES = {
 
   sampleRequestConfirmation: () => generateSampleRequestConfirmationHTML({
     customer_name: 'Jennifer Lee',
-    request_number: 'SR-20260217-X4K9',
+    request_number: 'RDS-1001',
     delivery_method: 'shipping',
     shipping_address_line1: '1500 Oak Street',
     shipping_address_line2: '',
@@ -22517,7 +20831,7 @@ const EMAIL_PREVIEW_TEMPLATES = {
 
   'sampleRequestConfirmation-pickup': () => generateSampleRequestConfirmationHTML({
     customer_name: 'Jennifer Lee',
-    request_number: 'SR-20260217-X4K9',
+    request_number: 'RDS-1001',
     delivery_method: 'pickup',
     items: [
       { product_name: 'Smoky Grey Porcelain', collection: 'Modern Edge', variant_name: '12x24 Matte', primary_image: '' },
@@ -22526,7 +20840,7 @@ const EMAIL_PREVIEW_TEMPLATES = {
 
   sampleRequestShipped: () => generateSampleRequestShippedHTML({
     customer_name: 'Jennifer Lee',
-    request_number: 'SR-20260217-X4K9',
+    request_number: 'RDS-1001',
     tracking_number: '9400111899223033005282',
     items: [
       { product_name: 'European White Oak', collection: 'Heritage Collection', variant_name: '7" Wide Plank Natural', primary_image: '' },
@@ -22536,7 +20850,7 @@ const EMAIL_PREVIEW_TEMPLATES = {
 
   'sampleRequestShipped-noTracking': () => generateSampleRequestShippedHTML({
     customer_name: 'Jennifer Lee',
-    request_number: 'SR-20260217-X4K9',
+    request_number: 'RDS-1001',
     tracking_number: '',
     items: [
       { product_name: 'Smoky Grey Porcelain', collection: 'Modern Edge', variant_name: '12x24 Matte', primary_image: '' },

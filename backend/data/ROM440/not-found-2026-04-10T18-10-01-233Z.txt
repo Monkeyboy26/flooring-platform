@@ -1,0 +1,33 @@
+801L	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/801l.html
+801L-18	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/801l-18.html
+801R-18	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/801r-18.html
+802	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/802.html
+802-18	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/802-18.html
+807L	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/807l.html
+861	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/861.html
+862	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/862.html
+863	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/863.html
+868	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/868.html
+869	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/869.html
+910-1	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/top-mount-drop-in/910-1.html
+H8809	not-in-skus-map	https://www.hardwareresources.com/sinks/bathroom-sinks/h8809.html
+H8809WH	not-in-skus-map	https://www.hardwareresources.com/sinks/bathroom-sinks/h8809wh.html
+H8810	no-redirect	
+H8810WH	not-in-skus-map	https://www.hardwareresources.com/sinks/bathroom-sinks/h8810wh.html
+H8909WH	not-in-skus-map	https://www.hardwareresources.com/sinks/bathroom-sinks/h8909wh.html
+H8910WH	not-in-skus-map	https://www.hardwareresources.com/sinks/bathroom-sinks/h8910wh.html
+HA200	no-redirect	
+HA200-GRID	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/ha200-grid.html
+HA225	no-redirect	
+HA225-GRID	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/ha225-grid.html
+HMS175	no-redirect	
+HMS175-GRID	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/hms175-grid.html
+HMS190	no-redirect	
+HMS190-GRID	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/hms190-grid.html
+HMS200	no-redirect	
+HMS200-GRID	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/hms200-grid.html
+HMS250	no-redirect	
+HMS250-GRID	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/hms250-grid.html
+HMS260-GRID	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/hms260-grid.html
+HMS260L	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/hms260l.html
+STRAINER-200	not-in-skus-map	https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/strainer-200.html

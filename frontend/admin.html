@@ -1131,6 +1131,7 @@
         if (!ct.includes('application/json')) {
           throw new Error('Server returned non-JSON (status ' + r.status + '). Is the API running?');
         }
+        if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'API error ' + r.status); });
         return r.json();
       });
     }
@@ -1533,8 +1534,6 @@
             {view === 'vendors' && <VendorsListView navigate={navigate} />}
             {view === 'vendor-create' && <VendorFormView navigate={navigate} />}
             {view === 'vendor-edit' && <VendorFormView navigate={navigate} editId={editId} />}
-            {view === 'vendor-health' && <VendorHealthView navigate={navigate} />}
-            {view === 'vendor-health-detail' && <VendorHealthDetailView navigate={navigate} editId={editId} />}
             {view === 'categories' && <CategoriesListView navigate={navigate} />}
             {view === 'category-create' && <CategoryFormView navigate={navigate} />}
             {view === 'category-edit' && <CategoryFormView navigate={navigate} editId={editId} />}
@@ -3338,7 +3337,6 @@
           <div className="content-header">
             <h1>Vendors</h1>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button className="btn btn-secondary" onClick={() => navigate('vendor-health')}>Data Health</button>
               <button className="btn btn-primary" onClick={() => navigate('vendor-create')}>+ Add Vendor</button>
             </div>
           </div>
@@ -3448,319 +3446,6 @@
               </div>
             </div>
           </div>
-        </div>
-      );
-    }
-
-    // ========== VendorHealthView ==========
-    function VendorHealthView({ navigate }) {
-      const [vendors, setVendors] = useState([]);
-      const [loading, setLoading] = useState(true);
-
-      useEffect(() => {
-        adminFetch('/api/admin/vendor-health')
-          .then(data => { setVendors(data.vendors || []); setLoading(false); })
-          .catch(() => setLoading(false));
-      }, []);
-
-      const pct = (num, den) => den > 0 ? ((num / den) * 100).toFixed(1) : '0.0';
-      const pctColor = (num, den) => {
-        const p = den > 0 ? (num / den) * 100 : 0;
-        if (p >= 90) return '#16a34a';
-        if (p >= 60) return '#ca8a04';
-        return '#dc2626';
-      };
-      const barBg = (num, den) => {
-        const p = den > 0 ? (num / den) * 100 : 0;
-        if (p >= 90) return 'rgba(22,163,74,0.12)';
-        if (p >= 60) return 'rgba(202,138,4,0.12)';
-        return 'rgba(220,38,38,0.12)';
-      };
-
-      const CoverageBar = ({ value, total, label }) => {
-        const p = total > 0 ? (value / total) * 100 : 0;
-        const color = pctColor(value, total);
-        return (
-          <div style={{ flex: 1, minWidth: '100px' }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--stone-500)', marginBottom: '2px' }}>{label}</div>
-            <div style={{ background: 'var(--stone-100)', borderRadius: '4px', height: '8px', overflow: 'hidden', position: 'relative' }}>
-              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: Math.min(p, 100) + '%', background: color, borderRadius: '4px', transition: 'width 0.3s' }} />
-            </div>
-            <div style={{ fontSize: '0.7rem', color, fontWeight: 600, marginTop: '1px' }}>{pct(value, total)}%</div>
-          </div>
-        );
-      };
-
-      if (loading) return <div className="loading">Loading vendor health data...</div>;
-
-      return (
-        <div>
-          <div className="content-header">
-            <h1>Vendor Data Health</h1>
-            <button className="btn btn-secondary" onClick={() => navigate('vendors')}>Back to Vendors</button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-            {[
-              { label: 'Total Vendors', value: vendors.length },
-              { label: 'Total Products', value: vendors.reduce((s, v) => s + v.total_products, 0) },
-              { label: 'Total SKUs', value: vendors.reduce((s, v) => s + v.total_skus, 0) },
-            ].map((stat, i) => (
-              <div key={i} style={{ background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '1rem', textAlign: 'center' }}>
-                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--stone-800)' }}>{stat.value.toLocaleString()}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{stat.label}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="table-scroll-wrapper">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Vendor</th>
-                <th style={{ textAlign: 'center' }}>Products</th>
-                <th style={{ textAlign: 'center' }}>SKUs</th>
-                <th style={{ minWidth: '120px' }}>Images</th>
-                <th style={{ minWidth: '120px' }}>Pricing</th>
-                <th style={{ minWidth: '120px' }}>Packaging</th>
-                <th style={{ minWidth: '120px' }}>Descriptions</th>
-                <th style={{ textAlign: 'center' }}>Drafts</th>
-                <th>Last Scraped</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vendors.filter(v => v.total_products > 0).map(v => (
-                <tr key={v.vendor_id} style={{ cursor: 'pointer' }} onClick={() => navigate('vendor-health-detail', v.vendor_id)}>
-                  <td style={{ fontWeight: 500 }}>
-                    {v.vendor_name}
-                    {!v.is_active && <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)', marginLeft: '0.5rem' }}>(inactive)</span>}
-                  </td>
-                  <td style={{ textAlign: 'center' }}>{v.total_products}</td>
-                  <td style={{ textAlign: 'center' }}>{v.total_skus}</td>
-                  <td><CoverageBar value={v.skus_with_images} total={v.total_skus} label="Images" /></td>
-                  <td><CoverageBar value={v.skus_with_pricing} total={v.total_skus} label="Pricing" /></td>
-                  <td><CoverageBar value={v.skus_with_packaging} total={v.total_skus} label="Packaging" /></td>
-                  <td><CoverageBar value={v.products_with_description} total={v.total_products} label="Descriptions" /></td>
-                  <td style={{ textAlign: 'center', color: v.products_in_draft > 0 ? '#ca8a04' : 'var(--stone-400)' }}>
-                    {v.products_in_draft || '—'}
-                  </td>
-                  <td style={{ fontSize: '0.8rem', color: 'var(--stone-500)', whiteSpace: 'nowrap' }}>
-                    {v.last_scraped ? new Date(v.last_scraped).toLocaleDateString() : '—'}
-                    {v.last_scrape_status && v.last_scrape_status !== 'completed' && (
-                      <span style={{ marginLeft: '0.25rem', color: v.last_scrape_status === 'failed' ? '#dc2626' : '#ca8a04' }}>
-                        ({v.last_scrape_status})
-                      </span>
-                    )}
-                  </td>
-                  <td className="actions" onClick={e => e.stopPropagation()}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => navigate('vendor-health-detail', v.vendor_id)}>Details</button>
-                  </td>
-                </tr>
-              ))}
-              {vendors.filter(v => v.total_products > 0).length === 0 && (
-                <tr><td colSpan="10" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No vendors with products found</td></tr>
-              )}
-            </tbody>
-          </table>
-          </div>
-
-          {vendors.filter(v => v.total_products === 0).length > 0 && (
-            <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--stone-50)', borderRadius: '8px', border: '1px solid var(--stone-200)' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--stone-500)', marginBottom: '0.5rem' }}>
-                Vendors with no products ({vendors.filter(v => v.total_products === 0).length})
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--stone-400)' }}>
-                {vendors.filter(v => v.total_products === 0).map(v => v.vendor_name).join(', ')}
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    // ========== VendorHealthDetailView ==========
-    function VendorHealthDetailView({ navigate, editId }) {
-      const [data, setData] = useState(null);
-      const [loading, setLoading] = useState(true);
-      const [activeTab, setActiveTab] = useState('images');
-
-      useEffect(() => {
-        if (!editId) return;
-        adminFetch('/api/admin/vendor-health/' + editId)
-          .then(d => { setData(d); setLoading(false); })
-          .catch(() => setLoading(false));
-      }, [editId]);
-
-      const pct = (num, den) => den > 0 ? ((num / den) * 100).toFixed(1) : '0.0';
-      const pctColor = (num, den) => {
-        const p = den > 0 ? (num / den) * 100 : 0;
-        if (p >= 90) return '#16a34a';
-        if (p >= 60) return '#ca8a04';
-        return '#dc2626';
-      };
-
-      if (loading) return <div className="loading">Loading vendor health detail...</div>;
-      if (!data) return <div className="loading">Vendor not found</div>;
-
-      const { vendor, stats, missing, scrape_jobs } = data;
-      const coverageItems = [
-        { label: 'Images', value: stats.skus_with_images, total: stats.total_skus },
-        { label: 'Pricing', value: stats.skus_with_pricing, total: stats.total_skus },
-        { label: 'Packaging', value: stats.skus_with_packaging, total: stats.total_skus },
-        { label: 'Descriptions', value: stats.products_with_description, total: stats.total_products },
-        { label: 'Categories', value: stats.products_with_category, total: stats.total_products },
-        { label: 'Attributes', value: stats.skus_with_attributes, total: stats.total_skus },
-        { label: 'Sell By', value: stats.skus_with_sell_by, total: stats.total_skus },
-      ];
-
-      const tabs = [
-        { key: 'images', label: 'Missing Images', count: stats.total_skus - stats.skus_with_images },
-        { key: 'pricing', label: 'Missing Pricing', count: stats.total_skus - stats.skus_with_pricing },
-        { key: 'packaging', label: 'Missing Packaging', count: stats.total_skus - stats.skus_with_packaging },
-        { key: 'scrapes', label: 'Scrape History', count: scrape_jobs.length },
-      ];
-
-      return (
-        <div>
-          <div className="content-header">
-            <h1>{vendor.name} — Data Health</h1>
-            <button className="btn btn-secondary" onClick={() => navigate('vendor-health')}>Back to Health Overview</button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <div style={{ background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>{stats.total_products}</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--stone-500)' }}>Products</div>
-            </div>
-            <div style={{ background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>{stats.total_skus}</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--stone-500)' }}>SKUs</div>
-            </div>
-            <div style={{ background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: stats.products_in_draft > 0 ? '#ca8a04' : 'var(--stone-800)' }}>{stats.products_in_draft}</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--stone-500)' }}>In Draft</div>
-            </div>
-          </div>
-
-          {/* Coverage Bars */}
-          <div style={{ background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '1.25rem', marginBottom: '1.5rem' }}>
-            <h3 style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', fontWeight: 600 }}>Field Coverage</h3>
-            <div style={{ display: 'grid', gap: '0.75rem' }}>
-              {coverageItems.map((item, i) => {
-                const p = item.total > 0 ? (item.value / item.total) * 100 : 0;
-                const color = pctColor(item.value, item.total);
-                return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ width: '100px', fontSize: '0.8rem', color: 'var(--stone-600)', textAlign: 'right' }}>{item.label}</div>
-                    <div style={{ flex: 1, background: 'var(--stone-100)', borderRadius: '4px', height: '12px', overflow: 'hidden', position: 'relative' }}>
-                      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: Math.min(p, 100) + '%', background: color, borderRadius: '4px', transition: 'width 0.3s' }} />
-                    </div>
-                    <div style={{ width: '100px', fontSize: '0.8rem', fontWeight: 600, color }}>
-                      {item.value}/{item.total} ({pct(item.value, item.total)}%)
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid var(--stone-200)', marginBottom: '1rem' }}>
-            {tabs.map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                style={{
-                  padding: '0.5rem 1rem', border: 'none', background: 'none', cursor: 'pointer',
-                  fontSize: '0.8rem', fontWeight: activeTab === tab.key ? 600 : 400,
-                  color: activeTab === tab.key ? 'var(--stone-800)' : 'var(--stone-500)',
-                  borderBottom: activeTab === tab.key ? '2px solid var(--stone-800)' : '2px solid transparent',
-                  marginBottom: '-2px',
-                }}
-              >
-                {tab.label} {tab.count > 0 && <span style={{ background: activeTab === tab.key ? 'var(--stone-800)' : 'var(--stone-300)', color: 'white', borderRadius: '10px', padding: '0 6px', fontSize: '0.7rem', marginLeft: '4px' }}>{tab.count}</span>}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab Content */}
-          {activeTab !== 'scrapes' && (
-            <div className="table-scroll-wrapper">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Internal SKU</th>
-                  <th>Vendor SKU</th>
-                  <th>Product</th>
-                  <th>Collection</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(missing[activeTab] || []).map(row => (
-                  <tr key={row.id}>
-                    <td><code style={{ fontSize: '0.8rem', background: 'var(--stone-100)', padding: '0.1rem 0.3rem' }}>{row.internal_sku}</code></td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--stone-500)' }}>{row.vendor_sku || '—'}</td>
-                    <td style={{ fontWeight: 500 }}>{row.product_name}</td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--stone-500)' }}>{row.collection || '—'}</td>
-                  </tr>
-                ))}
-                {(missing[activeTab] || []).length === 0 && (
-                  <tr><td colSpan="4" style={{ textAlign: 'center', color: '#16a34a', padding: '2rem' }}>All clear — no missing {activeTab} data</td></tr>
-                )}
-                {(missing[activeTab] || []).length >= 50 && (
-                  <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '0.75rem', fontSize: '0.8rem' }}>Showing first 50 results. Run the CLI validator for the full list.</td></tr>
-                )}
-              </tbody>
-            </table>
-            </div>
-          )}
-
-          {activeTab === 'scrapes' && (
-            <div className="table-scroll-wrapper">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Source</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Products Found</th>
-                  <th>Created</th>
-                  <th>Updated</th>
-                  <th>SKUs Created</th>
-                  <th>Started</th>
-                  <th>Completed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {scrape_jobs.map(job => (
-                  <tr key={job.id}>
-                    <td style={{ fontWeight: 500 }}>{job.source_name}</td>
-                    <td><code style={{ fontSize: '0.75rem', background: 'var(--stone-100)', padding: '0.1rem 0.3rem' }}>{job.source_type}</code></td>
-                    <td>
-                      <span style={{
-                        padding: '0.15rem 0.5rem', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 500,
-                        background: job.status === 'completed' ? 'rgba(22,163,74,0.1)' : job.status === 'failed' ? 'rgba(220,38,38,0.1)' : 'rgba(202,138,4,0.1)',
-                        color: job.status === 'completed' ? '#16a34a' : job.status === 'failed' ? '#dc2626' : '#ca8a04',
-                      }}>
-                        {job.status}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>{job.products_found}</td>
-                    <td style={{ textAlign: 'center' }}>{job.products_created}</td>
-                    <td style={{ textAlign: 'center' }}>{job.products_updated}</td>
-                    <td style={{ textAlign: 'center' }}>{job.skus_created}</td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--stone-500)', whiteSpace: 'nowrap' }}>{job.started_at ? new Date(job.started_at).toLocaleString() : '—'}</td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--stone-500)', whiteSpace: 'nowrap' }}>{job.completed_at ? new Date(job.completed_at).toLocaleString() : '—'}</td>
-                  </tr>
-                ))}
-                {scrape_jobs.length === 0 && (
-                  <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No scrape jobs found for this vendor</td></tr>
-                )}
-              </tbody>
-            </table>
-            </div>
-          )}
         </div>
       );
     }
@@ -4107,7 +3792,9 @@
       const [addItemSellBy, setAddItemSellBy] = useState('sqft');
       const [skuSearchResults, setSkuSearchResults] = useState([]);
       const [skuSearching, setSkuSearching] = useState(false);
+      const [skuSearchError, setSkuSearchError] = useState(null);
       const skuSearchTimer = useRef(null);
+      const skuSearchCounter = useRef(0);
       const [addItemMode, setAddItemMode] = useState('sku');
       const [customItemName, setCustomItemName] = useState('');
       const [customItemPrice, setCustomItemPrice] = useState('');
@@ -4903,14 +4590,18 @@
                         <div style={{ flex: 2, minWidth: '0', position: 'relative' }}>
                           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Search SKU</label>
                           <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
+                            onBlur={() => setTimeout(() => { setSkuSearchResults([]); setSkuSearching(false); setSkuSearchError(null); }, 200)}
                             onChange={(e) => {
                               const q = e.target.value; setAddItemSku(q);
+                              setSkuSearchError(null);
                               if (skuSearchTimer.current) clearTimeout(skuSearchTimer.current);
                               if (q.length >= 2) {
                                 setSkuSearching(true);
+                                const thisSearch = ++skuSearchCounter.current;
                                 skuSearchTimer.current = setTimeout(async () => {
                                   try {
                                     const data = await adminFetch('/api/admin/skus/search?q=' + encodeURIComponent(q));
+                                    if (thisSearch !== skuSearchCounter.current) return;
                                     setSkuSearchResults((data.results || []).map(r => ({
                                       sku_id: r.sku_id,
                                       collection: r.collection || '',
@@ -4928,16 +4619,23 @@
                                       roll_width_ft: r.roll_width_ft,
                                       primary_image: r.primary_image || null
                                     })));
-                                  } catch (e) {}
-                                  setSkuSearching(false);
+                                  } catch (err) {
+                                    if (thisSearch !== skuSearchCounter.current) return;
+                                    console.error('[SKU Search] Error:', err.message || err);
+                                    setSkuSearchError(err.message || 'Search failed');
+                                  }
+                                  if (thisSearch === skuSearchCounter.current) setSkuSearching(false);
                                 }, 250);
-                              } else { setSkuSearchResults([]); setSkuSearching(false); }
+                              } else { setSkuSearchResults([]); setSkuSearching(false); setSkuSearchError(null); }
                             }}
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
                           {skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
                             <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
                           )}
-                          {!skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
+                          {!skuSearching && skuSearchError && addItemSku.length >= 2 && (
+                            <div className="search-results"><div className="search-no-results" style={{ color: 'var(--red)' }}>Search error — check console</div></div>
+                          )}
+                          {!skuSearching && !skuSearchError && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
                             <div className="search-results"><div className="search-no-results">No results found</div></div>
                           )}
                           {skuSearchResults.length > 0 && (
@@ -9094,7 +8792,7 @@
               {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-primary btn-sm" onClick={() => handleSend(detailId)}>Send Invoice</button>}
               {(detail.status === 'overdue' || detail.status === 'partial') && <button className="btn btn-sm" style={{ background: '#fef3c7', color: '#d97706', border: 'none' }} onClick={() => handleSendReminder(detailId)}>Send Reminder</button>}
               {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-sm" style={{ background: '#dcfce7', color: '#166534', border: 'none' }} onClick={() => { setPayForm(f => ({ ...f, amount: parseFloat(detail.balance).toFixed(2) })); setShowPayment(true); }}>Record Payment</button>}
-              <a className="btn btn-secondary btn-sm" href={API + '/api/admin/accounting/invoices/' + detailId + '/pdf?preview=true'} target="_blank" rel="noopener">Download PDF</a>
+              <a className="btn btn-secondary btn-sm" href={API + '/api/admin/accounting/invoices/' + detailId + '/pdf?preview=true&token=' + encodeURIComponent(sessionStorage.getItem('staff_token'))} target="_blank" rel="noopener">Download PDF</a>
               {detail.status !== 'void' && <button className="btn btn-sm" style={{ background: 'var(--red-light)', color: 'var(--red)', border: 'none' }} onClick={() => handleVoid(detailId)}>Void</button>}
             </div>
 
@@ -10391,7 +10089,9 @@
       const [addItemSku, setAddItemSku] = useState('');
       const [skuSearchResults, setSkuSearchResults] = useState([]);
       const [skuSearching, setSkuSearching] = useState(false);
+      const [skuSearchError, setSkuSearchError] = useState(null);
       const skuSearchTimer = useRef(null);
+      const skuSearchCounter = useRef(0);
       const [newPOItem, setNewPOItem] = useState({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'sqft' });
 
       const load = async () => {
@@ -10497,12 +10197,15 @@
 
       const handleSkuSearch = (q) => {
         setAddItemSku(q);
+        setSkuSearchError(null);
         if (skuSearchTimer.current) clearTimeout(skuSearchTimer.current);
         if (q.length >= 2) {
           setSkuSearching(true);
+          const thisSearch = ++skuSearchCounter.current;
           skuSearchTimer.current = setTimeout(async () => {
             try {
               const data = await adminFetch('/api/admin/skus/search?q=' + encodeURIComponent(q));
+              if (thisSearch !== skuSearchCounter.current) return;
               setSkuSearchResults((data.results || []).map(r => ({
                 sku_id: r.sku_id, product_name: r.product_name || r.collection || '', variant_name: r.variant_name || '',
                 color: r.color || '', vendor_sku: r.vendor_sku || '', internal_sku: r.internal_sku || '',
@@ -10511,10 +10214,14 @@
                 sqft_per_box: r.sqft_per_box || 1,
                 primary_image: r.primary_image || null
               })));
-            } catch (e) {}
-            setSkuSearching(false);
+            } catch (err) {
+              if (thisSearch !== skuSearchCounter.current) return;
+              console.error('[SKU Search] Error:', err.message || err);
+              setSkuSearchError(err.message || 'Search failed');
+            }
+            if (thisSearch === skuSearchCounter.current) setSkuSearching(false);
           }, 250);
-        } else { setSkuSearchResults([]); setSkuSearching(false); }
+        } else { setSkuSearchResults([]); setSkuSearching(false); setSkuSearchError(null); }
       };
 
       const selectSkuResult = async (r) => {
@@ -10701,12 +10408,16 @@
                 {addItemMode === 'sku' ? (
                   <div style={{ position: 'relative' }}>
                     <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
+                      onBlur={() => setTimeout(() => { setSkuSearchResults([]); setSkuSearching(false); setSkuSearchError(null); }, 200)}
                       onChange={e => handleSkuSearch(e.target.value)}
                       style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
                     {skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
                       <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
                     )}
-                    {!skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
+                    {!skuSearching && skuSearchError && addItemSku.length >= 2 && (
+                      <div className="search-results"><div className="search-no-results" style={{ color: 'var(--red)' }}>Search error — check console</div></div>
+                    )}
+                    {!skuSearching && !skuSearchError && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
                       <div className="search-results"><div className="search-no-results">No results found</div></div>
                     )}
                     {skuSearchResults.length > 0 && (
@@ -10896,23 +10607,32 @@
 
           {/* PDF Download */}
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <a href={'/api/staff/purchase-orders/' + editId + '/pdf'} target="_blank" className="btn btn-secondary">Download PDF</a>
+            <a href={'/api/staff/purchase-orders/' + editId + '/pdf?token=' + encodeURIComponent(sessionStorage.getItem('staff_token'))} target="_blank" className="btn btn-secondary">Download PDF</a>
           </div>
         </div>
       );
     }
 
-    // ========== DataQualityView ==========
+    // ========== DataQualityView (consolidated with Vendor Health) ==========
     function DataQualityView({ navigate }) {
       const [data, setData] = useState(null);
+      const [vendorHealth, setVendorHealth] = useState([]);
       const [loading, setLoading] = useState(true);
       const [refreshing, setRefreshing] = useState(false);
       const [activeTab, setActiveTab] = useState('overview');
+      const [selectedVendor, setSelectedVendor] = useState(null);
+      const [vendorDetail, setVendorDetail] = useState(null);
+      const [vendorDetailLoading, setVendorDetailLoading] = useState(false);
+      const [detailTab, setDetailTab] = useState('images');
 
       const load = useCallback(async () => {
         try {
-          const resp = await fetch('/api/admin/data-quality/summary', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('staff_token') } });
-          if (resp.ok) setData(await resp.json());
+          const [dq, vh] = await Promise.all([
+            adminFetch('/api/admin/data-quality/summary'),
+            adminFetch('/api/admin/vendor-health')
+          ]);
+          setData(dq);
+          setVendorHealth(vh.vendors || []);
         } catch (e) { console.error(e); }
         setLoading(false);
       }, []);
@@ -10922,17 +10642,49 @@
       const handleRefresh = async () => {
         setRefreshing(true);
         try {
-          await fetch('/api/admin/data-quality/refresh', { method: 'POST', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('staff_token') } });
+          await adminFetch('/api/admin/data-quality/refresh', { method: 'POST' });
           await load();
         } catch (e) { console.error(e); }
         setRefreshing(false);
       };
+
+      const openVendorDetail = async (vendorId) => {
+        setSelectedVendor(vendorId);
+        setVendorDetailLoading(true);
+        setDetailTab('images');
+        try {
+          setVendorDetail(await adminFetch('/api/admin/vendor-health/' + vendorId));
+        } catch (e) { console.error(e); setVendorDetail(null); }
+        setVendorDetailLoading(false);
+      };
+
+      const closeVendorDetail = () => { setSelectedVendor(null); setVendorDetail(null); };
 
       if (loading) return React.createElement('div', { className: 'loading-spinner' }, 'Loading data quality report...');
       if (!data) return React.createElement('div', { className: 'empty-state' }, 'Failed to load data quality report.');
 
       const { overall: o, vendors, worst_skus, governance } = data;
       const scoreColor = (s) => s >= 80 ? '#16a34a' : s >= 50 ? '#d97706' : '#dc2626';
+      const pct = (num, den) => den > 0 ? ((num / den) * 100).toFixed(1) : '0.0';
+      const pctColor = (num, den) => { const p = den > 0 ? (num / den) * 100 : 0; return p >= 90 ? '#16a34a' : p >= 60 ? '#ca8a04' : '#dc2626'; };
+
+      const CoverageBarSmall = (value, total, label) => {
+        const p = total > 0 ? (value / total) * 100 : 0;
+        const color = pctColor(value, total);
+        return React.createElement('div', { style: { flex: 1, minWidth: '90px' } },
+          React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--stone-500)', marginBottom: '2px' } }, label),
+          React.createElement('div', { style: { background: 'var(--stone-100)', borderRadius: '4px', height: '8px', overflow: 'hidden', position: 'relative' } },
+            React.createElement('div', { style: { position: 'absolute', left: 0, top: 0, bottom: 0, width: Math.min(p, 100) + '%', background: color, borderRadius: '4px', transition: 'width 0.3s' } })
+          ),
+          React.createElement('div', { style: { fontSize: '0.7rem', color, fontWeight: 600, marginTop: '1px' } }, pct(value, total) + '%')
+        );
+      };
+
+      // Merge vendor-health data with data-quality vendor data by vendor name
+      const mergedVendors = vendors.map(v => {
+        const vh = vendorHealth.find(h => h.vendor_name === v.vendor_name);
+        return { ...v, ...(vh || {}) };
+      });
 
       const tabs = [
         { key: 'overview', label: 'Overview' },
@@ -10941,6 +10693,155 @@
         { key: 'governance', label: 'Attribute Gaps' },
         { key: 'enrichment', label: 'AI Enrichment' },
       ];
+
+      // Vendor detail drilldown panel
+      const renderVendorDetail = () => {
+        if (vendorDetailLoading) return React.createElement('div', { className: 'loading-spinner', style: { padding: '2rem' } }, 'Loading vendor details...');
+        if (!vendorDetail) return React.createElement('div', { style: { padding: '2rem', textAlign: 'center', color: 'var(--stone-400)' } }, 'Failed to load vendor details.');
+
+        const { vendor, stats, missing, scrape_jobs } = vendorDetail;
+        const coverageItems = [
+          { label: 'Images', value: stats.skus_with_images, total: stats.total_skus },
+          { label: 'Pricing', value: stats.skus_with_pricing, total: stats.total_skus },
+          { label: 'Packaging', value: stats.skus_with_packaging, total: stats.total_skus },
+          { label: 'Descriptions', value: stats.products_with_description, total: stats.total_products },
+          { label: 'Categories', value: stats.products_with_category, total: stats.total_products },
+          { label: 'Attributes', value: stats.skus_with_attributes, total: stats.total_skus },
+          { label: 'Sell By', value: stats.skus_with_sell_by, total: stats.total_skus },
+        ];
+        const dqVendor = vendors.find(v => v.vendor_name === vendor.name);
+        const avgScore = dqVendor ? dqVendor.avg_score : null;
+        const detailTabs = [
+          { key: 'images', label: 'Missing Images', count: stats.total_skus - stats.skus_with_images },
+          { key: 'pricing', label: 'Missing Pricing', count: stats.total_skus - stats.skus_with_pricing },
+          { key: 'packaging', label: 'Missing Packaging', count: stats.total_skus - stats.skus_with_packaging },
+          { key: 'scrapes', label: 'Scrape History', count: scrape_jobs.length },
+        ];
+
+        return React.createElement('div', { style: { marginTop: '1rem' } },
+          // Back button + title
+          React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' } },
+            React.createElement('h3', { style: { margin: 0, fontSize: '1.1rem' } }, vendor.name + ' — Data Health'),
+            React.createElement('button', { className: 'btn btn-secondary btn-sm', onClick: closeVendorDetail }, 'Back to Vendors')
+          ),
+          // Summary cards
+          React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem' } },
+            React.createElement('div', { style: { background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' } },
+              React.createElement('div', { style: { fontSize: '1.25rem', fontWeight: 700 } }, stats.total_products),
+              React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--stone-500)' } }, 'Products')
+            ),
+            React.createElement('div', { style: { background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' } },
+              React.createElement('div', { style: { fontSize: '1.25rem', fontWeight: 700 } }, stats.total_skus),
+              React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--stone-500)' } }, 'SKUs')
+            ),
+            avgScore != null && React.createElement('div', { style: { background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' } },
+              React.createElement('div', { style: { fontSize: '1.25rem', fontWeight: 700, color: scoreColor(avgScore) } }, avgScore),
+              React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--stone-500)' } }, 'Avg Score')
+            ),
+            React.createElement('div', { style: { background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' } },
+              React.createElement('div', { style: { fontSize: '1.25rem', fontWeight: 700, color: stats.products_in_draft > 0 ? '#ca8a04' : 'var(--stone-800)' } }, stats.products_in_draft),
+              React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--stone-500)' } }, 'In Draft')
+            )
+          ),
+          // Coverage bars
+          React.createElement('div', { style: { background: 'white', border: '1px solid var(--stone-200)', borderRadius: '8px', padding: '1.25rem', marginBottom: '1.25rem' } },
+            React.createElement('h4', { style: { margin: '0 0 0.75rem 0', fontSize: '0.9rem', fontWeight: 600 } }, 'Field Coverage'),
+            React.createElement('div', { style: { display: 'grid', gap: '0.75rem' } },
+              coverageItems.map(function(item, i) {
+                var p = item.total > 0 ? (item.value / item.total) * 100 : 0;
+                var color = pctColor(item.value, item.total);
+                return React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '0.75rem' } },
+                  React.createElement('div', { style: { width: '100px', fontSize: '0.8rem', color: 'var(--stone-600)', textAlign: 'right' } }, item.label),
+                  React.createElement('div', { style: { flex: 1, background: 'var(--stone-100)', borderRadius: '4px', height: '12px', overflow: 'hidden', position: 'relative' } },
+                    React.createElement('div', { style: { position: 'absolute', left: 0, top: 0, bottom: 0, width: Math.min(p, 100) + '%', background: color, borderRadius: '4px', transition: 'width 0.3s' } })
+                  ),
+                  React.createElement('div', { style: { width: '110px', fontSize: '0.8rem', fontWeight: 600, color: color } },
+                    item.value + '/' + item.total + ' (' + pct(item.value, item.total) + '%)'
+                  )
+                );
+              })
+            )
+          ),
+          // Detail tabs
+          React.createElement('div', { style: { display: 'flex', gap: '0', borderBottom: '2px solid var(--stone-200)', marginBottom: '1rem' } },
+            detailTabs.map(function(tab) {
+              return React.createElement('button', {
+                key: tab.key, onClick: function() { setDetailTab(tab.key); },
+                style: {
+                  padding: '0.5rem 1rem', border: 'none', background: 'none', cursor: 'pointer',
+                  fontSize: '0.8rem', fontWeight: detailTab === tab.key ? 600 : 400,
+                  color: detailTab === tab.key ? 'var(--stone-800)' : 'var(--stone-500)',
+                  borderBottom: detailTab === tab.key ? '2px solid var(--stone-800)' : '2px solid transparent',
+                  marginBottom: '-2px'
+                }
+              },
+                tab.label,
+                tab.count > 0 ? React.createElement('span', { style: { background: detailTab === tab.key ? 'var(--stone-800)' : 'var(--stone-300)', color: 'white', borderRadius: '10px', padding: '0 6px', fontSize: '0.7rem', marginLeft: '4px' } }, tab.count) : null
+              );
+            })
+          ),
+          // Detail tab content — missing data tables
+          detailTab !== 'scrapes' && React.createElement('div', { className: 'table-container' },
+            React.createElement('table', { className: 'admin-table' },
+              React.createElement('thead', null,
+                React.createElement('tr', null,
+                  ['Internal SKU', 'Vendor SKU', 'Product', 'Collection'].map(function(h) { return React.createElement('th', { key: h }, h); })
+                )
+              ),
+              React.createElement('tbody', null,
+                (missing[detailTab] || []).map(function(row) {
+                  return React.createElement('tr', { key: row.id },
+                    React.createElement('td', null, React.createElement('code', { style: { fontSize: '0.8rem', background: 'var(--stone-100)', padding: '0.1rem 0.3rem' } }, row.internal_sku)),
+                    React.createElement('td', { style: { fontSize: '0.8rem', color: 'var(--stone-500)' } }, row.vendor_sku || '\u2014'),
+                    React.createElement('td', { style: { fontWeight: 500 } }, row.product_name),
+                    React.createElement('td', { style: { fontSize: '0.8rem', color: 'var(--stone-500)' } }, row.collection || '\u2014')
+                  );
+                }),
+                (missing[detailTab] || []).length === 0 && React.createElement('tr', null,
+                  React.createElement('td', { colSpan: 4, style: { textAlign: 'center', color: '#16a34a', padding: '2rem' } }, 'All clear \u2014 no missing ' + detailTab + ' data')
+                ),
+                (missing[detailTab] || []).length >= 50 && React.createElement('tr', null,
+                  React.createElement('td', { colSpan: 4, style: { textAlign: 'center', color: 'var(--stone-400)', padding: '0.75rem', fontSize: '0.8rem' } }, 'Showing first 50 results.')
+                )
+              )
+            )
+          ),
+          // Scrape history tab
+          detailTab === 'scrapes' && React.createElement('div', { className: 'table-container' },
+            React.createElement('table', { className: 'admin-table' },
+              React.createElement('thead', null,
+                React.createElement('tr', null,
+                  ['Source', 'Type', 'Status', 'Found', 'Created', 'Updated', 'SKUs Created', 'Started', 'Completed'].map(function(h) { return React.createElement('th', { key: h }, h); })
+                )
+              ),
+              React.createElement('tbody', null,
+                scrape_jobs.map(function(job) {
+                  return React.createElement('tr', { key: job.id },
+                    React.createElement('td', { style: { fontWeight: 500 } }, job.source_name),
+                    React.createElement('td', null, React.createElement('code', { style: { fontSize: '0.75rem', background: 'var(--stone-100)', padding: '0.1rem 0.3rem' } }, job.source_type)),
+                    React.createElement('td', null,
+                      React.createElement('span', { style: {
+                        padding: '0.15rem 0.5rem', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 500,
+                        background: job.status === 'completed' ? 'rgba(22,163,74,0.1)' : job.status === 'failed' ? 'rgba(220,38,38,0.1)' : 'rgba(202,138,4,0.1)',
+                        color: job.status === 'completed' ? '#16a34a' : job.status === 'failed' ? '#dc2626' : '#ca8a04'
+                      } }, job.status)
+                    ),
+                    React.createElement('td', { style: { textAlign: 'center' } }, job.products_found),
+                    React.createElement('td', { style: { textAlign: 'center' } }, job.products_created),
+                    React.createElement('td', { style: { textAlign: 'center' } }, job.products_updated),
+                    React.createElement('td', { style: { textAlign: 'center' } }, job.skus_created),
+                    React.createElement('td', { style: { fontSize: '0.8rem', color: 'var(--stone-500)', whiteSpace: 'nowrap' } }, job.started_at ? new Date(job.started_at).toLocaleString() : '\u2014'),
+                    React.createElement('td', { style: { fontSize: '0.8rem', color: 'var(--stone-500)', whiteSpace: 'nowrap' } }, job.completed_at ? new Date(job.completed_at).toLocaleString() : '\u2014')
+                  );
+                }),
+                scrape_jobs.length === 0 && React.createElement('tr', null,
+                  React.createElement('td', { colSpan: 9, style: { textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' } }, 'No scrape jobs found for this vendor')
+                )
+              )
+            )
+          )
+        );
+      };
 
       return React.createElement('div', null,
         React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' } },
@@ -10997,7 +10898,7 @@
           tabs.map(t =>
             React.createElement('button', {
               key: t.key,
-              onClick: () => setActiveTab(t.key),
+              onClick: () => { setActiveTab(t.key); if (t.key !== 'vendors') closeVendorDetail(); },
               style: {
                 padding: '0.5rem 1rem', cursor: 'pointer', border: 'none', background: 'none',
                 borderBottom: activeTab === t.key ? '2px solid var(--stone-800)' : '2px solid transparent',
@@ -11036,27 +10937,39 @@
           )
         ),
 
+        // By Vendor tab — enhanced with coverage bars and drilldown
         activeTab === 'vendors' && React.createElement('div', null,
-          React.createElement('h3', { style: { fontSize: '1rem', marginBottom: '0.75rem' } }, 'Detailed Vendor Breakdown'),
-          React.createElement('div', { className: 'table-container' },
-            React.createElement('table', { className: 'admin-table' },
-              React.createElement('thead', null,
-                React.createElement('tr', null,
-                  ['Vendor', 'SKUs', 'Avg Score', 'No Image', 'No Cost', 'No Retail', 'No Color'].map(h =>
-                    React.createElement('th', { key: h }, h)
+          selectedVendor ? renderVendorDetail() : React.createElement('div', null,
+            React.createElement('h3', { style: { fontSize: '1rem', marginBottom: '0.75rem' } }, 'Vendor Data Health'),
+            React.createElement('div', { className: 'table-container' },
+              React.createElement('table', { className: 'admin-table' },
+                React.createElement('thead', null,
+                  React.createElement('tr', null,
+                    ['Vendor', 'SKUs', 'Avg Score', 'Images', 'Pricing', 'Packaging', 'Descriptions', 'Drafts', 'Last Scraped'].map(h =>
+                      React.createElement('th', { key: h, style: ['Images','Pricing','Packaging','Descriptions'].includes(h) ? { minWidth: '110px' } : h === 'Drafts' ? { textAlign: 'center' } : {} }, h)
+                    )
                   )
-                )
-              ),
-              React.createElement('tbody', null,
-                vendors.map(v =>
-                  React.createElement('tr', { key: v.vendor_code },
-                    React.createElement('td', null, v.vendor_name),
-                    React.createElement('td', null, v.total),
-                    React.createElement('td', { style: { fontWeight: 600, color: scoreColor(v.avg_score) } }, v.avg_score),
-                    React.createElement('td', { style: { color: v.no_image > 0 ? '#dc2626' : '#16a34a' } }, v.no_image),
-                    React.createElement('td', { style: { color: v.no_cost > 0 ? '#dc2626' : '#16a34a' } }, v.no_cost),
-                    React.createElement('td', { style: { color: v.no_retail > 0 ? '#dc2626' : '#16a34a' } }, v.no_retail),
-                    React.createElement('td', { style: { color: v.no_color > 0 ? '#d97706' : '#16a34a' } }, v.no_color)
+                ),
+                React.createElement('tbody', null,
+                  mergedVendors.map(v =>
+                    React.createElement('tr', {
+                      key: v.vendor_code,
+                      style: { cursor: v.vendor_id ? 'pointer' : 'default' },
+                      onClick: () => v.vendor_id && openVendorDetail(v.vendor_id)
+                    },
+                      React.createElement('td', { style: { fontWeight: 500 } }, v.vendor_name),
+                      React.createElement('td', null, v.total),
+                      React.createElement('td', { style: { fontWeight: 600, color: scoreColor(v.avg_score) } }, v.avg_score),
+                      React.createElement('td', null, v.total_skus ? CoverageBarSmall(v.skus_with_images || 0, v.total_skus, 'Images') : React.createElement('span', { style: { color: 'var(--stone-400)', fontSize: '0.8rem' } }, '\u2014')),
+                      React.createElement('td', null, v.total_skus ? CoverageBarSmall(v.skus_with_pricing || 0, v.total_skus, 'Pricing') : React.createElement('span', { style: { color: 'var(--stone-400)', fontSize: '0.8rem' } }, '\u2014')),
+                      React.createElement('td', null, v.total_skus ? CoverageBarSmall(v.skus_with_packaging || 0, v.total_skus, 'Packaging') : React.createElement('span', { style: { color: 'var(--stone-400)', fontSize: '0.8rem' } }, '\u2014')),
+                      React.createElement('td', null, v.total_products ? CoverageBarSmall(v.products_with_description || 0, v.total_products, 'Desc') : React.createElement('span', { style: { color: 'var(--stone-400)', fontSize: '0.8rem' } }, '\u2014')),
+                      React.createElement('td', { style: { textAlign: 'center', color: (v.products_in_draft || 0) > 0 ? '#ca8a04' : 'var(--stone-400)' } }, v.products_in_draft || '\u2014'),
+                      React.createElement('td', { style: { fontSize: '0.8rem', color: 'var(--stone-500)', whiteSpace: 'nowrap' } },
+                        v.last_scraped ? new Date(v.last_scraped).toLocaleDateString() : '\u2014',
+                        v.last_scrape_status && v.last_scrape_status !== 'completed' ? React.createElement('span', { style: { marginLeft: '0.25rem', color: v.last_scrape_status === 'failed' ? '#dc2626' : '#ca8a04' } }, '(' + v.last_scrape_status + ')') : null
+                      )
+                    )
                   )
                 )
               )
@@ -11093,7 +11006,7 @@
                       s.collection && React.createElement('div', { style: { fontSize: '0.75rem', color: 'var(--stone-400)' } }, s.collection)
                     ),
                     React.createElement('td', null, s.vendor_name),
-                    React.createElement('td', null, s.category_name || '—'),
+                    React.createElement('td', null, s.category_name || '\u2014'),
                     React.createElement('td', null,
                       missing.map(m =>
                         React.createElement('span', { key: m, style: { display: 'inline-block', background: '#fef2f2', color: '#dc2626', padding: '1px 6px', borderRadius: '4px', fontSize: '0.6875rem', marginRight: '4px', marginBottom: '2px' } }, m)
@@ -11149,64 +11062,52 @@
       const [running, setRunning] = useState(false);
       const [reviewItems, setReviewItems] = useState([]);
       const [selectedVendor, setSelectedVendor] = useState('');
-      const [vendors, setVendors] = useState([]);
-      const authHeaders = { 'Authorization': 'Bearer ' + localStorage.getItem('staff_token'), 'Content-Type': 'application/json' };
+      const [vendorList, setVendorList] = useState([]);
 
       const loadStatus = useCallback(async () => {
         try {
-          const resp = await fetch('/api/admin/enrichment/status', { headers: authHeaders });
-          if (resp.ok) {
-            const data = await resp.json();
-            setStatus(data);
-            const hasRunning = data.recent_jobs?.some(j => j.status === 'running');
-            setRunning(hasRunning);
-          }
-        } catch (e) { console.error(e); }
+          const data = await adminFetch('/api/admin/enrichment/status');
+          setStatus(data);
+          setRunning((data.recent_jobs || []).some(j => j.status === 'running'));
+        } catch (e) { console.error('Enrichment status error:', e); }
         setLoading(false);
       }, []);
 
       const loadReview = useCallback(async () => {
-        try {
-          const resp = await fetch('/api/admin/enrichment/review', { headers: authHeaders });
-          if (resp.ok) setReviewItems(await resp.json());
-        } catch (e) { console.error(e); }
+        try { setReviewItems(await adminFetch('/api/admin/enrichment/review')); }
+        catch (e) { console.error('Enrichment review error:', e); }
       }, []);
 
       const loadVendors = useCallback(async () => {
-        try {
-          const resp = await fetch('/api/admin/vendors', { headers: authHeaders });
-          if (resp.ok) { const data = await resp.json(); setVendors(data.vendors || data || []); }
-        } catch (e) { console.error(e); }
+        try { const d = await adminFetch('/api/admin/vendors'); setVendorList(d.vendors || d || []); }
+        catch (e) { console.error('Vendors load error:', e); }
       }, []);
 
       useEffect(() => { loadStatus(); loadReview(); loadVendors(); }, []);
 
-      // Auto-poll while jobs running
       useEffect(() => {
         if (!running) return;
-        const interval = setInterval(() => { loadStatus(); }, 5000);
-        return () => clearInterval(interval);
+        const iv = setInterval(() => loadStatus(), 5000);
+        return () => clearInterval(iv);
       }, [running]);
 
       const runJob = async (jobType) => {
         try {
           const scope = selectedVendor ? { vendor_id: selectedVendor } : {};
-          await fetch('/api/admin/enrichment/run', { method: 'POST', headers: authHeaders, body: JSON.stringify({ job_type: jobType, scope }) });
+          await adminFetch('/api/admin/enrichment/run', { method: 'POST', body: JSON.stringify({ job_type: jobType, scope }) });
           setRunning(true);
           setTimeout(loadStatus, 1000);
-        } catch (e) { console.error(e); }
+        } catch (e) { alert('Failed to start job: ' + e.message); }
       };
 
       const cancelJob = async (jobId) => {
-        try {
-          await fetch(`/api/admin/enrichment/cancel/${jobId}`, { method: 'POST', headers: authHeaders });
-          setTimeout(loadStatus, 1000);
-        } catch (e) { console.error(e); }
+        try { await adminFetch('/api/admin/enrichment/cancel/' + jobId, { method: 'POST' }); setTimeout(loadStatus, 1000); }
+        catch (e) { console.error(e); }
       };
 
       const handleReview = async (id, action) => {
         try {
-          await fetch(`/api/admin/enrichment/review/${id}`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ action }) });
+          await adminFetch('/api/admin/enrichment/review/' + id, { method: 'POST', body: JSON.stringify({ action }) });
           setReviewItems(prev => prev.filter(r => r.id !== id));
         } catch (e) { console.error(e); }
       };
@@ -11247,7 +11148,7 @@
             style: { padding: '0.375rem 0.75rem', borderRadius: '6px', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }
           },
             React.createElement('option', { value: '' }, 'All Vendors'),
-            vendors.map(v => React.createElement('option', { key: v.id, value: v.id }, v.name))
+            vendorList.map(v => React.createElement('option', { key: v.id, value: v.id }, v.name))
           )
         ),
 

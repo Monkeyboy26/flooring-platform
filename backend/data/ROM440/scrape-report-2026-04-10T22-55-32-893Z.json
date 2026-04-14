@@ -1,0 +1,294 @@
+{
+  "startedAt": "2026-04-10T22:25:12.919Z",
+  "finishedAt": "2026-04-10T22:55:32.904Z",
+  "elapsedMs": 1819966,
+  "dryRun": false,
+  "filters": {
+    "LIMIT": null,
+    "ONLY": null,
+    "CATEGORY": "Carved Wood"
+  },
+  "totals": {
+    "processed": 1970,
+    "primary": 1918,
+    "alternate": 282,
+    "spec": 1918,
+    "notFound": 52,
+    "mismatches": 0,
+    "skipped": 52,
+    "uniquePages": 296,
+    "pageFetches": 296,
+    "pageCacheHits": 22,
+    "imageDownloads": 2200
+  },
+  "byClass": {
+    "Carved Wood": {
+      "processed": 1970,
+      "primary": 1918,
+      "alternate": 282,
+      "spec": 1918,
+      "skipped": 52
+    }
+  },
+  "notFound": [
+    {
+      "sku": "BF15-2-8-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/cabinet-feet-legs/bf15-2-6-8-g.html"
+    },
+    {
+      "sku": "BF16-3-8-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/cabinet-feet-legs/bf16-3-8.html"
+    },
+    {
+      "sku": "COR26-1CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor26-g.html"
+    },
+    {
+      "sku": "COR26-3ALD",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor26-g.html"
+    },
+    {
+      "sku": "COR26-3CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor26-g.html"
+    },
+    {
+      "sku": "COR34-3-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor34-g.html"
+    },
+    {
+      "sku": "COR35-3-HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor35-g.html"
+    },
+    {
+      "sku": "COR38-2-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor38-g.html"
+    },
+    {
+      "sku": "COR38-3-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor38-g.html"
+    },
+    {
+      "sku": "COR38-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor38-g.html"
+    },
+    {
+      "sku": "COR39-1-ALD",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor39-g.html"
+    },
+    {
+      "sku": "COR39-1-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor39-g.html"
+    },
+    {
+      "sku": "COR39-2-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor39-g.html"
+    },
+    {
+      "sku": "COR39-3-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor39-g.html"
+    },
+    {
+      "sku": "COR39-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor39-g.html"
+    },
+    {
+      "sku": "COR44-2-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor44-g.html"
+    },
+    {
+      "sku": "COR44-3-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor44-g.html"
+    },
+    {
+      "sku": "COR45-1-HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor45-g.html"
+    },
+    {
+      "sku": "COR46-2-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/cor46-g.html"
+    },
+    {
+      "sku": "CORF-5-WB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/corf-g.html"
+    },
+    {
+      "sku": "CORM-2-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/corm-g.html"
+    },
+    {
+      "sku": "CORW-1CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/corbels/corw-g.html"
+    },
+    {
+      "sku": "FCOR4-RW",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "P1-5-42-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p1-g.html"
+    },
+    {
+      "sku": "P1-6-42-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p1-g.html"
+    },
+    {
+      "sku": "P1-6-42-HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p1-g.html"
+    },
+    {
+      "sku": "P1-6-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p1-g.html"
+    },
+    {
+      "sku": "P1CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p1-g.html"
+    },
+    {
+      "sku": "P1S-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p1s.html"
+    },
+    {
+      "sku": "P31TL-HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p31-g.html"
+    },
+    {
+      "sku": "P65-5-42-RW",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p65-g.html"
+    },
+    {
+      "sku": "P67-5-HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p67-g.html"
+    },
+    {
+      "sku": "P72-HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p72-g.html"
+    },
+    {
+      "sku": "P80-5-42-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p80-g.html"
+    },
+    {
+      "sku": "P80-ALD",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p80-g.html"
+    },
+    {
+      "sku": "P80-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p80-g.html"
+    },
+    {
+      "sku": "P81-5-42-ALD",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p81-g.html"
+    },
+    {
+      "sku": "P81-5-42-HMP",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p81-g.html"
+    },
+    {
+      "sku": "P81-5-42-WB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p81-g.html"
+    },
+    {
+      "sku": "P81-5-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p81-g.html"
+    },
+    {
+      "sku": "P81-6-42-WB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p81-g.html"
+    },
+    {
+      "sku": "P81-6-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/posts/p81-g.html"
+    },
+    {
+      "sku": "PFSHA-ALD",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/cabinet-feet-legs/pfsha.html"
+    },
+    {
+      "sku": "PFSHA-WB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/cabinet-feet-legs/pfsha.html"
+    },
+    {
+      "sku": "ROS1CH",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "SPLICE250OK",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/column-transitions/splice.html"
+    },
+    {
+      "sku": "TB4-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/column-transitions/tb4.html"
+    },
+    {
+      "sku": "TB5A-CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/column-transitions/tb5a.html"
+    },
+    {
+      "sku": "TB5A-OK",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/column-transitions/tb5a.html"
+    },
+    {
+      "sku": "TF150CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/moulding/column-transitions/tf.html"
+    },
+    {
+      "sku": "WLC86CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/cabinet-feet-legs/wlc60-86-g.html"
+    },
+    {
+      "sku": "WLFC80CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/decorative-wood-moulding/decorative-wood/cabinet-feet-legs/wlfc60-80-g.html"
+    }
+  ],
+  "mismatches": []
+}

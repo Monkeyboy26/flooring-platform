@@ -25,7 +25,7 @@ function estimateCost(promptTokens, completionTokens) {
 // ── OpenAI wrapper with retry on 429 ──
 async function callOpenAI(messages, opts = {}) {
   const client = getClient();
-  const maxRetries = 3;
+  const maxRetries = 5;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const response = await client.chat.completions.create({
@@ -43,7 +43,10 @@ async function callOpenAI(messages, opts = {}) {
       };
     } catch (err) {
       if (err.status === 429 && attempt < maxRetries - 1) {
-        const wait = Math.pow(2, attempt + 1) * 1000;
+        // Parse retry-after from error or use escalating backoff (20s base for low-tier accounts)
+        const retryAfter = err.headers?.['retry-after'];
+        const wait = retryAfter ? (parseInt(retryAfter) + 1) * 1000 : (20 + attempt * 10) * 1000;
+        console.log(`[Enrichment] Rate limited, waiting ${Math.round(wait/1000)}s (attempt ${attempt + 1}/${maxRetries})`);
         await new Promise(r => setTimeout(r, wait));
         continue;
       }
@@ -74,6 +77,7 @@ async function processBatch(items, { batchSize = 5, concurrency = 3 }, processFn
         results.promptTokens += batchResult.promptTokens || 0;
         results.completionTokens += batchResult.completionTokens || 0;
       } catch (err) {
+        console.error(`[Enrichment] Batch ${idx} error:`, err.message);
         results.failed += batches[idx].length;
       }
     }
@@ -180,7 +184,7 @@ Return JSON: { "products": [{ "id": "...", "description_short": "...", "descript
   let totalPrompt = 0;
   let totalCompletion = 0;
 
-  const result = await processBatch(products, { batchSize: 5, concurrency: 3 }, async (batch) => {
+  const result = await processBatch(products, { batchSize: 5, concurrency: 1 }, async (batch) => {
     checkCancelled(jobId);
 
     const productData = batch.map(p => ({
@@ -324,7 +328,7 @@ Return JSON: { "skus": [{ "sku_id": "...", "attributes": { "material": "...", "f
   let totalPrompt = 0;
   let totalCompletion = 0;
 
-  await processBatch(skus, { batchSize: 10, concurrency: 3 }, async (batch) => {
+  await processBatch(skus, { batchSize: 10, concurrency: 1 }, async (batch) => {
     checkCancelled(jobId);
 
     const skuData = batch.map(s => ({
@@ -461,7 +465,7 @@ Return JSON: { "products": [{ "id": "...", "category_slug": "...", "confidence":
   let totalPrompt = 0;
   let totalCompletion = 0;
 
-  await processBatch(products, { batchSize: 10, concurrency: 3 }, async (batch) => {
+  await processBatch(products, { batchSize: 10, concurrency: 1 }, async (batch) => {
     checkCancelled(jobId);
 
     const productData = batch.map(p => ({
@@ -629,7 +633,7 @@ Return JSON: { "images": [{ "id": "...", "asset_type": "primary|alternate|lifest
     let totalCompletion = 0;
     let visionProcessed = 0;
 
-    await processBatch(needsVision, { batchSize: 5, concurrency: 2 }, async (batch) => {
+    await processBatch(needsVision, { batchSize: 5, concurrency: 1 }, async (batch) => {
       checkCancelled(jobId);
 
       const content = [{ type: 'text', text: `Classify these ${batch.length} flooring product images:` }];

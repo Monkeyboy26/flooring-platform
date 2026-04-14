@@ -1,0 +1,2784 @@
+{
+  "startedAt": "2026-04-10T18:37:28.295Z",
+  "finishedAt": "2026-04-10T18:55:29.787Z",
+  "elapsedMs": 1081486,
+  "dryRun": false,
+  "filters": {
+    "LIMIT": null,
+    "ONLY": null,
+    "CATEGORY": "Organizers"
+  },
+  "totals": {
+    "processed": 752,
+    "primary": 676,
+    "alternate": 1599,
+    "spec": 652,
+    "notFound": 76,
+    "mismatches": 401,
+    "skipped": 477,
+    "uniquePages": 156,
+    "pageFetches": 156,
+    "pageCacheHits": 31,
+    "imageDownloads": 2275
+  },
+  "byClass": {
+    "Organizers": {
+      "processed": 752,
+      "primary": 676,
+      "alternate": 1599,
+      "spec": 652,
+      "skipped": 477
+    }
+  },
+  "notFound": [
+    {
+      "sku": "100096ORB-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "100096ORB-6",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "111612CH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/organizers/closet-organizers/closet-rods-hardware/1116.html"
+    },
+    {
+      "sku": "111612MB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/organizers/closet-organizers/closet-rods-hardware/1116.html"
+    },
+    {
+      "sku": "111696CH-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "111696CH-6",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "111696MB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/organizers/closet-organizers/closet-rods-hardware/1116.html"
+    },
+    {
+      "sku": "111696MB-6",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "151696CH-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "151696CH-6",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "151696CH-A",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "151696MB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/organizers/closet-organizers/closet-rods-hardware/151696-2.html"
+    },
+    {
+      "sku": "151696MB-6",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "151696ORB-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "151696SN-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "151696SN-6",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1516ORB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "153012CH-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "153012MB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/organizers/closet-organizers/closet-rods-hardware/153012.html"
+    },
+    {
+      "sku": "153012MB-A",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "153012MB-A-80",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "153012ORB-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "15302CH-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "15302CH-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "15302MB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/organizers/closet-organizers/closet-rods-hardware/153012.html"
+    },
+    {
+      "sku": "15302MB-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "15302ORB-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "15302ORB-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "15302SN-10",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "15302SN-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "BCL-141711-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-141717-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-14176-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-142311-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-142317-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-14236-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-142911-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-142917-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-14296-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-161711-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-161717-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-16176-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-162311-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-162317-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-16236-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-162911-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-162917-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "BCL-16296-TAN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/bcl-tan.html"
+    },
+    {
+      "sku": "HP-BM1424WPC",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/organizers/closet-organizers/pullout-baskets-hampers/lhpoc18-sc.html"
+    },
+    {
+      "sku": "LSP2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "M7160-ORB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "M7175-ORB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "M7340-ORB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "M7345-ORB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "M7360-ORB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "M7370-ORB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "ML12S",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "ML15S",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "ML18S",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "PDM45",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "POB1PL-141711",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/pob1pl.html"
+    },
+    {
+      "sku": "POB1PL-14176",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/pob1pl.html"
+    },
+    {
+      "sku": "POB1PL-142311",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/pob1pl.html"
+    },
+    {
+      "sku": "POB1PL-14236",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/pob1pl.html"
+    },
+    {
+      "sku": "POB1PL-142911",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/pob1pl.html"
+    },
+    {
+      "sku": "POB1PL-14296",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/pob1pl.html"
+    },
+    {
+      "sku": "POB1PL-161711",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/pob1pl.html"
+    },
+    {
+      "sku": "POB1PL-16176",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/pob1pl.html"
+    },
+    {
+      "sku": "POB1PL-162311",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/pob1pl.html"
+    },
+    {
+      "sku": "POB1PL-16236",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/pob1pl.html"
+    },
+    {
+      "sku": "POB1PL-162911",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/pob1pl.html"
+    },
+    {
+      "sku": "POB1PL-16296",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/pob1pl.html"
+    },
+    {
+      "sku": "POHS-18BAG",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "PSO45",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "SRSS900-BAM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "SRSS970-BAM",
+      "reason": "no-redirect"
+    }
+  ],
+  "mismatches": [
+    {
+      "sku": "1521",
+      "magentoId": "104331",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2002144021-8ed3b33db094b686530c2965b30e9f46edaa42c549f9bafaa836489114449be8-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "1523",
+      "magentoId": "81552",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2002144021-8ed3b33db094b686530c2965b30e9f46edaa42c549f9bafaa836489114449be8-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "1523-BLK",
+      "magentoId": "81549",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2002144021-8ed3b33db094b686530c2965b30e9f46edaa42c549f9bafaa836489114449be8-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "1523SC-BLK",
+      "magentoId": "87600",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2002144021-8ed3b33db094b686530c2965b30e9f46edaa42c549f9bafaa836489114449be8-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "1523SC-PC",
+      "magentoId": "87597",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2002144021-8ed3b33db094b686530c2965b30e9f46edaa42c549f9bafaa836489114449be8-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "1532",
+      "magentoId": "98166",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2002144021-8ed3b33db094b686530c2965b30e9f46edaa42c549f9bafaa836489114449be8-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "1532-BLK",
+      "magentoId": "98169",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2002144021-8ed3b33db094b686530c2965b30e9f46edaa42c549f9bafaa836489114449be8-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "1532SC-BLK",
+      "magentoId": "84828",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2002144021-8ed3b33db094b686530c2965b30e9f46edaa42c549f9bafaa836489114449be8-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "1532SC-PC",
+      "magentoId": "84831",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2002144021-8ed3b33db094b686530c2965b30e9f46edaa42c549f9bafaa836489114449be8-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "355B-ORB",
+      "magentoId": "97173",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "355B-PC",
+      "magentoId": "97179",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "355B-SN",
+      "magentoId": "97176",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "355T-ORB",
+      "magentoId": "100824",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "355T-PC",
+      "magentoId": "100821",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "355T-SN",
+      "magentoId": "100827",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO215BOWD-LH",
+      "magentoId": "81573",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO215BOWD-RH",
+      "magentoId": "81585",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO215GWH-LH",
+      "magentoId": "81576",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO215GWH-RH",
+      "magentoId": "81579",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO215PCMP-LH",
+      "magentoId": "81597",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO215PCMP-RH",
+      "magentoId": "81582",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO215PCWD-LH",
+      "magentoId": "81570",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO215PCWD-RH",
+      "magentoId": "81594",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO215PCWH-LH",
+      "magentoId": "81588",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO215PCWH-RH",
+      "magentoId": "81591",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO218BOWD-LH",
+      "magentoId": "85119",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO218BOWD-RH",
+      "magentoId": "85122",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO218GWH-LH",
+      "magentoId": "85131",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO218GWH-RH",
+      "magentoId": "85125",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO218PCMP-LH",
+      "magentoId": "85113",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO218PCMP-RH",
+      "magentoId": "85137",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO218PCWD-LH",
+      "magentoId": "85128",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO218PCWD-RH",
+      "magentoId": "85110",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO218PCWH-LH",
+      "magentoId": "85134",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO218PCWH-RH",
+      "magentoId": "85116",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO221BOWD-LH",
+      "magentoId": "92967",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO221BOWD-RH",
+      "magentoId": "92949",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO221GWH-LH",
+      "magentoId": "92955",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO221GWH-RH",
+      "magentoId": "92952",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO221PCMP-LH",
+      "magentoId": "92964",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO221PCMP-RH",
+      "magentoId": "92958",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO221PCWD-LH",
+      "magentoId": "92946",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO221PCWD-RH",
+      "magentoId": "92940",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO221PCWH-LH",
+      "magentoId": "92961",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BCSO221PCWH-RH",
+      "magentoId": "92943",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/3/636382565-ddbb49445d5bc6928b73e6856fdca67f69ea708145c3bcc9ff6f11a661789bb8-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BPO2-11SC",
+      "magentoId": "80871",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/8/2/825386523-ca05544f4d164c5518fb20b73ec525a63e54472b68bbdec91d446c48bf0c4cdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BPO2-11SC",
+      "magentoId": "80871",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1951966530-97a0fb3638ac5fe78ac4408a80ffe5877639a771933edadf27321a4bde90e109-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BPO2-14SC",
+      "magentoId": "80868",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/8/2/825386523-ca05544f4d164c5518fb20b73ec525a63e54472b68bbdec91d446c48bf0c4cdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BPO2-14SC",
+      "magentoId": "80868",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1951966530-97a0fb3638ac5fe78ac4408a80ffe5877639a771933edadf27321a4bde90e109-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BPO2-5SC",
+      "magentoId": "80865",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/8/2/825386523-ca05544f4d164c5518fb20b73ec525a63e54472b68bbdec91d446c48bf0c4cdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BPO2-5SC",
+      "magentoId": "80865",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1951966530-97a0fb3638ac5fe78ac4408a80ffe5877639a771933edadf27321a4bde90e109-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BPO2-8SC",
+      "magentoId": "80874",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/8/2/825386523-ca05544f4d164c5518fb20b73ec525a63e54472b68bbdec91d446c48bf0c4cdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BPO2-8SC",
+      "magentoId": "80874",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1951966530-97a0fb3638ac5fe78ac4408a80ffe5877639a771933edadf27321a4bde90e109-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BPOTD2-5SC",
+      "magentoId": "97500",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/8/2/825386523-ca05544f4d164c5518fb20b73ec525a63e54472b68bbdec91d446c48bf0c4cdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "BPOTD2-8SC",
+      "magentoId": "97497",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/8/2/825386523-ca05544f4d164c5518fb20b73ec525a63e54472b68bbdec91d446c48bf0c4cdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-DOORKIT",
+      "magentoId": "92730",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/697717483-c470075ac5c3d0b47eba18b34176746c01976ab8131b372f641a07f8345bf56f-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-DOORKITPC",
+      "magentoId": "92736",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/697717483-c470075ac5c3d0b47eba18b34176746c01976ab8131b372f641a07f8345bf56f-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-DOORKITW",
+      "magentoId": "92733",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/697717483-c470075ac5c3d0b47eba18b34176746c01976ab8131b372f641a07f8345bf56f-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-EBMD50B-R",
+      "magentoId": "92616",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796673-3a2ac15d1ec2c2e3877da2e406a32bb83271edf9dcae65913256fc1ad3588b31-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-EBMD50PC-R",
+      "magentoId": "92613",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796673-3a2ac15d1ec2c2e3877da2e406a32bb83271edf9dcae65913256fc1ad3588b31-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-EBMD50W-R",
+      "magentoId": "92619",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796673-3a2ac15d1ec2c2e3877da2e406a32bb83271edf9dcae65913256fc1ad3588b31-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-EBMDB-R",
+      "magentoId": "100281",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796673-3a2ac15d1ec2c2e3877da2e406a32bb83271edf9dcae65913256fc1ad3588b31-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-EBMDPC-R",
+      "magentoId": "100287",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796673-3a2ac15d1ec2c2e3877da2e406a32bb83271edf9dcae65913256fc1ad3588b31-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-EBMDW-R",
+      "magentoId": "100284",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796673-3a2ac15d1ec2c2e3877da2e406a32bb83271edf9dcae65913256fc1ad3588b31-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-EBMSB-R",
+      "magentoId": "88284",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796673-3a2ac15d1ec2c2e3877da2e406a32bb83271edf9dcae65913256fc1ad3588b31-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-EBMSPC-R",
+      "magentoId": "88281",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796673-3a2ac15d1ec2c2e3877da2e406a32bb83271edf9dcae65913256fc1ad3588b31-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-EBMSW-R",
+      "magentoId": "88278",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796673-3a2ac15d1ec2c2e3877da2e406a32bb83271edf9dcae65913256fc1ad3588b31-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD1535B-K",
+      "magentoId": "84117",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD1535G-K",
+      "magentoId": "84114",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD1535W-K",
+      "magentoId": "84111",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD1835B-K",
+      "magentoId": "82014",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD1835G-K",
+      "magentoId": "82020",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD1835W-K",
+      "magentoId": "82017",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD1850B-K",
+      "magentoId": "81324",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD1850G-K",
+      "magentoId": "81327",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD1850W-K",
+      "magentoId": "81321",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD2135B-K",
+      "magentoId": "99780",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD2135G-K",
+      "magentoId": "99783",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD2135W-K",
+      "magentoId": "99786",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD2150B-K",
+      "magentoId": "87183",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD2150G-K",
+      "magentoId": "87189",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMD2150W-K",
+      "magentoId": "87186",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMDSC-15",
+      "magentoId": "98385",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/7/670483653-fb5b972ab70e01ad420fa3447dbd480c43b00d1bd094c756bd2e8ad7182147b2-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMDSC-18",
+      "magentoId": "98382",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMDSC-21",
+      "magentoId": "98379",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMS1235B-K",
+      "magentoId": "82659",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMS1235G-K",
+      "magentoId": "82656",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMS1235W-K",
+      "magentoId": "82653",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMS1250B-K",
+      "magentoId": "96924",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMS1250G-K",
+      "magentoId": "96927",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMS1250W-K",
+      "magentoId": "96930",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMS1535B-K",
+      "magentoId": "90726",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMS1535G-K",
+      "magentoId": "112710",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMS1535W-K",
+      "magentoId": "90723",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMS1550B-K",
+      "magentoId": "87153",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMS1550G-K",
+      "magentoId": "87147",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMS1550W-K",
+      "magentoId": "87150",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMSC-12",
+      "magentoId": "96555",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-TMSC-15",
+      "magentoId": "96552",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534589619-a23d02e0e3fe4710f11e7ba5b55879c9b610e843aa0772caa1e3c49b5147e69e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMD3518B",
+      "magentoId": "122754",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMD3518G",
+      "magentoId": "122898",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMD3518WH",
+      "magentoId": "122895",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMD35B",
+      "magentoId": "102681",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMD35G",
+      "magentoId": "102684",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMD35WH",
+      "magentoId": "102678",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMD5018B",
+      "magentoId": "122892",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMD5018G",
+      "magentoId": "122886",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMD5018WH",
+      "magentoId": "122889",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMD50B",
+      "magentoId": "93798",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMD50G",
+      "magentoId": "93804",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMD50WH",
+      "magentoId": "93801",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMS35B",
+      "magentoId": "83127",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMS35G",
+      "magentoId": "83133",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMS35WH",
+      "magentoId": "83130",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMS50B",
+      "magentoId": "93615",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMS50G",
+      "magentoId": "93621",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CAN-WBMS50WH",
+      "magentoId": "93618",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470538-55c20c768b2aeea10b7ecf2a0edf14dcf41e0c662b1e042ee710db042c41f548-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CD15",
+      "magentoId": "86631",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1678761971-b189bed991303bbd890adcbc7862eec28fcd4e326c78bce91a6a432fa7dce2cf-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CD18",
+      "magentoId": "86628",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588808-16e494dab5e89511732338d6dbcee771566e23dfa6483b08e72063df0b95bf6d-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CD21",
+      "magentoId": "86634",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1678761971-b189bed991303bbd890adcbc7862eec28fcd4e326c78bce91a6a432fa7dce2cf-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CD24",
+      "magentoId": "86625",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588808-16e494dab5e89511732338d6dbcee771566e23dfa6483b08e72063df0b95bf6d-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD3518B",
+      "magentoId": "122904",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD3518B12",
+      "magentoId": "132987",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD3518G",
+      "magentoId": "122907",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD3518G12",
+      "magentoId": "132984",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD3518W12",
+      "magentoId": "132981",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD3518WH",
+      "magentoId": "122901",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD3521B",
+      "magentoId": "124266",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD3521B12",
+      "magentoId": "133038",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD3521G",
+      "magentoId": "124263",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD3521G12",
+      "magentoId": "133041",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD3521W12",
+      "magentoId": "133044",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD3521WH",
+      "magentoId": "124269",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD35B",
+      "magentoId": "91785",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD35B12",
+      "magentoId": "132993",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD35G",
+      "magentoId": "91782",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD35G12",
+      "magentoId": "132990",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD35W12",
+      "magentoId": "132996",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD35WH",
+      "magentoId": "91788",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD5018B",
+      "magentoId": "122913",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD5018B12",
+      "magentoId": "133005",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD5018G",
+      "magentoId": "122916",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD5018G12",
+      "magentoId": "132999",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD5018W12",
+      "magentoId": "133002",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD5018WH",
+      "magentoId": "122910",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD50B",
+      "magentoId": "86124",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD50B12",
+      "magentoId": "133053",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD50G",
+      "magentoId": "86130",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD50G12",
+      "magentoId": "133047",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD50W12",
+      "magentoId": "133050",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMD50WH",
+      "magentoId": "86127",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS35B",
+      "magentoId": "96579",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS35B12",
+      "magentoId": "133035",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS35G",
+      "magentoId": "96573",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS35G12",
+      "magentoId": "133029",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS35VB",
+      "magentoId": "124290",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS35VB12",
+      "magentoId": "133014",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS35VG",
+      "magentoId": "124293",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS35VG12",
+      "magentoId": "133017",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS35VW12",
+      "magentoId": "133011",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS35VWH",
+      "magentoId": "124287",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS35W12",
+      "magentoId": "133032",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS35WH",
+      "magentoId": "96576",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS50B",
+      "magentoId": "88968",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS50B12",
+      "magentoId": "133023",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS50G",
+      "magentoId": "88965",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS50G12",
+      "magentoId": "133026",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS50W12",
+      "magentoId": "133020",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CDM-WBMS50WH",
+      "magentoId": "88962",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1645376124-1052c1c8e18d49796278947dffef00ac62f32fcffd592534d2e51cf49086ccee-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CPPO1263SC",
+      "magentoId": "88614",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588226-86a012edc1265ad846a78d9e0ab97001bda35761de5f38d90aa44f919ca9453e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CPPO1274SC",
+      "magentoId": "88617",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588226-86a012edc1265ad846a78d9e0ab97001bda35761de5f38d90aa44f919ca9453e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CPPO1286SC",
+      "magentoId": "88620",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588226-86a012edc1265ad846a78d9e0ab97001bda35761de5f38d90aa44f919ca9453e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CPPO1563SC",
+      "magentoId": "85980",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588226-86a012edc1265ad846a78d9e0ab97001bda35761de5f38d90aa44f919ca9453e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CPPO1574SC",
+      "magentoId": "85977",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588226-86a012edc1265ad846a78d9e0ab97001bda35761de5f38d90aa44f919ca9453e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CPPO1586SC",
+      "magentoId": "85974",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588226-86a012edc1265ad846a78d9e0ab97001bda35761de5f38d90aa44f919ca9453e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CPPO2063SC",
+      "magentoId": "80997",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588226-86a012edc1265ad846a78d9e0ab97001bda35761de5f38d90aa44f919ca9453e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CPPO2074SC",
+      "magentoId": "80994",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588226-86a012edc1265ad846a78d9e0ab97001bda35761de5f38d90aa44f919ca9453e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CPPO2086SC",
+      "magentoId": "80991",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588226-86a012edc1265ad846a78d9e0ab97001bda35761de5f38d90aa44f919ca9453e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CPSO1274SC",
+      "magentoId": "99543",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588594-18ca4c459fcb564c9168009c3b0de8c3f8654843b1bfd7be547fbe23797ed62c-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CPSO1286SC",
+      "magentoId": "99546",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588594-18ca4c459fcb564c9168009c3b0de8c3f8654843b1bfd7be547fbe23797ed62c-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CPSO1574SC",
+      "magentoId": "86121",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588594-18ca4c459fcb564c9168009c3b0de8c3f8654843b1bfd7be547fbe23797ed62c-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "CPSO1586SC",
+      "magentoId": "86118",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/3/534588594-18ca4c459fcb564c9168009c3b0de8c3f8654843b1bfd7be547fbe23797ed62c-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "DBPO-11SC",
+      "magentoId": "157478",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/8/2/825386523-ca05544f4d164c5518fb20b73ec525a63e54472b68bbdec91d446c48bf0c4cdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "DBPO-11SC",
+      "magentoId": "157478",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1951966530-97a0fb3638ac5fe78ac4408a80ffe5877639a771933edadf27321a4bde90e109-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "DBPO-14SC",
+      "magentoId": "157475",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/8/2/825386523-ca05544f4d164c5518fb20b73ec525a63e54472b68bbdec91d446c48bf0c4cdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "DBPO-14SC",
+      "magentoId": "157475",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1951966530-97a0fb3638ac5fe78ac4408a80ffe5877639a771933edadf27321a4bde90e109-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "DBPO-5SC",
+      "magentoId": "99387",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/8/2/825386523-ca05544f4d164c5518fb20b73ec525a63e54472b68bbdec91d446c48bf0c4cdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "DBPO-5SC",
+      "magentoId": "99387",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1951966530-97a0fb3638ac5fe78ac4408a80ffe5877639a771933edadf27321a4bde90e109-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "DBPO-8SC",
+      "magentoId": "99384",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/8/2/825386523-ca05544f4d164c5518fb20b73ec525a63e54472b68bbdec91d446c48bf0c4cdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "DBPO-8SC",
+      "magentoId": "99384",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1951966530-97a0fb3638ac5fe78ac4408a80ffe5877639a771933edadf27321a4bde90e109-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "DMS3-PC-R",
+      "magentoId": "96075",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/8/6/86225505-a51c65493e7e0544872c831198fb12306290959babd3e1bb64a337044e7f681f-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "DMS6-PC-R",
+      "magentoId": "96078",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796948-04e23f88678b7986230ba3724ea656a29449858f2487c560915c82f36f5208c1-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "HMLS-P-3212",
+      "magentoId": "93792",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/663799903-a8a84cafc2e2ac05e698d7d40f2c8dd7df1933fd40b6e5e6ef7e5bb893e8f51e-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "HMLS-P-3515",
+      "magentoId": "93789",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/663799903-a8a84cafc2e2ac05e698d7d40f2c8dd7df1933fd40b6e5e6ef7e5bb893e8f51e-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "HMLS-P-3818",
+      "magentoId": "93795",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/663799903-a8a84cafc2e2ac05e698d7d40f2c8dd7df1933fd40b6e5e6ef7e5bb893e8f51e-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "HMLS-W-3212",
+      "magentoId": "81957",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/663799903-a8a84cafc2e2ac05e698d7d40f2c8dd7df1933fd40b6e5e6ef7e5bb893e8f51e-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "HMLS-W-3515",
+      "magentoId": "81963",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/663799903-a8a84cafc2e2ac05e698d7d40f2c8dd7df1933fd40b6e5e6ef7e5bb893e8f51e-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "HMLS-W-3818",
+      "magentoId": "81960",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/663799903-a8a84cafc2e2ac05e698d7d40f2c8dd7df1933fd40b6e5e6ef7e5bb893e8f51e-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "KBPO-5SC",
+      "magentoId": "105358",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/4/944325682-db01b13db8c717a0fdae9b0463563ddc42a5c85bf10c7847fa630735c515d5f1-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "KBPO-5SC",
+      "magentoId": "105358",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/3/936390511-dbf9567da664d0ba6f1a5346d424f68b41b2267a06cf46524cda06e9a2e2b59a-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "KBPO-8SC",
+      "magentoId": "105355",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/4/944325682-db01b13db8c717a0fdae9b0463563ddc42a5c85bf10c7847fa630735c515d5f1-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "KBPO-8SC",
+      "magentoId": "105355",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/3/936390511-dbf9567da664d0ba6f1a5346d424f68b41b2267a06cf46524cda06e9a2e2b59a-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "KNCD15",
+      "magentoId": "124794",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1678761971-b189bed991303bbd890adcbc7862eec28fcd4e326c78bce91a6a432fa7dce2cf-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "KNCD21",
+      "magentoId": "124791",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/6/1678761971-b189bed991303bbd890adcbc7862eec28fcd4e326c78bce91a6a432fa7dce2cf-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSK224-SET",
+      "magentoId": "98508",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470249-84ba185b81f36a03af78f09e348962cc3132d117e76c277a601d35f72984c130-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSK228-SET",
+      "magentoId": "98511",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470249-84ba185b81f36a03af78f09e348962cc3132d117e76c277a601d35f72984c130-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSK232-SET",
+      "magentoId": "98514",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470249-84ba185b81f36a03af78f09e348962cc3132d117e76c277a601d35f72984c130-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSK24",
+      "magentoId": "90348",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470249-84ba185b81f36a03af78f09e348962cc3132d117e76c277a601d35f72984c130-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSK24H",
+      "magentoId": "87675",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470249-84ba185b81f36a03af78f09e348962cc3132d117e76c277a601d35f72984c130-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSK28",
+      "magentoId": "90351",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470249-84ba185b81f36a03af78f09e348962cc3132d117e76c277a601d35f72984c130-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSK28-S",
+      "magentoId": "99324",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470249-84ba185b81f36a03af78f09e348962cc3132d117e76c277a601d35f72984c130-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSK28H",
+      "magentoId": "87672",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470249-84ba185b81f36a03af78f09e348962cc3132d117e76c277a601d35f72984c130-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSKNP27",
+      "magentoId": "148580",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2040076063-19337e177d9b28136f0ddaf3af22a59bd489a3c5976cae14354e242e2caadf64-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSKNP31",
+      "magentoId": "148574",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2040076063-19337e177d9b28136f0ddaf3af22a59bd489a3c5976cae14354e242e2caadf64-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSR218-SET",
+      "magentoId": "90357",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470190-b4f33515dd8f919321378310ee4abb00ce3b3363e93f8f9654d50277316b5534-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSR224-SET",
+      "magentoId": "90363",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470190-b4f33515dd8f919321378310ee4abb00ce3b3363e93f8f9654d50277316b5534-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSR228-SET",
+      "magentoId": "90360",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470190-b4f33515dd8f919321378310ee4abb00ce3b3363e93f8f9654d50277316b5534-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSR2318-SET",
+      "magentoId": "90366",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470190-b4f33515dd8f919321378310ee4abb00ce3b3363e93f8f9654d50277316b5534-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSR24-S",
+      "magentoId": "93969",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470190-b4f33515dd8f919321378310ee4abb00ce3b3363e93f8f9654d50277316b5534-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSR28-S",
+      "magentoId": "93972",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470190-b4f33515dd8f919321378310ee4abb00ce3b3363e93f8f9654d50277316b5534-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "LSRNP18",
+      "magentoId": "148577",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2040076063-19337e177d9b28136f0ddaf3af22a59bd489a3c5976cae14354e242e2caadf64-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "MBPO15-R",
+      "magentoId": "89259",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796526-d7a8127bc32e66fb3601dc61e3c981a27229cb11e266156dd561f2533406d748-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "MBPO18-R",
+      "magentoId": "89262",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796526-d7a8127bc32e66fb3601dc61e3c981a27229cb11e266156dd561f2533406d748-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "MBPO21-R",
+      "magentoId": "89265",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796526-d7a8127bc32e66fb3601dc61e3c981a27229cb11e266156dd561f2533406d748-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ML-1CH",
+      "magentoId": "104094",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/694492121-248b0cba552630a069fc6ec98d39ff9bd66977cac0a6f6494afe85f9687f35b0-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ML-1CH",
+      "magentoId": "104094",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/4/647076610-ec55fa3aa8599081c74806e134b369acf7bd031b03722ed6c11c46d221e3ab9f-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ML-1CH-12S",
+      "magentoId": "133395",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/694492121-248b0cba552630a069fc6ec98d39ff9bd66977cac0a6f6494afe85f9687f35b0-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ML-1CH-12S",
+      "magentoId": "133395",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1938296811-89032e20cc6f159b87266cb3c4f1f712b205d52e9af4a66917a84a404da60b91-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ML-1CH-15S",
+      "magentoId": "133389",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/694492121-248b0cba552630a069fc6ec98d39ff9bd66977cac0a6f6494afe85f9687f35b0-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ML-1CH-15S",
+      "magentoId": "133389",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1938296811-89032e20cc6f159b87266cb3c4f1f712b205d52e9af4a66917a84a404da60b91-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ML-1CH-18S",
+      "magentoId": "133392",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/694492121-248b0cba552630a069fc6ec98d39ff9bd66977cac0a6f6494afe85f9687f35b0-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ML-1CH-18S",
+      "magentoId": "133392",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1938296811-89032e20cc6f159b87266cb3c4f1f712b205d52e9af4a66917a84a404da60b91-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PD15-SC",
+      "magentoId": "150227",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2052747936-c0f43ce780a2e0dcdb1355e70e125131f3a613ef53f40f605f894f3cf4edcdc2-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PD15-SC",
+      "magentoId": "150227",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2051274783-e9c6701c84a14e4bd276203f93c51aaeea736ad69d200a27205149878dff5e93-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PD21-SC",
+      "magentoId": "150230",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2052747936-c0f43ce780a2e0dcdb1355e70e125131f3a613ef53f40f605f894f3cf4edcdc2-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PD21-SC",
+      "magentoId": "150230",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2051274783-e9c6701c84a14e4bd276203f93c51aaeea736ad69d200a27205149878dff5e93-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PD27-SC",
+      "magentoId": "150224",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2052747936-c0f43ce780a2e0dcdb1355e70e125131f3a613ef53f40f605f894f3cf4edcdc2-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PD27-SC",
+      "magentoId": "150224",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2051274783-e9c6701c84a14e4bd276203f93c51aaeea736ad69d200a27205149878dff5e93-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSK224",
+      "magentoId": "89979",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSK224",
+      "magentoId": "89979",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470903-bf7c72a59cbec7ebeb682be5c27ef775e9af37a88793c602866f836d7b2eeacc-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSK228",
+      "magentoId": "89982",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSK228",
+      "magentoId": "89982",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470903-bf7c72a59cbec7ebeb682be5c27ef775e9af37a88793c602866f836d7b2eeacc-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSK232",
+      "magentoId": "89976",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSK232",
+      "magentoId": "89976",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470903-bf7c72a59cbec7ebeb682be5c27ef775e9af37a88793c602866f836d7b2eeacc-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSMK24",
+      "magentoId": "91734",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSMK24",
+      "magentoId": "91734",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470731-d4c53fea26fac89bbbb11b80371051b4b84e5e38b0bf454744db33c5378dd10e-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSMK28",
+      "magentoId": "91737",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSMK28",
+      "magentoId": "91737",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470731-d4c53fea26fac89bbbb11b80371051b4b84e5e38b0bf454744db33c5378dd10e-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSMK32",
+      "magentoId": "91731",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSMK32",
+      "magentoId": "91731",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614470731-d4c53fea26fac89bbbb11b80371051b4b84e5e38b0bf454744db33c5378dd10e-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSMR18",
+      "magentoId": "91674",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSMR24",
+      "magentoId": "91677",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSMR28",
+      "magentoId": "91671",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSMR318",
+      "magentoId": "91680",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSP24",
+      "magentoId": "91191",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSP24",
+      "magentoId": "91191",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/7/671893233-7e92ee51fa37e69b751138ef8f9bfae99b20441a059415aa0ca095a7d7d03bfa-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSP28",
+      "magentoId": "91194",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSP28",
+      "magentoId": "91194",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/7/671893233-7e92ee51fa37e69b751138ef8f9bfae99b20441a059415aa0ca095a7d7d03bfa-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSR218",
+      "magentoId": "83211",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSR224",
+      "magentoId": "83208",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSR228",
+      "magentoId": "83205",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PLSR2318",
+      "magentoId": "83214",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/5/7/570966319-1d99c738e070c19815f00966d340a010c987994d5ee47347459b315b633f0c79-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPO2-1148",
+      "magentoId": "99048",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614471274-1ffe7248918b407e30e4bf4f4d549386d288713cefe94aabf3c00d57a1871227-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPO2-1154",
+      "magentoId": "99054",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614471274-1ffe7248918b407e30e4bf4f4d549386d288713cefe94aabf3c00d57a1871227-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPO2-1160",
+      "magentoId": "99051",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614471274-1ffe7248918b407e30e4bf4f4d549386d288713cefe94aabf3c00d57a1871227-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPO2-1448",
+      "magentoId": "85608",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614471274-1ffe7248918b407e30e4bf4f4d549386d288713cefe94aabf3c00d57a1871227-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPO2-1454",
+      "magentoId": "85611",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614471274-1ffe7248918b407e30e4bf4f4d549386d288713cefe94aabf3c00d57a1871227-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPO2-1460",
+      "magentoId": "85614",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614471274-1ffe7248918b407e30e4bf4f4d549386d288713cefe94aabf3c00d57a1871227-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPO2-548",
+      "magentoId": "90606",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614471274-1ffe7248918b407e30e4bf4f4d549386d288713cefe94aabf3c00d57a1871227-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPO2-554",
+      "magentoId": "90609",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614471274-1ffe7248918b407e30e4bf4f4d549386d288713cefe94aabf3c00d57a1871227-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPO2-560",
+      "magentoId": "90612",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614471274-1ffe7248918b407e30e4bf4f4d549386d288713cefe94aabf3c00d57a1871227-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPO2-848",
+      "magentoId": "85524",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614471274-1ffe7248918b407e30e4bf4f4d549386d288713cefe94aabf3c00d57a1871227-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPO2-854",
+      "magentoId": "85521",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614471274-1ffe7248918b407e30e4bf4f4d549386d288713cefe94aabf3c00d57a1871227-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPO2-860",
+      "magentoId": "85527",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/1/614471274-1ffe7248918b407e30e4bf4f4d549386d288713cefe94aabf3c00d57a1871227-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPR-1814-ORB",
+      "magentoId": "89943",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPR-1814-PC",
+      "magentoId": "89949",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPR-1814-SN",
+      "magentoId": "89946",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPR-2414-ORB",
+      "magentoId": "91311",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPR-2414-PC",
+      "magentoId": "91305",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPR-2414-SN",
+      "magentoId": "91308",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPR-3014-ORB",
+      "magentoId": "85044",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPR-3014-PC",
+      "magentoId": "85047",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PPR-3014-SN",
+      "magentoId": "85041",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/6/660333002-5ddc699fa6166f3ec65accad550242a0b8357a1fc795e9fe8d007764fdf62eee-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PVBPOD11-SC",
+      "magentoId": "132888",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2085971316-ac07c347b938ab07c54746bdb2341fe5d9031baac041199fa5c69f5ea43996cc-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PVBPOD11-SC",
+      "magentoId": "132888",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1921166779-111dbf31ab50276fcdb88a5e843abcb2b67b4246322682ec3d6f5200dc979bdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PVBPOD8-SC",
+      "magentoId": "132891",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2085971316-ac07c347b938ab07c54746bdb2341fe5d9031baac041199fa5c69f5ea43996cc-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PVBPOD8-SC",
+      "magentoId": "132891",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1921166779-111dbf31ab50276fcdb88a5e843abcb2b67b4246322682ec3d6f5200dc979bdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PVBPOF11-SC",
+      "magentoId": "132882",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2085971316-ac07c347b938ab07c54746bdb2341fe5d9031baac041199fa5c69f5ea43996cc-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PVBPOF11-SC",
+      "magentoId": "132882",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1921166779-111dbf31ab50276fcdb88a5e843abcb2b67b4246322682ec3d6f5200dc979bdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PVBPOF8-SC",
+      "magentoId": "132879",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2085971316-ac07c347b938ab07c54746bdb2341fe5d9031baac041199fa5c69f5ea43996cc-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PVBPOF8-SC",
+      "magentoId": "132879",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1921166779-111dbf31ab50276fcdb88a5e843abcb2b67b4246322682ec3d6f5200dc979bdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PVD15-SC",
+      "magentoId": "150221",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2052747936-c0f43ce780a2e0dcdb1355e70e125131f3a613ef53f40f605f894f3cf4edcdc2-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "PVD15-SC",
+      "magentoId": "150221",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2051274783-e9c6701c84a14e4bd276203f93c51aaeea736ad69d200a27205149878dff5e93-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROBTD15-WB",
+      "magentoId": "123500",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/5/1529380327-b855a30cc4c836023026f8e613b8bbf85a3c4530639e803b705ff19cb865ecb4-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROBTD15-WB",
+      "magentoId": "123500",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1998032411-53a03f10c1ea54d854e30ceaa2b3fb597325398c10fadf66571e32058d70352e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROBTD21-WB",
+      "magentoId": "123503",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/5/1529380327-b855a30cc4c836023026f8e613b8bbf85a3c4530639e803b705ff19cb865ecb4-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROBTD21-WB",
+      "magentoId": "123503",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1998032411-53a03f10c1ea54d854e30ceaa2b3fb597325398c10fadf66571e32058d70352e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROBTD27-WB",
+      "magentoId": "123497",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/5/1529380327-b855a30cc4c836023026f8e613b8bbf85a3c4530639e803b705ff19cb865ecb4-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROBTD27-WB",
+      "magentoId": "123497",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1998032411-53a03f10c1ea54d854e30ceaa2b3fb597325398c10fadf66571e32058d70352e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROCWD15-WB",
+      "magentoId": "123479",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/5/1529380327-b855a30cc4c836023026f8e613b8bbf85a3c4530639e803b705ff19cb865ecb4-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROCWD15-WB",
+      "magentoId": "123479",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1998032411-53a03f10c1ea54d854e30ceaa2b3fb597325398c10fadf66571e32058d70352e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROCWD21-WB",
+      "magentoId": "123485",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/5/1529380327-b855a30cc4c836023026f8e613b8bbf85a3c4530639e803b705ff19cb865ecb4-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROCWD21-WB",
+      "magentoId": "123485",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1998032411-53a03f10c1ea54d854e30ceaa2b3fb597325398c10fadf66571e32058d70352e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROCWD27-WB",
+      "magentoId": "123482",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/5/1529380327-b855a30cc4c836023026f8e613b8bbf85a3c4530639e803b705ff19cb865ecb4-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROCWD27-WB",
+      "magentoId": "123482",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1998032411-53a03f10c1ea54d854e30ceaa2b3fb597325398c10fadf66571e32058d70352e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROCWS15-WB",
+      "magentoId": "123509",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/5/1529380327-b855a30cc4c836023026f8e613b8bbf85a3c4530639e803b705ff19cb865ecb4-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROCWS15-WB",
+      "magentoId": "123509",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1998032411-53a03f10c1ea54d854e30ceaa2b3fb597325398c10fadf66571e32058d70352e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROCWS21-WB",
+      "magentoId": "123512",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/5/1529380327-b855a30cc4c836023026f8e613b8bbf85a3c4530639e803b705ff19cb865ecb4-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROCWS21-WB",
+      "magentoId": "123512",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1998032411-53a03f10c1ea54d854e30ceaa2b3fb597325398c10fadf66571e32058d70352e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROCWS27-WB",
+      "magentoId": "123515",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/5/1529380327-b855a30cc4c836023026f8e613b8bbf85a3c4530639e803b705ff19cb865ecb4-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "ROCWS27-WB",
+      "magentoId": "123515",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/9/1998032411-53a03f10c1ea54d854e30ceaa2b3fb597325398c10fadf66571e32058d70352e-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "STEM1-DBAC-R",
+      "magentoId": "88209",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705797145-e955c6beabe56f99be41ea903f68b22c87e4c3794375b9bf1e6eb372f8e2c6cc-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "STEM1-PC-R",
+      "magentoId": "88203",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705797145-e955c6beabe56f99be41ea903f68b22c87e4c3794375b9bf1e6eb372f8e2c6cc-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "STEM1-SN-R",
+      "magentoId": "88206",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705797145-e955c6beabe56f99be41ea903f68b22c87e4c3794375b9bf1e6eb372f8e2c6cc-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCBAS15BN",
+      "magentoId": "106166",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/8/984967669-7d635d80cde9b548a9accd1ede47bcd9ac2e373d15d53613ec546120b3d4cf2f-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCBAS15PC",
+      "magentoId": "106163",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/8/984967669-7d635d80cde9b548a9accd1ede47bcd9ac2e373d15d53613ec546120b3d4cf2f-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCBAS18BN",
+      "magentoId": "106175",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/8/984967669-7d635d80cde9b548a9accd1ede47bcd9ac2e373d15d53613ec546120b3d4cf2f-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCBAS18PC",
+      "magentoId": "106178",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/8/984967669-7d635d80cde9b548a9accd1ede47bcd9ac2e373d15d53613ec546120b3d4cf2f-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCFH15BN",
+      "magentoId": "106187",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCFH15BN",
+      "magentoId": "106187",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/8/984967669-7d635d80cde9b548a9accd1ede47bcd9ac2e373d15d53613ec546120b3d4cf2f-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCFH15PC",
+      "magentoId": "106184",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCFH15PC",
+      "magentoId": "106184",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/8/984967669-7d635d80cde9b548a9accd1ede47bcd9ac2e373d15d53613ec546120b3d4cf2f-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCFH18BN",
+      "magentoId": "106193",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCFH18BN",
+      "magentoId": "106193",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/8/984967669-7d635d80cde9b548a9accd1ede47bcd9ac2e373d15d53613ec546120b3d4cf2f-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCFH18PC",
+      "magentoId": "106196",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCFH18PC",
+      "magentoId": "106196",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/8/984967669-7d635d80cde9b548a9accd1ede47bcd9ac2e373d15d53613ec546120b3d4cf2f-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCS15BN",
+      "magentoId": "106169",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCS15BN",
+      "magentoId": "106169",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/8/984967669-7d635d80cde9b548a9accd1ede47bcd9ac2e373d15d53613ec546120b3d4cf2f-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCS15PC",
+      "magentoId": "106172",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCS15PC",
+      "magentoId": "106172",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/8/984967669-7d635d80cde9b548a9accd1ede47bcd9ac2e373d15d53613ec546120b3d4cf2f-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCS18BN",
+      "magentoId": "106202",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCS18BN",
+      "magentoId": "106202",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/8/984967669-7d635d80cde9b548a9accd1ede47bcd9ac2e373d15d53613ec546120b3d4cf2f-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCS18PC",
+      "magentoId": "106205",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BCS18PC",
+      "magentoId": "106205",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/9/8/984967669-7d635d80cde9b548a9accd1ede47bcd9ac2e373d15d53613ec546120b3d4cf2f-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BPO5BN",
+      "magentoId": "96114",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BPO5PC",
+      "magentoId": "96111",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BPO8BN",
+      "magentoId": "91875",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-BPO8PC",
+      "magentoId": "91878",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-DBPO5BN",
+      "magentoId": "98961",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-DBPO5PC",
+      "magentoId": "98958",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-DBPO8BN",
+      "magentoId": "87009",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-DBPO8PC",
+      "magentoId": "87006",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-MBMD35GBN",
+      "magentoId": "92361",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-MBMD35GBN",
+      "magentoId": "92361",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/695443122-0bb4612b57919ae46b4312b5bddd4e5f0fffc73d07181fade4577dc8720beb68-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-MBMD35GPC",
+      "magentoId": "92364",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-MBMD35GPC",
+      "magentoId": "92364",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/695443122-0bb4612b57919ae46b4312b5bddd4e5f0fffc73d07181fade4577dc8720beb68-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-MBMD50GBN",
+      "magentoId": "100797",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-MBMD50GBN",
+      "magentoId": "100797",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/695443122-0bb4612b57919ae46b4312b5bddd4e5f0fffc73d07181fade4577dc8720beb68-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-MBMD50GPC",
+      "magentoId": "100794",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-MBMD50GPC",
+      "magentoId": "100794",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/695443122-0bb4612b57919ae46b4312b5bddd4e5f0fffc73d07181fade4577dc8720beb68-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-MBMS35GBN",
+      "magentoId": "84990",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-MBMS35GBN",
+      "magentoId": "84990",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/695443122-0bb4612b57919ae46b4312b5bddd4e5f0fffc73d07181fade4577dc8720beb68-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-MBMS35GPC",
+      "magentoId": "84993",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-MBMS35GPC",
+      "magentoId": "84993",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/695443122-0bb4612b57919ae46b4312b5bddd4e5f0fffc73d07181fade4577dc8720beb68-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-PILKITBN",
+      "magentoId": "101886",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-PILKITPC",
+      "magentoId": "101889",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-PO21BN",
+      "magentoId": "102132",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-PO21BN",
+      "magentoId": "102132",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/695229832-1aacf0f564c7283136a7528935d1827bc136f0553217e230b72adea0b1e12f6a-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-PO21PC",
+      "magentoId": "102135",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-PO21PC",
+      "magentoId": "102135",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/6/9/695229832-1aacf0f564c7283136a7528935d1827bc136f0553217e230b72adea0b1e12f6a-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-UBPO8BN",
+      "magentoId": "98595",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-UBPO8PC",
+      "magentoId": "98598",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-WB153BN",
+      "magentoId": "95352",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-WB153BN",
+      "magentoId": "95352",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/6/766677138-9773efe0d605f0519769eab6b261f3dcf1a06d3cf005c0c567ec73e134bcff10-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-WB153PC",
+      "magentoId": "95349",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-WB153PC",
+      "magentoId": "95349",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/6/766677138-9773efe0d605f0519769eab6b261f3dcf1a06d3cf005c0c567ec73e134bcff10-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-WB213BN",
+      "magentoId": "90744",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-WB213BN",
+      "magentoId": "90744",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/6/766677138-9773efe0d605f0519769eab6b261f3dcf1a06d3cf005c0c567ec73e134bcff10-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-WB213PC",
+      "magentoId": "90741",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-WB213PC",
+      "magentoId": "90741",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/6/766677138-9773efe0d605f0519769eab6b261f3dcf1a06d3cf005c0c567ec73e134bcff10-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-WB273BN",
+      "magentoId": "92280",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-WB273BN",
+      "magentoId": "92280",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/6/766677138-9773efe0d605f0519769eab6b261f3dcf1a06d3cf005c0c567ec73e134bcff10-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-WB273PC",
+      "magentoId": "92277",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/5/759758579-3544e04d1841ebe1fa79ed9d8b545f000e02ac59530c40b9b54a133cfcef1b25-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "SWS-WB273PC",
+      "magentoId": "92277",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/6/766677138-9773efe0d605f0519769eab6b261f3dcf1a06d3cf005c0c567ec73e134bcff10-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "TO11-R",
+      "magentoId": "85380",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/1/2106217290-ce4a8384a1cbe63ccecb200e1c6ef50ed77f32ef50aff9fb82f14676c8579469-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "TO11S-R",
+      "magentoId": "94446",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/1/2106217290-ce4a8384a1cbe63ccecb200e1c6ef50ed77f32ef50aff9fb82f14676c8579469-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "TO14-R",
+      "magentoId": "85383",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/1/2106217290-ce4a8384a1cbe63ccecb200e1c6ef50ed77f32ef50aff9fb82f14676c8579469-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "TO14S-R",
+      "magentoId": "94443",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/1/2106217290-ce4a8384a1cbe63ccecb200e1c6ef50ed77f32ef50aff9fb82f14676c8579469-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "TOSS11-R",
+      "magentoId": "88815",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796347-f51822a309e7271b2a756f6f1e9ab05a30b0f84c9fbdb03c7c3a32eb324fd247-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "TOSS11-REPL",
+      "magentoId": "97332",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796347-f51822a309e7271b2a756f6f1e9ab05a30b0f84c9fbdb03c7c3a32eb324fd247-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "TOSS11S-R",
+      "magentoId": "95454",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796347-f51822a309e7271b2a756f6f1e9ab05a30b0f84c9fbdb03c7c3a32eb324fd247-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "TOSS11S-REPL",
+      "magentoId": "98505",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796347-f51822a309e7271b2a756f6f1e9ab05a30b0f84c9fbdb03c7c3a32eb324fd247-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "TOSS14-R",
+      "magentoId": "88818",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796347-f51822a309e7271b2a756f6f1e9ab05a30b0f84c9fbdb03c7c3a32eb324fd247-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "TOSS14-REPL",
+      "magentoId": "97335",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796347-f51822a309e7271b2a756f6f1e9ab05a30b0f84c9fbdb03c7c3a32eb324fd247-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "TOSS14S-R",
+      "magentoId": "95457",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796347-f51822a309e7271b2a756f6f1e9ab05a30b0f84c9fbdb03c7c3a32eb324fd247-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "TOSS14S-REPL",
+      "magentoId": "98502",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/7/0/705796347-f51822a309e7271b2a756f6f1e9ab05a30b0f84c9fbdb03c7c3a32eb324fd247-d_640-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "UBPO-5SC",
+      "magentoId": "80976",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/8/2/825386523-ca05544f4d164c5518fb20b73ec525a63e54472b68bbdec91d446c48bf0c4cdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "UBPO-5SC",
+      "magentoId": "80976",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/7/1772929370-0c8448734df928417a482e23ddb1494cada5d0440184d33758218e848a77a5ff-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "UBPO-8SC",
+      "magentoId": "80973",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/8/2/825386523-ca05544f4d164c5518fb20b73ec525a63e54472b68bbdec91d446c48bf0c4cdd-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "UBPO-8SC",
+      "magentoId": "80973",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/7/1772929370-0c8448734df928417a482e23ddb1494cada5d0440184d33758218e848a77a5ff-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "WBH-DBAC-R",
+      "magentoId": "95394",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2085971316-ac07c347b938ab07c54746bdb2341fe5d9031baac041199fa5c69f5ea43996cc-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "WBH-PC-R",
+      "magentoId": "95391",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2085971316-ac07c347b938ab07c54746bdb2341fe5d9031baac041199fa5c69f5ea43996cc-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "WBH-SN-R",
+      "magentoId": "95388",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/2/0/2085971316-ac07c347b938ab07c54746bdb2341fe5d9031baac041199fa5c69f5ea43996cc-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "WC-EMBM-D35G",
+      "magentoId": "109210",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/3/1/319518831-6f3d3d89ed7d22135a8f31b6ca8dacb8b4d440d107139cf905374899f71eedf1-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "WC-EMBM-D50G",
+      "magentoId": "109216",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/3/1/319518831-6f3d3d89ed7d22135a8f31b6ca8dacb8b4d440d107139cf905374899f71eedf1-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "WC-EMBM-S35G",
+      "magentoId": "109219",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/3/1/319518831-6f3d3d89ed7d22135a8f31b6ca8dacb8b4d440d107139cf905374899f71eedf1-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "WC-EMBM-S50G",
+      "magentoId": "109213",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/3/1/319518831-6f3d3d89ed7d22135a8f31b6ca8dacb8b4d440d107139cf905374899f71eedf1-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "WPO2-265SC",
+      "magentoId": "121379",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/3/1396660827-fe518fe51aa5d181482c2bd222a583436641256e86d40d094e537deb9c02f6ac-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "WPO2-268SC",
+      "magentoId": "121385",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/3/1396660827-fe518fe51aa5d181482c2bd222a583436641256e86d40d094e537deb9c02f6ac-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "WPO2-325SC",
+      "magentoId": "121376",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/3/1396660827-fe518fe51aa5d181482c2bd222a583436641256e86d40d094e537deb9c02f6ac-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    },
+    {
+      "sku": "WPO2-328SC",
+      "magentoId": "121382",
+      "filename": null,
+      "url": "https://www.hardwareresources.com/media/catalog/product/1/3/1396660827-fe518fe51aa5d181482c2bd222a583436641256e86d40d094e537deb9c02f6ac-d_295x166-region_us?quality=80&bg-color=255,255,255&fit=bounds&height=&width=&canvas=:"
+    }
+  ]
+}

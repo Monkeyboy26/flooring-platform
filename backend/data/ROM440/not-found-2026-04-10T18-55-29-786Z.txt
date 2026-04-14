@@ -1,0 +1,76 @@
+100096ORB-2	no-redirect	
+100096ORB-6	no-redirect	
+111612CH	not-in-skus-map	https://www.hardwareresources.com/organizers/closet-organizers/closet-rods-hardware/1116.html
+111612MB	not-in-skus-map	https://www.hardwareresources.com/organizers/closet-organizers/closet-rods-hardware/1116.html
+111696CH-2	no-redirect	
+111696CH-6	no-redirect	
+111696MB	not-in-skus-map	https://www.hardwareresources.com/organizers/closet-organizers/closet-rods-hardware/1116.html
+111696MB-6	no-redirect	
+151696CH-2	no-redirect	
+151696CH-6	no-redirect	
+151696CH-A	no-redirect	
+151696MB	not-in-skus-map	https://www.hardwareresources.com/organizers/closet-organizers/closet-rods-hardware/151696-2.html
+151696MB-6	no-redirect	
+151696ORB-2	no-redirect	
+151696SN-2	no-redirect	
+151696SN-6	no-redirect	
+1516ORB	no-redirect	
+153012CH-2	no-redirect	
+153012MB	not-in-skus-map	https://www.hardwareresources.com/organizers/closet-organizers/closet-rods-hardware/153012.html
+153012MB-A	no-redirect	
+153012MB-A-80	no-redirect	
+153012ORB-2	no-redirect	
+15302CH-10	no-redirect	
+15302CH-2	no-redirect	
+15302MB	not-in-skus-map	https://www.hardwareresources.com/organizers/closet-organizers/closet-rods-hardware/153012.html
+15302MB-10	no-redirect	
+15302ORB-10	no-redirect	
+15302ORB-2	no-redirect	
+15302SN-10	no-redirect	
+15302SN-2	no-redirect	
+BCL-141711-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-141717-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-14176-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-142311-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-142317-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-14236-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-142911-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-142917-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-14296-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-161711-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-161717-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-16176-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-162311-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-162317-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-16236-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-162911-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-162917-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+BCL-16296-TAN	slug-mismatch	https://www.hardwareresources.com/bcl-tan.html
+HP-BM1424WPC	slug-mismatch	https://www.hardwareresources.com/organizers/closet-organizers/pullout-baskets-hampers/lhpoc18-sc.html
+LSP2	no-redirect	
+M7160-ORB	no-redirect	
+M7175-ORB	no-redirect	
+M7340-ORB	no-redirect	
+M7345-ORB	no-redirect	
+M7360-ORB	no-redirect	
+M7370-ORB	no-redirect	
+ML12S	no-redirect	
+ML15S	no-redirect	
+ML18S	no-redirect	
+PDM45	no-redirect	
+POB1PL-141711	slug-mismatch	https://www.hardwareresources.com/pob1pl.html
+POB1PL-14176	slug-mismatch	https://www.hardwareresources.com/pob1pl.html
+POB1PL-142311	slug-mismatch	https://www.hardwareresources.com/pob1pl.html
+POB1PL-14236	slug-mismatch	https://www.hardwareresources.com/pob1pl.html
+POB1PL-142911	slug-mismatch	https://www.hardwareresources.com/pob1pl.html
+POB1PL-14296	slug-mismatch	https://www.hardwareresources.com/pob1pl.html
+POB1PL-161711	slug-mismatch	https://www.hardwareresources.com/pob1pl.html
+POB1PL-16176	slug-mismatch	https://www.hardwareresources.com/pob1pl.html
+POB1PL-162311	slug-mismatch	https://www.hardwareresources.com/pob1pl.html
+POB1PL-16236	slug-mismatch	https://www.hardwareresources.com/pob1pl.html
+POB1PL-162911	slug-mismatch	https://www.hardwareresources.com/pob1pl.html
+POB1PL-16296	slug-mismatch	https://www.hardwareresources.com/pob1pl.html
+POHS-18BAG	no-redirect	
+PSO45	no-redirect	
+SRSS900-BAM	no-redirect	
+SRSS970-BAM	no-redirect	

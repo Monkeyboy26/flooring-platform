@@ -1,0 +1,194 @@
+{
+  "startedAt": "2026-04-10T18:08:12.632Z",
+  "finishedAt": "2026-04-10T18:10:01.233Z",
+  "elapsedMs": 108597,
+  "dryRun": false,
+  "filters": {
+    "LIMIT": null,
+    "ONLY": null,
+    "CATEGORY": "Sinks"
+  },
+  "totals": {
+    "processed": 33,
+    "primary": 0,
+    "alternate": 0,
+    "spec": 0,
+    "notFound": 33,
+    "mismatches": 0,
+    "skipped": 33,
+    "uniquePages": 26,
+    "pageFetches": 26,
+    "pageCacheHits": 0,
+    "imageDownloads": 0
+  },
+  "byClass": {
+    "Sinks": {
+      "processed": 33,
+      "primary": 0,
+      "alternate": 0,
+      "spec": 0,
+      "skipped": 33
+    }
+  },
+  "notFound": [
+    {
+      "sku": "801L",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/801l.html"
+    },
+    {
+      "sku": "801L-18",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/801l-18.html"
+    },
+    {
+      "sku": "801R-18",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/801r-18.html"
+    },
+    {
+      "sku": "802",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/802.html"
+    },
+    {
+      "sku": "802-18",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/802-18.html"
+    },
+    {
+      "sku": "807L",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/807l.html"
+    },
+    {
+      "sku": "861",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/861.html"
+    },
+    {
+      "sku": "862",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/862.html"
+    },
+    {
+      "sku": "863",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/863.html"
+    },
+    {
+      "sku": "868",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/868.html"
+    },
+    {
+      "sku": "869",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/869.html"
+    },
+    {
+      "sku": "910-1",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/top-mount-drop-in/910-1.html"
+    },
+    {
+      "sku": "H8809",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/bathroom-sinks/h8809.html"
+    },
+    {
+      "sku": "H8809WH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/bathroom-sinks/h8809wh.html"
+    },
+    {
+      "sku": "H8810",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "H8810WH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/bathroom-sinks/h8810wh.html"
+    },
+    {
+      "sku": "H8909WH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/bathroom-sinks/h8909wh.html"
+    },
+    {
+      "sku": "H8910WH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/bathroom-sinks/h8910wh.html"
+    },
+    {
+      "sku": "HA200",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HA200-GRID",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/ha200-grid.html"
+    },
+    {
+      "sku": "HA225",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HA225-GRID",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/ha225-grid.html"
+    },
+    {
+      "sku": "HMS175",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HMS175-GRID",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/hms175-grid.html"
+    },
+    {
+      "sku": "HMS190",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HMS190-GRID",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/hms190-grid.html"
+    },
+    {
+      "sku": "HMS200",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HMS200-GRID",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/hms200-grid.html"
+    },
+    {
+      "sku": "HMS250",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HMS250-GRID",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/hms250-grid.html"
+    },
+    {
+      "sku": "HMS260-GRID",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/hms260-grid.html"
+    },
+    {
+      "sku": "HMS260L",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/undermount/hms260l.html"
+    },
+    {
+      "sku": "STRAINER-200",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/sinks/kitchen-sinks/accessories/strainer-200.html"
+    }
+  ],
+  "mismatches": []
+}

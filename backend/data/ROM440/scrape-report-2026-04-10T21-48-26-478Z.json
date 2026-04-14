@@ -1,0 +1,1786 @@
+{
+  "startedAt": "2026-04-10T20:50:22.326Z",
+  "finishedAt": "2026-04-10T21:48:26.592Z",
+  "elapsedMs": 3484100,
+  "dryRun": false,
+  "filters": {
+    "LIMIT": null,
+    "ONLY": null,
+    "CATEGORY": "Functional Hardware"
+  },
+  "totals": {
+    "processed": 1360,
+    "primary": 975,
+    "alternate": 1056,
+    "spec": 903,
+    "notFound": 385,
+    "mismatches": 0,
+    "skipped": 426,
+    "uniquePages": 721,
+    "pageFetches": 721,
+    "pageCacheHits": 61,
+    "imageDownloads": 2031
+  },
+  "byClass": {
+    "Functional Hardware": {
+      "processed": 1360,
+      "primary": 975,
+      "alternate": 1056,
+      "spec": 903,
+      "skipped": 426
+    }
+  },
+  "notFound": [
+    {
+      "sku": "0178NI",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "0178SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1060BR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1306BN-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1438ALM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1438BRN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1438CL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1438CL-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1438WH",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1460AC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1460WH",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1550.0181.25",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1550.0535.25",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1707BN-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "1750.0161.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0161-25.html"
+    },
+    {
+      "sku": "1750.0179.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0179-25.html"
+    },
+    {
+      "sku": "1750.0181.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0181-25.html"
+    },
+    {
+      "sku": "1750.0280.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0280-25.html"
+    },
+    {
+      "sku": "1750.0535.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0535-25.html"
+    },
+    {
+      "sku": "1750.0536.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0536-25.html"
+    },
+    {
+      "sku": "1750.0537.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0537-25.html"
+    },
+    {
+      "sku": "200-Z92",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "200-Z96",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "200-ZB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "2055",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "22855-7SFT-STL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "22855-7STL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "276.4389.37",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/accessories-tools/276-4389-37.html"
+    },
+    {
+      "sku": "303-325-16",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "303-325-26",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "303FUPT12",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "303FUPT14",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "303FUPT16",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "303FUSFT2-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "33527AB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/functional-hardware/shutter-hardware/shutter-hinges/33527.html"
+    },
+    {
+      "sku": "33529BC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3390",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3395",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3400",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3402",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3403",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3404",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3405",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3406",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3407",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "3408",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "400.0118.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0118-75.html"
+    },
+    {
+      "sku": "400.0119.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0119-75.html"
+    },
+    {
+      "sku": "400.0P18.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p18-05.html"
+    },
+    {
+      "sku": "400.0P18.75",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "400.0P29.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p29-75.html"
+    },
+    {
+      "sku": "400.0P29.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p29-75.html"
+    },
+    {
+      "sku": "400.0P71.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p71-75.html"
+    },
+    {
+      "sku": "400.0P72.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p72-75.html"
+    },
+    {
+      "sku": "400.0P73.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p73-75.html"
+    },
+    {
+      "sku": "400.0P74.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p74-75.html"
+    },
+    {
+      "sku": "400.0R22.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0r22-75.html"
+    },
+    {
+      "sku": "400.0R23.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0r23-75.html"
+    },
+    {
+      "sku": "400.0R24.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0r24-75.html"
+    },
+    {
+      "sku": "400.0R25.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0r25-75.html"
+    },
+    {
+      "sku": "400.0R30.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0r30-75.html"
+    },
+    {
+      "sku": "400.1233.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-1233-75.html"
+    },
+    {
+      "sku": "400.1234.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-1234-75.html"
+    },
+    {
+      "sku": "400.2118.05",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "400.2118.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-2118-75.html"
+    },
+    {
+      "sku": "400.3453.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3453-75.html"
+    },
+    {
+      "sku": "400.3454.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3454-75.html"
+    },
+    {
+      "sku": "400.3455.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3455-75.html"
+    },
+    {
+      "sku": "400.3456.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3456-75.html"
+    },
+    {
+      "sku": "400.3457.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3457-75.html"
+    },
+    {
+      "sku": "400.3458.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3458-75.html"
+    },
+    {
+      "sku": "400.3553.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3553-75.html"
+    },
+    {
+      "sku": "400.3554.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3554-75.html"
+    },
+    {
+      "sku": "400.3713.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3713-75.html"
+    },
+    {
+      "sku": "400.3714.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3714-75.html"
+    },
+    {
+      "sku": "400.3715.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3715-75.html"
+    },
+    {
+      "sku": "400.3723.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3723-75.html"
+    },
+    {
+      "sku": "400.3724.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3724-75.html"
+    },
+    {
+      "sku": "41500CL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "41500CR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "41500DL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "41500DR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "500.0141.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0141-75.html"
+    },
+    {
+      "sku": "500.0161.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0161-75.html"
+    },
+    {
+      "sku": "500.0171.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0171-75.html"
+    },
+    {
+      "sku": "500.0179.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0179-75.html"
+    },
+    {
+      "sku": "500.0181.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0181-75.html"
+    },
+    {
+      "sku": "500.0186.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0186-75.html"
+    },
+    {
+      "sku": "500.0279.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0279-75.html"
+    },
+    {
+      "sku": "500.0280.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0280-75.html"
+    },
+    {
+      "sku": "500.0534.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0534-75.html"
+    },
+    {
+      "sku": "500.0535.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0535-75.html"
+    },
+    {
+      "sku": "500.0536.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0536-75.html"
+    },
+    {
+      "sku": "500.0537.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0537-75.html"
+    },
+    {
+      "sku": "500.0M73.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0m73-75.html"
+    },
+    {
+      "sku": "500.0N20.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0n20-75.html"
+    },
+    {
+      "sku": "500.0N24.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0n24-75.html"
+    },
+    {
+      "sku": "500.0U22.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0u22-75.html"
+    },
+    {
+      "sku": "500.0U84.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0u84-75.html"
+    },
+    {
+      "sku": "500.0U85.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0u85-75.html"
+    },
+    {
+      "sku": "500.0U86.75",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0u86-75.html"
+    },
+    {
+      "sku": "500.SC",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/500-sc.html"
+    },
+    {
+      "sku": "555NP31-B",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/screws/specialty/555np31-b-k.html"
+    },
+    {
+      "sku": "565NP35-B",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/screws/specialty/565np35-b-k.html"
+    },
+    {
+      "sku": "575.RC",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/accessories-tools/575-rc.html"
+    },
+    {
+      "sku": "5C36-K",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "600.0118.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0118-05.html"
+    },
+    {
+      "sku": "600.0119.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0119-05.html"
+    },
+    {
+      "sku": "600.0P29.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0p29-05.html"
+    },
+    {
+      "sku": "600.0P30.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0p30-05.html"
+    },
+    {
+      "sku": "600.0P32.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0p32-05.html"
+    },
+    {
+      "sku": "600.0P71.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0p71-05.html"
+    },
+    {
+      "sku": "600.0P72.05",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "600.0P73.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0p73-05.html"
+    },
+    {
+      "sku": "600.0P74.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0p74-05.html"
+    },
+    {
+      "sku": "600.0R22.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0r22-05.html"
+    },
+    {
+      "sku": "600.0R23.05",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "600.0R24.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0r24-05.html"
+    },
+    {
+      "sku": "600.0R25.05",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "600.0R30.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0r30-05.html"
+    },
+    {
+      "sku": "600.0R32.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0r32-05.html"
+    },
+    {
+      "sku": "600.1233.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-1233-05.html"
+    },
+    {
+      "sku": "600.1234.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-1234-05.html"
+    },
+    {
+      "sku": "600.2118.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-2118-05.html"
+    },
+    {
+      "sku": "600.3118.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3118-05.html"
+    },
+    {
+      "sku": "600.3453.65",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3453-65.html"
+    },
+    {
+      "sku": "600.3454.65",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3454-65.html"
+    },
+    {
+      "sku": "600.3455.65",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3455-65.html"
+    },
+    {
+      "sku": "600.3456.65",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3456-65.html"
+    },
+    {
+      "sku": "600.3457.65",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3457-65.html"
+    },
+    {
+      "sku": "600.3458.65",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3458-65.html"
+    },
+    {
+      "sku": "600.3459.65",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3459-65.html"
+    },
+    {
+      "sku": "600.3553.65",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3553-65.html"
+    },
+    {
+      "sku": "600.3554.65",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3554-65.html"
+    },
+    {
+      "sku": "600.3555.65",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3555-65.html"
+    },
+    {
+      "sku": "6390-058",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "6390-2C",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/compact-hinges/8390-2c.html"
+    },
+    {
+      "sku": "6390-716",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/compact-hinges/8390-716.html"
+    },
+    {
+      "sku": "700.0161.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0161-25.html"
+    },
+    {
+      "sku": "700.0171.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0171-25.html"
+    },
+    {
+      "sku": "700.0179.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0179-25.html"
+    },
+    {
+      "sku": "700.0181.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0181-25.html"
+    },
+    {
+      "sku": "700.0280.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0280-25.html"
+    },
+    {
+      "sku": "700.0534.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0534-25.html"
+    },
+    {
+      "sku": "700.0535.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0535-25.html"
+    },
+    {
+      "sku": "700.0536.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0536-25.html"
+    },
+    {
+      "sku": "700.0537.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0537-25.html"
+    },
+    {
+      "sku": "700.0M73.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0m73-05.html"
+    },
+    {
+      "sku": "700.0N20.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0n20-05.html"
+    },
+    {
+      "sku": "700.0N24.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0n24-05.html"
+    },
+    {
+      "sku": "700.0U84.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0u84-05.html"
+    },
+    {
+      "sku": "700.0U85.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0u85-05.html"
+    },
+    {
+      "sku": "700.0U86.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0u86-05.html"
+    },
+    {
+      "sku": "700.0U94.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0u94-05.html"
+    },
+    {
+      "sku": "700.CAP-HR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "700.L110.00",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-l110-00.html"
+    },
+    {
+      "sku": "700.RC",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/accessories-tools/700-rc.html"
+    },
+    {
+      "sku": "725.0171.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0171-25.html"
+    },
+    {
+      "sku": "725.0179.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0179-25.html"
+    },
+    {
+      "sku": "725.0181.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0181-25.html"
+    },
+    {
+      "sku": "725.0280.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0280-25.html"
+    },
+    {
+      "sku": "725.0534.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0534-25.html"
+    },
+    {
+      "sku": "725.0535.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0535-25.html"
+    },
+    {
+      "sku": "725.0536.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0536-25.html"
+    },
+    {
+      "sku": "725.0537.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0537-25.html"
+    },
+    {
+      "sku": "725.0M73.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0m73-05.html"
+    },
+    {
+      "sku": "725.0U22.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0u22-05.html"
+    },
+    {
+      "sku": "725.0U84.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0u84-05.html"
+    },
+    {
+      "sku": "725.0U85.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0u85-05.html"
+    },
+    {
+      "sku": "725.0U94.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0u94-05.html"
+    },
+    {
+      "sku": "725.L110.00",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-l110-00.html"
+    },
+    {
+      "sku": "7390.RC",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/compact-hinges/9390-rc.html"
+    },
+    {
+      "sku": "828.6250.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/accessories-tools/828-6250-05.html"
+    },
+    {
+      "sku": "8390",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "8390-058",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "85101CL",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/additional-products/door-drawer-bumpers/85101cl-k.html"
+    },
+    {
+      "sku": "85202CL",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/additional-products/door-drawer-bumpers/85202cl-k.html"
+    },
+    {
+      "sku": "85303CL",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/additional-products/door-drawer-bumpers/85303cl-k.html"
+    },
+    {
+      "sku": "8FW-B-K",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "8X012017QB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "8X034017QB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "8X158ZN",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/8x158zn-k.html"
+    },
+    {
+      "sku": "8X7160-500",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "900.0179.25",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "900.0181.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/clearance/european-hinges/900-0181-25.html"
+    },
+    {
+      "sku": "900.0280.25",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "900.0535.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0535-25.html"
+    },
+    {
+      "sku": "900.0536.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0536-05.html"
+    },
+    {
+      "sku": "900.0537.25",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0537-25.html"
+    },
+    {
+      "sku": "900.0U84.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0u84-05.html"
+    },
+    {
+      "sku": "900.0U85.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0u85-05.html"
+    },
+    {
+      "sku": "900.0U94.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0u94-05.html"
+    },
+    {
+      "sku": "900.0U99.05",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0u99-05.html"
+    },
+    {
+      "sku": "9212",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "9390",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "9390.RC",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/compact-hinges/9390-rc.html"
+    },
+    {
+      "sku": "9453007",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "9500PB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/functional-hardware/shutter-hardware/shutter-hinges/9500.html"
+    },
+    {
+      "sku": "9802AB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/functional-hardware/shutter-hardware/shutter-hinges/9802.html"
+    },
+    {
+      "sku": "B512-01",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "CENTERPIL",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/catalog/product/view/id/150482/s/centerpil/category/23/"
+    },
+    {
+      "sku": "CTOPSUP10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/catalog/product/view/id/150599/s/ctopsup10/category/23/"
+    },
+    {
+      "sku": "CTOPSUP15",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/catalog/product/view/id/150596/s/ctopsup15/category/23/"
+    },
+    {
+      "sku": "DG01",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS01-DBAC-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS01-PB-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS01-PC-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS01-SN-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS01-WH-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS02-DBAC-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS02-PB-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS02-PC-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS02-SN-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS03-DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS03-PB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS03-PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS03-SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS03-WH",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS04-DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS04-NI",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS04-PB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS04-WH",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS05-DBAC-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS05-NI-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "DS05-PB-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "EC01-DBAC-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "EC01-PB-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "EC01-ZN-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "FFC11BLK",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "FFC12BLK",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "FFS11",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HINGE_BORE",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HR7438",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HR7X50-B",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/screws/specialty/hr7x50-b-k.html"
+    },
+    {
+      "sku": "HR7X50P-B",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/screws/specialty/hr7x50p-b-k.html"
+    },
+    {
+      "sku": "HRB01-DBAC-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HRB01-PB-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HRB01-PC-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "HRB01-SN-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "ISC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "ISC-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "KFCE-A-ZN2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "KFCR-A-ZN2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "KFD1-A-ORB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD1-A-PB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD1-A-PC2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD1-A-SN2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD1-A-WH2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD2-A-ORB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD2-A-PB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD2-A-PC2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD2-A-SN2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD3-A-MB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD3-A-ORB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD3-A-PB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD3-A-PC2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD3-A-SN2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD3-A-WH2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD4-A-MB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD4-A-NI2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD4-A-ORB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD4-A-PB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD4-A-WH2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD5-A-NI2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD5-A-ORB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFD5-A-PB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFF11-A-ZN20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "KFF13-A-ZN20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "KFFBR-A-ZN20",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "KFHCN012-A-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHCN012-A-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHCN114-A-10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHCN114-A-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHCS012-B-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "KFHCS114-B-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "KFHI-A-AB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHI-A-MB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHI-A-ORB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHI-A-PB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHI-A-PC2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHI-A-SN2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHO-A-AB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHO-A-BB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHO-A-MB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHO-A-ORB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHO-A-PB2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHO-A-SN2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFHO-A-WH2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFR1-A-ORB1",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFR1-A-SN1",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFSBN18Z-A-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFSBN20Z-A-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFSBN22Z-A-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFSBNRB-A-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "KFSBS18Z-A-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFSBS20Z-A-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFSBS22Z-A-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFSBSRB-A-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "KFSCD-A-NI10",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFSCD-A-NI2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFSEN18Y-A-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFSEN20Y-A-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFSEN22Y-A-2",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/no-route"
+    },
+    {
+      "sku": "KFSENRB-A-2",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "LARM-110B",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "LARM-165.SFT",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/functional-hardware/cabinet-hinges/hinge-boring-machine-rams/larm-165-sft.html"
+    },
+    {
+      "sku": "P5011AB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html"
+    },
+    {
+      "sku": "P5011BB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html"
+    },
+    {
+      "sku": "P5011DACM",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html"
+    },
+    {
+      "sku": "P5011DBAC",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html"
+    },
+    {
+      "sku": "P5011PB",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html"
+    },
+    {
+      "sku": "P5011PC",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html"
+    },
+    {
+      "sku": "P5011SN",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html"
+    },
+    {
+      "sku": "P5011WH",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html"
+    },
+    {
+      "sku": "P5922AB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "P5922DACM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "P5922DACM-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "P5922DBAC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "P5922PB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "P5922PC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "P5922SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "PILBRK",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/catalog/product/view/id/150479/s/pilbrk/category/23/"
+    },
+    {
+      "sku": "PILDOWELS",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/catalog/product/view/id/150485/s/pildowels/category/23/"
+    },
+    {
+      "sku": "RC01-DBAC-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "RC01-PB-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "RC01-ZN-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "RH04-SN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "SP01-DBAC-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "SP01-PB-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "SP01-PC-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "SP01-SN-R",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TRK01-96BRN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TRK01-96WH",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TRK05-96",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "US-CLIP-2W-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "US-CLIP-4W-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "US-CLIP-4WZ-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "US-CLIP-NR-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USCLIP2ND-4WDB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USCLIP2ND-4WZDB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USCLIP2ND-6WZDB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USCLIP50024WDB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USCLIP50024WZDB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USCLIP50026WZDB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE-ADJ-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE-MDB-RAIL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE-STEEL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE-STEEL-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE12",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE15",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE18",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE21-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-21",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/functional-hardware/drawer-slides/undermount-slides/use58-4w.html"
+    },
+    {
+      "sku": "USE58-300-12-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-300-15-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-300-18-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-300-21-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-300-24-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-300-9-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-50-12-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-50-15-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-50-18",
+      "reason": "not-in-skus-map",
+      "url": "https://www.hardwareresources.com/functional-hardware/clearance/undermount-slides/use58-50.html"
+    },
+    {
+      "sku": "USE58-50-18-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-50-21-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-500-12-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-500-15-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-500-18-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-500-21-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USE58-500-24-DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAX2-12DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAX2-15DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAX2-18DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAX2-21DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAX2-24DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAX2-9DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAX2S-12DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAX2S-15DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAX2S-18DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAX2S-21DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAX2S-24DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAX2S-9DB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAXCLIP4WDB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAXCLIP4WZDB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAXCLIP6WZDB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "USMAXCLIPNDB",
+      "reason": "no-redirect"
+    }
+  ],
+  "mismatches": []
+}

@@ -1725,7 +1725,7 @@ ALTER TABLE products ADD CONSTRAINT products_status_check
 
 ALTER TABLE skus DROP CONSTRAINT IF EXISTS skus_status_check;
 ALTER TABLE skus ADD CONSTRAINT skus_status_check
-  CHECK (status IN ('active', 'draft', 'inactive'));
+  CHECK (status IN ('active', 'draft', 'inactive', 'special_order'));
 
 ALTER TABLE skus DROP CONSTRAINT IF EXISTS skus_sell_by_check;
 ALTER TABLE skus ADD CONSTRAINT skus_sell_by_check

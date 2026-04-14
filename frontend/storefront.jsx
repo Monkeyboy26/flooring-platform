@@ -77,7 +77,13 @@
       return val;
     }
     function priceSuffix(sku) {
-      if (isSoldPerUnit(sku)) return '/ea';
+      if (isSoldPerUnit(sku)) {
+        // Slab with per-sqft rate but no known area — show /sqft since piece price can't be computed
+        if (sku && (sku.price_basis === 'sqft' || sku.price_basis === 'per_sqft') && !(parseFloat(sku.sqft_per_box) > 0)) {
+          return '/sqft';
+        }
+        return '/ea';
+      }
       if (isSoldPerSqyd(sku)) return '/sqyd';
       return '/sqft';
     }
@@ -112,6 +118,25 @@
           u.searchParams.set('w', width);
           u.searchParams.set('quality', '80');
           return u.toString();
+        }
+        // MSI CDN: no native resize support — route through our resize proxy
+        // for webp conversion + right-sizing (raw images range 50KB–1.7MB).
+        if (url.includes('cdn.msisurfaces.com')) {
+          return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
+        }
+        // Salsify (Hardware Resources): route through our resize proxy.
+        // The URL format is Cloudinary-backed but signed, so inline transform
+        // injection is unsafe. Proxying gives us same-origin + disk cache.
+        if (url.includes('images.salsify.com')) {
+          return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
+        }
+        // Locally-scraped ROM440 (Hardware Resources) images: route through
+        // the resize proxy so we get webp + on-disk cache even for same-origin.
+        if (url.startsWith('/uploads/rom440/')) {
+          return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
+        }
+        if (url.includes('elysiumtile.com')) {
+          return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
         }
       } catch (e) { /* malformed URL — return as-is */ }
       return url;
@@ -297,6 +322,54 @@
       return (m && ROMAN_VAL[m[1]]) || 0;
     }
 
+    const _CATEGORY_SUFFIX_MAP = {
+      'engineered hardwood':'Engineered Hardwood','solid hardwood':'Solid Hardwood',
+      'hardwood':'Hardwood','waterproof wood':'Waterproof Wood',
+      'porcelain tile':'Porcelain Tile','ceramic tile':'Ceramic Tile','mosaic tile':'Mosaic Tile',
+      'natural stone':'Natural Stone Tile','backsplash tile':'Backsplash Tile',
+      'backsplash & wall tile':'Wall Tile','decorative tile':'Decorative Tile',
+      'pool tile':'Pool Tile','wood look tile':'Wood Look Tile',
+      'large format tile':'Large Format Tile','fluted tile':'Fluted Tile',
+      'commercial tile':'Commercial Tile',
+      'porcelain slabs':'Porcelain Slab',
+      'quartz countertops':'Quartz Countertop','quartz':'Quartz Countertop',
+      'granite countertops':'Granite Countertop','quartzite countertops':'Quartzite Countertop',
+      'marble countertops':'Marble Countertop','soapstone countertops':'Soapstone Countertop',
+      'prefabricated countertops':'Prefabricated Countertop','countertops':'Countertop',
+      'lvp (plank)':'Luxury Vinyl Plank','lvp':'Luxury Vinyl Plank',
+      'lvt (tile)':'Luxury Vinyl Tile','lvt':'Luxury Vinyl Tile',
+      'luxury vinyl':'Luxury Vinyl','spc':'SPC Vinyl','wpc':'WPC Vinyl',
+      'laminate':'Laminate','laminate flooring':'Laminate',
+      'carpet':'Carpet','carpet tile':'Carpet Tile',
+      'rubber flooring':'Rubber Flooring','artificial turf':'Artificial Turf',
+      'vanity':'Vanity','vanity tops':'Vanity Top','vanities':'Vanity',
+      'faucets':'Faucet','bathroom faucets':'Faucet','kitchen faucets':'Faucet',
+      'mirrors':'Mirror','sinks':'Sink','kitchen sinks':'Sink','bathroom sinks':'Sink',
+      'shower systems':'Shower System',
+      'transitions & moldings':'Molding','transitions':'Molding','moldings':'Molding',
+      'moulding':'Molding','wall base':'Wall Base','underlayment':'Underlayment',
+      'stair treads & nosing':'Stair Tread',
+      'hardscaping':'Paver','pavers':'Paver','stacked stone':'Stacked Stone',
+    };
+    function appendTypeSuffix(text, categoryName) {
+      if (!categoryName) return text;
+      const suffix = _CATEGORY_SUFFIX_MAP[categoryName.toLowerCase().trim()];
+      if (!suffix) return text;
+      const lower = text.toLowerCase();
+      const words = suffix.toLowerCase().split(/\s+/);
+      if (lower.includes(suffix.toLowerCase())) return text;
+      if (words.length > 1 && words.every(w => lower.includes(w))) return text;
+      return text + ' ' + suffix;
+    }
+    function stripTypeSuffix(text, categoryName) {
+      if (!categoryName) return text;
+      const suffix = _CATEGORY_SUFFIX_MAP[categoryName.toLowerCase().trim()];
+      if (!suffix) return text;
+      const escaped = suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp('\\s+' + escaped + '\\s*$', 'i');
+      return text.replace(re, '').trim();
+    }
+
     function fullProductName(sku) {
       const rawName = sku.product_name || '';
       const col = sku.collection || '';
@@ -304,6 +377,9 @@
 
       // Strip leading size prefix from product name (e.g. "12x24r Marble Onice Supreme Marfil" → "Marble Onice Supreme Marfil")
       name = name.replace(/^\d+\s*[xX×]\s*\d+\w?\s+/, '');
+      // Strip trailing category suffix so we can re-append it at the very end,
+      // after variant/size info (avoids "Acqua Ceramic Tile 24x24" → want "Acqua 24x24 Ceramic Tile")
+      name = stripTypeSuffix(name, sku.category_name);
 
       // If collection name appears inside product name, remove it to avoid repetition
       // e.g. name="Marble Onice Supreme Marfil", col="Onice Supreme" → "Marble Marfil"
@@ -320,6 +396,15 @@
         } else if (nameLower.includes(' ' + colLower + ' ') || nameLower.endsWith(' ' + colLower)) {
           // Collection name embedded in middle/end of product name — skip collection display
           showCollection = '';
+        } else if (/\b(series|collection|edition)\b/i.test(name)) {
+          // Product name is self-identifying (e.g. "Bohol Series", "Carrara Collection")
+          // Skip the broader collection/category prefix to avoid "Pool Tile Bohol Series"
+          // Include the Color attribute so the title reflects which color variant is shown
+          // e.g. "Hex Series — Black Matte", "Joya Series — Verde"
+          showCollection = '';
+          const colorAttr = (sku.attributes || []).find(a => a.slug === 'color');
+          const _earlyResult = colorAttr && colorAttr.value ? name + ' — ' + colorAttr.value : name;
+          return appendTypeSuffix(_earlyResult, sku.category_name);
         } else {
           showCollection = col;
         }
@@ -331,9 +416,9 @@
         const vLower = sku.variant_name.toLowerCase().trim();
         const pLower = rawName.toLowerCase();
         const nLower = name.toLowerCase();
-        if (vLower.startsWith(pLower + ' ')) {
-          // variant_name = "Cement 12X24" when product_name = "Cement" → show just "12X24"
-          const suffix = sku.variant_name.substring(rawName.length + 1).trim();
+        if (vLower.startsWith(pLower + ' ') || vLower.startsWith(pLower + ',') || vLower.startsWith(pLower + '-')) {
+          // variant_name starts with product_name + separator → strip prefix, keep the rest
+          const suffix = sku.variant_name.replace(new RegExp('^' + rawName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\s,\\-]+', 'i'), '').trim();
           variant = suffix ? formatVariantName(suffix) : null;
         } else if (pLower.startsWith(vLower + ' ') || pLower === vLower) {
           // product_name already contains variant info
@@ -345,7 +430,25 @@
           variant = formatVariantName(sku.variant_name);
         }
       }
-      return [showCollection, name, variant].filter(Boolean).join(' ');
+      // When variant_name only carries the color, supplement with size/thickness
+      // so the title distinguishes between variants (e.g. "Alpine Ivory 2CM" or "Alpine Ivory 108×42")
+      if (sku.attributes) {
+        const colorAttr = (sku.attributes || []).find(a => a.slug === 'color');
+        const variantIsColor = colorAttr && variant && variant.toLowerCase() === formatVariantName(colorAttr.value).toLowerCase();
+        const variantIsEmpty = !variant && colorAttr && rawName.toLowerCase().includes(colorAttr.value.toLowerCase());
+        if (variantIsColor || variantIsEmpty) {
+          const sizeAttr = (sku.attributes || []).find(a => a.slug === 'size');
+          const thicknessAttr = (sku.attributes || []).find(a => a.slug === 'thickness');
+          const patternAttr = (sku.attributes || []).find(a => a.slug === 'pattern');
+          const extras = [patternAttr, sizeAttr, thicknessAttr].filter(Boolean).map(a => a.value);
+          if (extras.length > 0) {
+            const suffix = extras.join(' ');
+            variant = variant ? variant + ' ' + suffix : suffix;
+          }
+        }
+      }
+      const result = [showCollection, name, variant].filter(Boolean).join(' ');
+      return appendTypeSuffix(result, sku.category_name);
     }
 
     function cleanDescription(text, vendorName) {
@@ -3522,6 +3625,11 @@
           </div>
           <div className="sku-card-name">{fullProductName(sku)}</div>
           {sku.vendor_name && <div className="sku-card-vendor">{sku.vendor_name}</div>}
+          {sku.variant_count > 1 && (
+            <div className="sku-card-options">
+              {sku.variant_count} {(sku.attributes || []).some(a => a.slug === 'color') ? 'colors' : 'options'}
+            </div>
+          )}
           <div className="sku-card-price">
             {price ? (
               <>
@@ -3597,6 +3705,7 @@
 
       useEffect(() => {
         setLoading(true);
+        setFetchError(null);
         setSelectedImage(0);
         setAccessoryQtys({});
         const headers = {};
@@ -3778,6 +3887,10 @@
       const isPerUnit = sku && isSoldPerUnit(sku);
       const hasBoxCalc = !isPerUnit && sqftPerBox > 0;
       const isSqftNoBox = !isPerUnit && sqftPerBox <= 0;
+      // Use "sheet" for individually-sold tiles (small coverage, no pieces_per_box)
+      const isSheetUnit = hasBoxCalc && sqftPerBox < 4 && !sku.pieces_per_box;
+      const boxLabel = isSheetUnit ? 'sheet' : 'box';
+      const boxLabelPlural = isSheetUnit ? 'sheets' : 'boxes';
       const unitSubtotal = unitQty * effectivePrice;
       const sqftOnlySubtotal = (parseFloat(sqftInput) || 0) * effectivePrice;
 
@@ -3935,7 +4048,9 @@
         </div>
       );
 
-      if (loading) return (
+      // Only show skeleton on initial load (no previous sku data).
+      // When switching variants, keep existing content visible while fetching.
+      if (loading && !sku) return (
         <div className="sku-detail" style={{ minHeight: '80vh' }}>
           <div className="breadcrumbs">
             <div style={{ width: 60, height: 12, background: 'var(--stone-100)', borderRadius: 2 }}/>
@@ -3963,14 +4078,32 @@
 
       // Separate accessories from regular siblings
       const mainSiblings = siblings.filter(s => s.variant_type !== 'accessory');
-      const accessorySiblings = siblings.filter(s => s.variant_type === 'accessory');
+      const allAccessories = siblings.filter(s => s.variant_type === 'accessory');
+
+      // Filter accessories to only show ones matching the current SKU's color
+      let accessorySiblings = allAccessories;
+      if (allAccessories.length > 0) {
+        const vsku = (sku.vendor_sku || '').toUpperCase();
+        const mainMatch = vsku.match(/^(?:P-)?(?:VTR|VTW|QUTR|QUPO)(?:XL)?(?:HD)?([A-Z]+)/);
+        if (mainMatch && mainMatch[1] && mainMatch[1].length >= 3) {
+          const mainColor = mainMatch[1];
+          const matched = allAccessories.filter(acc => {
+            const asku = (acc.vendor_sku || acc.internal_sku || '').toUpperCase();
+            const accMatch = asku.match(/^(?:P-|MSI-)?(?:P-)?VTT(?:HD)?([A-Z]+)-/) || asku.match(/^(?:P-|MSI-)?TT([A-Z]+)-/);
+            if (!accMatch || !accMatch[1]) return true;
+            const accColor = accMatch[1];
+            return accColor.includes(mainColor) || mainColor.includes(accColor);
+          });
+          if (matched.length > 0) accessorySiblings = matched;
+        }
+      }
 
       // ADEX products use a 3-row variant selector (Color / Finish / Type) + grouped collection siblings
       const isAdexProduct = /adex/i.test(sku.vendor_name || '');
 
       return (
         <>
-          <div className="sku-detail" data-sku={sku.vendor_sku || sku.internal_sku}>
+          <div className="sku-detail" data-sku={sku.vendor_sku || sku.internal_sku} style={loading ? { opacity: 0.6, pointerEvents: 'none', transition: 'opacity 0.15s ease' } : { opacity: 1, transition: 'opacity 0.15s ease' }}>
             <div className="breadcrumbs">
               <a onClick={goBack}>Shop</a>
               <span>/</span>
@@ -3995,8 +4128,8 @@
 
               {/* Specs Table — below gallery */}
               {(() => {
-                const HIDDEN_SLUGS = new Set(['price_list', 'material_class', 'style_code', 'companion_skus', 'subcategory', 'brand', 'msrp', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number']);
-                const ORDER = ['_collection', '_category', 'collection', 'species', 'color', 'color_code', 'application', 'fiber', 'material', 'construction', 'finish', 'style', 'pattern', 'size', 'thickness', 'width', 'wear_layer', 'weight', 'weight_per_sqyd', 'roll_width', 'roll_length'];
+                const HIDDEN_SLUGS = new Set(['price_list', 'material_class', 'style_code', 'companion_skus', 'subcategory', 'msrp', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number']);
+                const ORDER = ['_collection', '_category', '_sku', 'collection', 'species', 'color', 'color_code', 'brand', 'application', 'fiber', 'material', 'construction', 'finish', 'style', 'pattern', 'size', 'thickness', 'width', 'wear_layer', 'weight', 'weight_per_sqyd', 'roll_width', 'roll_length'];
                 const slugMap = {};
                 (sku.attributes || []).forEach(a => { slugMap[a.slug] = (a.value || '').trim(); });
                 const redundantSlugs = new Set();
@@ -4017,17 +4150,28 @@
                   if (bi >= 0) return 1;
                   return a.name.localeCompare(b.name);
                 });
-                // Inject collection if not already an attribute
-                if (sku.collection && !slugMap.collection) {
-                  sorted.unshift({ slug: '_collection', name: 'Collection', value: sku.collection });
+                // Inject Collection — use product_name when collection matches category (e.g. both "Pool Tile")
+                // so the real series identity shows (e.g. "Joya Series" instead of "Pool Tile")
+                if (!slugMap.collection) {
+                  const collectionVal = (sku.collection && sku.category_name && sku.collection === sku.category_name)
+                    ? sku.product_name
+                    : sku.collection;
+                  if (collectionVal) sorted.unshift({ slug: '_collection', name: 'Collection', value: collectionVal });
                 }
-                // Inject category
-                if (sku.category_name) {
-                  const insertIdx = sorted.findIndex(a => a.slug === '_collection') >= 0 ? 1 : 0;
+                // Inject Category — skip when it would duplicate the Collection row
+                const injectedCollection = sorted.find(a => a.slug === '_collection');
+                if (sku.category_name && (!injectedCollection || injectedCollection.value !== sku.category_name)) {
+                  const insertIdx = injectedCollection ? 1 : 0;
                   sorted.splice(insertIdx, 0, { slug: '_category', name: 'Category', value: sku.category_name });
                 }
+                // Inject vendor SKU
+                if (sku.vendor_sku) {
+                  const afterCat = sorted.findIndex(a => a.slug === '_category');
+                  sorted.splice(afterCat >= 0 ? afterCat + 1 : (injectedCollection ? 1 : 0), 0, { slug: '_sku', name: 'SKU', value: sku.vendor_sku });
+                }
+                // Inject brand from price_list attribute if brand isn't already visible
                 const priceListAttr = (sku.attributes || []).find(a => a.slug === 'price_list');
-                if (priceListAttr && priceListAttr.value) {
+                if (priceListAttr && priceListAttr.value && !slugMap.brand) {
                   const brandLine = priceListAttr.value.replace(/\s+\d+$/, '');
                   const ccIdx = sorted.findIndex(a => a.slug === 'color_code');
                   sorted.splice(ccIdx >= 0 ? ccIdx + 1 : sorted.length, 0, { slug: '_brand', name: 'Brand', value: brandLine });
@@ -4081,6 +4225,11 @@
               <h1 className="sku-detail-title-row">
                 {fullProductName(sku)}
               </h1>
+              {sku.vendor_sku && (
+                <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '0.03em', marginTop: '0.25rem' }}>
+                  SKU: {sku.vendor_sku}
+                </div>
+              )}
 
               {productTags.length > 0 && (
                 <div className="product-tag-badges">
@@ -4324,10 +4473,71 @@
                   }
                 }
 
-                const colorItems = collectionSiblings.length > 0 ? [
-                  { sku_id: sku.sku_id, product_name: sku.product_name, primary_image: (media && media[0]) ? media[0].url : null, is_current: true },
-                  ...collectionSiblings
-                ] : [];
+                // Build colorItems for the Color swatch row.
+                //
+                // Preferred source: same-product siblings with a Color attribute.
+                // For properly-grouped products (e.g. Fujiwa Bohol Hills/Lake, Joya
+                // Verde/Albi/Gold/Cotto), each color is its own SKU sharing the
+                // same product_id. We pick one representative SKU per distinct
+                // color (preferring one that matches the current Size if present)
+                // so the swatch row doesn't duplicate when a product has both
+                // Color × Size dimensions.
+                //
+                // Fallback: collection siblings, but ONLY when they clearly
+                // represent the same base product (Roman-numeral variants like
+                // James Martin, or a single shared name), never when collection
+                // is a broad category like "Pool Tile" with 64 unrelated series.
+                let colorItems = [];
+                const currentColorVal = currentAttrs['color'];
+                const currentSizeVal = currentAttrs['size'];
+                const distinctSiblingColors = new Set(
+                  mainSiblings
+                    .map(s => (s.attributes || []).find(a => a.slug === 'color'))
+                    .filter(Boolean)
+                    .map(a => a.value)
+                );
+                if (currentColorVal && distinctSiblingColors.size > 0) {
+                  // Build one entry per distinct color
+                  const byColor = new Map();
+                  // Current SKU first
+                  byColor.set(currentColorVal, {
+                    sku_id: sku.sku_id,
+                    product_name: currentColorVal,
+                    primary_image: (media && media[0]) ? media[0].url : null,
+                    is_current: true,
+                  });
+                  mainSiblings.forEach(s => {
+                    const attrs = (s.attributes || []);
+                    const ca = attrs.find(a => a.slug === 'color');
+                    const sa = attrs.find(a => a.slug === 'size');
+                    if (!ca) return;
+                    const color = ca.value;
+                    if (color === currentColorVal) return;
+                    const existing = byColor.get(color);
+                    // Prefer a sibling whose Size matches the current SKU's Size
+                    const matchesCurrentSize = sa && sa.value === currentSizeVal;
+                    if (!existing || (matchesCurrentSize && !existing._sizeMatched)) {
+                      byColor.set(color, {
+                        sku_id: s.sku_id,
+                        product_name: color,
+                        primary_image: s.primary_image || s.sku_image || null,
+                        is_current: false,
+                        _sizeMatched: !!matchesCurrentSize,
+                      });
+                    }
+                  });
+                  colorItems = [...byColor.values()];
+                } else {
+                  // Fallback to collection siblings for ADEX-style shared-name products
+                  const siblingNameSet = new Set(collectionSiblings.map(s => s.product_name));
+                  const hasRomanSibling = [...siblingNameSet].some(n => hasRomanSuffix(n));
+                  const sharesNameWithCurrent = siblingNameSet.has(sku.product_name);
+                  const treatAsColorVariants = hasRomanSibling || sharesNameWithCurrent || siblingNameSet.size <= 6;
+                  colorItems = treatAsColorVariants && collectionSiblings.length > 0 ? [
+                    { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: (media && media[0]) ? media[0].url : null, is_current: true },
+                    ...collectionSiblings
+                  ] : [];
+                }
                 // Build attrMap from collection-wide attributes so pills persist across color switches
                 const attrMap = {};
                 const caData = collectionAttributes || {};
@@ -4373,14 +4583,17 @@
                           </div>
                         ) : (
                           <div className="color-swatches">
-                            {colorItems.map(c => (
+                            {colorItems.map(c => {
+                              const label = c.color || c.variant_name || c.product_name;
+                              return (
                               <div key={c.sku_id} className="color-swatch-wrap" onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
                                 <div className={'color-swatch' + (c.is_current ? ' active' : '')}>
-                                  {c.primary_image ? <img src={optimizeImg(c.primary_image, 120)} alt={c.product_name} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)' }} />}
+                                  {c.primary_image ? <img src={optimizeImg(c.primary_image, 120)} alt={label} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)' }} />}
                                 </div>
-                                <div className="color-swatch-tooltip">{c.product_name}</div>
+                                <div className="color-swatch-tooltip">{label}</div>
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -4388,18 +4601,18 @@
                     {showAttrs && attrSlugs.map(slug => {
                       const allValues = [...attrMap[slug].values].sort(sizeSort);
                       const currentVal = currentAttrs[slug];
-                      // Filter values: only show values that exist in siblings matching current selections of OTHER attributes
-                      const values = allValues.filter(val => {
+                      // Compute which values are compatible with current selections of OTHER attributes
+                      const compatibleValues = new Set(allValues.filter(val => {
                         return allSiblings.some(s => {
                           const sa = (s.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
                           if (sa[slug] !== val) return false;
                           return attrSlugs.every(otherSlug => {
                             if (otherSlug === slug) return true;
-                            return !currentAttrs[otherSlug] || sa[otherSlug] === currentAttrs[otherSlug];
+                            return !currentAttrs[otherSlug] || !sa[otherSlug] || sa[otherSlug] === currentAttrs[otherSlug];
                           });
                         });
-                      });
-                      if (values.length <= 1 && !currentVal) return null;
+                      }));
+                      if (allValues.length <= 1 && !currentVal) return null;
                       const findBest = (val) => {
                         // Only consider siblings that match the target attribute value
                         const matching = allSiblings.filter(s => {
@@ -4418,8 +4631,13 @@
                         });
                         return scored.sort((a, b) => b.score - a.score)[0];
                       };
-                      // Use image swatches for countertop_finish and finish (vanity tops)
-                      const useImageSwatches = (slug === 'countertop_finish' || slug === 'finish') && values.length <= 10;
+                      // Image swatches for visually-distinct attributes where each variant looks different
+                      const IMAGE_SWATCH_ATTRS = new Set(['countertop_finish', 'pattern']);
+                      // finish gets image swatches only for vanity tops (where it means cabinet color)
+                      const useImageSwatches = (
+                        IMAGE_SWATCH_ATTRS.has(slug) ||
+                        (slug === 'finish' && attrMap['countertop_finish'])
+                      ) && allValues.length <= 10;
                       const getSwatchImage = (val) => {
                         if (val === currentVal) {
                           if (slug === 'countertop_finish' && countertopImage) return countertopImage;
@@ -4433,22 +4651,24 @@
                       return (
                         <div key={slug} className="variant-selector-group">
                           <div className="variant-selector-label">{slug === 'finish' && attrMap['countertop_finish'] ? 'Cabinet Color' : slug === 'countertop_finish' ? 'Countertop' : attrMap[slug].name}<span>{formatCarpetValue(currentVal || '')}</span></div>
-                          {values.length > 10 ? (
+                          {allValues.length > 10 ? (
                             <select className="attr-select" value={currentVal || ''} onChange={(e) => {
+                              if (!compatibleValues.has(e.target.value)) return;
                               const best = findBest(e.target.value);
                               if (best) onSkuClick(best.sku_id);
                             }}>
-                              {values.map(val => <option key={val} value={val}>{formatCarpetValue(val)}</option>)}
+                              {allValues.map(val => <option key={val} value={val} disabled={!compatibleValues.has(val)}>{formatCarpetValue(val)}{!compatibleValues.has(val) ? ' (unavailable)' : ''}</option>)}
                             </select>
                           ) : useImageSwatches ? (
                             <div className="color-swatches">
-                              {values.map(val => {
+                              {allValues.map(val => {
                                 const isActive = val === currentVal;
+                                const isDisabled = !compatibleValues.has(val);
                                 const img = getSwatchImage(val);
                                 const best = findBest(val);
                                 return (
-                                  <div key={val} className="color-swatch-wrap" onClick={() => { if (!isActive && best) onSkuClick(best.sku_id); }}>
-                                    <div className={'color-swatch' + (isActive ? ' active' : '')}>
+                                  <div key={val} className={'color-swatch-wrap' + (isDisabled ? ' disabled' : '')} onClick={() => { if (!isActive && !isDisabled && best) onSkuClick(best.sku_id); }}>
+                                    <div className={'color-swatch' + (isActive ? ' active' : '') + (isDisabled ? ' disabled' : '')}>
                                       {img ? <img src={optimizeImg(img, 120)} alt={formatCarpetValue(val)} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--stone-500)', textAlign: 'center', padding: '0.25rem' }}>{formatCarpetValue(val)}</div>}
                                     </div>
                                     <div className="color-swatch-tooltip">{formatCarpetValue(val)}</div>
@@ -4458,11 +4678,12 @@
                             </div>
                           ) : (
                             <div className="attr-pills">
-                              {values.map(val => {
+                              {allValues.map(val => {
                                 const isActive = val === currentVal;
+                                const isDisabled = !compatibleValues.has(val);
                                 const best = findBest(val);
                                 return (
-                                  <button key={val} className={'attr-pill' + (isActive ? ' active' : '')} onClick={() => { if (!isActive && best) onSkuClick(best.sku_id); }}>
+                                  <button key={val} className={'attr-pill' + (isActive ? ' active' : '') + (isDisabled ? ' disabled' : '')} onClick={() => { if (!isActive && !isDisabled && best) onSkuClick(best.sku_id); }}>
                                     {formatCarpetValue(val)}
                                   </button>
                                 );
@@ -4552,10 +4773,10 @@
               {!isCarpetSku && sqftPerBox > 0 && (
                 <div className="packaging-info">
                   <h4>Packaging Details</h4>
-                  <div>Coverage: {sqftPerBox} sqft/box</div>
-                  {sku.pieces_per_box && <div>Pieces: {sku.pieces_per_box}/box</div>}
-                  {sku.weight_per_box_lbs && <div>Weight: {parseFloat(sku.weight_per_box_lbs).toFixed(1)} lbs/box</div>}
-                  {sku.boxes_per_pallet && <div>Pallet: {sku.boxes_per_pallet} boxes ({parseFloat(sku.sqft_per_pallet || 0).toFixed(0)} sqft)</div>}
+                  <div>Coverage: {sqftPerBox} sqft/{boxLabel}</div>
+                  {sku.pieces_per_box && <div>Pieces: {sku.pieces_per_box}/{boxLabel}</div>}
+                  {sku.weight_per_box_lbs && <div>Weight: {parseFloat(sku.weight_per_box_lbs).toFixed(1)} lbs/{boxLabel}</div>}
+                  {sku.boxes_per_pallet && <div>Pallet: {sku.boxes_per_pallet} {boxLabelPlural} ({parseFloat(sku.sqft_per_pallet || 0).toFixed(0)} sqft)</div>}
                 </div>
               )}
 
@@ -4719,7 +4940,7 @@
                         value={sqftInput} onChange={(e) => handleSqftChange(e.target.value)} />
                     </div>
                     <div className="calc-input-group">
-                      <label>Boxes</label>
+                      <label>{isSheetUnit ? 'Sheets' : 'Boxes'}</label>
                       <input className="calc-input" type="number" min="0" step="1" placeholder="0"
                         value={boxesInput} onChange={(e) => handleBoxesChange(e.target.value)} />
                     </div>
@@ -4730,7 +4951,7 @@
                   </label>
                   {numBoxes > 0 && (
                     <div className="calc-summary">
-                      <div className="calc-summary-row"><span>Boxes Needed</span><span>{numBoxes}</span></div>
+                      <div className="calc-summary-row"><span>{isSheetUnit ? 'Sheets' : 'Boxes'} Needed</span><span>{numBoxes}</span></div>
                       <div className="calc-summary-row"><span>Total Coverage</span><span>{actualSqft.toFixed(1)} sqft</span></div>
                       {numBoxes > 0 && sku.weight_per_box_lbs && (
                         <div className="calc-summary-row"><span>Est. Weight</span><span>{(numBoxes * parseFloat(sku.weight_per_box_lbs)).toFixed(0)} lbs</span></div>

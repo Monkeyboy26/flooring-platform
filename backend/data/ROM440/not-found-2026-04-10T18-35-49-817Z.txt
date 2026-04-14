@@ -1,0 +1,44 @@
+BASE5-HMP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/base/base5-61071-28.html
+BM3CH	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/bm3.html
+CONCOV-5-HMP	no-redirect	
+CONCR4-HMP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/concrcov.html
+CONCR5-HMP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/concrcov.html
+COV-6-OK	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/cove-crown.html
+DC2HMP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/dentil-crown.html
+DEN18OK	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/den18.html
+DEN1HMP	no-redirect	
+DEN21CH	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/den21.html
+DEN21POP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/den21.html
+FLT3ALD	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/columns/flt.html
+LR001-CH	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/light-rail/lr001.html
+LR002-HMP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/light-rail/lr002.html
+LR005-F-CH	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/light-rail/lr005-f.html
+LR005-F-POP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/light-rail/lr005-f.html
+MC4HMP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/rope-crown.html
+MC4POP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/rope-crown.html
+MC5BCH	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/corner/mc5b.html
+MC5POP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/corner/mc5.html
+MC7ALD	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/cove-crown.html
+MC9ALD	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/cove-crown.html
+OME-RMH14HMP-RL	no-redirect	
+RC2CH	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/rope-crown.html
+RMH12THMP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/rope/rmht.html
+RMH12TOK	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/rope/rmht.html
+RMH250BHMP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/rope/rmhb.html
+RMH250OK	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/columns/rmh.html
+RMH34THMP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/rope/rmht.html
+RMH58TOK	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/rope/rmht.html
+SC11OK	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html
+SC14ALD	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html
+SC14OK	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html
+SC1ALD	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html
+SC2ALD	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html
+SC2HMP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html
+SC2OK	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html
+SC2POP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html
+SC2R-HMP	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/rope-crown.html
+SC3ALD	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html
+SC3OK	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html
+SC5CH	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html
+SC5OK	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/crown/standard-crown.html
+STMW-ALD	not-in-skus-map	https://www.hardwareresources.com/decorative-wood-moulding/moulding/shelf-stemware/stmw.html

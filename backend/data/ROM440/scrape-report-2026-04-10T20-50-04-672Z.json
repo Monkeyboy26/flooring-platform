@@ -1,0 +1,2654 @@
+{
+  "startedAt": "2026-04-10T19:08:54.389Z",
+  "finishedAt": "2026-04-10T20:50:04.673Z",
+  "elapsedMs": 6070276,
+  "dryRun": false,
+  "filters": {
+    "LIMIT": null,
+    "ONLY": null,
+    "CATEGORY": "Vanity"
+  },
+  "totals": {
+    "processed": 832,
+    "primary": 180,
+    "alternate": 479,
+    "spec": 180,
+    "notFound": 652,
+    "mismatches": 0,
+    "skipped": 683,
+    "uniquePages": 142,
+    "pageFetches": 142,
+    "pageCacheHits": 6,
+    "imageDownloads": 643
+  },
+  "byClass": {
+    "Vanity": {
+      "processed": 832,
+      "primary": 180,
+      "alternate": 479,
+      "spec": 180,
+      "skipped": 683
+    }
+  },
+  "notFound": [
+    {
+      "sku": "MIR2ADL-24-BL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2ADL-24-GN",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "MIR2AST-22-ES",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2AST-28-ES",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2CAD-33-BS",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2CLA-24-NU",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2COM-44-WA",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2DOU-20-BL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2DOU-42-BK",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2DOU-42-BL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2DOU-42-GN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2DOU-42-WH",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2JEN-22-BK",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2JEN-22-BL",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2JEN-22-GN",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2JEN-22-GR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "MIR2JEN-22-WH",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "SSPLASH21BG",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/ssplash21.html"
+    },
+    {
+      "sku": "SSPLASH21CQ",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/ssplash21.html"
+    },
+    {
+      "sku": "SSPLASH21GQ",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/ssplash21.html"
+    },
+    {
+      "sku": "SSPLASH21LS",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/ssplash21.html"
+    },
+    {
+      "sku": "SSPLASH21MG",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/ssplash21.html"
+    },
+    {
+      "sku": "SSPLASH21WC",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/ssplash21.html"
+    },
+    {
+      "sku": "SSPLASH21WQ",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/ssplash21.html"
+    },
+    {
+      "sku": "TKIT19RER-1",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT25BGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT25BGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT25BOO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT25BOR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT25BQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT25CQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT25CQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT25GQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT25GQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT25LSO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT25LSR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT25MGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT25MGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT25RER",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT25SGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT25SGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT25WCO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT25WCR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT25WQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT25WQR-1",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT3119RER-1",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT31BGCLAO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31BGCLAR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31BGCOMO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31BGCOMR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31BGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31BGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT31BOO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31BOR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT31BQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31BQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT31CQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31CQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT31GQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31GQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT31LSO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31LSR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT31MGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31MGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT31RER",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT31SGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31SGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT31WCCOMO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31WCCOMR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31WCO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT31WCR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT31WQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT31WQR-1",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT3719RER-1",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37BGASTO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37BGASTR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37BGCADADDO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37BGCADADDR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37BGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37BGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37BOASTR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37BOCADADDO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37BOCADADDR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37BOO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37BOR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37BQASTO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37BQASTR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37BQCADADDO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37BQCADADDR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37BQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37BQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37CQASTO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37CQASTR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37CQCADADDO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37CQCADADDR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37CQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37CQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37GQASTO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37GQASTR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37GQCADADDO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37GQCADADDR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37GQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37GQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37LAASTR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37LSASTO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37LSASTR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37LSCADADDO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37LSCADADDR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37LSO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37LSR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37MGASTO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37MGASTR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37MGCADADDO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37MGCADADDR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37MGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37MGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37RER",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37RER-LFT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37SGASTO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37SGASTR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37SGCADADDO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37SGCADADDR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37SGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37SGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37WCASTO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37WCASTR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37WCCADADDO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37WCCADADDR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37WCO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT37WCR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37WQCADADDR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT37WQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT43BGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT43BGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT43BQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT43CQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT43CQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT43GQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT43GQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT43LSR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT43MGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT43MGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT43RER",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT43WCO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT43WCR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT43WQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT4919RER-1",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT49BGCOMO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT49BGCOMR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT49BGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT49BGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT49BOO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT49BOR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT49BQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT49BQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT49CQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT49CQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT49GQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT49GQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT49LSO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT49LSR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT49MGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT49MGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT49RER",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT49SGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT49SGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT49WCCOMR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT49WCO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT49WCR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT49WQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61BGCLAO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61BGCLAR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61BGCOM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61BGCOMR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61BGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61BGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61BOO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61BOR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61BQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61BQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61CQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61CQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61GQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61GQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61LSO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61LSR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61MGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61MGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61RER",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61SBGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61SBGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61SBOO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61SBOR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61SBQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61SBQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61SCQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61SCQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61SGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61SGQO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61SGQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61SGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61SLSO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61SLSR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61SMGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61SMGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61SRER",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61SSGO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61SSGR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61SWCO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61SWCR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61SWQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61WCCLAO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61WCCLAR",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61WCCOMO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61WCO",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TKIT61WCR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TKIT61WQR",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "TOPO25WC",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO31BGCLA",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO31BGCOM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO31CQ",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO31WCCOM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO37BGAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO37BQAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO37CQAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO37GQAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO37LSAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO37MGAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO37SGAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO37WCAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO43BG-LFT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO43BQ-LFT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO43CQ-LFT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO43GQ-LFT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO43MG-LFT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO43WC-LFT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO49BGCOM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO61BGCLA",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO61BGCOM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO61WCCLA",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPO61WCCOM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR19RE-1",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR25WQ",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR25WQ-1",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR3119RE-1",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR31BGCLA",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR31BGCOM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR31WCCOM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR31WQ-1",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR3719RE-1",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR37BGAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR37BOAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR37BQAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR37CQAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR37GQAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR37LAAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR37LSAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR37MGAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR37SGAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR37WCAST",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR37WQ",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR37WQCAD-ADD",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR43BG-LFT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR43CQ-LFT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR43GQ-LFT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR43LS-LFT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR43MG-LFT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR43WC-LFT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR43WQ-LFT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR4919RE-1",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR49BGCOM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR49WCCOM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR49WQ",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR61BGCLA",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR61BGCOM",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR61SMG",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR61SWQ",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR61WCCLA",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "TOPR61WQ",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VMIR-METC-30BG",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VMIR-METC-30MB",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VMIR-METC-30SBZ",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VMIR-METC-30SN",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VMIR-METR-22BG",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VMIR-METR-22MB",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VMIR-METR-22SBZ",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VMIR-METR-22SN",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VMIR-METR-24BG",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VMIR-METR-24MB",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VMIR-METR-24SBZ",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VMIR-METR-24SN",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VMIR-METR-33BG",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VMIR-METR-33MB",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VMIR-METR-33SBZ",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VMIR-METR-33SN",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2-OVAL-15",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2-RECT-16",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2-RECT-19",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2ADD-24-GR-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2ADD-24-WH-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2ADD-30-GR-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2ADD-30-WH-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2ADD-60-GR-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2ADD-60-WH-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2ADL-30-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2ADL-30-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2ADL-36-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2ADL-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2ADL-60-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2ADL-60-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2ADL-60-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2AST-24-ES-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2AST-24-GR-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2AST-24-WH-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2AST-30-ES-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2AST-30-GR-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2AST-30-WH-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2AST-36-GR-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2AST-48-ES-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2AST-48-GR-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2CAD-18-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-18-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-24-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-24-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-24-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-30-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-30-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-30-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-36-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-36-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-36-GN-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-36-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-48-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-48-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-48-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-48-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-60-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-60-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CAD-60-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-18-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-18-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-18-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-24-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-24-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-24-CH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-24-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-24-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-30-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-30-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-30-CH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-30-GN-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-30-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-30-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-36-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-36-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-36-CH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-36-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-48-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-48-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-48-CH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-48-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-48-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-60-CH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-60-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-60-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-60SCH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-60SGR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CHA-60SWH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2CLA-60-NU-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2COM-30-WH-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2COM-48-WA-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2COM-48-WH-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2COM-60-WA-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2COM-60-WH-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2DAS-24-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-24-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-24-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-30-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-30-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-30-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-30-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-36-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-36-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-36-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-42-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-42-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-42-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-48-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-48-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-48-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-48-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-60-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-60-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DAS-60-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2DOU-24-BK-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2DOU-24-BL-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2DOU-24-WH-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2DOU-30-BL-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2GAR-30-BS-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2GAR-30-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2GAR-30-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2GAR-30-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2GAR-36-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2GAR-36-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2GAR-36-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2GAR-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2GAR-48-BS-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2GAR-48-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2GAR-48-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2GAR-48-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-24-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-24-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-24-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-24-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-24-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-30-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-30-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-30-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-30-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-30-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-36-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-36-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-36-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-36-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-42-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-42-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-42-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-42-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-42-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-48-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-48-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-48-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-48-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-48-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-60-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-60-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-60-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-60-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2JUB-60-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-24-BK-NT",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/vanities/vanities/vn2kat-24-group.html"
+    },
+    {
+      "sku": "VN2KAT-24-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-24-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-24-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-24-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-24-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-30-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-30-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-30-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-30-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-30-GN-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-30-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-30-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-30-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-36-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-36-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-36-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-36-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-36-GN-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-36-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-36-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-42-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-42-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-42-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-42-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-42-GN-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-42-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-42-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-42-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-48-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-48-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-48-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-48-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-48-GN-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-48-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-48-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-48-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-60-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-60-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-60-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-60-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-60-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KAT-60-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-30-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-30-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-30-NO-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2KIP-30-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-36-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-36-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-36-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-48-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-48-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-48-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-48-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-60-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-60-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-60-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2KIP-60-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-24-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-24-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-24-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-24-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-24-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-24-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-30-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-30-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-30-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-30-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-30-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-30-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-36-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-36-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-36-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-36-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-36-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-42-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-42-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-42-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-42-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-48-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-48-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-48-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-48-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-48-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-48-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-60-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-60-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-60-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-60-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PAS-60-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-24-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-24-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-24-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-24-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-24-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-24-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-30-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-30-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-30-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-30-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-30-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-30-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-36-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-36-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-36-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-36-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-36-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2PER-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2SAV-24-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2SAV-24-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2SAV-30-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2SAV-30-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2SAV-36-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2SAV-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2SAV-48-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2SAV-48-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2SAV-60-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2SAV-60-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2TEM-30-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2TEM-30-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2TEM-30-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2TEM-30-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2TEM-36-BS-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2TEM-36-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2TEM-36-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2TEM-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2TEM-48-BS-NT",
+      "reason": "no-redirect"
+    },
+    {
+      "sku": "VN2TEM-48-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2TEM-48-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2TEM-48-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-24-BK-NT",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/vanities/vanities/vn2the-24-group.html"
+    },
+    {
+      "sku": "VN2THE-24-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-24-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-24-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-24-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-24-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-24-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-30-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-30-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-30-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-30-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-30-GN-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-30-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-30-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-30-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-36-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-36-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-36-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-36-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-36-GN-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-36-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-36-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-48-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-48-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-48-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-48-DW-NT",
+      "reason": "slug-mismatch",
+      "url": "https://www.hardwareresources.com/vanities/vanities/vn2the-48-group.html"
+    },
+    {
+      "sku": "VN2THE-48-GN-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-48-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-48-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-48-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-60-BK-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-60-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-60-BS-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-60-DW-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-60-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-60-NO-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2THE-60-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-24-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-24-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-24-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-30-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-30-GN-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-30-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-30-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-30-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-36-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-36-GN-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-36-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-36-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-36-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-48-BL-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-48-GN-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-48-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-48-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-48-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-60-GR-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-60-WG-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VN2WAV-60-WH-NT",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGPEN4",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGPEN5",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGSQ30",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGSQ36",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGSQ48",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGWD30BS",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGWD30DW",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGWD30NO",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGWD30WH",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGWD36BS",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGWD36DW",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGWD36NO",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGWD36WH",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGWD48BS",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGWD48DW",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGWD48NO",
+      "reason": "search-http-404"
+    },
+    {
+      "sku": "VNLEGWD48WH",
+      "reason": "search-http-404"
+    }
+  ],
+  "mismatches": []
+}

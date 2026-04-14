@@ -151,6 +151,9 @@ export async function run(pool, job, source) {
       products_found: stats.found
     });
 
+    // Close browser during Phase 2 (DB-only) to free memory for later detail scraping
+    if (browser) { await browser.close(); browser = null; }
+
     // ── Phase 2: Upsert products, SKUs, pricing, inventory, images ──
     const skuMap = new Map(); // ProductCode -> { skuId, productId }
     let idx = 0;
@@ -267,6 +270,7 @@ export async function run(pool, job, source) {
     // ── Phase 3: Scrape detail pages for packaging, properties, gallery ──
     if (config.scrapeDetails) {
       await appendLog(pool, job.id, `Scraping detail pages for packaging + properties...`);
+      browser = await launchBrowser();
       let detailIdx = 0;
 
       for (const [productCode, raw] of allProducts) {
@@ -349,6 +353,15 @@ export async function run(pool, job, source) {
         // Log progress every 25
         if (detailIdx % 25 === 0 || detailIdx === allProducts.size) {
           await appendLog(pool, job.id, `Detail progress: ${detailIdx}/${allProducts.size} (packaging: ${stats.packagingSet})`);
+        }
+
+        // Restart browser every 100 pages to prevent OOM from accumulated Chromium memory
+        if (detailIdx % 100 === 0 && detailIdx < allProducts.size) {
+          await browser.close();
+          browser = null;
+          await delay(3000); // Give OS time to reclaim memory
+          browser = await launchBrowser();
+          await appendLog(pool, job.id, `Browser restarted at ${detailIdx}/${allProducts.size} to free memory`);
         }
 
         await delay(config.delayMs);
@@ -576,11 +589,11 @@ async function scrapeDetailPage(browser, baseUrl, detailPath) {
   const page = await browser.newPage();
   await page.setUserAgent(USER_AGENT);
 
-  // Block fonts and CSS — keep images for gallery extraction
+  // Block fonts, CSS, images, and media to reduce memory — we extract image URLs from HTML, not rendered images
   await page.setRequestInterception(true);
   page.on('request', req => {
     const type = req.resourceType();
-    if (['font', 'stylesheet', 'media'].includes(type)) {
+    if (['font', 'stylesheet', 'media', 'image'].includes(type)) {
       req.abort();
     } else {
       req.continue();

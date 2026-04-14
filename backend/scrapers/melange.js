@@ -5,6 +5,10 @@
  * This scraper visits melangetile.com to capture product images from
  * collection pages and associate them with existing DB products.
  *
+ * Collection pages show ALL colors together, so we parse filenames
+ * to match images to the correct color product. Generic/unmatched
+ * images are kept as lifestyle fallbacks.
+ *
  * Site structure: melangetile.com uses flat URL slugs like
  *   /Block_Porcelain_Tile, /Cafoscari, /Sunstone_tile, etc.
  *
@@ -27,10 +31,8 @@ const pool = new pg.Pool({
 
 const BASE_URL = 'https://www.melangetile.com';
 
-// Map our product names to website URL slugs.
-// Discovered by browsing the site's category index and product pages.
-// URL slugs discovered from melangetile.com category_index and product_index pages.
-// Multiple slugs per collection to try alternate URL patterns.
+// Map COLLECTION names (not product/color names) to website URL slugs.
+// Each collection page shows all colors together.
 const URL_MAP = {
   'Block':                    ['/blockporcelaintile', '/block-series'],
   "Ca'Foscari":               ['/cafoscariseries', '/CaFoscarSeries'],
@@ -54,6 +56,28 @@ const URL_MAP = {
   'Pearl':                    ['/pearlseries', '/PearlTile'],
   'Quartz Outdoor':           ['/Quartz-Outdoor-20mm_c_112.html', '/QuartzOutdoorTile'],
 };
+
+/** Normalize a string for fuzzy matching: lowercase, strip separators. */
+function normalize(str) {
+  return decodeURIComponent(str).toLowerCase().replace(/[-_\s]+/g, '');
+}
+
+/** Extract filename from URL (last path segment, no query string). */
+function getFilename(url) {
+  try { return new URL(url).pathname.split('/').pop() || ''; }
+  catch { return url.split('/').pop().split('?')[0] || ''; }
+}
+
+/** Match an image URL to a color name. Returns matched color or null. */
+function matchImageToColor(imageUrl, colorNames) {
+  const filename = normalize(getFilename(imageUrl));
+  for (const color of colorNames) {
+    const normColor = normalize(color);
+    if (normColor.length <= 2) continue;
+    if (filename.includes(normColor)) return color;
+  }
+  return null;
+}
 
 async function scrollToLoadAll(page) {
   await page.evaluate(async () => {
@@ -96,16 +120,20 @@ async function run() {
   }
   const vendorId = vendorRes.rows[0].id;
 
-  // Get all products for this vendor
+  // Get all products with their collection field
   const prodRows = await pool.query(`
-    SELECT id, name FROM products WHERE vendor_id = $1 ORDER BY name
+    SELECT id, name, collection FROM products WHERE vendor_id = $1 ORDER BY collection, name
   `, [vendorId]);
 
   console.log(`Found ${prodRows.rowCount} Melange products to enrich\n`);
 
-  const productMap = new Map();
+  // Build collection → [{id, name (color)}] map
+  const collectionProducts = new Map();
   for (const row of prodRows.rows) {
-    productMap.set(row.name, row.id);
+    if (!collectionProducts.has(row.collection)) {
+      collectionProducts.set(row.collection, []);
+    }
+    collectionProducts.get(row.collection).push({ id: row.id, name: row.name });
   }
 
   const browser = await launchBrowser();
@@ -124,13 +152,17 @@ async function run() {
 
     console.log('=== Scraping Collection Pages ===\n');
 
-    for (const [productName, slugs] of Object.entries(URL_MAP)) {
-      const productId = productMap.get(productName);
-      if (!productId) {
-        console.log(`  [SKIP] No DB match for: ${productName}`);
+    for (const [collectionName, slugs] of Object.entries(URL_MAP)) {
+      const products = collectionProducts.get(collectionName);
+      if (!products || products.length === 0) {
+        console.log(`  [SKIP] No DB products for collection: ${collectionName}`);
         continue;
       }
 
+      const colorNames = products.map(p => p.name);
+      console.log(`[${collectionName}] Colors: ${colorNames.join(', ')}`);
+
+      // Scrape all images from collection page(s)
       const allImageUrls = [];
       const seenUrls = new Set();
 
@@ -150,19 +182,68 @@ async function run() {
       }
 
       if (allImageUrls.length === 0) {
-        console.log(`  [NO IMAGES] ${productName}\n`);
+        console.log(`  [NO IMAGES] ${collectionName}\n`);
         continue;
       }
 
-      // Save at the product level (shared across all SKUs of this product)
-      const saved = await saveProductImages(pool, productId, allImageUrls, { maxImages: 6 });
-      imagesSaved += saved;
-      productsMatched++;
-      console.log(`  [SAVED] ${productName} — ${saved} image(s)\n`);
+      // Match each image to a color by filename analysis
+      const colorImages = new Map();  // color name → [url]
+      const genericImages = [];
+
+      for (const url of allImageUrls) {
+        const matchedColor = matchImageToColor(url, colorNames);
+        if (matchedColor) {
+          if (!colorImages.has(matchedColor)) colorImages.set(matchedColor, []);
+          colorImages.get(matchedColor).push(url);
+        } else {
+          genericImages.push(url);
+        }
+      }
+
+      // Delete existing media_assets for all products in this collection
+      const productIds = products.map(p => p.id);
+      await pool.query('DELETE FROM media_assets WHERE product_id = ANY($1)', [productIds]);
+
+      // Save per-product: color-specific images first, then generics as lifestyle
+      for (const product of products) {
+        const ownImages = colorImages.get(product.name) || [];
+        const combined = [...ownImages, ...genericImages];
+        const toSave = combined.slice(0, 6);
+
+        if (toSave.length === 0) continue;
+
+        for (let i = 0; i < toSave.length; i++) {
+          const isOwn = i < ownImages.length;
+          let assetType;
+          if (!isOwn) {
+            assetType = 'lifestyle';
+          } else if (i === 0) {
+            assetType = 'primary';
+          } else if (i <= 2) {
+            assetType = 'alternate';
+          } else {
+            assetType = 'lifestyle';
+          }
+
+          await upsertMediaAsset(pool, {
+            product_id: product.id,
+            sku_id: null,
+            asset_type: assetType,
+            url: toSave[i],
+            original_url: toSave[i],
+            sort_order: i,
+          });
+        }
+
+        imagesSaved += toSave.length;
+        productsMatched++;
+        console.log(`  [SAVED] ${product.name}: ${ownImages.length} color-specific + ${Math.min(genericImages.length, toSave.length - ownImages.length)} generic`);
+      }
+      console.log();
     }
 
     console.log(`\n=== Scrape Complete ===`);
-    console.log(`Products matched: ${productsMatched} / ${productMap.size}`);
+    console.log(`Products matched: ${productsMatched} / ${prodRows.rowCount}`);
     console.log(`Total images saved: ${imagesSaved}`);
 
   } finally {

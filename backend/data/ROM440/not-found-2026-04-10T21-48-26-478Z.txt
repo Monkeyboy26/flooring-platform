@@ -1,0 +1,385 @@
+0178NI	no-redirect	
+0178SN	no-redirect	
+1060BR	no-redirect	
+1306BN-R	no-redirect	
+1438ALM	no-redirect	
+1438BRN	no-redirect	
+1438CL	no-redirect	
+1438CL-R	no-redirect	
+1438WH	no-redirect	
+1460AC	no-redirect	
+1460WH	no-redirect	
+1550.0181.25	no-redirect	
+1550.0535.25	no-redirect	
+1707BN-R	no-redirect	
+1750.0161.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0161-25.html
+1750.0179.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0179-25.html
+1750.0181.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0181-25.html
+1750.0280.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0280-25.html
+1750.0535.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0535-25.html
+1750.0536.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0536-25.html
+1750.0537.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/1750-0537-25.html
+200-Z92	no-redirect	
+200-Z96	no-redirect	
+200-ZB	no-redirect	
+2055	no-redirect	
+22855-7SFT-STL	no-redirect	
+22855-7STL	no-redirect	
+276.4389.37	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/accessories-tools/276-4389-37.html
+303-325-16	no-redirect	
+303-325-26	no-redirect	
+303FUPT12	no-redirect	
+303FUPT14	no-redirect	
+303FUPT16	no-redirect	
+303FUSFT2-R	no-redirect	
+33527AB	not-in-skus-map	https://www.hardwareresources.com/functional-hardware/shutter-hardware/shutter-hinges/33527.html
+33529BC	no-redirect	
+3390	no-redirect	
+3395	no-redirect	
+3400	no-redirect	
+3402	no-redirect	
+3403	no-redirect	
+3404	no-redirect	
+3405	no-redirect	
+3406	no-redirect	
+3407	no-redirect	
+3408	no-redirect	
+400.0118.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0118-75.html
+400.0119.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0119-75.html
+400.0P18.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p18-05.html
+400.0P18.75	no-redirect	
+400.0P29.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p29-75.html
+400.0P29.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p29-75.html
+400.0P71.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p71-75.html
+400.0P72.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p72-75.html
+400.0P73.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p73-75.html
+400.0P74.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0p74-75.html
+400.0R22.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0r22-75.html
+400.0R23.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0r23-75.html
+400.0R24.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0r24-75.html
+400.0R25.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0r25-75.html
+400.0R30.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-0r30-75.html
+400.1233.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-1233-75.html
+400.1234.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-1234-75.html
+400.2118.05	no-redirect	
+400.2118.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-2118-75.html
+400.3453.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3453-75.html
+400.3454.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3454-75.html
+400.3455.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3455-75.html
+400.3456.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3456-75.html
+400.3457.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3457-75.html
+400.3458.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3458-75.html
+400.3553.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3553-75.html
+400.3554.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3554-75.html
+400.3713.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3713-75.html
+400.3714.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3714-75.html
+400.3715.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3715-75.html
+400.3723.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3723-75.html
+400.3724.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/400-3724-75.html
+41500CL	no-redirect	
+41500CR	no-redirect	
+41500DL	no-redirect	
+41500DR	no-redirect	
+500.0141.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0141-75.html
+500.0161.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0161-75.html
+500.0171.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0171-75.html
+500.0179.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0179-75.html
+500.0181.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0181-75.html
+500.0186.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0186-75.html
+500.0279.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0279-75.html
+500.0280.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0280-75.html
+500.0534.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0534-75.html
+500.0535.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0535-75.html
+500.0536.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0536-75.html
+500.0537.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0537-75.html
+500.0M73.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0m73-75.html
+500.0N20.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0n20-75.html
+500.0N24.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0n24-75.html
+500.0U22.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0u22-75.html
+500.0U84.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0u84-75.html
+500.0U85.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0u85-75.html
+500.0U86.75	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/500-0u86-75.html
+500.SC	slug-mismatch	https://www.hardwareresources.com/500-sc.html
+555NP31-B	slug-mismatch	https://www.hardwareresources.com/functional-hardware/screws/specialty/555np31-b-k.html
+565NP35-B	slug-mismatch	https://www.hardwareresources.com/functional-hardware/screws/specialty/565np35-b-k.html
+575.RC	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/accessories-tools/575-rc.html
+5C36-K	no-redirect	
+600.0118.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0118-05.html
+600.0119.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0119-05.html
+600.0P29.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0p29-05.html
+600.0P30.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0p30-05.html
+600.0P32.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0p32-05.html
+600.0P71.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0p71-05.html
+600.0P72.05	no-redirect	
+600.0P73.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0p73-05.html
+600.0P74.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0p74-05.html
+600.0R22.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0r22-05.html
+600.0R23.05	no-redirect	
+600.0R24.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0r24-05.html
+600.0R25.05	no-redirect	
+600.0R30.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0r30-05.html
+600.0R32.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-0r32-05.html
+600.1233.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-1233-05.html
+600.1234.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-1234-05.html
+600.2118.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-2118-05.html
+600.3118.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3118-05.html
+600.3453.65	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3453-65.html
+600.3454.65	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3454-65.html
+600.3455.65	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3455-65.html
+600.3456.65	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3456-65.html
+600.3457.65	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3457-65.html
+600.3458.65	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3458-65.html
+600.3459.65	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3459-65.html
+600.3553.65	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3553-65.html
+600.3554.65	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3554-65.html
+600.3555.65	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/600-3555-65.html
+6390-058	no-redirect	
+6390-2C	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/compact-hinges/8390-2c.html
+6390-716	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/compact-hinges/8390-716.html
+700.0161.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0161-25.html
+700.0171.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0171-25.html
+700.0179.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0179-25.html
+700.0181.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0181-25.html
+700.0280.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0280-25.html
+700.0534.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0534-25.html
+700.0535.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0535-25.html
+700.0536.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0536-25.html
+700.0537.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0537-25.html
+700.0M73.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0m73-05.html
+700.0N20.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0n20-05.html
+700.0N24.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0n24-05.html
+700.0U84.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0u84-05.html
+700.0U85.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0u85-05.html
+700.0U86.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0u86-05.html
+700.0U94.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-0u94-05.html
+700.CAP-HR	no-redirect	
+700.L110.00	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/700-l110-00.html
+700.RC	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/accessories-tools/700-rc.html
+725.0171.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0171-25.html
+725.0179.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0179-25.html
+725.0181.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0181-25.html
+725.0280.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0280-25.html
+725.0534.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0534-25.html
+725.0535.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0535-25.html
+725.0536.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0536-25.html
+725.0537.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0537-25.html
+725.0M73.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0m73-05.html
+725.0U22.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0u22-05.html
+725.0U84.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0u84-05.html
+725.0U85.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0u85-05.html
+725.0U94.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-0u94-05.html
+725.L110.00	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/725-l110-00.html
+7390.RC	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/compact-hinges/9390-rc.html
+828.6250.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/accessories-tools/828-6250-05.html
+8390	no-redirect	
+8390-058	no-redirect	
+85101CL	slug-mismatch	https://www.hardwareresources.com/functional-hardware/additional-products/door-drawer-bumpers/85101cl-k.html
+85202CL	slug-mismatch	https://www.hardwareresources.com/functional-hardware/additional-products/door-drawer-bumpers/85202cl-k.html
+85303CL	slug-mismatch	https://www.hardwareresources.com/functional-hardware/additional-products/door-drawer-bumpers/85303cl-k.html
+8FW-B-K	no-redirect	
+8X012017QB	no-redirect	
+8X034017QB	no-redirect	
+8X158ZN	slug-mismatch	https://www.hardwareresources.com/functional-hardware/8x158zn-k.html
+8X7160-500	no-redirect	
+900.0179.25	no-redirect	
+900.0181.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/clearance/european-hinges/900-0181-25.html
+900.0280.25	no-redirect	
+900.0535.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0535-25.html
+900.0536.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0536-05.html
+900.0537.25	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0537-25.html
+900.0U84.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0u84-05.html
+900.0U85.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0u85-05.html
+900.0U94.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0u94-05.html
+900.0U99.05	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/european-hinges/900-0u99-05.html
+9212	no-redirect	
+9390	no-redirect	
+9390.RC	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/compact-hinges/9390-rc.html
+9453007	no-redirect	
+9500PB	not-in-skus-map	https://www.hardwareresources.com/functional-hardware/shutter-hardware/shutter-hinges/9500.html
+9802AB	not-in-skus-map	https://www.hardwareresources.com/functional-hardware/shutter-hardware/shutter-hinges/9802.html
+B512-01	no-redirect	
+CENTERPIL	slug-mismatch	https://www.hardwareresources.com/catalog/product/view/id/150482/s/centerpil/category/23/
+CTOPSUP10	slug-mismatch	https://www.hardwareresources.com/catalog/product/view/id/150599/s/ctopsup10/category/23/
+CTOPSUP15	slug-mismatch	https://www.hardwareresources.com/catalog/product/view/id/150596/s/ctopsup15/category/23/
+DG01	no-redirect	
+DS01-DBAC-R	no-redirect	
+DS01-PB-R	no-redirect	
+DS01-PC-R	no-redirect	
+DS01-SN-R	no-redirect	
+DS01-WH-R	no-redirect	
+DS02-DBAC-R	no-redirect	
+DS02-PB-R	no-redirect	
+DS02-PC-R	no-redirect	
+DS02-SN-R	no-redirect	
+DS03-DBAC	no-redirect	
+DS03-PB	no-redirect	
+DS03-PC	no-redirect	
+DS03-SN	no-redirect	
+DS03-WH	no-redirect	
+DS04-DBAC	no-redirect	
+DS04-NI	no-redirect	
+DS04-PB	no-redirect	
+DS04-WH	no-redirect	
+DS05-DBAC-R	no-redirect	
+DS05-NI-R	no-redirect	
+DS05-PB-R	no-redirect	
+EC01-DBAC-R	no-redirect	
+EC01-PB-R	no-redirect	
+EC01-ZN-R	no-redirect	
+FFC11BLK	no-redirect	
+FFC12BLK	no-redirect	
+FFS11	no-redirect	
+HINGE_BORE	no-redirect	
+HR7438	no-redirect	
+HR7X50-B	slug-mismatch	https://www.hardwareresources.com/functional-hardware/screws/specialty/hr7x50-b-k.html
+HR7X50P-B	slug-mismatch	https://www.hardwareresources.com/functional-hardware/screws/specialty/hr7x50p-b-k.html
+HRB01-DBAC-R	no-redirect	
+HRB01-PB-R	no-redirect	
+HRB01-PC-R	no-redirect	
+HRB01-SN-R	no-redirect	
+ISC	no-redirect	
+ISC-R	no-redirect	
+KFCE-A-ZN2	no-redirect	
+KFCR-A-ZN2	no-redirect	
+KFD1-A-ORB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD1-A-PB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD1-A-PC2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD1-A-SN2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD1-A-WH2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD2-A-ORB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD2-A-PB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD2-A-PC2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD2-A-SN2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD3-A-MB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD3-A-ORB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD3-A-PB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD3-A-PC2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD3-A-SN2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD3-A-WH2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD4-A-MB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD4-A-NI2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD4-A-ORB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD4-A-PB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD4-A-WH2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD5-A-NI2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD5-A-ORB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFD5-A-PB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFF11-A-ZN20	no-redirect	
+KFF13-A-ZN20	no-redirect	
+KFFBR-A-ZN20	no-redirect	
+KFHCN012-A-10	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHCN012-A-2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHCN114-A-10	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHCN114-A-2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHCS012-B-2	no-redirect	
+KFHCS114-B-2	no-redirect	
+KFHI-A-AB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHI-A-MB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHI-A-ORB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHI-A-PB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHI-A-PC2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHI-A-SN2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHO-A-AB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHO-A-BB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHO-A-MB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHO-A-ORB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHO-A-PB2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHO-A-SN2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFHO-A-WH2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFR1-A-ORB1	slug-mismatch	https://www.hardwareresources.com/no-route
+KFR1-A-SN1	slug-mismatch	https://www.hardwareresources.com/no-route
+KFSBN18Z-A-2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFSBN20Z-A-2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFSBN22Z-A-2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFSBNRB-A-2	no-redirect	
+KFSBS18Z-A-2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFSBS20Z-A-2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFSBS22Z-A-2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFSBSRB-A-2	no-redirect	
+KFSCD-A-NI10	slug-mismatch	https://www.hardwareresources.com/no-route
+KFSCD-A-NI2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFSEN18Y-A-2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFSEN20Y-A-2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFSEN22Y-A-2	slug-mismatch	https://www.hardwareresources.com/no-route
+KFSENRB-A-2	no-redirect	
+LARM-110B	no-redirect	
+LARM-165.SFT	slug-mismatch	https://www.hardwareresources.com/functional-hardware/cabinet-hinges/hinge-boring-machine-rams/larm-165-sft.html
+P5011AB	not-in-skus-map	https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html
+P5011BB	not-in-skus-map	https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html
+P5011DACM	not-in-skus-map	https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html
+P5011DBAC	not-in-skus-map	https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html
+P5011PB	not-in-skus-map	https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html
+P5011PC	not-in-skus-map	https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html
+P5011SN	not-in-skus-map	https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html
+P5011WH	not-in-skus-map	https://www.hardwareresources.com/functional-hardware/retail-packed-hardware/p5011-r.html
+P5922AB	no-redirect	
+P5922DACM	no-redirect	
+P5922DACM-R	no-redirect	
+P5922DBAC	no-redirect	
+P5922PB	no-redirect	
+P5922PC	no-redirect	
+P5922SN	no-redirect	
+PILBRK	slug-mismatch	https://www.hardwareresources.com/catalog/product/view/id/150479/s/pilbrk/category/23/
+PILDOWELS	slug-mismatch	https://www.hardwareresources.com/catalog/product/view/id/150485/s/pildowels/category/23/
+RC01-DBAC-R	no-redirect	
+RC01-PB-R	no-redirect	
+RC01-ZN-R	no-redirect	
+RH04-SN	no-redirect	
+SP01-DBAC-R	no-redirect	
+SP01-PB-R	no-redirect	
+SP01-PC-R	no-redirect	
+SP01-SN-R	no-redirect	
+TRK01-96BRN	no-redirect	
+TRK01-96WH	no-redirect	
+TRK05-96	no-redirect	
+US-CLIP-2W-DB	no-redirect	
+US-CLIP-4W-DB	no-redirect	
+US-CLIP-4WZ-DB	no-redirect	
+US-CLIP-NR-DB	no-redirect	
+USCLIP2ND-4WDB	no-redirect	
+USCLIP2ND-4WZDB	no-redirect	
+USCLIP2ND-6WZDB	no-redirect	
+USCLIP50024WDB	no-redirect	
+USCLIP50024WZDB	no-redirect	
+USCLIP50026WZDB	no-redirect	
+USE-ADJ-DB	no-redirect	
+USE-MDB-RAIL	no-redirect	
+USE-STEEL	no-redirect	
+USE-STEEL-DB	no-redirect	
+USE12	no-redirect	
+USE15	no-redirect	
+USE18	no-redirect	
+USE21-DB	no-redirect	
+USE58-21	not-in-skus-map	https://www.hardwareresources.com/functional-hardware/drawer-slides/undermount-slides/use58-4w.html
+USE58-300-12-DB	no-redirect	
+USE58-300-15-DB	no-redirect	
+USE58-300-18-DB	no-redirect	
+USE58-300-21-DB	no-redirect	
+USE58-300-24-DB	no-redirect	
+USE58-300-9-DB	no-redirect	
+USE58-50-12-DB	no-redirect	
+USE58-50-15-DB	no-redirect	
+USE58-50-18	not-in-skus-map	https://www.hardwareresources.com/functional-hardware/clearance/undermount-slides/use58-50.html
+USE58-50-18-DB	no-redirect	
+USE58-50-21-DB	no-redirect	
+USE58-500-12-DB	no-redirect	
+USE58-500-15-DB	no-redirect	
+USE58-500-18-DB	no-redirect	
+USE58-500-21-DB	no-redirect	
+USE58-500-24-DB	no-redirect	
+USMAX2-12DB	no-redirect	
+USMAX2-15DB	no-redirect	
+USMAX2-18DB	no-redirect	
+USMAX2-21DB	no-redirect	
+USMAX2-24DB	no-redirect	
+USMAX2-9DB	no-redirect	
+USMAX2S-12DB	no-redirect	
+USMAX2S-15DB	no-redirect	
+USMAX2S-18DB	no-redirect	
+USMAX2S-21DB	no-redirect	
+USMAX2S-24DB	no-redirect	
+USMAX2S-9DB	no-redirect	
+USMAXCLIP4WDB	no-redirect	
+USMAXCLIP4WZDB	no-redirect	
+USMAXCLIP6WZDB	no-redirect	
+USMAXCLIPNDB	no-redirect	

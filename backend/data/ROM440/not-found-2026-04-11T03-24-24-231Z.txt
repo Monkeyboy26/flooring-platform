@@ -1,0 +1,2355 @@
+161	no-redirect	
+168	no-redirect	
+APS-BLANK-P-BK	no-redirect	
+APS-BLANK-P-BZ	no-redirect	
+APS-BLANK-P-SN	no-redirect	
+APS-BLANK-P-WT	no-redirect	
+APS-SWITCH-BK	no-redirect	
+APS-SWITCH-GR	no-redirect	
+APS-SWITCH-WT	no-redirect	
+BLACK CORD 6LF	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-accessories/miscellaneous/black-cord-6lf.html
+CA-CJH-BL	no-redirect	
+CA-CJH-BR	no-redirect	
+CA-CJH-GR	no-redirect	
+CA-CJH-LA	no-redirect	
+CA-CJH-WH	no-redirect	
+CA-PJH-BL	no-redirect	
+CA-PJH-BR	no-redirect	
+CA-PJH-GR	no-redirect	
+CA-PJH-IV	no-redirect	
+CA-PJH-LA	no-redirect	
+CA-PJH-WH	no-redirect	
+CJ-EYE-COVER	no-redirect	
+CJ-EYE-TESTER	no-redirect	
+CUSTOM CR WORK	no-redirect	
+DVLV-600P-IV	no-redirect	
+GBB-UCL-BEST	no-redirect	
+GBB-UCL-BETTER	no-redirect	
+GBB-UCL-GOOD	no-redirect	
+GC-1180-357-30	no-redirect	
+GC-1180-357-30R	no-redirect	
+GC-20415-30	no-redirect	
+GC-20415-30R	no-redirect	
+GC-20422-30	no-redirect	
+GC-20422-30R	no-redirect	
+GC-20440-30	no-redirect	
+GC-20440-30R	no-redirect	
+GC-341-84-30	no-redirect	
+GC-341-84-30R	no-redirect	
+GC-6014-20-30	no-redirect	
+GC-6014-20-30R	no-redirect	
+GC-6301-6-30	no-redirect	
+GC-6301-6-30R	no-redirect	
+GC-6701-33-30	no-redirect	
+GC-6701-33-30R	no-redirect	
+GC-6705-33-30	no-redirect	
+GC-6705-33-30R	no-redirect	
+GC-6713-79-30	no-redirect	
+GC-6713-79-30R	no-redirect	
+GC-6751-79-30	no-redirect	
+GC-6751-79-30R	no-redirect	
+GC-7592-33-30	no-redirect	
+GC-7592-33-30R	no-redirect	
+L-002-CL-90	not-in-skus-map	https://www.hardwareresources.com/task-lighting-power/led-accessories/tape-lighting-housing/l-002.html
+L-003-CL-80	no-redirect	
+L-007-CL-48	not-in-skus-map	https://www.hardwareresources.com/task-lighting-power/led-accessories/tape-lighting-housing/l-007.html
+L-007-CL-80	no-redirect	
+L-007-CL-90	not-in-skus-map	https://www.hardwareresources.com/task-lighting-power/led-accessories/tape-lighting-housing/l-007.html
+L-10MM-RGB-SC	no-redirect	
+L-10MM-RGB-TTTC	no-redirect	
+L-10MM-SC	no-redirect	
+L-10MM-WSC	no-redirect	
+L-8MM-FLEX3PK	no-redirect	
+L-8MM-FLEX3PK-W	no-redirect	
+L-BL-LC-02-B	slug-mismatch	https://www.hardwareresources.com/l-bl-lc-02.html
+L-BL-LC-02-W	slug-mismatch	https://www.hardwareresources.com/l-bl-lc-02.html
+L-BL-PC-05-B	slug-mismatch	https://www.hardwareresources.com/l-bl-pc-05.html
+L-BL-PC-05-W	slug-mismatch	https://www.hardwareresources.com/l-bl-pc-05.html
+L-BL09-BK-TW	slug-mismatch	https://www.hardwareresources.com/l-bl09-tw.html
+L-BL09-DS-TW	slug-mismatch	https://www.hardwareresources.com/l-bl09-tw.html
+L-BL09-WT-TW	slug-mismatch	https://www.hardwareresources.com/l-bl09-tw.html
+L-BL12-BK-TW	slug-mismatch	https://www.hardwareresources.com/l-bl12-tw.html
+L-BL12-DS-TW	slug-mismatch	https://www.hardwareresources.com/l-bl12-tw.html
+L-BL12-WT-TW	slug-mismatch	https://www.hardwareresources.com/l-bl12-tw.html
+L-BL18-BK-TW	slug-mismatch	https://www.hardwareresources.com/l-bl18-tw.html
+L-BL18-DS-TW	slug-mismatch	https://www.hardwareresources.com/l-bl18-tw.html
+L-BL18-WT-TW	slug-mismatch	https://www.hardwareresources.com/l-bl18-tw.html
+L-BL24-BK-TW	slug-mismatch	https://www.hardwareresources.com/l-bl24-tw.html
+L-BL24-DS-TW	slug-mismatch	https://www.hardwareresources.com/l-bl24-tw.html
+L-BL24-WT-TW	slug-mismatch	https://www.hardwareresources.com/l-bl24-tw.html
+L-BL32-BK-TW	slug-mismatch	https://www.hardwareresources.com/l-bl32-tw.html
+L-BL32-DS-TW	slug-mismatch	https://www.hardwareresources.com/l-bl32-tw.html
+L-BL32-WT-TW	slug-mismatch	https://www.hardwareresources.com/l-bl32-tw.html
+L-DMW150-16-27	slug-mismatch	https://www.hardwareresources.com/l-dmw150-16.html
+L-DMW150-16-30	slug-mismatch	https://www.hardwareresources.com/l-dmw150-16.html
+L-DMW150-16-40	slug-mismatch	https://www.hardwareresources.com/l-dmw150-16.html
+L-DMW150-16-50	slug-mismatch	https://www.hardwareresources.com/l-dmw150-16.html
+L-FSL-15W-34	no-redirect	
+L-FSL-15W-60	no-redirect	
+L-FSL-B-.56-CL	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-accessories/miscellaneous/l-fsl-b-56-cl.html
+L-FSL-B-.75-CL	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-accessories/miscellaneous/l-fsl-b-75-cl.html
+L-FSL-C	no-redirect	
+L-FSL2-16W-30	slug-mismatch	https://www.hardwareresources.com/l-fsl2-16w.html
+L-FSL2-16W-40	slug-mismatch	https://www.hardwareresources.com/l-fsl2-16w.html
+L-FSL2-16W-50	slug-mismatch	https://www.hardwareresources.com/l-fsl2-16w.html
+L-GLB-2PC-6F	no-redirect	
+L-GLB-2PC-6M	no-redirect	
+L-GLB-4PC-6F	no-redirect	
+L-GLB-4PC-6M	no-redirect	
+L-GLB-5PC-6F	no-redirect	
+L-GLB-5PC-6M	no-redirect	
+L-GLB15-15W	no-redirect	
+L-GLB15-4-15W	no-redirect	
+L-GLB24-27W	no-redirect	
+L-GLB24-4-27W	no-redirect	
+L-GLB30-4-33W	no-redirect	
+L-GLB48-4-53W	no-redirect	
+L-MR-CL-1BA-27	slug-mismatch	https://www.hardwareresources.com/l-mr-cl-1ba.html
+L-MR-CL-1BA-40	slug-mismatch	https://www.hardwareresources.com/l-mr-cl-1ba.html
+L-MR-CL-1BA-50	slug-mismatch	https://www.hardwareresources.com/l-mr-cl-1ba.html
+L-MS-CL-1BA-27	slug-mismatch	https://www.hardwareresources.com/l-ms-cl-1ba.html
+L-MS-CL-1BA-30	slug-mismatch	https://www.hardwareresources.com/l-ms-cl-1ba.html
+L-MS-CL-1BA-40	slug-mismatch	https://www.hardwareresources.com/l-ms-cl-1ba.html
+L-MS-CL-1BA-50	slug-mismatch	https://www.hardwareresources.com/l-ms-cl-1ba.html
+L-PS-FR-3BA-27	slug-mismatch	https://www.hardwareresources.com/l-ps-fr-3.html
+L-PS-FR-3BA-30	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/clearance/l-ps-fr-3.html
+L-PS-FR-3BA-40	slug-mismatch	https://www.hardwareresources.com/l-ps-fr-3.html
+L-PS-FR-3BA-50	slug-mismatch	https://www.hardwareresources.com/l-ps-fr-3.html
+L-PS-FR-3BK-50	slug-mismatch	https://www.hardwareresources.com/l-ps-fr-3.html
+L-PS-FR-3BZ-30	slug-mismatch	https://www.hardwareresources.com/l-ps-fr-3.html
+L-PS-FR-3BZ-40	slug-mismatch	https://www.hardwareresources.com/l-ps-fr-3.html
+L-PS-FR-3BZ-50	slug-mismatch	https://www.hardwareresources.com/l-ps-fr-3.html
+L-PS-FR-3WT-27	slug-mismatch	https://www.hardwareresources.com/l-ps-fr-3.html
+L-PS-FR-3WT-50	slug-mismatch	https://www.hardwareresources.com/l-ps-fr-3.html
+L-PS-TDC-BZ	slug-mismatch	https://www.hardwareresources.com/l-ps-tdc.html
+L-PS-TDC-WT	no-redirect	
+L-R24-1-100-30	slug-mismatch	https://www.hardwareresources.com/l-r24-1-100.html
+L-R24-1-100-40	slug-mismatch	https://www.hardwareresources.com/l-r24-1-100.html
+L-R300-100-27	slug-mismatch	https://www.hardwareresources.com/l-r300-100.html
+L-R300-100-30	slug-mismatch	https://www.hardwareresources.com/l-r300-100.html
+L-R300-100-40	slug-mismatch	https://www.hardwareresources.com/l-r300-100.html
+L-R300-100-50	slug-mismatch	https://www.hardwareresources.com/l-r300-100.html
+L-RC4-FR9-27	no-redirect	
+L-RC4-FR9-30	no-redirect	
+L-RC4-FR9-40	no-redirect	
+L-RC4-FR9-50	no-redirect	
+L-RC6-FR9-27	no-redirect	
+L-RC6-FR9-30	no-redirect	
+L-RC6-FR9-40	no-redirect	
+L-RC6-FR9-50	no-redirect	
+L-RGB-M300-16	slug-mismatch	https://www.hardwareresources.com/l-rgb-m300.html
+L-RGBM300-32	slug-mismatch	https://www.hardwareresources.com/l-rgb-m300.html
+L-RGMW300-16-27	no-redirect	
+L-RGMW300-16-30	no-redirect	
+L-RK1Z1A-16-27	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-rk1z1a-16.html
+L-RK1Z1A-16-30	slug-mismatch	https://www.hardwareresources.com/l-rk1z1a-16.html
+L-RK1Z1A-16-40	slug-mismatch	https://www.hardwareresources.com/l-rk1z1a-16.html
+L-RK1Z1A-16-50	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-rk1z1a-16.html
+L-RMW24-16-27	slug-mismatch	https://www.hardwareresources.com/l-rmw24-16.html
+L-RMW24-16-30	slug-mismatch	https://www.hardwareresources.com/l-rmw24-16.html
+L-RMW24-16-40	slug-mismatch	https://www.hardwareresources.com/l-rmw24-16.html
+L-RMW300-16-27	slug-mismatch	https://www.hardwareresources.com/l-rmw300-16.html
+L-RMW300-16-30	slug-mismatch	https://www.hardwareresources.com/l-rmw300-16.html
+L-RMW300-16-40	slug-mismatch	https://www.hardwareresources.com/l-rmw300-16.html
+L-RMW300-16-50	slug-mismatch	https://www.hardwareresources.com/l-rmw300-16.html
+L-RMW300-32-27	slug-mismatch	https://www.hardwareresources.com/l-rmw300-32.html
+L-RMW300-32-30	slug-mismatch	https://www.hardwareresources.com/l-rmw300-32.html
+L-RMW300-32-40	slug-mismatch	https://www.hardwareresources.com/l-rmw300-32.html
+L-RMW300-32-50	slug-mismatch	https://www.hardwareresources.com/l-rmw300-32.html
+L-RTDK-16-27	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-rtdk-16.html
+L-RTDK-16-30	slug-mismatch	https://www.hardwareresources.com/l-rtdk-16.html
+L-RTDK-16-40	slug-mismatch	https://www.hardwareresources.com/l-rtdk-16.html
+L-RTDK-16-50	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-rtdk-16.html
+L-RTDRK-16-30	no-redirect	
+L-RTDRK-16-305P	no-redirect	
+L-RTDRK-16-40	no-redirect	
+L-RTDRK-16-405P	no-redirect	
+L-SWSP-FR-BK-30	slug-mismatch	https://www.hardwareresources.com/l-swsp-fr.html
+L-SWSP-FR-BK-40	slug-mismatch	https://www.hardwareresources.com/l-swsp-fr.html
+L-SWSP-FR-DS-30	slug-mismatch	https://www.hardwareresources.com/l-swsp-fr.html
+L-SWSP-FR-DS-40	slug-mismatch	https://www.hardwareresources.com/l-swsp-fr.html
+L-SWSP-FR-WT-30	slug-mismatch	https://www.hardwareresources.com/l-swsp-fr.html
+L-SWSP-FR-WT-40	slug-mismatch	https://www.hardwareresources.com/l-swsp-fr.html
+L-SWTP-FR-SN-27	slug-mismatch	https://www.hardwareresources.com/l-swtp-fr.html
+L-SWTP-FR-SN-30	slug-mismatch	https://www.hardwareresources.com/l-swtp-fr.html
+L-SWTP-FR-SN-40	slug-mismatch	https://www.hardwareresources.com/l-swtp-fr.html
+L-SWTP-FR-SN-50	slug-mismatch	https://www.hardwareresources.com/l-swtp-fr.html
+L-T12-6-100	no-redirect	
+L-TWSP-FR-BK	slug-mismatch	https://www.hardwareresources.com/l-twsp-fr.html
+L-TWSP-FR-DS	slug-mismatch	https://www.hardwareresources.com/l-twsp-fr.html
+L-TWSP-FR-WT	slug-mismatch	https://www.hardwareresources.com/l-twsp-fr.html
+L-UT-FR-3SN-27	slug-mismatch	https://www.hardwareresources.com/l-ut-fr-3sn.html
+L-UT-FR-3SN-30	no-redirect	
+L-UT-FR-3SN-40	no-redirect	
+L-UT-FR-3SN-50	no-redirect	
+L-V24-2-100-30	slug-mismatch	https://www.hardwareresources.com/l-v24-2-100.html
+L-V24-2-100-35	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-v24-2-100.html
+L-V24-2-100-40	slug-mismatch	https://www.hardwareresources.com/l-v24-2-100.html
+L-V600-100-27	slug-mismatch	https://www.hardwareresources.com/l-v600-100.html
+L-V600-100-30	slug-mismatch	https://www.hardwareresources.com/l-v600-100.html
+L-V600-100-40	slug-mismatch	https://www.hardwareresources.com/l-v600-100.html
+L-V600-100-50	slug-mismatch	https://www.hardwareresources.com/l-v600-100.html
+L-VK1Z1A-16-27	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-vk1z1a-16.html
+L-VK1Z1A-16-30	slug-mismatch	https://www.hardwareresources.com/l-vk1z1a-16.html
+L-VK1Z1A-16-40	slug-mismatch	https://www.hardwareresources.com/l-vk1z1a-16.html
+L-VK1Z1A-16-50	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-vk1z1a-16.html
+L-VK2Z2A-16-27	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-vk2z2a-16.html
+L-VK2Z2A-16-30	slug-mismatch	https://www.hardwareresources.com/l-vk2z2a-16.html
+L-VK2Z2A-16-40	slug-mismatch	https://www.hardwareresources.com/l-vk2z2a-16.html
+L-VK2Z2A-16-50	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-vk2z2a-16.html
+L-VK2Z2A-32-27	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-vk2z2a-32.html
+L-VK2Z2A-32-30	slug-mismatch	https://www.hardwareresources.com/l-vk2z2a-32.html
+L-VK2Z2A-32-40	slug-mismatch	https://www.hardwareresources.com/l-vk2z2a-32.html
+L-VK2Z2A-32-50	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-vk2z2a-32.html
+L-VK3Z3A-49-27	no-redirect	
+L-VK3Z3A-49-30	no-redirect	
+L-VK3Z3A-49-40	no-redirect	
+L-VK3Z3A-49-50	no-redirect	
+L-VK4Z4A-65-27	no-redirect	
+L-VK4Z4A-65-30	no-redirect	
+L-VK4Z4A-65-40	no-redirect	
+L-VK4Z4A-65-50	no-redirect	
+L-VMW24-16-27	slug-mismatch	https://www.hardwareresources.com/l-vmw24-16.html
+L-VMW24-16-30	slug-mismatch	https://www.hardwareresources.com/l-vmw24-16.html
+L-VMW24-16-35	no-redirect	
+L-VMW24-16-40	slug-mismatch	https://www.hardwareresources.com/l-vmw24-16.html
+L-VMW600-16-27	slug-mismatch	https://www.hardwareresources.com/l-vmw600-16.html
+L-VMW600-16-30	slug-mismatch	https://www.hardwareresources.com/l-vmw600-16.html
+L-VMW600-16-40	slug-mismatch	https://www.hardwareresources.com/l-vmw600-16.html
+L-VMW600-16-50	slug-mismatch	https://www.hardwareresources.com/l-vmw600-16.html
+L-VMW600-32-27	slug-mismatch	https://www.hardwareresources.com/l-vmw600-32.html
+L-VMW600-32-30	slug-mismatch	https://www.hardwareresources.com/l-vmw600-32.html
+L-VMW600-32-40	slug-mismatch	https://www.hardwareresources.com/l-vmw600-32.html
+L-VMW600-32-50	slug-mismatch	https://www.hardwareresources.com/l-vmw600-32.html
+L-VTDK-16-27	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-vtdk-16.html
+L-VTDK-16-30	slug-mismatch	https://www.hardwareresources.com/l-vtdk-16.html
+L-VTDK-16-40	slug-mismatch	https://www.hardwareresources.com/l-vtdk-16.html
+L-VTDK-16-50	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-vtdk-16.html
+L-VTW-30	no-redirect	
+L-VUK1Z1A-16-27	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-vuk1z1a-16.html
+L-VUK1Z1A-16-30	slug-mismatch	https://www.hardwareresources.com/l-vuk1z1a-16.html
+L-VUK1Z1A-16-40	slug-mismatch	https://www.hardwareresources.com/l-vuk1z1a-16.html
+L-VUK1Z1A-16-50	slug-mismatch	https://www.hardwareresources.com/task-lighting-power/led-lighting/single-white-lighting/l-vuk1z1a-16.html
+L-VURK-16-30	no-redirect	
+L-VURK-16-30-5P	no-redirect	
+L-VURK-16-40	no-redirect	
+L-VURK-16-40-5P	no-redirect	
+LC9R-CBS-P-BZ	no-redirect	
+LC9R-CBS-P-SN	no-redirect	
+LCP-002-FR-1	no-redirect	
+LCP-002XL-FR-1	no-redirect	
+LCP-003-FR-1	no-redirect	
+LCP-007-FR-1	no-redirect	
+LCP-24-RM-48-25	no-redirect	
+LCP-24-RM-48-27	no-redirect	
+LCP-24-RM-48-30	no-redirect	
+LCP-24-RM-48-40	no-redirect	
+LCP-24-TW-88-CT	no-redirect	
+LCP-24-VM-98-25	no-redirect	
+LCP-24-VM-98-27	no-redirect	
+LCP-24-VM-98-30	no-redirect	
+LCP-24-VM-98-35	no-redirect	
+LCP-24-VM-98-40	no-redirect	
+LCP-8MM-EZ-1-B	no-redirect	
+LCP-DMP-FR-1	no-redirect	
+LCP-EZV2-W	no-redirect	
+LCP-RGB-98	no-redirect	
+LCP-RGM-98-27	no-redirect	
+LCP-RGM-98-30	no-redirect	
+LCP-RGM-98-40	no-redirect	
+LCP-RGM-98-50	no-redirect	
+LCP-RM-98-27	no-redirect	
+LCP-RM-98-30	no-redirect	
+LCP-RM-98-40	no-redirect	
+LCP-RM-98-50	no-redirect	
+LCP-SW12-4-27	no-redirect	
+LCP-SW12-4-30	no-redirect	
+LCP-SW12-4-40	no-redirect	
+LCP-SW12-4-50	no-redirect	
+LCP-SW12-6-27	no-redirect	
+LCP-SW12-6-30	no-redirect	
+LCP-SW12-6-40	no-redirect	
+LCP-SW12-6-50	no-redirect	
+LCP-SW24-4-30	no-redirect	
+LCP-SW24-4-40	no-redirect	
+LCP-SW24-6-30	no-redirect	
+LCP-SW24-6-40	no-redirect	
+LCP-TW-178-CCT	no-redirect	
+LCP-TW12-6	no-redirect	
+LCP-TW24-4	no-redirect	
+LCP-TW24-6	no-redirect	
+LCP-VM-198-27	no-redirect	
+LCP-VM-198-30	no-redirect	
+LCP-VM-198-40	no-redirect	
+LCP-VM-198-50	no-redirect	
+LCR18-S2-03WBK3	no-redirect	
+LCR18-S2-03WBK4	no-redirect	
+LCR18-S2-03WSN3	no-redirect	
+LCR18-S2-03WSN4	no-redirect	
+LCR18-S2-03WWT3	no-redirect	
+LCR18-S2-03WWT4	no-redirect	
+LCR18-T3-03WBK	no-redirect	
+LCR18-T3-03WSN	no-redirect	
+LCR18-T3-03WWT	no-redirect	
+LCR24-S2-05WBK3	no-redirect	
+LCR24-S2-05WBK4	no-redirect	
+LCR24-S2-05WSN3	no-redirect	
+LCR24-S2-05WSN4	no-redirect	
+LCR24-S2-05WWT3	no-redirect	
+LCR24-S2-05WWT4	no-redirect	
+LCR24-T3-05WBK	no-redirect	
+LCR24-T3-05WSN	no-redirect	
+LCR24-T3-05WWT	no-redirect	
+LCR30-S2-06WBK3	no-redirect	
+LCR30-S2-06WBK4	no-redirect	
+LCR30-S2-06WSN3	no-redirect	
+LCR30-S2-06WSN4	no-redirect	
+LCR30-S2-06WWT3	no-redirect	
+LCR30-S2-06WWT4	no-redirect	
+LCR30-T3-06WBK	no-redirect	
+LCR30-T3-06WSN	no-redirect	
+LCR30-T3-06WWT	no-redirect	
+LCR36-S2-08WBK3	no-redirect	
+LCR36-S2-08WBK4	no-redirect	
+LCR36-S2-08WSN3	no-redirect	
+LCR36-S2-08WSN4	no-redirect	
+LCR36-S2-08WWT3	no-redirect	
+LCR36-S2-08WWT4	no-redirect	
+LCR36-T3-08WBK	no-redirect	
+LCR36-T3-08WSN	no-redirect	
+LCR36-T3-08WWT	no-redirect	
+LCR42-S2-09WBK3	no-redirect	
+LCR42-S2-09WBK4	no-redirect	
+LCR42-S2-09WSN3	no-redirect	
+LCR42-S2-09WSN4	no-redirect	
+LCR42-S2-09WWT3	no-redirect	
+LCR42-S2-09WWT4	no-redirect	
+LCR42-T3-09WBK	no-redirect	
+LCR42-T3-09WSN	no-redirect	
+LCR42-T3-09WWT	no-redirect	
+LCR48-S2-11WBK3	no-redirect	
+LCR48-S2-11WBK4	no-redirect	
+LCR48-S2-11WSN3	no-redirect	
+LCR48-S2-11WSN4	no-redirect	
+LCR48-S2-11WWT3	no-redirect	
+LCR48-S2-11WWT4	no-redirect	
+LCR48-T3-11WBK	no-redirect	
+LCR48-T3-11WSN	no-redirect	
+LCR48-T3-11WWT	no-redirect	
+LCR54-S2-12WBK3	no-redirect	
+LCR54-S2-12WBK4	no-redirect	
+LCR54-S2-12WSN3	no-redirect	
+LCR54-S2-12WSN4	no-redirect	
+LCR54-S2-12WWT3	no-redirect	
+LCR54-S2-12WWT4	no-redirect	
+LCR54-T3-12WBK	no-redirect	
+LCR54-T3-12WSN	no-redirect	
+LCR54-T3-12WWT	no-redirect	
+LCR60-S2-14WBK3	no-redirect	
+LCR60-S2-14WBK4	no-redirect	
+LCR60-S2-14WSN3	no-redirect	
+LCR60-S2-14WSN4	no-redirect	
+LCR60-S2-14WWT3	no-redirect	
+LCR60-S2-14WWT4	no-redirect	
+LCR60-T3-14WBK	no-redirect	
+LCR60-T3-14WSN	no-redirect	
+LCR60-T3-14WWT	no-redirect	
+LCR66-S2-15WBK3	no-redirect	
+LCR66-S2-15WBK4	no-redirect	
+LCR66-S2-15WSN3	no-redirect	
+LCR66-S2-15WSN4	no-redirect	
+LCR66-S2-15WWT3	no-redirect	
+LCR66-S2-15WWT4	no-redirect	
+LCR66-T3-15WBK	no-redirect	
+LCR66-T3-15WSN	no-redirect	
+LCR66-T3-15WWT	no-redirect	
+LCR72-S2-17WBK3	no-redirect	
+LCR72-S2-17WBK4	no-redirect	
+LCR72-S2-17WSN3	no-redirect	
+LCR72-S2-17WSN4	no-redirect	
+LCR72-S2-17WWT3	no-redirect	
+LCR72-S2-17WWT4	no-redirect	
+LCR72-T3-17WBK	no-redirect	
+LCR72-T3-17WSN	no-redirect	
+LCR72-T3-17WWT	no-redirect	
+LCR78-S2-18WBK3	no-redirect	
+LCR78-S2-18WBK4	no-redirect	
+LCR78-S2-18WSN3	no-redirect	
+LCR78-S2-18WSN4	no-redirect	
+LCR78-S2-18WWT3	no-redirect	
+LCR78-S2-18WWT4	no-redirect	
+LCR78-T3-18WBK	no-redirect	
+LCR78-T3-18WSN	no-redirect	
+LCR78-T3-18WWT	no-redirect	
+LCR84-S2-20WBK3	no-redirect	
+LCR84-S2-20WBK4	no-redirect	
+LCR84-S2-20WSN3	no-redirect	
+LCR84-S2-20WSN4	no-redirect	
+LCR84-S2-20WWT3	no-redirect	
+LCR84-S2-20WWT4	no-redirect	
+LCR84-T3-20WBK	no-redirect	
+LCR84-T3-20WSN	no-redirect	
+LCR84-T3-20WWT	no-redirect	
+LCR90-S2-21WBK3	no-redirect	
+LCR90-S2-21WBK4	no-redirect	
+LCR90-S2-21WSN3	no-redirect	
+LCR90-S2-21WSN4	no-redirect	
+LCR90-S2-21WWT3	no-redirect	
+LCR90-S2-21WWT4	no-redirect	
+LCR90-T3-21WBK	no-redirect	
+LCR90-T3-21WSN	no-redirect	
+LCR90-T3-21WWT	no-redirect	
+LN1S1W2400330	slug-mismatch	https://www.hardwareresources.com/ln1s1w24.html
+LN1S1W2400340	slug-mismatch	https://www.hardwareresources.com/ln1s1w24.html
+LN1S1W2400930	slug-mismatch	https://www.hardwareresources.com/ln1s1w24.html
+LN1S1W2400940	slug-mismatch	https://www.hardwareresources.com/ln1s1w24.html
+LN1S1W2401630	slug-mismatch	https://www.hardwareresources.com/ln1s1w24.html
+LN1S1W2401640	slug-mismatch	https://www.hardwareresources.com/ln1s1w24.html
+LN1T1W2401630	slug-mismatch	https://www.hardwareresources.com/ln1t1w24.html
+LN1T1W2401640	slug-mismatch	https://www.hardwareresources.com/ln1t1w24.html
+LN1T1W2403225	no-redirect	
+LN2T1W2401630	slug-mismatch	https://www.hardwareresources.com/ln1t1w24.html
+LN2T1W2401640	slug-mismatch	https://www.hardwareresources.com/ln1t1w24.html
+LN2T1W2403225	no-redirect	
+LN4T1W2401630	slug-mismatch	https://www.hardwareresources.com/ln1t1w24.html
+LN4T1W2401640	slug-mismatch	https://www.hardwareresources.com/ln1t1w24.html
+LP-R-WT-15A	no-redirect	
+LP10-T6R5W-BBK	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP10-T6R5W-BBZ	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP10-T6R5W-GSN	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP10-T6R5W-WWT	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP10HR3NDBBK27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDBBK30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDBBK40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDBBK50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDGSN27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDGSN30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDGSN40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDGSN50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDWWT27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDWWT30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDWWT40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10HR3NDWWT50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP10QD2NDBBK27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDBBK30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDBBK40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDBBK50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDGSN27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDGSN30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDGSN40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDGSN50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDWWT27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDWWT30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDWWT40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP10QD2NDWWT50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12-T6R6W-BBK	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP12-T6R6W-BBZ	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP12-T6R6W-GSN	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP12-T6R6W-WWT	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP12HR6NDBBK27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDBBK30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDBBK40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDBBK50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDGSN27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDGSN30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDGSN40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDGSN50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDWWT27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDWWT30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDWWT40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12HR6NDWWT50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP12QD4NDBBK27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDBBK30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDBBK40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDBBK50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDGSN27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDGSN30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDGSN40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDGSN50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDWWT27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDWWT30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDWWT40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP12QD4NDWWT50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18-T6R9W-BBK	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP18-T6R9W-BBZ	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP18-T6R9W-GSN	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP18-T6R9W-WWT	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP18HR9NDBBK27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDBBK30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDBBK40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDBBK50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDGSN27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDGSN30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDGSN40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDGSN50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDWWT27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDWWT30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDWWT40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18HR9NDWWT50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP18QD6NDBBK27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDBBK30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDBBK40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDBBK50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDGSN27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDGSN30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDGSN40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDGSN50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDWWT27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDWWT30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDWWT40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP18QD6NDWWT50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24-T6R12W-BBK	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP24-T6R12W-BBZ	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP24-T6R12W-GSN	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP24-T6R12W-WWT	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP24HR12NDBBK27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDBBK30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDBBK40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDBBK50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDGSN27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDGSN30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDGSN40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDGSN50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDWWT27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDWWT30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDWWT40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24HR12NDWWT50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP24QD8NDBBK27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDBBK30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDBBK40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDBBK50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDGSN27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDGSN30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDGSN40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDGSN50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDWWT27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDWWT30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDWWT40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP24QD8NDWWT50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30-T6R15W-BBK	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP30-T6R15W-BBZ	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP30-T6R15W-GSN	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP30-T6R15W-WWT	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP30HR15NDBBK27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDBBK30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDBBK40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDBBK50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDGSN27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDGSN30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDGSN40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDGSN50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDWWT27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDWWT30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDWWT40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30HR15NDWWT50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP30QD10NDBBK27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDBBK30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDBBK40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDBBK50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDGSN27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDGSN30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDGSN40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDGSN50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDWWT27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDWWT30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDWWT40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP30QD10NDWWT50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36-T6R18W-BBK	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP36-T6R18W-BBZ	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP36-T6R18W-GSN	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP36-T6R18W-WWT	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP36HR18NDBBK27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDBBK30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDBBK40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDBBK50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDGSN27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDGSN30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDGSN40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDGSN50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDWWT27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDWWT30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDWWT40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36HR18NDWWT50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP36QD12NDBBK27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDBBK30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDBBK40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDBBK50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDGSN27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDGSN30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDGSN40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDGSN50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDWWT27	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDWWT30	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDWWT40	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP36QD12NDWWT50	slug-mismatch	https://www.hardwareresources.com/lpqdnd.html
+LP42-T6R21W-BBK	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP42-T6R21W-BBZ	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP42-T6R21W-GSN	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP42-T6R21W-WWT	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP42HR21NDBBK27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDBBK30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDBBK40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDBBK50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDGSN27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDGSN30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDGSN40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDGSN50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDWWT27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDWWT30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDWWT40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP42HR21NDWWT50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48-T6R24W-BBK	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP48-T6R24W-BBZ	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP48-T6R24W-GSN	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP48-T6R24W-WWT	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP48HR24NDBBK27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDBBK30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDBBK40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDBBK50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDGSN27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDGSN30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDGSN40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDGSN50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDWWT27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDWWT30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDWWT40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP48HR24NDWWT50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60-T6R30W-BBK	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP60-T6R30W-BBZ	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP60-T6R30W-GSN	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP60-T6R30W-WWT	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP60HR30NDBBK27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDBBK30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDBBK40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDBBK50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDGSN27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDGSN30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDGSN40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDGSN50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDWWT27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDWWT30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDWWT40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP60HR30NDWWT50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72-T6R36W-BBK	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP72-T6R36W-BBZ	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP72-T6R36W-GSN	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP72-T6R36W-WWT	slug-mismatch	https://www.hardwareresources.com/lp-t6r.html
+LP72HR36NDBBK27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDBBK30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDBBK40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDBBK50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDBBZ27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDBBZ30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDBBZ40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDBBZ50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDGSN27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDGSN30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDGSN40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDGSN50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDWWT27	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDWWT30	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDWWT40	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LP72HR36NDWWT50	slug-mismatch	https://www.hardwareresources.com/lphrnd.html
+LPS-BLANK-P-BK	no-redirect	
+LPS-BLANK-P-BZ	no-redirect	
+LPS-BLANK-P-SN	no-redirect	
+LPS-BLANK-P-WT	no-redirect	
+LPS-EC-KIT-P-BK	no-redirect	
+LPS-EC-KIT-P-BZ	no-redirect	
+LPS-EC-KIT-P-SN	no-redirect	
+LPS-EC-KIT-P-WT	no-redirect	
+LPUL18S6RBBK27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RBBK30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RBBK40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RBBK50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RGSN27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RGSN30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RGSN40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RGSN50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RWWT27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RWWT30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RWWT40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL18S6RWWT50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S4DBBK27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DBBK30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DBBK40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DBBK50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DGSN27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DGSN30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DGSN40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DGSN50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DWWT27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DWWT30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DWWT40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S4DWWT50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL24S6RBBK27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RBBK30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RBBK40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RBBK50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RGSN27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RGSN30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RGSN40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RGSN50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RWWT27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RWWT30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RWWT40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL24S6RWWT50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S4DBBK27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DBBK30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DBBK40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DBBK50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DGSN27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DGSN30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DGSN40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DGSN50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DWWT27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DWWT30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DWWT40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S4DWWT50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL30S6RBBK27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RBBK30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RBBK40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RBBK50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RGSN27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RGSN30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RGSN40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RGSN50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RWWT27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RWWT30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RWWT40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL30S6RWWT50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S4DBBK27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DBBK30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DBBK40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DBBK50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DGSN27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DGSN30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DGSN40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DGSN50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DWWT27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DWWT30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DWWT40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S4DWWT50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUL36S6RBBK27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RBBK30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RBBK40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RBBK50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RGSN27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RGSN30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RGSN40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RGSN50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RWWT27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RWWT30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RWWT40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL36S6RWWT50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RBBK27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RBBK30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RBBK40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RBBK50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RGSN27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RGSN30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RGSN40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RGSN50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RWWT27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RWWT30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RWWT40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL42S6RWWT50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RBBK27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RBBK30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RBBK40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RBBK50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RGSN27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RGSN30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RGSN40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RGSN50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RWWT27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RWWT30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RWWT40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL48S6RWWT50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RBBK27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RBBK30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RBBK40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RBBK50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RGSN27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RGSN30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RGSN40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RGSN50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RWWT27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RWWT30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RWWT40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL60S6RWWT50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RBBK27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RBBK30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RBBK40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RBBK50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RGSN27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RGSN30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RGSN40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RGSN50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RWWT27	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RWWT30	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RWWT40	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUL72S6RWWT50	slug-mismatch	https://www.hardwareresources.com/lpus6r.html
+LPUR24S4DBBK27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DBBK30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DBBK40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DBBK50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DGSN27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DGSN30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DGSN40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DGSN50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DWWT27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DWWT30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DWWT40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR24S4DWWT50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DBBK27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DBBK30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DBBK40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DBBK50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DGSN27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DGSN30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DGSN40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DGSN50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DWWT27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DWWT30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DWWT40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR30S4DWWT50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DBBK27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DBBK30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DBBK40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DBBK50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DBBZ27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DBBZ30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DBBZ40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DBBZ50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DGSN27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DGSN30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DGSN40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DGSN50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DWWT27	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DWWT30	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DWWT40	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LPUR36S4DWWT50	slug-mismatch	https://www.hardwareresources.com/lpus4d.html
+LR1P312V09-02W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V09-02W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V12-02W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V12-02W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V15-02W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V15-02W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V18-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V18-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V21-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V21-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V24-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V24-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V27-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V27-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V30-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V30-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V33-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V33-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V36-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V36-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V39-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V39-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V42-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V42-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V45-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V45-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V48-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P312V48-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V09-02W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V09-02W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V12-02W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V12-02W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V15-02W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V15-02W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V18-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V18-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V21-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V21-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V24-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V24-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V27-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V27-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V30-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V30-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V33-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V33-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V36-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V36-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V39-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V39-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V42-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V42-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V45-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V45-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V48-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P324V48-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LR1P712V09-02W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V09-02W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V12-02W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V12-02W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V15-02W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V15-02W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V18-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V18-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V21-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V21-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V24-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V24-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V27-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V27-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V30-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V30-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V33-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V33-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V36-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V36-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V39-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V39-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V42-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V42-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V45-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V45-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V48-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P712V48-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V09-02W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V09-02W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V12-02W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V12-02W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V15-02W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V15-02W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V18-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V18-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V21-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V21-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V24-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V24-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V27-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V27-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V30-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V30-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V33-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V33-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V36-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V36-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V39-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V39-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V42-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V42-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V45-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V45-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V48-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1P724V48-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LR1PX12V09-02W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V09-02W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V12-02W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V12-02W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V15-02W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V15-02W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V18-03W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V18-03W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V21-03W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V21-03W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V24-03W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V24-03W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V27-04W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V27-04W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V30-04W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V30-04W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V33-05W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V33-05W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V36-05W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V36-05W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V39-05W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V39-05W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V42-06W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V42-06W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V45-06W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V45-06W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V48-06W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX12V48-06W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V09-02W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V09-02W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V12-02W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V12-02W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V15-02W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V15-02W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V18-03W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V18-03W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V21-03W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V21-03W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V24-03W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V24-03W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V27-04W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V27-04W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V30-04W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V30-04W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V33-05W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V33-05W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V36-05W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V36-05W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V39-05W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V39-05W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V42-06W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V42-06W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V45-06W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V45-06W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V48-06W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LR1PX24V48-06W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS120W24V032-25	no-redirect	
+LS1PD24V09-01W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V09-01W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V12-01W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V12-01W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V15-01W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V15-01W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V18-02W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V18-02W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V21-02W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V21-02W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V24-03W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V24-03W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V27-03W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V27-03W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V30-03W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V30-03W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V33-04W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V33-04W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V36-04W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V36-04W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V39-04W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V39-04W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V42-05W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V42-05W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V45-05W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V45-05W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V48-06W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS1PD24V48-06W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS225W24V032-25	no-redirect	
+LS2PD24V09-01W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V09-01W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V12-02W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V12-02W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V15-03W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V15-03W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V18-04W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V18-04W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V21-04W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V21-04W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V24-05W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V24-05W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V27-05W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V27-05W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V30-06W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V30-06W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V33-07W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V33-07W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V36-08W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V36-08W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V39-08W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V39-08W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V42-09W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V42-09W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V45-09W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V45-09W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V48-10W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS2PD24V48-10W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS400D24V100-30	slug-mismatch	https://www.hardwareresources.com/ls400d24v100.html
+LS400D24V100-40	slug-mismatch	https://www.hardwareresources.com/ls400d24v100.html
+LS400W24V016-30	slug-mismatch	https://www.hardwareresources.com/ls400w24v016.html
+LS400W24V016-40	slug-mismatch	https://www.hardwareresources.com/ls400w24v016.html
+LS4P324V09-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V09-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V12-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V12-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V15-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V15-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V18-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V18-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V21-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V21-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V24-07W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V24-07W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V27-08W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V27-08W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V30-08W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V30-08W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V33-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V33-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V36-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V36-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V39-11W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V39-11W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V42-12W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V42-12W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V45-13W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V45-13W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V48-14W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P324V48-14W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS4P724V09-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V09-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V12-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V12-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V15-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V15-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V18-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V18-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V21-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V21-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V24-07W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V24-07W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V27-08W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V27-08W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V30-08W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V30-08W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V33-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V33-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V36-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V36-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V39-11W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V39-11W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V42-12W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V42-12W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V45-13W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V45-13W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V48-14W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4P724V48-14W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS4PD24V09-02W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V09-02W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V12-02W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V12-02W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V15-03W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V15-03W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V18-05W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V18-05W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V21-05W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V21-05W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V24-06W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V24-06W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V27-07W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V27-07W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V30-08W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V30-08W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V33-09W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V33-09W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V36-10W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V36-10W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V39-10W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V39-10W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V42-12W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V42-12W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V45-12W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V45-12W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V48-13W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PD24V48-13W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS4PX24V09-03W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V09-03W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V12-03W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V12-03W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V15-04W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V15-04W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V18-05W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V18-05W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V21-06W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V21-06W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V24-07W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V24-07W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V27-08W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V27-08W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V30-08W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V30-08W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V33-10W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V33-10W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V36-10W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V36-10W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V39-11W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V39-11W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V42-12W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V42-12W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V45-13W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V45-13W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V48-14W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS4PX24V48-14W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS600D24V100-30	slug-mismatch	https://www.hardwareresources.com/ls600d24v100.html
+LS600D24V100-40	slug-mismatch	https://www.hardwareresources.com/ls600d24v100.html
+LS600W24V016-30	slug-mismatch	https://www.hardwareresources.com/ls600w24v016.html
+LS600W24V016-40	slug-mismatch	https://www.hardwareresources.com/ls600w24v016.html
+LS6P324V09-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V09-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V12-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V12-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V15-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V15-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V18-07W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V18-07W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V21-09W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V21-09W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V24-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V24-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V27-12W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V27-12W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V30-12W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V30-12W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V33-14W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V33-14W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V36-15W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V36-15W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V39-17W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V39-17W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V42-18W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V42-18W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V45-20W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V45-20W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V48-21W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P324V48-21W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LS6P724V09-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V09-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V12-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V12-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V15-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V15-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V18-07W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V18-07W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V21-09W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V21-09W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V24-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V24-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V27-12W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V27-12W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V30-12W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V30-12W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V33-14W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V33-14W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V36-15W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V36-15W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V39-17W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V39-17W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V42-18W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V42-18W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V45-20W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V45-20W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V48-21W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6P724V48-21W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LS6PD24V09-02W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V09-02W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V12-03W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V12-03W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V15-05W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V15-05W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V18-07W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V18-07W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V21-08W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V21-08W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V24-09W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V24-09W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V27-10W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V27-10W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V30-12W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V30-12W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V33-13W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V33-13W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V36-15W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V36-15W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V39-15W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V39-15W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V42-17W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V42-17W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V45-18W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V45-18W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V48-20W3	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PD24V48-20W4	slug-mismatch	https://www.hardwareresources.com/ls-pd.html
+LS6PF24V09B03W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V09B03W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V09W03W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V09W03W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V12B04W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V12B04W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V12W04W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V12W04W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V15B06W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V15B06W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V15W06W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V15W06W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V18B07W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V18B07W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V18W07W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V18W07W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V21B09W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V21B09W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V21W09W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V21W09W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V24B10W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V24B10W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V24W10W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V24W10W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V27B11W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V27B11W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V27W11W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V27W11W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V30B13W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V30B13W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V30W13W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V30W13W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V33B14W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V33B14W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V33W14W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V33W14W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V36B15W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V36B15W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V36W15W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V36W15W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V39B17W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V39B17W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V39W17W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V39W17W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V42B18W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V42B18W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V42W18W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V42W18W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V45B19W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V45B19W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V45W19W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V45W19W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V48B21W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V48B21W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V48W21W3	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PF24V48W21W4	slug-mismatch	https://www.hardwareresources.com/ls6pf24v.html
+LS6PX24V09-03W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V09-03W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V12-04W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V12-04W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V15-06W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V15-06W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V18-07W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V18-07W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V21-09W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V21-09W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V24-10W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V24-10W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V27-12W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V27-12W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V30-12W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V30-12W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V33-14W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V33-14W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V36-15W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V36-15W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V39-17W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V39-17W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V42-18W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V42-18W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V45-20W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V45-20W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V48-21W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LS6PX24V48-21W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LT2P312V09-03W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P312V12-03W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P312V15-04W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P312V18-05W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P312V21-06W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P312V24-06W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P312V27-07W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P312V30-08W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P312V33-09W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P312V36-09W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P312V39-10W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P312V42-11W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P312V45-11W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P312V48-12W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V09-03W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V12-03W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V15-04W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V18-05W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V21-06W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V24-06W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V27-07W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V30-08W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V33-09W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V36-09W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V39-10W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V42-11W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V45-11W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P324V48-12W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT2P712V09-03W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P712V12-03W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P712V15-04W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P712V18-05W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P712V21-06W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P712V24-06W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P712V27-07W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P712V30-08W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P712V33-09W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P712V36-09W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P712V39-10W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P712V42-11W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P712V45-11W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P712V48-12W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V09-03W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V12-03W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V15-04W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V18-05W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V21-06W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V24-06W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V27-07W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V30-08W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V33-09W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V36-09W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V39-10W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V42-11W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V45-11W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2P724V48-12W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT2PX12V09-03W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX12V12-03W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX12V15-04W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX12V18-05W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX12V21-06W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX12V24-06W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX12V27-07W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX12V30-08W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX12V33-09W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX12V36-09W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX12V39-10W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX12V42-11W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX12V45-11W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX12V48-12W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V09-03W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V12-03W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V15-04W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V18-05W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V21-06W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V24-06W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V27-07W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V30-08W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V33-09W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V36-09W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V39-10W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V42-11W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V45-11W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT2PX24V48-12W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT3PD24V09-02W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT3PD24V12-02W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT3PD24V15-03W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT3PD24V18-04W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT3PD24V21-04W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT3PD24V24-06W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT3PD24V27-06W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT3PD24V30-07W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT3PD24V33-08W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT3PD24V36-08W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT3PD24V39-09W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT3PD24V42-10W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT3PD24V45-11W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT3PD24V48-12W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4P324V09-03W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P324V12-03W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P324V15-04W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P324V18-05W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P324V21-06W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P324V24-07W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P324V27-08W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P324V30-09W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P324V33-10W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P324V36-10W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P324V39-12W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P324V42-12W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P324V45-13W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P324V48-14W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT4P724V09-03W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4P724V12-03W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4P724V15-04W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4P724V18-05W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4P724V21-06W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4P724V24-07W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4P724V27-08W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4P724V30-09W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4P724V33-10W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4P724V36-10W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4P724V39-12W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4P724V42-12W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4P724V45-13W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4P724V48-14W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT4PD24V09-02W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PD24V12-03W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PD24V15-03W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PD24V18-04W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PD24V21-05W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PD24V24-06W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PD24V27-07W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PD24V30-08W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PD24V33-08W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PD24V36-10W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PD24V39-11W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PD24V42-11W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PD24V45-12W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PD24V48-13W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT4PX24V09-03W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT4PX24V12-03W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT4PX24V15-04W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT4PX24V18-05W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT4PX24V21-06W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT4PX24V24-07W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT4PX24V27-08W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT4PX24V30-09W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT4PX24V33-10W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT4PX24V36-10W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT4PX24V39-12W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT4PX24V42-12W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT4PX24V45-13W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT4PX24V48-14W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6P324V09-03W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P324V12-04W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P324V15-06W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P324V18-07W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P324V21-09W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P324V24-10W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P324V27-11W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P324V30-13W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P324V33-14W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P324V36-15W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P324V39-17W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P324V42-18W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P324V45-19W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P324V48-21W	slug-mismatch	https://www.hardwareresources.com/lt-p3.html
+LT6P724V09-03W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6P724V12-04W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6P724V15-06W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6P724V18-07W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6P724V21-09W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6P724V24-10W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6P724V27-11W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6P724V30-13W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6P724V33-14W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6P724V36-15W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6P724V39-17W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6P724V42-18W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6P724V45-19W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6P724V48-21W	slug-mismatch	https://www.hardwareresources.com/lt-p7.html
+LT6PD24V09-03W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PD24V12-04W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PD24V15-05W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PD24V18-06W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PD24V21-07W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PD24V24-09W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PD24V27-10W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PD24V30-11W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PD24V33-12W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PD24V36-14W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PD24V39-15W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PD24V42-17W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PD24V45-18W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PD24V48-19W	slug-mismatch	https://www.hardwareresources.com/lt-pd.html
+LT6PF24V09-B03W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V09-W03W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V12-B04W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V12-W04W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V15-B06W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V15-W06W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V18-B07W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V18-W07W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V21-B09W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V21-W09W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V24-B10W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V24-W10W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V27-B11W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V27-W11W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V30-B13W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V30-W13W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V33-B14W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V33-W14W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V36-B15W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V36-W15W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V39-B17W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V39-W17W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V42-B18W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V42-W18W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V45-B19W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V45-W19W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V48-B21W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PF24V48-W21W	slug-mismatch	https://www.hardwareresources.com/lt6pf24v.html
+LT6PX24V09-03W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6PX24V12-04W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6PX24V15-06W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6PX24V18-07W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6PX24V21-09W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6PX24V24-10W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6PX24V27-11W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6PX24V30-13W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6PX24V33-14W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6PX24V36-15W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6PX24V39-17W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6PX24V42-18W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6PX24V45-19W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LT6PX24V48-21W	slug-mismatch	https://www.hardwareresources.com/lt-px.html
+LV2P312V09-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V09-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V12-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V12-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V15-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V15-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V18-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V18-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V21-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V21-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V24-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V24-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V27-07W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V27-07W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V30-07W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V30-07W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V33-08W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V33-08W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V36-09W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V36-09W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V39-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V39-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V42-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V42-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V45-11W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V45-11W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V48-12W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P312V48-12W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V09-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V09-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V12-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V12-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V15-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V15-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V18-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V18-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V21-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V21-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V24-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V24-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V27-07W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V27-07W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V30-07W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V30-07W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V33-08W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V33-08W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V36-09W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V36-09W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V39-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V39-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V42-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V42-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V45-11W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V45-11W4	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V48-12W3	slug-mismatch	https://www.hardwareresources.com/ls-p3.html
+LV2P324V48-12W4	search-http-503	
+LV2P712V09-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V09-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V12-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V12-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V15-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V15-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V18-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V18-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V21-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V21-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V24-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V24-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V27-07W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V27-07W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V30-07W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V30-07W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V33-08W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V33-08W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V36-09W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V36-09W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V39-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V39-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V42-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V42-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V45-11W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V45-11W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V48-12W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P712V48-12W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V09-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V09-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V12-03W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V12-03W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V15-04W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V15-04W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V18-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V18-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V21-05W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V21-05W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V24-06W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V24-06W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V27-07W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V27-07W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V30-07W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V30-07W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V33-08W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V33-08W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V36-09W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V36-09W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V39-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V39-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V42-10W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V42-10W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V45-11W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V45-11W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V48-12W3	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2P724V48-12W4	slug-mismatch	https://www.hardwareresources.com/ls-p7.html
+LV2PX12V09-03W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V09-03W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V12-03W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V12-03W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V15-04W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V15-04W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V18-05W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V18-05W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V21-05W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V21-05W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V24-06W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V24-06W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V27-07W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V27-07W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V30-07W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V30-07W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V33-08W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V33-08W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V36-09W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V36-09W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V39-10W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V39-10W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V42-10W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V42-10W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V45-11W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V45-11W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V48-12W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX12V48-12W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V09-03W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V09-03W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V12-03W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V12-03W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V15-04W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V15-04W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V18-05W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V18-05W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V21-05W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V21-05W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V24-06W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V24-06W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V27-07W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V27-07W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V30-07W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V30-07W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V33-08W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V33-08W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V36-09W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V36-09W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V39-10W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V39-10W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V42-10W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V42-10W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V45-11W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V45-11W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V48-12W3	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+LV2PX24V48-12W4	slug-mismatch	https://www.hardwareresources.com/ls-px.html
+ODL-24-T3-002F	no-redirect	
+ODL-24-T3-003F	no-redirect	
+ODL-24-T3-007F	no-redirect	
+ODL-24-T3-BNK	no-redirect	
+ODL-24-T3-DMF	no-redirect	
+ODL-24-T3-PF-BK	no-redirect	
+ODL-24-T3-PF-WT	no-redirect	
+ODL-24-T3-RSF	no-redirect	
+ODL-24-T4-002F	no-redirect	
+ODL-24-T4-003F	no-redirect	
+ODL-24-T4-007F	no-redirect	
+ODL-24-T4-BNK	no-redirect	
+ODL-24-T4-DMF	no-redirect	
+ODL-24-T4-PF-BK	no-redirect	
+ODL-24-T4-PF-WT	no-redirect	
+ODL-24-T4-RSF	no-redirect	
+ODL-24-T6-002F	no-redirect	
+ODL-24-T6-003F	no-redirect	
+ODL-24-T6-007F	no-redirect	
+ODL-24-T6-BNK	no-redirect	
+ODL-24-T6-DMF	no-redirect	
+ODL-24-T6-PF-BK	no-redirect	
+ODL-24-T6-PF-WT	no-redirect	
+ODL-24-T6-RSF	no-redirect	
+ODL-24S4-002F-3	no-redirect	
+ODL-24S4-002F-4	no-redirect	
+ODL-24S4-003F-3	no-redirect	
+ODL-24S4-003F-4	no-redirect	
+ODL-24S4-007F-3	no-redirect	
+ODL-24S4-007F-4	no-redirect	
+ODL-24S4-BNK-3	no-redirect	
+ODL-24S4-BNK-4	no-redirect	
+ODL-24S4-DMF-3	no-redirect	
+ODL-24S4-DMF-4	no-redirect	
+ODL-24S4-PFBK30	no-redirect	
+ODL-24S4-PFBK40	no-redirect	
+ODL-24S4-PFWT30	no-redirect	
+ODL-24S4-PFWT40	no-redirect	
+ODL-24S4-RSF-3	no-redirect	
+ODL-24S4-RSF-4	no-redirect	
+ODL-24S6-002F-3	no-redirect	
+ODL-24S6-002F-4	no-redirect	
+ODL-24S6-003F-3	no-redirect	
+ODL-24S6-003F-4	no-redirect	
+ODL-24S6-007F-3	no-redirect	
+ODL-24S6-007F-4	no-redirect	
+ODL-24S6-BNK-3	no-redirect	
+ODL-24S6-BNK-4	no-redirect	
+ODL-24S6-DMF-3	no-redirect	
+ODL-24S6-DMF-4	no-redirect	
+ODL-24S6-PFBK30	no-redirect	
+ODL-24S6-PFBK40	no-redirect	
+ODL-24S6-PFWT30	no-redirect	
+ODL-24S6-PFWT40	no-redirect	
+ODL-24S6-RSF-3	no-redirect	
+ODL-24S6-RSF-4	no-redirect	
+ODL-R24-002F-2	no-redirect	
+ODL-R24-002F-3	no-redirect	
+ODL-R24-002F-4	no-redirect	
+ODL-R24-003F-2	no-redirect	
+ODL-R24-003F-3	no-redirect	
+ODL-R24-003F-4	no-redirect	
+ODL-R24-007F-2	no-redirect	
+ODL-R24-007F-3	no-redirect	
+ODL-R24-007F-4	no-redirect	
+ODL-R24-BNK-2	no-redirect	
+ODL-R24-BNK-3	no-redirect	
+ODL-R24-BNK-4	no-redirect	
+ODL-R24-DMF-2	no-redirect	
+ODL-R24-DMF-3	no-redirect	
+ODL-R24-DMF-4	no-redirect	
+ODL-R24-PFBK-27	no-redirect	
+ODL-R24-PFBK-30	no-redirect	
+ODL-R24-PFBK-40	no-redirect	
+ODL-R24-PFWT-27	no-redirect	
+ODL-R24-PFWT-30	no-redirect	
+ODL-R24-PFWT-40	no-redirect	
+ODL-R24-RSF-2	no-redirect	
+ODL-R24-RSF-3	no-redirect	
+ODL-R24-RSF-4	no-redirect	
+ODL-RMW-002F-27	no-redirect	
+ODL-RMW-002F-30	no-redirect	
+ODL-RMW-002F-40	no-redirect	
+ODL-RMW-002F-50	no-redirect	
+ODL-RMW-003F-27	no-redirect	
+ODL-RMW-003F-30	no-redirect	
+ODL-RMW-003F-40	no-redirect	
+ODL-RMW-003F-50	no-redirect	
+ODL-RMW-007F-27	no-redirect	
+ODL-RMW-007F-30	no-redirect	
+ODL-RMW-007F-40	no-redirect	
+ODL-RMW-007F-50	no-redirect	
+ODL-RMW-BNK-27	no-redirect	
+ODL-RMW-BNK-30	no-redirect	
+ODL-RMW-BNK-40	no-redirect	
+ODL-RMW-BNK-50	no-redirect	
+ODL-RMW-DMF-27	no-redirect	
+ODL-RMW-DMF-30	no-redirect	
+ODL-RMW-DMF-40	no-redirect	
+ODL-RMW-DMF-50	no-redirect	
+ODL-RMW-PFBK-27	no-redirect	
+ODL-RMW-PFBK-30	no-redirect	
+ODL-RMW-PFBK-40	no-redirect	
+ODL-RMW-PFBK-50	no-redirect	
+ODL-RMW-PFWT-27	no-redirect	
+ODL-RMW-PFWT-30	no-redirect	
+ODL-RMW-PFWT-40	no-redirect	
+ODL-RMW-PFWT-50	no-redirect	
+ODL-RMW-RSF-27	no-redirect	
+ODL-RMW-RSF-30	no-redirect	
+ODL-RMW-RSF-40	no-redirect	
+ODL-RMW-RSF-50	no-redirect	
+ODL-TMW-002F	no-redirect	
+ODL-TMW-003F	no-redirect	
+ODL-TMW-007F	no-redirect	
+ODL-TMW-BNK	no-redirect	
+ODL-TMW-DMF	no-redirect	
+ODL-TMW-PF-BK	no-redirect	
+ODL-TMW-PF-WT	no-redirect	
+ODL-TMW-RSF	no-redirect	
+ODL-V24-002F-2	no-redirect	
+ODL-V24-002F-3	no-redirect	
+ODL-V24-002F-4	no-redirect	
+ODL-V24-003F-2	no-redirect	
+ODL-V24-003F-3	no-redirect	
+ODL-V24-003F-4	no-redirect	
+ODL-V24-007F-2	no-redirect	
+ODL-V24-007F-3	no-redirect	
+ODL-V24-007F-4	no-redirect	
+ODL-V24-BNK-2	no-redirect	
+ODL-V24-BNK-3	no-redirect	
+ODL-V24-BNK-4	no-redirect	
+ODL-V24-DMF-2	no-redirect	
+ODL-V24-DMF-3	no-redirect	
+ODL-V24-DMF-4	no-redirect	
+ODL-V24-PFBK-27	no-redirect	
+ODL-V24-PFBK-30	no-redirect	
+ODL-V24-PFBK-40	no-redirect	
+ODL-V24-PFWT-27	no-redirect	
+ODL-V24-PFWT-30	no-redirect	
+ODL-V24-PFWT-40	no-redirect	
+ODL-V24-RSF-2	no-redirect	
+ODL-V24-RSF-3	no-redirect	
+ODL-V24-RSF-4	no-redirect	
+ODL-VMW-002F-27	no-redirect	
+ODL-VMW-002F-30	no-redirect	
+ODL-VMW-002F-40	no-redirect	
+ODL-VMW-002F-50	no-redirect	
+ODL-VMW-003F-27	no-redirect	
+ODL-VMW-003F-30	no-redirect	
+ODL-VMW-003F-40	no-redirect	
+ODL-VMW-003F-50	no-redirect	
+ODL-VMW-007F-27	no-redirect	
+ODL-VMW-007F-30	no-redirect	
+ODL-VMW-007F-40	no-redirect	
+ODL-VMW-007F-50	no-redirect	
+ODL-VMW-BNK-27	no-redirect	
+ODL-VMW-BNK-30	no-redirect	
+ODL-VMW-BNK-40	no-redirect	
+ODL-VMW-BNK-50	no-redirect	
+ODL-VMW-DMF-27	no-redirect	
+ODL-VMW-DMF-30	no-redirect	
+ODL-VMW-DMF-40	no-redirect	
+ODL-VMW-DMF-50	no-redirect	
+ODL-VMW-PFBK-27	no-redirect	
+ODL-VMW-PFBK-30	no-redirect	
+ODL-VMW-PFBK-40	no-redirect	
+ODL-VMW-PFBK-50	no-redirect	
+ODL-VMW-PFWT-27	no-redirect	
+ODL-VMW-PFWT-30	no-redirect	
+ODL-VMW-PFWT-40	no-redirect	
+ODL-VMW-PFWT-50	no-redirect	
+ODL-VMW-RSF-27	no-redirect	
+ODL-VMW-RSF-30	no-redirect	
+ODL-VMW-RSF-40	no-redirect	
+ODL-VMW-RSF-50	no-redirect	
+SALESKIT-2018	no-redirect	
+SAMP-AL-PROFILE	no-redirect	
+SAMP-APS-KIT	no-redirect	
+SAMP-APT-4COLOR	no-redirect	
+SAMP-APTU18-BK	no-redirect	
+SAMP-APTU18-BZ	no-redirect	
+SAMP-APTU18-SN	no-redirect	
+SAMP-APTU18-WT	no-redirect	
+SAMP-LC9R12SN30	no-redirect	
+SAMP-LC9R18BZ30	no-redirect	
+SAMP-LC9R18SN30	no-redirect	
+SAMP-LP12T6R6W	no-redirect	
+SAMP-LPS-KIT	no-redirect	
+SAMP-LPS12HRM27	no-redirect	
+SAMP-LPS12HRM30	no-redirect	
+SAMP-LPS12QDV27	no-redirect	
+SAMP-LPS12QDV30	no-redirect	
+SAMP-LPS12QRM30	no-redirect	
+SAMP-NEONFLEX	no-redirect	
+SAMP-PF09-BK	no-redirect	
+SAMP-SEMP-G9/UN	no-redirect	
+SAMP-SEMP-KIT	no-redirect	
+SAMP-SEMP-SA9E	no-redirect	
+SAMP-SEMP-SF9Q	no-redirect	
+SAMP-SEMP-SG9	no-redirect	
+SAMP-SEMP-SR9H	no-redirect	
+SAMP-SEMP-SS9Q	no-redirect	
+SAMP-SPL/MC-KIT	no-redirect	
+SAMP-TAN-DEMO	no-redirect	
+SAMP-TASK-CK	no-redirect	
+SAMP-TR-4COLOR	no-redirect	
+SAMP-TRU9-GD-SN	no-redirect	
+SAMP-WW09-BK	no-redirect	
+SMP-LCR18S4SN30	no-redirect	
+SP-10LF-18-2	no-redirect	
+SP-20LF-18-2	no-redirect	
+SP-50LF-18-2	no-redirect	
+SPL9-FR-P-BK27	no-redirect	
+SPL9-FR-P-BK30	no-redirect	
+SPL9-FR-P-BZ27	no-redirect	
+SPL9-FR-P-BZ30	no-redirect	
+SPL9-FR-P-SN27	no-redirect	
+SPL9-FR-P-SN30	no-redirect	
+SPL9-FR-P-WT27	no-redirect	
+SPL9-FR-P-WT30	no-redirect	
+SPL9-K1-FR-BK27	no-redirect	
+SPL9-K1-FR-BK30	no-redirect	
+SPL9-K1-FR-BZ27	no-redirect	
+SPL9-K1-FR-BZ30	no-redirect	
+SPL9-K1-FR-SN27	no-redirect	
+SPL9-K1-FR-SN30	no-redirect	
+SPL9-K1-FR-WT27	no-redirect	
+SPL9-K1-FR-WT30	no-redirect	
+SPL9-K2-FR-BK27	no-redirect	
+SPL9-K2-FR-BK30	no-redirect	
+SPL9-K2-FR-BZ27	no-redirect	
+SPL9-K2-FR-BZ30	no-redirect	
+SPL9-K2-FR-SN27	no-redirect	
+SPL9-K2-FR-SN30	no-redirect	
+SPL9-K2-FR-WT27	no-redirect	
+SPL9-K2-FR-WT30	no-redirect	
+SPL9-K3-FR-BK27	no-redirect	
+SPL9-K3-FR-BK30	no-redirect	
+SPL9-K3-FR-BZ27	no-redirect	
+SPL9-K3-FR-BZ30	no-redirect	
+SPL9-K3-FR-SN27	no-redirect	
+SPL9-K3-FR-SN30	no-redirect	
+SPL9-K3-FR-WT27	no-redirect	
+SPL9-K3-FR-WT30	no-redirect	
+SPL9-K4-FR-BK27	no-redirect	
+SPL9-K4-FR-BK30	no-redirect	
+SPL9-K4-FR-BZ27	no-redirect	
+SPL9-K4-FR-BZ30	no-redirect	
+SPL9-K4-FR-SN27	no-redirect	
+SPL9-K4-FR-SN30	no-redirect	
+SPL9-K4-FR-WT27	no-redirect	
+SPL9-K4-FR-WT30	no-redirect	
+SPMC-11-P-BK27	no-redirect	
+SPMC-11-P-BK30	no-redirect	
+SPMC-11-P-BZ27	no-redirect	
+SPMC-11-P-BZ30	no-redirect	
+SPMC-11-P-SN27	no-redirect	
+SPMC-11-P-SN30	no-redirect	
+SPMC-11-P-WT27	no-redirect	
+SPMC-11-P-WT30	no-redirect	
+SPMC-20-P-BK27	no-redirect	
+SPMC-20-P-BK30	no-redirect	
+SPMC-20-P-BZ27	no-redirect	
+SPMC-20-P-BZ30	no-redirect	
+SPMC-20-P-SN27	no-redirect	
+SPMC-20-P-SN30	no-redirect	
+SPMC-20-P-WT27	no-redirect	
+SPMC-20-P-WT30	no-redirect	
+SPMC-38-P-BK27	no-redirect	
+SPMC-38-P-BK30	no-redirect	
+SPMC-38-P-BZ27	no-redirect	
+SPMC-38-P-BZ30	no-redirect	
+SPMC-38-P-SN27	no-redirect	
+SPMC-38-P-SN30	no-redirect	
+SPMC-38-P-WT27	no-redirect	
+SPMC-38-P-WT30	no-redirect	
+SPMC-K1-11-BK27	no-redirect	
+SPMC-K1-11-BK30	no-redirect	
+SPMC-K1-11-BZ27	no-redirect	
+SPMC-K1-11-BZ30	no-redirect	
+SPMC-K1-11-SN27	no-redirect	
+SPMC-K1-11-SN30	no-redirect	
+SPMC-K1-11-WT27	no-redirect	
+SPMC-K1-11-WT30	no-redirect	
+SPMC-K1-20-BK27	no-redirect	
+SPMC-K1-20-BK30	no-redirect	
+SPMC-K1-20-BZ27	no-redirect	
+SPMC-K1-20-BZ30	no-redirect	
+SPMC-K1-20-SN27	no-redirect	
+SPMC-K1-20-SN30	no-redirect	
+SPMC-K1-20-WT27	no-redirect	
+SPMC-K1-20-WT30	no-redirect	
+SPMC-K1-38-BK27	no-redirect	
+SPMC-K1-38-BK30	no-redirect	
+SPMC-K1-38-BZ27	no-redirect	
+SPMC-K1-38-BZ30	no-redirect	
+SPMC-K1-38-SN27	no-redirect	
+SPMC-K1-38-SN30	no-redirect	
+SPMC-K1-38-WT27	no-redirect	
+SPMC-K1-38-WT30	no-redirect	
+SPMC-K2-11-BK27	no-redirect	
+SPMC-K2-11-BK30	no-redirect	
+SPMC-K2-11-BZ27	no-redirect	
+SPMC-K2-11-BZ30	no-redirect	
+SPMC-K2-11-SN27	no-redirect	
+SPMC-K2-11-SN30	no-redirect	
+SPMC-K2-11-WT27	no-redirect	
+SPMC-K2-11-WT30	no-redirect	
+SPMC-K2-20-BK27	no-redirect	
+SPMC-K2-20-BK30	no-redirect	
+SPMC-K2-20-BZ27	no-redirect	
+SPMC-K2-20-BZ30	no-redirect	
+SPMC-K2-20-SN27	no-redirect	
+SPMC-K2-20-SN30	no-redirect	
+SPMC-K2-20-WT27	no-redirect	
+SPMC-K2-20-WT30	no-redirect	
+SPMC-K2-38-BK27	no-redirect	
+SPMC-K2-38-BK30	no-redirect	
+SPMC-K2-38-BZ27	no-redirect	
+SPMC-K2-38-BZ30	no-redirect	
+SPMC-K2-38-SN27	no-redirect	
+SPMC-K2-38-SN30	no-redirect	
+SPMC-K2-38-WT27	no-redirect	
+SPMC-K2-38-WT30	no-redirect	
+SPMC-K3-11-BK27	no-redirect	
+SPMC-K3-11-BK30	no-redirect	
+SPMC-K3-11-BZ27	no-redirect	
+SPMC-K3-11-BZ30	no-redirect	
+SPMC-K3-11-SN27	no-redirect	
+SPMC-K3-11-SN30	no-redirect	
+SPMC-K3-11-WT27	no-redirect	
+SPMC-K3-11-WT30	no-redirect	
+SPMC-K3-20-BK27	no-redirect	
+SPMC-K3-20-BK30	no-redirect	
+SPMC-K3-20-BZ27	no-redirect	
+SPMC-K3-20-BZ30	no-redirect	
+SPMC-K3-20-SN27	no-redirect	
+SPMC-K3-20-SN30	no-redirect	
+SPMC-K3-20-WT27	no-redirect	
+SPMC-K3-20-WT30	no-redirect	
+SPMC-K3-38-BK27	no-redirect	
+SPMC-K3-38-BK30	no-redirect	
+SPMC-K3-38-BZ27	no-redirect	
+SPMC-K3-38-BZ30	no-redirect	
+SPMC-K3-38-SN27	no-redirect	
+SPMC-K3-38-SN30	no-redirect	
+SPMC-K3-38-WT27	no-redirect	
+SPMC-K3-38-WT30	no-redirect	
+SQ-JB-P-BK	no-redirect	
+SQ-JB-P-BZ	no-redirect	
+SQ-JB-P-SN	no-redirect	
+SQ-JB-P-WT	no-redirect	
+STS-ICONN	no-redirect	
+T-240W-24V-HW	no-redirect	
+T-24V-DT480-HW	no-redirect	
+T-C-RGBWC-RF-AL	slug-mismatch	https://www.hardwareresources.com/t-c-rgbwc-rf.html
+T-C-RGBWC-RF-BK	slug-mismatch	https://www.hardwareresources.com/t-c-rgbwc-rf.html
+T-C-RGBWC-RF-BR	slug-mismatch	https://www.hardwareresources.com/t-c-rgbwc-rf.html
+T-C-RGBWC-RF-GR	slug-mismatch	https://www.hardwareresources.com/t-c-rgbwc-rf.html
+T-C-RGBWC-RF-WT	slug-mismatch	https://www.hardwareresources.com/t-c-rgbwc-rf.html
+T-DPL-BR	not-in-skus-map	https://www.hardwareresources.com/task-lighting-power/led-accessories/wireless-on-off-dimmers/t-dpl.html
+T-WAV-AC120V-R	no-redirect	
+T-WM-90-BK	no-redirect	
+T-WM-90-WT	no-redirect	
+TLD-24WSI	no-redirect	
+TLD-30WSO	no-redirect	
+TLD-45WSO	no-redirect	
+TLD-75WSO	no-redirect	
+TLD-D-FLTR15000	no-redirect	
+TR-BLANK-P-BK	no-redirect	
+TR-BLANK-P-BZ	no-redirect	
+TR-BLANK-P-SN	no-redirect	
+TR-BLANK-P-WT	no-redirect	
+TR-EC-KIT-P-BK	no-redirect	
+TR-EC-KIT-P-BZ	no-redirect	
+TR-EC-KIT-P-SN	no-redirect	
+TR-EC-KIT-P-WT	no-redirect	
+TR-SQ-JB-P-BK	no-redirect	
+TR-SQ-JB-P-BZ	no-redirect	
+TR-SQ-JB-P-SN	no-redirect	
+TR-SQ-JB-P-WT	no-redirect	
+TRK-SUSP-CABLE	no-redirect	
+TRO-15A-REC-B	no-redirect	
+TRO-15A-REC-BR	no-redirect	
+TRO-15A-REC-G	no-redirect	
+TRO-15A-REC-LA	no-redirect	
+TRO-15A-REC-RD	no-redirect	
+TRO-20A-REC-B	no-redirect	
+TRO-20A-REC-G	no-redirect	
+TRO-20A-REC-W	no-redirect	
+TRO-2PORT-B	no-redirect	
+TRO-2PORT-G	no-redirect	
+TRO-2PORT-W	no-redirect	
+TRO-3PORT-B	no-redirect	
+TRO-3PORT-G	no-redirect	
+TRO-3PORT-W	no-redirect	
+TRO-3WS-20A-B	no-redirect	
+TRO-3WS-20A-G	no-redirect	
+TRO-3WS-20A-W	no-redirect	
+TRO-3WS-B	no-redirect	
+TRO-3WS-G	no-redirect	
+TRO-3WS-W	no-redirect	
+TRO-4PORT-B	no-redirect	
+TRO-4PORT-G	no-redirect	
+TRO-4PORT-W	no-redirect	
+TRO-4WS-B	no-redirect	
+TRO-4WS-G	no-redirect	
+TRO-4WS-W	no-redirect	
+TRO-6PORT-B	no-redirect	
+TRO-6PORT-G	no-redirect	
+TRO-6PORT-W	no-redirect	
+TRO-CB-1P/REC-B	no-redirect	
+TRO-CB-1P/REC-G	no-redirect	
+TRO-CB-1P/REC-W	no-redirect	
+TRO-CB-3P/REC-B	no-redirect	
+TRO-CB-3P/REC-G	no-redirect	
+TRO-CB-3P/REC-W	no-redirect	
+TRO-CJ-B	no-redirect	
+TRO-CJ-G	no-redirect	
+TRO-CJ-W	no-redirect	
+TRO-CON-BLANK-B	no-redirect	
+TRO-CON-BLANK-G	no-redirect	
+TRO-CON-BLANK-W	no-redirect	
+TRO-CON-CAT5E-B	no-redirect	
+TRO-CON-CAT5E-G	no-redirect	
+TRO-CON-CAT5E-W	no-redirect	
+TRO-CON-CAT6-B	no-redirect	
+TRO-CON-CAT6-G	no-redirect	
+TRO-CON-CAT6-W	no-redirect	
+TRO-CON-CJ-B	no-redirect	
+TRO-CON-CJ-G	no-redirect	
+TRO-CON-CJ-W	no-redirect	
+TRO-CON-HDMI-B	no-redirect	
+TRO-CON-HDMI-W	no-redirect	
+TRO-CON-PJ-8-B	no-redirect	
+TRO-CON-PJ-8-G	no-redirect	
+TRO-CON-PJ-8-W	no-redirect	
+TRO-DS-(2)3WS-B	no-redirect	
+TRO-DS-(2)3WS-W	no-redirect	
+TRO-DS-1P/3P-B	no-redirect	
+TRO-DS-1P/3P-G	no-redirect	
+TRO-DS-1P/3P-W	no-redirect	
+TRO-DS-2SPS-B	no-redirect	
+TRO-DS-2SPS-G	no-redirect	
+TRO-DS-2SPS-W	no-redirect	
+TRO-HDMI-W	no-redirect	
+TRO-HG-20-REC-B	no-redirect	
+TRO-HG-20-REC-G	no-redirect	
+TRO-HG-20-REC-O	no-redirect	
+TRO-HG-20-REC-R	no-redirect	
+TRO-HG-20-REC-W	no-redirect	
+TRO-LPV-20W-12V	no-redirect	
+TRO-LPV-35W-12V	no-redirect	
+TRO-LV-DIVIDER	no-redirect	
+TRO-PJ-B	no-redirect	
+TRO-PJ-G	no-redirect	
+TRO-PJ-W	no-redirect	
+TRO-SPS-20A-B	no-redirect	
+TRO-SPS-20A-G	no-redirect	
+TRO-SPS-20A-W	no-redirect	
+TRO-SPS-B	no-redirect	
+TRO-SPS-BR	no-redirect	
+TRO-SPS-G	no-redirect	
+TRO-SPS-W	no-redirect	
+TRO-TS-3SPS-B	no-redirect	
+TRO-TS-3SPS-W	no-redirect	
+TRO-USB/REC-GY	no-redirect	
+TRO-USB/REC-LA	no-redirect	
+TRO-USB/REC-WT	no-redirect	
+TRU12-1GD-P-SN	no-redirect	
+TRU12-1WD-P-WT	no-redirect	
+TRU18-2GD-P-SN	no-redirect	
+TRU18-2WD-P-WT	no-redirect	
+TRU24-2GD-P-SN	no-redirect	
+TRU24-2WD-P-WT	no-redirect	
+TRU30-2GD-P-SN	no-redirect	
+TRU30-2WD-P-WT	no-redirect	
+TRU36-2GD-P-SN	no-redirect	
+TRU36-2WD-P-WT	no-redirect	
+TRU42-3GD-P-SN	no-redirect	
+TRU42-3WD-P-WT	no-redirect	
+TRU48-3GD-P-SN	no-redirect	
+TRU48-3WD-P-WT	no-redirect	
+TRU60-4GD-P-SN	no-redirect	
+TRU60-4WD-P-WT	no-redirect	
+TRU72-4GD-P-SN	no-redirect	
+TRU72-4WD-P-WT	no-redirect	
+TRU9-1GD-P-SN	no-redirect	
+TRU9-1WD-P-WT	no-redirect	
+TW-A1KIT-16	no-redirect	
