@@ -103,21 +103,43 @@
         u.searchParams.set("quality", "80");
         return u.toString();
       }
-      if (url.includes("cdn.msisurfaces.com")) {
-        return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
-      }
-      if (url.includes("images.salsify.com")) {
-        return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
-      }
-      if (url.startsWith("/uploads/rom440/")) {
-        return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
-      }
-      if (url.includes("elysiumtile.com")) {
+      const PROXY_DOMAINS = [
+        "cdn.msisurfaces.com",
+        "images.salsify.com",
+        "elysiumtile.com",
+        "melangetile.com",
+        "ragnousa.com",
+        "onetile.us",
+        "energieker.it",
+        "emilgroup.it",
+        "platformsurfaces.com",
+        "lafabbrica.it",
+        "cercomceramiche.it",
+        "supergres.com",
+        "onetile.it",
+        "landoftile.com",
+        "milestonetiles.com",
+        "midwesttile.com",
+        "domita.it",
+        "refin-ceramic-tiles.com",
+        "tilelook.com",
+        "somertile.com",
+        "equipeceramicas.com",
+        "edilportale.com",
+        "cegoceramiche.com",
+        "manningtonprod.pimcoreclient.com"
+      ];
+      if (url.startsWith("/uploads/rom440/") || PROXY_DOMAINS.some((d) => url.includes(d))) {
         return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
       }
     } catch (e) {
     }
     return url;
+  }
+  function optimizeSrcSet(url, sizes) {
+    if (!url || typeof url !== "string") return {};
+    const srcSet = sizes.map((w) => `${optimizeImg(url, w)} ${w}w`).join(", ");
+    return { srcSet };
   }
   var RECENT_SEARCHES_KEY = "roma_recent_searches";
   var MAX_RECENT_SEARCHES = 6;
@@ -148,23 +170,402 @@
       return text;
     }
   }
+  var STYLE_COLOR_MAP = {
+    // --- Blonde (light warm wood tones) ---
+    "Akadia": "Blonde",
+    "Austell Grove": "Blonde",
+    "Ayla": "Blonde",
+    "Bellamy Brooks": "Blonde",
+    "Bozeman": "Blonde",
+    "Bramlett": "Blonde",
+    "Brookings": "Blonde",
+    "Brookline": "Blonde",
+    "Cabana": "Blonde",
+    "Chester Hills": "Blonde",
+    "Coastal Cottage": "Blonde",
+    "Driftway": "Blonde",
+    "Elwood": "Blonde",
+    "Fallonton": "Blonde",
+    "Hatboro Hills": "Blonde",
+    "Houston Trail": "Blonde",
+    "Hyde Haven": "Blonde",
+    "Lark": "Blonde",
+    "Larkin": "Blonde",
+    "Lazura": "Blonde",
+    "Lenexa Creek": "Blonde",
+    "Mable": "Blonde",
+    "Malta": "Blonde",
+    "Meadow": "Blonde",
+    "Mellshire": "Blonde",
+    "Moorville": "Blonde",
+    "Northcutt": "Blonde",
+    "Palmilla": "Blonde",
+    "Quillian": "Blonde",
+    "Roswell": "Blonde",
+    "Runmill Isle": "Blonde",
+    "Shasta Grove": "Blonde",
+    "Sundelle": "Blonde",
+    "Tifton": "Blonde",
+    "Tranquilla": "Blonde",
+    "Valleyview Grove": "Blonde",
+    "Ventar": "Blonde",
+    "Vintaj": "Blonde",
+    "Waldorf": "Blonde",
+    "Wharton": "Blonde",
+    "Whitlock": "Blonde",
+    "Wilton": "Blonde",
+    // Blonde overrides (keyword would give wrong family)
+    "Highcliffe Greige": "Blonde",
+    "Sandino": "Blonde",
+    "Linen Loggia": "Blonde",
+    "Bayside Buff": "Blonde",
+    "Honey Bella Oak": "Blonde",
+    "Ivorelle": "Blonde",
+    "Sunny Shake": "Blonde",
+    "Sunnyvale": "Blonde",
+    // --- Beige (warm neutral tones) ---
+    "Baylin": "Beige",
+    "Bayside Grove": "Beige",
+    "Cranton": "Beige",
+    "Doack": "Beige",
+    "Draven": "Beige",
+    "Woburn Abbey": "Beige",
+    "Bleached Elm": "Beige",
+    // Beige overrides
+    "Dunite Oak": "Beige",
+    "Lime Washed Oak": "Beige",
+    // --- Brown (medium to dark wood tones) ---
+    "Abingdale": "Brown",
+    "Adlar": "Brown",
+    "Andaz": "Brown",
+    "Ardmore Valley": "Brown",
+    "Atwood": "Brown",
+    "Barnstorm": "Brown",
+    "Barrell": "Brown",
+    "Beckley Bruno": "Brown",
+    "Bembridge": "Brown",
+    "Bergen Hills": "Brown",
+    "Billingham": "Brown",
+    "Bluffview": "Brown",
+    "Blythe": "Brown",
+    "Braly": "Brown",
+    "Briar Haven": "Brown",
+    "Brockton": "Brown",
+    "Brundinson": "Brown",
+    "Chelsea Heights": "Brown",
+    "Colston Park": "Brown",
+    "Delray": "Brown",
+    "Dunmere": "Brown",
+    "Dunova": "Brown",
+    "Exotika": "Brown",
+    "Fauna": "Brown",
+    "Hatfield": "Brown",
+    "Hawthorne": "Brown",
+    "Hillsdale": "Brown",
+    "Hinton": "Brown",
+    "Jenta": "Brown",
+    "Louise Hill": "Brown",
+    "Macland": "Brown",
+    "Malden": "Brown",
+    "Mesa Ridge": "Brown",
+    "Millhaven": "Brown",
+    "Quercia": "Brown",
+    "Roghan": "Brown",
+    "Ryder": "Brown",
+    "Saddle Wood": "Brown",
+    "Scandi": "Brown",
+    "Selbourne": "Brown",
+    "Sequoia": "Brown",
+    "Stable": "Brown",
+    "Sunnyset": "Brown",
+    "Swilcan": "Brown",
+    "Taos": "Brown",
+    "Thornburg": "Brown",
+    "Vexton": "Brown",
+    "Waldron": "Brown",
+    "Wayland": "Brown",
+    "Weathered Brina": "Brown",
+    "Wixom Valley": "Brown",
+    "Wolfeboro": "Brown",
+    "Timbra": "Brown",
+    "Sable": "Brown",
+    // Brown overrides
+    "Amber Forrester": "Brown",
+    "Charcoal Oak": "Brown",
+    // --- Gray (cool tones) ---
+    "Baystone": "Gray",
+    "Boswell": "Gray",
+    "Bourland": "Gray",
+    "Bracken Hill": "Gray",
+    "Brianka": "Gray",
+    "Coastal Mix": "Gray",
+    "Dakworth": "Gray",
+    "Dulcet Taiga": "Gray",
+    "Emridge": "Gray",
+    "Finely": "Gray",
+    "Kardigan": "Gray",
+    "Liora": "Gray",
+    "Loton Hill": "Gray",
+    "Ludlow": "Gray",
+    "Malton": "Gray",
+    "Mezcla": "Gray",
+    "Milledge": "Gray",
+    "Stableton": "Gray",
+    "Stormbound": "Gray",
+    "Whitmore": "Gray",
+    // Gray overrides
+    "Midnight Maple": "Gray",
+    // --- White (light, marble-look, stone-look) ---
+    "Calacatta Legend": "White",
+    "Calacatta Marbello": "White",
+    "Calacatta Serra": "White",
+    "Carrara Avell": "White",
+    "Harbor Marble": "White",
+    "Quarzo Taj": "White",
+    // White overrides
+    "Calacatta Venosa Gold": "White",
+    // --- Multi ---
+    "Kentazza": "Multi",
+    "Windsor Crest": "Multi",
+    "Windsor Isle": "Multi",
+    // --- Tile-specific style names ---
+    "Ice": "White",
+    "Pure": "White",
+    "Glacier": "White",
+    "Statuario": "White",
+    "Thassos": "White",
+    "Dark": "Gray",
+    "Silicon": "Gray",
+    "Luna": "Gray",
+    "Iron": "Gray",
+    "Shadow": "Gray",
+    "Stone": "Gray",
+    "Terra": "Brown",
+    "Terra Nova": "Brown",
+    "Earth": "Brown",
+    "Sky": "Blue",
+    "Marina": "Blue",
+    "Herringbone": null,
+    "Wall": null,
+    "Gloss": null,
+    "Gloss Wall": null,
+    "Structured": null,
+    "Decorative": null,
+    "Black & White": "Multi",
+    // ADEX tile colors
+    "Volcanico": "Gray",
+    "Monzon": "Gray",
+    "Sirocco": "Beige",
+    "Poniente": "Beige",
+    "Terral": "Beige",
+    "Brisa": "White",
+    "Solano": "Beige",
+    "Aire": "White",
+    "Top Sail": "White",
+    "Glossy Cloud": "Gray",
+    "Glossy Leaf": "Green",
+    // Daltile & multi-vendor tile names
+    "Maestro": "Gray",
+    "Bravura": "Beige",
+    "Composer": "Gray",
+    "Emissary": "Gray",
+    "Magistrate": "Gray",
+    "Proxy": "Gray",
+    "Poise": "Beige",
+    "Summit": "Gray",
+    "Basin": "Gray",
+    "Wisdom": "Beige",
+    "Serenity": "White",
+    "Horizon": "Gray",
+    "Dama": "Gray",
+    "Lugo": "Gray",
+    "Astorga": "Beige",
+    "Fermi": "Gray",
+    "Agnesi": "Gray",
+    "Titanium": "Gray",
+    "Pismo": "Gray",
+    "Trail": "Brown",
+    // --- Extended tile color names ---
+    // Daltile Keystones / Color Wheel / Rittenhouse product names
+    "Chalkboard": "Gray",
+    "Dependable": "Beige",
+    "Calm": "Beige",
+    "Balance": "Gray",
+    "Restore": "Beige",
+    "Spa": "Blue",
+    "Medallion": "Beige",
+    "Plum Crazy": "Red",
+    "Orange Burst": "Gold",
+    "Royal Purple": "Red",
+    "Midnight": "Black",
+    "Galaxy": "Black",
+    "Light": "White",
+    "Sunburst": "Gold",
+    "Parrot": "Green",
+    "Waterfall": "Blue",
+    "Fresh": "White",
+    "Passion": "Red",
+    "Clair": "White",
+    "Cove Breeze": "Blue",
+    "Cruz": "Brown",
+    "Grace": "White",
+    "Legacy": "Beige",
+    "Mill": "Gray",
+    "Pascal": "Gray",
+    "Royal": "Blue",
+    "Salt & Pepper": "Gray",
+    "Malibu": "Blue",
+    "Reflexion Bright": "White",
+    "Glow": "Gold",
+    "Nantes": "Beige",
+    "Currant": "Red",
+    "Lake": "Blue",
+    "Sea Breeze": "Blue",
+    "Tundra": "Gray",
+    "Eclipse": "Black",
+    "Dust": "Beige",
+    "Touch Glow": "Gold",
+    "Tarmac": "Gray",
+    "Toffee": "Brown",
+    "Alba": "White",
+    "Illusive": "Gray",
+    "Arena": "Beige",
+    "Pacifica": "Blue",
+    "Bella": "Beige",
+    "Desert": "Beige",
+    "Artic": "White",
+    "Urban Putty": "Beige",
+    // Arizona Tile product names
+    "Fluida Aurea": "Gold",
+    "Aequa Castor": "Brown",
+    "Tru Marmi Arabescato": "White",
+    "Reverie 1": "Beige",
+    // Misc tile vendor-specific names
+    "Volakas": "White",
+    "Skyline": "Gray",
+    "Cyber": "Gray",
+    "Petrolio": "Blue",
+    "Siena": "Brown",
+    "Alpi Avana": "Brown",
+    "Yang": "White",
+    "Yin": "Black",
+    // More tile product names (sorted by SKU count)
+    "Taj Mahal": "Gold",
+    "Twilight": "Gray",
+    "Dusk": "Gray",
+    "Soil": "Brown",
+    "Asphalt": "Gray",
+    "Verrazzo Argilla": "Beige",
+    "Talco": "White",
+    "Cristallo": "White",
+    "Key Lime": "Green",
+    "Shore": "Beige",
+    "Magnolia": "White",
+    "Riverbed": "Gray",
+    "Moon": "Gray",
+    "Classic": "Beige",
+    "Clear": "White",
+    "Azul": "Blue",
+    "Stucco": "Beige",
+    "Argent": "Gray",
+    "Current": "Blue",
+    "Dawn": "Beige",
+    "Diamond Mine": "Gray",
+    "Ink": "Black",
+    "Mystic": "Gray",
+    "Leaf": "Green",
+    "Autumn": "Gold",
+    "Biscotti": "Beige",
+    "Bleu": "Blue",
+    "Cliff": "Gray",
+    "Ginger": "Brown",
+    "Haze": "Gray",
+    "Orange": "Gold",
+    "Rock": "Gray",
+    "Scuro": "Gray",
+    "Pink": "Red",
+    "Giallo": "Gold",
+    "Calacata": "White",
+    "Bronzo": "Gold",
+    "Nimbus": "Gray",
+    "Buckskin": "Brown",
+    "Lotus": "White",
+    "Oxide": "Brown",
+    "Silt": "Beige",
+    "Shell": "Beige",
+    "Spring": "Green",
+    "Cove": "Blue",
+    "Composure": "Gray",
+    "Allure": "Beige",
+    "Aura": "White",
+    "Skyrocket": "Blue",
+    "Loft": "Gray",
+    "Shine": "White",
+    "Panda": "White",
+    "Plume": "White",
+    // Non-color tile entries (finishes, formats, parts)
+    "Shower Pan W Drain": null,
+    "N A": null,
+    'Highlights 12x12 Db 1/8"': null,
+    "Polished 24x48": null,
+    "Straight Joint": null,
+    "Up": null,
+    "Select": null,
+    "Uplifted": null
+  };
+  var NON_COLOR_VALUES = /* @__PURE__ */ new Set([
+    "wall",
+    "gloss wall",
+    "gloss",
+    "structured",
+    "decorative",
+    "herringbone",
+    "pro matt",
+    '" pro matt',
+    "large",
+    "small",
+    'large ( ")',
+    'small ( ")',
+    "n a",
+    "shower pan w drain",
+    "straight joint",
+    "gauged",
+    "polished",
+    "tumbled",
+    "undulated",
+    "crackled",
+    "leathered",
+    "grip r11",
+    "matte",
+    "gloss herringbone",
+    "image overlay",
+    "select",
+    "up",
+    "uplifted"
+  ]);
   var COLOR_FAMILIES = {
-    "White": { hex: "#f5f5f0", keywords: ["white", "ivory", "cream", "snow", "pearl", "alabaster", "frost", "arctic", "bright white"] },
-    "Gray": { hex: "#9e9e9e", keywords: ["gray", "grey", "charcoal", "silver", "slate", "ash", "smoke", "graphite", "pewter", "cement", "concrete"] },
-    "Beige": { hex: "#d4c5a9", keywords: ["beige", "tan", "sand", "taupe", "khaki", "linen", "wheat", "bone", "champagne", "natural", "almond"] },
-    "Brown": { hex: "#8b6f47", keywords: ["brown", "chocolate", "coffee", "mocha", "walnut", "chestnut", "mahogany", "espresso", "umber", "oak", "hickory", "pecan", "caramel"] },
-    "Black": { hex: "#2c2c2c", keywords: ["black", "onyx", "ebony", "jet", "midnight", "noir", "obsidian"] },
-    "Blue": { hex: "#6b8cae", keywords: ["blue", "navy", "cobalt", "teal", "aqua", "sapphire", "ocean", "azure", "cerulean", "indigo", "denim"] },
-    "Green": { hex: "#7a9972", keywords: ["green", "sage", "olive", "forest", "emerald", "moss", "mint", "jade", "celadon"] },
-    "Red": { hex: "#b54c4c", keywords: ["red", "burgundy", "wine", "cherry", "crimson", "maroon", "rust", "brick", "terracotta"] },
-    "Gold": { hex: "#c9a668", keywords: ["gold", "golden", "honey", "amber", "copper", "bronze", "brass"] },
+    "White": { hex: "#f5f5f0", keywords: ["white", "ivory", "cream", "snow", "pearl", "alabaster", "frost", "arctic", "bright white", "blanc", "bianco", "bianca", "blanco", "calacatta", "carrara", "chalk", "dolomite", "thassos", "perla", "perle", "opal"] },
+    "Gray": { hex: "#9e9e9e", keywords: ["gray", "grey", "charcoal", "silver", "slate", "ash", "smoke", "graphite", "pewter", "cement", "concrete", "fog", "grigio", "gris", "cenere", "steel", "platinum", "basalt", "mist", "dove", "bardiglio", "greige", "lead", "cloud", "anthracite", "antracita", "argento", "nickel", "pebble", "marengo", "flint", "shale"] },
+    "Beige": { hex: "#d4c5a9", keywords: ["beige", "tan", "sand", "taupe", "khaki", "linen", "wheat", "bone", "champagne", "natural", "almond", "buff", "crema", "avorio", "fawn", "biscuit", "dune", "ecru", "oyster", "vanilla", "nude", "bamboo", "lino", "marfil", "sabbia", "creme", "clay", "putty", "latte", "fossil", "travertine", "parchment"] },
+    "Brown": { hex: "#8b6f47", keywords: ["brown", "chocolate", "coffee", "mocha", "walnut", "chestnut", "mahogany", "espresso", "umber", "oak", "hickory", "pecan", "caramel", "acacia", "birch", "timber", "tawny", "saddle", "jatoba", "noce", "cotto", "nutmeg", "henna", "cafe", "carob", "cappuccino", "cinnamon"] },
+    "Black": { hex: "#2c2c2c", keywords: ["black", "onyx", "ebony", "jet", "noir", "obsidian", "nero", "carbon", "coal", "grafito", "negro", "marquina"] },
+    "Blue": { hex: "#6b8cae", keywords: ["blue", "navy", "cobalt", "teal", "aqua", "sapphire", "ocean", "azure", "cerulean", "indigo", "denim", "cielo", "lagoon", "bleu"] },
+    "Green": { hex: "#7a9972", keywords: ["green", "sage", "olive", "forest", "emerald", "moss", "mint", "jade", "celadon", "verde", "fern", "eucalyptus", "salvia", "willow"] },
+    "Red": { hex: "#b54c4c", keywords: ["red", "burgundy", "wine", "cherry", "crimson", "maroon", "rust", "brick", "terracotta", "rose", "blush", "currant", "peach"] },
+    "Gold": { hex: "#c9a668", keywords: ["gold", "golden", "honey", "amber", "copper", "bronze", "brass", "oro", "mustard", "cornsilk", "yellow", "aurea", "giallo", "bronzo"] },
     "Blonde": { hex: "#dcc9a3", keywords: ["blonde", "blond", "flaxen", "straw", "light oak", "light natural"] },
     "Multi": { hex: "conic-gradient(#f5f5f0,#9e9e9e,#d4c5a9,#8b6f47,#6b8cae)", keywords: ["multi", "mixed", "multicolor", "variegated", "blend"] }
   };
   function mapColorToFamily(rawColor) {
     if (!rawColor) return null;
     const lower = rawColor.toLowerCase().trim();
-    if (lower === "xxx" || lower === "n/a" || lower === "na" || !lower) return null;
+    if (!lower || lower === "xxx" || lower === "n/a" || lower === "na" || lower === "n a" || lower === "misc." || lower === "misc") return null;
+    if (NON_COLOR_VALUES.has(lower)) return null;
+    if (/^(?:polished|honed|matte|tumbled|gauged)\s+\d/i.test(lower)) return null;
+    const trimmed = rawColor.trim();
+    if (trimmed in STYLE_COLOR_MAP) return STYLE_COLOR_MAP[trimmed];
+    const base = trimmed.replace(/^(?:Matte|Glossy|Stria|Satin)\s+/i, "").replace(/\s+Spc\s+Matte$/i, "").replace(/\s+SuperGuardX\s+Technology$/i, "").replace(/\s+(?:Matte|Speckle|Speckled|Spc|USA|Linen)$/i, "").trim();
+    if (base !== trimmed && base in STYLE_COLOR_MAP) return STYLE_COLOR_MAP[base];
     for (const [family, { keywords }] of Object.entries(COLOR_FAMILIES)) {
       if (keywords.some((kw) => lower.includes(kw))) return family;
     }
@@ -286,6 +687,9 @@
       const nameLower = name.toLowerCase();
       if (colLower === nameLower) {
         showCollection = "";
+      } else if (colLower.startsWith(nameLower + " ") || colLower.startsWith(nameLower + "-")) {
+        name = col;
+        showCollection = "";
       } else if (nameLower.startsWith(colLower + " ") || nameLower.startsWith(colLower + "-")) {
         showCollection = "";
       } else if (nameLower.includes(" " + colLower + " ") || nameLower.endsWith(" " + colLower)) {
@@ -296,23 +700,47 @@
         const _earlyResult = colorAttr && colorAttr.value ? name + " \u2014 " + colorAttr.value : name;
         return appendTypeSuffix(_earlyResult, sku.category_name);
       } else {
-        showCollection = col;
+        const dashIdx = col.indexOf(" - ");
+        if (dashIdx > 0 && nameLower === col.slice(dashIdx + 3).toLowerCase().trim()) {
+          showCollection = col.slice(0, dashIdx);
+        } else {
+          showCollection = col;
+        }
       }
     }
     let variant = null;
-    if (sku.variant_name && sku.variant_name.toLowerCase() !== rawName.toLowerCase()) {
+    if (sku.variant_name) {
       const vLower = sku.variant_name.toLowerCase().trim();
+      const vNorm = vLower.replace(/-/g, " ");
       const pLower = rawName.toLowerCase();
       const nLower = name.toLowerCase();
-      if (vLower.startsWith(pLower + " ") || vLower.startsWith(pLower + ",") || vLower.startsWith(pLower + "-")) {
+      if (vNorm === pLower || vNorm === nLower) {
+        variant = null;
+      } else if (vNorm.startsWith(pLower + " ") || vLower.startsWith(pLower + ",") || vLower.startsWith(pLower + "-")) {
         const suffix = sku.variant_name.replace(new RegExp("^" + rawName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[\\s,\\-]+", "i"), "").trim();
         variant = suffix ? formatVariantName(suffix) : null;
-      } else if (pLower.startsWith(vLower + " ") || pLower === vLower) {
+      } else if (pLower.startsWith(vNorm + " ") || pLower === vNorm) {
         variant = null;
-      } else if (vLower.length > 2 && (nLower.includes(" " + vLower + " ") || nLower.endsWith(" " + vLower) || nLower.startsWith(vLower + " "))) {
+      } else if (vNorm.length > 2 && (nLower.includes(" " + vNorm + " ") || nLower.endsWith(" " + vNorm) || nLower.startsWith(vNorm + " "))) {
         variant = null;
       } else {
         variant = formatVariantName(sku.variant_name);
+      }
+      if (variant) {
+        const cParts = variant.split(",");
+        if (cParts.length > 1) {
+          const seg = cParts[0].trim().toLowerCase();
+          if (seg.length > 1 && (nLower === seg || nLower.endsWith(" " + seg) || nLower.startsWith(seg + " ") || nLower.includes(" " + seg + " "))) {
+            variant = cParts.slice(1).map((p) => p.trim()).join(", ") || null;
+          }
+        }
+        if (variant) {
+          const lastNameWord = nLower.split(/\s+/).pop();
+          const firstVarWord = variant.split(/[\s,]+/)[0].toLowerCase();
+          if (lastNameWord.length > 2 && firstVarWord === lastNameWord) {
+            variant = variant.replace(/^\S+[\s,]*/, "").trim() || null;
+          }
+        }
       }
     }
     if (sku.attributes) {
@@ -323,14 +751,26 @@
         const sizeAttr = (sku.attributes || []).find((a) => a.slug === "size");
         const thicknessAttr = (sku.attributes || []).find((a) => a.slug === "thickness");
         const patternAttr = (sku.attributes || []).find((a) => a.slug === "pattern");
-        const extras = [patternAttr, sizeAttr, thicknessAttr].filter(Boolean).map((a) => a.value);
+        const nameLowerDedup = name.toLowerCase();
+        const skipThickness = sizeAttr && thicknessAttr && sizeAttr.value.toLowerCase().includes(thicknessAttr.value.toLowerCase());
+        const extras = [patternAttr, sizeAttr, skipThickness ? null : thicknessAttr].filter(Boolean).filter((a) => !nameLowerDedup.includes(a.value.toLowerCase())).map((a) => a.value);
         if (extras.length > 0) {
           const suffix = extras.join(" ");
           variant = variant ? variant + " " + suffix : suffix;
         }
       }
     }
-    const result = [showCollection, name, variant].filter(Boolean).join(" ");
+    let productLine = "";
+    const plAttr = (sku.attributes || []).find((a) => a.slug === "product_line");
+    if (plAttr && plAttr.value) {
+      const plLower = plAttr.value.toLowerCase();
+      const colLower = (showCollection || "").toLowerCase();
+      const nameLower = name.toLowerCase();
+      if (plLower !== colLower && plLower !== nameLower && !nameLower.includes(plLower) && !colLower.includes(plLower)) {
+        productLine = plAttr.value;
+      }
+    }
+    const result = [showCollection, productLine, name, variant].filter(Boolean).join(" ");
     return appendTypeSuffix(result, sku.category_name);
   }
   function cleanDescription(text, vendorName) {
@@ -566,7 +1006,7 @@
     const fetchSkusRef = useRef(null);
     const fetchFacetsRef = useRef(null);
     const fetchSkus = useCallback((opts = {}) => {
-      const PAGE_SIZE = 72;
+      const PAGE_SIZE = 24;
       const { cat, coll, search, activeFilters, sort, page, vendors, priceMin, priceMax, tags } = {
         cat: selectedCategory,
         coll: selectedCollection,
@@ -1803,7 +2243,7 @@
       setShowSuggestions(false);
       setSearchInput("");
     } }, "View all ", suggestData.total, " results")));
-    return /* @__PURE__ */ React.createElement("header", { className: condensed ? "header-condensed" : "" }, /* @__PURE__ */ React.createElement("div", { className: "utility-bar" }, /* @__PURE__ */ React.createElement("div", { className: "utility-bar-inner" }, /* @__PURE__ */ React.createElement("div", { className: "utility-bar-left" }, /* @__PURE__ */ React.createElement("a", { href: "tel:+17149990009", className: "utility-bar-phone" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "(714) 999-0009"), /* @__PURE__ */ React.createElement("span", { className: "utility-bar-dot" }, "\u2022"), /* @__PURE__ */ React.createElement("span", null, "Anaheim, CA Showroom")), /* @__PURE__ */ React.createElement("div", { className: "utility-bar-right" }, /* @__PURE__ */ React.createElement("button", { onClick: onTradeClick }, tradeCustomer ? `Trade: ${tradeCustomer.company_name}` : "Trade Program"), /* @__PURE__ */ React.createElement("span", { className: "utility-bar-dot" }, "\u2022"), /* @__PURE__ */ React.createElement("button", { onClick: onAccountClick }, customer ? `Hi, ${customer.first_name}` : "Sign In")))), /* @__PURE__ */ React.createElement("div", { className: "header-main" }, /* @__PURE__ */ React.createElement("div", { className: "header-main-left" }, /* @__PURE__ */ React.createElement("button", { className: "mobile-menu-btn", "aria-label": "Open navigation menu", onClick: () => setMobileNavOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "6", x2: "21", y2: "6" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "12", x2: "21", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "18", x2: "21", y2: "18" }))), searchForm), /* @__PURE__ */ React.createElement("div", { className: "logo", onClick: goHome }, /* @__PURE__ */ React.createElement("img", { src: "/assets/logo/roma-transparent.png", alt: "Roma Flooring Designs", width: "120", height: "38", decoding: "async" })), /* @__PURE__ */ React.createElement("div", { className: "header-main-right" }, /* @__PURE__ */ React.createElement("button", { className: "mobile-search-btn", "aria-label": "Search products", onClick: () => setMobileSearchOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "8" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" }))), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn", onClick: onAccountClick, "aria-label": "Account", title: customer ? customer.first_name : "Account" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "7", r: "4" }))), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn wishlist-header-wrap", "aria-label": "Wishlist", onClick: goWishlist }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" })), wishlistCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "wishlist-badge" }, wishlistCount)), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn" + (cartFlash ? " cart-flash" : ""), "aria-label": "Shopping cart", onClick: () => setCartDrawerOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "6", x2: "21", y2: "6" }), /* @__PURE__ */ React.createElement("path", { d: "M16 10a4 4 0 01-8 0" })), itemCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "cart-badge" }, itemCount)))), /* @__PURE__ */ React.createElement("div", { className: "nav-row" }, /* @__PURE__ */ React.createElement("div", { className: "nav-row-inner" }, /* @__PURE__ */ React.createElement("div", { className: "nav-row-group" }, /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: goCollections }, "Collections"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: () => navigate("/shop?sort=newest") }, "New Arrivals"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: goSale }, "Sale"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: () => navigate("/shop?room=kitchen") }, "Shop by Room")), /* @__PURE__ */ React.createElement("span", { className: "nav-row-separator" }), /* @__PURE__ */ React.createElement("div", { className: "nav-row-group" }, /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: () => navigate("/inspiration") }, "Inspiration"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: () => navigate("/design-services") }, "Design Services"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: () => navigate("/installation") }, "Installation"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: onTradeClick }, "Trade"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: () => navigate("/about") }, "About Us")))), /* @__PURE__ */ React.createElement("div", { className: "material-bar" }, /* @__PURE__ */ React.createElement("div", { className: "material-bar-inner" }, parentCats.map((cat) => {
+    return /* @__PURE__ */ React.createElement("header", { className: condensed ? "header-condensed" : "" }, /* @__PURE__ */ React.createElement("div", { className: "utility-bar" }, /* @__PURE__ */ React.createElement("div", { className: "utility-bar-inner" }, /* @__PURE__ */ React.createElement("div", { className: "utility-bar-left" }, /* @__PURE__ */ React.createElement("a", { href: "tel:+17149990009", className: "utility-bar-phone" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "(714) 999-0009"), /* @__PURE__ */ React.createElement("span", { className: "utility-bar-dot" }, "\u2022"), /* @__PURE__ */ React.createElement("span", null, "Anaheim, CA Showroom")), /* @__PURE__ */ React.createElement("div", { className: "utility-bar-right" }, /* @__PURE__ */ React.createElement("button", { onClick: onTradeClick }, tradeCustomer ? `Trade: ${tradeCustomer.company_name}` : "Trade Program"), /* @__PURE__ */ React.createElement("span", { className: "utility-bar-dot" }, "\u2022"), /* @__PURE__ */ React.createElement("button", { onClick: onAccountClick }, customer ? `Hi, ${customer.first_name}` : "Sign In")))), /* @__PURE__ */ React.createElement("div", { className: "header-main" }, /* @__PURE__ */ React.createElement("div", { className: "header-main-left" }, /* @__PURE__ */ React.createElement("button", { className: "mobile-menu-btn", "aria-label": "Open navigation menu", onClick: () => setMobileNavOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "6", x2: "21", y2: "6" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "12", x2: "21", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "18", x2: "21", y2: "18" }))), searchForm), /* @__PURE__ */ React.createElement("div", { className: "logo", onClick: goHome }, /* @__PURE__ */ React.createElement("img", { src: "/assets/logo/roma-transparent.png", alt: "Roma Flooring Designs", width: "120", height: "38", decoding: "async", fetchPriority: "high" })), /* @__PURE__ */ React.createElement("div", { className: "header-main-right" }, /* @__PURE__ */ React.createElement("button", { className: "mobile-search-btn", "aria-label": "Search products", onClick: () => setMobileSearchOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "8" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" }))), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn", onClick: onAccountClick, "aria-label": "Account", title: customer ? customer.first_name : "Account" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "7", r: "4" }))), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn wishlist-header-wrap", "aria-label": "Wishlist", onClick: goWishlist }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" })), wishlistCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "wishlist-badge" }, wishlistCount)), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn" + (cartFlash ? " cart-flash" : ""), "aria-label": "Shopping cart", onClick: () => setCartDrawerOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "6", x2: "21", y2: "6" }), /* @__PURE__ */ React.createElement("path", { d: "M16 10a4 4 0 01-8 0" })), itemCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "cart-badge" }, itemCount)))), /* @__PURE__ */ React.createElement("div", { className: "nav-row" }, /* @__PURE__ */ React.createElement("div", { className: "nav-row-inner" }, /* @__PURE__ */ React.createElement("div", { className: "nav-row-group" }, /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: goCollections }, "Collections"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: () => navigate("/shop?sort=newest") }, "New Arrivals"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: goSale }, "Sale"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: () => navigate("/shop?room=kitchen") }, "Shop by Room")), /* @__PURE__ */ React.createElement("span", { className: "nav-row-separator" }), /* @__PURE__ */ React.createElement("div", { className: "nav-row-group" }, /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: () => navigate("/inspiration") }, "Inspiration"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: () => navigate("/design-services") }, "Design Services"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: () => navigate("/installation") }, "Installation"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: onTradeClick }, "Trade"), /* @__PURE__ */ React.createElement("button", { className: "nav-row-link", onClick: () => navigate("/about") }, "About Us")))), /* @__PURE__ */ React.createElement("div", { className: "material-bar" }, /* @__PURE__ */ React.createElement("div", { className: "material-bar-inner" }, parentCats.map((cat) => {
       const children = categories.filter((c) => c.parent_id === cat.id);
       const hasChildren = children.length > 0;
       return /* @__PURE__ */ React.createElement(
@@ -1861,7 +2301,7 @@
       setMedia(resolved);
       baseMediaRef.current = resolved;
       setImgIndex(0);
-      const colorSiblings = (data.same_product_siblings || []).filter((s) => s.variant_type !== "accessory" && s.primary_image);
+      const colorSiblings = (data.same_product_siblings || []).filter((s) => s.variant_type !== "accessory" && s.primary_image).sort((a, b) => (a.variant_name || "").localeCompare(b.variant_name || ""));
       setSiblings(colorSiblings);
     };
     const getTradeHeaders = () => {
@@ -1912,22 +2352,18 @@
       fetch("/api/storefront/skus/" + sib.sku_id, { headers: getTradeHeaders() }).then((r) => r.json()).then((data) => applyDetail(data));
     };
     const currentImg = media[imgIndex] || {};
-    return /* @__PURE__ */ React.createElement("div", { className: "quick-view-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "quick-view", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("button", { className: "quick-view-close", onClick: onClose }, "\xD7"), /* @__PURE__ */ React.createElement("div", { className: "quick-view-gallery" }, /* @__PURE__ */ React.createElement("div", { className: "quick-view-main-image" }, media.length > 1 && /* @__PURE__ */ React.createElement("button", { className: "quick-view-gallery-arrow left", disabled: imgIndex === 0, onClick: () => setImgIndex((i) => i - 1) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("polyline", { points: "15 18 9 12 15 6" }))), currentImg.url && /* @__PURE__ */ React.createElement("img", { src: optimizeImg(currentImg.url, 800), alt: activeSku.product_name, decoding: "async", width: 400, height: 400 }), media.length > 1 && /* @__PURE__ */ React.createElement("button", { className: "quick-view-gallery-arrow right", disabled: imgIndex >= media.length - 1, onClick: () => setImgIndex((i) => i + 1) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("polyline", { points: "9 18 15 12 9 6" })))), media.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "quick-view-gallery-dots" }, media.map((_, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: i === imgIndex ? "active" : "", onClick: () => setImgIndex(i) }))), siblings.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "quick-view-variants" }, /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        className: "quick-view-variant-swatch active",
-        title: formatVariantName(activeSku.variant_name)
-      },
-      (baseMediaRef.current[0] || {}).url && /* @__PURE__ */ React.createElement("img", { src: optimizeImg(baseMediaRef.current[0].url, 120), alt: activeSku.variant_name, decoding: "async", width: 64, height: 64 })
-    ), siblings.map((sib) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "quick-view-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "quick-view", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("button", { className: "quick-view-close", onClick: onClose }, "\xD7"), /* @__PURE__ */ React.createElement("div", { className: "quick-view-gallery" }, /* @__PURE__ */ React.createElement("div", { className: "quick-view-main-image" }, media.length > 1 && /* @__PURE__ */ React.createElement("button", { className: "quick-view-gallery-arrow left", disabled: imgIndex === 0, onClick: () => setImgIndex((i) => i - 1) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("polyline", { points: "15 18 9 12 15 6" }))), currentImg.url && /* @__PURE__ */ React.createElement("img", { src: optimizeImg(currentImg.url, 800), ...optimizeSrcSet(currentImg.url, [400, 600, 800]), sizes: "(max-width: 768px) 90vw, 400px", alt: activeSku.product_name, decoding: "async", width: 400, height: 400 }), media.length > 1 && /* @__PURE__ */ React.createElement("button", { className: "quick-view-gallery-arrow right", disabled: imgIndex >= media.length - 1, onClick: () => setImgIndex((i) => i + 1) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("polyline", { points: "9 18 15 12 9 6" })))), media.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "quick-view-gallery-dots" }, media.map((_, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: i === imgIndex ? "active" : "", onClick: () => setImgIndex(i) }))), siblings.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "quick-view-variants" }, [
+      { sku_id: activeSku.sku_id, variant_name: activeSku.variant_name, primary_image: (baseMediaRef.current[0] || {}).url, _isCurrent: true },
+      ...siblings.filter((s) => s.sku_id !== activeSku.sku_id)
+    ].sort((a, b) => (a.variant_name || "").localeCompare(b.variant_name || "")).map((sib) => /* @__PURE__ */ React.createElement(
       "div",
       {
         key: sib.sku_id,
-        className: "quick-view-variant-swatch",
+        className: "quick-view-variant-swatch" + (sib._isCurrent ? " active" : ""),
         title: formatVariantName(sib.variant_name),
-        onMouseEnter: () => handleVariantHover(sib),
-        onMouseLeave: handleVariantLeave,
-        onClick: () => handleVariantClick(sib)
+        onMouseEnter: () => !sib._isCurrent && handleVariantHover(sib),
+        onMouseLeave: () => !sib._isCurrent && handleVariantLeave(),
+        onClick: () => !sib._isCurrent && handleVariantClick(sib)
       },
       sib.primary_image && /* @__PURE__ */ React.createElement("img", { src: optimizeImg(sib.primary_image, 120), alt: sib.variant_name, decoding: "async", width: 64, height: 64 })
     )))), /* @__PURE__ */ React.createElement("div", { className: "quick-view-info" }, /* @__PURE__ */ React.createElement("h2", null, fullProductName(activeSku)), /* @__PURE__ */ React.createElement("div", { className: "price" }, activeSku.trade_price && activeSku.retail_price && /* @__PURE__ */ React.createElement("span", { style: { textDecoration: "line-through", color: "var(--stone-500)", fontSize: "1rem", marginRight: "0.5rem" } }, "$", displayPrice(activeSku, activeSku.retail_price).toFixed(2)), !activeSku.trade_price && activeSku.sale_price && activeSku.retail_price && /* @__PURE__ */ React.createElement("span", { className: "sale-original-price" }, "$", displayPrice(activeSku, activeSku.retail_price).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: !activeSku.trade_price && activeSku.sale_price ? "sale-price-text" : "" }, "$", displayPrice(activeSku, activeSku.trade_price || activeSku.sale_price || activeSku.retail_price || 0).toFixed(2)), /* @__PURE__ */ React.createElement("span", null, priceSuffix(activeSku)), !activeSku.trade_price && activeSku.sale_price && activeSku.retail_price && /* @__PURE__ */ React.createElement("span", { className: "sale-discount-tag" }, Math.round((1 - parseFloat(activeSku.sale_price) / parseFloat(activeSku.retail_price)) * 100), "% off")), activeSku.description_short && /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.875rem", color: "var(--stone-600)", lineHeight: 1.6, marginBottom: "1rem" } }, activeSku.description_short), /* @__PURE__ */ React.createElement("div", { className: "quick-view-actions" }, isUnit ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setQty((q) => Math.max(1, q - 1)) }, "-"), /* @__PURE__ */ React.createElement("input", { type: "number", value: qty, onChange: (e) => setQty(Math.max(1, parseInt(e.target.value) || 1)) }), /* @__PURE__ */ React.createElement("button", { onClick: () => setQty((q) => q + 1) }, "+")), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: handleAdd }, "Add to Cart")) : /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.875rem", color: "var(--stone-500)" } }, "Use the coverage calculator on the detail page to add this item to your cart."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => onViewDetail(activeSku.sku_id, activeSku.product_name) }, "View Full Details")))));
@@ -2095,7 +2531,7 @@
       { src: "/uploads/inspo/bedroom.jpg", label: "Bedroom" },
       { src: "/uploads/inspo/outdoor.jpg", label: "Outdoor" }
     ];
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("section", { className: "hero", ref: heroRef }, /* @__PURE__ */ React.createElement("div", { className: "hero-bg", style: { backgroundImage: "url(/uploads/hero-bg.jpg?v=2)" } }), /* @__PURE__ */ React.createElement("div", { className: "hero-content" }, /* @__PURE__ */ React.createElement("h1", null, "Redefine Your Space"), /* @__PURE__ */ React.createElement("button", { className: "hero-cta", onClick: goBrowse }, "Explore Our Floors"))), /* @__PURE__ */ React.createElement(RevealSection, null, /* @__PURE__ */ React.createElement("div", { className: "trust-strip" }, /* @__PURE__ */ React.createElement("div", { className: "trust-strip-inner" }, /* @__PURE__ */ React.createElement("div", { className: "trust-strip-item" }, /* @__PURE__ */ React.createElement("div", { className: "trust-strip-icon" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "2", y: "7", width: "20", height: "14", rx: "2" }), /* @__PURE__ */ React.createElement("path", { d: "M16 7V5a4 4 0 00-8 0v2" }))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-text" }, "Free Samples", /* @__PURE__ */ React.createElement("span", null, "Try before you buy"))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-item" }, /* @__PURE__ */ React.createElement("div", { className: "trust-strip-icon" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "5" }))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-text" }, "Trade Pricing", /* @__PURE__ */ React.createElement("span", null, "Exclusive pro discounts"))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-item" }, /* @__PURE__ */ React.createElement("div", { className: "trust-strip-icon" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" }))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-text" }, "Expert Guidance", /* @__PURE__ */ React.createElement("span", null, "Design consultation available"))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-item" }, /* @__PURE__ */ React.createElement("div", { className: "trust-strip-icon" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "1", y: "3", width: "15", height: "13", rx: "1" }), /* @__PURE__ */ React.createElement("polyline", { points: "16 8 20 8 23 11 23 16 20 16" }), /* @__PURE__ */ React.createElement("circle", { cx: "18", cy: "18", r: "2" }), /* @__PURE__ */ React.createElement("circle", { cx: "7", cy: "18", r: "2" }))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-text" }, "Fast Shipping", /* @__PURE__ */ React.createElement("span", null, "Direct from warehouse")))))), topCats.length > 0 && /* @__PURE__ */ React.createElement(RevealSection, null, /* @__PURE__ */ React.createElement("section", { className: "homepage-section" }, /* @__PURE__ */ React.createElement("h2", null, "Shop by Category"), /* @__PURE__ */ React.createElement("p", { className: "subtitle" }, "Explore our curated selection of premium surfaces"), /* @__PURE__ */ React.createElement("div", { className: "homepage-cat-grid" }, topCats.map((cat) => /* @__PURE__ */ React.createElement("div", { key: cat.slug, className: "homepage-cat-tile", onClick: () => onCategorySelect(cat.slug) }, cat.image_url && /* @__PURE__ */ React.createElement("img", { src: optimizeImg(cat.image_url, 400), alt: cat.name, loading: "lazy", decoding: "async" }), /* @__PURE__ */ React.createElement("div", { className: "homepage-cat-tile-overlay" }, /* @__PURE__ */ React.createElement("span", { className: "homepage-cat-tile-name" }, cat.name), /* @__PURE__ */ React.createElement("span", { className: "homepage-cat-tile-cta" }, "Shop Now \u2192"))))))), /* @__PURE__ */ React.createElement(RevealSection, { delay: 0.1 }, /* @__PURE__ */ React.createElement("section", { className: "homepage-featured-band" }, /* @__PURE__ */ React.createElement("div", { className: "homepage-section" }, /* @__PURE__ */ React.createElement("h2", null, "Featured Products"), /* @__PURE__ */ React.createElement("p", { className: "subtitle" }, "Our most popular floors, chosen by customers like you"), featuredLoading ? /* @__PURE__ */ React.createElement(SkeletonGrid, { count: 8 }) : featuredSkus.length > 0 ? /* @__PURE__ */ React.createElement(SkuGrid, { skus: featuredSkus, onSkuClick, wishlist, toggleWishlist, setQuickViewSku }) : /* @__PURE__ */ React.createElement("p", { style: { textAlign: "center", color: "var(--stone-500)", padding: "2rem 0" } }, "Featured products coming soon.")))), /* @__PURE__ */ React.createElement(RevealSection, { delay: 0.1 }, /* @__PURE__ */ React.createElement("section", { className: "homepage-section" }, /* @__PURE__ */ React.createElement("h2", null, "Shop the Look"), /* @__PURE__ */ React.createElement("p", { className: "subtitle" }, "Curated collections for every style"), /* @__PURE__ */ React.createElement("div", { className: "looks-grid" }, looks.map((look) => /* @__PURE__ */ React.createElement("div", { key: look.slug, className: "look-card", onClick: () => navigate("/shop?collection=" + look.slug) }, /* @__PURE__ */ React.createElement("img", { src: optimizeImg(look.image, 400), alt: look.name, loading: "lazy", decoding: "async" }), /* @__PURE__ */ React.createElement("div", { className: "look-card-overlay" }, /* @__PURE__ */ React.createElement("span", { className: "look-card-name" }, look.name), /* @__PURE__ */ React.createElement("span", { className: "look-card-cta" }, "Explore \u2192"))))))), /* @__PURE__ */ React.createElement(RevealSection, { delay: 0.1 }, /* @__PURE__ */ React.createElement("section", { className: "homepage-section" }, /* @__PURE__ */ React.createElement("h2", null, "Get Inspired"), /* @__PURE__ */ React.createElement("p", { className: "subtitle" }, "Real spaces, real transformations"), /* @__PURE__ */ React.createElement("div", { className: "inspo-gallery" }, inspoImages.map((img, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "inspo-gallery-item" + (img.tall ? " tall" : ""), onClick: () => navigate("/shop?room=" + img.label.toLowerCase().replace(/\s+/g, "-")) }, /* @__PURE__ */ React.createElement("img", { src: optimizeImg(img.src, 400), alt: img.label, loading: "lazy", decoding: "async" }), /* @__PURE__ */ React.createElement("div", { className: "inspo-gallery-overlay" }, /* @__PURE__ */ React.createElement("span", { className: "inspo-gallery-label" }, img.label))))))), /* @__PURE__ */ React.createElement(RevealSection, { delay: 0.1 }, /* @__PURE__ */ React.createElement("div", { className: "homepage-cta-duo" }, /* @__PURE__ */ React.createElement("div", { className: "cta-card cta-card-dark" }, /* @__PURE__ */ React.createElement("div", { className: "cta-card-icon" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" }), /* @__PURE__ */ React.createElement("polyline", { points: "3.27 6.96 12 12.01 20.73 6.96" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "22.08", x2: "12", y2: "12" }))), /* @__PURE__ */ React.createElement("h3", null, "Room Visualizer"), /* @__PURE__ */ React.createElement("p", null, "See how our floors look in your space before you buy. Upload a photo and preview any product."), /* @__PURE__ */ React.createElement("button", { className: "btn-outline", onClick: () => {
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("section", { className: "hero", ref: heroRef }, /* @__PURE__ */ React.createElement("div", { className: "hero-bg", style: { backgroundImage: "url(/api/img?url=%2Fuploads%2Fhero-bg.jpg&w=1600)" } }), /* @__PURE__ */ React.createElement("div", { className: "hero-content" }, /* @__PURE__ */ React.createElement("h1", null, "Redefine Your Space"), /* @__PURE__ */ React.createElement("button", { className: "hero-cta", onClick: goBrowse }, "Explore Our Floors"))), /* @__PURE__ */ React.createElement(RevealSection, null, /* @__PURE__ */ React.createElement("div", { className: "trust-strip" }, /* @__PURE__ */ React.createElement("div", { className: "trust-strip-inner" }, /* @__PURE__ */ React.createElement("div", { className: "trust-strip-item" }, /* @__PURE__ */ React.createElement("div", { className: "trust-strip-icon" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "2", y: "7", width: "20", height: "14", rx: "2" }), /* @__PURE__ */ React.createElement("path", { d: "M16 7V5a4 4 0 00-8 0v2" }))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-text" }, "Free Samples", /* @__PURE__ */ React.createElement("span", null, "Try before you buy"))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-item" }, /* @__PURE__ */ React.createElement("div", { className: "trust-strip-icon" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "5" }))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-text" }, "Trade Pricing", /* @__PURE__ */ React.createElement("span", null, "Exclusive pro discounts"))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-item" }, /* @__PURE__ */ React.createElement("div", { className: "trust-strip-icon" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" }))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-text" }, "Expert Guidance", /* @__PURE__ */ React.createElement("span", null, "Design consultation available"))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-item" }, /* @__PURE__ */ React.createElement("div", { className: "trust-strip-icon" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "1", y: "3", width: "15", height: "13", rx: "1" }), /* @__PURE__ */ React.createElement("polyline", { points: "16 8 20 8 23 11 23 16 20 16" }), /* @__PURE__ */ React.createElement("circle", { cx: "18", cy: "18", r: "2" }), /* @__PURE__ */ React.createElement("circle", { cx: "7", cy: "18", r: "2" }))), /* @__PURE__ */ React.createElement("div", { className: "trust-strip-text" }, "Fast Shipping", /* @__PURE__ */ React.createElement("span", null, "Direct from warehouse")))))), topCats.length > 0 && /* @__PURE__ */ React.createElement(RevealSection, null, /* @__PURE__ */ React.createElement("section", { className: "homepage-section" }, /* @__PURE__ */ React.createElement("h2", null, "Shop by Category"), /* @__PURE__ */ React.createElement("p", { className: "subtitle" }, "Explore our curated selection of premium surfaces"), /* @__PURE__ */ React.createElement("div", { className: "homepage-cat-grid" }, topCats.map((cat) => /* @__PURE__ */ React.createElement("div", { key: cat.slug, className: "homepage-cat-tile", onClick: () => onCategorySelect(cat.slug) }, cat.image_url && /* @__PURE__ */ React.createElement("img", { src: optimizeImg(cat.image_url, 400), ...optimizeSrcSet(cat.image_url, [200, 400, 600]), sizes: "(max-width: 640px) 50vw, 33vw", alt: cat.name, loading: "lazy", decoding: "async" }), /* @__PURE__ */ React.createElement("div", { className: "homepage-cat-tile-overlay" }, /* @__PURE__ */ React.createElement("span", { className: "homepage-cat-tile-name" }, cat.name), /* @__PURE__ */ React.createElement("span", { className: "homepage-cat-tile-cta" }, "Shop Now \u2192"))))))), /* @__PURE__ */ React.createElement(RevealSection, { delay: 0.1 }, /* @__PURE__ */ React.createElement("section", { className: "homepage-featured-band" }, /* @__PURE__ */ React.createElement("div", { className: "homepage-section" }, /* @__PURE__ */ React.createElement("h2", null, "Featured Products"), /* @__PURE__ */ React.createElement("p", { className: "subtitle" }, "Our most popular floors, chosen by customers like you"), featuredLoading ? /* @__PURE__ */ React.createElement(SkeletonGrid, { count: 8 }) : featuredSkus.length > 0 ? /* @__PURE__ */ React.createElement(SkuGrid, { skus: featuredSkus, onSkuClick, wishlist, toggleWishlist, setQuickViewSku }) : /* @__PURE__ */ React.createElement("p", { style: { textAlign: "center", color: "var(--stone-500)", padding: "2rem 0" } }, "Featured products coming soon.")))), /* @__PURE__ */ React.createElement(RevealSection, { delay: 0.1 }, /* @__PURE__ */ React.createElement("section", { className: "homepage-section" }, /* @__PURE__ */ React.createElement("h2", null, "Shop the Look"), /* @__PURE__ */ React.createElement("p", { className: "subtitle" }, "Curated collections for every style"), /* @__PURE__ */ React.createElement("div", { className: "looks-grid" }, looks.map((look) => /* @__PURE__ */ React.createElement("div", { key: look.slug, className: "look-card", onClick: () => navigate("/shop?collection=" + look.slug) }, /* @__PURE__ */ React.createElement("img", { src: optimizeImg(look.image, 400), ...optimizeSrcSet(look.image, [200, 400, 600]), sizes: "(max-width: 640px) 50vw, 25vw", alt: look.name, loading: "lazy", decoding: "async" }), /* @__PURE__ */ React.createElement("div", { className: "look-card-overlay" }, /* @__PURE__ */ React.createElement("span", { className: "look-card-name" }, look.name), /* @__PURE__ */ React.createElement("span", { className: "look-card-cta" }, "Explore \u2192"))))))), /* @__PURE__ */ React.createElement(RevealSection, { delay: 0.1 }, /* @__PURE__ */ React.createElement("section", { className: "homepage-section" }, /* @__PURE__ */ React.createElement("h2", null, "Get Inspired"), /* @__PURE__ */ React.createElement("p", { className: "subtitle" }, "Real spaces, real transformations"), /* @__PURE__ */ React.createElement("div", { className: "inspo-gallery" }, inspoImages.map((img, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "inspo-gallery-item" + (img.tall ? " tall" : ""), onClick: () => navigate("/shop?room=" + img.label.toLowerCase().replace(/\s+/g, "-")) }, /* @__PURE__ */ React.createElement("img", { src: optimizeImg(img.src, 400), ...optimizeSrcSet(img.src, [200, 400, 600]), sizes: "(max-width: 640px) 50vw, 25vw", alt: img.label, loading: "lazy", decoding: "async" }), /* @__PURE__ */ React.createElement("div", { className: "inspo-gallery-overlay" }, /* @__PURE__ */ React.createElement("span", { className: "inspo-gallery-label" }, img.label))))))), /* @__PURE__ */ React.createElement(RevealSection, { delay: 0.1 }, /* @__PURE__ */ React.createElement("div", { className: "homepage-cta-duo" }, /* @__PURE__ */ React.createElement("div", { className: "cta-card cta-card-dark" }, /* @__PURE__ */ React.createElement("div", { className: "cta-card-icon" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" }), /* @__PURE__ */ React.createElement("polyline", { points: "3.27 6.96 12 12.01 20.73 6.96" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "22.08", x2: "12", y2: "12" }))), /* @__PURE__ */ React.createElement("h3", null, "Room Visualizer"), /* @__PURE__ */ React.createElement("p", null, "See how our floors look in your space before you buy. Upload a photo and preview any product."), /* @__PURE__ */ React.createElement("button", { className: "btn-outline", onClick: () => {
       if (window.roomvo && typeof window.roomvo.startStandaloneVisualizer === "function") {
         window.roomvo.startStandaloneVisualizer();
       } else {
@@ -2152,7 +2588,7 @@
     onTagToggle,
     didYouMean
   }) {
-    const totalPages = Math.ceil(totalSkus / 72);
+    const totalPages = Math.ceil(totalSkus / 24);
     const hasAttrFilters = Object.keys(filters).length > 0;
     const hasVendorFilters = vendorFilters && vendorFilters.length > 0;
     const hasPriceFilters = userPriceRange && (userPriceRange.min != null || userPriceRange.max != null);
@@ -2496,11 +2932,12 @@
     return /* @__PURE__ */ React.createElement("div", { className: "skeleton-grid" }, Array.from({ length: count }, (_, i) => /* @__PURE__ */ React.createElement("div", { key: i }, /* @__PURE__ */ React.createElement("div", { className: "skeleton-card-img" }), /* @__PURE__ */ React.createElement("div", { className: "skeleton-bar skeleton-bar-short" }), /* @__PURE__ */ React.createElement("div", { className: "skeleton-bar skeleton-bar-medium" }))));
   }
   function SkuGrid({ skus, onSkuClick, wishlist, toggleWishlist, setQuickViewSku }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "sku-grid" }, skus.map((sku) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "sku-grid" }, skus.map((sku, idx) => /* @__PURE__ */ React.createElement(
       SkuCard,
       {
         key: sku.sku_id,
         sku,
+        index: idx,
         onClick: () => onSkuClick(sku.sku_id, sku.product_name || sku.collection),
         isWished: wishlist.includes(sku.product_id),
         onToggleWishlist: () => toggleWishlist(sku.product_id),
@@ -2528,7 +2965,8 @@
     }
     return /* @__PURE__ */ React.createElement("nav", { className: "pagination", "aria-label": "Product pages" }, /* @__PURE__ */ React.createElement("button", { className: "pagination-btn", disabled: currentPage <= 1, onClick: () => onPageChange(currentPage - 1) }, "\u2190 Previous"), /* @__PURE__ */ React.createElement("div", { className: "pagination-pages" }, pages.map((p, i) => p === "..." ? /* @__PURE__ */ React.createElement("span", { key: "e" + i, className: "pagination-ellipsis" }, "\u2026") : /* @__PURE__ */ React.createElement("button", { key: p, className: "pagination-num" + (p === currentPage ? " active" : ""), onClick: () => onPageChange(p) }, p))), /* @__PURE__ */ React.createElement("button", { className: "pagination-btn", disabled: currentPage >= totalPages, onClick: () => onPageChange(currentPage + 1) }, "Next \u2192"));
   }
-  function SkuCard({ sku, onClick, isWished, onToggleWishlist, onQuickView }) {
+  function SkuCard({ sku, onClick, isWished, onToggleWishlist, onQuickView, index }) {
+    const isAboveFold = index != null && index < 8;
     const onSale = sku.sale_price != null && !sku.trade_price;
     const price = sku.trade_price || (onSale ? sku.sale_price : sku.retail_price);
     const discountPct = onSale && sku.retail_price ? Math.round((1 - parseFloat(sku.sale_price) / parseFloat(sku.retail_price)) * 100) : 0;
@@ -2542,10 +2980,10 @@
         }
       },
       /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: isWished ? "currentColor" : "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" }))
-    ), /* @__PURE__ */ React.createElement("div", { className: "sku-card-image" }, sku.primary_image && /* @__PURE__ */ React.createElement("img", { src: optimizeImg(sku.primary_image, 400), alt: sku.product_name, loading: "lazy", decoding: "async", width: "300", height: "300" }), sku.alternate_image && /* @__PURE__ */ React.createElement("img", { className: "sku-card-alt-img", src: optimizeImg(sku.alternate_image, 400), alt: "", loading: "lazy", decoding: "async", width: "300", height: "300" }), onSale && /* @__PURE__ */ React.createElement("span", { className: "sale-badge" }, "SALE"), onQuickView && /* @__PURE__ */ React.createElement("button", { className: "quick-view-btn", onClick: (e) => {
+    ), /* @__PURE__ */ React.createElement("div", { className: "sku-card-image" }, sku.primary_image && /* @__PURE__ */ React.createElement("img", { src: optimizeImg(sku.primary_image, 400), ...optimizeSrcSet(sku.primary_image, [200, 400, 600]), sizes: "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw", alt: sku.product_name, loading: isAboveFold ? "eager" : "lazy", fetchPriority: isAboveFold ? "high" : "auto", decoding: isAboveFold ? "sync" : "async", width: "300", height: "300" }), sku.alternate_image && /* @__PURE__ */ React.createElement("img", { className: "sku-card-alt-img", src: optimizeImg(sku.alternate_image, 400), ...optimizeSrcSet(sku.alternate_image, [200, 400, 600]), sizes: "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw", alt: "", loading: "lazy", decoding: "async", width: "300", height: "300" }), onSale && /* @__PURE__ */ React.createElement("span", { className: "sale-badge" }, "SALE"), onQuickView && /* @__PURE__ */ React.createElement("button", { className: "quick-view-btn", onClick: (e) => {
       e.stopPropagation();
       onQuickView();
-    } }, "Quick View")), /* @__PURE__ */ React.createElement("div", { className: "sku-card-name" }, fullProductName(sku)), sku.vendor_name && /* @__PURE__ */ React.createElement("div", { className: "sku-card-vendor" }, sku.vendor_name), sku.variant_count > 1 && /* @__PURE__ */ React.createElement("div", { className: "sku-card-options" }, sku.variant_count, " ", (sku.attributes || []).some((a) => a.slug === "color") ? "colors" : "options"), /* @__PURE__ */ React.createElement("div", { className: "sku-card-price" }, price ? /* @__PURE__ */ React.createElement(React.Fragment, null, sku.trade_price && sku.retail_price && /* @__PURE__ */ React.createElement("span", { style: { textDecoration: "line-through", color: "var(--stone-500)", fontSize: "0.875rem", marginRight: "0.5rem" } }, "$", displayPrice(sku, sku.retail_price).toFixed(2)), onSale && /* @__PURE__ */ React.createElement("span", { className: "sale-original-price" }, "$", displayPrice(sku, sku.retail_price).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: onSale ? "sale-price-text" : "" }, "$", displayPrice(sku, price).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "price-suffix" }, priceSuffix(sku)), onSale && discountPct > 0 && /* @__PURE__ */ React.createElement("span", { className: "sale-discount-tag" }, discountPct, "% off")) : "Contact for pricing"));
+    } }, "Quick View")), /* @__PURE__ */ React.createElement("div", { className: "sku-card-name" }, fullProductName(sku)), sku.vendor_name && /* @__PURE__ */ React.createElement("div", { className: "sku-card-vendor" }, sku.vendor_name), sku.variant_count > 1 && /* @__PURE__ */ React.createElement("div", { className: "sku-card-options" }, sku.variant_count, " ", (sku.attributes || []).some((a) => a.slug === "color") ? "colors" : "options"), /* @__PURE__ */ React.createElement("div", { className: "sku-card-price" }, price ? /* @__PURE__ */ React.createElement(React.Fragment, null, sku.trade_price && sku.retail_price && /* @__PURE__ */ React.createElement("span", { style: { textDecoration: "line-through", color: "var(--stone-500)", fontSize: "0.875rem", marginRight: "0.5rem" } }, "$", displayPrice(sku, sku.retail_price).toFixed(2)), onSale && /* @__PURE__ */ React.createElement("span", { className: "sale-original-price" }, "$", displayPrice(sku, sku.retail_price).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: onSale ? "sale-price-text" : "" }, "$", displayPrice(sku, price).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "price-suffix" }, priceSuffix(sku)), onSale && discountPct > 0 && /* @__PURE__ */ React.createElement("span", { className: "sale-discount-tag" }, discountPct, "% off")) : "Call for Price & Stock"));
   }
   function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, tradeCustomer, wishlist, toggleWishlist, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth, showToast, categories }) {
     const [sku, setSku] = useState(null);
@@ -2751,6 +3189,7 @@
     const isPerUnit = sku && isSoldPerUnit(sku);
     const hasBoxCalc = !isPerUnit && sqftPerBox > 0;
     const isSqftNoBox = !isPerUnit && sqftPerBox <= 0;
+    const slabMissingSize = isPerUnit && sku && (sku.price_basis === "sqft" || sku.price_basis === "per_sqft") && !(parseFloat(sku.sqft_per_box) > 0);
     const isSheetUnit = hasBoxCalc && sqftPerBox < 4 && !sku.pieces_per_box;
     const boxLabel = isSheetUnit ? "sheet" : "box";
     const boxLabelPlural = isSheetUnit ? "sheets" : "boxes";
@@ -2813,7 +3252,7 @@
           price_tier: carpetPriceTier
         });
       } else if (isPerUnit) {
-        if (unitQty <= 0) return;
+        if (unitQty <= 0 || slabMissingSize) return;
         addToCart({
           product_id: sku.product_id,
           sku_id: sku.sku_id,
@@ -2878,21 +3317,60 @@
     let accessorySiblings = allAccessories;
     if (allAccessories.length > 0) {
       const vsku = (sku.vendor_sku || "").toUpperCase();
-      const mainMatch = vsku.match(/^(?:P-)?(?:VTR|VTW|QUTR|QUPO)(?:XL)?(?:HD)?([A-Z]+)/);
-      if (mainMatch && mainMatch[1] && mainMatch[1].length >= 3) {
-        const mainColor = mainMatch[1];
-        const matched = allAccessories.filter((acc) => {
-          const asku = (acc.vendor_sku || acc.internal_sku || "").toUpperCase();
-          const accMatch = asku.match(/^(?:P-|MSI-)?(?:P-)?VTT(?:HD)?([A-Z]+)-/) || asku.match(/^(?:P-|MSI-)?TT([A-Z]+)-/);
-          if (!accMatch || !accMatch[1]) return true;
-          const accColor = accMatch[1];
-          return accColor.includes(mainColor) || mainColor.includes(accColor);
+      const currentColor = (sku.variant_name || "").toLowerCase().trim();
+      const hasColorAttr = allAccessories.some((acc) => (acc.attributes || []).some((a) => a.slug === "matching_color"));
+      const colorMatched = hasColorAttr ? allAccessories.filter((acc) => {
+        const mc = (acc.attributes || []).find((a) => a.slug === "matching_color");
+        return mc && mc.value && mc.value.toLowerCase() === currentColor;
+      }) : [];
+      if (hasColorAttr) {
+        accessorySiblings = colorMatched;
+      }
+      if (!hasColorAttr && vsku.length >= 4) {
+        const prefixMatched = allAccessories.filter((acc) => {
+          const asku = (acc.vendor_sku || "").toUpperCase();
+          return asku.startsWith(vsku + "-") || asku.startsWith(vsku);
         });
-        if (matched.length > 0) accessorySiblings = matched;
+        if (prefixMatched.length > 0 && prefixMatched.length < allAccessories.length) {
+          accessorySiblings = prefixMatched;
+        }
+      }
+      if (accessorySiblings.length === allAccessories.length) {
+        const mainMatch = vsku.match(/^(?:P-)?(?:VTR|VTW|QUTR|QUPO)(?:XL)?(?:HD)?([A-Z]+)/);
+        if (mainMatch && mainMatch[1] && mainMatch[1].length >= 3) {
+          const mainColor = mainMatch[1];
+          const matched = allAccessories.filter((acc) => {
+            const asku = (acc.vendor_sku || acc.internal_sku || "").toUpperCase();
+            const accMatch = asku.match(/^(?:P-|MSI-)?(?:P-)?VTT(?:HD)?([A-Z]+)-/) || asku.match(/^(?:P-|MSI-)?TT([A-Z]+)-/);
+            if (!accMatch || !accMatch[1]) return true;
+            const accColor = accMatch[1];
+            return accColor.includes(mainColor) || mainColor.includes(accColor);
+          });
+          if (matched.length > 0) accessorySiblings = matched;
+        }
+      }
+      const typeGroups = {};
+      accessorySiblings.forEach((acc) => {
+        const key = acc.variant_name || acc.sku_id;
+        if (!typeGroups[key]) typeGroups[key] = [];
+        typeGroups[key].push(acc);
+      });
+      const hasDuplicateTypes = Object.values(typeGroups).some((g) => g.length > 1);
+      if (hasDuplicateTypes) {
+        const colorSkus = [sku, ...mainSiblings].filter((s) => s.variant_type !== "accessory");
+        colorSkus.sort((a, b) => (a.vendor_sku || "").localeCompare(b.vendor_sku || ""));
+        const colorIdx = colorSkus.findIndex((s) => s.sku_id === sku.sku_id || s.id === sku.sku_id);
+        accessorySiblings = Object.values(typeGroups).map((group) => {
+          if (group.length === 1) return group[0];
+          group.sort((a, b) => (a.vendor_sku || "").localeCompare(b.vendor_sku || ""));
+          return colorIdx >= 0 && colorIdx < group.length ? group[colorIdx] : group[0];
+        });
       }
     }
     const isAdexProduct = /adex/i.test(sku.vendor_name || "");
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sku-detail", "data-sku": sku.vendor_sku || sku.internal_sku, style: loading ? { opacity: 0.6, pointerEvents: "none", transition: "opacity 0.15s ease" } : { opacity: 1, transition: "opacity 0.15s ease" } }, /* @__PURE__ */ React.createElement("div", { className: "breadcrumbs" }, /* @__PURE__ */ React.createElement("a", { onClick: goBack }, "Shop"), /* @__PURE__ */ React.createElement("span", null, "/"), sku.category_name && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("a", { onClick: goBack }, sku.category_name), /* @__PURE__ */ React.createElement("span", null, "/")), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-800)" } }, fullProductName(sku))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-main" }, /* @__PURE__ */ React.createElement("div", { className: "sku-detail-gallery" }, /* @__PURE__ */ React.createElement("div", { className: "sku-detail-image" }, mainImage && /* @__PURE__ */ React.createElement("img", { src: optimizeImg(mainImage.url, 800), alt: sku.product_name, decoding: "async" })), images.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "gallery-thumbs" }, images.map((img, i) => /* @__PURE__ */ React.createElement("div", { key: img.id, className: "gallery-thumb" + (i === selectedImage ? " active" : ""), onClick: () => setSelectedImage(i) }, /* @__PURE__ */ React.createElement("img", { src: optimizeImg(img.url, 120), alt: "", loading: "lazy", decoding: "async", width: "80", height: "80" })))), (() => {
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sku-detail", "data-sku": sku.vendor_sku || sku.internal_sku, style: loading ? { opacity: 0.6, pointerEvents: "none", transition: "opacity 0.15s ease" } : { opacity: 1, transition: "opacity 0.15s ease" } }, /* @__PURE__ */ React.createElement("div", { className: "breadcrumbs" }, /* @__PURE__ */ React.createElement("a", { onClick: goBack }, "Shop"), /* @__PURE__ */ React.createElement("span", null, "/"), sku.category_name && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("a", { onClick: goBack }, sku.category_name), /* @__PURE__ */ React.createElement("span", null, "/")), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-800)" } }, fullProductName(sku))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-main" }, /* @__PURE__ */ React.createElement("div", { className: "sku-detail-gallery" }, /* @__PURE__ */ React.createElement("div", { className: "sku-detail-image" }, mainImage && /* @__PURE__ */ React.createElement("img", { src: optimizeImg(mainImage.url, 800), ...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200]), sizes: "(max-width: 768px) 100vw, 50vw", alt: sku.product_name, fetchPriority: "high", decoding: "async" })), images.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "gallery-thumbs" }, images.map((img, i) => /* @__PURE__ */ React.createElement("div", { key: img.id, className: "gallery-thumb" + (i === selectedImage ? " active" : ""), onClick: () => setSelectedImage(i) }, /* @__PURE__ */ React.createElement("img", { src: optimizeImg(img.url, 120), alt: "", loading: "lazy", decoding: "async", width: "80", height: "80", onError: (e) => {
+      e.target.style.display = "none";
+    } })))), (() => {
       const HIDDEN_SLUGS = /* @__PURE__ */ new Set(["price_list", "material_class", "style_code", "companion_skus", "subcategory", "msrp", "top_ref_sku", "sink_ref_sku", "optional_accessories", "group_number"]);
       const ORDER = ["_collection", "_category", "_sku", "collection", "species", "color", "color_code", "brand", "application", "fiber", "material", "construction", "finish", "style", "pattern", "size", "thickness", "width", "wear_layer", "weight", "weight_per_sqyd", "roll_width", "roll_length"];
       const slugMap = {};
@@ -2931,7 +3409,7 @@
       }
       if (sku.vendor_sku) {
         const afterCat = sorted.findIndex((a) => a.slug === "_category");
-        sorted.splice(afterCat >= 0 ? afterCat + 1 : injectedCollection ? 1 : 0, 0, { slug: "_sku", name: "SKU", value: sku.vendor_sku });
+        sorted.splice(afterCat >= 0 ? afterCat + 1 : injectedCollection ? 1 : 0, 0, { slug: "_sku", name: "SKU", value: (sku.vendor_sku || "").toUpperCase() });
       }
       const priceListAttr = (sku.attributes || []).find((a) => a.slug === "price_list");
       if (priceListAttr && priceListAttr.value && !slugMap.brand) {
@@ -2940,7 +3418,7 @@
         sorted.splice(ccIdx >= 0 ? ccIdx + 1 : sorted.length, 0, { slug: "_brand", name: "Brand", value: brandLine });
       }
       if (sorted.length === 0) return null;
-      return /* @__PURE__ */ React.createElement("table", { className: "specs-table" }, /* @__PURE__ */ React.createElement("tbody", null, sorted.map((a, i) => /* @__PURE__ */ React.createElement("tr", { key: i }, /* @__PURE__ */ React.createElement("td", null, a.name), /* @__PURE__ */ React.createElement("td", null, formatCarpetValue(a.value))))));
+      return /* @__PURE__ */ React.createElement("table", { className: "specs-table" }, /* @__PURE__ */ React.createElement("tbody", null, sorted.map((a, i) => /* @__PURE__ */ React.createElement("tr", { key: i }, /* @__PURE__ */ React.createElement("td", null, a.name), /* @__PURE__ */ React.createElement("td", null, a.slug === "_sku" ? a.value : formatCarpetValue(a.value))))));
     })(), (sku.description_long || sku.description_short) && (() => {
       const cleaned = cleanDescription(sku.description_long || sku.description_short, sku.vendor_name);
       return cleaned ? /* @__PURE__ */ React.createElement("div", { style: { marginTop: "1rem", fontSize: "0.9rem", lineHeight: 1.7, color: "var(--stone-600)" } }, cleaned) : null;
@@ -2969,7 +3447,7 @@
       },
       /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 16, height: 16, flexShrink: 0 } }, /* @__PURE__ */ React.createElement("path", { d: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" }), /* @__PURE__ */ React.createElement("polyline", { points: "14 2 14 8 20 8" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "18", x2: "12", y2: "12" }), /* @__PURE__ */ React.createElement("polyline", { points: "9 15 12 18 15 15" })),
       pdf.alt_text || "Spec Sheet (PDF)"
-    )))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-info" }, /* @__PURE__ */ React.createElement("a", { className: "back-btn", onClick: goBack }, "\u2190 Back to Shop"), /* @__PURE__ */ React.createElement("h1", { className: "sku-detail-title-row" }, fullProductName(sku)), sku.vendor_sku && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--stone-500)", fontFamily: "Inter, system-ui, sans-serif", letterSpacing: "0.03em", marginTop: "0.25rem" } }, "SKU: ", sku.vendor_sku), productTags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "product-tag-badges" }, productTags.map((t) => /* @__PURE__ */ React.createElement("span", { key: t.slug, className: "product-tag-badge" }, t.name))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-price" }, isCarpet(sku) ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "1.75rem", fontWeight: 600 } }, "$", parseFloat(sku.cut_price).toFixed(2)), /* @__PURE__ */ React.createElement("span", null, "/sqyd"), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-500)", fontSize: "0.9375rem", marginLeft: "0.5rem" } }, "($", carpetSqftPrice(sku.cut_price), "/sqft)")), sku.roll_price && parseFloat(sku.roll_price) < parseFloat(sku.cut_price) && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.875rem", color: "var(--sage)", marginTop: "0.375rem" } }, "Roll Price: $", parseFloat(sku.roll_price).toFixed(2), "/sqyd ($", carpetSqftPrice(sku.roll_price), "/sqft)", sku.roll_min_sqft && /* @__PURE__ */ React.createElement("span", null, " \u2014 orders over ", parseFloat(sku.roll_min_sqft).toFixed(0), " sqft")), tradePrice && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--gold)", marginTop: "0.25rem" } }, "Trade Price (", sku.trade_tier, ")")) : tradePrice ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { style: { textDecoration: "line-through", color: "var(--stone-500)", fontSize: "1.25rem", marginRight: "0.5rem" } }, "$", retailPrice.toFixed(2)), "$", tradePrice.toFixed(2), /* @__PURE__ */ React.createElement("span", null, priceSuffix(sku)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--gold)", marginTop: "0.25rem" } }, "Trade Price (", sku.trade_tier, ")")) : salePrice ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sale-original-price", style: { fontSize: "1.25rem" } }, "$", retailPrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "sale-price-text", style: { fontSize: "1.75rem", fontWeight: 600 } }, "$", salePrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", null, priceSuffix(sku)), /* @__PURE__ */ React.createElement("span", { className: "sale-discount-tag" }, Math.round((1 - salePrice / retailPrice) * 100), "% off")) : retailPrice > 0 ? /* @__PURE__ */ React.createElement(React.Fragment, null, "$", retailPrice.toFixed(2), /* @__PURE__ */ React.createElement("span", null, priceSuffix(sku))) : "Contact for pricing"), isCarpetSku && (() => {
+    )))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-info" }, /* @__PURE__ */ React.createElement("a", { className: "back-btn", onClick: goBack }, "\u2190 Back to Shop"), /* @__PURE__ */ React.createElement("h1", { className: "sku-detail-title-row" }, fullProductName(sku)), sku.vendor_sku && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--stone-500)", fontFamily: "Inter, system-ui, sans-serif", letterSpacing: "0.03em", marginTop: "0.25rem" } }, "SKU: ", (sku.vendor_sku || "").toUpperCase()), productTags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "product-tag-badges" }, productTags.map((t) => /* @__PURE__ */ React.createElement("span", { key: t.slug, className: "product-tag-badge" }, t.name))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-price" }, isCarpet(sku) ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "1.75rem", fontWeight: 600 } }, "$", parseFloat(sku.cut_price).toFixed(2)), /* @__PURE__ */ React.createElement("span", null, "/sqyd"), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-500)", fontSize: "0.9375rem", marginLeft: "0.5rem" } }, "($", carpetSqftPrice(sku.cut_price), "/sqft)")), sku.roll_price && parseFloat(sku.roll_price) < parseFloat(sku.cut_price) && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.875rem", color: "var(--sage)", marginTop: "0.375rem" } }, "Roll Price: $", parseFloat(sku.roll_price).toFixed(2), "/sqyd ($", carpetSqftPrice(sku.roll_price), "/sqft)", sku.roll_min_sqft && /* @__PURE__ */ React.createElement("span", null, " \u2014 orders over ", parseFloat(sku.roll_min_sqft).toFixed(0), " sqft")), tradePrice && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--gold)", marginTop: "0.25rem" } }, "Trade Price (", sku.trade_tier, ")")) : tradePrice ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { style: { textDecoration: "line-through", color: "var(--stone-500)", fontSize: "1.25rem", marginRight: "0.5rem" } }, "$", retailPrice.toFixed(2)), "$", tradePrice.toFixed(2), /* @__PURE__ */ React.createElement("span", null, priceSuffix(sku)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--gold)", marginTop: "0.25rem" } }, "Trade Price (", sku.trade_tier, ")")) : salePrice ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sale-original-price", style: { fontSize: "1.25rem" } }, "$", retailPrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "sale-price-text", style: { fontSize: "1.75rem", fontWeight: 600 } }, "$", salePrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", null, priceSuffix(sku)), /* @__PURE__ */ React.createElement("span", { className: "sale-discount-tag" }, Math.round((1 - salePrice / retailPrice) * 100), "% off")) : retailPrice > 0 ? /* @__PURE__ */ React.createElement(React.Fragment, null, "$", retailPrice.toFixed(2), /* @__PURE__ */ React.createElement("span", null, priceSuffix(sku))) : "Call for Price & Stock"), isCarpetSku && (() => {
       const attrMap = {};
       (sku.attributes || []).forEach((a) => {
         attrMap[a.slug] = a.value;
@@ -3114,7 +3592,7 @@
             });
           }
         });
-        colorItems = [...byColor.values()];
+        colorItems = [...byColor.values()].sort((a, b) => (a.product_name || "").localeCompare(b.product_name || ""));
       } else {
         const siblingNameSet = new Set(collectionSiblings.map((s) => s.product_name));
         const hasRomanSibling = [...siblingNameSet].some((n) => hasRomanSuffix(n));
@@ -3123,22 +3601,87 @@
         colorItems = treatAsColorVariants && collectionSiblings.length > 0 ? [
           { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: media && media[0] ? media[0].url : null, is_current: true },
           ...collectionSiblings
-        ] : [];
+        ].sort((a, b) => (a.product_name || "").localeCompare(b.product_name || "")) : [];
       }
       const attrMap = {};
-      const caData = collectionAttributes || {};
-      Object.keys(caData).forEach((slug) => {
-        attrMap[slug] = { name: caData[slug].name, values: new Set(caData[slug].values || []) };
-      });
       allSiblings.forEach((s) => {
         (s.attributes || []).forEach((a) => {
           if (!attrMap[a.slug]) attrMap[a.slug] = { name: a.name, values: /* @__PURE__ */ new Set() };
           attrMap[a.slug].values.add(a.value);
         });
       });
-      const NON_SELECTABLE = /* @__PURE__ */ new Set(["pei_rating", "shade_variation", "water_absorption", "dcof", "material", "country", "application", "edge", "look", "color", "color_code", "style_code", "price_list", "companion_skus", "species", "subcategory", "upc", "msrp", "weight", "top_ref_sku", "sink_ref_sku", "optional_accessories", "group_number", "width", "height", "depth", "hardware_finish", "num_drawers", "num_doors", "num_shelves", "num_sinks", "soft_close", "sink_material", "sink_type", "vanity_type", "bowl_shape", "style", "origin", "countertop_material", "thickness", "construction"]);
-      const localAttrCounts = {};
+      const NON_SELECTABLE = /* @__PURE__ */ new Set(["pei_rating", "shade_variation", "water_absorption", "dcof", "material", "country", "application", "edge", "look", "color", "color_code", "style_code", "price_list", "companion_skus", "species", "subcategory", "upc", "msrp", "weight", "top_ref_sku", "sink_ref_sku", "optional_accessories", "group_number", "width", "height", "depth", "hardware_finish", "num_drawers", "num_doors", "num_shelves", "num_sinks", "soft_close", "sink_material", "sink_type", "vanity_type", "bowl_shape", "style", "origin", "countertop_material", "thickness", "construction", "sub_line", "collection", "brand", "surface_texture", "wear_layer", "ac_rating", "edge_treatment", "plank_width", "plank_length", "composition", "install_method", "features", "technology", "product_line", "color_family"]);
+      const curSubLineAttr = (sku.attributes || []).find((a) => a.slug === "sub_line");
+      const curSubLine = curSubLineAttr ? curSubLineAttr.value : "";
+      const subLineMap = /* @__PURE__ */ new Map();
       allSiblings.forEach((s) => {
+        const sla = (s.attributes || []).find((a) => a.slug === "sub_line");
+        const sl = sla ? sla.value : "";
+        if (sl) {
+          if (!subLineMap.has(sl)) subLineMap.set(sl, []);
+          subLineMap.set(sl, [...subLineMap.get(sl), s]);
+        }
+      });
+      const subLineValues = [...subLineMap.keys()].sort();
+      const showSubLinePill = subLineValues.length > 1;
+      const subLineLabel = (sl) => {
+        const short = sl.replace(/^ADURA\s*/i, "");
+        const rep = (subLineMap.get(sl) || [])[0];
+        if (rep) {
+          const thAttr = (rep.attributes || []).find((a) => a.slug === "thickness");
+          if (thAttr) return short + " (" + thAttr.value + ")";
+        }
+        return short;
+      };
+      if (showSubLinePill && curSubLine && colorItems.length > 0) {
+        const subLineSibIds = new Set((subLineMap.get(curSubLine) || []).map((s) => s.sku_id));
+        subLineSibIds.add(sku.sku_id);
+        colorItems = colorItems.filter((c) => subLineSibIds.has(c.sku_id));
+      }
+      const effectiveSiblings = showSubLinePill && curSubLine ? allSiblings.filter((s) => {
+        const sla = (s.attributes || []).find((a) => a.slug === "sub_line");
+        return !sla || sla.value === curSubLine;
+      }) : allSiblings;
+      if (showSubLinePill && curSubLine) {
+        Object.keys(attrMap).forEach((slug) => {
+          attrMap[slug].values = /* @__PURE__ */ new Set();
+        });
+        effectiveSiblings.forEach((s) => {
+          (s.attributes || []).forEach((a) => {
+            if (!attrMap[a.slug]) attrMap[a.slug] = { name: a.name, values: /* @__PURE__ */ new Set() };
+            attrMap[a.slug].values.add(a.value);
+          });
+        });
+      }
+      const FORMAT_QUALIFIERS = [
+        { pattern: /\bPaver\b/i, label: "Paver" },
+        { pattern: /\bMosaic\b/i, label: "Mosaic" },
+        { pattern: /\bTRIM\b/i, label: "Trim" },
+        { pattern: /\bLINER\b/i, label: "Liner" },
+        { pattern: /\bDeco\b/i, label: "Deco" }
+      ];
+      const sizeValues = /* @__PURE__ */ new Set();
+      effectiveSiblings.forEach((s) => {
+        const sa = (s.attributes || []).find((a) => a.slug === "size");
+        if (sa) sizeValues.add(sa.value);
+      });
+      const formatSet = /* @__PURE__ */ new Set();
+      let hasStandard = false;
+      sizeValues.forEach((val) => {
+        const matched = FORMAT_QUALIFIERS.find((q) => q.pattern.test(val));
+        if (matched) formatSet.add(matched.label);
+        else hasStandard = true;
+      });
+      const hasFormatPill = formatSet.size > 0 && (hasStandard || formatSet.size > 1);
+      const currentSizeRaw = currentAttrs["size"] || "";
+      const currentFormatMatch = FORMAT_QUALIFIERS.find((q) => q.pattern.test(currentSizeRaw));
+      const currentFormat = currentFormatMatch ? currentFormatMatch.label : hasFormatPill ? "Standard" : null;
+      const formatValues = hasFormatPill ? [
+        ...hasStandard ? ["Standard"] : [],
+        ...[...formatSet].sort()
+      ] : [];
+      const localAttrCounts = {};
+      effectiveSiblings.forEach((s) => {
         (s.attributes || []).forEach((a) => {
           if (!localAttrCounts[a.slug]) localAttrCounts[a.slug] = /* @__PURE__ */ new Set();
           localAttrCounts[a.slug].add(a.value);
@@ -3154,19 +3697,80 @@
       const isRomanVariants = showColors && colorItems.some((c) => hasRomanSuffix(c.product_name));
       const colorLabel = attrMap["countertop_finish"] ? "Size" : isRomanVariants ? "Style" : "Color";
       const showAttrs = attrSlugs.length > 0;
-      if (!showColors && !showAttrs) return null;
-      return /* @__PURE__ */ React.createElement("div", { className: "variant-selectors" }, showColors && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, colorLabel), isRomanVariants ? /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, [...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map((c) => /* @__PURE__ */ React.createElement("button", { key: c.sku_id, className: "attr-pill" + (c.is_current ? " active" : ""), onClick: () => {
+      if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill) return null;
+      return /* @__PURE__ */ React.createElement("div", { className: "variant-selectors" }, showSubLinePill && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Format", /* @__PURE__ */ React.createElement("span", null, curSubLine ? curSubLine.replace(/^ADURA\s*/i, "") : "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, subLineValues.map((sl) => {
+        const isActive = sl === curSubLine;
+        const findSubLineMatch = () => {
+          if (isActive) return null;
+          const candidates = (subLineMap.get(sl) || []).filter((s) => s.sku_id !== sku.sku_id);
+          if (candidates.length === 0) return null;
+          const colorMatch = candidates.find((s) => {
+            const ca = (s.attributes || []).find((a) => a.slug === "color");
+            return ca && ca.value === currentColorVal;
+          });
+          return colorMatch || candidates[0];
+        };
+        const best = findSubLineMatch();
+        const isDisabled = !isActive && !best;
+        return /* @__PURE__ */ React.createElement("button", { key: sl, className: "attr-pill" + (isActive ? " active" : "") + (isDisabled ? " disabled" : ""), onClick: () => {
+          if (!isActive && !isDisabled && best) onSkuClick(best.sku_id);
+        } }, subLineLabel(sl));
+      }))), showColors && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, colorLabel), isRomanVariants ? /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, [...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map((c) => /* @__PURE__ */ React.createElement("button", { key: c.sku_id, className: "attr-pill" + (c.is_current ? " active" : ""), onClick: () => {
         if (!c.is_current) onSkuClick(c.sku_id);
       } }, c.product_name))) : /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, colorItems.map((c) => {
         const label = c.color || c.variant_name || c.product_name;
         return /* @__PURE__ */ React.createElement("div", { key: c.sku_id, className: "color-swatch-wrap", onClick: () => {
           if (!c.is_current) onSkuClick(c.sku_id);
         } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (c.is_current ? " active" : "") }, c.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(c.primary_image, 120), alt: label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)" } })), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, label));
+      }))), hasFormatPill && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Format", /* @__PURE__ */ React.createElement("span", null, currentFormat || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, formatValues.map((fmt) => {
+        const isActive = fmt === currentFormat;
+        const findFormatMatch = () => {
+          if (isActive) return null;
+          const isStd = fmt === "Standard";
+          const qualifier = !isStd && FORMAT_QUALIFIERS.find((q) => q.label === fmt);
+          const candidates = effectiveSiblings.filter((s) => {
+            if (s.sku_id === sku.sku_id) return false;
+            const sizeAttr = (s.attributes || []).find((a) => a.slug === "size");
+            if (!sizeAttr) return isStd;
+            const hasQ = qualifier && qualifier.pattern.test(sizeAttr.value);
+            return isStd ? !FORMAT_QUALIFIERS.some((q) => q.pattern.test(sizeAttr.value)) : hasQ;
+          });
+          if (candidates.length === 0) return null;
+          if (candidates.length === 1) return candidates[0];
+          const scored = candidates.map((s) => {
+            const sa = (s.attributes || []).reduce((m, a) => {
+              m[a.slug] = a.value;
+              return m;
+            }, {});
+            let score = 0;
+            attrSlugs.forEach((k) => {
+              if (k !== "size" && sa[k] === currentAttrs[k]) score++;
+            });
+            const curBase = currentSizeRaw.replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, "").trim();
+            const sibSize = (sa["size"] || "").replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, "").trim();
+            if (curBase && sibSize && curBase === sibSize) score += 2;
+            return { ...s, score };
+          });
+          return scored.sort((a, b) => b.score - a.score)[0];
+        };
+        const best = findFormatMatch();
+        const isDisabled = !isActive && !best;
+        return /* @__PURE__ */ React.createElement("button", { key: fmt, className: "attr-pill" + (isActive ? " active" : "") + (isDisabled ? " disabled" : ""), onClick: () => {
+          if (!isActive && !isDisabled && best) onSkuClick(best.sku_id);
+        } }, fmt);
       }))), showAttrs && attrSlugs.map((slug) => {
-        const allValues = [...attrMap[slug].values].sort(sizeSort);
+        const rawValues = [...attrMap[slug].values];
+        const allValues = (slug === "size" && hasFormatPill ? (() => {
+          const isStd = currentFormat === "Standard";
+          const qualifier = !isStd && FORMAT_QUALIFIERS.find((q) => q.label === currentFormat);
+          return rawValues.filter((val) => {
+            if (isStd) return !FORMAT_QUALIFIERS.some((q) => q.pattern.test(val));
+            return qualifier && qualifier.pattern.test(val);
+          });
+        })() : rawValues).sort(sizeSort);
         const currentVal = currentAttrs[slug];
         const compatibleValues = new Set(allValues.filter((val) => {
-          return allSiblings.some((s) => {
+          return effectiveSiblings.some((s) => {
             const sa = (s.attributes || []).reduce((m, a) => {
               m[a.slug] = a.value;
               return m;
@@ -3180,7 +3784,7 @@
         }));
         if (allValues.length <= 1 && !currentVal) return null;
         const findBest = (val) => {
-          const matching = allSiblings.filter((s) => {
+          const matching = effectiveSiblings.filter((s) => {
             if (s.sku_id === sku.sku_id) return false;
             const sa = (s.attributes || []).reduce((m, a) => {
               m[a.slug] = a.value;
@@ -3215,25 +3819,30 @@
           if (slug === "countertop_finish") return match.countertop_image || match.primary_image;
           return match.primary_image;
         };
-        return /* @__PURE__ */ React.createElement("div", { key: slug, className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, slug === "finish" && attrMap["countertop_finish"] ? "Cabinet Color" : slug === "countertop_finish" ? "Countertop" : attrMap[slug].name, /* @__PURE__ */ React.createElement("span", null, formatCarpetValue(currentVal || ""))), allValues.length > 10 ? /* @__PURE__ */ React.createElement("select", { className: "attr-select", value: currentVal || "", onChange: (e) => {
-          if (!compatibleValues.has(e.target.value)) return;
+        const displayVal = (val) => {
+          if (slug === "size" && hasFormatPill) {
+            return formatCarpetValue(val.replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, "").trim() || val);
+          }
+          return formatCarpetValue(val);
+        };
+        return /* @__PURE__ */ React.createElement("div", { key: slug, className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, slug === "finish" && attrMap["countertop_finish"] ? "Cabinet Color" : slug === "countertop_finish" ? "Countertop" : attrMap[slug].name, /* @__PURE__ */ React.createElement("span", null, displayVal(currentVal || ""))), allValues.length > 10 ? /* @__PURE__ */ React.createElement("select", { className: "attr-select", value: currentVal || "", onChange: (e) => {
           const best = findBest(e.target.value);
           if (best) onSkuClick(best.sku_id);
-        } }, allValues.map((val) => /* @__PURE__ */ React.createElement("option", { key: val, value: val, disabled: !compatibleValues.has(val) }, formatCarpetValue(val), !compatibleValues.has(val) ? " (unavailable)" : ""))) : useImageSwatches ? /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, allValues.map((val) => {
+        } }, allValues.map((val) => /* @__PURE__ */ React.createElement("option", { key: val, value: val, disabled: !compatibleValues.has(val) }, displayVal(val), !compatibleValues.has(val) ? " (unavailable)" : ""))) : useImageSwatches ? /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, allValues.map((val) => {
           const isActive = val === currentVal;
           const isDisabled = !compatibleValues.has(val);
           const img = getSwatchImage(val);
           const best = findBest(val);
           return /* @__PURE__ */ React.createElement("div", { key: val, className: "color-swatch-wrap" + (isDisabled ? " disabled" : ""), onClick: () => {
-            if (!isActive && !isDisabled && best) onSkuClick(best.sku_id);
-          } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (isActive ? " active" : "") + (isDisabled ? " disabled" : "") }, img ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(img, 120), alt: formatCarpetValue(val), loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", color: "var(--stone-500)", textAlign: "center", padding: "0.25rem" } }, formatCarpetValue(val))), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, formatCarpetValue(val)));
+            if (!isActive && best) onSkuClick(best.sku_id);
+          } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (isActive ? " active" : "") + (isDisabled ? " disabled" : "") }, img ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(img, 120), alt: displayVal(val), loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", color: "var(--stone-500)", textAlign: "center", padding: "0.25rem" } }, displayVal(val))), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, displayVal(val)));
         })) : /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, allValues.map((val) => {
           const isActive = val === currentVal;
           const isDisabled = !compatibleValues.has(val);
           const best = findBest(val);
           return /* @__PURE__ */ React.createElement("button", { key: val, className: "attr-pill" + (isActive ? " active" : "") + (isDisabled ? " disabled" : ""), onClick: () => {
-            if (!isActive && !isDisabled && best) onSkuClick(best.sku_id);
-          } }, formatCarpetValue(val));
+            if (!isActive && best) onSkuClick(best.sku_id);
+          } }, displayVal(val));
         })));
       }));
     })(), /* @__PURE__ */ React.createElement(StockBadge, { status: sku.stock_status, vendorHasInventory: sku.vendor_has_inventory }), sku.stock_status === "out_of_stock" && sku.vendor_has_inventory !== false && /* @__PURE__ */ React.createElement("div", { className: "stock-alert-box" }, alertSuccess || alertSubscribed ? /* @__PURE__ */ React.createElement("div", { className: "stock-alert-success" }, /* @__PURE__ */ React.createElement("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "#166534", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("path", { d: "M20 6L9 17l-5-5" })), "We'll notify you when this item is back in stock") : customer ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "Get notified when this item is back in stock"), /* @__PURE__ */ React.createElement("button", { className: "stock-alert-btn", onClick: handleStockAlertSubmit, disabled: alertLoading }, alertLoading ? "Subscribing..." : "Notify Me When Available")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "Get notified when this item is back in stock"), /* @__PURE__ */ React.createElement("div", { className: "stock-alert-form" }, /* @__PURE__ */ React.createElement("input", { type: "email", placeholder: "Enter your email", value: alertEmail, onChange: (e) => setAlertEmail(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "stock-alert-btn", onClick: handleStockAlertSubmit, disabled: alertLoading || !alertEmail }, alertLoading ? "Subscribing..." : "Notify Me")))), accessorySiblings.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "accessories-section-sf" }, /* @__PURE__ */ React.createElement("h3", null, "Matching Accessories"), /* @__PURE__ */ React.createElement("p", { className: "accessories-subtitle-sf" }, "Complete your installation with coordinating trim and transitions"), accessorySiblings.map((acc) => {
@@ -3379,7 +3988,7 @@
       },
       "Add to Cart ",
       parseFloat(sqftInput) > 0 ? `- $${sqftOnlySubtotal.toFixed(2)}` : ""
-    )), isPerUnit && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-row" }, /* @__PURE__ */ React.createElement("span", { className: "unit-qty-label" }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement(
+    )), isPerUnit && slabMissingSize && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { style: { background: "var(--stone-50, #fafaf9)", border: "1px solid var(--stone-200, #e7e5e4)", borderRadius: 8, padding: "1.25rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 0.5rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--stone-800, #292524)" } }, "Slab \u2014 Please Inquire"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.85rem", color: "var(--stone-600, #57534e)", lineHeight: 1.5 } }, "Contact us to confirm slab dimensions and availability before ordering."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "btn", style: { width: "100%", marginTop: "1rem", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009"))), isPerUnit && !slabMissingSize && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-row" }, /* @__PURE__ */ React.createElement("span", { className: "unit-qty-label" }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "number",
@@ -3397,7 +4006,7 @@
         disabled: unitQty <= 0
       },
       effectivePrice > 0 ? `Add to Cart \u2014 $${unitSubtotal.toFixed(2)}` : "Add to Cart"
-    )), /* @__PURE__ */ React.createElement(
+    )), !isCarpetSku && !isPerUnit && effectivePrice <= 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "var(--stone-50, #fafaf9)", border: "1px solid var(--stone-200, #e7e5e4)", borderRadius: 8, padding: "1.25rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 0.5rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--stone-800, #292524)" } }, "Call for Price & Stock"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.85rem", color: "var(--stone-600, #57534e)", lineHeight: 1.5 } }, "Contact us for current pricing, stock availability, and lead times."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "btn", style: { width: "100%", marginTop: "1rem", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009")), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn roomvo-visualize-btn",

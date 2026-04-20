@@ -70,6 +70,27 @@ const CATEGORY_MAP = {
   'porcelain-slabs': 'porcelain-slabs',
   'pavers': 'pavers',
   'ceramic-porcelain': 'ceramic-tile',
+  // Restructured site categories (2026)
+  'large-format-tile': 'large-format-tile',
+  'large-format-porcelain-tile': 'large-format-tile',
+  'natural-stone-tile': 'natural-stone',
+  'natural-stone-slab': 'natural-stone',
+  'marble-dolomite-tile': 'natural-stone',
+  'della-terra-porcelain-slabs': 'porcelain-slabs',
+  'della-terra-porcelain-slabs-outer-limits': 'porcelain-slabs',
+  'granite': 'granite-countertops',
+  'porcelain-mosaics-mesh-mounts': 'mosaic-tile',
+  'liners-moldings-trim': 'transitions-moldings',
+  'recycled-material-content': 'porcelain-tile',
+  'outer-limits': 'commercial-tile',
+  'special-order-series': 'commercial-tile',
+  // Defensive entries for common stone types
+  'travertine': 'natural-stone',
+  'limestone': 'natural-stone',
+  'slate': 'natural-stone',
+  'onyx': 'natural-stone',
+  'porcelain': 'porcelain-tile',
+  'ceramic': 'ceramic-tile',
 };
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -128,6 +149,13 @@ export async function run(pool, job, source) {
       { name: 'Look', slug: 'look', display_order: 12 },
       { name: 'Water Absorption', slug: 'water_absorption', display_order: 13 },
       { name: 'DCOF', slug: 'dcof', display_order: 14 },
+      { name: 'Breaking Strength', slug: 'breaking_strength', display_order: 15 },
+      { name: 'Frost Resistant', slug: 'frost_resistant', display_order: 16 },
+      { name: 'Abrasion Resistance', slug: 'abrasion_resistance', display_order: 17 },
+      { name: 'MOHS', slug: 'mohs', display_order: 18 },
+      { name: 'Shade Variation', slug: 'shade_variation', display_order: 19 },
+      { name: 'Staining Resistance', slug: 'staining_resistance', display_order: 20 },
+      { name: 'Thermal Shock', slug: 'thermal_shock', display_order: 21 },
     ];
     for (const attr of requiredAttrs) {
       await pool.query(`
@@ -608,6 +636,12 @@ export async function run(pool, job, source) {
                 });
                 stats.imagesSet++;
               }
+
+              // If no new images were assigned (all filtered as placeholders),
+              // promote existing first alternate to primary
+              if (allVarImages.length === 0) {
+                await promoteToPrimary(pool, product.id, sku.id);
+              }
             } // end for variations
           } // end for colorGroups
         } else {
@@ -659,6 +693,8 @@ export async function run(pool, job, source) {
               retail_price: Math.round(aztCost * 2 * 100) / 100,
               price_basis: UNIT_CATEGORIES.has(pimCatSlug) ? 'per_unit' : (detail.pricing.priceBasis || 'per_sqft'),
             });
+          } else if (detail.pricing._noPricing) {
+            await appendLog(pool, job.id, `Warning: no pricing found for simple product ${apiProduct.slug} (AZT-${apiProduct.wpId})`);
           }
 
           // ── Inventory ──
@@ -669,14 +705,18 @@ export async function run(pool, job, source) {
 
           // ── Packaging (skip for mosaics/countertops/slabs — no box packaging) ──
           if (detail.packaging && Object.keys(detail.packaging).length > 0 && !NO_BOX_CATEGORIES.has(pimCatSlug)) {
-            await upsertPackaging(pool, sku.id, {
-              sqft_per_box: detail.packaging.sqftPerBox || null,
-              pieces_per_box: detail.packaging.piecesPerBox || null,
-              weight_per_box_lbs: detail.packaging.weightPerBox || null,
-              boxes_per_pallet: detail.packaging.boxesPerPallet || null,
-              sqft_per_pallet: detail.packaging.sqftPerPallet || null,
-              weight_per_pallet_lbs: detail.packaging.weightPerPallet || null,
-            });
+            if (detail.packaging._pdfOnly) {
+              await appendLog(pool, job.id, `Info: ${apiProduct.slug} has packaging PDF (${detail.packaging.pdfUrl}) but no inline data`);
+            } else {
+              await upsertPackaging(pool, sku.id, {
+                sqft_per_box: detail.packaging.sqftPerBox || null,
+                pieces_per_box: detail.packaging.piecesPerBox || null,
+                weight_per_box_lbs: detail.packaging.weightPerBox || null,
+                boxes_per_pallet: detail.packaging.boxesPerPallet || null,
+                sqft_per_pallet: detail.packaging.sqftPerPallet || null,
+                weight_per_pallet_lbs: detail.packaging.weightPerPallet || null,
+              });
+            }
           }
 
           // ── All spec attributes ──
@@ -721,7 +761,7 @@ export async function run(pool, job, source) {
       }
     }
 
-    // ── Phase 4: Bulk activate ──
+    // ── Phase 4: Bulk activate + fix missing primaries ──
 
     if (touchedProductIds.length > 0) {
       const activateResult = await pool.query(
@@ -730,6 +770,25 @@ export async function run(pool, job, source) {
         [touchedProductIds]
       );
       await appendLog(pool, job.id, `Activated ${activateResult.rowCount} products (${touchedProductIds.length} total touched)`);
+    }
+
+    // Promote first alternate to primary for any AZT SKUs with images but no primary
+    const missingPrimary = await pool.query(`
+      SELECT DISTINCT s.id as sku_id, s.product_id
+      FROM skus s
+      JOIN media_assets ma ON ma.sku_id = s.id
+      WHERE s.internal_sku LIKE 'AZT-%'
+      AND NOT EXISTS (
+        SELECT 1 FROM media_assets m2 WHERE m2.sku_id = s.id AND m2.asset_type = 'primary'
+      )
+    `);
+    if (missingPrimary.rows.length > 0) {
+      let promoted = 0;
+      for (const row of missingPrimary.rows) {
+        const ok = await promoteToPrimary(pool, row.product_id, row.sku_id);
+        if (ok) promoted++;
+      }
+      await appendLog(pool, job.id, `Promoted ${promoted}/${missingPrimary.rows.length} SKUs missing primary image`);
     }
 
     await appendLog(pool, job.id,
@@ -747,6 +806,28 @@ export async function run(pool, job, source) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// Helpers
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Promote the first alternate/lifestyle image to 'primary' for a SKU
+ * that has images but no primary. Updates the record in-place.
+ * Returns true if a promotion occurred.
+ */
+async function promoteToPrimary(pool, productId, skuId) {
+  const result = await pool.query(`
+    UPDATE media_assets SET asset_type = 'primary'
+    WHERE id = (
+      SELECT id FROM media_assets
+      WHERE product_id = $1 AND sku_id = $2 AND asset_type IN ('alternate', 'lifestyle')
+      ORDER BY sort_order LIMIT 1
+    )
+    RETURNING id
+  `, [productId, skuId]);
+  return result.rowCount > 0;
+}
+
+// ══════════════════════════════════════════════════════════════
 // Parsers
 // ══════════════════════════════════════════════════════════════
 
@@ -755,10 +836,28 @@ export async function run(pool, job, source) {
  * Returns a unified object matching the Elysium v3 pattern.
  */
 function parseDetailPage(html) {
+  // Merge table-based tech specs with regex-based; regex results take priority
+  const tableTechSpecs = parseTechnicalSpecsTable(html);
+  const regexTechSpecs = parseTechnicalSpecs(html);
+  const technicalSpecs = { ...tableTechSpecs, ...regexTechSpecs };
+
+  // Detect packaging PDF link (for future manual review)
+  const pkgPdfMatch = html.match(/<a[^>]+href="([^"]+)"[^>]*>[\s\S]*?Thickness\s*(?:&amp;|&)\s*Packaging[\s\S]*?<\/a>/i);
+  const packagingPdfUrl = pkgPdfMatch ? htmlDecode(pkgPdfMatch[1]) : null;
+
+  const packaging = parsePackaging(html);
+  if (packagingPdfUrl) {
+    packaging.pdfUrl = packagingPdfUrl;
+    if (Object.keys(packaging).length === 1) {
+      // Only pdfUrl, no inline packaging data — log-worthy
+      packaging._pdfOnly = true;
+    }
+  }
+
   return {
     specs: parseSpecs(html),
-    technicalSpecs: parseTechnicalSpecs(html),
-    packaging: parsePackaging(html),
+    technicalSpecs,
+    packaging,
     pricing: parsePricing(html),
     gallery: parseGallery(html),
     variations: parseVariations(html),
@@ -776,11 +875,11 @@ function parseSpecs(html) {
   const specPatterns = [
     { regex: /<strong>Product Type:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'type' },
     { regex: /<strong>Origin:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'countryOfOrigin' },
-    { regex: /<strong>Stocked Finish(?:es)?:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'finish' },
+    { regex: /<strong>Stocked Finish(?:es)?(?:\(es\))?:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'finish' },
     { regex: /<strong>Stocked Sizes?:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'size' },
     { regex: /<strong>Stocked Thickness:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'thickness' },
     { regex: /<strong>Recommended Uses?:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'application' },
-    { regex: /<strong>Stocked Colors?:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'colors' },
+    { regex: /<strong>Stocked Color(?:s|\/Finishes)?:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'colors' },
     { regex: /<strong>Edge:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'edge' },
     { regex: /<strong>Look:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'look' },
     { regex: /<strong>Collection:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'collection' },
@@ -789,6 +888,27 @@ function parseSpecs(html) {
   for (const { regex, key } of specPatterns) {
     const match = html.match(regex);
     if (match) specs[key] = htmlDecode(match[1].trim());
+  }
+
+  // Multi-line value extraction: some specs span multiple <br>-separated lines
+  const multiLineKeys = [
+    { regex: /<strong>Stocked Color(?:s|\/Finishes)?:?<\/strong>\s*([\s\S]*?)(?=<strong>|<\/div>|<\/p>)/i, key: 'colors' },
+    { regex: /<strong>Stocked Finish(?:es)?(?:\(es\))?:?<\/strong>\s*([\s\S]*?)(?=<strong>|<\/div>|<\/p>)/i, key: 'finish' },
+    { regex: /<strong>Stocked Sizes?:?<\/strong>\s*([\s\S]*?)(?=<strong>|<\/div>|<\/p>)/i, key: 'size' },
+    { regex: /<strong>Stocked Thickness:?<\/strong>\s*([\s\S]*?)(?=<strong>|<\/div>|<\/p>)/i, key: 'thickness' },
+    { regex: /<strong>Recommended Uses?:?<\/strong>\s*([\s\S]*?)(?=<strong>|<\/div>|<\/p>)/i, key: 'application' },
+  ];
+  for (const { regex, key } of multiLineKeys) {
+    const match = html.match(regex);
+    if (match) {
+      const lines = match[1]
+        .split(/<br\s*\/?>/)
+        .map(l => htmlDecode(l.replace(/<[^>]+>/g, '').trim()))
+        .filter(Boolean);
+      if (lines.length > 1) {
+        specs[key] = lines.join(', ');
+      }
+    }
   }
 
   return specs;
@@ -816,6 +936,61 @@ function parseTechnicalSpecs(html) {
     if (tech[key]) continue; // Don't overwrite (dcof has two patterns)
     const match = html.match(regex);
     if (match) tech[key] = htmlDecode(match[1].trim());
+  }
+
+  return tech;
+}
+
+/**
+ * Parse technical specs from HTML <table> elements with "TECHNICAL CHARACTERISTICS" header.
+ * New Arizona Tile format uses tables instead of <strong> label blocks for some products.
+ * Extracts label (col 1) → value (last col, typically "TYPICAL VALUE") pairs.
+ */
+function parseTechnicalSpecsTable(html) {
+  const tech = {};
+
+  // Find table sections containing technical characteristics
+  const tableMatch = html.match(/<table[^>]*>[\s\S]*?TECHNICAL\s+CHARACTERISTICS[\s\S]*?<\/table>/i);
+  if (!tableMatch) return tech;
+
+  const tableHtml = tableMatch[0];
+
+  // Map of label patterns → tech spec keys
+  const labelMap = [
+    { pattern: /water\s+absorption/i, key: 'waterAbsorption' },
+    { pattern: /dcof|dynamic\s+coefficient/i, key: 'dcof' },
+    { pattern: /breaking\s+strength/i, key: 'breakingStrength' },
+    { pattern: /frost\s+resist/i, key: 'frostResistant' },
+    { pattern: /abrasion\s+resist/i, key: 'abrasionResistance' },
+    { pattern: /\bpei\b/i, key: 'peiRating' },
+    { pattern: /\bmohs\b/i, key: 'mohs' },
+    { pattern: /shade\s+variation/i, key: 'shadeVariation' },
+    { pattern: /staining\s+resist/i, key: 'stainingResistance' },
+    { pattern: /thermal\s+shock/i, key: 'thermalShock' },
+  ];
+
+  // Extract rows: <tr>...<td>Label</td>...<td>Value</td>...</tr>
+  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let rowMatch;
+  while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
+    const cells = [];
+    const cellRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
+    let cellMatch;
+    while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
+      cells.push(cellMatch[1].replace(/<[^>]+>/g, '').trim());
+    }
+    if (cells.length < 2) continue;
+
+    const label = cells[0];
+    const value = cells[cells.length - 1]; // Last column = typical value
+    if (!label || !value) continue;
+
+    for (const { pattern, key } of labelMap) {
+      if (pattern.test(label) && !tech[key]) {
+        tech[key] = htmlDecode(value);
+        break;
+      }
+    }
   }
 
   return tech;
@@ -862,10 +1037,55 @@ function parsePackaging(html) {
 function parsePricing(html) {
   const result = { retailPrice: null, priceBasis: 'per_sqft' };
 
-  // Try WooCommerce price element
+  // Cascading price extraction:
+  // 1. WooCommerce price element (legacy pages)
   const priceMatch = html.match(/class="woocommerce-Price-amount[^"]*"[^>]*>[^$]*\$([\d,.]+)/);
   if (priceMatch) {
     result.retailPrice = parseFloat(priceMatch[1].replace(/,/g, '')) || null;
+  }
+
+  // 2. Extract display_price from data-product_variations JSON
+  //    Some "simple" products are rendered as single-variation
+  if (!result.retailPrice) {
+    const varMatch = html.match(/data-product_variations="([^"]+)"/);
+    if (varMatch) {
+      try {
+        let json = varMatch[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#039;/g, "'");
+        const vars = JSON.parse(json);
+        if (Array.isArray(vars) && vars.length > 0 && vars[0].display_price) {
+          result.retailPrice = parseFloat(vars[0].display_price) || null;
+        }
+      } catch { /* ignore parse errors */ }
+    }
+  }
+
+  // 3. JSON-LD structured data (application/ld+json)
+  if (!result.retailPrice) {
+    const ldMatch = html.match(/<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/i);
+    if (ldMatch) {
+      try {
+        const ld = JSON.parse(ldMatch[1]);
+        const offers = ld.offers || (Array.isArray(ld['@graph']) && ld['@graph'].find(g => g.offers))?.offers;
+        if (offers) {
+          const price = offers.price || offers.lowPrice || (Array.isArray(offers) && offers[0]?.price);
+          if (price) result.retailPrice = parseFloat(price) || null;
+        }
+      } catch { /* ignore parse errors */ }
+    }
+  }
+
+  // 4. data-price attribute on cart form elements
+  if (!result.retailPrice) {
+    const dataPriceMatch = html.match(/data-price="([\d.]+)"/);
+    if (dataPriceMatch) {
+      result.retailPrice = parseFloat(dataPriceMatch[1]) || null;
+    }
+  }
+
+  if (!result.retailPrice) {
+    // Log-worthy: simple product with no pricing found
+    result._noPricing = true;
   }
 
   // Check for "per sqft" / "per piece" / "per box" indicator
@@ -1024,6 +1244,12 @@ async function upsertAllSpecAttributes(pool, skuId, specs, technicalSpecs) {
     shadeVariation: 'shade_variation',
     waterAbsorption: 'water_absorption',
     dcof: 'dcof',
+    breakingStrength: 'breaking_strength',
+    frostResistant: 'frost_resistant',
+    abrasionResistance: 'abrasion_resistance',
+    mohs: 'mohs',
+    stainingResistance: 'staining_resistance',
+    thermalShock: 'thermal_shock',
   };
   for (const [techKey, attrSlug] of Object.entries(techMap)) {
     if (technicalSpecs[techKey]) await upsertSkuAttribute(pool, skuId, attrSlug, technicalSpecs[techKey]);

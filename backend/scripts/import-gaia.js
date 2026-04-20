@@ -1,8 +1,8 @@
 /**
  * Gaia Flooring — Full Vendor Import
  *
- * Source: Gaia Q-3-2025 Price List (Revised 05/20/2025)
- * Two product lines: eTERRA (SPC) and Nearwood (Laminate/Engineered)
+ * Source: Gaia Q-3-2025 Price List (Revised 05/20/2025) + website catalog
+ * Three product lines: eTERRA (SPC), Nearwood (Laminate/Engineered/Hybrid)
  *
  * Prices are dealer/wholesale cost. Retail = cost × 2.
  *
@@ -16,7 +16,7 @@ const pool = new pg.Pool({
 });
 
 const CAT = {
-  lvp:      '650e8400-e29b-41d4-a716-446655440030', // Luxury Vinyl (SPC)
+  lvp:      '650e8400-e29b-41d4-a716-446655440031', // LVP (Plank)
   laminate: '650e8400-e29b-41d4-a716-446655440090', // Laminate
   eng:      '650e8400-e29b-41d4-a716-446655440021', // Engineered Hardwood
 };
@@ -42,16 +42,16 @@ const COLLECTIONS = [
     sfBox: 19.23, sfPlt: 1153.80,
     accPrices: [19.00, 28.00, 14.00, 19.00, 37.00, 19.00],
     colors: [
-      ['Alpaca','GA6S5701'],
-      ['American Cherry','GA6S1011'],
-      ['American Hickory','GA6S1115'],
-      ['American Maple','GA6S0190'],
-      ['American Walnut','GA6S8410'],
-      ['Elk Horn','GA6S7508'],
-      ['Grey Fox','GA6S2310'],
-      ['Impala','GA6S2313'],
-      ['River Shoal','GA6S2306'],
-      ['Sand Dollar','GA6S2312'],
+      ['Alpaca','GA655701'],
+      ['American Cherry','GA651011'],
+      ['American Hickory','GA651115'],
+      ['American Maple','GA650190'],
+      ['American Walnut','GA658410'],
+      ['Elk Horn','GA657508'],
+      ['Grey Fox','GA652310'],
+      ['Impala','GA652313'],
+      ['River Shoal','GA652306'],
+      ['Sand Dollar','GA652312'],
     ],
     costSqft: 2.39,
   },
@@ -63,14 +63,14 @@ const COLLECTIONS = [
     sfBox: 18.86, sfPlt: 980.72,
     accPrices: [19.00, 28.00, 14.00, 19.00, 37.00, 19.00],
     colors: [
-      ['Calabria','GA80S342'],
-      ['Picchi','GA80S314'],
-      ['Riva','GA80S310'],
-      ['Sole','GA80S311'],
-      ['Torino','GA80S313'],
+      ['Calabria','GA805342'],
+      ['Picchi','GA805314'],
+      ['Riva','GA805310'],
+      ['Sole','GA805311'],
+      ['Torino','GA805313'],
       ['Torre','GA812601'],
       ['Villa','GA812608'],
-      ['Volare','GA80S343'],
+      ['Volare','GA805343'],
     ],
     costSqft: 3.19,
   },
@@ -82,10 +82,10 @@ const COLLECTIONS = [
     sfBox: 13.95, sfPlt: 1004.40,
     accPrices: [19.00, 28.00, 14.00, 19.00, 37.00, 19.00],
     colors: [
-      ['Bella Sala','GA8S310AB'],
-      ['Dolce Luna','GA8S311AB'],
-      ['Nota Alta','GA8S313AB'],
-      ['Otto Mare','GA8S314AB'],
+      ['Bella Sala','GA85310AB'],
+      ['Dolce Luna','GA85311AB'],
+      ['Nota Alta','GA85313AB'],
+      ['Otto Mare','GA85314AB'],
     ],
     costSqft: 3.39,
   },
@@ -142,6 +142,45 @@ const COLLECTIONS = [
     ],
     costSqft: 2.99,
   },
+  // ─── Nearwood White Series Wide Plank (Laminate) ───
+  // Added from website catalog — wider plank (9.25") variant
+  // TODO: Verify dealer cost from updated price list
+  {
+    name: 'Nearwood White Wide', cat: 'laminate',
+    desc: 'Laminate Wide Plank, 12mm, 9.25"x59.6"',
+    size: '12mm x 9.25" x 59.6"',
+    sfBox: 19.16, sfPlt: 1149.60,
+    accPrices: [23.00, 30.00, 19.00, 23.00, 40.00, 23.00],
+    colors: [
+      ['Seaside Mist','GA121522'],
+      ['Haven','GA121527'],
+      ['Driftwood','GA121521'],
+      ['Stillwater','GA121526'],
+      ['Burnished Trail','GA121528'],
+    ],
+    costSqft: 2.39, // estimated — same as White Series until confirmed
+  },
+  // ─── Nearwood Black Series (Hybrid Engineered) ───
+  // Added from website catalog — premium hybrid wood line
+  // TODO: Verify dealer cost from updated price list
+  {
+    name: 'Nearwood Black Series', cat: 'eng',
+    desc: 'Hybrid Engineered Wood, 15.5mm, 9.05"x74.8"',
+    size: '15.5mm x 9.05" x 74.8"',
+    sfBox: 28.22, sfPlt: 1128.80,
+    accPrices: [23.00, 30.00, 19.00, 23.00, 40.00, 23.00],
+    colors: [
+      ['Clara','GA152411'],
+      ['Apollo','GA152410'],
+      ['Hickory Reserve','GA152409'],
+      ['Walnut Reserve','GA152404'],
+      ['Varuna','GA152408'],
+      ['Selene','GA152407'],
+      ['Atlas','GA152406'],
+      ['Helios','GA152405'],
+    ],
+    costSqft: 3.49, // estimated — premium over Red Series until confirmed
+  },
 ];
 
 async function run() {
@@ -161,27 +200,27 @@ async function run() {
     let totalProducts = 0, totalSkus = 0, totalAcc = 0, totalPricing = 0, totalPkg = 0;
 
     for (const col of COLLECTIONS) {
-      let colProds = 0, colSkus = 0, colAcc = 0;
+      let colSkus = 0, colAcc = 0;
+
+      // One product per collection
+      const prodRes = await client.query(`
+        INSERT INTO products (id, vendor_id, name, collection, category_id, status)
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, 'active')
+        ON CONFLICT ON CONSTRAINT products_vendor_collection_name_unique
+        DO UPDATE SET category_id = EXCLUDED.category_id, status = 'active'
+        RETURNING id
+      `, [vendorId, col.name, col.name, CAT[col.cat]]);
+      const productId = prodRes.rows[0].id;
+      totalProducts++;
 
       for (const [color, sku] of col.colors) {
-        // Product
-        const prodRes = await client.query(`
-          INSERT INTO products (id, vendor_id, name, collection, category_id, status)
-          VALUES (gen_random_uuid(), $1, $2, $3, $4, 'active')
-          ON CONFLICT ON CONSTRAINT products_vendor_collection_name_unique
-          DO UPDATE SET category_id = EXCLUDED.category_id, status = 'active'
-          RETURNING id
-        `, [vendorId, color, col.name, CAT[col.cat]]);
-        const productId = prodRes.rows[0].id;
-        colProds++;
-
-        // Flooring SKU
+        // Flooring SKU (one per color)
         const internalSku = 'GAIA-' + sku;
         const skuRes = await client.query(`
           INSERT INTO skus (id, product_id, vendor_sku, internal_sku, variant_name, sell_by, status)
           VALUES (gen_random_uuid(), $1, $2, $3, $4, 'sqft', 'active')
           ON CONFLICT ON CONSTRAINT skus_internal_sku_key
-          DO UPDATE SET variant_name = EXCLUDED.variant_name, sell_by = 'sqft', status = 'active'
+          DO UPDATE SET product_id = $1, variant_name = EXCLUDED.variant_name, sell_by = 'sqft', status = 'active'
           RETURNING id
         `, [productId, sku, internalSku, `${color} ${col.size}`]);
         const skuId = skuRes.rows[0].id;
@@ -211,7 +250,7 @@ async function run() {
         await upsertAttr(client, skuId, ATTR.color, color);
         await upsertAttr(client, skuId, ATTR.size, col.size);
 
-        // Accessories (6 types)
+        // Accessories (6 types per color)
         for (let i = 0; i < ACC_TYPES.length; i++) {
           const accVendorSku = sku + '-' + ACC_SUFFIXES[i];
           const accInternal = 'GAIA-' + accVendorSku;
@@ -222,7 +261,7 @@ async function run() {
             INSERT INTO skus (id, product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type, status)
             VALUES (gen_random_uuid(), $1, $2, $3, $4, 'unit', 'accessory', 'active')
             ON CONFLICT ON CONSTRAINT skus_internal_sku_key
-            DO UPDATE SET variant_name = EXCLUDED.variant_name, sell_by = 'unit',
+            DO UPDATE SET product_id = $1, variant_name = EXCLUDED.variant_name, sell_by = 'unit',
                          variant_type = 'accessory', status = 'active'
             RETURNING id
           `, [productId, accVendorSku, accInternal, `${color} ${ACC_TYPES[i]}`]);
@@ -238,10 +277,9 @@ async function run() {
         }
       }
 
-      totalProducts += colProds;
       totalSkus += colSkus;
       totalAcc += colAcc;
-      console.log(`  ${col.name}: ${colProds} products, ${colSkus} flooring SKUs + ${colAcc} accessories`);
+      console.log(`  ${col.name}: ${colSkus} flooring SKUs + ${colAcc} accessories`);
     }
 
     await client.query('COMMIT');

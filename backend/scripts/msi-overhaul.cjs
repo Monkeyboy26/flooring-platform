@@ -157,6 +157,9 @@ const STONE_FORMAT_RE = new RegExp(`\\b(${STONE_FORMATS.join('|')})\\b`, 'i');
 const SKU_PREFIX_CATEGORY = [
   // Longest prefixes first for correct matching
   { prefix: 'QUARTZ', slug: 'countertops' },
+  { prefix: 'SMOT-SILL', slug: 'transitions-moldings' },
+  { prefix: 'SMOT-TH', slug: 'transitions-moldings' },
+  { prefix: 'SMOT-CSHELF', slug: 'transitions-moldings' },
   { prefix: 'SMOT', slug: 'mosaic' },
   { prefix: 'STPL', slug: 'stacked-stone' },
   { prefix: 'LPNL', slug: 'stacked-stone' },

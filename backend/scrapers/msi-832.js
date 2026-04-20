@@ -990,6 +990,23 @@ export async function run(pool, job, source) {
     }
   }
 
+  // ── Step 5c: Clean up ghost products (0 SKUs) left behind by SKU migration ──
+  // When groupIntoProducts changes its grouping (due to name/collection changes in EDI),
+  // upsertSku moves SKUs to new products via ON CONFLICT, orphaning old product records.
+  const ghostIds = await pool.query(
+    `SELECT id FROM products
+     WHERE vendor_id = $1
+       AND id NOT IN (SELECT DISTINCT product_id FROM skus)`,
+    [vendorId]
+  );
+  if (ghostIds.rows.length > 0) {
+    const ids = ghostIds.rows.map(r => r.id);
+    // Remove child rows with NO ACTION FK constraints before deleting products
+    await pool.query(`DELETE FROM media_assets WHERE product_id = ANY($1)`, [ids]);
+    await pool.query(`DELETE FROM products WHERE id = ANY($1)`, [ids]);
+    await appendLog(pool, job.id, `Cleaned up ${ids.length} ghost products (0 SKUs, orphaned by SKU migration)`);
+  }
+
   await appendLog(pool, job.id, `Import complete: ${productsCreated} products created, ${productsUpdated} updated, ${skusCreated} SKUs created, ${skusUpdated} updated`, {
     products_created: productsCreated,
     products_updated: productsUpdated,

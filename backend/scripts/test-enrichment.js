@@ -64,7 +64,7 @@ const BRAND_MAP = {
   'jm-cork': 'triwest-jmcork',
   'traditions': 'triwest-traditions',
   'babool': 'triwest-babool',
-  'bosphorus': 'triwest-bosphorus',
+  'bosphorus': 'bosphorus',
 };
 
 // Map brand names to DB collection prefixes
@@ -198,6 +198,8 @@ async function main() {
 
     // Print mock results
     console.log('\n=== Dry Run Results ===');
+    if (mockPool._stats.productInserts) console.log(`Products that would be created: ${mockPool._stats.productInserts}`);
+    if (mockPool._stats.skuInserts) console.log(`SKUs that would be created: ${mockPool._stats.skuInserts}`);
     console.log(`Media assets that would be created: ${mockPool._stats.mediaInserts}`);
     console.log(`Attributes that would be set: ${mockPool._stats.attrInserts}`);
     console.log(`Descriptions that would be updated: ${mockPool._stats.descUpdates}`);
@@ -287,6 +289,33 @@ function createMockPool(realPool) {
     _stats: stats,
     query: async (text, params) => {
       const textLower = (typeof text === 'string' ? text : '').toLowerCase();
+
+      // Intercept product inserts (from upsertProduct in website-first scrapers)
+      if (textLower.includes('insert into products')) {
+        stats.productInserts = (stats.productInserts || 0) + 1;
+        return { rows: [{ id: 'mock-product-' + stats.productInserts, is_new: true }] };
+      }
+
+      // Intercept SKU inserts (from upsertSku in website-first scrapers)
+      if (textLower.includes('insert into skus')) {
+        stats.skuInserts = (stats.skuInserts || 0) + 1;
+        return { rows: [{ id: 'mock-sku-' + stats.skuInserts, is_new: true }] };
+      }
+
+      // Intercept pricing inserts
+      if (textLower.includes('insert into pricing')) {
+        return { rows: [] };
+      }
+
+      // Intercept packaging inserts
+      if (textLower.includes('insert into packaging')) {
+        return { rows: [] };
+      }
+
+      // Intercept search vector refresh
+      if (textLower.includes('refresh_search_vectors')) {
+        return { rows: [] };
+      }
 
       // Intercept media_assets inserts
       if (textLower.includes('insert into media_assets')) {

@@ -1,10 +1,10 @@
-const CACHE_NAME = 'roma-v68';
-const IMAGE_CACHE = 'roma-images-v4';
+const CACHE_NAME = 'roma-v76';
+const IMAGE_CACHE = 'roma-images-v9';
 const IMAGE_CACHE_LIMIT = 2000;
 const SHELL_ASSETS = [
   '/storefront.html',
-  '/storefront.css?v=48',
-  '/storefront-app.js?v=121',
+  '/storefront.css?v=50',
+  '/storefront-app.js?v=129',
   '/favicon.svg',
   '/manifest.json'
 ];
@@ -72,7 +72,7 @@ self.addEventListener('fetch', e => {
   }
 
   // External images (product CDNs) — stale-while-revalidate with size-limited cache
-  if (url.origin !== location.origin && /\.(jpg|jpeg|png|webp|gif|svg)(\?|$)/i.test(url.pathname)) {
+  if (url.origin !== location.origin && /\.(jpg|jpeg|png|webp|avif|gif|svg)(\?|$)/i.test(url.pathname)) {
     e.respondWith(
       caches.open(IMAGE_CACHE).then(cache =>
         cache.match(e.request).then(cached => {

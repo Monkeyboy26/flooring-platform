@@ -2,9 +2,10 @@ import {
   delay, upsertProduct, upsertSku,
   upsertSkuAttribute, upsertPackaging, upsertPricing,
   upsertMediaAsset, upsertInventorySnapshot,
-  appendLog, addJobError, preferProductShot,
+  appendLog, addJobError, preferProductShot, isLifestyleUrl,
   normalizeSize, buildVariantName
 } from './base.js';
+import { bosphorusLogin, bosphorusLoginFromCookies, bosphorusFetch } from './bosphorus-auth.js';
 
 /**
  * Bosphorus Imports catalog scraper.
@@ -13,6 +14,10 @@ import {
  * Paginates /products?page=1..N, extracts product-detail links,
  * then fetches each detail page for JSON-LD schema, variant_groups JS,
  * color/size/finish selects, specs table, images, and description.
+ *
+ * If BOSPHORUS_COOKIES or BOSPHORUS_USERNAME+BOSPHORUS_PASSWORD env vars
+ * are set, fetches with auth cookies to capture dealer pricing from
+ * variant_groups (Price, PriceData.net_price, PriceData.price).
  *
  * Product → SKU mapping:
  *   Collection (series) → Product (per color) → SKU (per color+size+finish)
@@ -49,8 +54,23 @@ export async function run(pool, job, source) {
   const stats = {
     found: 0, created: 0, updated: 0,
     skusCreated: 0, imagesSet: 0, attributesSet: 0,
-    packagingSet: 0, skipped: 0, errors: 0,
+    packagingSet: 0, pricingSet: 0, skipped: 0, errors: 0,
   };
+
+  // ── Attempt authenticated session for pricing ──
+  let cookies = null;
+  try {
+    if (process.env.BOSPHORUS_COOKIES) {
+      cookies = await bosphorusLoginFromCookies(pool, job.id);
+    } else if (process.env.BOSPHORUS_USERNAME && process.env.BOSPHORUS_PASSWORD) {
+      cookies = await bosphorusLogin(pool, job.id);
+    }
+    if (cookies) {
+      await appendLog(pool, job.id, 'Authenticated session active — pricing will be captured');
+    }
+  } catch (err) {
+    await appendLog(pool, job.id, `Auth skipped (${err.message}) — pricing will not be available`);
+  }
 
   // Build slug → category_id lookup
   const categoryLookup = new Map();
@@ -71,7 +91,7 @@ export async function run(pool, job, source) {
   for (let page = 1; page <= MAX_PAGES; page++) {
     try {
       const listUrl = `${BASE_URL}/products?page=${page}`;
-      const resp = await fetchWithRetry(listUrl);
+      const resp = await fetchWithRetry(listUrl, cookies);
       const html = await resp.text();
 
       const links = extractProductLinks(html);
@@ -112,7 +132,7 @@ export async function run(pool, job, source) {
     const url = productUrls[i];
 
     try {
-      const resp = await fetchWithRetry(url);
+      const resp = await fetchWithRetry(url, cookies);
       const html = await resp.text();
 
       const productData = parseDetailPage(html, url);
@@ -171,9 +191,45 @@ export async function run(pool, job, source) {
             // Strip trailing finish/type text from size (e.g., "12"x24" Matte" → "12"x24"")
             const sizeClean = (v.size || '').replace(/\s+(Matte|Polished|Honed|Satin|Glossy|Natural|Textured|Grip|Rough|Lappato).*$/i, '');
             const sizeNorm = normalizeSize(sizeClean);
-            const variantName = buildVariantName(sizeNorm, v.finish);
-            // Mosaic category always sells per sheet; otherwise use size heuristic
-            const sellBy = catSlug === 'mosaic-tile' ? 'unit' : determineSellBy(v.size, v.sizeLabel);
+
+            // ── Accessory detection ──
+            // 1. Keyword-based: finish or size label contains jolly, bullnose, etc.
+            const finishLower = (v.finish || '').toLowerCase();
+            const sizeLabelLower = (v.sizeLabel || '').toLowerCase();
+            const accessoryKeywords = /\b(jolly|bullnose|pencil|liner|trim|molding|ogee|rope\s*liner|crown\s*molding|quarter\s*round)\b/i;
+            const hasKeywordInFinish = accessoryKeywords.test(finishLower);
+            const hasKeywordInSize = accessoryKeywords.test(sizeLabelLower);
+            let sizeIsSmallTrim = false;
+            if (sizeNorm) {
+              const dimMatch = sizeNorm.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
+              if (dimMatch) {
+                sizeIsSmallTrim = Math.min(parseFloat(dimMatch[1]), parseFloat(dimMatch[2])) <= 3;
+              } else {
+                sizeIsSmallTrim = !/^\d/.test(sizeNorm);
+              }
+            }
+            let isAccessory = hasKeywordInFinish || (hasKeywordInSize && sizeIsSmallTrim);
+
+            // 2. Size-based inference: Bosphorus often lists trim pieces by size alone
+            //    without labeling them as bullnose/quarter round in the finish name
+            let inferredAccessoryType = null;
+            if (!isAccessory) {
+              inferredAccessoryType = inferAccessoryType(sizeNorm, v.finish);
+              if (inferredAccessoryType) {
+                isAccessory = true;
+              }
+            }
+
+            // Build variant name — append accessory type for size-inferred accessories
+            let variantName = buildVariantName(sizeNorm, v.finish);
+            if (inferredAccessoryType) {
+              variantName += ` (${inferredAccessoryType})`;
+            }
+
+            // Mosaic category always sells per unit; accessories sell per unit; otherwise use size heuristic
+            const sellBy = isAccessory ? 'unit'
+              : catSlug === 'mosaic-tile' ? 'unit'
+              : determineSellBy(v.size, v.sizeLabel);
 
             const internalSku = buildInternalSku(productData.name, colorName, sizeNorm, v.finish);
 
@@ -186,6 +242,7 @@ export async function run(pool, job, source) {
               internal_sku: internalSku,
               variant_name: variantName,
               sell_by: sellBy,
+              variant_type: isAccessory ? 'accessory' : null,
             });
             if (sku.is_new) stats.skusCreated++;
 
@@ -228,8 +285,32 @@ export async function run(pool, job, source) {
               stats.packagingSet++;
             }
 
-            // SKU-level images skipped — product-level images already cover all
-            // color-specific images, and SKUs (different sizes of same color) share them.
+            // Pricing (requires authenticated session — v.price > 0 only when logged in)
+            if (v.price > 0) {
+              await upsertPricing(pool, sku.id, {
+                cost: v.netPrice || v.price,
+                retail_price: v.listPrice || null,
+                price_basis: sellBy === 'sqft' ? 'per_sqft' : 'per_unit',
+              });
+              stats.pricingSet++;
+            }
+
+            // SKU-level images: match images to this SKU by size + finish in filename
+            if (colorImages.length > 0) {
+              const skuImages = pickSkuImages(colorImages, sizeNorm, v.finish);
+              for (let si = 0; si < skuImages.length; si++) {
+                const assetType = si === 0 ? 'primary' : 'alternate';
+                await upsertMediaAsset(pool, {
+                  product_id: product.id,
+                  sku_id: sku.id,
+                  asset_type: assetType,
+                  url: skuImages[si],
+                  original_url: skuImages[si],
+                  sort_order: si,
+                });
+                stats.imagesSet++;
+              }
+            }
           }
         } catch (err) {
           stats.errors++;
@@ -311,7 +392,7 @@ export async function run(pool, job, source) {
   await appendLog(pool, job.id,
     `Scrape complete. Products: ${stats.created} new / ${stats.updated} updated, ` +
     `SKUs: ${stats.skusCreated}, Images: ${stats.imagesSet}, Attributes: ${stats.attributesSet}, ` +
-    `Packaging: ${stats.packagingSet}, Skipped: ${stats.skipped}, Errors: ${stats.errors}`,
+    `Packaging: ${stats.packagingSet}, Pricing: ${stats.pricingSet}, Skipped: ${stats.skipped}, Errors: ${stats.errors}`,
     {
       products_found: stats.found,
       products_created: stats.created,
@@ -323,14 +404,16 @@ export async function run(pool, job, source) {
 
 // ─── Fetch with retry ─────────────────────────────────────────────────────────
 
-async function fetchWithRetry(url, retries = 2) {
+async function fetchWithRetry(url, cookies = null, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      const headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+      };
+      if (cookies) headers['Cookie'] = cookies;
       const resp = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'text/html,application/xhtml+xml',
-        },
+        headers,
         signal: AbortSignal.timeout(30000),
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -437,6 +520,11 @@ function parseDetailPage(html, url) {
       const variantObj = JSON.parse(variantMatch[1]);
       for (const [key, val] of Object.entries(variantObj)) {
         const ids = key.split('-');
+        // Price: net dealer price (top-level). PriceData has list/net breakdown.
+        const dealerPrice = parseFloat(val.Price) || 0;
+        const listPrice = val.PriceData ? (parseFloat(val.PriceData.price) || 0) : 0;
+        const netPrice = val.PriceData ? (parseFloat(val.PriceData.net_price) || dealerPrice) : dealerPrice;
+
         result.variants.push({
           colorId: ids[0] || null,
           sizeId: ids[1] || null,
@@ -447,7 +535,10 @@ function parseDetailPage(html, url) {
           totalStock: val.TotalStock || '0',
           soldAs: val.SoldAs || 'box',
           productId: val.Id != null ? String(val.Id) : null,
-          price: parseFloat(val.Price) || 0,
+          price: dealerPrice,
+          listPrice,
+          netPrice,
+          sqft: val.SQFT ? parseFloat(val.SQFT) : null,
         });
       }
     } catch {}
@@ -506,26 +597,8 @@ function parseDetailPage(html, url) {
   //   Thumb carousel: /products/8469/th-calypso-0.jpg (data-product-id on <img> tag)
   // After normalizeImgUrl both become /products/8469/...
 
-  // 1. Thumbnail carousel: <img class="image-carousel-thumbs" src="..." data-product-id="8469">
-  //    data-product-id is directly on the <img> tag (attribute order varies)
-  const thumbTagRegex = /<img\b[^>]*data-product-id="(\d+)"[^>]*>/g;
-  let thumbTag;
-  while ((thumbTag = thumbTagRegex.exec(html)) !== null) {
-    const variantPid = thumbTag[1];
-    const srcMatch = thumbTag[0].match(/src="([^"]+)"/);
-    if (!srcMatch) continue;
-    const fullUrl = normalizeImgUrl(srcMatch[1].replace(/\/th-/, '/'));
-    if (!result.imagesByVariantId.has(variantPid)) {
-      result.imagesByVariantId.set(variantPid, []);
-    }
-    const existing = result.imagesByVariantId.get(variantPid);
-    const base = fullUrl.split('?')[0];
-    if (!existing.some(u => u.split('?')[0] === base)) {
-      existing.push(fullUrl);
-    }
-  }
-
-  // 2. All product images (main carousel + gallery): extract variant ID from URL path
+  // Extract product images (main carousel + gallery): map to variant via URL path
+  // (data-product-id thumbnail attribute was removed in Sep 2025 redesign)
   const productImgRegex = /src="(https?:\/\/www\.bosphorusimports\.com\/cdn\/uploads\/capsule\/products\/\/?[^"]+)"/g;
   const seenImgs = new Set(result.images.map(u => u.split('?')[0]));
   let imgMatch;
@@ -567,32 +640,64 @@ function parseDetailPage(html, url) {
 function parseSelectOptions(html, attributeName) {
   const options = [];
 
-  // Find the form-field containing this attribute label
-  const labelRegex = new RegExp(
-    `<label[^>]*>[^<]*${attributeName}[^<]*<\\/label>[\\s\\S]*?<select[^>]*>([\\s\\S]*?)<\\/select>`,
+  // New site layout (Sep 2025+): swatch labels instead of <select> dropdowns
+  // Pattern: <strong>Color:</strong> ... <label class="form-option-swatch" data-product-attribute-value="7599">
+  //            <span class="form-option-expanded">Cream</span>
+  //            <p class="variant-name-value">Cream</p>
+  //          </label>
+  const swatchSectionRegex = new RegExp(
+    `(?:<strong>|<label[^>]*>)[^<]*${attributeName}[^<]*(?:</strong>|</label>)([\\s\\S]*?)(?=<strong>|<label[^>]*>[^<]*(?:Color|Size|Finish)[^<]*</label>|$)`,
     'i'
   );
-  const selectMatch = html.match(labelRegex);
+  const sectionMatch = html.match(swatchSectionRegex);
 
-  if (selectMatch) {
-    const selectHtml = selectMatch[1];
-    const optionRegex = /data-product-attribute-value="(\d+)"[^>]*>([^<]+)</g;
-    let optMatch;
-    while ((optMatch = optionRegex.exec(selectHtml)) !== null) {
-      options.push({ id: optMatch[1], text: optMatch[2].trim() });
+  if (sectionMatch) {
+    const sectionHtml = sectionMatch[1];
+    // Extract from <label data-product-attribute-value="ID"> ... text content
+    const labelRegex = /<label[^>]*data-product-attribute-value="(\d+)"[^>]*>([\s\S]*?)<\/label>/g;
+    let lMatch;
+    while ((lMatch = labelRegex.exec(sectionHtml)) !== null) {
+      const id = lMatch[1];
+      const inner = lMatch[2];
+      // Prefer <p class="variant-name-value"> text, fall back to <span class="form-option-expanded">
+      const nameMatch = inner.match(/<p[^>]*class="variant-name-value"[^>]*>([^<]+)<\/p>/)
+        || inner.match(/<span[^>]*class="form-option-expanded"[^>]*>([^<]+)<\/span>/)
+        || inner.match(/<span[^>]*>([^<]+)<\/span>/);
+      const text = nameMatch ? nameMatch[1].trim() : stripTags(inner).trim();
+      if (text && !options.find(o => o.id === id)) {
+        options.push({ id, text });
+      }
     }
   }
 
-  // Fallback: look for radio/swatch options
+  // Legacy fallback: <select> dropdowns (pre-Sep 2025)
   if (options.length === 0) {
-    const swatchRegex = new RegExp(
-      `${attributeName}[\\s\\S]{0,500}?data-product-attribute-value="(\\d+)"[^>]*>[\\s\\S]*?<span[^>]*>([^<]+)`,
+    const selectRegex = new RegExp(
+      `<label[^>]*>[^<]*${attributeName}[^<]*<\\/label>[\\s\\S]*?<select[^>]*>([\\s\\S]*?)<\\/select>`,
+      'i'
+    );
+    const selectMatch = html.match(selectRegex);
+    if (selectMatch) {
+      const selectHtml = selectMatch[1];
+      const optionRegex = /data-product-attribute-value="(\d+)"[^>]*>([^<]+)</g;
+      let optMatch;
+      while ((optMatch = optionRegex.exec(selectHtml)) !== null) {
+        options.push({ id: optMatch[1], text: optMatch[2].trim() });
+      }
+    }
+  }
+
+  // Last resort: broad search for any data-product-attribute-value near the attribute name
+  if (options.length === 0) {
+    const broadRegex = new RegExp(
+      `${attributeName}[\\s\\S]{0,500}?data-product-attribute-value="(\\d+)"[^>]*>[\\s\\S]*?(?:<p[^>]*class="variant-name-value"[^>]*>([^<]+)|<span[^>]*>([^<]+))`,
       'gi'
     );
-    let swMatch;
-    while ((swMatch = swatchRegex.exec(html)) !== null) {
-      if (!options.find(o => o.id === swMatch[1])) {
-        options.push({ id: swMatch[1], text: swMatch[2].trim() });
+    let bMatch;
+    while ((bMatch = broadRegex.exec(html)) !== null) {
+      const text = (bMatch[2] || bMatch[3] || '').trim();
+      if (text && !options.find(o => o.id === bMatch[1])) {
+        options.push({ id: bMatch[1], text });
       }
     }
   }
@@ -773,6 +878,136 @@ function getColorImagesFromVariants(imagesByVariantId, colorVariants, allImages,
   return (allImages || []).slice(0, 3);
 }
 
+/**
+ * Pick the best images for a specific SKU from the pool of color images.
+ * Strategy:
+ *   1. Extract finish keywords (stave, 3d, hexagon, chevron, grip, etc.) from finish name
+ *   2. Score each image by: finish match, size match, product-shot preference
+ *   3. Pick best-scoring images as primary + alternates
+ *   4. Cap at 4 images per SKU to avoid bloat
+ */
+function pickSkuImages(colorImages, sizeNorm, finish) {
+  if (!colorImages.length) return [];
+  if (!sizeNorm && !finish) return colorImages.slice(0, 1);
+
+  // ── Build size patterns ──
+  let sizePatterns = [];
+  const anySizePattern = /(?<!\d)(\d+(?:\.\d+)?)[_\-]?[x×][_\-]?(\d+(?:\.\d+)?)(?!\d)/i;
+  if (sizeNorm) {
+    const sizeParts = sizeNorm.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
+    if (sizeParts) {
+      const d1 = sizeParts[1];
+      const d2 = sizeParts[2];
+      const B = '(?<!\\d)';
+      const BE = '(?!\\d)';
+      sizePatterns = [
+        new RegExp(`${B}${escapeRegex(d1)}\\s*[x×]\\s*${escapeRegex(d2)}${BE}`, 'i'),
+        new RegExp(`${B}${escapeRegex(d1)}[_\\-]x[_\\-]${escapeRegex(d2)}${BE}`, 'i'),
+        new RegExp(`${B}${escapeRegex(d1)}[_\\-]${escapeRegex(d2)}${BE}`, 'i'),
+      ];
+      if (d1.includes('.') || d2.includes('.')) {
+        sizePatterns.push(
+          new RegExp(`${B}${escapeRegex(d1.replace('.', ''))}\\s*[x×_\\-]\\s*${escapeRegex(d2.replace('.', ''))}${BE}`, 'i')
+        );
+      }
+    }
+  }
+
+  // ── Extract finish keywords ──
+  // Only SHAPE keywords matter for image matching — they're the real visual differentiators.
+  // Surface finishes (matte, glossy, polished) don't reliably appear in filenames and
+  // aren't strong signals for image selection.
+  const SHAPE_KEYWORDS = [
+    'stave3d', 'stave', '3d', 'hexagon', 'hex', 'chevron', 'rhomboid',
+    'subway', 'picket', 'mosaic', 'deco', 'fluted',
+    'herringbone', 'basketweave', 'arabesque', 'lantern', 'fan',
+    'splitface', 'bullnose', 'jolly', 'pencil', 'ogee',
+  ];
+  const finishLower = (finish || '').toLowerCase();
+  const finishSlug = finishLower.replace(/[^a-z0-9]+/g, '');
+
+  // Build positive match keywords and anti-keywords for precise matching.
+  // "Stave 3D" → match "stave3d"; anti-keywords: none
+  // "Stave" (no 3D) → match "stave"; anti-keywords: "stave3d", "3d"
+  // "Matte" → no shape keywords; anti-keywords: none (just rely on other-shape penalty)
+  const finishKeys = [];
+  const antiKeys = []; // keywords that mean WRONG variant for this finish
+
+  if (finishSlug.includes('stave') && finishSlug.includes('3d')) {
+    finishKeys.push('stave3d');
+  } else if (finishSlug.includes('stave')) {
+    finishKeys.push('stave');
+    antiKeys.push('stave3d', '3d');
+  } else if (finishSlug.includes('3d')) {
+    finishKeys.push('3d');
+  }
+  // Add other shape keywords
+  for (const kw of SHAPE_KEYWORDS) {
+    if (kw === 'stave3d' || kw === 'stave' || kw === '3d') continue; // handled above
+    if (finishLower.includes(kw) && !finishKeys.includes(kw)) finishKeys.push(kw);
+  }
+
+  // Segment-based match: split filename on delimiters and check full segments
+  // so "stave" doesn't match inside "stave3d"
+  const fnSegments = (fn) => fn.split(/[_\-\s.]+/);
+  const segmentMatch = (fn, kw) => {
+    // For compound keywords like "stave3d", check both substring and segment
+    if (kw.length > 4) return fn.includes(kw);
+    // For short keywords, require segment boundary match
+    const segs = fnSegments(fn);
+    return segs.some(seg => seg === kw || seg.startsWith(kw + 's'));
+  };
+
+  // ── Score each image ──
+  const scored = colorImages.map(url => {
+    const fn = url.split('/').pop().split('?')[0].toLowerCase();
+    let score = 0;
+
+    // Size match: +20 for matching this SKU's size
+    const matchesSize = sizePatterns.length > 0 && sizePatterns.some(p => p.test(fn));
+    const hasAnySize = anySizePattern.test(fn);
+    if (matchesSize) score += 20;
+    else if (hasAnySize) score -= 10; // wrong size → penalize
+
+    // Anti-keyword check: strong penalty if image has a keyword we explicitly DON'T want
+    const hasAntiKey = antiKeys.length > 0 && antiKeys.some(kw => fn.includes(kw));
+    if (hasAntiKey) {
+      score -= 25; // strong penalty — this is the WRONG variant
+    } else {
+      // Finish match: +30 for matching this SKU's shape keywords
+      const matchesFinish = finishKeys.length > 0 && finishKeys.some(kw => segmentMatch(fn, kw));
+      // Check if image has a DIFFERENT shape keyword (wrong variant)
+      const hasOtherShape = !matchesFinish && SHAPE_KEYWORDS.some(kw => fn.includes(kw));
+      if (matchesFinish) score += 30;
+      else if (hasOtherShape) score -= 15; // wrong shape → penalize
+    }
+
+    // Product shot preference: +5 for product shots, -20 for lifestyle
+    if (isLifestyleUrl(url)) score -= 20;
+    else score += 5;
+
+    return { url, score };
+  });
+
+  // Sort by score descending, stable (preserves vendor gallery order on ties)
+  scored.sort((a, b) => b.score - a.score);
+
+  // Pick top results, cap at 4
+  const result = [];
+  for (const item of scored) {
+    if (result.length >= 4) break;
+    // Skip heavily penalized images (wrong size + wrong finish + room scene)
+    if (item.score < -20 && result.length > 0) break;
+    result.push(item.url);
+  }
+
+  return result.length > 0 ? result : colorImages.slice(0, 1);
+}
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // ─── SKU and category helpers ─────────────────────────────────────────────────
 
 function buildInternalSku(collection, color, size, finish) {
@@ -783,10 +1018,59 @@ function buildInternalSku(collection, color, size, finish) {
 }
 
 /**
+ * Infer accessory type from size dimensions.
+ * Returns null for regular field tiles/mosaics, or a type string for trim/accessories.
+ *
+ * Quarter Round:   min dim < 1" & max ≤ 6" (e.g., 3/4x5, 3/4x6)
+ * Pencil Liner:    min dim ≤ 1" & max > 6"  (e.g., 1/2x8, 1/2x12, 1/2x15)
+ * Trim Liner:      1" < min dim < 2.5" & max ≥ 8" (e.g., 2x15, 2x16, 2x18)
+ * Bullnose:        2.5" ≤ min dim ≤ 3" & max ≥ 8"  (e.g., 3x12, 3x24, 3x36, 3x48)
+ */
+function inferAccessoryType(sizeNorm, finish) {
+  if (!sizeNorm) return null;
+
+  const dimMatch = sizeNorm.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
+  if (!dimMatch) return null;
+
+  const d1 = parseFloat(dimMatch[1]);
+  const d2 = parseFloat(dimMatch[2]);
+  const minDim = Math.min(d1, d2);
+  const maxDim = Math.max(d1, d2);
+
+  const finishLower = (finish || '').toLowerCase();
+
+  // Quarter Round: very narrow (< 1") and short
+  if (minDim < 1 && maxDim <= 6) return 'Quarter Round';
+
+  // Pencil Liner / Flat Liner: very narrow (≤ 1") and longer
+  if (minDim <= 1 && maxDim > 6) {
+    if (finishLower.includes('flat')) return 'Flat Liner';
+    return 'Pencil Liner';
+  }
+
+  // Trim Liner: narrow (> 1" but < 2.5") with long edge (≥ 8")
+  // Covers 2x15, 2x16, 2x18 — deco strips, roman trim, etc.
+  if (minDim > 1 && minDim < 2.5 && maxDim >= 8) {
+    if (finishLower.includes('deco')) return 'Deco Liner';
+    if (finishLower.includes('roman')) return 'Trim Liner';
+    return 'Trim Liner';
+  }
+
+  // Bullnose: 3" wide edge with longer side (≥ 8")
+  // Standard surface bullnose — 3x12, 3x24, 3x36, 3x48
+  if (minDim >= 2.5 && minDim <= 3 && maxDim >= 8) {
+    return 'Bullnose';
+  }
+
+  return null;
+}
+
+/**
  * Determine sell_by from the size label.
  * Tiles (12x24, 24x48, 48x48) → 'sqft'
  * Mosaics (2x2, 1x4) → 'unit'
  * Bullnose/trim (3x24, 3x48) → 'unit'
+ * Quarter Round (3/4x5) → 'unit'
  */
 function determineSellBy(size, sizeLabel) {
   const label = (sizeLabel || '').toLowerCase();
@@ -805,10 +1089,12 @@ function determineSellBy(size, sizeLabel) {
   const maxDim = Math.max(dim1, dim2);
   const minDim = Math.min(dim1, dim2);
 
+  // Very narrow trim (quarter round, pencil liner): min dim < 1"
+  if (minDim < 1) return 'unit';
   // Small tiles (mosaics): both dimensions ≤ 4
   if (maxDim <= 4) return 'unit';
-  // Bullnose/trim: one dimension ≤ 3 and other > 12
-  if (minDim <= 3 && maxDim >= 12) return 'unit';
+  // Bullnose/trim: one dimension ≤ 3
+  if (minDim <= 3) return 'unit';
 
   return 'sqft';
 }

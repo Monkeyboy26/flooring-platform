@@ -32,10 +32,13 @@ const NON_COLOR_WORDS = new Set([
   'rectangle', 'square', 'hexagon', 'octagon', 'mosaic', 'trim', 'liner',
   'bullnose', 'cove', 'base', 'outcorner', 'incorner', 'quarter', 'round',
   'pencil', 'chair', 'rail', 'sink', 'v-cap', 'molding', 'reducer',
-  'stair', 'nosing', 'threshold', 'saddle', 'transition', 'corner',
+  'stair', 'nose', 'nosing', 'threshold', 'saddle', 'transition', 'corner',
   'edge', 'strip', 'plank', 'tile', 'slab', 'sheet', 'roll',
   'field', 'accent', 'border', 'deco', 'insert', 'medallion',
   'stepwise', 'countertop', 'unit', 'part', 'set', 'piece',
+  // Size descriptors — not colors
+  'small', 'large', 'medium', 'xl', 'xs', 'mini', 'jumbo', 'oversized',
+  'standard', 'regular', 'wide', 'narrow', 'tall', 'short',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -149,6 +152,7 @@ function parseVariantName(variantName, productName, collection, vendorCode) {
     remaining = remaining
       .replace(/[,\-|/]+/g, ' ')  // Replace separators with spaces
       .replace(/\d+(?:\.\d+)?\s*(?:mm|cm|in|ft|sf|sqft)\b/gi, ' ')  // Remove stray dimensions
+      .replace(/[()""'']+/g, ' ')  // Remove parentheses and quote marks (dimension remnants)
       .replace(/\s+/g, ' ')
       .trim();
 
@@ -165,9 +169,9 @@ function parseVariantName(variantName, productName, collection, vendorCode) {
       // Don't use the color if it's just the product name or collection repeated
       const isJustProductName = remainLower === productLower;
       const isJustCollection = remainLower === collectionLower;
-      // Also skip if it's purely numeric or too short to be meaningful
-      const isPurelyNumeric = /^\d+$/.test(remaining);
-      const isTooShort = remaining.length < 2;
+      // Also skip if it's purely numeric/dimensional or too short to be meaningful
+      const isPurelyNumeric = /^[\d\s.\/]+$/.test(remaining);
+      const isTooShort = remaining.length < 3;
 
       if (!isJustProductName && !isJustCollection && !isPurelyNumeric && !isTooShort) {
         result.color = titleCase(remaining);

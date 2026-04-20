@@ -602,27 +602,43 @@ export async function searchByManufacturer(page, mfgrCode, pool, jobId, opts = {
 
   await appendLog(pool, jobId, `  ${mfgrCode}: initial page has ${allRows.length} rows`);
 
-  // Paginate: keep clicking "More" until no new rows or we hit the cap
-  let prevCount = 0;
+  // Paginate: keep clicking "More" until no new rows or we hit the cap.
+  // Use a Map keyed by itemNumber to accumulate and deduplicate across pages.
+  // DNav may either append to the existing table OR replace it with only
+  // the next page — this approach handles both behaviors correctly.
+  const seenItems = new Map(); // itemNumber → row object
+  for (const row of allRows) {
+    if (row.itemNumber && !seenItems.has(row.itemNumber)) {
+      seenItems.set(row.itemNumber, row);
+    }
+  }
+
   let paginationAttempts = 0;
   const MAX_PAGINATION = 50; // safety limit
 
-  while (allRows.length < maxRows && paginationAttempts < MAX_PAGINATION) {
-    prevCount = allRows.length;
+  while (seenItems.size < maxRows && paginationAttempts < MAX_PAGINATION) {
+    const prevCount = seenItems.size;
     const moreAvailable = await clickMoreResults(page);
     if (!moreAvailable) break;
 
     paginationAttempts++;
     const newRows = await parseResultsTable(page);
 
-    if (newRows.length <= prevCount) {
-      // No new rows appeared
+    // Merge new rows into accumulator (handles both append and replace behaviors)
+    for (const row of newRows) {
+      if (row.itemNumber && !seenItems.has(row.itemNumber)) {
+        seenItems.set(row.itemNumber, row);
+      }
+    }
+
+    if (seenItems.size === prevCount) {
+      // No new unique rows found — we've reached the end
       break;
     }
 
-    allRows = newRows; // DNav typically replaces/extends the table
-    await appendLog(pool, jobId, `  ${mfgrCode}: after "More" #${paginationAttempts}, now ${allRows.length} rows`);
+    await appendLog(pool, jobId, `  ${mfgrCode}: after "More" #${paginationAttempts}, now ${seenItems.size} unique rows`);
   }
 
+  allRows = [...seenItems.values()];
   return allRows.slice(0, maxRows);
 }

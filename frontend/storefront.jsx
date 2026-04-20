@@ -119,27 +119,29 @@
           u.searchParams.set('quality', '80');
           return u.toString();
         }
-        // MSI CDN: no native resize support — route through our resize proxy
-        // for webp conversion + right-sizing (raw images range 50KB–1.7MB).
-        if (url.includes('cdn.msisurfaces.com')) {
-          return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
-        }
-        // Salsify (Hardware Resources): route through our resize proxy.
-        // The URL format is Cloudinary-backed but signed, so inline transform
-        // injection is unsafe. Proxying gives us same-origin + disk cache.
-        if (url.includes('images.salsify.com')) {
-          return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
-        }
-        // Locally-scraped ROM440 (Hardware Resources) images: route through
-        // the resize proxy so we get webp + on-disk cache even for same-origin.
-        if (url.startsWith('/uploads/rom440/')) {
-          return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
-        }
-        if (url.includes('elysiumtile.com')) {
+        // All other vendor domains: route through our resize proxy for
+        // webp conversion, right-sizing, and nginx edge caching.
+        const PROXY_DOMAINS = [
+          'cdn.msisurfaces.com', 'images.salsify.com', 'elysiumtile.com',
+          'melangetile.com', 'ragnousa.com', 'onetile.us', 'energieker.it',
+          'emilgroup.it', 'platformsurfaces.com', 'lafabbrica.it',
+          'cercomceramiche.it', 'supergres.com', 'onetile.it',
+          'landoftile.com', 'milestonetiles.com', 'midwesttile.com',
+          'domita.it', 'refin-ceramic-tiles.com', 'tilelook.com',
+          'somertile.com', 'equipeceramicas.com', 'edilportale.com', 'cegoceramiche.com',
+          'manningtonprod.pimcoreclient.com'
+        ];
+        if (url.startsWith('/uploads/rom440/') || PROXY_DOMAINS.some(d => url.includes(d))) {
           return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
         }
       } catch (e) { /* malformed URL — return as-is */ }
       return url;
+    }
+
+    function optimizeSrcSet(url, sizes) {
+      if (!url || typeof url !== 'string') return {};
+      const srcSet = sizes.map(w => `${optimizeImg(url, w)} ${w}w`).join(', ');
+      return { srcSet };
     }
 
     // ==================== Recent Searches (localStorage) ====================
@@ -233,17 +235,178 @@
       return 'linear-gradient(135deg, #c2b8aa, #a49888)';
     }
 
+    // ==================== Style-to-Color-Family Map (MSI LVP + vendor-specific) ====================
+    // Maps product-specific style/color names to color families.
+    // Checked BEFORE keyword matching so vendor-accurate data takes priority.
+    const STYLE_COLOR_MAP = {
+      // --- Blonde (light warm wood tones) ---
+      'Akadia': 'Blonde', 'Austell Grove': 'Blonde', 'Ayla': 'Blonde',
+      'Bellamy Brooks': 'Blonde', 'Bozeman': 'Blonde', 'Bramlett': 'Blonde',
+      'Brookings': 'Blonde', 'Brookline': 'Blonde',
+      'Cabana': 'Blonde', 'Chester Hills': 'Blonde',
+      'Coastal Cottage': 'Blonde', 'Driftway': 'Blonde',
+      'Elwood': 'Blonde', 'Fallonton': 'Blonde',
+      'Hatboro Hills': 'Blonde', 'Houston Trail': 'Blonde',
+      'Hyde Haven': 'Blonde', 'Lark': 'Blonde',
+      'Larkin': 'Blonde', 'Lazura': 'Blonde',
+      'Lenexa Creek': 'Blonde', 'Mable': 'Blonde',
+      'Malta': 'Blonde', 'Meadow': 'Blonde',
+      'Mellshire': 'Blonde', 'Moorville': 'Blonde',
+      'Northcutt': 'Blonde', 'Palmilla': 'Blonde',
+      'Quillian': 'Blonde', 'Roswell': 'Blonde', 'Runmill Isle': 'Blonde',
+      'Shasta Grove': 'Blonde', 'Sundelle': 'Blonde',
+      'Tifton': 'Blonde', 'Tranquilla': 'Blonde',
+      'Valleyview Grove': 'Blonde', 'Ventar': 'Blonde',
+      'Vintaj': 'Blonde', 'Waldorf': 'Blonde', 'Wharton': 'Blonde',
+      'Whitlock': 'Blonde', 'Wilton': 'Blonde',
+      // Blonde overrides (keyword would give wrong family)
+      'Highcliffe Greige': 'Blonde', 'Sandino': 'Blonde', 'Linen Loggia': 'Blonde',
+      'Bayside Buff': 'Blonde', 'Honey Bella Oak': 'Blonde', 'Ivorelle': 'Blonde',
+      'Sunny Shake': 'Blonde', 'Sunnyvale': 'Blonde',
+      // --- Beige (warm neutral tones) ---
+      'Baylin': 'Beige', 'Bayside Grove': 'Beige',
+      'Cranton': 'Beige', 'Doack': 'Beige', 'Draven': 'Beige',
+      'Woburn Abbey': 'Beige', 'Bleached Elm': 'Beige',
+      // Beige overrides
+      'Dunite Oak': 'Beige', 'Lime Washed Oak': 'Beige',
+      // --- Brown (medium to dark wood tones) ---
+      'Abingdale': 'Brown', 'Adlar': 'Brown', 'Andaz': 'Brown',
+      'Ardmore Valley': 'Brown', 'Atwood': 'Brown',
+      'Barnstorm': 'Brown', 'Barrell': 'Brown',
+      'Beckley Bruno': 'Brown', 'Bembridge': 'Brown', 'Bergen Hills': 'Brown',
+      'Billingham': 'Brown', 'Bluffview': 'Brown', 'Blythe': 'Brown',
+      'Braly': 'Brown', 'Briar Haven': 'Brown', 'Brockton': 'Brown',
+      'Brundinson': 'Brown', 'Chelsea Heights': 'Brown',
+      'Colston Park': 'Brown', 'Delray': 'Brown', 'Dunmere': 'Brown',
+      'Dunova': 'Brown', 'Exotika': 'Brown',
+      'Fauna': 'Brown', 'Hatfield': 'Brown', 'Hawthorne': 'Brown',
+      'Hillsdale': 'Brown', 'Hinton': 'Brown',
+      'Jenta': 'Brown', 'Louise Hill': 'Brown', 'Macland': 'Brown',
+      'Malden': 'Brown', 'Mesa Ridge': 'Brown', 'Millhaven': 'Brown',
+      'Quercia': 'Brown', 'Roghan': 'Brown',
+      'Ryder': 'Brown', 'Saddle Wood': 'Brown',
+      'Scandi': 'Brown', 'Selbourne': 'Brown', 'Sequoia': 'Brown',
+      'Stable': 'Brown', 'Sunnyset': 'Brown', 'Swilcan': 'Brown',
+      'Taos': 'Brown', 'Thornburg': 'Brown', 'Vexton': 'Brown',
+      'Waldron': 'Brown', 'Wayland': 'Brown',
+      'Weathered Brina': 'Brown', 'Wixom Valley': 'Brown',
+      'Wolfeboro': 'Brown', 'Timbra': 'Brown', 'Sable': 'Brown',
+      // Brown overrides
+      'Amber Forrester': 'Brown', 'Charcoal Oak': 'Brown',
+      // --- Gray (cool tones) ---
+      'Baystone': 'Gray', 'Boswell': 'Gray', 'Bourland': 'Gray',
+      'Bracken Hill': 'Gray', 'Brianka': 'Gray',
+      'Coastal Mix': 'Gray', 'Dakworth': 'Gray', 'Dulcet Taiga': 'Gray',
+      'Emridge': 'Gray', 'Finely': 'Gray',
+      'Kardigan': 'Gray', 'Liora': 'Gray', 'Loton Hill': 'Gray',
+      'Ludlow': 'Gray', 'Malton': 'Gray', 'Mezcla': 'Gray',
+      'Milledge': 'Gray', 'Stableton': 'Gray', 'Stormbound': 'Gray',
+      'Whitmore': 'Gray',
+      // Gray overrides
+      'Midnight Maple': 'Gray',
+      // --- White (light, marble-look, stone-look) ---
+      'Calacatta Legend': 'White', 'Calacatta Marbello': 'White',
+      'Calacatta Serra': 'White', 'Carrara Avell': 'White',
+      'Harbor Marble': 'White', 'Quarzo Taj': 'White',
+      // White overrides
+      'Calacatta Venosa Gold': 'White',
+      // --- Multi ---
+      'Kentazza': 'Multi', 'Windsor Crest': 'Multi', 'Windsor Isle': 'Multi',
+      // --- Tile-specific style names ---
+      'Ice': 'White', 'Pure': 'White', 'Glacier': 'White',
+      'Statuario': 'White', 'Thassos': 'White',
+      'Dark': 'Gray', 'Silicon': 'Gray', 'Luna': 'Gray',
+      'Iron': 'Gray', 'Shadow': 'Gray', 'Stone': 'Gray',
+      'Terra': 'Brown', 'Terra Nova': 'Brown', 'Earth': 'Brown',
+      'Sky': 'Blue', 'Marina': 'Blue',
+      'Herringbone': null, 'Wall': null, 'Gloss': null,
+      'Gloss Wall': null, 'Structured': null, 'Decorative': null,
+      'Black & White': 'Multi',
+      // ADEX tile colors
+      'Volcanico': 'Gray', 'Monzon': 'Gray', 'Sirocco': 'Beige',
+      'Poniente': 'Beige', 'Terral': 'Beige', 'Brisa': 'White',
+      'Solano': 'Beige', 'Aire': 'White', 'Top Sail': 'White',
+      'Glossy Cloud': 'Gray', 'Glossy Leaf': 'Green',
+      // Daltile & multi-vendor tile names
+      'Maestro': 'Gray', 'Bravura': 'Beige', 'Composer': 'Gray',
+      'Emissary': 'Gray', 'Magistrate': 'Gray', 'Proxy': 'Gray',
+      'Poise': 'Beige', 'Summit': 'Gray', 'Basin': 'Gray',
+      'Wisdom': 'Beige', 'Serenity': 'White', 'Horizon': 'Gray',
+      'Dama': 'Gray', 'Lugo': 'Gray', 'Astorga': 'Beige',
+      'Fermi': 'Gray', 'Agnesi': 'Gray', 'Titanium': 'Gray',
+      'Pismo': 'Gray', 'Trail': 'Brown',
+      // --- Extended tile color names ---
+      // Daltile Keystones / Color Wheel / Rittenhouse product names
+      'Chalkboard': 'Gray', 'Dependable': 'Beige', 'Calm': 'Beige',
+      'Balance': 'Gray', 'Restore': 'Beige', 'Spa': 'Blue',
+      'Medallion': 'Beige', 'Plum Crazy': 'Red', 'Orange Burst': 'Gold',
+      'Royal Purple': 'Red', 'Midnight': 'Black', 'Galaxy': 'Black',
+      'Light': 'White', 'Sunburst': 'Gold', 'Parrot': 'Green',
+      'Waterfall': 'Blue', 'Fresh': 'White', 'Passion': 'Red',
+      'Clair': 'White', 'Cove Breeze': 'Blue', 'Cruz': 'Brown',
+      'Grace': 'White', 'Legacy': 'Beige', 'Mill': 'Gray',
+      'Pascal': 'Gray', 'Royal': 'Blue', 'Salt & Pepper': 'Gray',
+      'Malibu': 'Blue', 'Reflexion Bright': 'White', 'Glow': 'Gold',
+      'Nantes': 'Beige', 'Currant': 'Red', 'Lake': 'Blue',
+      'Sea Breeze': 'Blue', 'Tundra': 'Gray', 'Eclipse': 'Black',
+      'Dust': 'Beige', 'Touch Glow': 'Gold', 'Tarmac': 'Gray',
+      'Toffee': 'Brown', 'Alba': 'White', 'Illusive': 'Gray',
+      'Arena': 'Beige', 'Pacifica': 'Blue', 'Bella': 'Beige',
+      'Desert': 'Beige', 'Artic': 'White', 'Urban Putty': 'Beige',
+      // Arizona Tile product names
+      'Fluida Aurea': 'Gold', 'Aequa Castor': 'Brown',
+      'Tru Marmi Arabescato': 'White', 'Reverie 1': 'Beige',
+      // Misc tile vendor-specific names
+      'Volakas': 'White', 'Skyline': 'Gray', 'Cyber': 'Gray',
+      'Petrolio': 'Blue', 'Siena': 'Brown',
+      'Alpi Avana': 'Brown', 'Yang': 'White', 'Yin': 'Black',
+      // More tile product names (sorted by SKU count)
+      'Taj Mahal': 'Gold', 'Twilight': 'Gray', 'Dusk': 'Gray',
+      'Soil': 'Brown', 'Asphalt': 'Gray', 'Verrazzo Argilla': 'Beige',
+      'Talco': 'White', 'Cristallo': 'White', 'Key Lime': 'Green',
+      'Shore': 'Beige', 'Magnolia': 'White', 'Riverbed': 'Gray',
+      'Moon': 'Gray', 'Classic': 'Beige', 'Clear': 'White',
+      'Azul': 'Blue', 'Stucco': 'Beige', 'Argent': 'Gray',
+      'Current': 'Blue', 'Dawn': 'Beige', 'Diamond Mine': 'Gray',
+      'Ink': 'Black', 'Mystic': 'Gray', 'Leaf': 'Green',
+      'Autumn': 'Gold', 'Biscotti': 'Beige', 'Bleu': 'Blue',
+      'Cliff': 'Gray', 'Ginger': 'Brown', 'Haze': 'Gray',
+      'Orange': 'Gold', 'Rock': 'Gray', 'Scuro': 'Gray',
+      'Pink': 'Red', 'Giallo': 'Gold', 'Calacata': 'White',
+      'Bronzo': 'Gold', 'Nimbus': 'Gray', 'Buckskin': 'Brown',
+      'Lotus': 'White', 'Oxide': 'Brown', 'Silt': 'Beige',
+      'Shell': 'Beige', 'Spring': 'Green', 'Cove': 'Blue',
+      'Composure': 'Gray', 'Allure': 'Beige', 'Aura': 'White',
+      'Skyrocket': 'Blue', 'Loft': 'Gray', 'Shine': 'White',
+      'Panda': 'White', 'Plume': 'White',
+      // Non-color tile entries (finishes, formats, parts)
+      'Shower Pan W Drain': null, 'N A': null,
+      'Highlights 12x12 Db 1/8"': null, 'Polished 24x48': null,
+      'Straight Joint': null, 'Up': null, 'Select': null,
+      'Uplifted': null,
+    };
+
+    // Non-color values that should never map to a family
+    const NON_COLOR_VALUES = new Set([
+      'wall', 'gloss wall', 'gloss', 'structured', 'decorative', 'herringbone',
+      'pro matt', '" pro matt', 'large', 'small', 'large ( ")', 'small ( ")',
+      'n a', 'shower pan w drain', 'straight joint', 'gauged', 'polished',
+      'tumbled', 'undulated', 'crackled', 'leathered', 'grip r11',
+      'matte', 'gloss herringbone', 'image overlay', 'select', 'up',
+      'uplifted',
+    ]);
+
     // ==================== Color Families for Sidebar Swatches ====================
     const COLOR_FAMILIES = {
-      'White':  { hex: '#f5f5f0', keywords: ['white', 'ivory', 'cream', 'snow', 'pearl', 'alabaster', 'frost', 'arctic', 'bright white'] },
-      'Gray':   { hex: '#9e9e9e', keywords: ['gray', 'grey', 'charcoal', 'silver', 'slate', 'ash', 'smoke', 'graphite', 'pewter', 'cement', 'concrete'] },
-      'Beige':  { hex: '#d4c5a9', keywords: ['beige', 'tan', 'sand', 'taupe', 'khaki', 'linen', 'wheat', 'bone', 'champagne', 'natural', 'almond'] },
-      'Brown':  { hex: '#8b6f47', keywords: ['brown', 'chocolate', 'coffee', 'mocha', 'walnut', 'chestnut', 'mahogany', 'espresso', 'umber', 'oak', 'hickory', 'pecan', 'caramel'] },
-      'Black':  { hex: '#2c2c2c', keywords: ['black', 'onyx', 'ebony', 'jet', 'midnight', 'noir', 'obsidian'] },
-      'Blue':   { hex: '#6b8cae', keywords: ['blue', 'navy', 'cobalt', 'teal', 'aqua', 'sapphire', 'ocean', 'azure', 'cerulean', 'indigo', 'denim'] },
-      'Green':  { hex: '#7a9972', keywords: ['green', 'sage', 'olive', 'forest', 'emerald', 'moss', 'mint', 'jade', 'celadon'] },
-      'Red':    { hex: '#b54c4c', keywords: ['red', 'burgundy', 'wine', 'cherry', 'crimson', 'maroon', 'rust', 'brick', 'terracotta'] },
-      'Gold':   { hex: '#c9a668', keywords: ['gold', 'golden', 'honey', 'amber', 'copper', 'bronze', 'brass'] },
+      'White':  { hex: '#f5f5f0', keywords: ['white', 'ivory', 'cream', 'snow', 'pearl', 'alabaster', 'frost', 'arctic', 'bright white', 'blanc', 'bianco', 'bianca', 'blanco', 'calacatta', 'carrara', 'chalk', 'dolomite', 'thassos', 'perla', 'perle', 'opal'] },
+      'Gray':   { hex: '#9e9e9e', keywords: ['gray', 'grey', 'charcoal', 'silver', 'slate', 'ash', 'smoke', 'graphite', 'pewter', 'cement', 'concrete', 'fog', 'grigio', 'gris', 'cenere', 'steel', 'platinum', 'basalt', 'mist', 'dove', 'bardiglio', 'greige', 'lead', 'cloud', 'anthracite', 'antracita', 'argento', 'nickel', 'pebble', 'marengo', 'flint', 'shale'] },
+      'Beige':  { hex: '#d4c5a9', keywords: ['beige', 'tan', 'sand', 'taupe', 'khaki', 'linen', 'wheat', 'bone', 'champagne', 'natural', 'almond', 'buff', 'crema', 'avorio', 'fawn', 'biscuit', 'dune', 'ecru', 'oyster', 'vanilla', 'nude', 'bamboo', 'lino', 'marfil', 'sabbia', 'creme', 'clay', 'putty', 'latte', 'fossil', 'travertine', 'parchment'] },
+      'Brown':  { hex: '#8b6f47', keywords: ['brown', 'chocolate', 'coffee', 'mocha', 'walnut', 'chestnut', 'mahogany', 'espresso', 'umber', 'oak', 'hickory', 'pecan', 'caramel', 'acacia', 'birch', 'timber', 'tawny', 'saddle', 'jatoba', 'noce', 'cotto', 'nutmeg', 'henna', 'cafe', 'carob', 'cappuccino', 'cinnamon'] },
+      'Black':  { hex: '#2c2c2c', keywords: ['black', 'onyx', 'ebony', 'jet', 'noir', 'obsidian', 'nero', 'carbon', 'coal', 'grafito', 'negro', 'marquina'] },
+      'Blue':   { hex: '#6b8cae', keywords: ['blue', 'navy', 'cobalt', 'teal', 'aqua', 'sapphire', 'ocean', 'azure', 'cerulean', 'indigo', 'denim', 'cielo', 'lagoon', 'bleu'] },
+      'Green':  { hex: '#7a9972', keywords: ['green', 'sage', 'olive', 'forest', 'emerald', 'moss', 'mint', 'jade', 'celadon', 'verde', 'fern', 'eucalyptus', 'salvia', 'willow'] },
+      'Red':    { hex: '#b54c4c', keywords: ['red', 'burgundy', 'wine', 'cherry', 'crimson', 'maroon', 'rust', 'brick', 'terracotta', 'rose', 'blush', 'currant', 'peach'] },
+      'Gold':   { hex: '#c9a668', keywords: ['gold', 'golden', 'honey', 'amber', 'copper', 'bronze', 'brass', 'oro', 'mustard', 'cornsilk', 'yellow', 'aurea', 'giallo', 'bronzo'] },
       'Blonde': { hex: '#dcc9a3', keywords: ['blonde', 'blond', 'flaxen', 'straw', 'light oak', 'light natural'] },
       'Multi':  { hex: 'conic-gradient(#f5f5f0,#9e9e9e,#d4c5a9,#8b6f47,#6b8cae)', keywords: ['multi', 'mixed', 'multicolor', 'variegated', 'blend'] },
     };
@@ -251,7 +414,23 @@
     function mapColorToFamily(rawColor) {
       if (!rawColor) return null;
       const lower = rawColor.toLowerCase().trim();
-      if (lower === 'xxx' || lower === 'n/a' || lower === 'na' || !lower) return null;
+      if (!lower || lower === 'xxx' || lower === 'n/a' || lower === 'na' || lower === 'n a' || lower === 'misc.' || lower === 'misc') return null;
+      if (NON_COLOR_VALUES.has(lower)) return null;
+      // Skip finish+dimension values (e.g., "Polished 24x48", "Matte 24x48")
+      if (/^(?:polished|honed|matte|tumbled|gauged)\s+\d/i.test(lower)) return null;
+      // Check style-specific map first (vendor-accurate, overrides keywords)
+      const trimmed = rawColor.trim();
+      if (trimmed in STYLE_COLOR_MAP) return STYLE_COLOR_MAP[trimmed];
+      // Strip common finish prefixes/suffixes and retry map
+      // Handles "Matte Shadow"→"Shadow", "Stria Maestro"→"Maestro", "Willow Speckle"→"Willow"
+      const base = trimmed
+        .replace(/^(?:Matte|Glossy|Stria|Satin)\s+/i, '')
+        .replace(/\s+Spc\s+Matte$/i, '')
+        .replace(/\s+SuperGuardX\s+Technology$/i, '')
+        .replace(/\s+(?:Matte|Speckle|Speckled|Spc|USA|Linen)$/i, '')
+        .trim();
+      if (base !== trimmed && base in STYLE_COLOR_MAP) return STYLE_COLOR_MAP[base];
+      // Fall back to keyword matching on original value
       for (const [family, { keywords }] of Object.entries(COLOR_FAMILIES)) {
         if (keywords.some(kw => lower.includes(kw))) return family;
       }
@@ -390,6 +569,11 @@
         if (colLower === nameLower) {
           // Collection is identical to product name — skip to avoid "Blockade II Blockade II"
           showCollection = '';
+        } else if (colLower.startsWith(nameLower + ' ') || colLower.startsWith(nameLower + '-')) {
+          // Collection is a superset of product name (e.g., col="Engineered White", name="Engineered")
+          // Use collection as the canonical name to avoid "Engineered White Engineered"
+          name = col;
+          showCollection = '';
         } else if (nameLower.startsWith(colLower + ' ') || nameLower.startsWith(colLower + '-')) {
           // Product name starts with collection — skip collection display, keep full name
           showCollection = '';
@@ -406,28 +590,59 @@
           const _earlyResult = colorAttr && colorAttr.value ? name + ' — ' + colorAttr.value : name;
           return appendTypeSuffix(_earlyResult, sku.category_name);
         } else {
-          showCollection = col;
+          // collection = "Brand - Name" where product name equals the suffix
+          // → show brand only as prefix to avoid "Provenza - Affinity Affinity Mellow"
+          const dashIdx = col.indexOf(' - ');
+          if (dashIdx > 0 && nameLower === col.slice(dashIdx + 3).toLowerCase().trim()) {
+            showCollection = col.slice(0, dashIdx);
+          } else {
+            showCollection = col;
+          }
         }
       }
 
       // Build variant display: skip if it duplicates or is already inside product_name
+      // Normalize hyphens → spaces so slug-style variant names ("calacatta-gold")
+      // match space-separated product names ("Calacatta Gold") during dedup.
       let variant = null;
-      if (sku.variant_name && sku.variant_name.toLowerCase() !== rawName.toLowerCase()) {
+      if (sku.variant_name) {
         const vLower = sku.variant_name.toLowerCase().trim();
+        const vNorm = vLower.replace(/-/g, ' ');
         const pLower = rawName.toLowerCase();
         const nLower = name.toLowerCase();
-        if (vLower.startsWith(pLower + ' ') || vLower.startsWith(pLower + ',') || vLower.startsWith(pLower + '-')) {
+        if (vNorm === pLower || vNorm === nLower) {
+          // variant_name is identical to product_name (modulo hyphens/case)
+          variant = null;
+        } else if (vNorm.startsWith(pLower + ' ') || vLower.startsWith(pLower + ',') || vLower.startsWith(pLower + '-')) {
           // variant_name starts with product_name + separator → strip prefix, keep the rest
           const suffix = sku.variant_name.replace(new RegExp('^' + rawName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\s,\\-]+', 'i'), '').trim();
           variant = suffix ? formatVariantName(suffix) : null;
-        } else if (pLower.startsWith(vLower + ' ') || pLower === vLower) {
+        } else if (pLower.startsWith(vNorm + ' ') || pLower === vNorm) {
           // product_name already contains variant info
           variant = null;
-        } else if (vLower.length > 2 && (nLower.includes(' ' + vLower + ' ') || nLower.endsWith(' ' + vLower) || nLower.startsWith(vLower + ' '))) {
+        } else if (vNorm.length > 2 && (nLower.includes(' ' + vNorm + ' ') || nLower.endsWith(' ' + vNorm) || nLower.startsWith(vNorm + ' '))) {
           // variant_name is a word/phrase already present in product name (e.g. color embedded)
           variant = null;
         } else {
           variant = formatVariantName(sku.variant_name);
+        }
+        // Strip duplicate color from compound variants when it's already in product name
+        // e.g., name="Unique Infinity Beige", variant="Beige, 24x48, Cobblestone" → "24x48, Cobblestone"
+        if (variant) {
+          const cParts = variant.split(',');
+          if (cParts.length > 1) {
+            const seg = cParts[0].trim().toLowerCase();
+            if (seg.length > 1 && (nLower === seg || nLower.endsWith(' ' + seg) || nLower.startsWith(seg + ' ') || nLower.includes(' ' + seg + ' '))) {
+              variant = cParts.slice(1).map(p => p.trim()).join(', ') || null;
+            }
+          }
+          if (variant) {
+            const lastNameWord = nLower.split(/\s+/).pop();
+            const firstVarWord = variant.split(/[\s,]+/)[0].toLowerCase();
+            if (lastNameWord.length > 2 && firstVarWord === lastNameWord) {
+              variant = variant.replace(/^\S+[\s,]*/, '').trim() || null;
+            }
+          }
         }
       }
       // When variant_name only carries the color, supplement with size/thickness
@@ -440,14 +655,32 @@
           const sizeAttr = (sku.attributes || []).find(a => a.slug === 'size');
           const thicknessAttr = (sku.attributes || []).find(a => a.slug === 'thickness');
           const patternAttr = (sku.attributes || []).find(a => a.slug === 'pattern');
-          const extras = [patternAttr, sizeAttr, thicknessAttr].filter(Boolean).map(a => a.value);
+          const nameLowerDedup = name.toLowerCase();
+          // Skip thickness if size already contains it (e.g., size="8mm x 6\" x 48\"", thickness="8mm")
+          const skipThickness = sizeAttr && thicknessAttr && sizeAttr.value.toLowerCase().includes(thicknessAttr.value.toLowerCase());
+          const extras = [patternAttr, sizeAttr, skipThickness ? null : thicknessAttr]
+            .filter(Boolean)
+            .filter(a => !nameLowerDedup.includes(a.value.toLowerCase()))
+            .map(a => a.value);
           if (extras.length > 0) {
             const suffix = extras.join(' ');
             variant = variant ? variant + ' ' + suffix : suffix;
           }
         }
       }
-      const result = [showCollection, name, variant].filter(Boolean).join(' ');
+      // Inject product_line after collection (e.g. "Quick-Step NatureTEK Plus Palisades Park")
+      // Skip if product_line duplicates collection or product name
+      let productLine = '';
+      const plAttr = (sku.attributes || []).find(a => a.slug === 'product_line');
+      if (plAttr && plAttr.value) {
+        const plLower = plAttr.value.toLowerCase();
+        const colLower = (showCollection || '').toLowerCase();
+        const nameLower = name.toLowerCase();
+        if (plLower !== colLower && plLower !== nameLower && !nameLower.includes(plLower) && !colLower.includes(plLower)) {
+          productLine = plAttr.value;
+        }
+      }
+      const result = [showCollection, productLine, name, variant].filter(Boolean).join(' ');
       return appendTypeSuffix(result, sku.category_name);
     }
 
@@ -710,7 +943,7 @@
 
       // ---- Fetch SKUs ----
       const fetchSkus = useCallback((opts = {}) => {
-        const PAGE_SIZE = 72;
+        const PAGE_SIZE = 24;
         const { cat, coll, search, activeFilters, sort, page, vendors, priceMin, priceMax, tags } = {
           cat: selectedCategory, coll: selectedCollection, search: searchQuery,
           activeFilters: filters, sort: sortBy, page: currentPage,
@@ -2091,7 +2324,7 @@
               {searchForm}
             </div>
             <div className="logo" onClick={goHome}>
-              <img src="/assets/logo/roma-transparent.png" alt="Roma Flooring Designs" width="120" height="38" decoding="async" />
+              <img src="/assets/logo/roma-transparent.png" alt="Roma Flooring Designs" width="120" height="38" decoding="async" fetchPriority="high" />
             </div>
             <div className="header-main-right">
               <button className="mobile-search-btn" aria-label="Search products" onClick={() => setMobileSearchOpen(true)}>
@@ -2253,7 +2486,8 @@
         setMedia(resolved);
         baseMediaRef.current = resolved;
         setImgIndex(0);
-        const colorSiblings = (data.same_product_siblings || []).filter(s => s.variant_type !== 'accessory' && s.primary_image);
+        const colorSiblings = (data.same_product_siblings || []).filter(s => s.variant_type !== 'accessory' && s.primary_image)
+          .sort((a, b) => (a.variant_name || '').localeCompare(b.variant_name || ''));
         setSiblings(colorSiblings);
       };
 
@@ -2324,7 +2558,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
                   </button>
                 )}
-                {currentImg.url && <img src={optimizeImg(currentImg.url, 800)} alt={activeSku.product_name} decoding="async" width={400} height={400} />}
+                {currentImg.url && <img src={optimizeImg(currentImg.url, 800)} {...optimizeSrcSet(currentImg.url, [400, 600, 800])} sizes="(max-width: 768px) 90vw, 400px" alt={activeSku.product_name} decoding="async" width={400} height={400} />}
                 {media.length > 1 && (
                   <button className="quick-view-gallery-arrow right" disabled={imgIndex >= media.length - 1} onClick={() => setImgIndex(i => i + 1)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -2340,21 +2574,17 @@
               )}
               {siblings.length > 0 && (
                 <div className="quick-view-variants">
-                  {/* Current SKU as first swatch */}
-                  <div
-                    className={'quick-view-variant-swatch active'}
-                    title={formatVariantName(activeSku.variant_name)}
-                  >
-                    {(baseMediaRef.current[0] || {}).url && <img src={optimizeImg(baseMediaRef.current[0].url, 120)} alt={activeSku.variant_name} decoding="async" width={64} height={64} />}
-                  </div>
-                  {siblings.map(sib => (
+                  {[
+                    { sku_id: activeSku.sku_id, variant_name: activeSku.variant_name, primary_image: (baseMediaRef.current[0] || {}).url, _isCurrent: true },
+                    ...siblings.filter(s => s.sku_id !== activeSku.sku_id)
+                  ].sort((a, b) => (a.variant_name || '').localeCompare(b.variant_name || '')).map(sib => (
                     <div
                       key={sib.sku_id}
-                      className="quick-view-variant-swatch"
+                      className={'quick-view-variant-swatch' + (sib._isCurrent ? ' active' : '')}
                       title={formatVariantName(sib.variant_name)}
-                      onMouseEnter={() => handleVariantHover(sib)}
-                      onMouseLeave={handleVariantLeave}
-                      onClick={() => handleVariantClick(sib)}
+                      onMouseEnter={() => !sib._isCurrent && handleVariantHover(sib)}
+                      onMouseLeave={() => !sib._isCurrent && handleVariantLeave()}
+                      onClick={() => !sib._isCurrent && handleVariantClick(sib)}
                     >
                       {sib.primary_image && <img src={optimizeImg(sib.primary_image, 120)} alt={sib.variant_name} decoding="async" width={64} height={64} />}
                     </div>
@@ -2745,7 +2975,7 @@
       return (
         <>
           <section className="hero" ref={heroRef}>
-            <div className="hero-bg" style={{ backgroundImage: 'url(/uploads/hero-bg.jpg?v=2)' }} />
+            <div className="hero-bg" style={{ backgroundImage: 'url(/api/img?url=%2Fuploads%2Fhero-bg.jpg&w=1600)' }} />
             <div className="hero-content">
               <h1>Redefine Your Space</h1>
               <button className="hero-cta" onClick={goBrowse}>Explore Our Floors</button>
@@ -2791,7 +3021,7 @@
                 <div className="homepage-cat-grid">
                   {topCats.map(cat => (
                     <div key={cat.slug} className="homepage-cat-tile" onClick={() => onCategorySelect(cat.slug)}>
-                      {cat.image_url && <img src={optimizeImg(cat.image_url, 400)} alt={cat.name} loading="lazy" decoding="async" />}
+                      {cat.image_url && <img src={optimizeImg(cat.image_url, 400)} {...optimizeSrcSet(cat.image_url, [200, 400, 600])} sizes="(max-width: 640px) 50vw, 33vw" alt={cat.name} loading="lazy" decoding="async" />}
                       <div className="homepage-cat-tile-overlay">
                         <span className="homepage-cat-tile-name">{cat.name}</span>
                         <span className="homepage-cat-tile-cta">Shop Now &rarr;</span>
@@ -2826,7 +3056,7 @@
               <div className="looks-grid">
                 {looks.map(look => (
                   <div key={look.slug} className="look-card" onClick={() => navigate('/shop?collection=' + look.slug)}>
-                    <img src={optimizeImg(look.image, 400)} alt={look.name} loading="lazy" decoding="async" />
+                    <img src={optimizeImg(look.image, 400)} {...optimizeSrcSet(look.image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, 25vw" alt={look.name} loading="lazy" decoding="async" />
                     <div className="look-card-overlay">
                       <span className="look-card-name">{look.name}</span>
                       <span className="look-card-cta">Explore &rarr;</span>
@@ -2844,7 +3074,7 @@
               <div className="inspo-gallery">
                 {inspoImages.map((img, i) => (
                   <div key={i} className={'inspo-gallery-item' + (img.tall ? ' tall' : '')} onClick={() => navigate('/shop?room=' + img.label.toLowerCase().replace(/\s+/g, '-'))}>
-                    <img src={optimizeImg(img.src, 400)} alt={img.label} loading="lazy" decoding="async" />
+                    <img src={optimizeImg(img.src, 400)} {...optimizeSrcSet(img.src, [200, 400, 600])} sizes="(max-width: 640px) 50vw, 25vw" alt={img.label} loading="lazy" decoding="async" />
                     <div className="inspo-gallery-overlay">
                       <span className="inspo-gallery-label">{img.label}</span>
                     </div>
@@ -2999,7 +3229,7 @@
 
     function BrowseView({ skus, totalSkus, loading, categories, selectedCategory, selectedCollection, searchQuery, onCategorySelect, onSearch, facets, filters, onFilterToggle, onClearFilters, sortBy, onSortChange, onSkuClick, currentPage, onPageChange, wishlist, toggleWishlist, setQuickViewSku, filterDrawerOpen, setFilterDrawerOpen, goHome,
       vendorFacets, vendorFilters, onVendorToggle, priceRange, userPriceRange, onPriceRangeChange, tagFacets, tagFilters, onTagToggle, didYouMean }) {
-      const totalPages = Math.ceil(totalSkus / 72);
+      const totalPages = Math.ceil(totalSkus / 24);
       const hasAttrFilters = Object.keys(filters).length > 0;
       const hasVendorFilters = vendorFilters && vendorFilters.length > 0;
       const hasPriceFilters = userPriceRange && (userPriceRange.min != null || userPriceRange.max != null);
@@ -3569,8 +3799,8 @@
     function SkuGrid({ skus, onSkuClick, wishlist, toggleWishlist, setQuickViewSku }) {
       return (
         <div className="sku-grid">
-          {skus.map(sku => (
-            <SkuCard key={sku.sku_id} sku={sku} onClick={() => onSkuClick(sku.sku_id, sku.product_name || sku.collection)}
+          {skus.map((sku, idx) => (
+            <SkuCard key={sku.sku_id} sku={sku} index={idx} onClick={() => onSkuClick(sku.sku_id, sku.product_name || sku.collection)}
               isWished={wishlist.includes(sku.product_id)}
               onToggleWishlist={() => toggleWishlist(sku.product_id)}
               onQuickView={setQuickViewSku ? () => setQuickViewSku(sku) : null} />
@@ -3605,7 +3835,8 @@
       );
     }
 
-    function SkuCard({ sku, onClick, isWished, onToggleWishlist, onQuickView }) {
+    function SkuCard({ sku, onClick, isWished, onToggleWishlist, onQuickView, index }) {
+      const isAboveFold = index != null && index < 8;
       const onSale = sku.sale_price != null && !sku.trade_price;
       const price = sku.trade_price || (onSale ? sku.sale_price : sku.retail_price);
       const discountPct = onSale && sku.retail_price ? Math.round((1 - parseFloat(sku.sale_price) / parseFloat(sku.retail_price)) * 100) : 0;
@@ -3618,8 +3849,8 @@
             </svg>
           </button>
           <div className="sku-card-image">
-            {sku.primary_image && <img src={optimizeImg(sku.primary_image, 400)} alt={sku.product_name} loading="lazy" decoding="async" width="300" height="300" />}
-            {sku.alternate_image && <img className="sku-card-alt-img" src={optimizeImg(sku.alternate_image, 400)} alt="" loading="lazy" decoding="async" width="300" height="300" />}
+            {sku.primary_image && <img src={optimizeImg(sku.primary_image, 400)} {...optimizeSrcSet(sku.primary_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt={sku.product_name} loading={isAboveFold ? 'eager' : 'lazy'} fetchPriority={isAboveFold ? 'high' : 'auto'} decoding={isAboveFold ? 'sync' : 'async'} width="300" height="300" />}
+            {sku.alternate_image && <img className="sku-card-alt-img" src={optimizeImg(sku.alternate_image, 400)} {...optimizeSrcSet(sku.alternate_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt="" loading="lazy" decoding="async" width="300" height="300" />}
             {onSale && <span className="sale-badge">SALE</span>}
             {onQuickView && <button className="quick-view-btn" onClick={(e) => { e.stopPropagation(); onQuickView(); }}>Quick View</button>}
           </div>
@@ -3649,7 +3880,7 @@
                 <span className="price-suffix">{priceSuffix(sku)}</span>
                 {onSale && discountPct > 0 && <span className="sale-discount-tag">{discountPct}% off</span>}
               </>
-            ) : 'Contact for pricing'}
+            ) : 'Call for Price & Stock'}
           </div>
         </div>
       );
@@ -3887,6 +4118,8 @@
       const isPerUnit = sku && isSoldPerUnit(sku);
       const hasBoxCalc = !isPerUnit && sqftPerBox > 0;
       const isSqftNoBox = !isPerUnit && sqftPerBox <= 0;
+      // Slab with per-sqft pricing but no known dimensions — can't compute piece price
+      const slabMissingSize = isPerUnit && sku && (sku.price_basis === 'sqft' || sku.price_basis === 'per_sqft') && !(parseFloat(sku.sqft_per_box) > 0);
       // Use "sheet" for individually-sold tiles (small coverage, no pieces_per_box)
       const isSheetUnit = hasBoxCalc && sqftPerBox < 4 && !sku.pieces_per_box;
       const boxLabel = isSheetUnit ? 'sheet' : 'box';
@@ -3946,7 +4179,7 @@
             price_tier: carpetPriceTier
           });
         } else if (isPerUnit) {
-          if (unitQty <= 0) return;
+          if (unitQty <= 0 || slabMissingSize) return;
           addToCart({
             product_id: sku.product_id,
             sku_id: sku.sku_id,
@@ -4080,21 +4313,73 @@
       const mainSiblings = siblings.filter(s => s.variant_type !== 'accessory');
       const allAccessories = siblings.filter(s => s.variant_type === 'accessory');
 
-      // Filter accessories to only show ones matching the current SKU's color
+      // Filter accessories: show one per type matching the current SKU's color
       let accessorySiblings = allAccessories;
       if (allAccessories.length > 0) {
         const vsku = (sku.vendor_sku || '').toUpperCase();
-        const mainMatch = vsku.match(/^(?:P-)?(?:VTR|VTW|QUTR|QUPO)(?:XL)?(?:HD)?([A-Z]+)/);
-        if (mainMatch && mainMatch[1] && mainMatch[1].length >= 3) {
-          const mainColor = mainMatch[1];
-          const matched = allAccessories.filter(acc => {
-            const asku = (acc.vendor_sku || acc.internal_sku || '').toUpperCase();
-            const accMatch = asku.match(/^(?:P-|MSI-)?(?:P-)?VTT(?:HD)?([A-Z]+)-/) || asku.match(/^(?:P-|MSI-)?TT([A-Z]+)-/);
-            if (!accMatch || !accMatch[1]) return true;
-            const accColor = accMatch[1];
-            return accColor.includes(mainColor) || mainColor.includes(accColor);
+        const currentColor = (sku.variant_name || '').toLowerCase().trim();
+
+        // Strategy 0: matching_color attribute (Quick-Step, etc.)
+        // Accessories have a matching_color attribute storing the canonical color name
+        const hasColorAttr = allAccessories.some(acc => (acc.attributes || []).some(a => a.slug === 'matching_color'));
+        const colorMatched = hasColorAttr ? allAccessories.filter(acc => {
+          const mc = (acc.attributes || []).find(a => a.slug === 'matching_color');
+          return mc && mc.value && mc.value.toLowerCase() === currentColor;
+        }) : [];
+        if (hasColorAttr) {
+          // Product uses per-color matching — show only matches (or none)
+          accessorySiblings = colorMatched;
+        }
+
+        // Strategy 1: Vendor SKU prefix match (works for Gaia, etc.)
+        if (!hasColorAttr && vsku.length >= 4) {
+          const prefixMatched = allAccessories.filter((acc) => {
+            const asku = (acc.vendor_sku || '').toUpperCase();
+            return asku.startsWith(vsku + '-') || asku.startsWith(vsku);
           });
-          if (matched.length > 0) accessorySiblings = matched;
+          if (prefixMatched.length > 0 && prefixMatched.length < allAccessories.length) {
+            accessorySiblings = prefixMatched;
+          }
+        }
+
+        // Strategy 2: MSI/Shaw vendor_sku color-code matching
+        if (accessorySiblings.length === allAccessories.length) {
+          const mainMatch = vsku.match(/^(?:P-)?(?:VTR|VTW|QUTR|QUPO)(?:XL)?(?:HD)?([A-Z]+)/);
+          if (mainMatch && mainMatch[1] && mainMatch[1].length >= 3) {
+            const mainColor = mainMatch[1];
+            const matched = allAccessories.filter(acc => {
+              const asku = (acc.vendor_sku || acc.internal_sku || '').toUpperCase();
+              const accMatch = asku.match(/^(?:P-|MSI-)?(?:P-)?VTT(?:HD)?([A-Z]+)-/) || asku.match(/^(?:P-|MSI-)?TT([A-Z]+)-/);
+              if (!accMatch || !accMatch[1]) return true;
+              const accColor = accMatch[1];
+              return accColor.includes(mainColor) || mainColor.includes(accColor);
+            });
+            if (matched.length > 0) accessorySiblings = matched;
+          }
+        }
+
+        // Strategy 3: Deduplicate by variant_name (picks color-matched accessory by position)
+        // For vendors like Mannington where each color has its own set of accessories
+        // (e.g., 5 colors × 7 accessory types = 35 accessories, but only 7 should show)
+        const typeGroups = {};
+        accessorySiblings.forEach(acc => {
+          const key = acc.variant_name || acc.sku_id;
+          if (!typeGroups[key]) typeGroups[key] = [];
+          typeGroups[key].push(acc);
+        });
+        const hasDuplicateTypes = Object.values(typeGroups).some(g => g.length > 1);
+        if (hasDuplicateTypes) {
+          // Find current SKU's color index among non-accessory siblings
+          const colorSkus = [sku, ...mainSiblings].filter(s => s.variant_type !== 'accessory');
+          colorSkus.sort((a, b) => (a.vendor_sku || '').localeCompare(b.vendor_sku || ''));
+          const colorIdx = colorSkus.findIndex(s => s.sku_id === sku.sku_id || s.id === sku.sku_id);
+          accessorySiblings = Object.values(typeGroups).map(group => {
+            if (group.length === 1) return group[0];
+            // Sort by vendor_sku so position aligns with color order
+            group.sort((a, b) => (a.vendor_sku || '').localeCompare(b.vendor_sku || ''));
+            // Pick the one at the same position as current color, or first if index out of range
+            return (colorIdx >= 0 && colorIdx < group.length) ? group[colorIdx] : group[0];
+          });
         }
       }
 
@@ -4114,13 +4399,13 @@
             <div className="sku-detail-main">
             <div className="sku-detail-gallery">
               <div className="sku-detail-image">
-                {mainImage && <img src={optimizeImg(mainImage.url, 800)} alt={sku.product_name} decoding="async" />}
+                {mainImage && <img src={optimizeImg(mainImage.url, 800)} {...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200])} sizes="(max-width: 768px) 100vw, 50vw" alt={sku.product_name} fetchPriority="high" decoding="async" />}
               </div>
               {images.length > 1 && (
                 <div className="gallery-thumbs">
                   {images.map((img, i) => (
                     <div key={img.id} className={'gallery-thumb' + (i === selectedImage ? ' active' : '')} onClick={() => setSelectedImage(i)}>
-                      <img src={optimizeImg(img.url, 120)} alt="" loading="lazy" decoding="async" width="80" height="80" />
+                      <img src={optimizeImg(img.url, 120)} alt="" loading="lazy" decoding="async" width="80" height="80" onError={e => { e.target.style.display = 'none'; }} />
                     </div>
                   ))}
                 </div>
@@ -4167,7 +4452,7 @@
                 // Inject vendor SKU
                 if (sku.vendor_sku) {
                   const afterCat = sorted.findIndex(a => a.slug === '_category');
-                  sorted.splice(afterCat >= 0 ? afterCat + 1 : (injectedCollection ? 1 : 0), 0, { slug: '_sku', name: 'SKU', value: sku.vendor_sku });
+                  sorted.splice(afterCat >= 0 ? afterCat + 1 : (injectedCollection ? 1 : 0), 0, { slug: '_sku', name: 'SKU', value: (sku.vendor_sku || '').toUpperCase() });
                 }
                 // Inject brand from price_list attribute if brand isn't already visible
                 const priceListAttr = (sku.attributes || []).find(a => a.slug === 'price_list');
@@ -4181,7 +4466,7 @@
                   <table className="specs-table">
                     <tbody>
                       {sorted.map((a, i) => (
-                        <tr key={i}><td>{a.name}</td><td>{formatCarpetValue(a.value)}</td></tr>
+                        <tr key={i}><td>{a.name}</td><td>{a.slug === '_sku' ? a.value : formatCarpetValue(a.value)}</td></tr>
                       ))}
                     </tbody>
                   </table>
@@ -4227,7 +4512,7 @@
               </h1>
               {sku.vendor_sku && (
                 <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '0.03em', marginTop: '0.25rem' }}>
-                  SKU: {sku.vendor_sku}
+                  SKU: {(sku.vendor_sku || '').toUpperCase()}
                 </div>
               )}
 
@@ -4279,7 +4564,7 @@
                   </>
                 ) : retailPrice > 0 ? (
                   <>${retailPrice.toFixed(2)}<span>{priceSuffix(sku)}</span></>
-                ) : 'Contact for pricing'}
+                ) : 'Call for Price & Stock'}
               </div>
 
               {/* Carpet Details Band */}
@@ -4526,7 +4811,7 @@
                       });
                     }
                   });
-                  colorItems = [...byColor.values()];
+                  colorItems = [...byColor.values()].sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''));
                 } else {
                   // Fallback to collection siblings for ADEX-style shared-name products
                   const siblingNameSet = new Set(collectionSiblings.map(s => s.product_name));
@@ -4536,25 +4821,105 @@
                   colorItems = treatAsColorVariants && collectionSiblings.length > 0 ? [
                     { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: (media && media[0]) ? media[0].url : null, is_current: true },
                     ...collectionSiblings
-                  ] : [];
+                  ].sort((a, b) => (a.product_name || '').localeCompare(b.product_name || '')) : [];
                 }
-                // Build attrMap from collection-wide attributes so pills persist across color switches
+                // Build attrMap from current product's siblings only (not collection-wide)
+                // Collection-wide values caused disabled/dashed pills for sizes only
+                // available in other colors, cluttering the UI with unselectable options
                 const attrMap = {};
-                const caData = collectionAttributes || {};
-                Object.keys(caData).forEach(slug => {
-                  attrMap[slug] = { name: caData[slug].name, values: new Set(caData[slug].values || []) };
-                });
-                // Merge local siblings to ensure current product's values are included
                 allSiblings.forEach(s => {
                   (s.attributes || []).forEach(a => {
                     if (!attrMap[a.slug]) attrMap[a.slug] = { name: a.name, values: new Set() };
                     attrMap[a.slug].values.add(a.value);
                   });
                 });
-                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory', 'upc', 'msrp', 'weight', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number', 'width', 'height', 'depth', 'hardware_finish', 'num_drawers', 'num_doors', 'num_shelves', 'num_sinks', 'soft_close', 'sink_material', 'sink_type', 'vanity_type', 'bowl_shape', 'style', 'origin', 'countertop_material', 'thickness', 'construction']);
+                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory', 'upc', 'msrp', 'weight', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number', 'width', 'height', 'depth', 'hardware_finish', 'num_drawers', 'num_doors', 'num_shelves', 'num_sinks', 'soft_close', 'sink_material', 'sink_type', 'vanity_type', 'bowl_shape', 'style', 'origin', 'countertop_material', 'thickness', 'construction', 'sub_line', 'collection', 'brand', 'surface_texture', 'wear_layer', 'ac_rating', 'edge_treatment', 'plank_width', 'plank_length', 'composition', 'install_method', 'features', 'technology', 'product_line', 'color_family']);
+
+                // --- Sub-Line format selector (ADURA Max/Rigid/Flex/APEX) ---
+                const curSubLineAttr = (sku.attributes || []).find(a => a.slug === 'sub_line');
+                const curSubLine = curSubLineAttr ? curSubLineAttr.value : '';
+                const subLineMap = new Map(); // sub_line value → array of sibling entries
+                allSiblings.forEach(s => {
+                  const sla = (s.attributes || []).find(a => a.slug === 'sub_line');
+                  const sl = sla ? sla.value : '';
+                  if (sl) {
+                    if (!subLineMap.has(sl)) subLineMap.set(sl, []);
+                    subLineMap.set(sl, [...subLineMap.get(sl), s]);
+                  }
+                });
+                const subLineValues = [...subLineMap.keys()].sort();
+                const showSubLinePill = subLineValues.length > 1;
+                // Format sub-line label: "ADURA Max" → "Max", get thickness if available
+                const subLineLabel = (sl) => {
+                  const short = sl.replace(/^ADURA\s*/i, '');
+                  const rep = (subLineMap.get(sl) || [])[0];
+                  if (rep) {
+                    const thAttr = (rep.attributes || []).find(a => a.slug === 'thickness');
+                    if (thAttr) return short + ' (' + thAttr.value + ')';
+                  }
+                  return short;
+                };
+                // When sub-line pill is active, filter color items to only show colors in the current sub-line
+                if (showSubLinePill && curSubLine && colorItems.length > 0) {
+                  const subLineSibIds = new Set((subLineMap.get(curSubLine) || []).map(s => s.sku_id));
+                  subLineSibIds.add(sku.sku_id); // always include current
+                  colorItems = colorItems.filter(c => subLineSibIds.has(c.sku_id));
+                }
+                // When sub-line is active, restrict attribute selectors to current sub-line's SKUs only
+                const effectiveSiblings = showSubLinePill && curSubLine
+                  ? allSiblings.filter(s => {
+                      const sla = (s.attributes || []).find(a => a.slug === 'sub_line');
+                      return !sla || sla.value === curSubLine;
+                    })
+                  : allSiblings;
+                // Rebuild attrMap values from effective siblings when sub-line is active
+                if (showSubLinePill && curSubLine) {
+                  Object.keys(attrMap).forEach(slug => { attrMap[slug].values = new Set(); });
+                  effectiveSiblings.forEach(s => {
+                    (s.attributes || []).forEach(a => {
+                      if (!attrMap[a.slug]) attrMap[a.slug] = { name: a.name, values: new Set() };
+                      attrMap[a.slug].values.add(a.value);
+                    });
+                  });
+                }
+
+                // --- Extract format qualifiers (Paver, Mosaic, Trim, etc.) from size values ---
+                const FORMAT_QUALIFIERS = [
+                  { pattern: /\bPaver\b/i, label: 'Paver' },
+                  { pattern: /\bMosaic\b/i, label: 'Mosaic' },
+                  { pattern: /\bTRIM\b/i, label: 'Trim' },
+                  { pattern: /\bLINER\b/i, label: 'Liner' },
+                  { pattern: /\bDeco\b/i, label: 'Deco' },
+                ];
+                // Check if size values across siblings contain mixed formats
+                const sizeValues = new Set();
+                effectiveSiblings.forEach(s => {
+                  const sa = (s.attributes || []).find(a => a.slug === 'size');
+                  if (sa) sizeValues.add(sa.value);
+                });
+                // Detect which formats exist in this product's size values
+                const formatSet = new Set();
+                let hasStandard = false;
+                sizeValues.forEach(val => {
+                  const matched = FORMAT_QUALIFIERS.find(q => q.pattern.test(val));
+                  if (matched) formatSet.add(matched.label);
+                  else hasStandard = true;
+                });
+                // Only create virtual format pill if product has both standard + qualified OR multiple formats
+                const hasFormatPill = formatSet.size > 0 && (hasStandard || formatSet.size > 1);
+                // Determine current SKU's format
+                const currentSizeRaw = currentAttrs['size'] || '';
+                const currentFormatMatch = FORMAT_QUALIFIERS.find(q => q.pattern.test(currentSizeRaw));
+                const currentFormat = currentFormatMatch ? currentFormatMatch.label : (hasFormatPill ? 'Standard' : null);
+                // Build format values list
+                const formatValues = hasFormatPill ? [
+                  ...(hasStandard ? ['Standard'] : []),
+                  ...[...formatSet].sort()
+                ] : [];
+
                 // Only show pills when this color/product actually has multiple options
                 const localAttrCounts = {};
-                allSiblings.forEach(s => {
+                effectiveSiblings.forEach(s => {
                   (s.attributes || []).forEach(a => {
                     if (!localAttrCounts[a.slug]) localAttrCounts[a.slug] = new Set();
                     localAttrCounts[a.slug].add(a.value);
@@ -4567,9 +4932,40 @@
                 const isRomanVariants = showColors && colorItems.some(c => hasRomanSuffix(c.product_name));
                 const colorLabel = attrMap['countertop_finish'] ? 'Size' : isRomanVariants ? 'Style' : 'Color';
                 const showAttrs = attrSlugs.length > 0;
-                if (!showColors && !showAttrs) return null;
+                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill) return null;
                 return (
                   <div className="variant-selectors">
+                    {showSubLinePill && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Format<span>{curSubLine ? curSubLine.replace(/^ADURA\s*/i, '') : ''}</span></div>
+                        <div className="attr-pills">
+                          {subLineValues.map(sl => {
+                            const isActive = sl === curSubLine;
+                            // Find best SKU in this sub-line matching current color, or first available
+                            const findSubLineMatch = () => {
+                              if (isActive) return null;
+                              const candidates = (subLineMap.get(sl) || []).filter(s => s.sku_id !== sku.sku_id);
+                              if (candidates.length === 0) return null;
+                              // Prefer same color
+                              const colorMatch = candidates.find(s => {
+                                const ca = (s.attributes || []).find(a => a.slug === 'color');
+                                return ca && ca.value === currentColorVal;
+                              });
+                              return colorMatch || candidates[0];
+                            };
+                            const best = findSubLineMatch();
+                            const isDisabled = !isActive && !best;
+                            return (
+                              <button key={sl} className={'attr-pill' + (isActive ? ' active' : '') + (isDisabled ? ' disabled' : '')} onClick={() => {
+                                if (!isActive && !isDisabled && best) onSkuClick(best.sku_id);
+                              }}>
+                                {subLineLabel(sl)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     {showColors && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">{colorLabel}</div>
@@ -4598,12 +4994,69 @@
                         )}
                       </div>
                     )}
+                    {/* Format pill (Paver, Mosaic, etc.) — virtual attribute extracted from size values */}
+                    {hasFormatPill && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Format<span>{currentFormat || ''}</span></div>
+                        <div className="attr-pills">
+                          {formatValues.map(fmt => {
+                            const isActive = fmt === currentFormat;
+                            // Find best sibling matching this format
+                            const findFormatMatch = () => {
+                              if (isActive) return null;
+                              const isStd = fmt === 'Standard';
+                              const qualifier = !isStd && FORMAT_QUALIFIERS.find(q => q.label === fmt);
+                              const candidates = effectiveSiblings.filter(s => {
+                                if (s.sku_id === sku.sku_id) return false;
+                                const sizeAttr = (s.attributes || []).find(a => a.slug === 'size');
+                                if (!sizeAttr) return isStd;
+                                const hasQ = qualifier && qualifier.pattern.test(sizeAttr.value);
+                                return isStd ? !FORMAT_QUALIFIERS.some(q => q.pattern.test(sizeAttr.value)) : hasQ;
+                              });
+                              if (candidates.length === 0) return null;
+                              if (candidates.length === 1) return candidates[0];
+                              // Score by matching other attributes (finish, etc.)
+                              const scored = candidates.map(s => {
+                                const sa = (s.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
+                                let score = 0;
+                                attrSlugs.forEach(k => { if (k !== 'size' && sa[k] === currentAttrs[k]) score++; });
+                                // Prefer same base size dimension
+                                const curBase = currentSizeRaw.replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, '').trim();
+                                const sibSize = (sa['size'] || '').replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, '').trim();
+                                if (curBase && sibSize && curBase === sibSize) score += 2;
+                                return { ...s, score };
+                              });
+                              return scored.sort((a, b) => b.score - a.score)[0];
+                            };
+                            const best = findFormatMatch();
+                            const isDisabled = !isActive && !best;
+                            return (
+                              <button key={fmt} className={'attr-pill' + (isActive ? ' active' : '') + (isDisabled ? ' disabled' : '')} onClick={() => {
+                                if (!isActive && !isDisabled && best) onSkuClick(best.sku_id);
+                              }}>
+                                {fmt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     {showAttrs && attrSlugs.map(slug => {
-                      const allValues = [...attrMap[slug].values].sort(sizeSort);
+                      // When format pill is active, show cleaned size values (strip qualifier)
+                      const rawValues = [...attrMap[slug].values];
+                      const allValues = (slug === 'size' && hasFormatPill ? (() => {
+                        // Filter sizes to current format, then strip qualifier text for display
+                        const isStd = currentFormat === 'Standard';
+                        const qualifier = !isStd && FORMAT_QUALIFIERS.find(q => q.label === currentFormat);
+                        return rawValues.filter(val => {
+                          if (isStd) return !FORMAT_QUALIFIERS.some(q => q.pattern.test(val));
+                          return qualifier && qualifier.pattern.test(val);
+                        });
+                      })() : rawValues).sort(sizeSort);
                       const currentVal = currentAttrs[slug];
                       // Compute which values are compatible with current selections of OTHER attributes
                       const compatibleValues = new Set(allValues.filter(val => {
-                        return allSiblings.some(s => {
+                        return effectiveSiblings.some(s => {
                           const sa = (s.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
                           if (sa[slug] !== val) return false;
                           return attrSlugs.every(otherSlug => {
@@ -4615,7 +5068,7 @@
                       if (allValues.length <= 1 && !currentVal) return null;
                       const findBest = (val) => {
                         // Only consider siblings that match the target attribute value
-                        const matching = allSiblings.filter(s => {
+                        const matching = effectiveSiblings.filter(s => {
                           if (s.sku_id === sku.sku_id) return false;
                           const sa = (s.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
                           return sa[slug] === val;
@@ -4648,16 +5101,22 @@
                         if (slug === 'countertop_finish') return match.countertop_image || match.primary_image;
                         return match.primary_image;
                       };
+                      // Clean size display: strip format qualifier when format pill is active
+                      const displayVal = (val) => {
+                        if (slug === 'size' && hasFormatPill) {
+                          return formatCarpetValue(val.replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, '').trim() || val);
+                        }
+                        return formatCarpetValue(val);
+                      };
                       return (
                         <div key={slug} className="variant-selector-group">
-                          <div className="variant-selector-label">{slug === 'finish' && attrMap['countertop_finish'] ? 'Cabinet Color' : slug === 'countertop_finish' ? 'Countertop' : attrMap[slug].name}<span>{formatCarpetValue(currentVal || '')}</span></div>
+                          <div className="variant-selector-label">{slug === 'finish' && attrMap['countertop_finish'] ? 'Cabinet Color' : slug === 'countertop_finish' ? 'Countertop' : attrMap[slug].name}<span>{displayVal(currentVal || '')}</span></div>
                           {allValues.length > 10 ? (
                             <select className="attr-select" value={currentVal || ''} onChange={(e) => {
-                              if (!compatibleValues.has(e.target.value)) return;
                               const best = findBest(e.target.value);
                               if (best) onSkuClick(best.sku_id);
                             }}>
-                              {allValues.map(val => <option key={val} value={val} disabled={!compatibleValues.has(val)}>{formatCarpetValue(val)}{!compatibleValues.has(val) ? ' (unavailable)' : ''}</option>)}
+                              {allValues.map(val => <option key={val} value={val} disabled={!compatibleValues.has(val)}>{displayVal(val)}{!compatibleValues.has(val) ? ' (unavailable)' : ''}</option>)}
                             </select>
                           ) : useImageSwatches ? (
                             <div className="color-swatches">
@@ -4667,11 +5126,11 @@
                                 const img = getSwatchImage(val);
                                 const best = findBest(val);
                                 return (
-                                  <div key={val} className={'color-swatch-wrap' + (isDisabled ? ' disabled' : '')} onClick={() => { if (!isActive && !isDisabled && best) onSkuClick(best.sku_id); }}>
+                                  <div key={val} className={'color-swatch-wrap' + (isDisabled ? ' disabled' : '')} onClick={() => { if (!isActive && best) onSkuClick(best.sku_id); }}>
                                     <div className={'color-swatch' + (isActive ? ' active' : '') + (isDisabled ? ' disabled' : '')}>
-                                      {img ? <img src={optimizeImg(img, 120)} alt={formatCarpetValue(val)} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--stone-500)', textAlign: 'center', padding: '0.25rem' }}>{formatCarpetValue(val)}</div>}
+                                      {img ? <img src={optimizeImg(img, 120)} alt={displayVal(val)} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--stone-500)', textAlign: 'center', padding: '0.25rem' }}>{displayVal(val)}</div>}
                                     </div>
-                                    <div className="color-swatch-tooltip">{formatCarpetValue(val)}</div>
+                                    <div className="color-swatch-tooltip">{displayVal(val)}</div>
                                   </div>
                                 );
                               })}
@@ -4683,8 +5142,8 @@
                                 const isDisabled = !compatibleValues.has(val);
                                 const best = findBest(val);
                                 return (
-                                  <button key={val} className={'attr-pill' + (isActive ? ' active' : '') + (isDisabled ? ' disabled' : '')} onClick={() => { if (!isActive && !isDisabled && best) onSkuClick(best.sku_id); }}>
-                                    {formatCarpetValue(val)}
+                                  <button key={val} className={'attr-pill' + (isActive ? ' active' : '') + (isDisabled ? ' disabled' : '')} onClick={() => { if (!isActive && best) onSkuClick(best.sku_id); }}>
+                                    {displayVal(val)}
                                   </button>
                                 );
                               })}
@@ -4990,7 +5449,21 @@
               )}
 
               {/* Per-unit add to cart (slabs, mosaics, etc.) */}
-              {isPerUnit && (
+              {isPerUnit && slabMissingSize && (
+                <div className="unit-add-to-cart">
+                  <div style={{ background: 'var(--stone-50, #fafaf9)', border: '1px solid var(--stone-200, #e7e5e4)', borderRadius: 8, padding: '1.25rem', textAlign: 'center' }}>
+                    <p style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '0.95rem', color: 'var(--stone-800, #292524)' }}>Slab — Please Inquire</p>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--stone-600, #57534e)', lineHeight: 1.5 }}>
+                      Contact us to confirm slab dimensions and availability before ordering.
+                    </p>
+                    <a href="tel:7149990009" className="btn" style={{ width: '100%', marginTop: '1rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                      Call (714) 999-0009
+                    </a>
+                  </div>
+                </div>
+              )}
+              {isPerUnit && !slabMissingSize && (
                 <div className="unit-add-to-cart">
                   <div className="unit-qty-row">
                     <span className="unit-qty-label">Quantity</span>
@@ -5005,6 +5478,20 @@
                     onClick={handleAddToCart} disabled={unitQty <= 0}>
                     {effectivePrice > 0 ? `Add to Cart — $${unitSubtotal.toFixed(2)}` : 'Add to Cart'}
                   </button>
+                </div>
+              )}
+
+              {/* Call for Price & Stock — shown when no pricing is available */}
+              {!isCarpetSku && !isPerUnit && effectivePrice <= 0 && (
+                <div style={{ background: 'var(--stone-50, #fafaf9)', border: '1px solid var(--stone-200, #e7e5e4)', borderRadius: 8, padding: '1.25rem', textAlign: 'center' }}>
+                  <p style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '0.95rem', color: 'var(--stone-800, #292524)' }}>Call for Price &amp; Stock</p>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--stone-600, #57534e)', lineHeight: 1.5 }}>
+                    Contact us for current pricing, stock availability, and lead times.
+                  </p>
+                  <a href="tel:7149990009" className="btn" style={{ width: '100%', marginTop: '1rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                    Call (714) 999-0009
+                  </a>
                 </div>
               )}
 

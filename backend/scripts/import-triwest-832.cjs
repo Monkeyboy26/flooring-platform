@@ -363,7 +363,7 @@ function parse832(raw) {
       color: null, collection: null, category: null,
       brand: null, style_code: null, material_class: null,
       construction: null,
-      cost: null, retail_price: null, unit_of_measure: null,
+      cost: null, retail_price: null, map_price: null, unit_of_measure: null,
       sell_by: null, sqft_per_box: null, pieces_per_box: null,
       weight_per_box_lbs: null, origin: null, effective_date: null,
     };
@@ -494,6 +494,10 @@ function parse832(raw) {
         || item.pricing.find(p => p.class_of_trade === 'RS');
       if (retailPrice) item.retail_price = retailPrice.unit_price;
     }
+
+    // MAP price (Minimum Advertised Price) — same pattern as MSI 832
+    const mapPrice = item.pricing.find(p => p.price_type === 'MAP');
+    if (mapPrice) item.map_price = mapPrice.unit_price;
 
     // Convert SY → SF pricing
     if (item.unit_of_measure && item.unit_of_measure.toUpperCase() === 'SY') {
@@ -932,18 +936,20 @@ async function importToDatabase(allItems) {
         stats.skus_created++;
       }
 
-      // Upsert pricing — 2× markup for retail when only cost is available
-      if (item.cost || item.retail_price) {
+      // Upsert pricing — use MAP as retail when available, else 2× markup
+      if (item.cost || item.retail_price || item.map_price) {
         const priceBasis = sellBy === 'sqft' ? 'per_sqft' : 'per_unit';
         const cost = item.cost || 0;
-        const retail = (item.retail_price && item.retail_price !== item.cost)
-          ? item.retail_price
-          : Math.round(cost * 2 * 100) / 100;
+        const mapVal = item.map_price || null;
+        // Prefer MAP as retail, then explicit retail, then 2× cost fallback
+        const retail = mapVal
+          || ((item.retail_price && item.retail_price !== item.cost) ? item.retail_price : null)
+          || Math.round(cost * 2 * 100) / 100;
         await pool.query(`
-          INSERT INTO pricing (sku_id, cost, retail_price, price_basis)
-          VALUES ($1, $2, $3, $4)
-          ON CONFLICT (sku_id) DO UPDATE SET cost = $2, retail_price = $3, price_basis = $4
-        `, [skuId, cost, retail, priceBasis]);
+          INSERT INTO pricing (sku_id, cost, retail_price, map_price, price_basis)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (sku_id) DO UPDATE SET cost = $2, retail_price = $3, map_price = COALESCE($4, pricing.map_price), price_basis = $5
+        `, [skuId, cost, retail, mapVal, priceBasis]);
         stats.pricing_upserted++;
       }
 
@@ -1084,6 +1090,7 @@ async function main() {
       construction: item.construction,
       cost: item.cost,
       retail_price: item.retail_price,
+      map_price: item.map_price,
       sell_by: item.sell_by,
       sqft_per_box: item.sqft_per_box,
       weight_per_box_lbs: item.weight_per_box_lbs,
@@ -1108,7 +1115,7 @@ async function main() {
       product_name: item.product_name, color: item.color,
       collection: item.collection, brand: item.brand,
       category: item.category, construction: item.construction,
-      cost: item.cost, retail_price: item.retail_price,
+      cost: item.cost, retail_price: item.retail_price, map_price: item.map_price,
       sell_by: item.sell_by, sqft_per_box: item.sqft_per_box,
       pieces_per_box: item.pieces_per_box,
       weight_per_box_lbs: item.weight_per_box_lbs,

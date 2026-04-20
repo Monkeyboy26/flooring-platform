@@ -17,6 +17,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://js.stripe.com">
   <link rel="preconnect" href="https://js.stripe.com" crossorigin>
+  <link rel="preload" as="image" href="/api/img?url=%2Fuploads%2Fhero-bg.jpg&w=1600" fetchpriority="high">
+  <link rel="preload" as="image" href="/assets/logo/roma-transparent.png">
   <title>Roma Flooring Designs | Premium Flooring &amp; Tile in Anaheim, CA</title>
   <meta name="description" content="Roma Flooring Designs offers premium flooring, tile, stone, and countertop products in Anaheim, CA. Shop our curated collections of hardwood, porcelain, marble, and more.">
   <link rel="canonical" href="https://www.romaflooringdesigns.com/">
@@ -69,7 +71,7 @@
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"></noscript>
   <script async src="https://js.stripe.com/v3/"></script>
-  <link rel="stylesheet" href="/storefront.css?v=48">
+  <link rel="stylesheet" href="/storefront.css?v=54">
 </head>
 <body>
   <div id="root"></div>
@@ -80,7 +82,8 @@
     </div>
   </noscript>
   <script>window.onerror=function(m,s,l,c,e){document.title='ERR:'+m;var d=document.createElement('pre');d.style='position:fixed;top:0;left:0;right:0;background:red;color:white;padding:1rem;z-index:99999;font-size:12px;white-space:pre-wrap';d.textContent=m+'\n'+s+':'+l+':'+c+'\n'+(e&&e.stack||'');document.body.prepend(d)}</script>
-  <script src="/storefront-app.js?v=121"></script>
+  <!-- Images now visible immediately — SVG placeholder background provides loading state -->
+  <script src="/storefront-app.js?v=132"></script>
   <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {

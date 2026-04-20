@@ -1,14 +1,23 @@
 import {
-    upsertMediaAsset, upsertSkuAttribute,
+    upsertMediaAsset, upsertSkuAttribute, upsertPackaging,
     appendLog, addJobError, preferProductShot, isLifestyleUrl
 } from './base.js';
 
 /**
  * Emser Tile catalog enrichment scraper.
  *
- * Uses the Optimizely/Insite JSON REST API on emser.com to fetch all ~3,050
- * products with images, then matches by productNumber → vendor_sku to enrich
- * existing 832 EDI data. Never creates new products or SKUs.
+ * Uses the Optimizely/Insite JSON REST API on emser.com to fetch all ~4,279
+ * products with images + structured attributes + documents + content, then
+ * matches by productNumber → vendor_sku to enrich existing 832 EDI data.
+ * Never creates new products or SKUs.
+ *
+ * Expanded data extraction:
+ *   - Structured attributes from attributeTypes[] (material, color, finish, thickness, etc.)
+ *   - Usage/application flags (Residential Floor, Shower Wall, etc.)
+ *   - Product descriptions from content.htmlContent
+ *   - Packaging conversions from unitOfMeasures[] (sqft_per_box, pieces_per_box, etc.)
+ *   - Spec PDF / brochure documents
+ *   - Discontinued product flagging
  *
  * After SKU-matched enrichment, runs three fallback passes:
  *   1. Name-based: matches by collection+color or collection name
@@ -53,6 +62,10 @@ export async function run(pool, job, source) {
         collectionsSet: 0,
         categoriesSet: 0,
         attributesSet: 0,
+        descriptionsSet: 0,
+        packagingSet: 0,
+        specPdfsSet: 0,
+        discontinuedSet: 0,
         skipped: 0,
         errors: 0,
     };
@@ -87,7 +100,9 @@ export async function run(pool, job, source) {
     await appendLog(pool, job.id,
         `SKU pass complete. Matched: ${stats.matched}, Images: ${stats.imagesSet}, ` +
         `Collections: ${stats.collectionsSet}, Categories: ${stats.categoriesSet}, ` +
-        `Skipped: ${stats.skipped}`
+        `Attributes: ${stats.attributesSet}, Descriptions: ${stats.descriptionsSet}, ` +
+        `Packaging: ${stats.packagingSet}, Spec PDFs: ${stats.specPdfsSet}, ` +
+        `Discontinued: ${stats.discontinuedSet}, Skipped: ${stats.skipped}`
     );
 
     // Step 4: Name-based fallback for remaining imageless products
@@ -109,6 +124,8 @@ export async function run(pool, job, source) {
         `Complete. API products: ${apiProducts.length}, SKU matches: ${stats.matched}, ` +
         `Images set: ${stats.imagesSet}, Collections: ${stats.collectionsSet}, ` +
         `Categories: ${stats.categoriesSet}, Attributes: ${stats.attributesSet}, ` +
+        `Descriptions: ${stats.descriptionsSet}, Packaging: ${stats.packagingSet}, ` +
+        `Spec PDFs: ${stats.specPdfsSet}, Discontinued: ${stats.discontinuedSet}, ` +
         `Name-matched images: ${nameMatched}, Series-matched: ${seriesMatched}, ` +
         `Room scenes added: ${roomScenesAdded}, Orphans cleaned: ${cleaned}, ` +
         `Skipped: ${stats.skipped}, Errors: ${stats.errors}`,
@@ -126,7 +143,7 @@ async function fetchAllProducts(pool, job) {
     let page = 1;
 
     while (true) {
-        const url = `${EMSER_API}?pageSize=${PAGE_SIZE}&page=${page}&expand=images,properties`;
+        const url = `${EMSER_API}?pageSize=${PAGE_SIZE}&page=${page}&expand=images,properties,attributes,documents,content`;
         const res = await fetch(url, {
             headers: { 'Accept': 'application/json' },
             signal: AbortSignal.timeout(30000),
@@ -153,10 +170,118 @@ async function fetchAllProducts(pool, job) {
     return allProducts;
 }
 
+// ─── Attribute Mapping ───────────────────────────────────────────────────────
+
+/** Map from Emser API attributeType name prefix → our attribute slug.
+ *  Uses startsWith matching because API names include suffixes like "(IMSRP3)", "(C373) (%)", etc. */
+const ATTR_MAP = [
+    ['Color Name',                'color'],
+    ['Color - Generic',           'color_generic'],
+    ['Material Type',             'material'],
+    ['Finish/Other Attributes',   'finish'],
+    ['Nominal (IMURRF)',          'size'],
+    ['Item Thickness',            'thickness'],
+    ['Edge Treatment',            'edge'],
+    ['Shade Variation',           'shade_variation'],
+    ['Tile Shape',                'shape'],
+    ['Pattern Repeat',            'pattern'],
+    ['Abrasion Resistance',       'pei_rating'],
+    ['DCOF ANSI',                 'dcof'],
+    ['Water Absorption',          'water_absorption'],
+    ['Breaking Strength',         'breaking_strength'],
+    ['Scratch Hardness',          'mohs_hardness'],
+];
+
+/** Extract the display value for a named attribute from the attributeTypes array.
+ *  API structure: attributeTypes[].attributeValues[] — values are nested.
+ *  Uses startsWith matching because API names have suffixes like "(IMSRP3)". */
+function extractAttributeValue(attributeTypes, namePrefix) {
+    if (!attributeTypes || !attributeTypes.length) return null;
+    for (const at of attributeTypes) {
+        const atName = at.name || '';
+        const atLabel = at.label || '';
+        if (atName.startsWith(namePrefix) || atLabel.startsWith(namePrefix)) {
+            // Values are nested in attributeValues array
+            const vals = at.attributeValues || [];
+            if (vals.length > 0) {
+                const val = (vals[0].valueDisplay || vals[0].value || '').trim();
+                return val || null;
+            }
+            return null;
+        }
+    }
+    return null;
+}
+
+/** Collect usage/application flags — attributes in the "Usage" group with YES values.
+ *  API structure: attributeTypes[].attributeValues[] — values are nested. */
+function extractUsageString(attributeTypes) {
+    if (!attributeTypes || !attributeTypes.length) return null;
+    const usages = [];
+    for (const at of attributeTypes) {
+        const group = (at.sectionName || at.group || '').toLowerCase();
+        if (!group.includes('usage') && !group.includes('application')) continue;
+        // Values are nested in attributeValues array
+        const vals = at.attributeValues || [];
+        const val = (vals.length > 0 ? (vals[0].valueDisplay || vals[0].value || '') : '').toUpperCase();
+        if (val === 'YES' || val === 'TRUE') {
+            const label = (at.label || at.name || '').trim();
+            if (label) usages.push(titleCase(label));
+        }
+    }
+    return usages.length > 0 ? usages.join(', ') : null;
+}
+
+/** Derive packaging from unitOfMeasures[] (CT=carton, PC=piece, PL=pallet) */
+function extractPackagingFromUOMs(unitOfMeasures) {
+    if (!unitOfMeasures || !unitOfMeasures.length) return null;
+    const uomMap = {};
+    for (const u of unitOfMeasures) {
+        const code = (u.unitOfMeasure || u.unitOfMeasureDisplay || '').toUpperCase();
+        const qty = parseFloat(u.qtyPerBaseUnitOfMeasure);
+        if (code && qty > 0) uomMap[code] = qty;
+    }
+    const ct = uomMap['CT'] || uomMap['CTN'] || 0;  // sqft per carton
+    const pc = uomMap['PC'] || uomMap['EA'] || 0;    // sqft per piece
+    const pl = uomMap['PL'] || uomMap['PLT'] || 0;   // sqft per pallet
+    if (ct <= 0) return null;
+    const pkg = { sqft_per_box: ct };
+    if (pc > 0) pkg.pieces_per_box = Math.round(ct / pc);
+    if (pl > 0) {
+        pkg.boxes_per_pallet = Math.round(pl / ct);
+        pkg.sqft_per_pallet = pl;
+    }
+    // Sanity checks
+    if (pkg.pieces_per_box !== undefined && (pkg.pieces_per_box <= 0 || pkg.pieces_per_box > 500)) {
+        delete pkg.pieces_per_box;
+    }
+    if (pkg.boxes_per_pallet !== undefined && (pkg.boxes_per_pallet <= 0 || pkg.boxes_per_pallet > 200)) {
+        delete pkg.boxes_per_pallet;
+        delete pkg.sqft_per_pallet;
+    }
+    return pkg;
+}
+
+/** Strip HTML tags for plain text */
+function stripHtml(html) {
+    if (!html) return '';
+    return html
+        .replace(/<br\s*\/?>/gi, ' ')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 // ─── Enrichment ──────────────────────────────────────────────────────────────
 
 // Batch queue for DB operations to avoid one-at-a-time queries
-const queue = { updates: [], images: [], attributes: [] };
+const queue = { updates: [], images: [], attributes: [], packaging: [], specPdfs: [], discontinued: [] };
 
 function enrichProduct(apiProduct, existingSkus, stats, catMap, skuColorMap) {
     const productNumber = (apiProduct.productNumber || '').toUpperCase();
@@ -176,25 +301,43 @@ function enrichProduct(apiProduct, existingSkus, stats, catMap, skuColorMap) {
 
     const titleParts = title.split(/\s*-\s*/);
     const afterDash = titleParts.length > 1 ? titleParts.slice(1).join(' - ').split(/\s*,\s*/) : [];
-    const colorName = titleCase(afterDash[1] || '');
-    const finish = titleCase(afterDash[2] || '');
-    const material = titleCase(props.bodyType || props.productType || '');
     const isTrim = String(props.isTrim || '').toLowerCase() === 'true';
 
-    // Queue product update (collection + category)
-    const productType = (props.productType || '').toLowerCase();
-    const catId = resolveCategory(productType, material, collectionName, catMap);
-    queue.updates.push({ productId, collectionName, catId, isTrim });
+    // ── Structured attributes (prefer attributeTypes[], fall back to title parsing) ──
+    const attrTypes = apiProduct.attributeTypes || [];
+    const hasStructuredAttrs = attrTypes.length > 0;
 
-    if (collectionName) stats.collectionsSet++;
-    if (catId) stats.categoriesSet++;
+    // Build attribute pairs: [slug, value]
+    const attrPairs = [];
 
-    // Queue attribute enrichment
-    const attrPairs = [
-        ['color', colorName],
-        ['finish', finish],
-        ['material', material],
-    ];
+    if (hasStructuredAttrs) {
+        // Extract from structured API data
+        for (const [apiNamePrefix, ourSlug] of ATTR_MAP) {
+            const val = extractAttributeValue(attrTypes, apiNamePrefix);
+            if (val) attrPairs.push([ourSlug, titleCase(val)]);
+        }
+    }
+
+    // Title-parse fallback for core attributes if structured didn't provide them
+    const hasBySlug = new Set(attrPairs.map(([s]) => s));
+    if (!hasBySlug.has('color')) {
+        const colorName = titleCase(afterDash[1] || '');
+        if (colorName) attrPairs.push(['color', colorName]);
+    }
+    if (!hasBySlug.has('finish')) {
+        const finish = titleCase(afterDash[2] || '');
+        if (finish) attrPairs.push(['finish', finish]);
+    }
+    if (!hasBySlug.has('material')) {
+        const material = titleCase(props.bodyType || props.productType || '');
+        if (material) attrPairs.push(['material', material]);
+    }
+
+    // Resolve color for image matching (use structured first, then title-parsed)
+    const colorVal = attrPairs.find(([s]) => s === 'color')?.[1] || '';
+    const materialVal = attrPairs.find(([s]) => s === 'material')?.[1] || '';
+
+    // Queue all attributes
     for (const [slug, val] of attrPairs) {
         if (val) {
             queue.attributes.push({ skuId, slug, val });
@@ -202,7 +345,65 @@ function enrichProduct(apiProduct, existingSkus, stats, catMap, skuColorMap) {
         }
     }
 
-    // Queue images
+    // ── Usage/application string ──
+    const usageStr = extractUsageString(attrTypes);
+    if (usageStr) {
+        queue.attributes.push({ skuId, slug: 'application', val: usageStr });
+        stats.attributesSet++;
+    }
+
+    // ── Product update (collection + category + description) ──
+    const productType = (props.productType || '').toLowerCase();
+    const structuredMaterial = (extractAttributeValue(attrTypes, 'Material Type') || '').toLowerCase();
+    const catId = resolveCategory(productType, materialVal, collectionName, catMap, structuredMaterial);
+
+    // Extract description from content.htmlContent
+    let descShort = null;
+    let descLong = null;
+    const htmlContent = apiProduct.content?.htmlContent;
+    if (htmlContent) {
+        descLong = stripHtml(htmlContent);
+        if (descLong.length > 0) {
+            descShort = descLong.length > 255 ? descLong.substring(0, 252) + '...' : descLong;
+            stats.descriptionsSet++;
+        }
+    }
+
+    queue.updates.push({ productId, collectionName, catId, isTrim, descShort, descLong });
+
+    if (collectionName) stats.collectionsSet++;
+    if (catId) stats.categoriesSet++;
+
+    // ── Packaging from UOMs ──
+    const pkg = extractPackagingFromUOMs(apiProduct.unitOfMeasures);
+    if (pkg) {
+        queue.packaging.push({ skuId, ...pkg });
+        stats.packagingSet++;
+    }
+
+    // ── Spec PDFs / brochures from documents[] ──
+    const docs = apiProduct.documents || [];
+    if (docs.length > 0) {
+        const specDoc = docs.find(d => {
+            const desc = (d.description || d.name || '').toLowerCase();
+            return desc.includes('technical spec') || desc.includes('brochure') || desc.includes('spec');
+        });
+        if (specDoc) {
+            const docUrl = specDoc.filePath || specDoc.fileUrl || specDoc.uri;
+            if (docUrl) {
+                queue.specPdfs.push({ productId, url: docUrl });
+                stats.specPdfsSet++;
+            }
+        }
+    }
+
+    // ── Discontinued flag ──
+    if (apiProduct.isDiscontinued) {
+        queue.discontinued.push({ skuId });
+        stats.discontinuedSet++;
+    }
+
+    // ── Queue images ──
     const images = apiProduct.images || [];
     const imagesToSave = [];
 
@@ -246,8 +447,7 @@ function enrichProduct(apiProduct, existingSkus, stats, catMap, skuColorMap) {
     }
 
     // Determine if image is for this specific SKU (color-matched) or shared (room scene w/ multiple colors)
-    // Parse color from API title for filename matching
-    const colorForSku = colorName ? colorName.toLowerCase().replace(/\s+/g, '_') : '';
+    const colorForSku = colorVal ? colorVal.toLowerCase().replace(/\s+/g, '_') : '';
 
     for (const imgObj of imagesToSave) {
         const filenameLower = imgObj.url.toLowerCase();
@@ -276,7 +476,7 @@ function enrichProduct(apiProduct, existingSkus, stats, catMap, skuColorMap) {
 }
 
 async function flushQueue(pool) {
-    // Product updates: collection + category
+    // Product updates: collection + category + descriptions
     for (const u of queue.updates) {
         const sets = ['updated_at = CURRENT_TIMESTAMP'];
         const params = [u.productId];
@@ -291,6 +491,16 @@ async function flushQueue(pool) {
         if (u.catId) {
             sets.push(`category_id = COALESCE(category_id, $${idx})`);
             params.push(u.catId);
+            idx++;
+        }
+        if (u.descShort) {
+            sets.push(`description_short = COALESCE(description_short, $${idx})`);
+            params.push(u.descShort);
+            idx++;
+        }
+        if (u.descLong) {
+            sets.push(`description_long = COALESCE(description_long, $${idx})`);
+            params.push(u.descLong);
             idx++;
         }
 
@@ -321,10 +531,39 @@ async function flushQueue(pool) {
         });
     }
 
+    // Packaging
+    for (const pkg of queue.packaging) {
+        const { skuId, ...pkgData } = pkg;
+        await upsertPackaging(pool, skuId, pkgData);
+    }
+
+    // Spec PDFs
+    for (const doc of queue.specPdfs) {
+        await upsertMediaAsset(pool, {
+            product_id: doc.productId,
+            sku_id: null,
+            asset_type: 'spec_pdf',
+            url: doc.url,
+            original_url: doc.url,
+            sort_order: 0,
+        });
+    }
+
+    // Discontinued SKUs
+    for (const d of queue.discontinued) {
+        await pool.query(
+            `UPDATE skus SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND status != 'inactive'`,
+            [d.skuId]
+        );
+    }
+
     // Clear queues
     queue.updates.length = 0;
     queue.images.length = 0;
     queue.attributes.length = 0;
+    queue.packaging.length = 0;
+    queue.specPdfs.length = 0;
+    queue.discontinued.length = 0;
 }
 
 // ─── Name-Based Fallback ─────────────────────────────────────────────────────
@@ -702,7 +941,20 @@ async function loadCategoryMap(pool) {
 
 // ─── Category Resolution ─────────────────────────────────────────────────────
 
-function resolveCategory(productType, material, collectionName, catMap) {
+function resolveCategory(productType, material, collectionName, catMap, structuredMaterial) {
+    // Prefer structured Material Type/IC1 attribute when available
+    if (structuredMaterial) {
+        const sm = structuredMaterial.toLowerCase();
+        if (sm === 'porcelain') return catMap['porcelain-tile'] || null;
+        if (sm === 'ceramic') return catMap['ceramic-tile'] || null;
+        if (sm === 'natural stone' || sm === 'marble' || sm === 'travertine' ||
+            sm === 'granite' || sm === 'slate' || sm === 'quartzite' || sm === 'limestone')
+            return catMap['natural-stone'] || null;
+        if (sm === 'glass' || sm === 'mosaic') return catMap['mosaic-tile'] || null;
+        if (sm === 'lvt' || sm === 'luxury vinyl') return catMap['luxury-vinyl'] || catMap['lvp-plank'] || null;
+    }
+
+    // Fallback to combined text matching
     const combined = (productType + ' ' + (material || '') + ' ' + (collectionName || '')).toLowerCase();
 
     if (combined.includes('lvt') || combined.includes('luxury vinyl') || combined.includes('plank'))

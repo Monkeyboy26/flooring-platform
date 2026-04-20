@@ -12,7 +12,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 RUN groupadd -r appuser && useradd -r -g appuser -u 1001 appuser
 COPY . .
-RUN mkdir -p /app/uploads && chown -R appuser:appuser /app
+RUN mkdir -p /app/uploads /app/_cache && chown -R appuser:appuser /app
 USER appuser
 EXPOSE 3001
 CMD ["node", "server.js"]

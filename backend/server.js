@@ -85,7 +85,7 @@ app.use('/api/trade/register', registrationLimiter);
 app.use('/api/trade/register/upload', registrationLimiter);
 
 // ==================== Image Resize Proxy ====================
-const imgLimiter = rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
+const imgLimiter = rateLimit({ windowMs: 60 * 1000, max: 1000, standardHeaders: true, legacyHeaders: false });
 const IMG_CACHE_DIR = path.join(process.cwd(), '_cache');
 if (!fs.existsSync(IMG_CACHE_DIR)) fs.mkdirSync(IMG_CACHE_DIR, { recursive: true });
 const imgInflight = new Map(); // cacheKey → Promise<Buffer> — dedup concurrent requests
@@ -112,13 +112,16 @@ app.get('/api/img', imgLimiter, async (req, res) => {
     const { url } = req.query;
     if (!url) return res.status(400).json({ error: 'url required' });
 
-    const w = Math.min(parseInt(req.query.w) || 800, 1200);
-    const h = req.query.h ? Math.min(parseInt(req.query.h), 1200) : undefined;
-    const q = Math.min(parseInt(req.query.q) || 80, 100);
-    const acceptsWebp = (req.headers.accept || '').includes('image/webp');
+    const w = Math.min(parseInt(req.query.w) || 800, 2400);
+    const h = req.query.h ? Math.min(parseInt(req.query.h), 2400) : undefined;
+    let q = Math.min(parseInt(req.query.q) || 80, 100);
+    const acceptHeader = req.headers.accept || '';
+    const acceptsAvif = acceptHeader.includes('image/avif');
+    const acceptsWebp = acceptHeader.includes('image/webp');
     let fmt = req.query.f || 'auto';
-    if (fmt === 'auto') fmt = acceptsWebp ? 'webp' : 'jpeg';
-    if (!['webp', 'jpeg', 'png'].includes(fmt)) fmt = 'jpeg';
+    if (fmt === 'auto') fmt = acceptsAvif ? 'avif' : acceptsWebp ? 'webp' : 'jpeg';
+    if (!['avif', 'webp', 'jpeg', 'png'].includes(fmt)) fmt = 'jpeg';
+    if (fmt === 'avif') q = Math.min(q, 65);
 
     const cacheKey = crypto.createHash('sha256').update(`${url}|${w}|${h || ''}|${q}|${fmt}`).digest('hex');
     const ext = fmt === 'jpeg' ? 'jpg' : fmt;
@@ -154,12 +157,13 @@ app.get('/api/img', imgLimiter, async (req, res) => {
         const resizeOpts = { width: w, fit: 'inside', withoutEnlargement: true };
         if (h) resizeOpts.height = h;
         let pipeline = sharp(inputBuffer).resize(resizeOpts);
-        if (fmt === 'webp') pipeline = pipeline.webp({ quality: q });
-        else if (fmt === 'jpeg') pipeline = pipeline.jpeg({ quality: q, mozjpeg: true });
+        if (fmt === 'avif') pipeline = pipeline.avif({ quality: q, effort: 7 });
+        else if (fmt === 'webp') pipeline = pipeline.webp({ quality: q, smartSubsample: true });
+        else if (fmt === 'jpeg') pipeline = pipeline.jpeg({ quality: q, mozjpeg: true, progressive: true });
         else pipeline = pipeline.png({ quality: q });
         const outputBuffer = await pipeline.toBuffer();
         if (outputBuffer.length > 500) {
-          fs.writeFile(cachePath, outputBuffer, () => {});
+          fs.writeFile(cachePath, outputBuffer, (err) => { if (err) console.error('[img] cache write failed:', err.message); });
         }
         return outputBuffer;
       })();
@@ -370,7 +374,7 @@ app.get('/api/products/:id', optionalTradeAuth, async (req, res) => {
       SELECT id, asset_type, url, sort_order, sku_id FROM media_assets
       WHERE product_id = $1 AND asset_type != 'spec_pdf'
       ORDER BY
-        CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
+        CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'swatch' THEN 2 WHEN 'lifestyle' THEN 3 ELSE 4 END,
         CASE WHEN sku_id IS NULL THEN 0 ELSE 1 END,
         sort_order
     `, [id]);
@@ -526,7 +530,7 @@ app.get('/api/collections', async (req, res) => {
         (SELECT ma.url FROM media_assets ma
          JOIN products p2 ON p2.id = ma.product_id
          WHERE p2.collection = p.collection AND p2.status = 'active' AND ma.asset_type != 'spec_pdf'
-         ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
+         ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'swatch' THEN 2 WHEN 'lifestyle' THEN 3 ELSE 4 END,
            CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as image
       FROM products p
       WHERE p.status = 'active' AND p.collection IS NOT NULL AND p.collection != ''${vendorClause}
@@ -640,19 +644,20 @@ app.get('/api/storefront/featured', async (req, res) => {
       ),
       sku_any_images AS (
         SELECT DISTINCT ON (sku_id) sku_id, url
-        FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
-        ORDER BY sku_id, sort_order
+        FROM media_assets WHERE asset_type IN ('alternate', 'swatch') AND sku_id IS NOT NULL
+        ORDER BY sku_id, CASE asset_type WHEN 'alternate' THEN 0 ELSE 1 END, sort_order
       ),
       product_any_images AS (
         SELECT DISTINCT ON (product_id) product_id, url
-        FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NULL
-        ORDER BY product_id, sort_order
+        FROM media_assets WHERE asset_type IN ('alternate', 'swatch') AND sku_id IS NULL
+        ORDER BY product_id, CASE asset_type WHEN 'alternate' THEN 0 ELSE 1 END, sort_order
       ),
       sibling_images AS (
         SELECT DISTINCT ON (s2.product_id) s2.product_id, ma.url
         FROM media_assets ma
         JOIN skus s2 ON s2.id = ma.sku_id
         WHERE ma.asset_type = 'primary' AND ma.sku_id IS NOT NULL
+          AND COALESCE(s2.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim','hardware','lighting','carved_wood','vanity','moulding','organizer','sink')
         ORDER BY s2.product_id, ma.sort_order
       ),
       variant_counts AS (
@@ -741,6 +746,7 @@ app.get('/api/storefront/featured', async (req, res) => {
           FROM media_assets ma
           JOIN skus s2 ON s2.id = ma.sku_id
           WHERE ma.asset_type = 'primary' AND ma.sku_id IS NOT NULL
+            AND COALESCE(s2.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim','hardware','lighting','carved_wood','vanity','moulding','organizer','sink')
           ORDER BY s2.product_id, ma.sort_order
         ),
         variant_counts AS (
@@ -1523,9 +1529,9 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       ) DESC, product_name ASC`;
     }
 
-    // Count query — count distinct products, not individual SKUs
+    // Count query — count individual browseable SKUs (each color/variant is its own card)
     const countSQL = `
-      SELECT COUNT(DISTINCT p.id) as total
+      SELECT COUNT(DISTINCT s.id) as total
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
@@ -1577,6 +1583,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         FROM media_assets ma
         JOIN skus s2 ON s2.id = ma.sku_id
         WHERE ma.asset_type = 'primary' AND ma.sku_id IS NOT NULL
+          AND COALESCE(s2.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim','hardware','lighting','carved_wood','vanity','moulding','organizer','sink')
         ORDER BY s2.product_id, ma.sort_order
       ),
       variant_counts AS (
@@ -1586,7 +1593,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         GROUP BY product_id
       )
       SELECT * FROM (
-        SELECT DISTINCT ON (p.id)
+        SELECT
           s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
           COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short, p.search_vector,
           p.slug as product_slug,
@@ -1596,7 +1603,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
           pr.retail_price, pr.price_basis, pr.cut_price,
           CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
           pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-          COALESCE(si.url, pi.url, sany.url, pany.url, sib.url) as primary_image,
+          COALESCE(si.url, pi.url) as primary_image,
           COALESCE(sai.url, pai.url) as alternate_image,
           CASE
             WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
@@ -1623,8 +1630,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         LEFT JOIN variant_counts vc ON vc.product_id = p.id
         LEFT JOIN product_popularity pp ON pp.product_id = p.id
         WHERE ${whereSQL}
-        ORDER BY p.id, s.created_at
-      ) grouped
+      ) browsable
       ORDER BY ${orderBy}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
@@ -1853,7 +1859,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
-      WHERE s.id = $1
+      WHERE s.id = $1 AND p.status = 'active'
     `, [skuId]);
 
     if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
@@ -1903,7 +1909,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       SELECT id, asset_type, url, sort_order, sku_id
       FROM media_assets
       WHERE product_id = $2 AND sku_id = $1
-      ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END, sort_order
+      ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'swatch' THEN 2 WHEN 'lifestyle' THEN 3 ELSE 4 END, sort_order
     `, [skuId, sku.product_id]);
 
     let mediaResult;
@@ -1911,15 +1917,17 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     if (skuMediaResult.rows.length > 0) {
       // SKU has its own images — also include product-level lifestyle (room scenes)
       // For ADEX: also include product-level alternate (shape drawing) as the primary display image
-      const extraTypes = isAdexVendor ? "'lifestyle','alternate'" : "'lifestyle'";
+      const hasSkuPrimary = skuMediaResult.rows.some(r => r.asset_type === 'primary');
+      const extraTypes = isAdexVendor ? "'lifestyle','alternate'" : (hasSkuPrimary ? "'lifestyle'" : "'primary','alternate','lifestyle'");
       const productExtra = await pool.query(`
         SELECT id, asset_type, url, sort_order, sku_id
         FROM media_assets
         WHERE product_id = $1 AND sku_id IS NULL AND asset_type IN (${extraTypes})
-        ORDER BY CASE asset_type WHEN 'alternate' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, sort_order
+        ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END, sort_order
       `, [sku.product_id]);
-      if (isAdexVendor) {
-        // For ADEX: show shape image first, then SKU color swatch, then lifestyle
+      if (isAdexVendor || !hasSkuPrimary) {
+        // ADEX: show shape image first, then SKU color swatch, then lifestyle
+        // No SKU primary: prepend product-level images so the best image shows first
         mediaResult = { rows: [...productExtra.rows, ...skuMediaResult.rows] };
       } else {
         mediaResult = { rows: [...skuMediaResult.rows, ...productExtra.rows] };
@@ -1934,13 +1942,15 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 ELSE 2 END, sort_order
       `, [sku.product_id]);
 
-      // If still no images, fall back to first sibling SKU's primary image
+      // If still no images, fall back to first non-accessory sibling SKU's primary image
       if (mediaResult.rows.length === 0) {
         mediaResult = await pool.query(`
-          SELECT id, asset_type, url, sort_order, sku_id
-          FROM media_assets
-          WHERE product_id = $1 AND sku_id IS NOT NULL AND asset_type = 'primary'
-          ORDER BY sort_order
+          SELECT ma.id, ma.asset_type, ma.url, ma.sort_order, ma.sku_id
+          FROM media_assets ma
+          JOIN skus s2 ON s2.id = ma.sku_id
+          WHERE ma.product_id = $1 AND ma.sku_id IS NOT NULL AND ma.asset_type = 'primary'
+            AND COALESCE(s2.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim','hardware','lighting','carved_wood','vanity','moulding','organizer','sink')
+          ORDER BY ma.sort_order
           LIMIT 1
         `, [sku.product_id]);
       }
@@ -1965,8 +1975,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         COALESCE(
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
           (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('alternate','lifestyle') ORDER BY ma.sort_order LIMIT 1),
-          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type IN ('alternate','lifestyle') ORDER BY ma.sort_order LIMIT 1)
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('alternate','swatch') ORDER BY CASE ma.asset_type WHEN 'alternate' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type IN ('alternate','swatch') ORDER BY CASE ma.asset_type WHEN 'alternate' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
         ) as primary_image,
         (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as sku_image,
         (SELECT ma.url FROM media_assets ma
@@ -4663,7 +4673,7 @@ app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async
          WHERE s.product_id = p.id LIMIT 1) as price,
         (SELECT ma.url FROM media_assets ma
          WHERE ma.product_id = p.id AND ma.asset_type != 'spec_pdf'
-         ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
+         ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'swatch' THEN 2 WHEN 'lifestyle' THEN 3 ELSE 4 END,
            CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image,
         (SELECT ROUND(AVG(qs2.quality_score))::int FROM sku_quality_scores qs2 WHERE qs2.product_id = p.id) as quality_score,
         (SELECT json_build_object(
@@ -4844,7 +4854,7 @@ app.get('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
       SELECT id, asset_type, url, sort_order, sku_id FROM media_assets
       WHERE product_id = $1 AND asset_type != 'spec_pdf'
       ORDER BY
-        CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
+        CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'swatch' THEN 2 WHEN 'lifestyle' THEN 3 ELSE 4 END,
         CASE WHEN sku_id IS NULL THEN 0 ELSE 1 END,
         sort_order
     `, [id]);
@@ -7364,7 +7374,7 @@ const BROWSER_SCRAPERS = new Set([
   'triwest-bravada', 'triwest-hartco', 'triwest-truetouch',
   'triwest-ahf', 'triwest-flexco', 'triwest-shaw', 'triwest-stanton',
   'triwest-bruce', 'triwest-congoleum', 'triwest-kraus',
-  'triwest-tec', 'triwest-bosphorus',
+  'triwest-tec',
   'triwest-babool', 'triwest-elysium', 'triwest-forester', 'triwest-hardwoodsspecialty',
   'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit',
 ]);
@@ -7376,7 +7386,7 @@ const ENRICHMENT_SCRAPERS = new Set([
   'triwest-bravada', 'triwest-hartco', 'triwest-truetouch',
   'triwest-ahf', 'triwest-flexco', 'triwest-shaw', 'triwest-stanton',
   'triwest-bruce', 'triwest-congoleum', 'triwest-kraus', 'triwest-sika',
-  'triwest-tec', 'triwest-bosphorus',
+  'triwest-tec',
   'triwest-babool', 'triwest-elysium', 'triwest-forester', 'triwest-hardwoodsspecialty',
   'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit',
   'lowes-mapei',
@@ -9385,7 +9395,7 @@ app.get('/api/trade/favorites/:id/items', tradeAuth, async (req, res) => {
     const items = await pool.query(`
       SELECT tfi.*, COALESCE(p.display_name, p.name) as product_name, p.collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = tfi.product_id AND ma.asset_type != 'spec_pdf'
-         ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
+         ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'swatch' THEN 2 WHEN 'lifestyle' THEN 3 ELSE 4 END,
            CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image,
         (SELECT pr.retail_price FROM pricing pr WHERE pr.sku_id = tfi.sku_id) as price
       FROM trade_favorite_items tfi

@@ -30,15 +30,14 @@ const SKIP_COLLECTIONS = new Set([
 ]);
 
 export async function run(pool, job, source) {
-  await appendLog(pool, job.id, 'Starting Daltile DAM image enrichment scraper');
-
-  // Authenticate
-  const session = await authenticate();
-  if (!session) {
-    await appendLog(pool, job.id, 'ERROR: Failed to authenticate with Daltile DAM');
-    throw new Error('DAM authentication failed');
-  }
-  await appendLog(pool, job.id, 'Authenticated with Daltile DAM');
+  // DEPRECATED: The DAM search API (images.daltile.com/assetbank-daltile) now returns 404.
+  // The Coveo catalog scraper (daltile-catalog.js) handles image enrichment via prefix matching
+  // and name-based fallback, making this scraper redundant.
+  await appendLog(pool, job.id,
+    'DEPRECATED: Daltile DAM scraper is retired. Image enrichment is now handled by ' +
+    'daltile-catalog.js via prefix matching and name-based fallback. No action taken.'
+  );
+  return;
 
   // Load products without images, grouped by collection
   const products = await loadProductsWithoutImages(pool);

@@ -147,31 +147,34 @@ export async function run(pool, job, source) {
           if (variant.price > 0) {
             const sellBy = determineSellBy(variant.size, variant.sizeLabel);
             await upsertPricing(pool, skuId, {
-              cost: variant.price,
-              retail_price: 0,
+              cost: variant.netPrice || variant.price,
+              retail_price: variant.listPrice || 0,
               price_basis: sellBy === 'sqft' ? 'per_sqft' : 'per_unit',
             });
             stats.pricingUpdated++;
           }
 
-          // Update inventory
-          const stockQty = parseFloat(variant.totalStock) || 0;
+          // Update inventory — prefer WarehouseQty if available, fall back to TotalStock
+          const stockQty = variant.warehouseQty
+            ? parseFloat(variant.warehouseQty)
+            : (parseFloat(variant.totalStock) || 0);
           await upsertInventorySnapshot(pool, skuId, 'Bosphorus-Anaheim', {
-            qty_on_hand_sqft: stockQty,
+            qty_on_hand_sqft: stockQty || 0,
             qty_in_transit_sqft: 0,
           });
           stats.inventoryUpdated++;
 
           // Update packaging if in full mode and specs available
-          if (isFullMode && data.specs) {
-            if (data.specs.sqftPerBox || data.specs.piecesPerBox) {
+          if (isFullMode) {
+            const sqftPerBox = data.specs?.sqftPerBox || variant.sqft || null;
+            if (sqftPerBox || data.specs?.piecesPerBox) {
               await upsertPackaging(pool, skuId, {
-                sqft_per_box: data.specs.sqftPerBox || null,
-                pieces_per_box: data.specs.piecesPerBox || null,
-                weight_per_box_lbs: data.specs.boxWeight || null,
-                boxes_per_pallet: data.specs.palletCount || null,
-                sqft_per_pallet: data.specs.sqftPerPallet || null,
-                weight_per_pallet_lbs: data.specs.palletWeight || null,
+                sqft_per_box: sqftPerBox,
+                pieces_per_box: data.specs?.piecesPerBox || null,
+                weight_per_box_lbs: data.specs?.boxWeight || null,
+                boxes_per_pallet: data.specs?.palletCount || null,
+                sqft_per_pallet: data.specs?.sqftPerPallet || null,
+                weight_per_pallet_lbs: data.specs?.palletWeight || null,
               });
               stats.packagingUpdated++;
             }
@@ -282,17 +285,25 @@ function parseDetailForInventory(html) {
         const sizeLabel = sizeById.get(sizeId) || '';
         const finish = finishById.get(finishId) || extractField(val.record_variants_name, 'finish');
 
+        // Price: net dealer price (top-level). PriceData has list/net breakdown.
+        const dealerPrice = parseFloat(val.Price) || 0;
+        const listPrice = val.PriceData ? (parseFloat(val.PriceData.price) || 0) : 0;
+        const netPrice = val.PriceData ? (parseFloat(val.PriceData.net_price) || dealerPrice) : dealerPrice;
+
         result.variants.push({
           color: color || 'Default',
           size: size || '',
           sizeLabel,
           finish: finish || null,
           vendorSku: null,
-          price: parseFloat(val.Price) || 0,
+          price: dealerPrice,
+          listPrice,
+          netPrice,
           stockStatus: parseInt(val.StockStatus, 10),
           totalStock: val.TotalStock || '0',
-          sqft: val.SQFT || null,
+          sqft: val.SQFT ? parseFloat(val.SQFT) : null,
           warehouseQty: val.WarehouseQty || null,
+          minQuantity: val.MinQuantity ? parseInt(val.MinQuantity, 10) : null,
           soldAs: val.SoldAs || 'box',
         });
       }
@@ -322,18 +333,45 @@ function parseDetailForInventory(html) {
 
 function parseSelectOptions(html, attributeName) {
   const options = [];
-  const labelRegex = new RegExp(
-    `<label[^>]*>[^<]*${attributeName}[^<]*<\\/label>[\\s\\S]*?<select[^>]*>([\\s\\S]*?)<\\/select>`,
+
+  // New site layout (Sep 2025+): swatch labels instead of <select> dropdowns
+  const swatchSectionRegex = new RegExp(
+    `(?:<strong>|<label[^>]*>)[^<]*${attributeName}[^<]*(?:</strong>|</label>)([\\s\\S]*?)(?=<strong>|<label[^>]*>[^<]*(?:Color|Size|Finish)[^<]*</label>|$)`,
     'i'
   );
-  const selectMatch = html.match(labelRegex);
+  const sectionMatch = html.match(swatchSectionRegex);
 
-  if (selectMatch) {
-    const selectHtml = selectMatch[1];
-    const optionRegex = /data-product-attribute-value="(\d+)"[^>]*>([^<]+)</g;
-    let optMatch;
-    while ((optMatch = optionRegex.exec(selectHtml)) !== null) {
-      options.push({ id: optMatch[1], text: optMatch[2].trim() });
+  if (sectionMatch) {
+    const sectionHtml = sectionMatch[1];
+    const labelRegex = /<label[^>]*data-product-attribute-value="(\d+)"[^>]*>([\s\S]*?)<\/label>/g;
+    let lMatch;
+    while ((lMatch = labelRegex.exec(sectionHtml)) !== null) {
+      const id = lMatch[1];
+      const inner = lMatch[2];
+      const nameMatch = inner.match(/<p[^>]*class="variant-name-value"[^>]*>([^<]+)<\/p>/)
+        || inner.match(/<span[^>]*class="form-option-expanded"[^>]*>([^<]+)<\/span>/)
+        || inner.match(/<span[^>]*>([^<]+)<\/span>/);
+      const text = nameMatch ? nameMatch[1].trim() : stripTags(inner).trim();
+      if (text && !options.find(o => o.id === id)) {
+        options.push({ id, text });
+      }
+    }
+  }
+
+  // Legacy fallback: <select> dropdowns (pre-Sep 2025)
+  if (options.length === 0) {
+    const selectRegex = new RegExp(
+      `<label[^>]*>[^<]*${attributeName}[^<]*<\\/label>[\\s\\S]*?<select[^>]*>([\\s\\S]*?)<\\/select>`,
+      'i'
+    );
+    const selectMatch = html.match(selectRegex);
+    if (selectMatch) {
+      const selectHtml = selectMatch[1];
+      const optionRegex = /data-product-attribute-value="(\d+)"[^>]*>([^<]+)</g;
+      let optMatch;
+      while ((optMatch = optionRegex.exec(selectHtml)) !== null) {
+        options.push({ id: optMatch[1], text: optMatch[2].trim() });
+      }
     }
   }
 

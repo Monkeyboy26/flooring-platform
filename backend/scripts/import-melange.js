@@ -3,16 +3,20 @@
 /**
  * Import Mélange Boutique Tile product data from 2025 Q2 Price List.
  *
- * 21 collections, ~93 products (one per color), ~366 SKUs:
- *   Porcelain Floor Tile: Block, Ca'Foscari, Concrete Soul Infinity, Decoro,
- *     Factory, Kauri, Moonlit, Nirvana, Portland Stone, Real Stone Travertino,
- *     Sixty 60 Silktech, Snow, Stonetalk, Sublime, Sunstone, Tele di Marmo,
+ * 26 collections, ~120 products (one per color), ~423 SKUs:
+ *   Porcelain Floor Tile: Block, Ca'Foscari, Caprice, Concrete Soul Infinity,
+ *     Decoro, Factory, Kauri, Moonlit, Nirvana, Portland Stone,
+ *     Real Stone Travertino, Shellstone, Sicily, Sixty 60 Silktech, Snow,
+ *     Stonetalk, Sublime, Sunstone, Tele di Marmo, Unique Bourgogne,
  *     Unique Infinity, Woodbreak
- *   Wall Tile: Memory, Pearl
+ *   Wall Tile: Evolution, Memory, Pearl
  *   Porcelain Paver: Quartz Outdoor
  *
  * Pricing: PDF lists dealer cost. Retail = cost × 2.5 (standard tile markup).
  * All tiles sold per sqft unless noted (mosaico sheets SH, bullnose PC).
+ *
+ * Draft collections (no pricing in Q2-2025 PDF): Shellstone, Sicily, Caprice,
+ * Evolution, Unique Bourgogne — imported as status='draft' with no pricing rows.
  *
  * Usage: docker compose exec api node scripts/import-melange.js
  */
@@ -583,6 +587,99 @@ const COLLECTIONS = [
         colors: [['White','3209-4'],['Extra White','3210-4'],['Grey','3211-4']] },
     ],
   },
+
+  // ── 22. SHELLSTONE (draft — not in price list) ──────
+  {
+    name: 'Shellstone', code: 'SHL',
+    desc: 'Porcelain Tile Floor | Wall | Interior | Exterior R10',
+    origin: 'USA', material: 'Porcelain',
+    draft: true, price: 0,
+    groups: [
+      { size: '12x24', price: 0, um: 'SF',
+        pkg: { sqft_per_box: 11.63, pieces_per_box: 6, boxes_per_pallet: 40 },
+        colors: [['White','4400'],['Gray','4401'],['Dark Gray','4402'],['Sand','4403']] },
+      { size: '24x48', price: 0, um: 'SF',
+        pkg: { sqft_per_box: 15.50, pieces_per_box: 2, boxes_per_pallet: 35 },
+        colors: [['White','4400-2'],['Gray','4401-2'],['Dark Gray','4402-2'],['Sand','4403-2']] },
+    ],
+  },
+
+  // ── 23. SICILY (draft — not in price list) ──────────
+  {
+    name: 'Sicily', code: 'SCL',
+    desc: 'Porcelain Tile Floor | Wall | Interior | Exterior R10',
+    origin: 'Italy', material: 'Porcelain',
+    draft: true, price: 0,
+    groups: [
+      { size: '15x30', price: 0, um: 'SF',
+        pkg: { sqft_per_box: 12.11, pieces_per_box: 4, boxes_per_pallet: 48 },
+        colors: [['Beige','4410'],['Dark Gray','4411'],['Gray','4412'],['White','4413']] },
+      { size: '30x30', price: 0, um: 'SF',
+        pkg: { sqft_per_box: 12.11, pieces_per_box: 12, boxes_per_pallet: 42 },
+        colors: [['Beige','4410-2'],['Dark Gray','4411-2'],['Gray','4412-2'],['White','4413-2']] },
+      { size: '24x48', price: 0, um: 'SF',
+        pkg: { sqft_per_box: 15.50, pieces_per_box: 2, boxes_per_pallet: 35 },
+        colors: [['Beige','4410-3'],['Dark Gray','4411-3'],['Gray','4412-3'],['White','4413-3']] },
+    ],
+  },
+
+  // ── 24. CAPRICE (draft — not in price list) ─────────
+  {
+    name: 'Caprice', code: 'CPR',
+    desc: 'Porcelain Tile Floor | Wall | Interior R9 Decorative',
+    origin: 'Spain', material: 'Porcelain',
+    draft: true, price: 0,
+    groups: [
+      { size: '8x8', price: 0, um: 'SF',
+        pkg: { sqft_per_box: 10.76, pieces_per_box: 25 },
+        colors: [
+          ['Chatelet','4420'],['Block','4421'],['Balance','4422'],['Burgundy','4423'],
+          ['Cloth','4424'],['Compass','4425'],['Liberty Taupe','4426'],['Liberty White','4427'],
+          ['Loire','4428'],['Patchwork','4429'],['Saint-Tropez','4430'],
+        ] },
+    ],
+  },
+
+  // ── 25. EVOLUTION (draft — not in price list) ───────
+  {
+    name: 'Evolution', code: 'EVO',
+    desc: 'Ceramic Wall Tile + Trim Accessories',
+    origin: null, material: 'Ceramic',
+    wallTile: true, draft: true, price: 0,
+    groups: [
+      { size: '4x16', price: 0, um: 'SF',
+        pkg: { sqft_per_box: 10.76, pieces_per_box: 25 },
+        colors: [['Blanco Brillo','4440'],['Gris Oscuro Brillo','4441']] },
+      { finish: 'Bullnose', size: '1x16', price: 0, um: 'PC', accessory: true,
+        pkg: { pieces_per_box: 15 },
+        colors: [['Blanco Brillo','4440-2'],['Gris Oscuro Brillo','4441-2']] },
+      { finish: 'Quarter Round', size: '1x8', price: 0, um: 'PC', accessory: true,
+        pkg: { pieces_per_box: 20 },
+        colors: [['Blanco Brillo','4440-3'],['Gris Oscuro Brillo','4441-3']] },
+      { finish: 'Torello Liner', size: '1x8', price: 0, um: 'PC', accessory: true,
+        pkg: { pieces_per_box: 20 },
+        colors: [['Blanco Brillo','4440-4'],['Gris Oscuro Brillo','4441-4']] },
+    ],
+  },
+
+  // ── 26. UNIQUE BOURGOGNE (draft — not in price list) ─
+  {
+    name: 'Unique Bourgogne', code: 'UBG',
+    desc: 'Porcelain Tile Floor | Wall | Provenza (Emil Group)',
+    origin: 'Italy', material: 'Porcelain',
+    draft: true, price: 0,
+    groups: [
+      { size: '12x24', price: 0, um: 'SF',
+        pkg: { sqft_per_box: 11.63, pieces_per_box: 6, boxes_per_pallet: 40 },
+        colors: [['Blanc Variee','4450'],['Blanc Minimal','4451'],['Beige Variee','4452'],['Beige Minimal','4453'],['Gris Variee','4454'],['Gris Minimal','4455']] },
+      { size: '24x24', price: 0, um: 'SF',
+        pkg: { sqft_per_box: 11.63, pieces_per_box: 3, boxes_per_pallet: 40 },
+        colors: [['Blanc Variee','4450-2'],['Blanc Minimal','4451-2'],['Beige Variee','4452-2'],['Beige Minimal','4453-2'],['Gris Variee','4454-2'],['Gris Minimal','4455-2']] },
+      { size: '24x48', price: 0, um: 'SF',
+        pkg: { sqft_per_box: 15.50, pieces_per_box: 2, boxes_per_pallet: 35 },
+        colors: [['Blanc Variee','4450-3'],['Blanc Minimal','4451-3'],['Beige Variee','4452-3'],['Beige Minimal','4453-3'],['Gris Variee','4454-3'],['Gris Minimal','4455-3']] },
+    ],
+  },
 ];
 
 // ==================== Main ====================
@@ -670,9 +767,12 @@ async function main() {
         if (sku.is_new) skusCreated++; else skusUpdated++;
 
         // Pricing: PDF price = dealer cost, retail = cost × 2.5
-        const cost = group.price;
-        const retail = parseFloat((cost * RETAIL_MARKUP).toFixed(2));
-        await upsertPricing(sku.id, { cost, retail_price: retail, price_basis: priceBasis });
+        // Skip pricing for draft collections (not in price list yet)
+        if (!coll.draft) {
+          const cost = group.price;
+          const retail = parseFloat((cost * RETAIL_MARKUP).toFixed(2));
+          await upsertPricing(sku.id, { cost, retail_price: retail, price_basis: priceBasis });
+        }
 
         // Packaging
         if (group.pkg && (group.pkg.sqft_per_box || group.pkg.pieces_per_box)) {
@@ -754,16 +854,48 @@ async function main() {
     }
   }
 
-  // Ensure all new products & SKUs are active
-  await pool.query(`
-    UPDATE products SET status = 'active'
-    WHERE vendor_id = $1 AND id = ANY($2::uuid[]) AND status != 'active'
-  `, [vendorId, Array.from(newProductIds)]);
+  // Collect product IDs from draft collections
+  const draftCollections = new Set(COLLECTIONS.filter(c => c.draft).map(c => c.name));
+  const draftProductIds = new Set();
+  const activeProductIds = new Set();
 
-  await pool.query(`
-    UPDATE skus SET status = 'active'
-    WHERE product_id = ANY($1::uuid[]) AND status != 'active'
-  `, [Array.from(newProductIds)]);
+  for (const id of newProductIds) {
+    // Look up which collection this product belongs to
+    const res = await pool.query('SELECT collection FROM products WHERE id = $1', [id]);
+    if (res.rows.length && draftCollections.has(res.rows[0].collection)) {
+      draftProductIds.add(id);
+    } else {
+      activeProductIds.add(id);
+    }
+  }
+
+  // Set active status on non-draft products
+  if (activeProductIds.size > 0) {
+    await pool.query(`
+      UPDATE products SET status = 'active'
+      WHERE vendor_id = $1 AND id = ANY($2::uuid[]) AND status != 'active'
+    `, [vendorId, Array.from(activeProductIds)]);
+
+    await pool.query(`
+      UPDATE skus SET status = 'active'
+      WHERE product_id = ANY($1::uuid[]) AND status != 'active'
+    `, [Array.from(activeProductIds)]);
+  }
+
+  // Set draft status on draft products
+  if (draftProductIds.size > 0) {
+    await pool.query(`
+      UPDATE products SET status = 'draft'
+      WHERE vendor_id = $1 AND id = ANY($2::uuid[]) AND status != 'draft'
+    `, [vendorId, Array.from(draftProductIds)]);
+
+    await pool.query(`
+      UPDATE skus SET status = 'draft'
+      WHERE product_id = ANY($1::uuid[]) AND status != 'draft'
+    `, [Array.from(draftProductIds)]);
+
+    console.log(`  Set ${draftProductIds.size} draft products (${draftCollections.size} collections)`);
+  }
 
   console.log('\n=== Melange Import Complete ===');
 

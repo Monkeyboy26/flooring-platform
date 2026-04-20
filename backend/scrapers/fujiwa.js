@@ -13,7 +13,7 @@
 
 import pg from 'pg';
 import {
-  launchBrowser, delay, upsertMediaAsset, preferProductShot,
+  launchBrowser, delay, upsertMediaAsset,
 } from './base.js';
 
 const pool = new pg.Pool({
@@ -26,13 +26,7 @@ const pool = new pg.Pool({
 
 const BASE_URL = 'https://www.fujiwatiles.com';
 
-function normalizeName(name) {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
-}
-
-// Tile-size tokens that should be stripped when deriving display names
-// and image-filter keywords (these are series numbers, not product identity).
-const TILE_SIZE_RE = /-(100|200|300|400|500|600|700|800|900|1000|1200)(?=-|$)/g;
+// Tile-size tokens stripped when deriving display names from slugs.
 const TILE_SIZE_WORD = /^(100|200|300|400|500|600|700|800|900|1000|1200)$/;
 
 // Codes that need a specific display name override (all-consonant acronyms,
@@ -45,30 +39,6 @@ const TILE_NAME_OVERRIDES = {
   'STS':   'STS',
   'TNT':   'TNT',
   'VIP/S': 'VIP',
-};
-
-// Codes where the image filename prefix on Fujiwa's site does NOT match the
-// slug (e.g. `/products/gloss-solid-series/` but images are `gs-black.jpg`).
-// When a code is here, these keywords are used instead of the slug-derived ones.
-const TILE_KEYWORD_OVERRIDES = {
-  'GS':          ['gs'],
-  'PEBBLESTONE': ['pebble'],
-  'PNR':         ['pnr'],
-  'SMALT':       ['smalt'],
-  'STAK':        ['stak'],
-  'STAR':        ['star'],
-  'UNG':         ['ung'],
-};
-
-// Mosaic pages where the main product image's filename doesn't begin with
-// the page slug (mostly the starfish color variants and the brown turtle).
-// Keys are the post-overhaul product names (see fujiwa-naming-overhaul.cjs).
-const MOSAIC_KEYWORD_OVERRIDES = {
-  'Starfish Blue':         ['starfish-light-blue', 'starfish-light'],
-  'Starfish 2 Tone Blue':  ['starfish-blue-2-tone'],
-  'Starfish Orange':       ['orange-peach-starfish'],
-  'Starfish Yellow':       ['red-orange-starfish'],
-  'Turtle Brown':          ['brown-turtle'],
 };
 
 /**
@@ -99,29 +69,6 @@ function deriveDisplayName(slugs) {
   }
   if (!common.length) return null;
   return common.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-}
-
-/**
- * Build a set of filename prefixes used to recognise images that actually
- * belong to this product. Fujiwa's WordPress gallery shows "related product"
- * thumbnails on every page; those images must be filtered out.
- *   ['alco-deco-series']                → ['alco-deco']
- *   ['planet-600-series']               → ['planet']
- *   ['joya-100-series','joya-deco-series'] → ['joya','joya-deco']
- *   ['angel-fish']                      → ['angel-fish']
- *   ['starfish-red']                    → ['starfish-red']
- */
-function buildImageKeywords(slugs) {
-  const kws = new Set();
-  for (const slug of slugs) {
-    let clean = slug
-      .replace(TILE_SIZE_RE, '')
-      .replace(/-series$/, '')
-      .replace(/--+/g, '-')
-      .replace(/(^-|-$)/g, '');
-    if (clean) kws.add(clean);
-  }
-  return [...kws];
 }
 
 /**
@@ -259,49 +206,27 @@ const MOSAIC_URL_MAP = {
   'Turtle':                ['turtle', 'turtle-medium', 'turtle-baby'],
 };
 
-async function scrollToLoadAll(page) {
-  await page.evaluate(async () => {
-    for (let i = 0; i < 15; i++) {
-      window.scrollBy(0, 400);
-      await new Promise(r => setTimeout(r, 200));
-    }
-    window.scrollTo(0, 0);
-  });
-  await delay(1000);
-}
 
-// Extract the ONE primary product image from a Fujiwa WooCommerce product page.
+// Extract ALL useful images from a Fujiwa WooCommerce product page.
 //
-// fujiwatiles.com has TWO page layouts and we need different selectors
-// for each:
+// fujiwatiles.com has TWO page layouts:
 //
 // (1) Tile series pages (Alco Deco, Joya, Hex, Glasstel, ...)
-//     The TOP/hero photo is a Divi-theme section with a 648x648 square
-//     studio shot served from `/wp-content/uploads/products/tiles/<slug>.jpg`.
-//     This is the canonical primary image — it's what you see at the top
-//     of the page. The WooCommerce gallery LOWER on the page contains a
-//     cropped 510x145 wide BANNER crop from a different path
-//     (`/wp-content/uploads/YYYY/MM/<slug>.jpg`) — that's the secondary.
+//     - Divi hero section: 648x648 square studio shot from
+//       `/wp-content/uploads/products/tiles/<slug>.jpg`
+//     - Color swatches (`ul.attribute_pa_colors li img.bc-variation-image`):
+//       ALL per-color 648x648 studio shots, each <li> has `data-value`
+//       with color name (e.g., "joya-101-verde", "hex-10-white-matte")
+//     - WooCommerce gallery: 510x145 banner crop (ignored, low quality)
+//     - Lifestyle gallery (`a.glightbox`): install/lifestyle photos
 //
 // (2) Watermark mosaic pages (Angel Fish, Turtle, Dolphin, ...)
-//     These have NO Divi hero section. The WooCommerce gallery
-//     (`img.wp-post-image`) IS the primary, stored at
-//     `/wp-content/uploads/YYYY/MM/<name>.jpg`.
+//     - No Divi hero section, no color swatches
+//     - WooCommerce gallery (`img.wp-post-image`) IS the primary
 //
-// We deliberately IGNORE every other image source on the page:
-//   - `img.bc-variation-image` / `ul.attribute_pa_colors ... swatch` —
-//     the small 60x60 color-picker thumbnails for the OTHER colors in
-//     the series. User explicitly asked us NOT to scrape these.
-//   - `a.glightbox` — install/lifestyle photos from the bottom install
-//     gallery (JOYA-102-ALBI.jpg-style).
-//   - `img.attachment-woocommerce_thumbnail` — "You may also like"
-//     related products that cross-contaminate every product page.
-//   - `a.et_social_icon` — social-share duplicates.
-//   - `img.zoomImg` — zoom-hover duplicate of the gallery image.
-async function extractProductImages(page, url) {
-  // Navigate with a generous timeout + one retry. fujiwatiles.com occasionally
-  // takes a while to respond to `networkidle2`, and a page that fails
-  // navigation gets a second chance on `domcontentloaded`.
+// Returns: { swatches: [{src, dataValue}], hero: {src}|null,
+//            mosaic: {src}|null, lifestyle: [{src}] }
+async function extractAllImages(page, url) {
   async function navigate() {
     try {
       return await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
@@ -319,142 +244,303 @@ async function extractProductImages(page, url) {
   try {
     const resp = await navigate();
     if (!resp || resp.status() >= 400) {
-      return [];
+      return { swatches: [], hero: null, mosaic: null, lifestyle: [] };
     }
     await delay(1500);
 
-    // Wait up to 8s for the WooCommerce gallery to render.
     try {
       await page.waitForSelector('.woocommerce-product-gallery__image img, img.wp-post-image', { timeout: 8000 });
     } catch {
-      // page has no gallery — probably a 404 or a landing page
+      // page has no gallery
     }
 
-    const images = await page.evaluate(() => {
-      // Strip WordPress dimension suffixes: -510x145.jpg → .jpg
+    return await page.evaluate(() => {
       function stripDims(rawUrl) {
         return rawUrl.replace(/-\d+x\d+(\.\w+)(?:\?.*)?$/, '$1');
       }
-
-      function clean(main) {
-        if (!main || !main.src || !main.src.includes('/wp-content/uploads/')) return null;
-        const src = stripDims(main.src);
+      function isValid(src) {
+        if (!src || !src.includes('/wp-content/uploads/')) return false;
         const basename = (src.split('?')[0].split('/').pop() || '').toLowerCase();
-        if (!basename) return null;
-        if (/logo|icon|placeholder|banner|add-basket/i.test(basename)) return null;
-        return { src, alt: main.alt || '' };
+        return basename && !/logo|icon|placeholder|banner|add-basket/i.test(basename);
       }
 
-      // (1) TILE SERIES: the Divi hero section at the top of the page
-      // serves its images from `/wp-content/uploads/products/tiles/<slug>.jpg`.
-      // We look for the FIRST <img> on the page with that path that
-      // isn't a color-picker swatch and isn't inside the WooCommerce
-      // gallery. That's the 648x648 square studio shot the user wants.
+      // (1) Color swatches — per-color 648x648 studio shots
+      const swatches = [];
+      for (const li of document.querySelectorAll('ul.attribute_pa_colors li')) {
+        const img = li.querySelector('img.bc-variation-image');
+        if (!img) continue;
+        const raw = img.getAttribute('data-src') || img.src || '';
+        const src = stripDims(raw);
+        if (!isValid(src)) continue;
+        swatches.push({ src, dataValue: li.getAttribute('data-value') || '' });
+      }
+
+      // (2) Divi hero — the first /products/tiles/ img NOT in swatches/gallery
+      let hero = null;
       for (const img of document.querySelectorAll('img')) {
-        const rawSrc = img.getAttribute('data-large_image')
-          || img.getAttribute('data-src')
-          || img.src || '';
-        if (!rawSrc.includes('/wp-content/uploads/products/tiles/')) continue;
-        // Skip color-picker swatches
+        const raw = img.getAttribute('data-large_image')
+          || img.getAttribute('data-src') || img.src || '';
+        if (!raw.includes('/wp-content/uploads/products/tiles/')) continue;
         if (img.classList.contains('bc-variation-image')) continue;
         if (img.closest('ul.attribute_pa_colors')) continue;
-        // Skip the WooCommerce gallery (wide banner crop from a
-        // different /YYYY/MM/ upload path)
         if (img.closest('.woocommerce-product-gallery')) continue;
-        const result = clean({ src: rawSrc, alt: img.alt });
-        if (result) return [result];
+        const src = stripDims(raw);
+        if (isValid(src)) { hero = { src }; break; }
       }
 
-      // (2) MOSAIC PAGES: no Divi hero. The WooCommerce gallery is the
-      // primary — stored at /wp-content/uploads/YYYY/MM/<name>.jpg.
-      const galleryImg = document.querySelector('.woocommerce-product-gallery__image img');
-      if (galleryImg) {
-        const src = galleryImg.getAttribute('data-large_image')
-          || galleryImg.getAttribute('data-src')
-          || galleryImg.src || '';
-        const result = clean({ src, alt: galleryImg.alt });
-        if (result) return [result];
+      // (3) Mosaic primary — WooCommerce gallery (for pages w/o Divi hero)
+      let mosaic = null;
+      if (!hero && swatches.length === 0) {
+        const galleryImg = document.querySelector('.woocommerce-product-gallery__image img');
+        if (galleryImg) {
+          const src = stripDims(
+            galleryImg.getAttribute('data-large_image')
+            || galleryImg.getAttribute('data-src')
+            || galleryImg.src || ''
+          );
+          if (isValid(src)) mosaic = { src };
+        }
+        if (!mosaic) {
+          const galleryA = document.querySelector('.woocommerce-product-gallery__image a');
+          if (galleryA?.href) {
+            const src = stripDims(galleryA.href);
+            if (isValid(src)) mosaic = { src };
+          }
+        }
+        if (!mosaic) {
+          const featured = document.querySelector('img.wp-post-image');
+          if (featured) {
+            const src = stripDims(
+              featured.getAttribute('data-large_image') || featured.src || ''
+            );
+            if (isValid(src)) mosaic = { src };
+          }
+        }
       }
-      const gallerySrc = document.querySelector('.woocommerce-product-gallery__image a');
-      if (gallerySrc && gallerySrc.href) {
-        const result = clean({ src: gallerySrc.href, alt: '' });
-        if (result) return [result];
+
+      // (4) Lifestyle gallery — a.glightbox install/lifestyle photos
+      const lifestyle = [];
+      for (const a of document.querySelectorAll('a.glightbox')) {
+        if (!a.href || !a.href.includes('/wp-content/uploads/')) continue;
+        const src = stripDims(a.href);
+        if (isValid(src)) lifestyle.push({ src });
       }
-      const featured = document.querySelector('img.wp-post-image');
-      if (featured) {
-        const src = featured.getAttribute('data-large_image') || featured.src || '';
-        const result = clean({ src, alt: featured.alt });
-        if (result) return [result];
-      }
-      return [];
+
+      return { swatches, hero, mosaic, lifestyle };
     });
-
-    return images;
   } catch (err) {
     console.log(`    Error loading ${url}: ${err.message}`);
-    return [];
+    return { swatches: [], hero: null, mosaic: null, lifestyle: [] };
   }
 }
 
 /**
- * Scrape a single product: visit every URL slug the product maps to,
- * collect the color-variation studio shots, and save them.
+ * Build a matcher for a product's SKUs that supports direct and suffix matching.
+ * This handles cases where image filenames use abbreviations (e.g., `gs-black.jpg`)
+ * but vendor_skus use full names (e.g., `GLOSS-SOLID-BLACK`).
+ */
+function buildSkuMatcher(productSkus) {
+  const byExact = new Map();   // lowercase vendor_sku → sku row
+  const bySuffix = new Map();  // all possible suffixes → sku row
+
+  for (const sku of productSkus) {
+    const key = sku.vendor_sku.toLowerCase();
+    byExact.set(key, sku);
+
+    // Index by ALL possible suffixes of the vendor_sku
+    // e.g., GLOSS-SOLID-BLACK → ['solid-black', 'black']
+    const parts = key.split('-');
+    for (let i = 1; i < parts.length; i++) {
+      const suffix = parts.slice(i).join('-');
+      if (!bySuffix.has(suffix)) bySuffix.set(suffix, sku);
+    }
+  }
+
+  return { byExact, bySuffix };
+}
+
+/**
+ * Match a swatch image filename to a SKU.
+ * Tries direct filename match first, then suffix matching.
+ */
+function matchSwatchToSku(filename, matcher) {
+  const stem = filename.replace(/\.\w+$/, '').toLowerCase();
+
+  // 1. Direct match: gs-black → gloss-solid-black? No, but joya-101 → joya-101 ✓
+  if (matcher.byExact.has(stem)) return matcher.byExact.get(stem);
+
+  // 2. Suffix match: strip progressive prefixes from the filename
+  // e.g., gs-black → try 'black' → matches GLOSS-SOLID-BLACK ✓
+  const parts = stem.split('-');
+  for (let i = 1; i < parts.length; i++) {
+    const suffix = parts.slice(i).join('-');
+    if (matcher.bySuffix.has(suffix)) return matcher.bySuffix.get(suffix);
+  }
+
+  return null;
+}
+
+/**
+ * Scrape a tile series product: visit every URL slug, collect per-color
+ * swatch images (648x648 studio shots), map them to SKUs, and save
+ * both product-level and SKU-level media assets.
  *
- * @param {{ pool, page, productId, label, slugs, keywords, maxImages }} args
  * @returns {Promise<number>} number of images saved
  */
-async function scrapeProduct({ pool, page, productId, label, slugs, keywords, maxImages = 16 }) {
-  // `extractProductImages` targets `img.bc-variation-image` directly — the
-  // color-variation plugin gives us exactly one 648x648 studio shot per
-  // available colorway, in the vendor's intended display order. No noise,
-  // no related-product contamination, no angle-suffix dupes. So this
-  // function just collects from every slug the product maps to, dedupes
-  // by exact basename (to handle multi-series products like Joya which
-  // spans joya-100/300/600/deco URLs), and saves.
-  const collected = [];
+async function scrapeTileProduct({ pool, page, productId, label, slugs, productSkus }) {
+  const matcher = buildSkuMatcher(productSkus);
+  const allSwatches = [];
+  const allLifestyle = [];
   const seenBasenames = new Set();
+  let heroImage = null;
 
   for (const slug of slugs) {
     const url = `${BASE_URL}/products/${slug}/`;
     console.log(`  Visiting: ${url}`);
-    const images = await extractProductImages(page, url);
-    for (const img of images) {
-      const key = (img.src.split('?')[0].split('/').pop() || '').toLowerCase();
+    const result = await extractAllImages(page, url);
+
+    // Collect hero (first one wins)
+    if (!heroImage && result.hero) heroImage = result.hero;
+
+    // Collect swatch images, deduplicated by basename
+    for (const sw of result.swatches) {
+      const key = (sw.src.split('?')[0].split('/').pop() || '').toLowerCase();
       if (!key || seenBasenames.has(key)) continue;
       seenBasenames.add(key);
-      collected.push(img);
+      allSwatches.push(sw);
     }
-    console.log(`    Found ${images.length} colorway image(s)`);
+
+    // Collect lifestyle images, deduplicated
+    for (const lf of result.lifestyle) {
+      const key = (lf.src.split('?')[0].split('/').pop() || '').toLowerCase();
+      if (!key || seenBasenames.has(key)) continue;
+      seenBasenames.add(key);
+      allLifestyle.push(lf);
+    }
+
+    const swatchCount = result.swatches.length;
+    const lifeCount = result.lifestyle.length;
+    console.log(`    Found ${swatchCount} swatch(es), ${lifeCount} lifestyle, hero: ${result.hero ? 'yes' : 'no'}`);
     await delay(600);
   }
 
-  if (collected.length === 0) {
+  if (allSwatches.length === 0 && !heroImage) {
     console.log(`  [NO IMAGES] ${label}`);
     return 0;
   }
 
-  const toSave = collected.slice(0, maxImages);
+  let saved = 0;
 
-  for (let i = 0; i < toSave.length; i++) {
-    const assetType = i === 0 ? 'primary' : 'alternate';
+  // Save product-level primary image (hero or first swatch)
+  const primarySrc = heroImage?.src || allSwatches[0]?.src;
+  if (primarySrc) {
     await upsertMediaAsset(pool, {
-      product_id: productId,
-      sku_id: null,
-      asset_type: assetType,
-      url: toSave[i].src,
-      original_url: toSave[i].src,
-      sort_order: i,
+      product_id: productId, sku_id: null,
+      asset_type: 'primary', url: primarySrc, original_url: primarySrc, sort_order: 0,
     });
+    saved++;
   }
 
-  console.log(`  [SAVED] ${label} — ${toSave.length} colorway image(s)\n`);
-  return toSave.length;
+  // Save per-SKU primary images from swatches
+  let skuMatched = 0;
+  let skuMissed = 0;
+  for (const sw of allSwatches) {
+    const filename = sw.src.split('/').pop();
+    const matchedSku = matchSwatchToSku(filename, matcher);
+    if (matchedSku) {
+      await upsertMediaAsset(pool, {
+        product_id: productId, sku_id: matchedSku.id,
+        asset_type: 'primary', url: sw.src, original_url: sw.src, sort_order: 0,
+      });
+      saved++;
+      skuMatched++;
+    } else {
+      console.log(`    [NO SKU MATCH] swatch file: ${filename} (data-value: ${sw.dataValue})`);
+      skuMissed++;
+    }
+  }
+
+  // Save lifestyle images at product level (up to 4)
+  for (let i = 0; i < allLifestyle.length && i < 4; i++) {
+    await upsertMediaAsset(pool, {
+      product_id: productId, sku_id: null,
+      asset_type: 'lifestyle', url: allLifestyle[i].src,
+      original_url: allLifestyle[i].src, sort_order: i,
+    });
+    saved++;
+  }
+
+  console.log(`  [SAVED] ${label} — ${skuMatched} SKU images, ${skuMissed} unmatched, ${allLifestyle.length > 4 ? 4 : allLifestyle.length} lifestyle\n`);
+  return saved;
+}
+
+/**
+ * Scrape a mosaic product: simpler layout with just a WooCommerce gallery
+ * image as the primary (no swatches, no Divi hero).
+ *
+ * @returns {Promise<number>} number of images saved
+ */
+async function scrapeMosaicProduct({ pool, page, productId, label, slugs }) {
+  const seenBasenames = new Set();
+  let primaryImage = null;
+
+  for (const slug of slugs) {
+    const url = `${BASE_URL}/products/${slug}/`;
+    console.log(`  Visiting: ${url}`);
+    const result = await extractAllImages(page, url);
+
+    // Use mosaic primary or hero as fallback
+    const img = result.mosaic || result.hero;
+    if (img && !primaryImage) {
+      primaryImage = img;
+    }
+
+    // Some mosaic pages may have swatches — collect those too
+    for (const sw of result.swatches) {
+      const key = (sw.src.split('?')[0].split('/').pop() || '').toLowerCase();
+      if (!key || seenBasenames.has(key)) continue;
+      seenBasenames.add(key);
+      if (!primaryImage) primaryImage = sw;
+    }
+
+    console.log(`    Found mosaic: ${result.mosaic ? 'yes' : 'no'}, swatches: ${result.swatches.length}`);
+    await delay(600);
+  }
+
+  if (!primaryImage) {
+    console.log(`  [NO IMAGES] ${label}`);
+    return 0;
+  }
+
+  await upsertMediaAsset(pool, {
+    product_id: productId, sku_id: null,
+    asset_type: 'primary', url: primaryImage.src,
+    original_url: primaryImage.src, sort_order: 0,
+  });
+
+  console.log(`  [SAVED] ${label} — 1 primary image\n`);
+  return 1;
 }
 
 async function run() {
   const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'FUJIWA'");
   if (!vendorRes.rows.length) { console.error('Fujiwa vendor not found'); return; }
   const vendorId = vendorRes.rows[0].id;
+
+  // Pre-load ALL Fujiwa SKUs grouped by product_id for efficient matching
+  const allSkusRes = await pool.query(`
+    SELECT s.id, s.vendor_sku, s.product_id
+    FROM skus s
+    JOIN products p ON s.product_id = p.id
+    WHERE p.vendor_id = $1
+    ORDER BY s.product_id, s.vendor_sku
+  `, [vendorId]);
+  const skusByProduct = new Map();
+  for (const row of allSkusRes.rows) {
+    if (!skusByProduct.has(row.product_id)) skusByProduct.set(row.product_id, []);
+    skusByProduct.get(row.product_id).push(row);
+  }
+  console.log(`Loaded ${allSkusRes.rowCount} SKUs across ${skusByProduct.size} products\n`);
 
   // Clean old media assets (will be replaced with properly-filtered images)
   const cleanResult = await pool.query(`
@@ -499,9 +585,9 @@ async function run() {
       }
       const label = `${code} → "${displayName}"`;
 
-      const keywords = TILE_KEYWORD_OVERRIDES[code] || buildImageKeywords(slugs);
-      const saved = await scrapeProduct({
-        pool, page, productId, label, slugs, keywords, maxImages: 8,
+      const productSkus = skusByProduct.get(productId) || [];
+      const saved = await scrapeTileProduct({
+        pool, page, productId, label, slugs, productSkus,
       });
       if (saved > 0) {
         matchedProducts.add(productId);
@@ -524,9 +610,8 @@ async function run() {
       const productId = r.rows[0].id;
       if (matchedProducts.has(productId)) continue;
 
-      const keywords = MOSAIC_KEYWORD_OVERRIDES[productName] || buildImageKeywords(slugs);
-      const saved = await scrapeProduct({
-        pool, page, productId, label: productName, slugs, keywords, maxImages: 6,
+      const saved = await scrapeMosaicProduct({
+        pool, page, productId, label: productName, slugs,
       });
       if (saved > 0) {
         matchedProducts.add(productId);

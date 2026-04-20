@@ -19,7 +19,14 @@ import { upsertMediaAsset, appendLog } from './base.js';
  */
 
 export async function run(pool, job) {
-  await appendLog(pool, job.id, 'Starting Daltile image inheritance scraper');
+  // DEPRECATED: With prefix matching in daltile-catalog.js, products in the generic
+  // 'daltile' collection now get images directly from Coveo results matched by their
+  // color-code prefix. This inheritance scraper is no longer needed.
+  await appendLog(pool, job.id,
+    'DEPRECATED: Daltile image inheritance scraper is retired. Image enrichment is now ' +
+    'handled by daltile-catalog.js via prefix matching. No action taken.'
+  );
+  return;
 
   // Step 1: Load generic 'daltile' products without images
   const products = await pool.query(`

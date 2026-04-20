@@ -304,7 +304,7 @@ export async function upsertSku(pool, rawData, opts = {}) {
       vendor_sku = COALESCE(EXCLUDED.vendor_sku, skus.vendor_sku),
       variant_name = COALESCE(EXCLUDED.variant_name, skus.variant_name),
       sell_by = COALESCE(EXCLUDED.sell_by, skus.sell_by),
-      variant_type = COALESCE(EXCLUDED.variant_type, skus.variant_type),
+      variant_type = EXCLUDED.variant_type,
       updated_at = CURRENT_TIMESTAMP
     RETURNING id, (xmax = 0) AS is_new
   `, [product_id, vendor_sku, internal_sku, variant_name || null, sell_by || 'sqft', variant_type || null]);
@@ -322,8 +322,14 @@ export function normalizeAttributeValue(slug, value) {
   let v = value.trim().replace(/\s{2,}/g, ' ');
 
   if (slug === 'size') {
+    // Reject packaging quantities masquerading as sizes ("12 EA/CTN", "2 EA/CT")
+    if (/\b(EA|CTN?|PCS?|BOX|PLT|GAL|OZ)\b/i.test(v)) return null;
+    // Strip unit suffixes: "7.48 in" → "7.48", "12 inch" → "12", "300 mm" → "300"
+    v = v.replace(/\s*(in|inch|inches|mm|cm)\s*$/i, '').trim();
     // Normalize sizes: "12" x 24"" → "12x24", "12 x 24" → "12x24"
     v = v.replace(/["″'']/g, '').replace(/\s*[xX×]\s*/g, 'x').trim();
+    // Normalize common actual→nominal widths (e.g., 7.48" actual = 7.5" marketing)
+    v = v.replace(/^7\.48$/, '7.5');
   } else if (slug === 'color') {
     // Title-case ALL CAPS colors: "AUTUMN GREY" → "Autumn Grey"
     if (v === v.toUpperCase() && v.length > 2 && /[A-Z]/.test(v)) {
@@ -679,7 +685,7 @@ const LIFESTYLE_KEYWORDS = [
   'ambiance', 'vignette', 'hero', 'banner', 'header',
   'spotlight', 'promo', 'campaign', '1920x1080', '_4k',
   '.mp4', '.mov', '.webm',
-  'amb0', 'amb1', '_amb_', '-amb-',
+  'amb0', 'amb1', '_amb_', '-amb-', 'amb_', 'ambi_',
   'crop_upscale',
   'ambience', 'gallery', 'roomview', 'room-view', 'insitu', 'in-situ',
   'inspiration', 'decor', 'styled', 'design',

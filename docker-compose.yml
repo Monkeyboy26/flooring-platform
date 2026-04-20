@@ -111,6 +111,7 @@ services:
       - ./backend:/app
       - /app/node_modules
       - ./uploads:/app/uploads
+      - img_cache:/app/_cache
     networks:
       - frontend_net
       - backend_net
@@ -137,3 +138,4 @@ networks:
 volumes:
   postgres_data:
   minio_data:
+  img_cache:

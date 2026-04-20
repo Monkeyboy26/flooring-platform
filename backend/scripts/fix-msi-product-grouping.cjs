@@ -36,6 +36,9 @@ async function main() {
         FROM skus s JOIN products p ON s.product_id = p.id
         WHERE p.vendor_id = (SELECT id FROM msi_vendor)
           AND s.vendor_sku LIKE 'SMOT%'
+          AND s.vendor_sku NOT LIKE 'SMOT-SILL%'
+          AND s.vendor_sku NOT LIKE 'SMOT-TH%'
+          AND s.vendor_sku NOT LIKE 'SMOT-CSHELF%'
       ),
       non_smot_products AS (
         SELECT DISTINCT s.product_id
