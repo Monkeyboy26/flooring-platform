@@ -602,21 +602,15 @@ async function run() {
       for (const sku of productSkus) {
         let c = sku.color || '';
         if (!c) {
-          // Try extracting leading color name/code from variant name
-          // Pattern: "ColorName Code Size" or "Code Size"
-          const parts = sku.variant_name.split(/\s+/);
-          if (parts.length >= 2) {
-            // If first part is purely numeric (like "210"), use it as color
-            // If first part is a word followed by a number, combine them
-            const sizeIdx = parts.findIndex(p => /^\d+x\d+$/i.test(p));
-            if (sizeIdx > 0) {
-              c = parts.slice(0, sizeIdx).join(' ');
-            } else if (/mosaic|hexag/i.test(sku.variant_name)) {
-              // Mosaic: extract leading code before "Porcelain Mosaic..."
-              const mm = sku.variant_name.match(/^(\S+)\s+(?:Porcelain|Mosaic|Hexag)/i);
-              if (mm) c = mm[1];
-            }
-          }
+          // Extract color: everything before the first type/description keyword
+          // e.g. "Papel 235 Floor Bullnose" → "Papel 235"
+          //      "210 Porcelain Mosaic 2x2 Hexagon 12x12" → "210"
+          //      "Gris 100 1/4 Round" → "Gris 100"
+          //      "Vanilla 221 12x24" → "Vanilla 221"
+          const cm = sku.variant_name.match(
+            /^(.+?)\s+(?:Porcelain|Mosaic|Hexag|Floor\s+Bullnose|Cove\s+Base|V-Cap|Out-Corner|1\/4\s+Round|Round\s+Beak|\d+x\d+)/i
+          );
+          if (cm) c = cm[1].trim();
         }
         if (!colorGroups.has(c)) colorGroups.set(c, []);
         colorGroups.get(c).push(sku);

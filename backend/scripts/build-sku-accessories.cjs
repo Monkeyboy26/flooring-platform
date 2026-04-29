@@ -210,7 +210,22 @@ function extractAccessoryColor(vn) {
   for (const [re] of TYPE_KEYWORDS) {
     color = color.replace(re, '');
   }
-  // Strip dimensions
+  // Strip tile/mosaic description patterns (Goton: "Porcelain Mosaic 2x2 Hexagon 12x12")
+  color = color.replace(/\bPorcelain(?:\s*\/?\s*Glass)?\b/gi, '');
+  color = color.replace(/\bMosaic\b/gi, '');
+  color = color.replace(/\bHexag(?:on)?\b/gi, '');
+  color = color.replace(/\bChevron\b/gi, '');
+  color = color.replace(/\bOpus\s+Pattern\b/gi, '');
+  color = color.replace(/\bBasketweave\b/gi, '');
+  color = color.replace(/\bHerringbone\b/gi, '');
+  color = color.replace(/\bLineal\s+Random\b/gi, '');
+  color = color.replace(/\bMix\b/gi, '');
+  color = color.replace(/\bFloor\b/gi, '');
+  color = color.replace(/\bDouble\s+Side\b/gi, '');
+  color = color.replace(/\bSingle\s+Side\b/gi, '');
+  // Strip NxN dimension patterns (2x2, 12x12, 3-1/4x18, 9.5x11-3/4, 13.4x11, etc.)
+  color = color.replace(/\d[\d.\-\/]*x\d[\d.\-\/]*/gi, '');
+  // Strip trailing dimensions (72", 6', etc.)
   color = color.replace(/,?\s*\d+(?:'?\d*)?(?:"|in|inch(?:es)?)?$/i, '').trim();
   return normColor(color);
 }
@@ -219,7 +234,11 @@ function extractAccessoryColor(vn) {
  * Extract color from a main (flooring) SKU's variant_name.
  */
 function extractMainColor(vn) {
-  return normColor(vn || '');
+  // Strip trailing NxN dimensions from main tile variant names
+  // e.g. "Grigio 163 12x24" → "Grigio 163", "210 6x24" → "210"
+  let color = (vn || '');
+  color = color.replace(/\s+\d[\d.\-\/]*x\d[\d.\-\/]*\s*$/i, '');
+  return normColor(color);
 }
 
 // ── Matching strategies ─────────────────────────────────────────────────────

@@ -539,16 +539,11 @@ export async function run(pool, job, source) {
     for (const sku of skus) {
       let color = sku.color || '';
       if (!color) {
-        const parts = sku.variant_name.split(/\s+/);
-        if (parts.length >= 2) {
-          const sizeIdx = parts.findIndex(p => /^\d+x\d+$/i.test(p));
-          if (sizeIdx > 0) {
-            color = parts.slice(0, sizeIdx).join(' ');
-          } else if (/mosaic|hexag/i.test(sku.variant_name)) {
-            const mm = sku.variant_name.match(/^(\S+)\s+(?:Porcelain|Mosaic|Hexag)/i);
-            if (mm) color = mm[1];
-          }
-        }
+        // Extract color: everything before the first type/description keyword
+        const cm = sku.variant_name.match(
+          /^(.+?)\s+(?:Porcelain|Mosaic|Hexag|Floor\s+Bullnose|Cove\s+Base|V-Cap|Out-Corner|1\/4\s+Round|Round\s+Beak|\d+x\d+)/i
+        );
+        if (cm) color = cm[1].trim();
       }
       if (!colorGroups.has(color)) colorGroups.set(color, []);
       colorGroups.get(color).push(sku);
