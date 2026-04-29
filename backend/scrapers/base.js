@@ -688,17 +688,22 @@ const LIFESTYLE_KEYWORDS = [
   'amb0', 'amb1', '_amb_', '-amb-', 'amb_', 'ambi_',
   'crop_upscale',
   'ambience', 'gallery', 'roomview', 'room-view', 'insitu', 'in-situ',
-  'inspiration', 'decor', 'styled', 'design',
+  'inspiration', 'styled',
 ];
 
 /**
  * Check whether a URL looks like a lifestyle/room-scene image based on filename keywords.
+ * Optionally pass productName to avoid false positives when product/collection names
+ * contain lifestyle-sounding words (e.g., "Moda Living", "Gallery Grey").
  * @param {string} url
+ * @param {string} [productName] - product name to exclude from keyword matching
  * @returns {boolean}
  */
-export function isLifestyleUrl(url) {
+export function isLifestyleUrl(url, productName) {
   const filename = url.toLowerCase().split('/').pop().split('?')[0];
-  return LIFESTYLE_KEYWORDS.some(kw => filename.includes(kw));
+  if (!productName) return LIFESTYLE_KEYWORDS.some(kw => filename.includes(kw));
+  const prodLow = productName.toLowerCase();
+  return LIFESTYLE_KEYWORDS.some(kw => filename.includes(kw) && !prodLow.includes(kw));
 }
 
 /**
@@ -1047,8 +1052,9 @@ export async function saveSkuImages(pool, productId, skuId, imageUrls, opts = {}
   const { maxImages = 8 } = opts;
   const toSave = imageUrls.slice(0, maxImages);
 
-  // Safety net: ensure a lifestyle image is never stored as primary
-  if (toSave.length > 1 && isLifestyleUrl(toSave[0])) {
+  // Safety net: ensure a lifestyle image is never stored as primary.
+  // First try to swap with a non-lifestyle image in the list.
+  if (isLifestyleUrl(toSave[0])) {
     const swapIdx = toSave.findIndex(u => !isLifestyleUrl(u));
     if (swapIdx > 0) [toSave[0], toSave[swapIdx]] = [toSave[swapIdx], toSave[0]];
   }
@@ -1056,7 +1062,13 @@ export async function saveSkuImages(pool, productId, skuId, imageUrls, opts = {}
   let saved = 0;
 
   for (let i = 0; i < toSave.length; i++) {
-    const assetType = i === 0 ? 'primary' : (i <= 2 ? 'alternate' : 'lifestyle');
+    // Never assign asset_type 'primary' to a lifestyle URL — store as 'lifestyle' instead.
+    // The browse grid COALESCE chain will still find it via sku_any_images as last resort.
+    const isLifestyle = isLifestyleUrl(toSave[i]);
+    const assetType = isLifestyle ? 'lifestyle'
+      : i === 0 ? 'primary'
+      : i <= 2 ? 'alternate'
+      : 'lifestyle';
     await upsertMediaAsset(pool, {
       product_id: productId,
       sku_id: skuId,

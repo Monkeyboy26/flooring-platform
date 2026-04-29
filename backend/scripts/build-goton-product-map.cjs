@@ -71,9 +71,11 @@ function classifyImage(title, width, height) {
   // Chinese catalog pages: 画册 = catalog, 系列+number = series promo
   if (/\u753B\u518C/.test(decoded)) return 'lifestyle';
   if (/\u7CFB\u5217\d/.test(decoded)) return 'lifestyle';
-  // Chinese product-name + pattern code (海岸木-J137-B321 = installed scene)
+  // Chinese product-name + pattern code at LARGE size = installed room scene
+  // e.g. 海岸木-J137-B321 at 3000px+ is a room render
   // EXCEPT K/N prefix codes which are mosaic sheet close-ups (石化-K050-B336)
-  if (/^[\u4e00-\u9fff]+-[A-Z]\d{3}-/.test(decoded) && !/^[\u4e00-\u9fff]+-[KN]\d{2,3}/i.test(decoded)) return 'lifestyle';
+  // Small images (<1500px) with J/H pattern codes are tile pattern product shots (chevron, hexagon)
+  if (/^[\u4e00-\u9fff]+-[A-Z]\d{3}-/.test(decoded) && !/^[\u4e00-\u9fff]+-[KN]\d{2,3}/i.test(decoded) && maxDim >= 1500) return 'lifestyle';
   // Chinese 副本 (copy) — lifestyle UNLESS it contains a tile/mosaic code
   if (/\u526F\u672C/.test(decoded) && !/\d{2}[A-Z]\d{3}/.test(decoded) && !/^GM[LH]?\d{3}/i.test(decoded) && !/^[NHK]\d{2,3}[A-Z]?[-_]/i.test(decoded)) return 'lifestyle';
   // Scaled photos are typically room/promo shots

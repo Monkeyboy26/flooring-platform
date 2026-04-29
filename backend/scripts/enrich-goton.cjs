@@ -734,14 +734,23 @@ async function run() {
         }
 
         // Also build color-name → SKU IDs map for name-based matching fallback
+        // Strip digit codes AND common qualifiers (Cross Cut, Vein Cut, etc.)
         const nameToSkuIds = new Map();
         for (const [dbColor, dbSkus] of colorGroups) {
-          const name = dbColor.replace(/\s*\d{3,}\s*/, '').trim().toLowerCase();
+          let name = dbColor.replace(/\s*\d{3,}\s*/, '').trim();
+          // Strip tile cut/finish qualifiers that won't appear in lifestyle filenames
+          name = name.replace(/\s+(Cross\s+Cut|Vein\s+Cut|Textured|Polished|Matte|Honed)\b/gi, '').trim().toLowerCase();
+          const nonAccSkus = dbSkus.filter(s => s.variant_type !== 'accessory');
+          if (nonAccSkus.length === 0) continue;
           if (name && name.length >= 3) {
             if (!nameToSkuIds.has(name)) nameToSkuIds.set(name, []);
-            for (const sku of dbSkus) {
-              if (sku.variant_type !== 'accessory') nameToSkuIds.get(name).push(sku.id);
-            }
+            for (const sku of nonAccSkus) nameToSkuIds.get(name).push(sku.id);
+          }
+          // Also add just the first word as a fallback key (e.g., "avorio" from "avorio cross cut")
+          const firstWord = name.split(/\s+/)[0];
+          if (firstWord && firstWord.length >= 3 && firstWord !== name) {
+            if (!nameToSkuIds.has(firstWord)) nameToSkuIds.set(firstWord, []);
+            for (const sku of nonAccSkus) nameToSkuIds.get(firstWord).push(sku.id);
           }
         }
 
