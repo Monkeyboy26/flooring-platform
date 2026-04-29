@@ -1991,3 +1991,51 @@ CREATE TABLE IF NOT EXISTS enrichment_results (
 
 CREATE INDEX IF NOT EXISTS idx_enrichment_results_job ON enrichment_results(enrichment_job_id);
 CREATE INDEX IF NOT EXISTS idx_enrichment_results_status ON enrichment_results(status) WHERE status = 'pending_review';
+
+-- ==================== Vendor Pipelines ====================
+
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vendor_id UUID NOT NULL REFERENCES vendors(id),
+    vendor_code TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'running',
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    current_step_index INTEGER DEFAULT 0,
+    total_steps INTEGER NOT NULL,
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_pipeline_runs_vendor ON pipeline_runs(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status ON pipeline_runs(status);
+
+CREATE TABLE IF NOT EXISTS pipeline_step_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    pipeline_run_id UUID NOT NULL REFERENCES pipeline_runs(id) ON DELETE CASCADE,
+    step_index INTEGER NOT NULL,
+    step_type VARCHAR(20) NOT NULL,
+    step_label TEXT NOT NULL,
+    step_key TEXT,
+    status VARCHAR(20) DEFAULT 'pending',
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    scrape_job_id UUID REFERENCES scrape_jobs(id),
+    exit_code INTEGER,
+    log TEXT DEFAULT '',
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_pipeline_step_runs_pipeline ON pipeline_step_runs(pipeline_run_id);
+
+-- ==================== Per-SKU Accessories ====================
+
+ALTER TABLE skus ADD COLUMN IF NOT EXISTS accessory_label TEXT;
+
+CREATE TABLE IF NOT EXISTS sku_accessories (
+  parent_sku_id UUID NOT NULL REFERENCES skus(id) ON DELETE CASCADE,
+  accessory_sku_id UUID NOT NULL REFERENCES skus(id) ON DELETE CASCADE,
+  sort_order INTEGER DEFAULT 0,
+  PRIMARY KEY (parent_sku_id, accessory_sku_id)
+);
+CREATE INDEX IF NOT EXISTS idx_sku_accessories_parent ON sku_accessories(parent_sku_id);
+CREATE INDEX IF NOT EXISTS idx_sku_accessories_accessory ON sku_accessories(accessory_sku_id);

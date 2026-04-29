@@ -51,14 +51,15 @@ const REMOTE_DIRS = [
 ];
 
 // Map EDI category text → category slugs in our DB
+// Must match slugs used by emser-catalog.js: porcelain-tile, ceramic-tile, natural-stone, mosaic-tile, luxury-vinyl
 const CATEGORY_MAP = {
-  'porcelain':             'tile',
-  'porcelain tile':        'tile',
-  'ceramic':               'tile',
-  'ceramic tile':          'tile',
-  'tile':                  'tile',
-  'floor tile':            'tile',
-  'wall tile':             'tile',
+  'porcelain':             'porcelain-tile',
+  'porcelain tile':        'porcelain-tile',
+  'ceramic':               'ceramic-tile',
+  'ceramic tile':          'ceramic-tile',
+  'tile':                  'porcelain-tile',
+  'floor tile':            'porcelain-tile',
+  'wall tile':             'ceramic-tile',
   'natural stone':         'natural-stone',
   'stone':                 'natural-stone',
   'marble':                'natural-stone',
@@ -68,13 +69,13 @@ const CATEGORY_MAP = {
   'limestone':             'natural-stone',
   'quartzite':             'natural-stone',
   'onyx':                  'natural-stone',
-  'mosaic':                'mosaic',
-  'glass':                 'mosaic',
-  'glass tile':            'mosaic',
-  'glass mosaic':          'mosaic',
-  'stone mosaic':          'mosaic',
-  'metal mosaic':          'mosaic',
-  'decorative':            'mosaic',
+  'mosaic':                'mosaic-tile',
+  'glass':                 'mosaic-tile',
+  'glass tile':            'mosaic-tile',
+  'glass mosaic':          'mosaic-tile',
+  'stone mosaic':          'mosaic-tile',
+  'metal mosaic':          'mosaic-tile',
+  'decorative':            'mosaic-tile',
   'luxury vinyl':          'luxury-vinyl',
   'luxury vinyl plank':    'luxury-vinyl',
   'luxury vinyl tile':     'luxury-vinyl',
@@ -84,11 +85,11 @@ const CATEGORY_MAP = {
   'wpc':                   'luxury-vinyl',
   'vinyl plank':           'luxury-vinyl',
   'vinyl tile':            'luxury-vinyl',
-  'outdoor':               'outdoor',
-  'paver':                 'outdoor',
-  'pavers':                'outdoor',
-  'pool tile':             'outdoor',
-  'pool coping':           'outdoor',
+  'outdoor':               'porcelain-tile',
+  'paver':                 'porcelain-tile',
+  'pavers':                'porcelain-tile',
+  'pool tile':             'porcelain-tile',
+  'pool coping':           'natural-stone',
   'grout':                 'installation-sundries',
   'setting material':      'installation-sundries',
   'setting materials':     'installation-sundries',
@@ -375,25 +376,27 @@ function parse832(raw) {
 }
 
 // MAC (material class) → category slug mapping for Emser
+// POR=porcelain, CER=ceramic, STN=stone, MOS=mosaic, GLS=glass, VIN=vinyl
+// R=residential, C=commercial
 const MAC_CATEGORY_MAP = {
-  PORTILR: 'tile',
-  PORTILC: 'tile',
-  CERTILR: 'tile',
-  CERTILC: 'tile',
+  PORTILR: 'porcelain-tile',
+  PORTILC: 'porcelain-tile',
+  CERTILR: 'ceramic-tile',
+  CERTILC: 'ceramic-tile',
   STNTILR: 'natural-stone',
   STNTILC: 'natural-stone',
-  MOSTILR: 'mosaic',
-  MOSTILC: 'mosaic',
-  GLSTILR: 'mosaic',
-  GLSTILC: 'mosaic',
+  MOSTILR: 'mosaic-tile',
+  MOSTILC: 'mosaic-tile',
+  GLSTILR: 'mosaic-tile',
+  GLSTILC: 'mosaic-tile',
   VINTILR: 'luxury-vinyl',
   VINTILC: 'luxury-vinyl',
   VINMISR: 'installation-sundries',
   SETMTL:  'installation-sundries',
   GRTCAU:  'installation-sundries',
   TRMACC:  'installation-sundries',
-  OUTDOR:  'outdoor',
-  PAVTIL:  'outdoor',
+  OUTDOR:  'porcelain-tile',
+  PAVTIL:  'porcelain-tile',
 };
 
 function cleanProductName(raw) {
@@ -785,7 +788,9 @@ export async function run(pool, job, source) {
       const vendorSku = item.vendor_sku || internalSku;
       const sellBy = item.sell_by || 'sqft';
       const variantType = group.isAccessory ? 'accessory' : null;
-      const variantName = item.color || item.product_name || null;
+      // Strip trailing size pattern from color (e.g. "Fawn 2x8" → "Fawn")
+      const rawColor = item.color || item.product_name || null;
+      const variantName = rawColor ? rawColor.replace(/\s+\d+x\d+$/i, '').trim() || rawColor : null;
 
       const skuRow = await upsertSku(pool, {
         product_id: productId,

@@ -281,7 +281,7 @@ function stripHtml(html) {
 // ─── Enrichment ──────────────────────────────────────────────────────────────
 
 // Batch queue for DB operations to avoid one-at-a-time queries
-const queue = { updates: [], images: [], attributes: [], packaging: [], specPdfs: [], discontinued: [] };
+const queue = { updates: [], images: [], attributes: [], packaging: [], specPdfs: [], discontinued: [], trims: [] };
 
 function enrichProduct(apiProduct, existingSkus, stats, catMap, skuColorMap) {
     const productNumber = (apiProduct.productNumber || '').toUpperCase();
@@ -403,70 +403,97 @@ function enrichProduct(apiProduct, existingSkus, stats, catMap, skuColorMap) {
         stats.discontinuedSet++;
     }
 
-    // ── Queue images ──
+    // ── Trim → accessory variant_type ──
+    // Emser marks trims via isTrim property; also detect by Z-prefix SKU or name keywords
+    const titleLower = title.toLowerCase();
+    const isAccessory = isTrim
+        || productNumber.startsWith('Z')
+        || /\b(bullnose|cove\s*base|pencil|quarter\s*round|v-?cap|chair\s*rail|jolly|listel|molding|edge\s*protector)\b/i.test(titleLower);
+    if (isAccessory) {
+        queue.trims.push({ skuId });
+    }
+
+    // ── Queue images (Emser-specific filename classification) ──
+    // Emser naming conventions:
+    //   _f1           → primary    (product/swatch shot, always sortOrder=1)
+    //   _f2, _f3, ... → alternate  (additional product angles)
+    //   _Scan_f1      → primary    (scanner shot for trims/bullnose)
+    //   _RoomScene_*  → lifestyle  (per-SKU room scenes)
+    //   _RS\d         → lifestyle  (shared lifestyle shots)
+    //   _expanse_*    → lifestyle  (cross-product room scenes)
+    //   _vignette_*   → lifestyle  (styled vignettes)
     const images = apiProduct.images || [];
     const imagesToSave = [];
 
-    for (let idx = 0; idx < images.length; idx++) {
-        const img = images[idx];
+    for (const img of images) {
         const imageUrl = img.largeImagePath || img.mediumImagePath || img.smallImagePath;
         if (!imageUrl || imageUrl.includes('placeholder')) continue;
 
-        const fileName = (img.name || imageUrl).toLowerCase();
-        const isLifestyle = /room|scene|lifestyle|installed|rs[_.]|roomscene|application|vignette/i.test(fileName);
+        const fileName = (img.name || imageUrl.split('/').pop() || '').toLowerCase();
+        const apiSortOrder = img.sortOrder ?? img.sort_order ?? 0;
 
-        imagesToSave.push({
-            url: imageUrl,
-            sort: idx,
-            type: isLifestyle ? 'lifestyle' : (idx === 0 ? 'primary' : 'alternate'),
-        });
+        // Classify by Emser filename patterns
+        let type;
+        if (/_scan_f\d/i.test(fileName)) {
+            type = 'primary';
+        } else if (/_f1[_.]|_f1$/i.test(fileName)) {
+            type = 'primary';
+        } else if (/_f\d+/i.test(fileName)) {
+            type = 'alternate';
+        } else if (/_roomscene[_.]|_roomscene\d/i.test(fileName)) {
+            type = 'lifestyle';
+        } else if (/_rs\d/i.test(fileName)) {
+            type = 'lifestyle';
+        } else if (/_expanse[_.]|_vignette[_.]|_expanse\d|_vignette\d/i.test(fileName)) {
+            type = 'lifestyle';
+        } else {
+            // Fallback: use generic lifestyle detection, default to alternate
+            type = isLifestyleUrl(imageUrl) ? 'lifestyle' : 'alternate';
+        }
+
+        imagesToSave.push({ url: imageUrl, apiSort: apiSortOrder, type });
     }
 
-    // Re-sort: prefer product shots as primary
-    const nonLifestyle = imagesToSave.filter(i => i.type !== 'lifestyle');
-    if (nonLifestyle.length > 0) {
-        const sorted = preferProductShot(nonLifestyle.map(i => i.url));
-        if (sorted.length > 0) {
-            const bestUrl = sorted[0];
-            for (const img of imagesToSave) {
-                if (img.type === 'lifestyle') continue;
-                if (img.url === bestUrl) {
-                    img.type = 'primary';
-                    img.sort = 0;
-                } else {
-                    img.type = 'alternate';
-                }
-            }
+    // Safety check: ensure a lifestyle image never ends up as the only "primary"
+    // If no primary was found, promote the first non-lifestyle using preferProductShot
+    const hasPrimary = imagesToSave.some(i => i.type === 'primary');
+    if (!hasPrimary && imagesToSave.length > 0) {
+        const nonLifestyle = imagesToSave.filter(i => i.type !== 'lifestyle');
+        if (nonLifestyle.length > 0) {
+            const sorted = preferProductShot(nonLifestyle.map(i => i.url));
+            const bestUrl = sorted[0] || nonLifestyle[0].url;
+            const best = imagesToSave.find(i => i.url === bestUrl);
+            if (best) best.type = 'primary';
+        } else {
+            // All images are lifestyle — promote the first one
+            imagesToSave[0].type = 'primary';
         }
     }
 
-    // Fix sort orders
-    let sortIdx = 0;
+    // Assign sort orders:
+    //   primary: always sort_order = 0
+    //   alternates: 1, 2, ... in API sortOrder sequence
+    //   lifestyles: separate 0, 1, 2, ... sequence in API sortOrder
+    imagesToSave.sort((a, b) => a.apiSort - b.apiSort);
+
+    let altSort = 1;
+    let lifeSort = 0;
     for (const img of imagesToSave) {
-        if (img.type !== 'lifestyle') img.sort = sortIdx++;
+        if (img.type === 'primary') {
+            img.sort = 0;
+        } else if (img.type === 'lifestyle') {
+            img.sort = lifeSort++;
+        } else {
+            img.sort = altSort++;
+        }
     }
 
-    // Determine if image is for this specific SKU (color-matched) or shared (room scene w/ multiple colors)
-    const colorForSku = colorVal ? colorVal.toLowerCase().replace(/\s+/g, '_') : '';
-
+    // All images from this API entry belong to this SKU — Emser's API is per-SKU,
+    // so every image (including lifestyle/room scenes) is specific to this color/size.
     for (const imgObj of imagesToSave) {
-        const filenameLower = imgObj.url.toLowerCase();
-        const isRoomScene = imgObj.type === 'lifestyle';
-
-        // Room scenes with multiple color references stay at product level
-        // SKU-specific images (primary/alternate with this color) go to SKU level
-        let targetSkuId = null;
-        if (!isRoomScene && colorForSku && filenameLower.includes(colorForSku)) {
-            targetSkuId = skuId;
-        } else if (!isRoomScene && skuId) {
-            // Non-lifestyle image from this API entry → assign to this SKU
-            targetSkuId = skuId;
-        }
-        // Lifestyle images stay at product level (shared across color variants)
-
         queue.images.push({
             product_id: productId,
-            sku_id: targetSkuId,
+            sku_id: skuId,
             asset_type: imgObj.type,
             url: imgObj.url,
             sort_order: imgObj.sort,
@@ -557,6 +584,14 @@ async function flushQueue(pool) {
         );
     }
 
+    // Trim → accessory variant_type
+    for (const t of queue.trims) {
+        await pool.query(
+            `UPDATE skus SET variant_type = 'accessory', updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND COALESCE(variant_type, '') != 'accessory'`,
+            [t.skuId]
+        );
+    }
+
     // Clear queues
     queue.updates.length = 0;
     queue.images.length = 0;
@@ -564,6 +599,7 @@ async function flushQueue(pool) {
     queue.packaging.length = 0;
     queue.specPdfs.length = 0;
     queue.discontinued.length = 0;
+    queue.trims.length = 0;
 }
 
 // ─── Name-Based Fallback ─────────────────────────────────────────────────────
@@ -771,28 +807,33 @@ function buildCdnUrl(filename) {
 }
 
 /**
- * For products that already have a primary image on the Emser CDN but no
+ * For SKUs that already have a primary image on the Emser CDN but no
  * lifestyle images, attempt to construct room scene URLs by replacing the
- * _f1_large.jpg suffix with _roomscene_01 through _03, then HEAD-checking.
+ * _f1_large.jpg suffix with _roomscene_01 through _06 and _RS1 through _RS6,
+ * then HEAD-checking. Works at SKU level (sku_id IS NOT NULL).
  */
 async function addRoomScenes(pool, vendorId, job) {
     const candidates = await pool.query(`
-        SELECT p.id, ma.url AS primary_url
-        FROM products p
-        JOIN media_assets ma ON ma.product_id = p.id
-            AND ma.asset_type = 'primary' AND ma.sku_id IS NULL
+        SELECT ma.product_id, ma.sku_id, ma.url AS primary_url
+        FROM media_assets ma
+        JOIN skus s ON s.id = ma.sku_id
+        JOIN products p ON p.id = s.product_id
         WHERE p.vendor_id = $1
+          AND ma.asset_type = 'primary'
+          AND ma.sku_id IS NOT NULL
           AND ma.url LIKE '%cloudfront.net%'
           AND NOT EXISTS (
               SELECT 1 FROM media_assets ma2
-              WHERE ma2.product_id = p.id AND ma2.asset_type = 'lifestyle'
+              WHERE ma2.product_id = ma.product_id
+                AND ma2.sku_id = ma.sku_id
+                AND ma2.asset_type = 'lifestyle'
           )
     `, [vendorId]);
 
     if (candidates.rows.length === 0) return 0;
 
     await appendLog(pool, job.id,
-        `Room scene pass: checking ${candidates.rows.length} products for CDN room scenes`
+        `Room scene pass: checking ${candidates.rows.length} SKUs for CDN room scenes`
     );
 
     let added = 0;
@@ -807,11 +848,17 @@ async function addRoomScenes(pool, vendorId, job) {
                 // Strip known suffixes to get the base: series_color_sku
                 const base = filename
                     .replace(/_f\d+_large\.(jpg|jpeg|png|webp)$/i, '')
+                    .replace(/_scan_f\d+_large\.(jpg|jpeg|png|webp)$/i, '')
                     .replace(/_large\.(jpg|jpeg|png|webp)$/i, '');
 
                 if (!base || base === filename) return;
 
-                const suffixes = ['roomscene_01', 'roomscene_02', 'roomscene_03'];
+                // Check _roomscene_01 through _06 and _RS1 through _RS6
+                const suffixes = [
+                    'roomscene_01', 'roomscene_02', 'roomscene_03',
+                    'roomscene_04', 'roomscene_05', 'roomscene_06',
+                    'rs1', 'rs2', 'rs3', 'rs4', 'rs5', 'rs6',
+                ];
                 let sortOrder = 0;
 
                 for (const suffix of suffixes) {
@@ -825,7 +872,8 @@ async function addRoomScenes(pool, vendorId, job) {
                         });
                         if (headRes.ok) {
                             await upsertMediaAsset(pool, {
-                                product_id: row.id, sku_id: null,
+                                product_id: row.product_id,
+                                sku_id: row.sku_id,
                                 asset_type: 'lifestyle', url: rsUrl,
                                 original_url: rsUrl, sort_order: sortOrder++,
                             });
@@ -836,13 +884,13 @@ async function addRoomScenes(pool, vendorId, job) {
                     }
                 }
             } catch {
-                // Skip individual product errors
+                // Skip individual SKU errors
             }
         }));
 
         if ((i + CONCURRENCY) % 200 < CONCURRENCY || i + CONCURRENCY >= candidates.rows.length) {
             await appendLog(pool, job.id,
-                `Room scenes: checked ${Math.min(i + CONCURRENCY, candidates.rows.length)}/${candidates.rows.length}, found ${added}`
+                `Room scenes: checked ${Math.min(i + CONCURRENCY, candidates.rows.length)}/${candidates.rows.length} SKUs, found ${added}`
             );
         }
     }
@@ -942,6 +990,12 @@ async function loadCategoryMap(pool) {
 // ─── Category Resolution ─────────────────────────────────────────────────────
 
 function resolveCategory(productType, material, collectionName, catMap, structuredMaterial) {
+    const combined = (productType + ' ' + (material || '') + ' ' + (collectionName || '')).toLowerCase();
+
+    // Mosaic/glass in the name always wins — even if structured material says porcelain/ceramic
+    if (combined.includes('mosaic') || combined.includes('glass') || combined.includes('pebble'))
+        return catMap['mosaic-tile'] || null;
+
     // Prefer structured Material Type/IC1 attribute when available
     if (structuredMaterial) {
         const sm = structuredMaterial.toLowerCase();
@@ -955,12 +1009,8 @@ function resolveCategory(productType, material, collectionName, catMap, structur
     }
 
     // Fallback to combined text matching
-    const combined = (productType + ' ' + (material || '') + ' ' + (collectionName || '')).toLowerCase();
-
     if (combined.includes('lvt') || combined.includes('luxury vinyl') || combined.includes('plank'))
         return catMap['luxury-vinyl'] || catMap['lvp-plank'] || null;
-    if (combined.includes('mosaic') || combined.includes('glass') || combined.includes('pebble'))
-        return catMap['mosaic-tile'] || null;
     if (combined.includes('quarry'))
         return catMap['ceramic-tile'] || null;
     if (combined.includes('ledger') || combined.includes('stacked'))

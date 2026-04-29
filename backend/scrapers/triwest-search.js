@@ -642,3 +642,128 @@ export async function searchByManufacturer(page, mfgrCode, pool, jobId, opts = {
   allRows = [...seenItems.values()];
   return allRows.slice(0, maxRows);
 }
+
+/**
+ * Search DNav using the keyword/item search form (not the manufacturer dropdown).
+ * Useful for searching by collection name, item prefix, or product description.
+ *
+ * @param {import('puppeteer').Page} page - Authenticated Puppeteer page on search form
+ * @param {string} keyword - Text to search (e.g., "LOUVRE", "STXLC", "MEDITERRANEAN")
+ * @param {object} pool - DB pool for logging
+ * @param {number} jobId - Scrape job ID
+ * @param {object} [opts]
+ * @param {number} [opts.maxRows=3000] - Max rows to collect
+ * @returns {Promise<object[]>} All parsed rows matching the keyword
+ */
+export async function searchByKeyword(page, keyword, pool, jobId, opts = {}) {
+  const maxRows = opts.maxRows || 3000;
+
+  // Find and fill the keyword search input, then submit
+  const searchResult = await page.evaluate((kw) => {
+    const forms = document.querySelectorAll('form');
+    const formInfo = [];
+
+    // Find the item_search form (keyword search, not advanced)
+    for (const form of forms) {
+      const action = form.action || '';
+      const id = form.id || '';
+      const inputs = Array.from(form.querySelectorAll('input'));
+      const inputNames = inputs.map(i => `${i.type}:${i.name||i.id||'?'}`).join(', ');
+      formInfo.push({ action: action.slice(-60), id, inputs: inputNames });
+
+      if (action.includes('item_search') && !action.includes('advanced')) {
+        const textInput = form.querySelector('input[type="text"]');
+        if (textInput) {
+          textInput.value = kw;
+          const btn = form.querySelector('input[type="submit"]');
+          if (btn) { btn.click(); return { clicked: true }; }
+        }
+      }
+    }
+
+    // Fallback: find the keyword search input by name pattern
+    const allInputs = document.querySelectorAll('input[type="text"]');
+    for (const input of allInputs) {
+      const name = (input.name || '').toLowerCase();
+      const id = (input.id || '').toLowerCase();
+      if (name.includes('search') || name.includes('keyword') || name.includes('item')
+        || id.includes('search') || id.includes('keyword') || id.includes('item')) {
+        input.value = kw;
+        const form = input.closest('form');
+        if (form) {
+          const btn = form.querySelector('input[type="submit"]');
+          if (btn) { btn.click(); return { clicked: true }; }
+        }
+      }
+    }
+
+    // Last resort: find ANY visible text input that's not in a login/register form
+    for (const input of allInputs) {
+      const form = input.closest('form');
+      const formAction = form ? (form.action || '') : '';
+      if (formAction.includes('login') || formAction.includes('register')) continue;
+      const rect = input.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        input.value = kw;
+        if (form) {
+          const btn = form.querySelector('input[type="submit"]');
+          if (btn) { btn.click(); return { clicked: true }; }
+        }
+      }
+    }
+
+    return { clicked: false, forms: formInfo };
+  }, keyword);
+
+  if (!searchResult.clicked) {
+    const formDebug = searchResult.forms ? searchResult.forms.map(f => `  ${f.id||'(no-id)'}: ${f.action} [${f.inputs}]`).join('\n') : 'none';
+    await appendLog(pool, jobId, `  Could not find keyword search form for "${keyword}". Forms on page:\n${formDebug}`);
+    return [];
+  }
+
+  await delay(6000);
+
+  let allRows = await parseResultsTable(page);
+
+  if (allRows.length === 0) {
+    const pageText = await page.evaluate(() => document.body.innerText.slice(0, 500)).catch(() => '');
+    if (pageText.toLowerCase().includes('no items') || pageText.toLowerCase().includes('no results') || pageText.toLowerCase().includes('0 items')) {
+      await appendLog(pool, jobId, `  "${keyword}": 0 results`);
+      return [];
+    }
+    await appendLog(pool, jobId, `  "${keyword}": table parse returned 0 rows`);
+    return [];
+  }
+
+  await appendLog(pool, jobId, `  "${keyword}": initial page has ${allRows.length} rows`);
+
+  // Deduplicate and paginate
+  const seenItems = new Map();
+  for (const row of allRows) {
+    if (row.itemNumber && !seenItems.has(row.itemNumber)) {
+      seenItems.set(row.itemNumber, row);
+    }
+  }
+
+  let paginationAttempts = 0;
+  const MAX_PAGINATION = 50;
+
+  while (seenItems.size < maxRows && paginationAttempts < MAX_PAGINATION) {
+    const prevCount = seenItems.size;
+    const moreAvailable = await clickMoreResults(page);
+    if (!moreAvailable) break;
+
+    paginationAttempts++;
+    const newRows = await parseResultsTable(page);
+    for (const row of newRows) {
+      if (row.itemNumber && !seenItems.has(row.itemNumber)) {
+        seenItems.set(row.itemNumber, row);
+      }
+    }
+    if (seenItems.size === prevCount) break;
+    await appendLog(pool, jobId, `  "${keyword}": after "More" #${paginationAttempts}, now ${seenItems.size} unique rows`);
+  }
+
+  allRows = [...seenItems.values()];
+  return allRows.slice(0, maxRows);
+}

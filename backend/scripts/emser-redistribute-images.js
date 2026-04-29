@@ -2,15 +2,16 @@
 /**
  * Emser Tile — Redistribute Product-Level Images to SKU Level
  *
- * Problem: All 8,062 Emser images are stored at the product level (sku_id IS NULL),
- * so every color variant of a product shows the same pool of mixed images.
+ * Problem: The catalog scraper stored lifestyle/room-scene images at product level
+ * (sku_id IS NULL), so ALL color variants share the same secondary photos.
+ * Emser's API returns images per-SKU — each image belongs to a specific SKU.
  *
  * Strategy:
- *   1. For each multi-color Emser product, get its color SKUs and image URLs
- *   2. Parse the color name from each image filename (pattern: series_COLOR_sku_...)
- *   3. Match image → SKU by color. Assign as SKU-level image.
- *   4. Images referencing multiple colors or no color stay at product level as lifestyle/shared.
- *   5. Reassign asset_type: SKU-level color images get primary/alternate, shared remain lifestyle.
+ *   1. Match by vendor_sku code in the filename (most reliable — e.g. j01bconsi1224)
+ *   2. Fall back to color name matching in filename
+ *   3. No match → keep at product level
+ *   4. Delete redundant product-level primaries where SKU-level primaries exist
+ *   5. Skip spec_pdf (always shared)
  *
  * Usage: docker compose exec api node scripts/emser-redistribute-images.js [--dry-run]
  */
@@ -30,183 +31,175 @@ async function main() {
   if (!vendorRes.rows.length) { console.error('Vendor EMSER not found'); process.exit(1); }
   const vendorId = vendorRes.rows[0].id;
 
-  // Get all active Emser products with their SKUs
-  const products = await pool.query(`
-    SELECT p.id as product_id, p.name, p.collection,
-      json_agg(json_build_object(
-        'sku_id', s.id,
-        'vendor_sku', s.vendor_sku,
-        'variant_name', s.variant_name,
-        'variant_type', s.variant_type
-      ) ORDER BY s.vendor_sku) as skus
-    FROM products p
-    JOIN vendors v ON v.id = p.vendor_id
-    JOIN skus s ON s.product_id = p.id
-    WHERE p.vendor_id = $1 AND p.status = 'active'
-    GROUP BY p.id, p.name, p.collection
-    ORDER BY p.collection, p.name
-  `, [vendorId]);
-
-  console.log(`Loaded ${products.rows.length} active products`);
-
-  // Load color attributes for all SKUs in one query
-  const colorRes = await pool.query(`
-    SELECT sa.sku_id, sa.value
-    FROM sku_attributes sa
-    JOIN attributes a ON a.id = sa.attribute_id
-    JOIN skus s ON s.id = sa.sku_id
+  // Get all Emser SKUs with vendor_sku and color
+  const skuRes = await pool.query(`
+    SELECT s.id as sku_id, s.product_id, lower(s.vendor_sku) as vsku, s.variant_name,
+      (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+       WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) as color
+    FROM skus s
     JOIN products p ON p.id = s.product_id
-    JOIN vendors v ON v.id = p.vendor_id
-    WHERE a.slug = 'color' AND p.vendor_id = $1
+    WHERE p.vendor_id = $1 AND (s.variant_type IS NULL OR s.variant_type != 'accessory')
   `, [vendorId]);
-  const colorBySku = new Map();
-  for (const row of colorRes.rows) colorBySku.set(row.sku_id, row.value);
-  console.log(`Loaded ${colorBySku.size} SKU color attributes`);
 
-  // Get all product-level images
+  // Build lookup: product_id → [{sku_id, vsku, color}]
+  const skusByProduct = new Map();
+  for (const row of skuRes.rows) {
+    if (!skusByProduct.has(row.product_id)) skusByProduct.set(row.product_id, []);
+    skusByProduct.get(row.product_id).push(row);
+  }
+  console.log(`Loaded ${skuRes.rows.length} SKUs across ${skusByProduct.size} products`);
+
+  // Get all product-level images (excluding spec_pdf)
   const images = await pool.query(`
     SELECT ma.id, ma.product_id, ma.asset_type, ma.url, ma.sort_order
     FROM media_assets ma
     JOIN products p ON p.id = ma.product_id
-    JOIN vendors v ON v.id = p.vendor_id
-    WHERE p.vendor_id = $1 AND ma.sku_id IS NULL
+    WHERE p.vendor_id = $1 AND ma.sku_id IS NULL AND ma.asset_type != 'spec_pdf'
     ORDER BY ma.product_id, ma.sort_order
   `, [vendorId]);
 
-  // Index images by product_id
   const imagesByProduct = new Map();
   for (const img of images.rows) {
     if (!imagesByProduct.has(img.product_id)) imagesByProduct.set(img.product_id, []);
     imagesByProduct.get(img.product_id).push(img);
   }
+  console.log(`Found ${images.rows.length} product-level images across ${imagesByProduct.size} products`);
 
-  let totalProcessed = 0;
-  let totalReassigned = 0;
-  let totalKeptShared = 0;
-  let productsProcessed = 0;
-  let productsSkipped = 0;
+  // Check which products have SKU-level primaries
+  const skuPrimaryRes = await pool.query(`
+    SELECT DISTINCT ma.product_id
+    FROM media_assets ma
+    JOIN products p ON p.id = ma.product_id
+    WHERE p.vendor_id = $1 AND ma.sku_id IS NOT NULL AND ma.asset_type = 'primary'
+  `, [vendorId]);
+  const hasSkuPrimaries = new Set(skuPrimaryRes.rows.map(r => r.product_id));
 
-  for (const prod of products.rows) {
-    const prodImages = imagesByProduct.get(prod.product_id);
-    if (!prodImages || prodImages.length === 0) continue;
+  // Track existing SKU-level URLs
+  const existingRes = await pool.query(`
+    SELECT ma.sku_id, ma.url
+    FROM media_assets ma
+    JOIN products p ON p.id = ma.product_id
+    WHERE p.vendor_id = $1 AND ma.sku_id IS NOT NULL
+  `, [vendorId]);
+  const existingSkuUrls = new Set();
+  for (const r of existingRes.rows) existingSkuUrls.add(`${r.sku_id}:${r.url}`);
 
-    // Attach colors from the lookup map
-    const skus = prod.skus
-      .filter(s => s.variant_type !== 'accessory')
-      .map(s => ({ ...s, color: colorBySku.get(s.sku_id) || null }));
-    const skusWithColor = skus.filter(s => s.color);
+  let stats = { processed: 0, skuMatched: 0, colorMatched: 0, kept: 0, deleted: 0, deduped: 0, inserted: 0 };
 
-    if (skusWithColor.length <= 1) {
-      // Single-color or no-color product — leave images at product level
-      productsSkipped++;
-      continue;
-    }
+  for (const [productId, prodImages] of imagesByProduct) {
+    const skus = skusByProduct.get(productId);
+    if (!skus || skus.length === 0) continue;
 
-    productsProcessed++;
-
-    // Build color → SKU mapping
-    // Normalize color names for filename matching
-    const colorToSku = new Map();
-    const colorNorms = []; // [{norm, skuId, originalColor}]
-    for (const sku of skusWithColor) {
-      const norm = sku.color.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-      colorToSku.set(norm, sku.sku_id);
-      colorNorms.push({ norm, skuId: sku.sku_id, original: sku.color });
-
-      // Also try variant_name as fallback (sometimes differs from color attribute)
-      if (sku.variant_name) {
-        const vnorm = sku.variant_name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-        if (vnorm !== norm) {
-          colorToSku.set(vnorm, sku.sku_id);
-          colorNorms.push({ norm: vnorm, skuId: sku.sku_id, original: sku.variant_name });
-        }
-      }
-    }
-
-    // Match each image to a SKU by color in filename
-    const skuImages = new Map(); // skuId → [{url, asset_type}]
-    const sharedImages = [];     // Images that stay at product level
+    const seenUrls = new Set();
 
     for (const img of prodImages) {
-      const filename = img.url.split('/').pop().toLowerCase();
+      // Deduplicate
+      if (seenUrls.has(img.url)) {
+        if (!DRY_RUN) await pool.query('DELETE FROM media_assets WHERE id = $1', [img.id]);
+        stats.deduped++;
+        continue;
+      }
+      seenUrls.add(img.url);
 
-      // Find which colors appear in this filename
-      const matchedSkuIds = new Set();
-      for (const { norm, skuId } of colorNorms) {
-        // Check if color appears as a word boundary in the filename
-        // Pattern: _COLOR_ or _COLOR. or series_COLOR_sku
-        if (norm.length >= 3 && filename.includes(norm)) {
-          matchedSkuIds.add(skuId);
+      // Delete redundant product-level primaries
+      if (img.asset_type === 'primary' && hasSkuPrimaries.has(productId)) {
+        if (!DRY_RUN) await pool.query('DELETE FROM media_assets WHERE id = $1', [img.id]);
+        stats.deleted++;
+        continue;
+      }
+
+      const filename = img.url.split('/').pop().toLowerCase().replace(/[\s_-]+/g, '');
+
+      // Strategy 1: Match by vendor_sku in filename (most reliable)
+      let matchedSkuIds = [];
+      for (const sku of skus) {
+        if (sku.vsku && sku.vsku.length >= 6 && filename.includes(sku.vsku.replace(/[\s_-]+/g, ''))) {
+          matchedSkuIds.push(sku.sku_id);
         }
       }
 
-      if (matchedSkuIds.size === 1) {
-        // Single color match — assign to that SKU
-        const skuId = [...matchedSkuIds][0];
-        if (!skuImages.has(skuId)) skuImages.set(skuId, []);
-        skuImages.get(skuId).push(img);
-        totalReassigned++;
-      } else {
-        // 0 or multiple color matches — keep as shared product-level image
-        sharedImages.push(img);
-        totalKeptShared++;
-      }
-    }
-
-    if (totalReassigned === 0 && productsProcessed % 100 === 0) {
-      // Progress reporting
-    }
-
-    // Apply changes
-    if (!DRY_RUN) {
-      // 1. Delete all existing product-level images for this product
-      await pool.query('DELETE FROM media_assets WHERE product_id = $1 AND sku_id IS NULL', [prod.product_id]);
-
-      // 2. Re-insert shared images at product level
-      for (let i = 0; i < sharedImages.length; i++) {
-        const img = sharedImages[i];
-        const isLifestyle = /room|scene|lifestyle|rs[_.]|roomscene|application|vignette/i.test(img.url);
-        const assetType = isLifestyle ? 'lifestyle' : (i === 0 ? 'primary' : 'alternate');
-        await pool.query(
-          `INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
-           VALUES ($1, NULL, $2, $3, $3, $4)
-           ON CONFLICT (product_id, asset_type, sort_order) WHERE sku_id IS NULL DO UPDATE SET url = EXCLUDED.url`,
-          [prod.product_id, assetType, img.url, i]
-        );
+      if (matchedSkuIds.length > 0) {
+        // Delete the product-level image, insert per matched SKU
+        if (!DRY_RUN) await pool.query('DELETE FROM media_assets WHERE id = $1', [img.id]);
+        for (const skuId of matchedSkuIds) {
+          if (!existingSkuUrls.has(`${skuId}:${img.url}`)) {
+            const nextSort = await pool.query(
+              `SELECT COALESCE(MAX(sort_order), -1) + 1 as n FROM media_assets WHERE product_id = $1 AND sku_id = $2 AND asset_type = $3`,
+              [productId, skuId, img.asset_type]
+            );
+            if (!DRY_RUN) await pool.query(
+              `INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
+               VALUES ($1, $2, $3, $4, $4, $5)
+               ON CONFLICT (product_id, sku_id, asset_type, sort_order) WHERE sku_id IS NOT NULL DO UPDATE SET url = EXCLUDED.url`,
+              [productId, skuId, img.asset_type, img.url, nextSort.rows[0].n]
+            );
+            existingSkuUrls.add(`${skuId}:${img.url}`);
+            stats.inserted++;
+          }
+        }
+        stats.skuMatched++;
+        continue;
       }
 
-      // 3. Insert SKU-level images
-      for (const [skuId, imgs] of skuImages) {
-        for (let i = 0; i < imgs.length; i++) {
-          const img = imgs[i];
-          const isLifestyle = /room|scene|lifestyle|rs[_.]|roomscene|application|vignette/i.test(img.url);
-          const assetType = isLifestyle ? 'lifestyle' : (i === 0 ? 'primary' : 'alternate');
-          await pool.query(
-            `INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
-             VALUES ($1, $2, $3, $4, $4, $5)
-             ON CONFLICT (product_id, sku_id, asset_type, sort_order) WHERE sku_id IS NOT NULL DO UPDATE SET url = EXCLUDED.url`,
-            [prod.product_id, skuId, assetType, img.url, i]
-          );
+      // Strategy 2: Match by color in filename (only for multi-color products)
+      const distinctColors = new Map(); // normalized color → [skuIds]
+      for (const sku of skus) {
+        const color = (sku.color || sku.variant_name || '').toLowerCase().replace(/[\s_-]+/g, '');
+        if (color.length < 3) continue;
+        if (!distinctColors.has(color)) distinctColors.set(color, []);
+        distinctColors.get(color).push(sku.sku_id);
+      }
+
+      if (distinctColors.size > 1) {
+        const colorMatches = [];
+        for (const [color, skuIds] of distinctColors) {
+          if (filename.includes(color)) colorMatches.push({ color, skuIds });
+        }
+
+        if (colorMatches.length === 1) {
+          // Single color match — assign to all SKUs of that color
+          if (!DRY_RUN) await pool.query('DELETE FROM media_assets WHERE id = $1', [img.id]);
+          for (const skuId of colorMatches[0].skuIds) {
+            if (!existingSkuUrls.has(`${skuId}:${img.url}`)) {
+              const nextSort = await pool.query(
+                `SELECT COALESCE(MAX(sort_order), -1) + 1 as n FROM media_assets WHERE product_id = $1 AND sku_id = $2 AND asset_type = $3`,
+                [productId, skuId, img.asset_type]
+              );
+              if (!DRY_RUN) await pool.query(
+                `INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
+                 VALUES ($1, $2, $3, $4, $4, $5)
+                 ON CONFLICT (product_id, sku_id, asset_type, sort_order) WHERE sku_id IS NOT NULL DO UPDATE SET url = EXCLUDED.url`,
+                [productId, skuId, img.asset_type, img.url, nextSort.rows[0].n]
+              );
+              existingSkuUrls.add(`${skuId}:${img.url}`);
+              stats.inserted++;
+            }
+          }
+          stats.colorMatched++;
+          continue;
         }
       }
+
+      // No match → keep at product level
+      stats.kept++;
     }
 
-    totalProcessed += prodImages.length;
-
-    if (productsProcessed % 50 === 0) {
-      console.log(`  Progress: ${productsProcessed} products, ${totalReassigned} images → SKU level, ${totalKeptShared} shared`);
+    stats.processed++;
+    if (stats.processed % 100 === 0) {
+      console.log(`  ${stats.processed} products | sku-match: ${stats.skuMatched}, color-match: ${stats.colorMatched}, kept: ${stats.kept}, inserted: ${stats.inserted}`);
     }
   }
 
-  console.log(`\n${'='.repeat(50)}`);
-  console.log(`Products processed: ${productsProcessed}`);
-  console.log(`Products skipped (single-color): ${productsSkipped}`);
-  console.log(`Images reassigned to SKU level: ${totalReassigned}`);
-  console.log(`Images kept as shared (product level): ${totalKeptShared}`);
-  console.log(`Total images processed: ${totalProcessed}`);
-  console.log(`${'='.repeat(50)}\n`);
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`Products processed: ${stats.processed}`);
+  console.log(`Matched by vendor_sku: ${stats.skuMatched}`);
+  console.log(`Matched by color: ${stats.colorMatched}`);
+  console.log(`SKU-level copies inserted: ${stats.inserted}`);
+  console.log(`Redundant primaries deleted: ${stats.deleted}`);
+  console.log(`Duplicates removed: ${stats.deduped}`);
+  console.log(`Kept at product level: ${stats.kept}`);
+  console.log(`${'='.repeat(60)}\n`);
 
-  // Verify
   const verify = await pool.query(`
     SELECT
       COUNT(CASE WHEN ma.sku_id IS NOT NULL THEN 1 END) as sku_level,
@@ -214,11 +207,10 @@ async function main() {
       COUNT(*) as total
     FROM media_assets ma
     JOIN products p ON p.id = ma.product_id
-    JOIN vendors v ON v.id = p.vendor_id
-    WHERE v.code = 'EMSER'
-  `);
+    WHERE p.vendor_id = $1
+  `, [vendorId]);
   const v = verify.rows[0];
-  console.log(`Final: ${v.sku_level} SKU-level, ${v.product_level} product-level, ${v.total} total images`);
+  console.log(`Final: ${v.sku_level} SKU-level, ${v.product_level} product-level, ${v.total} total`);
 
   await pool.end();
 }

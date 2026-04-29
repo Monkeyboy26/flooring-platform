@@ -1,8 +1,10 @@
 import {
   upsertProduct, upsertSku, upsertPricing, upsertPackaging,
   upsertMediaAsset, upsertSkuAttribute,
-  appendLog, addJobError
+  appendLog, addJobError, launchBrowser, delay, fuzzyMatch
 } from './base.js';
+import { triwestLogin } from './triwest-auth.js';
+import { searchByManufacturer } from './triwest-search.js';
 
 // ── API Endpoints ──
 const BLOOMREACH_URL = 'https://core.dxpapi.com/api/v1/core/';
@@ -51,6 +53,7 @@ export async function run(pool, job, source) {
     imagesAdded: 0, attributesAdded: 0,
     pimHits: 0, pimMisses: 0,
     costMatched: 0,
+    dnavMatched: 0,
   };
 
   async function logError(msg) {
@@ -397,12 +400,104 @@ export async function run(pool, job, source) {
       }
     }
 
+    // ── Step 5: DNav pricing for unpriced SKUs ──
+    const unpricedResult = await pool.query(`
+      SELECT s.id AS sku_id, s.variant_name, s.vendor_sku, p.name AS product_name, p.collection
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id AND pr.cost IS NOT NULL AND CAST(pr.cost AS numeric) > 0
+      WHERE p.vendor_id = $1 AND p.collection = 'Quick-Step'
+        AND s.variant_type IS NULL AND pr.sku_id IS NULL
+    `, [vendor_id]);
+
+    if (unpricedResult.rows.length > 0) {
+      await appendLog(pool, job.id,
+        `Step 5: DNav pricing for ${unpricedResult.rows.length} unpriced SKUs...`);
+
+      let dnavBrowser;
+      try {
+        const session = await triwestLogin(pool, job.id);
+        dnavBrowser = session.browser;
+        const dnavPage = session.page;
+
+        const dnavRows = await searchByManufacturer(dnavPage, 'UNL', pool, job.id, { maxRows: 5000 });
+        await appendLog(pool, job.id, `  DNav returned ${dnavRows.length} rows for UNL`);
+
+        if (dnavRows.length > 0) {
+          // Build lookup from unpriced SKUs: normalizedColor → sku row
+          const unpricedMap = new Map();
+          for (const row of unpricedResult.rows) {
+            const normColor = (row.variant_name || '').toLowerCase().trim().replace(/[-_]/g, ' ');
+            unpricedMap.set(normColor, row);
+          }
+
+          const retailMarkup = (source.config || {}).retail_markup || 2.0;
+
+          for (const dnavRow of dnavRows) {
+            if (!dnavRow.sqftPrice || dnavRow.sqftPrice <= 0) continue;
+            const dnavColor = (dnavRow.color || '').toLowerCase().trim().replace(/[-_]/g, ' ');
+            if (!dnavColor) continue;
+
+            // Exact match
+            let match = unpricedMap.get(dnavColor);
+
+            // Fuzzy match
+            if (!match) {
+              let bestScore = 0;
+              let bestEntry = null;
+              for (const [key, entry] of unpricedMap) {
+                const score = fuzzyMatch(dnavColor, key);
+                if (score > bestScore && score >= 0.8) {
+                  bestScore = score;
+                  bestEntry = entry;
+                }
+              }
+              if (bestEntry) match = bestEntry;
+            }
+
+            if (match) {
+              await upsertPricing(pool, match.sku_id, {
+                cost: dnavRow.sqftPrice,
+                retail_price: parseFloat((dnavRow.sqftPrice * retailMarkup).toFixed(2)),
+                price_basis: 'per_sqft',
+              }, { jobId: job.id });
+
+              if (dnavRow.sqftPerBox) {
+                await upsertPackaging(pool, match.sku_id, {
+                  sqft_per_box: dnavRow.sqftPerBox,
+                }, { jobId: job.id });
+              }
+
+              // Update vendor_sku from DNav if missing
+              await pool.query(`
+                UPDATE skus SET vendor_sku = $2, updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1 AND (vendor_sku IS NULL OR vendor_sku = '' OR vendor_sku LIKE 'QS%')
+              `, [match.sku_id, dnavRow.itemNumber]);
+
+              stats.dnavMatched++;
+              unpricedMap.delete((match.variant_name || '').toLowerCase().trim().replace(/[-_]/g, ' '));
+            }
+          }
+        }
+
+        await appendLog(pool, job.id,
+          `  DNav matched: ${stats.dnavMatched}/${unpricedResult.rows.length}`);
+      } catch (dnavErr) {
+        await appendLog(pool, job.id,
+          `  DNav pricing failed: ${dnavErr.message}`);
+      } finally {
+        if (dnavBrowser) try { await dnavBrowser.close(); } catch {}
+      }
+    } else {
+      await appendLog(pool, job.id, 'Step 5: All SKUs already priced, skipping DNav');
+    }
+
     // ── Summary ──
     await appendLog(pool, job.id,
       `Complete. Products: ${stats.productsCreated} new + ${stats.productsUpdated} updated. ` +
       `SKUs: ${stats.skusCreated} new + ${stats.skusUpdated} updated. ` +
       `Images: ${stats.imagesAdded}. Attrs: ${stats.attributesAdded}. ` +
-      `Cost matched: ${stats.costMatched}/${totalColors}. ` +
+      `Cost matched: ${stats.costMatched}/${totalColors}. DNav: ${stats.dnavMatched}. ` +
       `PIM: ${stats.pimHits}/${stats.pimHits + stats.pimMisses}. ` +
       `Errors: ${errorCount}`,
       {
@@ -420,10 +515,6 @@ export async function run(pool, job, source) {
 }
 
 // ── Helpers ──
-
-function delay(ms) {
-  return new Promise(r => setTimeout(r, ms));
-}
 
 /** Extract first string from array-or-scalar field */
 function firstStr(v) {

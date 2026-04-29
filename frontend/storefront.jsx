@@ -44,14 +44,22 @@
 
     function isSoldPerUnit(sku) {
       if (!sku) return false;
-      return sku.sell_by === 'unit' || sku.price_basis === 'per_unit';
+      // sell_by is authoritative; fall back to price_basis only when sell_by is unset
+      if (sku.sell_by) return sku.sell_by === 'unit';
+      return sku.price_basis === 'per_unit';
     }
     function isSoldPerSqyd(sku) {
       if (!sku) return false;
-      return sku.sell_by === 'sqyd' || sku.price_basis === 'per_sqyd';
+      if (sku.sell_by) return sku.sell_by === 'sqyd';
+      return sku.price_basis === 'per_sqyd';
     }
     function isCarpet(sku) {
       return sku && sku.cut_price != null;
+    }
+    function parseRollWidthFt(productName) {
+      if (!productName) return 0;
+      const m = productName.match(/(?:^|\D)(12|6(?:\.\d{1,2})?)(?:\D|$)/);
+      return m ? parseFloat(m[1]) : 0;
     }
     function carpetSqftPrice(sqydPrice) {
       return (parseFloat(sqydPrice) / 9).toFixed(2);
@@ -108,9 +116,11 @@
           u.searchParams.set('qlt', '80');
           return u.toString();
         }
-        // Cloudinary: res.cloudinary.com — insert transforms after /upload/
+        // Cloudinary: res.cloudinary.com — insert/replace transforms after /upload/
         if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
-          return url.replace('/upload/', `/upload/w_${width},f_auto,q_80/`);
+          // Replace existing transform groups (letter_value patterns) or insert new ones
+          // Stops before version segment (v1/, v2/) or asset path
+          return url.replace(/\/upload\/(?:[a-z]_[^/]+\/)*/, `/upload/w_${width},f_auto,q_80/`);
         }
         // Widen: *.widen.net
         if (url.includes('.widen.net')) {
@@ -129,7 +139,8 @@
           'landoftile.com', 'milestonetiles.com', 'midwesttile.com',
           'domita.it', 'refin-ceramic-tiles.com', 'tilelook.com',
           'somertile.com', 'equipeceramicas.com', 'edilportale.com', 'cegoceramiche.com',
-          'manningtonprod.pimcoreclient.com'
+          'manningtonprod.pimcoreclient.com', 'www.hartco.com',
+          'armstrongflooring.com'
         ];
         if (url.startsWith('/uploads/rom440/') || PROXY_DOMAINS.some(d => url.includes(d))) {
           return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
@@ -529,6 +540,7 @@
       'moulding':'Molding','wall base':'Wall Base','underlayment':'Underlayment',
       'stair treads & nosing':'Stair Tread',
       'hardscaping':'Paver','pavers':'Paver','stacked stone':'Stacked Stone',
+      'sheet vinyl':'Sheet Vinyl','vct':'VCT','vbt':'VBT',
     };
     function appendTypeSuffix(text, categoryName) {
       if (!categoryName) return text;
@@ -538,6 +550,8 @@
       const words = suffix.toLowerCase().split(/\s+/);
       if (lower.includes(suffix.toLowerCase())) return text;
       if (words.length > 1 && words.every(w => lower.includes(w))) return text;
+      // If the primary keyword (e.g. "Mosaic", "Hardwood") already appears in the name, skip
+      if (words.length > 0 && new RegExp('\\b' + words[0] + '\\b', 'i').test(text)) return text;
       return text + ' ' + suffix;
     }
     function stripTypeSuffix(text, categoryName) {
@@ -593,8 +607,14 @@
           // collection = "Brand - Name" where product name equals the suffix
           // → show brand only as prefix to avoid "Provenza - Affinity Affinity Mellow"
           const dashIdx = col.indexOf(' - ');
-          if (dashIdx > 0 && nameLower === col.slice(dashIdx + 3).toLowerCase().trim()) {
-            showCollection = col.slice(0, dashIdx);
+          if (dashIdx > 0) {
+            const suffix = col.slice(dashIdx + 3).toLowerCase().trim();
+            if (nameLower === suffix || nameLower.startsWith(suffix + ' ') || nameLower.startsWith(suffix + '-')) {
+              // Product name starts with or equals the collection suffix — show brand only
+              showCollection = col.slice(0, dashIdx);
+            } else {
+              showCollection = col;
+            }
           } else {
             showCollection = col;
           }
@@ -653,18 +673,33 @@
         const variantIsEmpty = !variant && colorAttr && rawName.toLowerCase().includes(colorAttr.value.toLowerCase());
         if (variantIsColor || variantIsEmpty) {
           const sizeAttr = (sku.attributes || []).find(a => a.slug === 'size');
-          const thicknessAttr = (sku.attributes || []).find(a => a.slug === 'thickness');
           const patternAttr = (sku.attributes || []).find(a => a.slug === 'pattern');
+          const finishAttr = (sku.attributes || []).find(a => a.slug === 'finish');
           const nameLowerDedup = name.toLowerCase();
-          // Skip thickness if size already contains it (e.g., size="8mm x 6\" x 48\"", thickness="8mm")
-          const skipThickness = sizeAttr && thicknessAttr && sizeAttr.value.toLowerCase().includes(thicknessAttr.value.toLowerCase());
-          const extras = [patternAttr, sizeAttr, skipThickness ? null : thicknessAttr]
+          const extras = [patternAttr, sizeAttr]
             .filter(Boolean)
             .filter(a => !nameLowerDedup.includes(a.value.toLowerCase()))
             .map(a => a.value);
           if (extras.length > 0) {
-            const suffix = extras.join(' ');
-            variant = variant ? variant + ' ' + suffix : suffix;
+            const sizePart = extras.join(' ');
+            const colorVal = variantIsColor ? variant : null;
+            const finishVal = finishAttr && finishAttr.value ? finishAttr.value : null;
+            const finishPos = finishVal ? nameLowerDedup.indexOf(finishVal.toLowerCase()) : -1;
+            if (finishPos > 0) {
+              // Insert [color] [size] before finish: "Alluro Manor Cream 9x9 Polished Mosaic"
+              const before = name.slice(0, finishPos).trim();
+              const after = name.slice(finishPos).trim();
+              name = before + (colorVal ? ' ' + colorVal : '') + ' ' + sizePart + ' ' + after;
+              if (colorVal) variant = null;
+            } else {
+              const colLc = (col || '').toLowerCase();
+              if (colLc && name.toLowerCase().startsWith(colLc + ' ')) {
+                name = name.slice(0, col.length) + (colorVal ? ' ' + colorVal : '') + ' ' + sizePart + name.slice(col.length);
+                if (colorVal) variant = null;
+              } else {
+                variant = (colorVal ? colorVal + ' ' : '') + sizePart;
+              }
+            }
           }
         }
       }
@@ -3892,6 +3927,7 @@
       const [sku, setSku] = useState(null);
       const [media, setMedia] = useState([]);
       const [siblings, setSiblings] = useState([]);
+      const [skuAccessories, setSkuAccessories] = useState([]);
       const [collectionSiblings, setCollectionSiblings] = useState([]);
       const [collectionAttributes, setCollectionAttributes] = useState({});
       const [groupedProducts, setGroupedProducts] = useState([]);
@@ -3956,6 +3992,7 @@
             setSku(data.sku);
             setMedia(data.media || []);
             setSiblings(data.same_product_siblings || []);
+            setSkuAccessories(data.accessories || []);
             setCollectionSiblings(data.collection_siblings || []);
             setCollectionAttributes(data.collection_attributes || {});
             setGroupedProducts(data.grouped_products || []);
@@ -4118,6 +4155,23 @@
       const isPerUnit = sku && isSoldPerUnit(sku);
       const hasBoxCalc = !isPerUnit && sqftPerBox > 0;
       const isSqftNoBox = !isPerUnit && sqftPerBox <= 0;
+      // Sheet vinyl roll calculator
+      const sheetRollWidthFt = isSqftNoBox && !isCarpetSku && sku
+        ? parseRollWidthFt(sku.product_name || '') : 0;
+      const isSheetVinyl = isSqftNoBox && !isCarpetSku && sheetRollWidthFt > 0;
+      const sheetMode = isSheetVinyl
+        ? (carpetInputMode === 'linear' && sheetRollWidthFt <= 0 ? 'dimensions' : carpetInputMode)
+        : null;
+      const sheetRawSqft = isSheetVinyl
+        ? (sheetMode === 'linear' ? sheetRollWidthFt * (parseFloat(linearFeet) || 0)
+          : sheetMode === 'dimensions' ? (parseFloat(roomWidth) || 0) * (parseFloat(roomLength) || 0)
+          : parseFloat(sqftInput) || 0)
+        : 0;
+      const sheetSqft = isSheetVinyl && includeCarpetOverage
+        ? Math.ceil(sheetRawSqft * 1.1) : sheetRawSqft;
+      const sheetSubtotal = sheetSqft * effectivePrice;
+      const sheetNeedsSeam = isSheetVinyl && sheetMode === 'dimensions'
+        && sheetRollWidthFt > 0 && (parseFloat(roomWidth) || 0) > sheetRollWidthFt;
       // Slab with per-sqft pricing but no known dimensions — can't compute piece price
       const slabMissingSize = isPerUnit && sku && (sku.price_basis === 'sqft' || sku.price_basis === 'per_sqft') && !(parseFloat(sku.sqft_per_box) > 0);
       // Use "sheet" for individually-sold tiles (small coverage, no pieces_per_box)
@@ -4198,6 +4252,18 @@
             include_overage: includeOverage,
             unit_price: effectivePrice,
             subtotal: subtotal.toFixed(2),
+            sell_by: 'sqft'
+          });
+        } else if (isSheetVinyl) {
+          // Sheet vinyl roll — sell by sqft
+          if (sheetSqft <= 0) return;
+          addToCart({
+            product_id: sku.product_id,
+            sku_id: sku.sku_id,
+            sqft_needed: sheetSqft,
+            num_boxes: 1,
+            unit_price: effectivePrice,
+            subtotal: sheetSubtotal.toFixed(2),
             sell_by: 'sqft'
           });
         } else {
@@ -4309,79 +4375,11 @@
       const specPdfs = media.filter(m => m.asset_type === 'spec_pdf');
       const mainImage = images[selectedImage] || images[0];
 
-      // Separate accessories from regular siblings
-      const mainSiblings = siblings.filter(s => s.variant_type !== 'accessory');
-      const allAccessories = siblings.filter(s => s.variant_type === 'accessory');
+      // Siblings are now only non-accessory SKUs (accessories filtered server-side)
+      const mainSiblings = siblings;
 
-      // Filter accessories: show one per type matching the current SKU's color
-      let accessorySiblings = allAccessories;
-      if (allAccessories.length > 0) {
-        const vsku = (sku.vendor_sku || '').toUpperCase();
-        const currentColor = (sku.variant_name || '').toLowerCase().trim();
-
-        // Strategy 0: matching_color attribute (Quick-Step, etc.)
-        // Accessories have a matching_color attribute storing the canonical color name
-        const hasColorAttr = allAccessories.some(acc => (acc.attributes || []).some(a => a.slug === 'matching_color'));
-        const colorMatched = hasColorAttr ? allAccessories.filter(acc => {
-          const mc = (acc.attributes || []).find(a => a.slug === 'matching_color');
-          return mc && mc.value && mc.value.toLowerCase() === currentColor;
-        }) : [];
-        if (hasColorAttr) {
-          // Product uses per-color matching — show only matches (or none)
-          accessorySiblings = colorMatched;
-        }
-
-        // Strategy 1: Vendor SKU prefix match (works for Gaia, etc.)
-        if (!hasColorAttr && vsku.length >= 4) {
-          const prefixMatched = allAccessories.filter((acc) => {
-            const asku = (acc.vendor_sku || '').toUpperCase();
-            return asku.startsWith(vsku + '-') || asku.startsWith(vsku);
-          });
-          if (prefixMatched.length > 0 && prefixMatched.length < allAccessories.length) {
-            accessorySiblings = prefixMatched;
-          }
-        }
-
-        // Strategy 2: MSI/Shaw vendor_sku color-code matching
-        if (accessorySiblings.length === allAccessories.length) {
-          const mainMatch = vsku.match(/^(?:P-)?(?:VTR|VTW|QUTR|QUPO)(?:XL)?(?:HD)?([A-Z]+)/);
-          if (mainMatch && mainMatch[1] && mainMatch[1].length >= 3) {
-            const mainColor = mainMatch[1];
-            const matched = allAccessories.filter(acc => {
-              const asku = (acc.vendor_sku || acc.internal_sku || '').toUpperCase();
-              const accMatch = asku.match(/^(?:P-|MSI-)?(?:P-)?VTT(?:HD)?([A-Z]+)-/) || asku.match(/^(?:P-|MSI-)?TT([A-Z]+)-/);
-              if (!accMatch || !accMatch[1]) return true;
-              const accColor = accMatch[1];
-              return accColor.includes(mainColor) || mainColor.includes(accColor);
-            });
-            if (matched.length > 0) accessorySiblings = matched;
-          }
-        }
-
-        // Strategy 3: Deduplicate by variant_name (picks color-matched accessory by position)
-        // For vendors like Mannington where each color has its own set of accessories
-        // (e.g., 5 colors × 7 accessory types = 35 accessories, but only 7 should show)
-        const typeGroups = {};
-        accessorySiblings.forEach(acc => {
-          const key = acc.variant_name || acc.sku_id;
-          if (!typeGroups[key]) typeGroups[key] = [];
-          typeGroups[key].push(acc);
-        });
-        const hasDuplicateTypes = Object.values(typeGroups).some(g => g.length > 1);
-        if (hasDuplicateTypes) {
-          // Find current SKU's color index among non-accessory siblings
-          const colorSkus = [sku, ...mainSiblings].filter(s => s.variant_type !== 'accessory');
-          colorSkus.sort((a, b) => (a.vendor_sku || '').localeCompare(b.vendor_sku || ''));
-          const colorIdx = colorSkus.findIndex(s => s.sku_id === sku.sku_id || s.id === sku.sku_id);
-          accessorySiblings = Object.values(typeGroups).map(group => {
-            if (group.length === 1) return group[0];
-            // Sort by vendor_sku so position aligns with color order
-            group.sort((a, b) => (a.vendor_sku || '').localeCompare(b.vendor_sku || ''));
-            // Pick the one at the same position as current color, or first if index out of range
-            return (colorIdx >= 0 && colorIdx < group.length) ? group[colorIdx] : group[0];
-          });
-        }
-      }
+      // Per-SKU accessories come directly from the server (sku_accessories table)
+      const accessorySiblings = skuAccessories;
 
       // ADEX products use a 3-row variant selector (Color / Finish / Type) + grouped collection siblings
       const isAdexProduct = /adex/i.test(sku.vendor_name || '');
@@ -4772,22 +4770,38 @@
                 // represent the same base product (Roman-numeral variants like
                 // James Martin, or a single shared name), never when collection
                 // is a broad category like "Pool Tile" with 64 unrelated series.
+                // Normalize color values: strip embedded dimensions (e.g. "Praia Carrara 12x24" → "Praia Carrara"),
+                // thickness specs (9mm, 30mil), and leading dashes from scraper artifacts
+                const normColor = (v) => (v || '')
+                  .replace(/\s*\d+\.?\d*\s*[xX]+\s*\d+\.?\d*\s*/g, ' ')  // 12x24, 8.98x48.03
+                  .replace(/\s*-?\s*\d+m[mi]l?\b/gi, '')                  // 9mm, 30mil
+                  .replace(/^\s*-\s*/, '')                                  // leading "- "
+                  .replace(/\s+/g, ' ')
+                  .trim();
+
                 let colorItems = [];
                 const currentColorVal = currentAttrs['color'];
                 const currentSizeVal = currentAttrs['size'];
+                const normalizedCurrentColor = normColor(currentColorVal);
+
                 const distinctSiblingColors = new Set(
                   mainSiblings
                     .map(s => (s.attributes || []).find(a => a.slug === 'color'))
                     .filter(Boolean)
-                    .map(a => a.value)
+                    .map(a => normColor(a.value))
                 );
-                if (currentColorVal && distinctSiblingColors.size > 0) {
-                  // Build one entry per distinct color
+
+                // Check if multiple truly distinct colors exist after normalizing out dimensions
+                const allNormalizedColors = new Set(
+                  normalizedCurrentColor ? [normalizedCurrentColor, ...distinctSiblingColors] : [...distinctSiblingColors]
+                );
+
+                if (normalizedCurrentColor && allNormalizedColors.size > 1) {
+                  // Multiple distinct colors within same product — group by normalized color
                   const byColor = new Map();
-                  // Current SKU first
-                  byColor.set(currentColorVal, {
+                  byColor.set(normalizedCurrentColor, {
                     sku_id: sku.sku_id,
-                    product_name: currentColorVal,
+                    product_name: normalizedCurrentColor,
                     primary_image: (media && media[0]) ? media[0].url : null,
                     is_current: true,
                   });
@@ -4796,8 +4810,8 @@
                     const ca = attrs.find(a => a.slug === 'color');
                     const sa = attrs.find(a => a.slug === 'size');
                     if (!ca) return;
-                    const color = ca.value;
-                    if (color === currentColorVal) return;
+                    const color = normColor(ca.value);
+                    if (color === normalizedCurrentColor) return;
                     const existing = byColor.get(color);
                     // Prefer a sibling whose Size matches the current SKU's Size
                     const matchesCurrentSize = sa && sa.value === currentSizeVal;
@@ -4812,16 +4826,20 @@
                     }
                   });
                   colorItems = [...byColor.values()].sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''));
-                } else {
-                  // Fallback to collection siblings for ADEX-style shared-name products
+                }
+
+                // If same-product siblings have 0-1 colors, use collection siblings as color options
+                if (colorItems.length <= 1 && collectionSiblings.length > 0) {
                   const siblingNameSet = new Set(collectionSiblings.map(s => s.product_name));
                   const hasRomanSibling = [...siblingNameSet].some(n => hasRomanSuffix(n));
                   const sharesNameWithCurrent = siblingNameSet.has(sku.product_name);
                   const treatAsColorVariants = hasRomanSibling || sharesNameWithCurrent || siblingNameSet.size <= 6;
-                  colorItems = treatAsColorVariants && collectionSiblings.length > 0 ? [
-                    { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: (media && media[0]) ? media[0].url : null, is_current: true },
-                    ...collectionSiblings
-                  ].sort((a, b) => (a.product_name || '').localeCompare(b.product_name || '')) : [];
+                  if (treatAsColorVariants) {
+                    colorItems = [
+                      { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: (media && media[0]) ? media[0].url : null, is_current: true },
+                      ...collectionSiblings
+                    ].sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''));
+                  }
                 }
                 // Build attrMap from current product's siblings only (not collection-wide)
                 // Collection-wide values caused disabled/dashed pills for sizes only
@@ -4833,7 +4851,7 @@
                     attrMap[a.slug].values.add(a.value);
                   });
                 });
-                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory', 'upc', 'msrp', 'weight', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number', 'width', 'height', 'depth', 'hardware_finish', 'num_drawers', 'num_doors', 'num_shelves', 'num_sinks', 'soft_close', 'sink_material', 'sink_type', 'vanity_type', 'bowl_shape', 'style', 'origin', 'countertop_material', 'thickness', 'construction', 'sub_line', 'collection', 'brand', 'surface_texture', 'wear_layer', 'ac_rating', 'edge_treatment', 'plank_width', 'plank_length', 'composition', 'install_method', 'features', 'technology', 'product_line', 'color_family']);
+                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory', 'upc', 'msrp', 'weight', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number', 'width', 'height', 'depth', 'hardware_finish', 'num_drawers', 'num_doors', 'num_shelves', 'num_sinks', 'soft_close', 'sink_material', 'sink_type', 'vanity_type', 'bowl_shape', 'style', 'origin', 'countertop_material', 'construction', 'sub_line', 'collection', 'brand', 'surface_texture', 'wear_layer', 'ac_rating', 'edge_treatment', 'plank_width', 'plank_length', 'composition', 'install_method', 'features', 'technology', 'product_line', 'color_family', 'breaking_strength', 'thickness', 'mohs_hardness', 'color_generic', 'pattern']);
 
                 // --- Sub-Line format selector (ADURA Max/Rigid/Flex/APEX) ---
                 const curSubLineAttr = (sku.attributes || []).find(a => a.slug === 'sub_line');
@@ -4925,7 +4943,25 @@
                     localAttrCounts[a.slug].add(a.value);
                   });
                 });
-                const attrSlugs = Object.keys(attrMap).filter(slug => localAttrCounts[slug] && localAttrCounts[slug].size > 1 && !NON_SELECTABLE.has(slug))
+                // Check if attribute varies WITHIN a color (not just across colors)
+                // E.g., Hartco has 20 colors each with one size — SIZE pill is useless
+                // But tile products have one color in multiple sizes — SIZE pill is useful
+                const colorAttrValues = {};
+                effectiveSiblings.forEach(s => {
+                  const ca = (s.attributes || []).find(a => a.slug === 'color');
+                  const c = (ca && ca.value) || s.variant_name || '';
+                  (s.attributes || []).forEach(a => {
+                    if (!colorAttrValues[a.slug]) colorAttrValues[a.slug] = {};
+                    if (!colorAttrValues[a.slug][c]) colorAttrValues[a.slug][c] = new Set();
+                    colorAttrValues[a.slug][c].add(a.value);
+                  });
+                });
+                const variesWithinColor = (slug) => {
+                  const byColor = colorAttrValues[slug];
+                  if (!byColor) return false;
+                  return Object.values(byColor).some(vals => vals.size > 1);
+                };
+                const attrSlugs = Object.keys(attrMap).filter(slug => localAttrCounts[slug] && localAttrCounts[slug].size > 1 && !NON_SELECTABLE.has(slug) && variesWithinColor(slug))
                   .sort((a, b) => a === 'finish' ? -1 : b === 'finish' ? 1 : 0);
                 const sizeSort = (a, b) => { const na = parseFloat(a), nb = parseFloat(b); if (!isNaN(na) && !isNaN(nb)) return na - nb; return a.localeCompare(b); };
                 const showColors = colorItems.length >= 2;
@@ -5193,13 +5229,23 @@
                   <h3>Matching Accessories</h3>
                   <p className="accessories-subtitle-sf">Complete your installation with coordinating trim and transitions</p>
                   {accessorySiblings.map(acc => {
-                    const accPrice = parseFloat(acc.retail_price) || 0;
+                    const accPrice = parseFloat(acc.sale_price || acc.retail_price) || 0;
                     const accQty = accessoryQtys[acc.sku_id] || 1;
+                    const accLabel = acc.accessory_label || formatVariantName(acc.variant_name) || 'Accessory';
+                    const accColor = acc.variant_name ? formatVariantName(acc.variant_name) : null;
+                    // Don't show color subtitle if it's the same as the label
+                    const showColor = accColor && accColor !== accLabel;
                     return (
                       <div key={acc.sku_id} className="accessory-card-sf">
+                        {acc.primary_image && (
+                          <div className="accessory-card-sf-image">
+                            <img src={optimizeImg(acc.primary_image, 80)} alt={accLabel} width="48" height="48" loading="lazy" decoding="async" />
+                          </div>
+                        )}
                         <div className="accessory-card-sf-header">
-                          <div className="accessory-card-sf-name">{formatVariantName(acc.variant_name) || 'Accessory'}</div>
-                          <div className="accessory-card-sf-price">${accPrice.toFixed(2)} /ea</div>
+                          <div className="accessory-card-sf-name">{accLabel}</div>
+                          {showColor && <div className="accessory-card-sf-color">{accColor}</div>}
+                          <div className="accessory-card-sf-price">${accPrice.toFixed(2)} {acc.sell_by === 'sqft' ? '/sqft' : '/ea'}</div>
                         </div>
                         <div className="accessory-card-sf-actions">
                           <div className="unit-qty-stepper">
@@ -5216,7 +5262,7 @@
                               include_overage: false,
                               unit_price: accPrice,
                               subtotal: (accQty * accPrice).toFixed(2),
-                              sell_by: 'unit'
+                              sell_by: acc.sell_by || 'unit'
                             });
                           }}>
                             Add &mdash; ${(accQty * accPrice).toFixed(2)}
@@ -5425,8 +5471,104 @@
                 </div>
               )}
 
-              {/* Sqft entry without box calculator (no packaging data) */}
-              {!isCarpetSku && isSqftNoBox && effectivePrice > 0 && (
+              {/* Sheet Vinyl Roll Calculator */}
+              {isSheetVinyl && effectivePrice > 0 && (
+                <div className="calculator-widget">
+                  <h3>Roll Calculator</h3>
+                  <div className="carpet-roll-width-header">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 20, height: 20 }}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+                    {sheetRollWidthFt}' Wide Roll
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '1rem' }}>
+                    <button
+                      onClick={() => setCarpetInputMode('linear')}
+                      style={{ flex: 1, padding: '0.4375rem 0.25rem', border: '1px solid var(--stone-300)', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, background: carpetInputMode === 'linear' ? 'var(--stone-900)' : 'white', color: carpetInputMode === 'linear' ? 'white' : 'var(--stone-700)', transition: 'all 0.15s' }}>
+                      Linear Feet
+                    </button>
+                    <button
+                      onClick={() => setCarpetInputMode('dimensions')}
+                      style={{ flex: 1, padding: '0.4375rem 0.25rem', border: '1px solid var(--stone-300)', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, background: carpetInputMode === 'dimensions' ? 'var(--stone-900)' : 'white', color: carpetInputMode === 'dimensions' ? 'white' : 'var(--stone-700)', transition: 'all 0.15s' }}>
+                      Room Size
+                    </button>
+                    <button
+                      onClick={() => setCarpetInputMode('sqft')}
+                      style={{ flex: 1, padding: '0.4375rem 0.25rem', border: '1px solid var(--stone-300)', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, background: carpetInputMode === 'sqft' ? 'var(--stone-900)' : 'white', color: carpetInputMode === 'sqft' ? 'white' : 'var(--stone-700)', transition: 'all 0.15s' }}>
+                      Enter Sqft
+                    </button>
+                  </div>
+                  {sheetMode === 'linear' ? (
+                    <div className="calc-input-row">
+                      <div className="calc-input-group" style={{ flex: 1 }}>
+                        <label>Linear Feet Needed</label>
+                        <input className="calc-input" type="number" min="0" step="0.5" placeholder="e.g. 50"
+                          value={linearFeet} onChange={(e) => setLinearFeet(e.target.value)} />
+                      </div>
+                    </div>
+                  ) : sheetMode === 'dimensions' ? (
+                    <div className="calc-input-row">
+                      <div className="calc-input-group">
+                        <label>Room Width (ft)</label>
+                        <input className="calc-input" type="number" min="0" step="0.5" placeholder="0"
+                          value={roomWidth} onChange={(e) => setRoomWidth(e.target.value)} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', padding: '0 0.25rem 0.5rem', fontSize: '1.25rem', color: 'var(--stone-400)' }}>&times;</div>
+                      <div className="calc-input-group">
+                        <label>Room Length (ft)</label>
+                        <input className="calc-input" type="number" min="0" step="0.5" placeholder="0"
+                          value={roomLength} onChange={(e) => setRoomLength(e.target.value)} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="calc-input-row">
+                      <div className="calc-input-group" style={{ flex: 1 }}>
+                        <label>Square Feet Needed</label>
+                        <input className="calc-input" type="number" min="0" step="1" placeholder="Enter sqft"
+                          value={sqftInput} onChange={(e) => setSqftInput(e.target.value)} />
+                      </div>
+                    </div>
+                  )}
+                  <label className="carpet-overage-label">
+                    <input type="checkbox" checked={includeCarpetOverage} onChange={(e) => setIncludeCarpetOverage(e.target.checked)} />
+                    Add 10% overage for seams &amp; waste
+                  </label>
+                  {sheetNeedsSeam && (
+                    <div className="carpet-seam-note">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                      Room width ({parseFloat(roomWidth).toFixed(0)}') exceeds roll width ({sheetRollWidthFt}') — a seam will be required
+                    </div>
+                  )}
+                  {sheetSqft > 0 && (
+                    <div className="calc-summary">
+                      {sheetMode === 'linear' && (
+                        <div className="calc-summary-row">
+                          <span>Cut Size</span><span>{sheetRollWidthFt} ft &times; {parseFloat(linearFeet).toFixed(1)} ft = {sheetRawSqft.toFixed(1)} sqft</span>
+                        </div>
+                      )}
+                      {includeCarpetOverage && (
+                        <div className="calc-summary-row">
+                          <span>+ 10% Overage</span><span>{sheetSqft.toFixed(1)} sqft</span>
+                        </div>
+                      )}
+                      {!includeCarpetOverage && sheetMode !== 'linear' && (
+                        <div className="calc-summary-row">
+                          <span>Area</span><span>{sheetSqft.toFixed(1)} sqft</span>
+                        </div>
+                      )}
+                      <div className="calc-summary-row">
+                        <span>Price</span><span>${effectivePrice.toFixed(2)}/sqft</span>
+                      </div>
+                      <div className="calc-summary-total"><span>Subtotal</span><span>${sheetSubtotal.toFixed(2)}</span></div>
+                    </div>
+                  )}
+                  <button className="btn" style={{ width: '100%', marginTop: '1.5rem' }}
+                    onClick={handleAddToCart} disabled={sheetSqft <= 0}>
+                    Add to Cart {sheetSqft > 0 ? `- $${sheetSubtotal.toFixed(2)}` : ''}
+                  </button>
+                </div>
+              )}
+
+              {/* Sqft entry without box calculator (no packaging data, non-sheet-vinyl) */}
+              {!isCarpetSku && !isSheetVinyl && isSqftNoBox && effectivePrice > 0 && (
                 <div className="calculator-widget">
                   <h3>Order by Square Footage</h3>
                   <div className="calc-input-row">

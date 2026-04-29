@@ -733,6 +733,8 @@
       from { opacity: 0; transform: scale(0.95) translateY(10px); }
       to { opacity: 1; transform: scale(1) translateY(0); }
     }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -1452,7 +1454,7 @@
         { key: 'products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', roles: ['admin', 'manager'] },
         { key: 'vendors', label: 'Vendors', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', roles: ['admin', 'manager'] },
         { key: 'categories', label: 'Categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z', roles: ['admin', 'manager'] },
-        { key: 'scrapers', label: 'Scrapers', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9', roles: ['admin', 'manager'] },
+        { key: 'pipelines', label: 'Pipelines', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9', roles: ['admin', 'manager'] },
         { key: 'trade', label: 'Trade', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'promos', label: 'Promo Codes', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4zM17 3h2a2 2 0 012 2v2', roles: ['admin', 'manager'] },
         { key: 'inquiries', label: 'Inquiries', icon: 'M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085', roles: ['admin', 'manager', 'sales_rep'] },
@@ -1473,7 +1475,7 @@
                           view.split('-')[0] === 'category' ? 'categories' :
                           view.split('-')[0] === 'customer' ? 'customers' :
                           view.split('-')[0] === 'order' ? 'orders' :
-                          view.split('-')[0] === 'scraper' || view === 'scrapers' ? 'scrapers' :
+                          view.split('-')[0] === 'scraper' || view === 'scrapers' || view === 'pipelines' || view === 'pipeline-history' || view === 'pipeline-run-detail' ? 'pipelines' :
                           view.split('-')[0] === 'promo' || view === 'promos' ? 'promos' :
                           view.split('-')[0] === 'trade' ? 'trade' :
                           view.split('-')[0] === 'staff' ? 'staff' :
@@ -1537,6 +1539,9 @@
             {view === 'categories' && <CategoriesListView navigate={navigate} />}
             {view === 'category-create' && <CategoryFormView navigate={navigate} />}
             {view === 'category-edit' && <CategoryFormView navigate={navigate} editId={editId} />}
+            {view === 'pipelines' && <PipelinesView navigate={navigate} />}
+            {view === 'pipeline-history' && <PipelineHistoryView navigate={navigate} editId={editId} />}
+            {view === 'pipeline-run-detail' && <PipelineRunDetailView navigate={navigate} editId={editId} />}
             {view === 'scrapers' && <ScrapersView navigate={navigate} />}
             {view === 'scraper-source-create' && <ScraperSourceFormView navigate={navigate} />}
             {view === 'scraper-source-edit' && <ScraperSourceFormView navigate={navigate} editId={editId} />}
@@ -5363,6 +5368,491 @@
         )}
 
         </React.Fragment>
+      );
+    }
+
+    // ========== PipelinesView ==========
+    function PipelinesView({ navigate }) {
+      const [pipelines, setPipelines] = useState([]);
+      const [sources, setSources] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [expanded, setExpanded] = useState({});
+      const [runningPipelines, setRunningPipelines] = useState({});
+
+      const load = () => {
+        Promise.all([
+          adminFetch('/api/admin/pipelines'),
+          adminFetch('/api/admin/vendor-sources'),
+        ]).then(([pData, sData]) => {
+          setPipelines(pData.pipelines || []);
+          setSources(sData.sources || []);
+          setLoading(false);
+          // Track running pipelines
+          const running = {};
+          (pData.pipelines || []).forEach(p => {
+            if (p.lastRun && p.lastRun.status === 'running') running[p.vendorCode] = p.lastRun;
+          });
+          setRunningPipelines(running);
+        }).catch(() => setLoading(false));
+      };
+
+      useEffect(() => { load(); }, []);
+
+      // Auto-refresh while pipelines are running
+      useEffect(() => {
+        if (Object.keys(runningPipelines).length === 0) return;
+        const interval = setInterval(load, 3000);
+        return () => clearInterval(interval);
+      }, [Object.keys(runningPipelines).length]);
+
+      const handleRunPipeline = async (vendorCode) => {
+        try {
+          const d = await adminFetch('/api/admin/pipelines/' + vendorCode + '/run', { method: 'POST' });
+          if (d.error) { alert(d.error); return; }
+          load();
+        } catch (err) {
+          alert('Failed to start pipeline: ' + err.message);
+        }
+      };
+
+      const handleStopPipeline = async (runId) => {
+        try {
+          const d = await adminFetch('/api/admin/pipeline-runs/' + runId + '/stop', { method: 'POST' });
+          if (d.error) { alert(d.error); return; }
+          load();
+        } catch (err) {
+          alert('Failed to stop pipeline: ' + err.message);
+        }
+      };
+
+      const handleScrapeNow = async (source) => {
+        try {
+          const d = await adminFetch('/api/admin/vendor-sources/' + source.id + '/scrape', { method: 'POST' });
+          if (d.error) { alert(d.error); return; }
+          alert('Scrape job started.');
+        } catch (err) {
+          alert('Failed to start scrape: ' + err.message);
+        }
+      };
+
+      const toggleExpand = (code) => setExpanded(prev => ({ ...prev, [code]: !prev[code] }));
+
+      const formatDate = (d) => {
+        if (!d) return '—';
+        return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      };
+
+      const formatDuration = (start, end) => {
+        if (!start) return '—';
+        const ms = (end ? new Date(end) : new Date()) - new Date(start);
+        const secs = Math.floor(ms / 1000);
+        if (secs < 60) return secs + 's';
+        const mins = Math.floor(secs / 60);
+        if (mins < 60) return mins + 'm ' + (secs % 60) + 's';
+        return Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+      };
+
+      const statusBadge = (status) => {
+        const colors = { running: '#3b82f6', completed: '#22c55e', failed: '#ef4444', cancelled: '#a3a3a3', pending: '#f59e0b' };
+        return React.createElement('span', {
+          style: { display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600,
+            background: (colors[status] || '#a3a3a3') + '18', color: colors[status] || '#a3a3a3' }
+        }, status === 'running' && React.createElement('span', { style: { width: 6, height: 6, borderRadius: '50%', background: colors.running, animation: 'pulse 1.5s infinite' } }), status);
+      };
+
+      if (loading) return React.createElement('div', { className: 'loading' }, 'Loading...');
+
+      // Group sources by vendor for the expandable sections
+      const sourcesByVendor = {};
+      sources.forEach(s => {
+        const key = s.vendor_name || 'Unknown';
+        if (!sourcesByVendor[key]) sourcesByVendor[key] = [];
+        sourcesByVendor[key].push(s);
+      });
+
+      return React.createElement('div', null,
+        React.createElement('div', { className: 'content-header' },
+          React.createElement('h1', null, 'Vendor Pipelines'),
+          React.createElement('div', { style: { display: 'flex', gap: '8px' } },
+            React.createElement('button', { className: 'btn', style: { background: '#f5f5f4', color: '#1c1917', border: '1px solid #d6d3d1' }, onClick: () => navigate('pipeline-history') }, 'Run History'),
+            React.createElement('button', { className: 'btn', style: { background: '#f5f5f4', color: '#1c1917', border: '1px solid #d6d3d1' }, onClick: () => navigate('scraper-health') }, 'Health Dashboard'),
+            React.createElement('button', { className: 'btn', style: { background: '#f5f5f4', color: '#1c1917', border: '1px solid #d6d3d1' }, onClick: () => navigate('scrapers') }, 'Individual Sources'),
+            React.createElement('button', { className: 'btn btn-primary', onClick: () => navigate('scraper-source-create') }, 'Add Source'),
+          )
+        ),
+
+        // Pipeline cards
+        pipelines.map(p => {
+          const isRunning = p.lastRun && p.lastRun.status === 'running';
+          const isExpanded = expanded[p.vendorCode];
+          const vendorSources = sources.filter(s => {
+            // Match sources to pipeline by checking scraper keys
+            const pConfig = p.steps.filter(st => st.type === 'scraper').map(st => st.label);
+            return s.vendor_name === p.vendorName;
+          });
+
+          return React.createElement('div', { key: p.vendorCode, style: { background: '#fff', border: '1px solid #e7e5e4', borderRadius: '8px', marginBottom: '12px', overflow: 'hidden' } },
+            // Header row
+            React.createElement('div', { style: { display: 'flex', alignItems: 'center', padding: '16px 20px', gap: '16px', cursor: 'pointer' }, onClick: () => toggleExpand(p.vendorCode) },
+              React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: '#78716c', strokeWidth: 2, style: { transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 } },
+                React.createElement('path', { d: 'M9 18l6-6-6-6' })
+              ),
+              React.createElement('div', { style: { flex: 1 } },
+                React.createElement('div', { style: { fontWeight: 600, fontSize: '1rem' } }, p.vendorName || p.label),
+                React.createElement('div', { style: { fontSize: '0.8125rem', color: '#78716c', marginTop: '2px' } }, p.description),
+              ),
+              React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 } },
+                React.createElement('span', { style: { fontSize: '0.75rem', color: '#a8a29e' } }, p.stepCount + ' steps'),
+                p.lastRun && React.createElement('div', { style: { textAlign: 'right' } },
+                  statusBadge(p.lastRun.status),
+                  React.createElement('div', { style: { fontSize: '0.6875rem', color: '#a8a29e', marginTop: '2px' } }, formatDate(p.lastRun.started_at)),
+                ),
+                isRunning ? React.createElement('div', { style: { display: 'flex', gap: '6px' } },
+                  React.createElement('span', { style: { fontSize: '0.75rem', color: '#3b82f6', fontWeight: 500 } },
+                    'Step ' + (p.lastRun.current_step_index + 1) + '/' + p.lastRun.total_steps),
+                  React.createElement('button', { className: 'btn btn-sm btn-danger', onClick: (e) => { e.stopPropagation(); handleStopPipeline(p.lastRun.id); } }, 'Stop'),
+                ) : React.createElement('button', { className: 'btn btn-sm btn-primary', onClick: (e) => { e.stopPropagation(); handleRunPipeline(p.vendorCode); } }, 'Run Pipeline'),
+              ),
+            ),
+
+            // Progress bar for running pipeline
+            isRunning && React.createElement('div', { style: { height: '3px', background: '#e7e5e4' } },
+              React.createElement('div', { style: { height: '100%', background: '#3b82f6', width: ((p.lastRun.current_step_index + 1) / p.lastRun.total_steps * 100) + '%', transition: 'width 0.5s' } })
+            ),
+
+            // Expanded: show individual sources
+            isExpanded && React.createElement('div', { style: { borderTop: '1px solid #e7e5e4', padding: '12px 20px 16px', background: '#fafaf9' } },
+              React.createElement('div', { style: { fontSize: '0.75rem', fontWeight: 600, color: '#78716c', textTransform: 'uppercase', marginBottom: '8px' } }, 'Pipeline Steps'),
+              React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' } },
+                p.steps.map((step, idx) => React.createElement('div', { key: idx, style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8125rem', padding: '4px 0' } },
+                  React.createElement('span', { style: { width: 20, height: 20, borderRadius: '50%', background: '#e7e5e4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6875rem', fontWeight: 600, color: '#78716c', flexShrink: 0 } }, idx + 1),
+                  React.createElement('span', { style: { padding: '1px 6px', borderRadius: '4px', fontSize: '0.6875rem', fontWeight: 500, background: step.type === 'scraper' ? '#dbeafe' : '#fef3c7', color: step.type === 'scraper' ? '#1d4ed8' : '#92400e' } }, step.type),
+                  React.createElement('span', null, step.label),
+                ))
+              ),
+
+              vendorSources.length > 0 && React.createElement(React.Fragment, null,
+                React.createElement('div', { style: { fontSize: '0.75rem', fontWeight: 600, color: '#78716c', textTransform: 'uppercase', marginBottom: '8px' } }, 'Individual Sources (Debug)'),
+                React.createElement('table', { className: 'admin-table', style: { fontSize: '0.8125rem' } },
+                  React.createElement('thead', null,
+                    React.createElement('tr', null,
+                      React.createElement('th', null, 'Source'),
+                      React.createElement('th', null, 'Scraper Key'),
+                      React.createElement('th', null, 'Last Scraped'),
+                      React.createElement('th', null, 'Status'),
+                      React.createElement('th', null, 'Actions'),
+                    )
+                  ),
+                  React.createElement('tbody', null,
+                    vendorSources.map(s => {
+                      const lastJob = s.last_job;
+                      return React.createElement('tr', { key: s.id },
+                        React.createElement('td', null, s.name),
+                        React.createElement('td', { style: { fontFamily: 'monospace', fontSize: '0.75rem' } }, s.scraper_key || '—'),
+                        React.createElement('td', { style: { fontSize: '0.75rem' } }, formatDate(s.last_scraped_at)),
+                        React.createElement('td', null,
+                          lastJob ? React.createElement('span', { className: 'badge badge-' + lastJob.status }, lastJob.status) : React.createElement('span', { style: { color: '#a8a29e' } }, '—')
+                        ),
+                        React.createElement('td', null,
+                          lastJob && lastJob.status === 'running' ?
+                            React.createElement('button', { className: 'btn btn-sm btn-danger', onClick: () => adminFetch('/api/admin/scrape-jobs/' + lastJob.id + '/stop', { method: 'POST' }).then(load) }, 'Stop') :
+                            React.createElement('button', { className: 'btn btn-sm btn-secondary', onClick: () => handleScrapeNow(s) }, 'Scrape Now'),
+                          React.createElement('button', { className: 'btn btn-sm btn-secondary', style: { marginLeft: '4px' }, onClick: () => navigate('scraper-jobs', s.id) }, 'Jobs'),
+                        ),
+                      );
+                    })
+                  )
+                )
+              )
+            ),
+          );
+        }),
+
+        // Non-pipeline vendors: sources not covered by any pipeline
+        (() => {
+          const pipelineVendorNames = new Set(pipelines.map(p => p.vendorName));
+          const otherSources = sources.filter(s => !pipelineVendorNames.has(s.vendor_name));
+          if (otherSources.length === 0) return null;
+          const grouped = {};
+          otherSources.forEach(s => {
+            const vn = s.vendor_name || 'Unknown';
+            if (!grouped[vn]) grouped[vn] = [];
+            grouped[vn].push(s);
+          });
+          return React.createElement(React.Fragment, null,
+            React.createElement('h2', { style: { fontSize: '1rem', fontWeight: 600, margin: '24px 0 12px', color: '#57534e' } }, 'Other Sources (No Pipeline)'),
+            Object.entries(grouped).map(([vendorName, vSources]) =>
+              React.createElement('div', { key: vendorName, style: { background: '#fff', border: '1px solid #e7e5e4', borderRadius: '8px', marginBottom: '8px', overflow: 'hidden' } },
+                React.createElement('div', { style: { display: 'flex', alignItems: 'center', padding: '12px 20px', gap: '12px', cursor: 'pointer' }, onClick: () => toggleExpand('other-' + vendorName) },
+                  React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: '#78716c', strokeWidth: 2, style: { transform: expanded['other-' + vendorName] ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' } },
+                    React.createElement('path', { d: 'M9 18l6-6-6-6' })
+                  ),
+                  React.createElement('span', { style: { fontWeight: 500 } }, vendorName),
+                  React.createElement('span', { style: { fontSize: '0.75rem', color: '#a8a29e' } }, vSources.length + ' source' + (vSources.length !== 1 ? 's' : '')),
+                ),
+                expanded['other-' + vendorName] && React.createElement('div', { style: { borderTop: '1px solid #e7e5e4', padding: '8px 20px 12px', background: '#fafaf9' } },
+                  vSources.map(s => {
+                    const lastJob = s.last_job;
+                    return React.createElement('div', { key: s.id, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', fontSize: '0.8125rem' } },
+                      React.createElement('span', { style: { flex: 1 } }, s.name),
+                      React.createElement('span', { style: { fontFamily: 'monospace', fontSize: '0.75rem', color: '#a8a29e' } }, s.scraper_key || ''),
+                      lastJob ? React.createElement('span', { className: 'badge badge-' + lastJob.status }, lastJob.status) : null,
+                      lastJob && lastJob.status === 'running' ?
+                        React.createElement('button', { className: 'btn btn-sm btn-danger', onClick: () => adminFetch('/api/admin/scrape-jobs/' + lastJob.id + '/stop', { method: 'POST' }).then(load) }, 'Stop') :
+                        React.createElement('button', { className: 'btn btn-sm btn-secondary', onClick: () => handleScrapeNow(s) }, 'Scrape Now'),
+                    );
+                  })
+                )
+              )
+            )
+          );
+        })()
+      );
+    }
+
+    // ========== PipelineHistoryView ==========
+    function PipelineHistoryView({ navigate, editId }) {
+      const [runs, setRuns] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [page, setPage] = useState(0);
+      const pageSize = 20;
+
+      const load = () => {
+        setLoading(true);
+        const params = new URLSearchParams({ limit: pageSize, offset: page * pageSize });
+        if (editId) params.set('vendor_code', editId);
+        adminFetch('/api/admin/pipeline-runs?' + params)
+          .then(d => { setRuns(d.runs || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+
+      useEffect(() => { load(); }, [page]);
+
+      // Auto-refresh while any run is active
+      useEffect(() => {
+        if (!runs.some(r => r.status === 'running')) return;
+        const interval = setInterval(load, 3000);
+        return () => clearInterval(interval);
+      }, [runs.map(r => r.status).join(',')]);
+
+      const handleStop = async (runId) => {
+        try {
+          await adminFetch('/api/admin/pipeline-runs/' + runId + '/stop', { method: 'POST' });
+          load();
+        } catch (err) { alert(err.message); }
+      };
+
+      const formatDate = (d) => {
+        if (!d) return '—';
+        return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      };
+
+      const formatDuration = (start, end) => {
+        if (!start) return '—';
+        const ms = (end ? new Date(end) : new Date()) - new Date(start);
+        const secs = Math.floor(ms / 1000);
+        if (secs < 60) return secs + 's';
+        const mins = Math.floor(secs / 60);
+        if (mins < 60) return mins + 'm ' + (secs % 60) + 's';
+        return Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+      };
+
+      const statusBadge = (status) => {
+        const colors = { running: '#3b82f6', completed: '#22c55e', failed: '#ef4444', cancelled: '#a3a3a3', pending: '#f59e0b' };
+        return React.createElement('span', {
+          style: { display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600,
+            background: (colors[status] || '#a3a3a3') + '18', color: colors[status] || '#a3a3a3' }
+        }, status === 'running' && React.createElement('span', { style: { width: 6, height: 6, borderRadius: '50%', background: colors.running, animation: 'pulse 1.5s infinite' } }), status);
+      };
+
+      return React.createElement('div', null,
+        React.createElement('div', { className: 'content-header' },
+          React.createElement('h1', null, 'Pipeline Run History'),
+          React.createElement('button', { className: 'btn btn-secondary', onClick: () => navigate('pipelines') }, 'Back to Pipelines'),
+        ),
+        React.createElement('div', { className: 'table-scroll-wrapper' },
+          React.createElement('table', { className: 'admin-table' },
+            React.createElement('thead', null,
+              React.createElement('tr', null,
+                React.createElement('th', null, 'Vendor'),
+                React.createElement('th', null, 'Status'),
+                React.createElement('th', null, 'Progress'),
+                React.createElement('th', null, 'Started'),
+                React.createElement('th', null, 'Duration'),
+                React.createElement('th', null, 'Error'),
+                React.createElement('th', null, 'Actions'),
+              )
+            ),
+            React.createElement('tbody', null,
+              runs.length === 0 && React.createElement('tr', null,
+                React.createElement('td', { colSpan: 7, style: { textAlign: 'center', color: '#a8a29e', padding: '3rem' } }, 'No pipeline runs yet.')
+              ),
+              runs.map(r => React.createElement('tr', { key: r.id },
+                React.createElement('td', { style: { fontWeight: 500 } }, r.vendor_name),
+                React.createElement('td', null, statusBadge(r.status)),
+                React.createElement('td', null, (r.current_step_index + 1) + ' / ' + r.total_steps),
+                React.createElement('td', { style: { fontSize: '0.8125rem' } }, formatDate(r.started_at)),
+                React.createElement('td', { style: { fontSize: '0.8125rem' } }, formatDuration(r.started_at, r.completed_at)),
+                React.createElement('td', { style: { fontSize: '0.75rem', color: '#ef4444', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, r.error_message || ''),
+                React.createElement('td', null,
+                  React.createElement('div', { style: { display: 'flex', gap: '4px' } },
+                    React.createElement('button', { className: 'btn btn-sm btn-secondary', onClick: () => navigate('pipeline-run-detail', r.id) }, 'View'),
+                    r.status === 'running' && React.createElement('button', { className: 'btn btn-sm btn-danger', onClick: () => handleStop(r.id) }, 'Stop'),
+                  )
+                ),
+              ))
+            )
+          )
+        ),
+        React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginTop: '12px' } },
+          React.createElement('button', { className: 'btn btn-sm btn-secondary', disabled: page === 0, onClick: () => setPage(p => p - 1) }, 'Previous'),
+          React.createElement('span', { style: { fontSize: '0.8125rem', color: '#78716c' } }, 'Page ' + (page + 1)),
+          React.createElement('button', { className: 'btn btn-sm btn-secondary', disabled: runs.length < pageSize, onClick: () => setPage(p => p + 1) }, 'Next'),
+        )
+      );
+    }
+
+    // ========== PipelineRunDetailView ==========
+    function PipelineRunDetailView({ navigate, editId }) {
+      const [run, setRun] = useState(null);
+      const [steps, setSteps] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [expandedLogs, setExpandedLogs] = useState({});
+
+      const load = () => {
+        adminFetch('/api/admin/pipeline-runs/' + editId)
+          .then(d => { setRun(d.run); setSteps(d.steps || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+
+      useEffect(() => { load(); }, []);
+
+      // Auto-refresh while running
+      useEffect(() => {
+        if (!run || run.status !== 'running') return;
+        const interval = setInterval(load, 3000);
+        return () => clearInterval(interval);
+      }, [run?.status]);
+
+      const handleStop = async () => {
+        try {
+          await adminFetch('/api/admin/pipeline-runs/' + editId + '/stop', { method: 'POST' });
+          load();
+        } catch (err) { alert(err.message); }
+      };
+
+      const toggleLog = (idx) => setExpandedLogs(prev => ({ ...prev, [idx]: !prev[idx] }));
+
+      const formatDate = (d) => {
+        if (!d) return '—';
+        return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      };
+
+      const formatDuration = (start, end) => {
+        if (!start) return '—';
+        const ms = (end ? new Date(end) : new Date()) - new Date(start);
+        const secs = Math.floor(ms / 1000);
+        if (secs < 60) return secs + 's';
+        const mins = Math.floor(secs / 60);
+        if (mins < 60) return mins + 'm ' + (secs % 60) + 's';
+        return Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+      };
+
+      const stepStatusIcon = (status) => {
+        const icons = {
+          completed: React.createElement('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: '#22c55e', strokeWidth: 2 }, React.createElement('path', { d: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' })),
+          running: React.createElement('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: '#3b82f6', strokeWidth: 2, style: { animation: 'spin 1s linear infinite' } }, React.createElement('path', { d: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' })),
+          failed: React.createElement('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: '#ef4444', strokeWidth: 2 }, React.createElement('path', { d: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z' })),
+          cancelled: React.createElement('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: '#a3a3a3', strokeWidth: 2 }, React.createElement('path', { d: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636' })),
+          pending: React.createElement('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: '#d6d3d1', strokeWidth: 2 }, React.createElement('circle', { cx: 12, cy: 12, r: 9 })),
+        };
+        return icons[status] || icons.pending;
+      };
+
+      const statusBadge = (status) => {
+        const colors = { running: '#3b82f6', completed: '#22c55e', failed: '#ef4444', cancelled: '#a3a3a3', pending: '#f59e0b' };
+        return React.createElement('span', {
+          style: { display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600,
+            background: (colors[status] || '#a3a3a3') + '18', color: colors[status] || '#a3a3a3' }
+        }, status === 'running' && React.createElement('span', { style: { width: 6, height: 6, borderRadius: '50%', background: colors.running, animation: 'pulse 1.5s infinite' } }), status);
+      };
+
+      if (loading) return React.createElement('div', { className: 'loading' }, 'Loading...');
+      if (!run) return React.createElement('div', { className: 'loading' }, 'Pipeline run not found.');
+
+      return React.createElement('div', null,
+        React.createElement('div', { className: 'content-header' },
+          React.createElement('h1', null, 'Pipeline Run: ' + (run.vendor_name || run.vendor_code)),
+          React.createElement('div', { style: { display: 'flex', gap: '8px' } },
+            run.status === 'running' && React.createElement('button', { className: 'btn btn-danger', onClick: handleStop }, 'Stop Pipeline'),
+            React.createElement('button', { className: 'btn btn-secondary', onClick: () => navigate('pipeline-history') }, 'Back to History'),
+          ),
+        ),
+
+        // Summary card
+        React.createElement('div', { style: { background: '#fff', border: '1px solid #e7e5e4', borderRadius: '8px', padding: '20px', marginBottom: '20px' } },
+          React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' } },
+            React.createElement('div', null,
+              React.createElement('div', { style: { fontSize: '0.75rem', color: '#78716c', textTransform: 'uppercase', marginBottom: '4px' } }, 'Status'),
+              statusBadge(run.status),
+            ),
+            React.createElement('div', null,
+              React.createElement('div', { style: { fontSize: '0.75rem', color: '#78716c', textTransform: 'uppercase', marginBottom: '4px' } }, 'Progress'),
+              React.createElement('div', { style: { fontWeight: 600 } }, (run.current_step_index + 1) + ' / ' + run.total_steps + ' steps'),
+            ),
+            React.createElement('div', null,
+              React.createElement('div', { style: { fontSize: '0.75rem', color: '#78716c', textTransform: 'uppercase', marginBottom: '4px' } }, 'Started'),
+              React.createElement('div', null, formatDate(run.started_at)),
+            ),
+            React.createElement('div', null,
+              React.createElement('div', { style: { fontSize: '0.75rem', color: '#78716c', textTransform: 'uppercase', marginBottom: '4px' } }, 'Duration'),
+              React.createElement('div', null, formatDuration(run.started_at, run.completed_at)),
+            ),
+          ),
+          run.error_message && React.createElement('div', { style: { marginTop: '12px', padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#991b1b', fontSize: '0.8125rem' } }, run.error_message),
+          // Progress bar
+          React.createElement('div', { style: { height: '4px', background: '#e7e5e4', borderRadius: '2px', marginTop: '16px' } },
+            React.createElement('div', { style: { height: '100%', borderRadius: '2px', transition: 'width 0.5s',
+              background: run.status === 'failed' ? '#ef4444' : run.status === 'completed' ? '#22c55e' : '#3b82f6',
+              width: (steps.filter(s => s.status === 'completed').length / run.total_steps * 100) + '%' } })
+          ),
+        ),
+
+        // Step timeline
+        React.createElement('div', { style: { background: '#fff', border: '1px solid #e7e5e4', borderRadius: '8px', padding: '20px' } },
+          React.createElement('h3', { style: { fontSize: '0.875rem', fontWeight: 600, marginBottom: '16px' } }, 'Steps'),
+          steps.map((step, idx) => React.createElement('div', { key: step.id, style: { display: 'flex', gap: '12px', marginBottom: idx < steps.length - 1 ? '0' : '0' } },
+            // Timeline column
+            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', width: '24px', flexShrink: 0 } },
+              stepStatusIcon(step.status),
+              idx < steps.length - 1 && React.createElement('div', { style: { width: '2px', flex: 1, minHeight: '20px', background: step.status === 'completed' ? '#22c55e' : '#e7e5e4', margin: '4px 0' } }),
+            ),
+            // Content
+            React.createElement('div', { style: { flex: 1, paddingBottom: idx < steps.length - 1 ? '16px' : '0' } },
+              React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+                React.createElement('span', { style: { fontWeight: 500 } }, step.step_label),
+                React.createElement('span', { style: { padding: '1px 6px', borderRadius: '4px', fontSize: '0.6875rem', fontWeight: 500,
+                  background: step.step_type === 'scraper' ? '#dbeafe' : '#fef3c7',
+                  color: step.step_type === 'scraper' ? '#1d4ed8' : '#92400e' } }, step.step_type),
+                step.started_at && React.createElement('span', { style: { fontSize: '0.75rem', color: '#a8a29e' } }, formatDuration(step.started_at, step.completed_at)),
+              ),
+              step.error_message && React.createElement('div', { style: { marginTop: '4px', fontSize: '0.8125rem', color: '#ef4444' } }, step.error_message),
+              // Scraper step link
+              step.step_type === 'scraper' && step.scrape_job_id && React.createElement('button', {
+                className: 'btn btn-sm btn-secondary', style: { marginTop: '6px', fontSize: '0.75rem' },
+                onClick: () => navigate('scraper-job-detail', step.scrape_job_id)
+              }, 'View Scrape Job'),
+              // Script step log
+              step.step_type === 'script' && step.log && React.createElement(React.Fragment, null,
+                React.createElement('button', {
+                  className: 'btn btn-sm btn-secondary', style: { marginTop: '6px', fontSize: '0.75rem' },
+                  onClick: () => toggleLog(idx)
+                }, expandedLogs[idx] ? 'Hide Log' : 'Show Log'),
+                expandedLogs[idx] && React.createElement('pre', { style: { marginTop: '8px', padding: '12px', background: '#1c1917', color: '#e7e5e4', borderRadius: '6px', fontSize: '0.75rem', maxHeight: '300px', overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' } }, step.log),
+              ),
+            ),
+          ))
+        ),
       );
     }
 

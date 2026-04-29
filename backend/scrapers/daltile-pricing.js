@@ -134,7 +134,8 @@ export async function run(pool, job, source) {
 
   await appendLog(pool, job.id,
     `Complete. Sections: ${sections.length}, Products: ${stats.productsUpdated} updated, ` +
-    `SKUs: ${stats.skusCreated}, Pricing: ${stats.pricingSet}, Packaging: ${stats.packagingSet}, ` +
+    `SKUs created: ${stats.skusCreated}, Matched existing: ${stats.matched || 0}, Orphaned: ${stats.orphaned || 0}, ` +
+    `Pricing: ${stats.pricingSet}, Packaging: ${stats.packagingSet}, ` +
     `Colors: ${stats.colorsSet}, Skipped (not in catalog): ${stats.skipped || 0}, Errors: ${stats.errors}`,
     {
       products_found: totalItems,
@@ -151,62 +152,150 @@ export async function run(pool, job, source) {
  * vendor_sku = colorCode + itemCode (e.g., "AC11PLK848MT") — matches Coveo SKU format.
  */
 async function createItemSku(pool, vendorId, brand, section, item, colorCode, colorName, stats, catMap) {
-  // Product = Color only (e.g., "Palomino"); collection holds the series
-  const productName = colorName || section.name;
-  const productCollection = section.collection || section.series || '';
+  // Product = "Series Color" (e.g., "Outlander Dusk"); collection holds the series
+  // The PDF has COLLECTION + SERIES columns. In our DB, collection = series name.
+  // Try multiple collection candidates: section.collection, section.series, section.name
+  const colorOnlyName = colorName || section.name;
+  const collectionCandidates = [
+    section.collection,
+    section.series,
+    section.name,
+  ].filter(Boolean);
+  // Deduplicate
+  const seen = new Set();
+  const uniqueCollections = [];
+  for (const c of collectionCandidates) {
+    if (!seen.has(c)) { seen.add(c); uniqueCollections.push(c); }
+  }
 
   // Only add pricing to products that already exist (from catalog scraper).
-  // Products only in the price book but not in the public catalog are likely discontinued.
-  const existing = await pool.query(
-    'SELECT id FROM products WHERE vendor_id = $1 AND collection = $2 AND name = $3',
-    [vendorId, productCollection, productName]
-  );
-  if (!existing.rows.length) {
+  // Try "Series Color" format first (unified scraper), then color-only (legacy).
+  let existing = null;
+  for (const coll of uniqueCollections) {
+    const fullName = `${coll} ${colorOnlyName}`;
+    existing = await pool.query(
+      'SELECT id FROM products WHERE vendor_id = $1 AND collection = $2 AND name = $3',
+      [vendorId, coll, fullName]
+    );
+    if (existing.rows.length) break;
+    existing = await pool.query(
+      'SELECT id FROM products WHERE vendor_id = $1 AND collection = $2 AND name = $3',
+      [vendorId, coll, colorOnlyName]
+    );
+    if (existing.rows.length) break;
+  }
+  if (!existing || !existing.rows.length) {
     stats.skipped = (stats.skipped || 0) + 1;
     return;
   }
   const product = existing.rows[0];
   stats.productsUpdated++;
 
-  const vendorSku = colorCode ? `${colorCode}${item.itemCode}` : item.itemCode;
-  const internalSku = `${brand.code}-${vendorSku}`;
-
+  const pdfSku = colorCode ? `${colorCode}${item.itemCode}` : item.itemCode;
   const isSqft = item.unit === 'SF';
-  const sellBy = isSqft ? 'sqft' : 'unit';
   const priceBasis = isSqft ? 'per_sqft' : 'per_unit';
-
-  // variant_name drops color (it's in the product name now) — just size + description
-  const variantParts = [item.size, item.description].filter(Boolean);
-  const variantName = variantParts.join(' ') || null;
-
-  const sku = await upsertSku(pool, {
-    product_id: product.id,
-    vendor_sku: vendorSku,
-    internal_sku: internalSku,
-    variant_name: variantName,
-    sell_by: sellBy,
-    variant_type: item.productType || null
-  });
-  if (sku.is_new) stats.skusCreated++;
-
   const dalCost = parseFloat(item.price) || 0;
-  await upsertPricing(pool, sku.id, {
-    cost: dalCost,
-    retail_price: retailFromCost(dalCost),
-    price_basis: priceBasis
-  });
-  stats.pricingSet++;
+  if (!dalCost) return; // no price = nothing to do
 
-  if (item.unitsCtn > 0) {
-    const pkgData = isSqft
-      ? { sqft_per_box: item.unitsCtn }
-      : { pieces_per_box: item.unitsCtn };
-    await upsertPackaging(pool, sku.id, pkgData);
-    stats.packagingSet++;
+  // Strategy: find existing Coveo SKUs to attach pricing to.
+  // PDF SKU format (e.g., EP201224J1PV) differs from Coveo (EP20RCT1224MT).
+  // Match by color code prefix (first 4 chars) + extracted dimensions.
+  const colorPrefix = (colorCode || pdfSku.slice(0, 4)).toUpperCase();
+  const pdfDims = pdfSku.match(/(\d{3,4})/g);
+
+  // Find all existing SKUs for this product
+  const existingSkus = await pool.query(
+    'SELECT id, vendor_sku, sell_by FROM skus WHERE product_id = $1',
+    [product.id]
+  );
+
+  // Try to match existing SKUs by color code + dimensions
+  let matchedSkuRows = [];
+  if (pdfDims && pdfDims.length > 0) {
+    const pdfDimKey = pdfDims.sort().join(',');
+    for (const row of existingSkus.rows) {
+      const sku = row.vendor_sku.toUpperCase();
+      if (!sku.startsWith(colorPrefix)) continue;
+      const skuDims = sku.match(/(\d{3,4})/g);
+      if (skuDims && skuDims.sort().join(',') === pdfDimKey) {
+        matchedSkuRows.push(row);
+      }
+    }
+  }
+
+  // If no dimension match, apply to ALL SKUs with same color prefix in this product
+  // (same color = same price per sqft)
+  if (matchedSkuRows.length === 0) {
+    for (const row of existingSkus.rows) {
+      if (row.vendor_sku.toUpperCase().startsWith(colorPrefix)) {
+        matchedSkuRows.push(row);
+      }
+    }
+  }
+
+  const matchedSkuIds = matchedSkuRows.map(r => r.id);
+
+  if (matchedSkuRows.length > 0) {
+    // Apply pricing to matched existing Coveo SKUs
+    // Use SKU's sell_by to determine price_basis (prices are per-sqft or per-unit as stored)
+    for (const row of matchedSkuRows) {
+      const skuBasis = row.sell_by === 'sqft' ? 'per_sqft' : priceBasis;
+      await upsertPricing(pool, row.id, {
+        cost: dalCost,
+        retail_price: retailFromCost(dalCost),
+        price_basis: skuBasis,
+      });
+      stats.pricingSet++;
+    }
+    if (item.unitsCtn > 0) {
+      const pkgData = isSqft
+        ? { sqft_per_box: item.unitsCtn }
+        : { pieces_per_box: item.unitsCtn };
+      for (const skuId of matchedSkuIds) {
+        await upsertPackaging(pool, skuId, pkgData);
+      }
+      stats.packagingSet++;
+    }
+    stats.matched = (stats.matched || 0) + matchedSkuIds.length;
+  } else {
+    // No matching Coveo SKU — create the SKU (still has value for pricing reference)
+    const internalSku = `${brand.code}-${pdfSku}`;
+    const variantParts = [item.size, item.description].filter(Boolean);
+    const variantName = variantParts.join(' ') || null;
+    const sellBy = isSqft ? 'sqft' : 'unit';
+
+    const sku = await upsertSku(pool, {
+      product_id: product.id,
+      vendor_sku: pdfSku,
+      internal_sku: internalSku,
+      variant_name: variantName,
+      sell_by: sellBy,
+      variant_type: item.productType || null
+    });
+    if (sku.is_new) stats.skusCreated++;
+
+    await upsertPricing(pool, sku.id, {
+      cost: dalCost,
+      retail_price: retailFromCost(dalCost),
+      price_basis: priceBasis
+    });
+    stats.pricingSet++;
+
+    if (item.unitsCtn > 0) {
+      const pkgData = isSqft
+        ? { sqft_per_box: item.unitsCtn }
+        : { pieces_per_box: item.unitsCtn };
+      await upsertPackaging(pool, sku.id, pkgData);
+      stats.packagingSet++;
+    }
+    stats.orphaned = (stats.orphaned || 0) + 1;
   }
 
   if (colorName) {
-    await upsertSkuAttribute(pool, sku.id, 'color', colorName);
+    const targetIds = matchedSkuIds.length > 0 ? matchedSkuIds : [];
+    for (const skuId of targetIds) {
+      await upsertSkuAttribute(pool, skuId, 'color', colorName);
+    }
     stats.colorsSet++;
   }
 }

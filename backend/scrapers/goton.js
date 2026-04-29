@@ -1,285 +1,129 @@
 /**
- * Goton Tiles — Enrichment Scraper (standard pattern)
+ * Goton Tiles — Enrichment Scraper (reworked)
  *
- * Products already imported from PDF price list (~80 products, ~978 SKUs).
- * This scraper visits gotontiles.com (Wix-hosted) to capture product images
- * and scrape descriptions.
+ * Uses the product map (backend/data/goton-product-map.json) built from
+ * gotontiles.com Wix warmup data. No Puppeteer needed — images are fetched
+ * directly from Wix static CDN using the structured per-color media mappings.
  *
- * Images are saved at the PRODUCT level (sku_id = NULL) because each Goton
- * series page shows a gallery covering all colors — individual color images
- * aren't broken out on separate pages.
- *
- * Glass mosaics (GM1xx, GM2xx, etc.) are shown on shared collection pages,
- * not individual product pages, and require special handling.
- *
- * Image strategy:
- * - Site-wide images (logo, nav, footer) collected once from homepage and excluded
- * - extractLargeImages from base.js (replaces custom extractWixImages)
- * - Cross-page deduplication via globalSeenImages prevents style-group contamination
- * - Wix product gallery targeted first, full-page fallback second
+ * Key improvements over v1:
+ *  - Per-SKU images (not product-level) using color→linkedMedia mappings
+ *  - Primary images are product shots (tile scans), not lifestyle photos
+ *  - Glass mosaic per-code images from collection page data
+ *  - No browser needed — uses HTTP fetch + product map JSON
  */
-import puppeteer from 'puppeteer';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import {
-  delay, saveProductImages, filterImageUrls, preferProductShot,
-  collectSiteWideImages, extractLargeImages,
-  appendLog, addJobError,
+  delay, appendLog, addJobError, upsertMediaAsset,
 } from './base.js';
 
-const BASE_URL = 'https://www.gotontiles.com';
-const BATCH_SIZE = 15;
-
-// ── Slug overrides for product names that don't auto-slugify correctly ──
-const SLUG_OVERRIDES = {
-  'Malakas Rock':       'malakasrock',
-  'Coastwood II':       'coastwood-ii',
-  'Beautiful Sicily':   'beautiful-sicily',
-  'Majestic Gambus':    'majestic-gambus',
-  'Whitehause':         'whiteause',        // typo on site
-  'Premium Whitehause': 'premium-whitehause',
-  'Soslate Textured':   'soslate-textured',
-  'Travertine Nuevo':   'travertine-nuevo',
-  'Carrara Nuevo':      'carrara-nuevo',
-  'Royal Batticino':    'royal-batticino',
-  'Simpatico Concrete': 'simpatico-concrete',
-  'Simpatico Wood':     'simpatico-wood',
-  'Vienna Style':       'vienna-style',
-  'Chebi Rock':         'chebi-rock',
-  'Karst Grace':        'karst-grace',
-  'Danube Waves':       'danube-waves',
-  'Glacier Undulated':  'glacier',          // shares page with Glacier
-  'Bella Stone':        'bella-stone',
-  'Supergres Fog':      'supergres-fog',
-};
-
-// ── Alternate slugs for products with known missing-image issues ──
-const MISSING_IMAGE_OVERRIDES = {
-  'Cimaron':       ['cimarron', 'cimaron'],
-  'Danube Waves':  ['danube-waves', 'danubewaves', 'danube'],
-  'Supergres Fog': ['supergres-fog', 'supergresfog', 'supergres'],
-};
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PRODUCT_MAP_PATH = join(__dirname, '..', 'data', 'goton-product-map.json');
+const WIX_CDN = 'https://static.wixstatic.com/media/';
 
 // ── Glass mosaic collection pages ──
-// Each entry: { slug, codePatterns[] } — products whose name contains a matching
-// code get images from the corresponding collection page.
+// Maps collection slug → code patterns for matching products to collection pages
 const GLASS_COLLECTION_PAGES = [
-  { slug: 'glass-stone-mosaic',                              codePatterns: [/\bGM[12]\d{2}\b/i] },
-  { slug: 'glass-stone-mosaic-basketweave-and-linear-line',  codePatterns: [/\bGMH\d+\b/i, /\bGML3\d+\b/i] },
-  { slug: 'glass-metal-lineal-mosaic',                       codePatterns: [/\bGML4\d+\b/i] },
-  { slug: 'glass-quartzite-mosaic',                          codePatterns: [/\bGM5\d+\b/i, /\bGML5\d+\b/i] },
-  { slug: 'glass-tile',                                      codePatterns: [/\bVetro\b/i] },
+  { slug: 'glass-stone-mosaic',                             codePatterns: [/\bGM[12]\d{2}\b/i] },
+  { slug: 'glass-stone-mosaic-basketweave-and-linear-line', codePatterns: [/\bGMH\d+\b/i, /\bGML3\d+\b/i] },
+  { slug: 'glass-metal-lineal-mosaic',                      codePatterns: [/\bGML4\d+\b/i] },
+  { slug: 'glass-quartzite-mosaic',                         codePatterns: [/\bGM5\d+\b/i, /\bGML5\d+\b/i] },
+  { slug: 'glass-tile',                                     codePatterns: [/\bVetro\b/i] },
 ];
 
-// ── Krovanh uses numeric-only color codes (210–216, roto color process) ──
-// No actual color names exist — fix the redundant variant_name "210 210" → "210"
-const KROVANH_NUMERIC_CODES = ['210', '211', '212', '213', '214', '215', '216'];
-
-// Generic description template to detect and replace
-const GENERIC_DESC_PATTERN = /a durable porcelain tile/i;
-
-function slugify(name) {
-  return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-}
-
-function resolveSlug(productName) {
-  if (SLUG_OVERRIDES[productName]) return SLUG_OVERRIDES[productName];
-  return slugify(productName);
-}
-
-function launchBrowserWithTimeout() {
-  return puppeteer.launch({
-    headless: 'new',
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-    protocolTimeout: 120000,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-  });
-}
-
-async function createPage(browser) {
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1920, height: 1080 });
-  await page.setUserAgent(
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-  );
-  return page;
+/**
+ * Build full-res Wix CDN URL from the product map's url field.
+ * Strips resize params to get the original full-res image.
+ */
+function wixFullRes(url) {
+  if (!url) return null;
+  // url is like "a0c5fc_xxx~mv2.jpg" — prepend CDN base
+  if (url.startsWith('http')) return url.split('/v1/')[0]; // strip resize params
+  return WIX_CDN + url;
 }
 
 /**
- * Scroll down the page to trigger lazy-loaded Wix images.
+ * Fuzzy match a DB color name to a Wix color option.
+ * DB has names like "Avorio Cross Cut", Wix has "AVORIO".
+ * Returns the best match or null.
  */
-async function scrollForLazyImages(page) {
-  await page.evaluate(async () => {
-    const step = 400;
-    const pause = 300;
-    const height = document.body.scrollHeight;
-    for (let pos = 0; pos < height; pos += step) {
-      window.scrollTo(0, pos);
-      await new Promise(r => setTimeout(r, pause));
-    }
-    // Scroll back to top
-    window.scrollTo(0, 0);
-  });
-  await delay(1500);
+/**
+ * Strip trailing numeric codes from Wix color names.
+ * "HUNGTINGTON438" → "hungtington", "DESERT 166" → "desert", "CARBON244" → "carbon"
+ */
+function stripCode(name) {
+  return name.toLowerCase().replace(/\s*\d{2,}$/, '').trim();
 }
 
 /**
- * Normalize a Wix image URL for deduplication.
- * Strips resize params (/v1/fill/...) and query strings to get the canonical form.
+ * Simple Levenshtein distance for fuzzy matching typos.
  */
-function normalizeWixUrl(url) {
-  // Strip Wix resize path: keep just the base media URL
-  const match = url.match(/(https?:\/\/static\.wixstatic\.com\/media\/[^/]+\.\w+)/);
-  const base = match ? match[1] : url;
-  return base.split('?')[0].toLowerCase();
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1, dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+  return dp[m][n];
 }
 
-/**
- * Try to extract images from a Wix product gallery container specifically.
- * Returns URLs from the gallery, or empty array if no gallery container found.
- */
-async function extractWixProductGallery(page) {
-  return page.evaluate(() => {
-    // Wix product gallery selectors
-    const selectors = [
-      '[data-hook="product-gallery"] img',
-      '.product-gallery img',
-      '[data-hook="main-media-image"]',
-      '[data-hook="media-gallery-large-image"] img',
-    ];
-    for (const sel of selectors) {
-      const imgs = document.querySelectorAll(sel);
-      if (imgs.length === 0) continue;
-      const urls = [];
-      for (const img of imgs) {
-        const src = img.currentSrc || img.src || img.dataset?.src || '';
-        if (!src || !src.startsWith('http')) continue;
-        if (img.naturalWidth > 0 && img.naturalWidth < 100) continue;
-        urls.push(src);
-      }
-      if (urls.length > 0) return urls;
-    }
-    return [];
-  });
-}
+function matchColor(dbColorName, wixColors) {
+  const dbLower = dbColorName.toLowerCase().trim();
+  if (!dbLower) return null; // empty color can't match
+  const dbWords = dbLower.split(/\s+/);
+  const dbFirst = dbWords[0];
 
-/**
- * Extract description text from a Wix product page.
- * Tries rich text elements, font classes, and meta tags.
- */
-async function extractDescription(page) {
-  const desc = await page.evaluate(() => {
-    // Strategy 1: Wix rich text blocks
-    const richTexts = document.querySelectorAll('[data-testid="richTextElement"] p, [data-testid="richTextElement"] span');
-    const texts = [];
-    for (const el of richTexts) {
-      const t = (el.textContent || '').trim();
-      if (t.length >= 20) texts.push(t);
-    }
-    if (texts.length > 0) {
-      // Filter out nav/boilerplate
-      const boilerplate = ['home', 'shop', 'contact', 'about', 'menu', 'cart', 'login', 'sign up', 'subscribe', 'newsletter', 'follow us', 'copyright', 'all rights'];
-      const good = texts.filter(t => {
-        const lower = t.toLowerCase();
-        return !boilerplate.some(kw => lower.startsWith(kw));
-      });
-      if (good.length > 0) return good.join(' ').substring(0, 500);
-    }
-
-    // Strategy 2: Wix font style classes
-    for (const cls of ['.font_7', '.font_8']) {
-      const els = document.querySelectorAll(cls);
-      const parts = [];
-      for (const el of els) {
-        const t = (el.textContent || '').trim();
-        if (t.length >= 20) parts.push(t);
-      }
-      if (parts.length > 0) return parts.join(' ').substring(0, 500);
-    }
-
-    // Strategy 3: Meta description fallback
-    const metaDesc = document.querySelector('meta[name="description"]')?.content
-      || document.querySelector('meta[property="og:description"]')?.content
-      || '';
-    if (metaDesc.length >= 20) return metaDesc.substring(0, 500);
-
-    return '';
-  });
-
-  return desc.trim();
-}
-
-/**
- * Visit a product page and extract images + description.
- * Uses base.js extractLargeImages with site-wide exclusion and cross-page dedup.
- *
- * @param {import('puppeteer').Page} page
- * @param {string} slug
- * @param {Set<string>} siteWideImages - URLs to exclude (from homepage)
- * @param {Map<string, string>} globalSeenImages - cross-page dedup map (normalizedUrl → productName)
- * @param {string} productName - for dedup tracking
- * @param {number} extraWait - ms to wait for Wix hydration
- * @returns {{ images: string[], description: string }}
- */
-async function scrapeProductPage(page, slug, siteWideImages, globalSeenImages, productName, extraWait = 3000) {
-  const url = `${BASE_URL}/product-page/${slug}`;
-  try {
-    const resp = await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
-    if (!resp || resp.status() >= 400) {
-      return { images: [], description: '' };
-    }
-
-    // Wait for Wix Thunderbolt hydration
-    await delay(extraWait);
-
-    // Scroll to trigger lazy-loaded gallery images
-    await scrollForLazyImages(page);
-
-    // Strategy 1: Try Wix product gallery container first
-    let rawUrls = await extractWixProductGallery(page);
-
-    // Strategy 2: Fall back to extractLargeImages from base.js
-    if (rawUrls.length === 0) {
-      const largeImgs = await extractLargeImages(page, siteWideImages, 150);
-      rawUrls = largeImgs.map(img => img.src);
-    }
-
-    // Convert to full-res (strip Wix resize params)
-    rawUrls = rawUrls.map(u => {
-      const match = u.match(/(https?:\/\/static\.wixstatic\.com\/media\/[^/]+\.\w+)/);
-      return match ? match[1] : u;
-    });
-
-    // Filter junk
-    const filtered = filterImageUrls(rawUrls, { maxImages: 12 });
-
-    // Cross-page deduplication: only keep images not seen on other products
-    const unique = [];
-    for (const imgUrl of filtered) {
-      const norm = normalizeWixUrl(imgUrl);
-      const owner = globalSeenImages.get(norm);
-      if (!owner) {
-        globalSeenImages.set(norm, productName);
-        unique.push(imgUrl);
-      }
-      // If already seen by same product (e.g. retry with alt slug), still keep it
-      else if (owner === productName) {
-        unique.push(imgUrl);
-      }
-      // Otherwise skip — belongs to another product (cross-contamination)
-    }
-
-    const images = preferProductShot(unique).slice(0, 8);
-    const description = await extractDescription(page);
-
-    return { images, description };
-  } catch (err) {
-    return { images: [], description: '' };
+  // Pass 1: Direct case-insensitive
+  for (const wc of Object.keys(wixColors)) {
+    if (wc.toLowerCase() === dbLower) return wc;
   }
+  // Pass 2: Strip codes and compare
+  for (const wc of Object.keys(wixColors)) {
+    const wb = stripCode(wc);
+    if (wb === dbFirst || wb === dbLower) return wc;
+  }
+  // Pass 3: DB color contained in Wix base or vice versa
+  for (const wc of Object.keys(wixColors)) {
+    const wb = stripCode(wc);
+    if (wb.length >= 3 && dbLower.includes(wb)) return wc;
+  }
+  for (const wc of Object.keys(wixColors)) {
+    if (dbFirst.length >= 3 && stripCode(wc).includes(dbFirst)) return wc;
+  }
+  // Pass 4: Fuzzy match — allow up to 2 edit distance for names ≥ 5 chars
+  if (dbFirst.length >= 5) {
+    let bestMatch = null, bestDist = Infinity;
+    for (const wc of Object.keys(wixColors)) {
+      const wb = stripCode(wc);
+      if (wb.length < 4) continue;
+      const dist = levenshtein(dbFirst, wb);
+      const maxDist = Math.min(2, Math.floor(Math.min(dbFirst.length, wb.length) * 0.3));
+      if (dist <= maxDist && dist < bestDist) {
+        bestDist = dist;
+        bestMatch = wc;
+      }
+    }
+    if (bestMatch) return bestMatch;
+  }
+  return null;
 }
 
 /**
- * Determine which glass collection page a product belongs to, if any.
- * Uses regex matching to find codes anywhere in the product name
- * (works with both old "GM101 5/8x5/8" and new "Glass Stone Mosaic GM101" formats).
+ * Extract glass mosaic code from product name.
+ */
+function extractGlassCode(productName) {
+  const match = productName.match(/\b(GM[LH]?\d+)\b/i);
+  return match ? match[1].toUpperCase() : null;
+}
+
+/**
+ * Find which glass collection page a product belongs to.
  */
 function getGlassCollectionSlug(productName) {
   for (const { slug, codePatterns } of GLASS_COLLECTION_PAGES) {
@@ -291,77 +135,307 @@ function getGlassCollectionSlug(productName) {
 }
 
 /**
- * Extract glass mosaic code from product name.
- * Matches GM/GML/GMH codes anywhere in the name.
+ * Return only positively classified product images.
+ * For per-SKU use: only show actual tile scans, never lifestyle or unclassified.
  */
-function extractGlassCode(productName) {
-  const match = productName.match(/\b(GM[LH]?\d+)\b/i);
-  return match ? match[1].toUpperCase() : null;
+function productOnly(images) {
+  const prod = images.filter(m => m.type === 'product');
+  return prod.length > 0 ? prod : images.filter(m => m.type !== 'lifestyle');
 }
 
 /**
- * Fix Krovanh redundant variant_name: "210 210 9x36" → "210 9x36".
- * Krovanh uses numeric-only roto color codes — no actual color names exist.
+ * Classify a rendered gallery image by dimensions alone (no title).
  */
-async function fixKrovanhVariantNames(pool, vendorId, log) {
-  let fixed = 0;
-  for (const code of KROVANH_NUMERIC_CODES) {
-    // Fix variant_name: "210 210 ..." → "210 ..."
-    const res = await pool.query(`
-      UPDATE skus s SET variant_name = REPLACE(variant_name, $1, $2)
-      FROM products p
-      WHERE s.product_id = p.id AND p.vendor_id = $3 AND p.name = 'Krovanh'
-        AND s.variant_name LIKE $4
-    `, [`${code} ${code}`, code, vendorId, `%${code} ${code}%`]);
-    fixed += res.rowCount;
+function classifyByDimensions(width, height) {
+  if (!width || !height) return 'unknown';
+  const ratio = width / height;
+  if (ratio < 0.6) return 'product';
+  if (Math.max(width, height) >= 3000) return 'lifestyle';
+  return 'unknown';
+}
+
+function prepareGalleryImages(renderedGallery) {
+  if (!renderedGallery || renderedGallery.length === 0) return [];
+  return renderedGallery.map(img => ({
+    url: img.url || img.id,
+    title: img.name || '',
+    width: img.width || 0,
+    height: img.height || 0,
+    type: classifyByDimensions(img.width, img.height),
+  }));
+}
+
+// Goton image title size code → compatible DB sizes (inches)
+// Grouped by visual format family. Used only when multiple size codes exist.
+const SIZE_CODE_TO_SIZES = {
+  '36':   ['12x24', '6x24'],                 // 300x600mm — rectangle family
+  '45':   ['18x18', '13x13', '6x6'],         // 450x450mm — square family
+  '49':   ['18x36', '9x36', '9x48', '6x36'], // 450x900mm — plank family
+  '60':   ['24x24', '12x24'],                 // 600x600mm — square/rect family
+  '1560': ['6x24'],                           // 150x600mm
+  '1590': ['6x36'],                           // 150x900mm
+  '2290': ['9x36'],                           // 225x900mm
+  '4120': ['18x48', '9x48'],                  // 450x1200mm — long plank family
+};
+
+function getImageSizeCode(title) {
+  if (!title) return null;
+  const decoded = typeof title === 'string' ? decodeURIComponent(title) : title;
+  const m = decoded.match(/^(\d{2,4})[BCD]\d{3}/i);
+  return m ? m[1] : null;
+}
+
+function getSkuSize(variantName) {
+  const m = variantName.match(/(\d+x\d+)/i);
+  return m ? m[1].toLowerCase() : null;
+}
+
+/**
+ * Pick the best image(s) for a SKU based on its variant type and size.
+ *
+ * Field tiles: size-aware selection, prefer plank scans, up to 4 images
+ * Mosaics: only square-ish images (no plank scans), 1 image
+ * Accessories: 1 image (primary only)
+ */
+function pickImagesForSku(allImages, variantName, variantType) {
+  if (!allImages || allImages.length === 0) return [];
+
+  const isMosaic = /mosaic|hexag/i.test(variantName);
+  const isAccessory = variantType === 'accessory';
+
+  if (isMosaic) {
+    // Prefer actual mosaic sheet close-up (K/N pattern code in title)
+    // over the field tile face scan which shows the raw material, not the mosaic.
+    const mosaicShots = allImages.filter(m => {
+      if (m.type === 'lifestyle') return false;
+      const t = m.title ? decodeURIComponent(m.title) : '';
+      return /[KN]\d{2,3}/.test(t);
+    });
+    if (mosaicShots.length > 0) return [mosaicShots[0]];
+    // Fallback: field tile face scan (same material, just not mosaic-cut)
+    const productShots = allImages.filter(m => m.type === 'product' || m.type === 'unknown');
+    if (productShots.length > 0) return [productShots[0]];
+    if (allImages.length > 0) return [allImages[0]];
+    return [];
   }
-  if (fixed > 0) await log(`Fixed ${fixed} Krovanh redundant variant names`);
+
+  if (isAccessory) {
+    return [allImages[0]];
+  }
+
+  // ── Field tile: size-aware selection ──
+  const productImgs = allImages.filter(m => m.type === 'product' || m.type === 'unknown');
+  const lifestyleImgs = allImages.filter(m => m.type === 'lifestyle');
+
+  const skuSize = getSkuSize(variantName);
+  let selectedProduct = productImgs;
+
+  if (skuSize && productImgs.length > 0) {
+    const sizeCodes = new Set();
+    for (const img of productImgs) {
+      const code = getImageSizeCode(img.title);
+      if (code) sizeCodes.add(code);
+    }
+
+    if (sizeCodes.size > 1) {
+      let matchingCode = null;
+      for (const code of sizeCodes) {
+        const expectedSizes = SIZE_CODE_TO_SIZES[code] || [];
+        if (expectedSizes.some(s => skuSize.includes(s) || s.includes(skuSize))) {
+          matchingCode = code;
+          break;
+        }
+      }
+
+      if (matchingCode) {
+        const sizeMatched = productImgs.filter(img => {
+          const code = getImageSizeCode(img.title);
+          return !code || code === matchingCode;
+        });
+        if (sizeMatched.length > 0) selectedProduct = sizeMatched;
+      }
+    }
+  }
+
+  // Sort: plank scans first, then other product images, then per-color lifestyle
+  const planks = selectedProduct.filter(m => m.height && m.width && m.height > m.width * 1.3);
+  const otherProduct = selectedProduct.filter(m => !planks.includes(m));
+  return [...planks, ...otherProduct, ...lifestyleImgs].slice(0, 4);
 }
 
 /**
- * Generate a fallback description from DB attributes when scraping finds nothing.
- * E.g.: "Coastwood is a porcelain tile from Goton Tiles, available in Pismo, Venice, Malibu. Sizes: 6x36, 9x36."
+ * Get per-color images from a map entry.
+ * Strategy 1: Colors have linked images → use those (filter lifestyle)
+ * Strategy 2: Colors exist but 0 linked → split allMedia non-lifestyle by color index
+ * Returns Map<wixColorKey, image[]>
  */
-async function generateFallbackDescription(pool, productId, productName) {
-  const attrRes = await pool.query(`
-    SELECT a.slug, array_agg(DISTINCT sa.value ORDER BY sa.value) AS vals
-    FROM sku_attributes sa
-    JOIN attributes a ON a.id = sa.attribute_id
-    JOIN skus s ON s.id = sa.sku_id
-    WHERE s.product_id = $1 AND a.slug IN ('color', 'size', 'material')
-    GROUP BY a.slug
-  `, [productId]);
+function getPerColorImages(mapEntry) {
+  const result = new Map();
+  const realColors = Object.entries(mapEntry.colors || {}).filter(([k]) => k !== 'ALL' && k !== 'All');
+  if (realColors.length === 0) return result;
 
-  const attrs = {};
-  for (const row of attrRes.rows) attrs[row.slug] = row.vals;
+  const totalLinked = realColors.reduce((sum, [, data]) => sum + data.images.length, 0);
+  if (totalLinked > 0) {
+    // Include product images first, then per-color lifestyle as alternates
+    for (const [colorKey, colorData] of realColors) {
+      const productImgs = colorData.images.filter(m => m.type === 'product');
+      const colorLifestyle = colorData.images.filter(m => m.type === 'lifestyle');
+      const combined = [...productImgs, ...colorLifestyle];
+      if (combined.length > 0) {
+        result.set(colorKey, combined);
+      } else {
+        // Color has 0 linked images — try matching by color code in allMedia titles
+        const codeMatch = colorKey.match(/\d{3,}/);
+        if (codeMatch) {
+          const code = codeMatch[0];
+          const matched = productOnly(mapEntry.allMedia).filter(m =>
+            m.title && m.title.includes(code)
+          );
+          if (matched.length > 0) result.set(colorKey, matched);
+        }
+      }
+    }
+    return result;
+  }
 
-  const material = (attrs.material || ['porcelain tile'])[0].toLowerCase();
-  const colors = attrs.color || [];
-  const sizes = attrs.size || [];
+  // No linked images — match allMedia to colors by title codes/names
+  // Filter out lifestyle, then also detect leading hero images by dimensions
+  let candidates = mapEntry.allMedia.filter(m => m.type !== 'lifestyle');
+  if (candidates.length === 0) return result;
 
-  let desc = `${productName} is a ${material} from Goton Tiles`;
-  if (colors.length > 0) desc += `, available in ${colors.join(', ')}`;
-  if (sizes.length > 0) desc += `. Sizes: ${sizes.join(', ')}`;
-  desc += '.';
+  // Detect leading hero: if first image is landscape and >1.5x area of median
+  if (candidates.length > realColors.length + 1) {
+    const first = candidates[0];
+    const areas = candidates.slice(1).map(m => (m.width || 1) * (m.height || 1));
+    const medianArea = areas.sort((a, b) => a - b)[Math.floor(areas.length / 2)];
+    const firstArea = (first.width || 1) * (first.height || 1);
+    const isLandscape = (first.width || 0) > (first.height || 0) * 1.1;
+    if (isLandscape && firstArea > medianArea * 1.5) {
+      candidates = candidates.slice(1); // skip hero
+    }
+  }
+  if (candidates.length === 0) return result;
 
-  return desc;
+  // Build color code and name maps from Wix color keys
+  // Multiple colors can share a code (e.g., "AVORIO MATT 601M" + "AVORIO POLISHED 601P")
+  const colorCodeMap = new Map(); // code → colorKey[]
+  const colorNameMap = new Map(); // lowercased name → colorKey[]
+  for (const [colorKey] of realColors) {
+    const codeMatch = colorKey.match(/(\d{3,})/);
+    if (codeMatch) {
+      if (!colorCodeMap.has(codeMatch[1])) colorCodeMap.set(codeMatch[1], []);
+      colorCodeMap.get(codeMatch[1]).push(colorKey);
+    }
+    const namePart = colorKey.replace(/\s*\d{2,}.*$/, '').trim().toLowerCase();
+    if (namePart && namePart.length >= 3) {
+      if (!colorNameMap.has(namePart)) colorNameMap.set(namePart, []);
+      colorNameMap.get(namePart).push(colorKey);
+    }
+  }
+
+  // Try matching each candidate image to color(s) by its title
+  const matched = new Map(); // colorKey → image[]
+  const unmatched = [];
+
+  for (const img of candidates) {
+    const decoded = decodeURIComponent(img.title || '');
+    if (!decoded || decoded === 'no-title') {
+      unmatched.push(img);
+      continue;
+    }
+    const titleLower = decoded.toLowerCase();
+
+    let foundColors = null;
+    const titleCodes = [...decoded.matchAll(/(\d{3})/g)].map(m => m[1]);
+    for (const tc of titleCodes) {
+      if (colorCodeMap.has(tc)) { foundColors = colorCodeMap.get(tc); break; }
+    }
+
+    if (!foundColors) {
+      for (const [name, colorKeys] of colorNameMap) {
+        if (titleLower.includes(name)) { foundColors = colorKeys; break; }
+      }
+    }
+
+    if (foundColors) {
+      for (const ck of foundColors) {
+        if (!matched.has(ck)) matched.set(ck, []);
+        matched.get(ck).push(img);
+      }
+    } else {
+      unmatched.push(img);
+    }
+  }
+
+  if (matched.size > 0) {
+    for (const [colorKey, imgs] of matched) {
+      result.set(colorKey, imgs);
+    }
+    return result;
+  }
+
+  // Fallback: no titles matched — even-split as last resort
+  const perColor = Math.max(1, Math.floor(candidates.length / realColors.length));
+  for (let i = 0; i < realColors.length; i++) {
+    const [colorKey] = realColors[i];
+    const start = i * perColor;
+    const end = (i === realColors.length - 1) ? candidates.length : start + perColor;
+    const slice = candidates.slice(start, end);
+    if (slice.length > 0) result.set(colorKey, slice);
+  }
+  return result;
 }
 
 /**
- * Update product description only if current one is generic or missing.
+ * Load product map and refresh if stale.
  */
-async function updateDescription(pool, productId, description) {
-  if (!description || description.length < 20) return false;
-  const res = await pool.query(`
-    UPDATE products SET description_short = $1, updated_at = CURRENT_TIMESTAMP
-    WHERE id = $2
-      AND (description_short IS NULL OR description_short = '' OR description_short ~* 'a durable porcelain tile')
-  `, [description, productId]);
-  return res.rowCount > 0;
+function loadProductMap() {
+  try {
+    const raw = readFileSync(PRODUCT_MAP_PATH, 'utf-8');
+    return JSON.parse(raw);
+  } catch (err) {
+    return null;
+  }
 }
+
+/**
+ * Slugify a product name for matching to product map keys.
+ */
+function slugify(name) {
+  return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+}
+
+/**
+ * Find a product in the product map by name (fuzzy).
+ * Tries exact match, slug match, and partial match.
+ */
+function findInProductMap(productMap, dbProductName) {
+  const products = productMap.products;
+
+  // Exact match (case-insensitive)
+  for (const [name, data] of Object.entries(products)) {
+    if (name.toLowerCase() === dbProductName.toLowerCase()) return data;
+  }
+
+  // Match by slug
+  const dbSlug = slugify(dbProductName);
+  for (const [name, data] of Object.entries(products)) {
+    if (data.slug === dbSlug) return data;
+  }
+
+  // Partial match: DB name contained in product map name or vice versa
+  const dbLower = dbProductName.toLowerCase();
+  for (const [name, data] of Object.entries(products)) {
+    const mapLower = name.toLowerCase();
+    if (mapLower.includes(dbLower) || dbLower.includes(mapLower)) return data;
+  }
+
+  return null;
+}
+
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Main run function — standard scraper pattern
+// Main run function
 // ══════════════════════════════════════════════════════════════════════════════
 
 export async function run(pool, job, source) {
@@ -376,11 +450,15 @@ export async function run(pool, job, source) {
     await addJobError(pool, job.id, msg).catch(() => {});
   };
 
-  // ── Phase 0: Fix Krovanh redundant variant names ──
-  await log('Phase 0: Fixing Krovanh variant names...');
-  await fixKrovanhVariantNames(pool, vendorId, log);
+  // ── Load product map ──
+  const productMap = loadProductMap();
+  if (!productMap) {
+    await logError('Product map not found. Run: node backend/scripts/build-goton-product-map.cjs');
+    return;
+  }
+  await log(`Loaded product map: ${Object.keys(productMap.products).length} products, generated ${productMap.generated}`);
 
-  // ── Get all Goton products ──
+  // ── Get all Goton products from DB with their SKUs ──
   const productRows = await pool.query(`
     SELECT p.id, p.name, p.collection, p.description_short
     FROM products p
@@ -388,256 +466,296 @@ export async function run(pool, job, source) {
     ORDER BY p.collection, p.name
   `, [vendorId]);
 
-  // ── Check which products already have a primary image ──
-  const existingImages = await pool.query(`
-    SELECT DISTINCT ma.product_id
-    FROM media_assets ma
-    JOIN products p ON p.id = ma.product_id
-    WHERE p.vendor_id = $1 AND ma.asset_type = 'primary'
+  // Get all SKUs for this vendor with their color attribute
+  const skuRows = await pool.query(`
+    SELECT s.id AS sku_id, s.product_id, s.variant_name, s.variant_type, s.sell_by,
+           sa.value AS color
+    FROM skus s
+    JOIN products p ON p.id = s.product_id
+    LEFT JOIN sku_attributes sa ON sa.sku_id = s.id
+      AND sa.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+    WHERE p.vendor_id = $1 AND s.status = 'active'
+    ORDER BY s.product_id, s.variant_name
   `, [vendorId]);
-  const alreadyHaveImages = new Set(existingImages.rows.map(r => r.product_id));
 
-  // ── Split products into regular (individual pages) vs glass (collection pages) ──
-  const regularProducts = [];
-  const glassProducts = new Map(); // slug → product[]
-  const needDescriptionOnly = []; // products with images but generic description
-
-  for (const row of productRows.rows) {
-    const hasGenericDesc = !row.description_short || GENERIC_DESC_PATTERN.test(row.description_short);
-
-    if (alreadyHaveImages.has(row.id)) {
-      // Already has images — still check if description needs updating
-      if (hasGenericDesc) needDescriptionOnly.push(row);
-      continue;
-    }
-
-    const collectionSlug = getGlassCollectionSlug(row.name);
-    if (collectionSlug) {
-      if (!glassProducts.has(collectionSlug)) glassProducts.set(collectionSlug, []);
-      glassProducts.get(collectionSlug).push(row);
-    } else {
-      regularProducts.push(row);
-    }
+  // Group SKUs by product_id, then by color
+  const skusByProduct = new Map();
+  for (const sku of skuRows.rows) {
+    if (!skusByProduct.has(sku.product_id)) skusByProduct.set(sku.product_id, []);
+    skusByProduct.get(sku.product_id).push(sku);
   }
 
-  const skipped = alreadyHaveImages.size;
-  const totalToScrape = regularProducts.length + [...glassProducts.values()].reduce((n, arr) => n + arr.length, 0);
-
-  await log(`Found ${productRows.rowCount} Goton products`);
-  await log(`Already have images: ${skipped} (${needDescriptionOnly.length} need description update)`);
-  await log(`Regular products to scrape: ${regularProducts.length}`);
-  await log(`Glass mosaic products: ${totalToScrape - regularProducts.length} (across ${glassProducts.size} collection pages)`);
+  await log(`Found ${productRows.rowCount} products, ${skuRows.rowCount} SKUs`);
 
   let imagesSaved = 0;
+  let skusMatched = 0;
   let productsMatched = 0;
   let productsFailed = 0;
   let descriptionsUpdated = 0;
-  let browser = await launchBrowserWithTimeout();
-  let pagesSinceLaunch = 0;
 
-  // Cross-page image deduplication: tracks every image URL seen across all products
-  // Map<normalizedUrl, productName> — first product to claim an image owns it
-  const globalSeenImages = new Map();
+  // ══════════════════════════════════════════════════════════════════════
+  // Process each product
+  // ══════════════════════════════════════════════════════════════════════
+  for (const product of productRows.rows) {
+    const skus = skusByProduct.get(product.id) || [];
+    if (skus.length === 0) continue;
 
-  try {
-    let page = await createPage(browser);
+    // Check if this is a glass mosaic product
+    const glassSlug = getGlassCollectionSlug(product.name);
+    const glassCode = extractGlassCode(product.name);
 
-    // ── Collect site-wide images from homepage for exclusion ──
-    await log('Collecting site-wide images from homepage...');
-    const siteWideImages = await collectSiteWideImages(page, BASE_URL);
-    await log(`  Collected ${siteWideImages.size} site-wide images to exclude`);
-    pagesSinceLaunch++;
+    let mapEntry;
+    if (glassSlug) {
+      // Glass products: look up the collection page in the product map
+      mapEntry = findInProductMap(productMap, glassSlug);
+    } else {
+      // Regular products: look up by name
+      mapEntry = findInProductMap(productMap, product.name);
+    }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // REGULAR PRODUCTS — each has its own /product-page/{slug}
-    // ══════════════════════════════════════════════════════════════════════
-    for (const product of regularProducts) {
-      // Recycle browser periodically
-      if (pagesSinceLaunch >= BATCH_SIZE) {
-        await log(`Recycling browser after ${BATCH_SIZE} pages, pausing 15s...`);
-        try { await page.close(); } catch (_) {}
-        try { await browser.close(); } catch (_) {}
-        await delay(15000);
-        browser = await launchBrowserWithTimeout();
-        page = await createPage(browser);
-        pagesSinceLaunch = 0;
+    if (!mapEntry) {
+      await logError(`No product map entry for "${product.name}"`);
+      productsFailed++;
+      continue;
+    }
+
+    // ── Update description ──
+    if (mapEntry.description && mapEntry.description.length >= 20) {
+      const cleanDesc = mapEntry.description.replace(/<[^>]+>/g, '').trim().substring(0, 500);
+      if (cleanDesc.length >= 20) {
+        const descResult = await pool.query(`
+          UPDATE products SET description_short = $1, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+            AND (description_short IS NULL OR description_short = '' OR description_short ~* 'a durable porcelain tile')
+        `, [cleanDesc, product.id]);
+        if (descResult.rowCount > 0) descriptionsUpdated++;
       }
+    }
 
-      const slug = resolveSlug(product.name);
-      await log(`Scraping: ${product.name} → /product-page/${slug}`);
+    // ── Determine images per SKU ──
+    // Group ALL SKUs (tiles + accessories) by color
+    // When color attribute is null, extract from variant name
+    const colorGroups = new Map(); // color → sku[]
+    for (const sku of skus) {
+      let color = sku.color || '';
+      if (!color) {
+        const parts = sku.variant_name.split(/\s+/);
+        if (parts.length >= 2) {
+          const sizeIdx = parts.findIndex(p => /^\d+x\d+$/i.test(p));
+          if (sizeIdx > 0) {
+            color = parts.slice(0, sizeIdx).join(' ');
+          } else if (/mosaic|hexag/i.test(sku.variant_name)) {
+            const mm = sku.variant_name.match(/^(\S+)\s+(?:Porcelain|Mosaic|Hexag)/i);
+            if (mm) color = mm[1];
+          }
+        }
+      }
+      if (!colorGroups.has(color)) colorGroups.set(color, []);
+      colorGroups.get(color).push(sku);
+    }
 
-      let result = await scrapeProductPage(page, slug, siteWideImages, globalSeenImages, product.name);
-      pagesSinceLaunch++;
+    let productImageCount = 0;
+    let allProductImages = productOnly(mapEntry.allMedia);
+    if (allProductImages.length === 0) allProductImages = mapEntry.allMedia;
 
-      // If no images found, try alternate slugs for known problematic products
-      if (result.images.length === 0 && MISSING_IMAGE_OVERRIDES[product.name]) {
-        for (const altSlug of MISSING_IMAGE_OVERRIDES[product.name]) {
-          if (altSlug === slug) continue; // already tried
-          await log(`  Retrying ${product.name} with alternate slug: ${altSlug}`);
-          result = await scrapeProductPage(page, altSlug, siteWideImages, globalSeenImages, product.name, 5000);
-          pagesSinceLaunch++;
-          if (result.images.length > 0) break;
+    // Prepare rendered gallery images for mosaic SKUs
+    const galleryImages = prepareGalleryImages(mapEntry.renderedGallery);
+
+    if (glassCode && mapEntry.colors) {
+      // ── Glass mosaic: match by code in color options ──
+      const matchedColor = Object.keys(mapEntry.colors).find(c =>
+        c.toUpperCase().includes(glassCode)
+      );
+      const images = matchedColor
+        ? productOnly(mapEntry.colors[matchedColor].images)
+        : allProductImages;
+
+      for (const sku of skus) {
+        const picked = pickImagesForSku(images, sku.variant_name, sku.variant_type);
+        let saved = 0;
+        for (let i = 0; i < picked.length; i++) {
+          const url = wixFullRes(picked[i].url);
+          if (!url) continue;
+          await upsertMediaAsset(pool, {
+            product_id: product.id, sku_id: sku.sku_id,
+            asset_type: i === 0 ? 'primary' : 'alternate', url, original_url: url, sort_order: i,
+          });
+          saved++;
+        }
+        imagesSaved += saved;
+        if (saved > 0) skusMatched++;
+      }
+      productImageCount = images.length;
+
+    } else if (mapEntry.colors && Object.keys(mapEntry.colors).length > 0) {
+      // ── Regular product with color options ──
+      const perColorImages = getPerColorImages(mapEntry);
+
+      for (const [dbColor, dbSkus] of colorGroups) {
+        const wixColorKey = matchColor(dbColor, mapEntry.colors);
+        let images = (wixColorKey && perColorImages.has(wixColorKey))
+          ? perColorImages.get(wixColorKey)
+          : null;
+        // No match — skip this color to avoid showing wrong color's images
+        if (!images || images.length === 0) continue;
+
+        for (const sku of dbSkus) {
+          const picked = pickImagesForSku(images, sku.variant_name, sku.variant_type);
+          let saved = 0;
+          for (let i = 0; i < picked.length; i++) {
+            const url = wixFullRes(picked[i].url);
+            if (!url) continue;
+            await upsertMediaAsset(pool, {
+              product_id: product.id, sku_id: sku.sku_id,
+              asset_type: i === 0 ? 'primary' : 'alternate', url, original_url: url, sort_order: i,
+            });
+            saved++;
+          }
+          imagesSaved += saved;
+          if (saved > 0) skusMatched++;
+        }
+        productImageCount += images.length;
+      }
+    } else {
+      // ── No color options: use all non-lifestyle media ──
+      if (allProductImages.length > 0) {
+        for (const sku of skus) {
+          const picked = pickImagesForSku(allProductImages, sku.variant_name, sku.variant_type);
+          let saved = 0;
+          for (let i = 0; i < picked.length; i++) {
+            const url = wixFullRes(picked[i].url);
+            if (!url) continue;
+            await upsertMediaAsset(pool, {
+              product_id: product.id, sku_id: sku.sku_id,
+              asset_type: i === 0 ? 'primary' : 'alternate', url, original_url: url, sort_order: i,
+            });
+            saved++;
+          }
+          imagesSaved += saved;
+          if (saved > 0) skusMatched++;
+        }
+        productImageCount = allProductImages.length;
+      }
+    }
+
+    // ── Lifestyle images: match to specific colors via title codes ──
+    const allMediaLifestyle = mapEntry.allMedia.filter(m => m.type === 'lifestyle');
+    if (allMediaLifestyle.length > 0) {
+      // Build color-code → tile SKU IDs map from DB color groups
+      // Color codes are 3-digit numbers found in variant names (e.g., "Ice 327 12x24" → "327")
+      const codeToSkuIds = new Map();
+      for (const [dbColor, dbSkus] of colorGroups) {
+        let code = null;
+        const cm = dbColor.match(/\d{3,}/);
+        if (cm) {
+          code = cm[0];
+        } else {
+          for (const sku of dbSkus) {
+            const m = sku.variant_name.match(/\b(\d{3})\b/);
+            if (m) { code = m[1]; break; }
+          }
+        }
+        if (code) {
+          if (!codeToSkuIds.has(code)) codeToSkuIds.set(code, []);
+          for (const sku of dbSkus) {
+            if (sku.variant_type !== 'accessory') codeToSkuIds.get(code).push(sku.sku_id);
+          }
         }
       }
 
-      // Update description (from scrape or fallback)
-      let desc = result.description;
-      if (!desc || desc.length < 20) {
-        desc = await generateFallbackDescription(pool, product.id, product.name);
-      }
-      if (await updateDescription(pool, product.id, desc)) {
-        descriptionsUpdated++;
-      }
-
-      if (result.images.length === 0) {
-        await logError(`No images found for ${product.name} (tried slug: ${slug})`);
-        productsFailed++;
-        await delay(2000);
-        continue;
+      // Also build color-name → SKU IDs map for name-based matching fallback
+      const nameToSkuIds = new Map();
+      for (const [dbColor, dbSkus] of colorGroups) {
+        const name = dbColor.replace(/\s*\d{3,}\s*/, '').trim().toLowerCase();
+        if (name && name.length >= 3) {
+          if (!nameToSkuIds.has(name)) nameToSkuIds.set(name, []);
+          for (const sku of dbSkus) {
+            if (sku.variant_type !== 'accessory') nameToSkuIds.get(name).push(sku.sku_id);
+          }
+        }
       }
 
-      const saved = await saveProductImages(pool, product.id, result.images, { maxImages: 6 });
-      imagesSaved += saved;
+      const lifestyleSortOrders = new Map();
+      let anyMatchedLifestyle = false;
+      const unmatchedLifestyle = [];
+
+      for (const lf of allMediaLifestyle) {
+        const decoded = decodeURIComponent(lf.title || '');
+        const titleCodes = [...decoded.matchAll(/(\d{3})/g)].map(m => m[1]);
+        const matchedSkuIds = new Set();
+
+        for (const tc of titleCodes) {
+          if (codeToSkuIds.has(tc)) {
+            for (const sid of codeToSkuIds.get(tc)) matchedSkuIds.add(sid);
+          }
+        }
+
+        // Strategy 2: Match by color name in title
+        if (matchedSkuIds.size === 0 && decoded) {
+          const titleLower = decoded.toLowerCase();
+          for (const [name, skuIds] of nameToSkuIds) {
+            if (titleLower.includes(name)) {
+              for (const sid of skuIds) matchedSkuIds.add(sid);
+            }
+          }
+        }
+
+        if (matchedSkuIds.size > 0) {
+          const url = wixFullRes(lf.url);
+          if (!url) continue;
+          for (const skuId of matchedSkuIds) {
+            const so = lifestyleSortOrders.get(skuId) || 0;
+            if (so >= 3) continue;
+            await upsertMediaAsset(pool, {
+              product_id: product.id, sku_id: skuId,
+              asset_type: 'lifestyle', url, original_url: url, sort_order: so,
+            });
+            lifestyleSortOrders.set(skuId, so + 1);
+            imagesSaved++;
+          }
+          anyMatchedLifestyle = true;
+        } else {
+          unmatchedLifestyle.push(lf);
+        }
+      }
+
+      const hasPerColorLifestyle = anyMatchedLifestyle ||
+        (mapEntry.colors && Object.values(mapEntry.colors).some(cd =>
+          cd.images && cd.images.some(m => m.type === 'lifestyle')));
+
+      if (!hasPerColorLifestyle && unmatchedLifestyle.length > 0) {
+        for (let i = 0; i < Math.min(unmatchedLifestyle.length, 3); i++) {
+          const url = wixFullRes(unmatchedLifestyle[i].url);
+          if (!url) continue;
+          await upsertMediaAsset(pool, {
+            product_id: product.id, sku_id: null,
+            asset_type: 'lifestyle', url, original_url: url, sort_order: i,
+          });
+        }
+      }
+    }
+
+    if (productImageCount > 0) {
       productsMatched++;
-      await log(`  Saved ${saved} unique image(s) for ${product.name}`);
-      await delay(2000 + Math.random() * 1000);
+      await log(`  ${product.name}: ${productImageCount} images across ${colorGroups.size} colors, ${skus.length} SKUs`);
+    } else {
+      productsFailed++;
+      await logError(`  No images for ${product.name}`);
     }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // GLASS MOSAIC COLLECTION PAGES
-    // ══════════════════════════════════════════════════════════════════════
-    if (glassProducts.size > 0) {
-      await log('Scraping glass mosaic collection pages...');
-    }
-
-    for (const [collectionSlug, products] of glassProducts) {
-      // Recycle browser if needed
-      if (pagesSinceLaunch >= BATCH_SIZE) {
-        await log(`Recycling browser after ${BATCH_SIZE} pages, pausing 15s...`);
-        try { await page.close(); } catch (_) {}
-        try { await browser.close(); } catch (_) {}
-        await delay(15000);
-        browser = await launchBrowserWithTimeout();
-        page = await createPage(browser);
-        pagesSinceLaunch = 0;
-      }
-
-      await log(`Collection: /product-page/${collectionSlug} (${products.length} products)`);
-
-      // Scrape collection page (use a temp name so globalSeenImages doesn't over-claim)
-      const result = await scrapeProductPage(page, collectionSlug, siteWideImages, globalSeenImages, `__glass_${collectionSlug}`);
-      pagesSinceLaunch++;
-
-      if (result.images.length === 0) {
-        await logError(`No images for glass collection: ${collectionSlug}`);
-        productsFailed += products.length;
-        await delay(2000);
-        continue;
-      }
-
-      // Try to match images to specific products by code in the URL
-      const unmatched = [];
-      const matchedByCode = new Map(); // productId → urls[]
-
-      for (const url of result.images) {
-        const urlLower = url.toLowerCase();
-        let matched = false;
-        for (const product of products) {
-          const code = extractGlassCode(product.name);
-          if (code && urlLower.includes(code.toLowerCase())) {
-            if (!matchedByCode.has(product.id)) matchedByCode.set(product.id, []);
-            matchedByCode.get(product.id).push(url);
-            matched = true;
-            break;
-          }
-        }
-        if (!matched) unmatched.push(url);
-      }
-
-      // Save matched images to specific products
-      for (const [productId, urls] of matchedByCode) {
-        const saved = await saveProductImages(pool, productId, urls, { maxImages: 4 });
-        imagesSaved += saved;
-        productsMatched++;
-      }
-
-      // For unmatched products, use the collection page's shared images
-      const sharedImages = unmatched.length > 0 ? unmatched : result.images.slice(0, 3);
-      for (const product of products) {
-        if (matchedByCode.has(product.id)) continue;
-        const saved = await saveProductImages(pool, product.id, sharedImages, { maxImages: 3 });
-        imagesSaved += saved;
-        productsMatched++;
-      }
-
-      const specificCount = matchedByCode.size;
-      const sharedCount = products.length - specificCount;
-      await log(`  ${result.images.length} images — ${specificCount} matched by code, ${sharedCount} got shared images`);
-
-      // Generate fallback descriptions for glass mosaic products
-      for (const product of products) {
-        const desc = await generateFallbackDescription(pool, product.id, product.name);
-        if (await updateDescription(pool, product.id, desc)) descriptionsUpdated++;
-      }
-
-      await delay(2000 + Math.random() * 1000);
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // DESCRIPTION-ONLY PASS — products with images but generic descriptions
-    // ══════════════════════════════════════════════════════════════════════
-    if (needDescriptionOnly.length > 0) {
-      await log(`Updating descriptions for ${needDescriptionOnly.length} products with existing images...`);
-
-      for (const product of needDescriptionOnly) {
-        // Try scraping the product page for a real description first
-        const slug = resolveSlug(product.name);
-        const collectionSlug = getGlassCollectionSlug(product.name);
-
-        let desc = '';
-        if (!collectionSlug) {
-          // Only visit regular product pages (not glass collection pages for desc)
-          if (pagesSinceLaunch >= BATCH_SIZE) {
-            await log(`Recycling browser after ${BATCH_SIZE} pages, pausing 15s...`);
-            try { await page.close(); } catch (_) {}
-            try { await browser.close(); } catch (_) {}
-            await delay(15000);
-            browser = await launchBrowserWithTimeout();
-            page = await createPage(browser);
-            pagesSinceLaunch = 0;
-          }
-
-          const result = await scrapeProductPage(page, slug, siteWideImages, globalSeenImages, product.name);
-          pagesSinceLaunch++;
-          desc = result.description;
-          await delay(1000 + Math.random() * 500);
-        }
-
-        // Fallback to generated description
-        if (!desc || desc.length < 20) {
-          desc = await generateFallbackDescription(pool, product.id, product.name);
-        }
-        if (await updateDescription(pool, product.id, desc)) {
-          descriptionsUpdated++;
-        }
-      }
-    }
-
-    // ── Summary ──
-    await log('=== Scrape Complete ===');
-    await log(`Products already had images: ${skipped}`);
-    await log(`Products matched this run: ${productsMatched} / ${totalToScrape}`);
-    await log(`Products with no images: ${productsFailed}`);
-    await log(`Total images saved: ${imagesSaved}`);
-    await log(`Descriptions updated: ${descriptionsUpdated}`);
-    await log(`Cross-page dedup: ${globalSeenImages.size} unique image URLs tracked`);
-
-    await appendLog(pool, job.id, 'Done', {
-      products_found: productRows.rowCount,
-      products_updated: productsMatched + descriptionsUpdated,
-    }).catch(() => {});
-
-  } finally {
-    try { await browser.close(); } catch (_) {}
   }
+
+  // ── Summary ──
+  await log('=== Scrape Complete ===');
+  await log(`Products matched: ${productsMatched} / ${productRows.rowCount}`);
+  await log(`Products without images: ${productsFailed}`);
+  await log(`SKUs with images: ${skusMatched}`);
+  await log(`Total images saved: ${imagesSaved}`);
+  await log(`Descriptions updated: ${descriptionsUpdated}`);
+
+  await appendLog(pool, job.id, 'Done', {
+    products_found: productRows.rowCount,
+    products_updated: productsMatched + descriptionsUpdated,
+    skus_matched: skusMatched,
+    images_saved: imagesSaved,
+  }).catch(() => {});
 }

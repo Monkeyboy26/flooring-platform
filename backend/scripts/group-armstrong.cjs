@@ -37,10 +37,11 @@ const DRY_RUN = process.argv.includes('--dry-run');
 
 /**
  * Clean a raw collection or product name into a base product-line name.
- * Strips "Armstrong - " prefix, technical codes, dimension strings,
- * and packaging suffixes.
+ * Strips "Armstrong - " prefix, "Armstrong Flooring, Inc." generic collection,
+ * technical codes, dimension strings, and packaging suffixes.
  *
  * Examples:
+ *   "Armstrong Flooring, Inc."          → "" (generic — triggers name-based derivation)
  *   "Armstrong - Biome 6x48 W/d10"     → "Biome"
  *   "Exchange 6x36x.100"               → "Exchange"
  *   "Safety Zone Db 1/8 12x12"         → "Safety Zone 1/8"
@@ -50,10 +51,16 @@ const DRY_RUN = process.argv.includes('--dry-run');
  *   "Imperial Texture 1/8"              → "Imperial Texture 1/8"
  *   "Natural Creations W/d10-low Gloss" → "Natural Creations - Low Gloss"
  *   "Clear Thin Spread - 4 Gallon"      → "Clear Thin Spread"
+ *   "Duo 18 X18 - Mixer 2"             → "Duo"
+ *   "Multicolor Dry Back 12x12"         → "Multicolor - Dry Back"
  */
 function cleanBaseName(raw) {
   if (!raw) return '';
   let s = raw;
+
+  // Strip generic vendor collection names (these are useless for grouping)
+  s = s.replace(/^Armstrong\s+Flooring,?\s*Inc\.?$/i, '');
+  s = s.replace(/^Armstrong\s+Flooring,?\s*Inc\.?\s*[-–]\s*/i, '');
 
   // Strip "Armstrong - " prefix if present
   s = s.replace(/^Armstrong\s*-\s*/i, '');
@@ -61,15 +68,18 @@ function cleanBaseName(raw) {
   // Strip W/dNN wear-layer codes (e.g., W/d10, W/d8)
   s = s.replace(/\s*W\/d\d+/gi, '');
 
+  // Strip NNmil wear-layer codes (e.g., 20mil, 10mil) — standalone word only
+  s = s.replace(/\s+\d+mil\b/gi, '');
+
   // Strip Db (direct bond) — only as standalone word
   s = s.replace(/\s+Db\b/gi, '');
 
   // Strip Srf (surface) — only as standalone word
   s = s.replace(/\s+Srf\b/gi, '');
 
-  // Strip NxN / NxNx.NNN dimension strings (e.g., 6x48, 12x24, 6x36x.100)
+  // Strip NxN / N.NxN / NxNx.NNN dimension strings (e.g., 6x48, 12x24, 6.5x48, 6x36x.100)
   // Does NOT strip fractions like 1/8 (no "x" separator)
-  s = s.replace(/\s*\b\d+x\d+(?:x\.?\d+)?\b/gi, '');
+  s = s.replace(/\s*\b\d+\.?\d*\s*x\s*\d+(?:x\.?\d+)?\b/gi, '');
 
   // Strip stray x.NNN thickness codes not caught by dimension regex
   s = s.replace(/x\.\d+/gi, '');
@@ -79,19 +89,31 @@ function cleanBaseName(raw) {
   //   "- Half Gallons", "-quarts", "1.65 Gallon"
   s = s.replace(/\s*-?\s*(?:\d+[\d.\/]*[-\s]*)?\s*(?:Quarts?|Half\s*Gallons?|Gallons?)\s*$/i, '');
 
+  // Strip "- Mixer N" suffixes from EDI names (e.g., "Duo 18 X18 - Mixer 2")
+  s = s.replace(/\s*-\s*Mixer\s*\d*$/i, '');
+
   // Normalize known sub-type suffixes that vary in dash-spacing/case.
   // "-low Gloss" / "- Low Gloss" / "-low gloss" all → " - Low Gloss"
   // This avoids splitting compound words like "Multi-purpose" or "T-molding"
   s = s.replace(/\s*-\s*low\s+gloss\b/gi, ' - Low Gloss');
   s = s.replace(/\s*-\s*dry\s+back\b/gi, ' - Dry Back');
 
-  // Strip trailing dashes and whitespace
-  s = s.replace(/[\s-]+$/, '');
+  // Strip trailing dashes, periods, and whitespace
+  s = s.replace(/[\s.\-]+$/, '');
 
   // Collapse whitespace and trim
   s = s.replace(/\s+/g, ' ').trim();
 
   return s;
+}
+
+/**
+ * Check if a collection is the generic "Armstrong Flooring, Inc." placeholder
+ * that provides no grouping information.
+ */
+function isGenericCollection(collection) {
+  if (!collection) return true;
+  return /^Armstrong\s+Flooring,?\s*Inc\.?$/i.test(collection.trim());
 }
 
 /**
@@ -113,10 +135,60 @@ function isNameMangled(name) {
  */
 function computeCleanedName(currentName, collection) {
   if (isNameMangled(currentName)) {
-    return cleanBaseName(collection) || currentName.trim();
+    const fromColl = cleanBaseName(collection);
+    return fromColl || currentName.trim();
   }
   const cleaned = cleanBaseName(currentName);
   return cleaned || currentName.trim();
+}
+
+/**
+ * Compute the cleaned collection name.
+ * When the raw collection is generic ("Armstrong Flooring, Inc."),
+ * derive the collection from the product name instead.
+ */
+function computeCleanedCollection(name, collection) {
+  // Try cleaning the collection first
+  const fromColl = cleanBaseName(collection);
+  if (fromColl) return `Armstrong - ${fromColl}`;
+
+  // Collection is generic — derive from product name
+  const fromName = cleanBaseName(name);
+  if (fromName) return `Armstrong - ${fromName}`;
+
+  // Last resort: keep as-is
+  return collection;
+}
+
+/**
+ * Extract additional attributes from product names during grouping.
+ * Returns an object of attribute slug → value pairs.
+ */
+function extractAttributes(name) {
+  const attrs = {};
+  if (!name) return attrs;
+
+  // Wear layer: W/d10 → "10 mil", W/d8 → "8 mil"
+  const wearMatch = name.match(/W\/d(\d+)/i);
+  if (wearMatch) attrs.wear_layer = `${wearMatch[1]} mil`;
+
+  // NNmil standalone: 20mil → "20 mil"
+  const milMatch = name.match(/\b(\d+)mil\b/i);
+  if (milMatch && !attrs.wear_layer) attrs.wear_layer = `${milMatch[1]} mil`;
+
+  // Thickness: x.NNN → e.g., 0.100"
+  const thickMatch = name.match(/x\.(\d+)/i);
+  if (thickMatch) attrs.thickness = `0.${thickMatch[1]}"`;
+
+  // Dimensions: NxN or N.NxN or NxNxN (e.g., 6x48, 12x24, 6.5x48, 18x18)
+  const dimMatch = name.match(/\b(\d+\.?\d*)\s*x\s*(\d+)(?:x\.?\d+)?\b/i);
+  if (dimMatch) attrs.dimensions = `${dimMatch[1]}"x${dimMatch[2]}"`;
+
+  // Installation method: Db = direct bond, Srf = surface
+  if (/\bDb\b/.test(name)) attrs.installation_method = 'Direct Bond';
+  if (/\bSrf\b/.test(name)) attrs.installation_method = 'Surface';
+
+  return attrs;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,7 +212,7 @@ async function main() {
     const brandAttrId = brandAttrRes.rows[0].id;
 
     // ── Load all Armstrong products ──────────────────────────────────────
-    // Match by brand attribute OR existing "Armstrong - " collection prefix.
+    // Match by brand attribute, "Armstrong - " prefix, or generic "Armstrong Flooring, Inc."
     // Exclude AHF products (handled by cleanup-ahf.cjs).
     const allProducts = await client.query(`
       SELECT DISTINCT p.id, p.name, p.collection, p.vendor_id
@@ -155,6 +227,7 @@ async function main() {
         )
         OR p.collection LIKE 'Armstrong -%'
         OR p.collection LIKE 'Armstrong-%'
+        OR p.collection ILIKE 'Armstrong Flooring%'
       )
       AND p.collection NOT LIKE 'AHF%'
       AND p.status != 'archived'
@@ -172,12 +245,16 @@ async function main() {
 
     // ── Compute cleaned collection + name for each product ───────────────
     const updates = [];
+    const attrsByProduct = new Map(); // product_id → { wear_layer, thickness, ... }
     for (const row of allProducts.rows) {
-      const baseName = cleanBaseName(row.collection);
-      const cleanedCollection = baseName
-        ? `Armstrong - ${baseName}`
-        : row.collection;
+      const cleanedCollection = computeCleanedCollection(row.name, row.collection);
       const cleanedName = computeCleanedName(row.name, row.collection);
+
+      // Extract attributes from raw name before cleaning
+      const attrs = extractAttributes(row.name);
+      if (Object.keys(attrs).length > 0) {
+        attrsByProduct.set(row.id, attrs);
+      }
 
       updates.push({
         id: row.id,
@@ -237,6 +314,17 @@ async function main() {
       console.log('\n[DRY RUN] No database changes made. Remove --dry-run to execute.\n');
       await pool.end();
       return;
+    }
+
+    // ── Pre-load SKU → original product mapping for attribute extraction ──
+    const allProductIds = allProducts.rows.map(r => r.id);
+    const { rows: allSkuRows } = allProductIds.length > 0 ? await client.query(`
+      SELECT s.id AS sku_id, s.product_id FROM skus s
+      WHERE s.product_id = ANY($1::uuid[])
+    `, [allProductIds]) : { rows: [] };
+    const skuOriginalProduct = new Map(); // sku_id → original product_id
+    for (const row of allSkuRows) {
+      skuOriginalProduct.set(row.sku_id, row.product_id);
     }
 
     // ── Execute in transaction ───────────────────────────────────────────
@@ -354,6 +442,53 @@ async function main() {
 
     await client.query('COMMIT');
 
+    // ── Phase 2: Extract attributes from original product names ──────────
+    // Use the pre-merge attrsByProduct map (built from ORIGINAL product names
+    // before they were cleaned) combined with the SKU→original-product mapping
+    console.log('\n-- Extracting attributes from original product names --\n');
+    let attrsAdded = 0;
+
+    // Look up attribute IDs (create if needed)
+    const attrSlugs = ['wear_layer', 'thickness', 'dimensions', 'installation_method'];
+    const attrIds = {};
+    for (const slug of attrSlugs) {
+      const { rows } = await client.query(
+        `SELECT id FROM attributes WHERE slug = $1 LIMIT 1`, [slug]
+      );
+      if (rows.length) {
+        attrIds[slug] = rows[0].id;
+      } else {
+        const label = slug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const { rows: [created] } = await client.query(
+          `INSERT INTO attributes (name, slug, is_filterable)
+           VALUES ($1, $2, true)
+           ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
+           RETURNING id`,
+          [label, slug]
+        );
+        attrIds[slug] = created.id;
+        console.log(`  Created attribute: ${slug} (${created.id})`);
+      }
+    }
+
+    // For each SKU, look up its ORIGINAL product_id → extracted attrs
+    for (const [skuId, originalProductId] of skuOriginalProduct) {
+      const attrs = attrsByProduct.get(originalProductId);
+      if (!attrs) continue;
+
+      for (const [slug, value] of Object.entries(attrs)) {
+        if (!attrIds[slug]) continue;
+        await client.query(`
+          INSERT INTO sku_attributes (sku_id, attribute_id, value)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (sku_id, attribute_id) DO UPDATE SET value = EXCLUDED.value
+        `, [skuId, attrIds[slug], value]);
+        attrsAdded++;
+      }
+    }
+
+    console.log(`  Attributes added/updated: ${attrsAdded}`);
+
     // ── Summary ──────────────────────────────────────────────────────────
     console.log('\n========== SUMMARY ==========');
     console.log(`Products kept:     ${productsKept}`);
@@ -362,6 +497,7 @@ async function main() {
     console.log(`  - archived:      ${productsArchived}`);
     console.log(`SKUs moved:        ${skusMoved}`);
     console.log(`Media migrated:    ${mediaMigrated}`);
+    console.log(`Attrs extracted:   ${attrsAdded}`);
 
     // ── Verification ─────────────────────────────────────────────────────
     const verify = await client.query(`

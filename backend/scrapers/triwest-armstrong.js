@@ -3,9 +3,19 @@ import {
   appendLog, addJobError, saveProductImages, saveSkuImages
 } from './base.js';
 
+import { createHash } from 'crypto';
+
 const BASE_URL = 'https://www.armstrongflooring.com';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const MAX_ERRORS = 100;
+
+// Known error/meme image hashes (MD5) — reject any image matching these
+const ERROR_IMAGE_HASHES = new Set([
+  'd0a7127af62d07881dbc4e8a1d29bf26', // IT team meme (577KB)
+  'd488a4a8c70e99179bfd4550fccd3297', // placeholder.jpeg (61KB)
+  'aab2252aad617be32d88e1aa936cacdf', // tiny blank swatch (~2.9KB)
+]);
+const MIN_IMAGE_SIZE = 4000; // Reject images smaller than 4KB (blank swatches)
 
 /**
  * Armstrong enrichment scraper for Tri-West — HTTP-only (no Puppeteer).
@@ -15,11 +25,18 @@ const MAX_ERRORS = 100;
  * everything with plain HTTP fetches + regex/string parsing.
  *
  * Strategy:
- * 1. Map product names → Armstrong website collection URL paths (static mapping)
- * 2. Item code = first 5 chars after stripping "ARM" prefix from vendor_sku
- * 3. Fetch each item page via HTTP GET at {collectionPath}/item/{code}.html
- * 4. Extract og:image (swatch), data-imagegalleryimages (gallery), PDFs from HTML
- * 5. Store swatch at SKU level, product images + PDFs at product level
+ *   Phase A — Auto-discover collections from Armstrong website category pages
+ *     1. Crawl commercial + residential category listing pages
+ *     2. For each category, extract all collection links
+ *     3. For each collection, extract all item codes from item links
+ *     4. Build lookup: Map<itemCode, collectionPath>
+ *
+ *   Phase B — Enrich SKUs with per-SKU images
+ *     1. Load all Armstrong SKUs from DB
+ *     2. Derive item code from vendor_sku (first 5 chars after "ARM")
+ *     3. Look up item code in discovery map → construct item page URL
+ *     4. Fetch item page HTML, extract og:image, gallery, PDFs
+ *     5. Store images at SKU level, PDFs at product level
  */
 export async function run(pool, job, source) {
   const config = source.config || {};
@@ -41,14 +58,34 @@ export async function run(pool, job, source) {
   }
 
   try {
-    // Load existing Armstrong products (includes SKU-less products from DNav)
+    // ──────────────────────────────────────────────
+    // Phase A: Auto-discover collections from website
+    // ──────────────────────────────────────────────
+    await appendLog(pool, job.id, 'Phase A: Discovering collections from Armstrong website...');
+
+    const itemCodeMap = await discoverCollections(delayMs);
+    await appendLog(pool, job.id, `Discovery complete: ${itemCodeMap.size} item codes mapped across collections`);
+
+    // ──────────────────────────────────────────────
+    // Phase A.5: Fetch browse APIs for validated image URLs
+    // ──────────────────────────────────────────────
+    await appendLog(pool, job.id, 'Phase A.5: Fetching browse APIs for validated image URLs...');
+    const apiImageMap = await fetchBrowseApiImages();
+    await appendLog(pool, job.id, `Browse APIs: ${apiImageMap.size} validated item→image mappings`);
+
+    // ──────────────────────────────────────────────
+    // Phase B: Enrich SKUs
+    // ──────────────────────────────────────────────
+    await appendLog(pool, job.id, 'Phase B: Enriching SKUs with images...');
+
+    // Load existing Armstrong products
     const prodResult = await pool.query(`
       SELECT p.id AS product_id, p.name AS product_name, p.collection, p.description_long
       FROM products p
-      WHERE p.vendor_id = $1 AND p.collection LIKE 'Armstrong%'
+      WHERE p.vendor_id = $1 AND (p.collection LIKE 'Armstrong%' OR p.collection ILIKE 'Armstrong Flooring%')
     `, [vendor_id]);
 
-    // Also load SKU data for products that have it
+    // Load SKU data
     const skuResult = await pool.query(`
       SELECT s.id AS sku_id, s.vendor_sku, s.internal_sku, s.variant_name, s.product_id
       FROM skus s
@@ -85,27 +122,39 @@ export async function run(pool, job, source) {
     const armSkuIds = skuResult.rows.map(r => r.sku_id);
     const armProductIds = [...new Set(prodResult.rows.map(r => r.product_id))];
 
-    const existingSkuImages = await pool.query(`
+    const existingSkuImages = armSkuIds.length > 0 ? await pool.query(`
       SELECT DISTINCT ma.sku_id FROM media_assets ma
       WHERE ma.sku_id = ANY($1::uuid[]) AND ma.asset_type = 'primary' AND ma.sku_id IS NOT NULL
-    `, [armSkuIds]);
+    `, [armSkuIds]) : { rows: [] };
     const skusWithImages = new Set(existingSkuImages.rows.map(r => r.sku_id));
 
-    const existingProductImages = await pool.query(`
+    const existingProductImages = armProductIds.length > 0 ? await pool.query(`
       SELECT DISTINCT ma.product_id FROM media_assets ma
       WHERE ma.product_id = ANY($1::uuid[]) AND ma.asset_type = 'primary' AND ma.sku_id IS NULL
-    `, [armProductIds]);
+    `, [armProductIds]) : { rows: [] };
     const productsWithImages = new Set(existingProductImages.rows.map(r => r.product_id));
 
-    // Map products to Armstrong URL paths
+    // Try to map each SKU to a discovered collection path
     let mappedSkus = 0;
     let unmappedSkus = 0;
+    const skuToCollectionPath = new Map(); // sku_id → collectionPath
+
     for (const group of productGroups.values()) {
-      group.collectionPath = mapProductToPath(group.product_name);
-      if (group.collectionPath) {
-        mappedSkus += group.skus.length;
-      } else {
-        unmappedSkus += group.skus.length;
+      for (const sku of group.skus) {
+        const itemCode = deriveItemCode(sku.vendor_sku);
+        if (itemCode && itemCodeMap.has(itemCode)) {
+          skuToCollectionPath.set(sku.sku_id, itemCodeMap.get(itemCode));
+          mappedSkus++;
+        } else {
+          // Fallback: try static mapping by product name
+          const staticPath = mapProductToPath(group.product_name);
+          if (staticPath) {
+            skuToCollectionPath.set(sku.sku_id, staticPath);
+            mappedSkus++;
+          } else {
+            unmappedSkus++;
+          }
+        }
       }
     }
 
@@ -120,12 +169,15 @@ export async function run(pool, job, source) {
     let productIdx = 0;
     for (const [productId, group] of productGroups) {
       productIdx++;
-      if (!group.collectionPath) continue; // skip unmapped products
 
-      // ── Phase 1: Product-level enrichment ──
-      if (!productsWithImages.has(productId)) {
+      // ── Product-level enrichment ──
+      // Use the first mapped SKU's collection path for the product page
+      const firstMappedSku = group.skus.find(s => skuToCollectionPath.has(s.sku_id));
+      if (!productsWithImages.has(productId) && firstMappedSku) {
         try {
-          const collectionUrl = `${BASE_URL}${group.collectionPath}.html`;
+          const collectionPath = skuToCollectionPath.get(firstMappedSku.sku_id);
+          // Extract the collection page URL (path without /item/...)
+          const collectionUrl = `${BASE_URL}${collectionPath}.html`;
           const collectionHtml = await httpGet(collectionUrl);
 
           if (collectionHtml) {
@@ -161,7 +213,7 @@ export async function run(pool, job, source) {
         }
       }
 
-      // ── Phase 2: SKU-level enrichment ──
+      // ── SKU-level enrichment ──
       for (const sku of group.skus) {
         if (skusWithImages.has(sku.sku_id)) {
           skusSkipped++;
@@ -174,39 +226,51 @@ export async function run(pool, job, source) {
           continue;
         }
 
-        try {
-          const itemUrl = `${BASE_URL}${group.collectionPath}/item/${itemCode}.html`;
-          const html = await httpGet(itemUrl);
+        // Strategy: prefer API-validated image, fall back to scraping item page
+        let images = [];
 
-          if (html) {
-            const images = extractItemImages(html);
-            if (images.length > 0) {
+        // 1. Check browse API for this item code (trusted source, try multiple lengths)
+        const apiCode = deriveItemCodeForApi(sku.vendor_sku, apiImageMap);
+        const apiImage = apiCode ? apiImageMap.get(apiCode) : null;
+        if (apiImage) {
+          images.push(apiImage);
+        }
+
+        // 2. Fall back to scraping item page if no API image
+        const collectionPath = skuToCollectionPath.get(sku.sku_id);
+        if (images.length === 0 && collectionPath) {
+          try {
+            const itemUrl = `${BASE_URL}${collectionPath}/item/${itemCode}.html`;
+            const html = await httpGet(itemUrl);
+            if (html) {
+              images = extractItemImages(html);
+            }
+            await delay(delayMs);
+          } catch (err) {
+            await logError(`SKU ${sku.vendor_sku} page fetch: ${err.message}`);
+          }
+        }
+
+        // 3. Validate scraped images — reject known error/meme images
+        //    (API images are trusted and skip validation)
+        if (images.length > 0 && !apiImage) {
+          const validImages = [];
+          for (const imgUrl of images) {
+            const isValid = await validateImageUrl(imgUrl);
+            if (isValid) validImages.push(imgUrl);
+          }
+          images = validImages;
+        }
+
+        try {
+          if (images.length > 0) {
               const saved = await saveSkuImages(pool, productId, sku.sku_id, images, { maxImages: 4 });
               skuImagesAdded += saved;
               skusEnriched++;
 
-              // Also extract PDFs from item page (if product doesn't have them yet)
-              if (!productsWithImages.has(productId)) {
-                const pdfs = extractPdfs(html);
-                for (let i = 0; i < pdfs.length; i++) {
-                  await upsertMediaAsset(pool, {
-                    product_id: productId,
-                    sku_id: null,
-                    asset_type: 'spec_pdf',
-                    url: pdfs[i],
-                    original_url: pdfs[i],
-                    sort_order: i,
-                  });
-                  pdfsAdded++;
-                }
-              }
-            } else {
-              skusSkipped++;
-            }
           } else {
             skusSkipped++;
           }
-          await delay(delayMs);
         } catch (err) {
           await logError(`SKU ${sku.vendor_sku}: ${err.message}`);
           skusSkipped++;
@@ -235,11 +299,124 @@ export async function run(pool, job, source) {
 }
 
 // ──────────────────────────────────────────────
-// Static mapping: product name → Armstrong website URL path
+// Phase A: Auto-discovery
 // ──────────────────────────────────────────────
 
 /**
- * Map a product name from our DB to the Armstrong website collection URL path.
+ * Category listing pages on the Armstrong website.
+ * Each contains links to collection pages.
+ */
+const CATEGORY_URLS = [
+  '/commercial/en-us/products/lvt-luxury-flooring',
+  '/commercial/en-us/products/vinyl-composition-tile',
+  '/commercial/en-us/products/hom',
+  '/commercial/en-us/products/het',
+  '/commercial/en-us/products/srf',
+  '/commercial/en-us/products/esd',
+  '/residential/en-us/engineered-tile/',
+];
+
+/**
+ * Crawl Armstrong category pages to build a Map<itemCode, collectionPath>.
+ */
+async function discoverCollections(delayMs) {
+  const itemCodeMap = new Map(); // itemCode → collectionPath
+  const collectionPaths = new Set();
+
+  // Step 1: Fetch each category page and extract collection links
+  for (const catPath of CATEGORY_URLS) {
+    const catUrl = `${BASE_URL}${catPath}`;
+    const html = await httpGet(catUrl);
+    if (!html) continue;
+
+    // Extract collection links from the category page
+    // Links look like:
+    //   href="/commercial/en-us/products/lvt-luxury-flooring/duo.html"
+    //   href="https://www.armstrongflooring.com/commercial/en-us/products/lvt-luxury-flooring/duo.html"
+    // We extract the path and strip .html suffix
+    const basePath = catPath.replace(/\/$/, '');
+
+    // Match both relative and absolute URLs under this category path
+    const linkPattern = new RegExp(
+      `href="(?:${escapeRegex(BASE_URL)})?(${escapeRegex(basePath)}/[a-z0-9][a-z0-9_-]*)(?:\\.html)?(?:[?#][^"]*)?\"`,
+      'gi'
+    );
+    let match;
+    while ((match = linkPattern.exec(html)) !== null) {
+      const path = match[1];
+      if (path.includes('/item/')) continue;
+      if (path.includes('/browse')) continue;
+      // Don't add the category page itself
+      if (path === basePath) continue;
+      collectionPaths.add(path);
+    }
+
+    // Also look for collection links in other category sections on the same page
+    // (e.g., the LVT page also shows hardwood collections)
+    const genericPattern = new RegExp(
+      `href="(?:${escapeRegex(BASE_URL)})?(/(?:commercial|residential)/en-us/products?/[a-z0-9-]+/[a-z0-9][a-z0-9_-]*)(?:\\.html)?(?:[?#][^"]*)?\"`,
+      'gi'
+    );
+    while ((match = genericPattern.exec(html)) !== null) {
+      const path = match[1];
+      if (path.includes('/item/')) continue;
+      if (path.includes('/browse')) continue;
+      collectionPaths.add(path);
+    }
+
+    await delay(delayMs);
+  }
+
+  console.log(`  Discovered ${collectionPaths.size} collection paths`);
+
+  // Step 2: Fetch each collection page and extract item codes
+  for (const collPath of collectionPaths) {
+    // Append .html?size=999 to get all items on one page
+    const collUrl = `${BASE_URL}${collPath}.html?size=999`;
+    const html = await httpGet(collUrl);
+    if (!html) continue;
+
+    // Extract item codes from links like: /item/ST559.html or /item/51802.html
+    const itemPattern = /\/item\/([A-Za-z0-9]+)\.html/g;
+    let match;
+    let itemCount = 0;
+    while ((match = itemPattern.exec(html)) !== null) {
+      const code = match[1].toUpperCase();
+      if (code.length >= 4 && code.length <= 7) {
+        // Map the first 5 chars (our standard item code length) to this collection
+        const key = code.slice(0, 5);
+        if (!itemCodeMap.has(key)) {
+          itemCodeMap.set(key, collPath);
+          itemCount++;
+        }
+        // Also map the full code if different
+        if (code !== key && !itemCodeMap.has(code)) {
+          itemCodeMap.set(code, collPath);
+        }
+      }
+    }
+
+    if (itemCount > 0) {
+      console.log(`  ${collPath}: ${itemCount} item codes`);
+    }
+
+    await delay(delayMs);
+  }
+
+  return itemCodeMap;
+}
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ──────────────────────────────────────────────
+// Static mapping fallback: product name → Armstrong website URL path
+// ──────────────────────────────────────────────
+
+/**
+ * Fallback mapping when auto-discovery doesn't find an item code.
+ * Maps product names to Armstrong website collection URL paths.
  * Returns the path (without .html) or null if unmapped.
  */
 function mapProductToPath(name) {
@@ -295,7 +472,7 @@ function mapProductToPath(name) {
   if (n.startsWith('kaleido'))
     return '/commercial/en-us/products/lvt-luxury-flooring/kaleido';
   if (n.startsWith('mixtera'))
-    return '/commercial/en-us/products/lvt-luxury-flooring/duo';  // Mixtera is part of Duo family
+    return '/commercial/en-us/products/lvt-luxury-flooring/duo';
 
   // Commercial — Heterogeneous sheet
   if (n.startsWith('nidra'))
@@ -331,7 +508,100 @@ function deriveItemCode(vendorSku) {
   if (!vendorSku || !vendorSku.startsWith('ARM')) return null;
   const inner = vendorSku.slice(3);
   if (inner.length < 5) return null;
-  return inner.slice(0, 5);
+  return inner.slice(0, 5).toUpperCase();
+}
+
+/**
+ * Try multiple item code lengths to match browse API entries.
+ * Residential codes can be longer than 5 chars (e.g., 1UP77004, G2905).
+ */
+function deriveItemCodeForApi(vendorSku, apiMap) {
+  if (!vendorSku || !vendorSku.startsWith('ARM')) return null;
+  for (const len of [5, 6, 7, 8, 9, 10]) {
+    if (3 + len > vendorSku.length) break;
+    const code = vendorSku.slice(3, 3 + len).toUpperCase();
+    if (apiMap.has(code)) return code;
+  }
+  return null;
+}
+
+// ──────────────────────────────────────────────
+// Browse API image source (validated URLs)
+// ──────────────────────────────────────────────
+
+/**
+ * Fetch Armstrong's browse APIs (residential + commercial) to get
+ * validated item code → image URL mappings.
+ * These are Armstrong's own curated product images — no memes.
+ */
+async function fetchBrowseApiImages() {
+  const imageMap = new Map();
+
+  try {
+    // Residential API
+    const resResp = await fetch(
+      `${BASE_URL}/residential/api/en-us/browse/products?q=matchall&filters=type:ResidentialProduct&filters=type:Trim&filters=type:IMA&size=999&start=0&region=`,
+      { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(20000) }
+    );
+    if (resResp.ok) {
+      const resData = await resResp.json();
+      for (const p of (resData.products || [])) {
+        const match = p.line1 && p.line1.match(/\|\s*([A-Za-z0-9]+)$/);
+        if (match && p.image) {
+          imageMap.set(match[1].toUpperCase(), BASE_URL + p.image + '?size=detail');
+        }
+      }
+    }
+
+    // Commercial API
+    const comResp = await fetch(
+      `${BASE_URL}/commercial/api/en-us/browse/products?q=matchall&size=999&start=0`,
+      { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(20000) }
+    );
+    if (comResp.ok) {
+      const comData = await comResp.json();
+      for (const p of (comData.products || [])) {
+        const code = (p.line2 || '').trim().toUpperCase();
+        if (code && p.image && !imageMap.has(code)) {
+          imageMap.set(code, BASE_URL + p.image + '?size=detail');
+        }
+      }
+    }
+  } catch { /* API unavailable — fall back to scraping */ }
+
+  return imageMap;
+}
+
+// ──────────────────────────────────────────────
+// Image validation
+// ──────────────────────────────────────────────
+
+/**
+ * Validate an image URL by downloading it and checking against known
+ * error image hashes. Returns false if the image is a known error/meme.
+ */
+async function validateImageUrl(url) {
+  try {
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) return false;
+
+    const buffer = Buffer.from(await resp.arrayBuffer());
+
+    // Reject tiny images (blank swatches)
+    if (buffer.length < MIN_IMAGE_SIZE) return false;
+
+    // Reject known error images by hash
+    const hash = createHash('md5').update(buffer).digest('hex');
+    if (ERROR_IMAGE_HASHES.has(hash)) return false;
+
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ──────────────────────────────────────────────

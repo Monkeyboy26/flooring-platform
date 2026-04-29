@@ -8,6 +8,7 @@ import {
   filterImagesByVariant, isLifestyleUrl
 } from './base.js';
 import { BASE_URL } from './arizona-auth.js';
+import { loadAllPriceLists } from './arizona-prices.js';
 
 const DEFAULT_CONFIG = {
   delayMs: 1000,
@@ -59,46 +60,143 @@ async function filterWidenPlaceholders(urls) {
 }
 
 // AZ Tile category slug → PIM category slug
+/**
+ * Arizona Tile → PIM category mapping.
+ *
+ * AZ products have MANY category tags (material, format, finish, look, collection).
+ * Each entry maps an AZ slug to [pimSlug, priority].
+ * When a product belongs to multiple AZ categories, the highest-priority match wins.
+ *
+ * Priority guide:
+ *   90 — specific slab material (granite-slab, quartzite, della-terra-quartz)
+ *   80 — specific tile material (porcelain-and-ceramic, marble-tile)
+ *   70 — material from Outer Limits / Special Order subcategories
+ *   60 — format-specific (mosaic, stacked-stone, pavers, large-format)
+ *   50 — generic material parents (natural-stone-tile, natural-stone-slab)
+ *   30 — generic cross-references (liners, special-order-series, outer-limits top-level)
+ *    0 — skip (looks-like, recycled, made-in-usa, locations)
+ */
 const CATEGORY_MAP = {
-  'porcelain-and-ceramic': 'porcelain-tile',
-  'marble': 'natural-stone',
-  'decorative-mosaics-mesh-mounts': 'mosaic-tile',
-  'granite-slab': 'granite-countertops',
-  'della-terra-quartz': 'quartz-countertops',
-  'quartzite': 'quartzite-countertops',
-  'marble-slab': 'natural-stone',
-  'porcelain-slabs': 'porcelain-slabs',
-  'pavers': 'pavers',
-  'ceramic-porcelain': 'ceramic-tile',
-  // Restructured site categories (2026)
-  'large-format-tile': 'large-format-tile',
-  'large-format-porcelain-tile': 'large-format-tile',
-  'natural-stone-tile': 'natural-stone',
-  'natural-stone-slab': 'natural-stone',
-  'marble-dolomite-tile': 'natural-stone',
-  'della-terra-porcelain-slabs': 'porcelain-slabs',
-  'della-terra-porcelain-slabs-outer-limits': 'porcelain-slabs',
-  'granite': 'granite-countertops',
-  'porcelain-mosaics-mesh-mounts': 'mosaic-tile',
-  'liners-moldings-trim': 'transitions-moldings',
-  'recycled-material-content': 'porcelain-tile',
-  'outer-limits': 'commercial-tile',
-  'special-order-series': 'commercial-tile',
-  // Defensive entries for common stone types
-  'travertine': 'natural-stone',
-  'limestone': 'natural-stone',
-  'slate': 'natural-stone',
-  'onyx': 'natural-stone',
-  'porcelain': 'porcelain-tile',
-  'ceramic': 'ceramic-tile',
+  // ── Tile: specific material (priority 80) ──
+  'porcelain-and-ceramic':          ['porcelain-tile', 80],
+  'marble-tile':                    ['natural-stone', 80],
+  'marble-dolomite-tile':           ['natural-stone', 80],
+  'granite-tile':                   ['natural-stone', 80],
+  'limestone-tile':                 ['natural-stone', 80],
+  'travertine':                     ['natural-stone', 80],
+  'basalt-tile':                    ['natural-stone', 80],
+  'dolomite':                       ['natural-stone', 80],
+  'tumbled-stone':                  ['natural-stone', 80],
+  'glass':                          ['porcelain-tile', 80],
+  'quarry-tile':                    ['ceramic-tile', 80],
+  'agglomerate-marble':             ['natural-stone', 80],
+  'metal':                          ['porcelain-tile', 60],
+
+  // ── Slab: specific material (priority 90) ──
+  'granite-slab':                   ['granite-countertops', 90],
+  'marble-slab':                    ['marble-countertops', 90],
+  'della-terra-quartz':             ['quartz-countertops', 90],
+  'quartzite':                      ['quartzite-countertops', 90],
+  'limestone-slab':                 ['marble-countertops', 90],
+  'travertine-slab':                ['marble-countertops', 90],
+  'agglomerate-marble-slab':        ['marble-countertops', 90],
+  'della-terra-porcelain-slabs':    ['porcelain-slabs', 90],
+  'della-terra-porcelain-slabs-outer-limits': ['porcelain-slabs', 90],
+
+  // ── Outer Limits subcategories (priority 70) ──
+  'granite':                        ['granite-countertops', 70],   // OL granite slab (2368)
+  'limestone':                      ['marble-countertops', 70],    // OL limestone slab (2369)
+  'marble':                         ['marble-countertops', 70],    // OL marble slab (2370)
+  'travertine-natural-stone-slab':  ['marble-countertops', 70],    // OL travertine slab (2371)
+  'quartzite-natural-stone-slab':   ['quartzite-countertops', 70], // OL quartzite slab (2425)
+  'limestone-natural-stone-tile':   ['natural-stone', 70],         // OL limestone tile (2458)
+  'travertine-natural-stone-tile':  ['natural-stone', 70],         // OL travertine tile (2457)
+  'natural-stone-patterns-tile':    ['natural-stone', 70],         // OL patterns tile (2461)
+
+  // ── Special Order subcategories (priority 70) ──
+  'stone':                          ['natural-stone', 70],         // Special order natural stone (1437)
+  'glass-special-order-series':     ['mosaic-tile', 70],           // Special order glass (1436)
+
+  // ── Format-specific (priority 60) ──
+  'decorative-mosaics-mesh-mounts': ['mosaic-tile', 60],
+  'porcelain-mosaics-mesh-mounts':  ['mosaic-tile', 60],
+  'natural-stone-mosaics-mesh-mounts': ['mosaic-tile', 60],
+  'glass-mosaics-mesh-mounts':      ['mosaic-tile', 60],
+  'stack':                          ['stacked-stone', 60],
+  'porcelain-stack':                ['stacked-stone', 60],
+  'natural-stone-stack':            ['stacked-stone', 60],
+  'stack-tile':                     ['stacked-stone', 60],
+  'pavers':                         ['pavers', 60],
+  'special-order-pavers':           ['pavers', 60],
+  'natural-stone-special-order-pavers': ['pavers', 60],
+  'porcelain-special-order-pavers': ['pavers', 60],
+  'large-format-tile':              ['large-format-tile', 55],
+  'large-format-porcelain-tile':    ['large-format-tile', 55],
+  'large-format-natural-stone-tile': ['natural-stone', 60],
+  'patterned-tile':                 ['porcelain-tile', 55],
+  'natural-stone-patterns':         ['natural-stone', 55],
+
+  // ── Generic parents (priority 50) ──
+  'natural-stone-tile':             ['natural-stone', 50],
+  'natural-stone-slab':             ['natural-stone', 50],
+
+  // ── 3D tile subcategories (priority 55) ──
+  'porcelain-and-ceramic-3d-tile':  ['porcelain-tile', 55],
+  'natural-stone-3d-tile':          ['natural-stone', 55],
+  '3d-tile':                        ['porcelain-tile', 45],
+
+  // ── R11 finish — porcelain tiles with slip resistance (priority 40) ──
+  'r11-finish':                     ['porcelain-tile', 40],
+
+  // ── Low-priority generic parents (priority 30) ──
+  // These only win if no better category matched
+  'liners-moldings-trim':           ['transitions-moldings', 30],
+  'ceramic-porcelain':              ['transitions-moldings', 30],  // "Porcelain & Ceramic Liners"
+  'natural-stone-liners':           ['transitions-moldings', 30],
+  'glass-liners':                   ['transitions-moldings', 30],
+  'outer-limits':                   ['porcelain-tile', 20],        // generic OL fallback only
+  'special-order-series':           ['natural-stone', 20],         // generic SO fallback
+  'porcelain':                      ['porcelain-tile', 20],        // generic porcelain (SO sub)
+  'tile':                           ['porcelain-tile', 10],        // top-level "Tile" parent
+  'slab':                           ['natural-stone', 10],         // top-level "Slab" parent
+
+  // ── Defensive entries ──
+  'slate':                          ['natural-stone', 80],
+  'onyx':                           ['natural-stone', 80],
+  'ceramic':                        ['ceramic-tile', 80],
+  'basalt-natural-stone-slab':      ['marble-countertops', 70],
+  'basalt':                         ['natural-stone', 70],
+  'dolomite-slab':                  ['marble-countertops', 90],
+  'soapstone':                      ['natural-stone', 80],
 };
+
+/**
+ * AZ category slugs to skip entirely — these are cross-reference tags, not material types.
+ * Products tagged with these also have a real material category.
+ */
+const CATEGORY_SKIP = new Set([
+  'looks-like', 'natural-stone', 'concrete', 'geometric-shapes', 'hand-painted',
+  'subway', 'wood',                          // "Looks Like" children (aesthetics)
+  'recycled-material-content',               // eco-label, not material
+  'made-in-usa', 'made-in-usa-slab',         // origin tag
+  'uncategorized', 'test-video', 'slab-outlet', 'quartz',  // misc
+]);
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 const ACCESSORY_KEYWORDS = /\b(trim|molding|moulding|reducer|stair\s*nose|transition|threshold|t-molding|quarter\s*round|underlayment|adhesive|grout|sealer|caulk|bullnose|cove\s*base|pencil\s*liner)\b/i;
 
 // Categories sold per piece/sheet (not per sqft in boxes)
-const UNIT_CATEGORIES = new Set(['mosaic-tile']);
+const UNIT_CATEGORIES = new Set([
+  'mosaic-tile',
+  'granite-countertops', 'marble-countertops', 'quartz-countertops',
+  'quartzite-countertops', 'porcelain-slabs',
+]);
+// Slab categories eligible for multi-gauge (thickness) SKU splitting
+const SLAB_CATEGORIES = new Set([
+  'granite-countertops', 'marble-countertops', 'quartz-countertops',
+  'quartzite-countertops', 'porcelain-slabs',
+]);
 // Categories that don't use box packaging (slabs, sheets)
 const NO_BOX_CATEGORIES = new Set([
   'mosaic-tile', 'granite-countertops', 'marble-countertops',
@@ -140,7 +238,17 @@ export async function run(pool, job, source) {
     found: 0, created: 0, updated: 0, skusCreated: 0,
     imagesSet: 0, skipped: 0, errors: 0,
     inventoryUpdated: 0, pricingUpdated: 0,
+    priceListHits: 0, priceListMisses: 0,
   };
+
+  // Load price list data (all 4 Excel files)
+  let priceList = null;
+  try {
+    priceList = loadAllPriceLists();
+    await appendLog(pool, job.id, `Price lists loaded: ${priceList.stats.total} entries (tile: ${priceList.stats.tile}, quartz: ${priceList.stats.quartz}, porcelain-slab: ${priceList.stats.porcelainSlab}, stone: ${priceList.stats.stone})`);
+  } catch (err) {
+    await appendLog(pool, job.id, `Warning: could not load price lists: ${err.message}. Falling back to web prices.`);
+  }
 
   if (!isInventoryMode) {
     // Ensure all required attributes exist (idempotent)
@@ -321,6 +429,8 @@ export async function run(pool, job, source) {
       if (!detail) continue;
 
       try {
+        const collectionName = apiProduct.title;
+
         if (apiProduct.isVariable && detail.variations.length > 0) {
           for (const v of detail.variations) {
             if (v.attributes?.attribute_pa_size === 'sample') continue;
@@ -330,19 +440,23 @@ export async function run(pool, job, source) {
             if (!skuRec) continue;
             const skuId = skuRec.id;
 
-            // Update pricing from variation (AZT display_price = dealer cost; 2x markup)
-            if (v.display_price) {
-              const aztCost = parseFloat(v.display_price);
+            // Update pricing from price list only (no WC fallback)
+            const plEntry = priceList
+              ? priceList.lookup(collectionName, v.attributes?.attribute_pa_color, v.attributes?.attribute_pa_size, v.attributes?.attribute_pa_finishes)
+              : null;
+
+            if (plEntry) {
+              const cost = plEntry.netPrice;
+              const sellBy = (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'unit' : 'sqft';
               await upsertPricing(pool, skuId, {
-                cost: aztCost,
-                retail_price: Math.round(aztCost * 2 * 100) / 100,
-                price_basis: skuRec.sell_by === 'unit' ? 'per_unit' : 'per_sqft',
+                cost,
+                retail_price: Math.round(cost * 2 * 100) / 100,
+                price_basis: sellBy === 'unit' ? 'per_unit' : 'per_sqft',
               });
               stats.pricingUpdated++;
             }
 
             // Update inventory from variation stock status
-            // WooCommerce max_qty can indicate available quantity
             const qtyOnHand = v.max_qty ? parseInt(v.max_qty) : (v.is_in_stock ? 1 : 0);
             await upsertInventorySnapshot(pool, skuId, 'default', {
               qty_on_hand_sqft: qtyOnHand,
@@ -356,13 +470,16 @@ export async function run(pool, job, source) {
           if (!skuRec) continue;
           const skuId = skuRec.id;
 
-          // Update pricing from page (AZT page price = dealer cost; 2x markup)
-          if (detail.pricing.retailPrice) {
-            const aztCost = detail.pricing.retailPrice;
+          // Update pricing: price list first, then page price fallback
+          const plEntry = priceList ? priceList.lookup(collectionName, null, null, null) : null;
+
+          if (plEntry) {
+            const cost = plEntry.netPrice;
+            const sellBy = (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'unit' : 'sqft';
             await upsertPricing(pool, skuId, {
-              cost: aztCost,
-              retail_price: Math.round(aztCost * 2 * 100) / 100,
-              price_basis: skuRec.sell_by === 'unit' ? 'per_unit' : (detail.pricing.priceBasis || 'per_sqft'),
+              cost,
+              retail_price: Math.round(cost * 2 * 100) / 100,
+              price_basis: sellBy === 'unit' ? 'per_unit' : 'per_sqft',
             });
             stats.pricingUpdated++;
           }
@@ -404,26 +521,37 @@ export async function run(pool, job, source) {
       }
 
       try {
-        // Resolve PIM category from product_cat IDs
+        // Resolve PIM category — score all AZ categories and pick highest priority
         let categoryId = null;
         let pimCatSlug = null;
+        let bestPriority = -1;
+
         for (const catId of apiProduct.categoryIds) {
           const azCat = azCategoryMap.get(catId);
-          if (azCat) {
-            const pimSlug = CATEGORY_MAP[azCat.slug];
-            if (pimSlug && categoryLookup.has(pimSlug)) {
-              categoryId = categoryLookup.get(pimSlug);
-              pimCatSlug = pimSlug;
-              break;
+          if (!azCat || CATEGORY_SKIP.has(azCat.slug)) continue;
+
+          const mapping = CATEGORY_MAP[azCat.slug];
+          if (mapping) {
+            const [slug, priority] = mapping;
+            if (priority > bestPriority && categoryLookup.has(slug)) {
+              bestPriority = priority;
+              categoryId = categoryLookup.get(slug);
+              pimCatSlug = slug;
             }
-            if (azCat.parent) {
-              const parentCat = azCategoryMap.get(azCat.parent);
-              if (parentCat) {
-                const parentPimSlug = CATEGORY_MAP[parentCat.slug];
-                if (parentPimSlug && categoryLookup.has(parentPimSlug)) {
-                  categoryId = categoryLookup.get(parentPimSlug);
-                  pimCatSlug = parentPimSlug;
-                  break;
+          }
+          // Also check parent category (lower priority since less specific)
+          if (azCat.parent) {
+            const parentCat = azCategoryMap.get(azCat.parent);
+            if (parentCat && !CATEGORY_SKIP.has(parentCat.slug)) {
+              const parentMapping = CATEGORY_MAP[parentCat.slug];
+              if (parentMapping) {
+                const [slug, priority] = parentMapping;
+                // Parent match gets a small penalty
+                const adjPriority = priority - 5;
+                if (adjPriority > bestPriority && categoryLookup.has(slug)) {
+                  bestPriority = adjPriority;
+                  categoryId = categoryLookup.get(slug);
+                  pimCatSlug = slug;
                 }
               }
             }
@@ -471,38 +599,39 @@ export async function run(pool, job, source) {
             else stats.updated++;
             touchedProductIds.push(product.id);
 
-            // Product-level primary image: collect images from ALL variants in this color group
-            // so we pick the best product shot across all sizes (not just first variant)
-            const allColorImages = [];
-            const seenColorBases = new Set();
-            for (const { v: cv } of variations) {
-              const cvImg = cv.image?.url || cv.image?.src || null;
-              if (cvImg) {
-                const base = cvImg.split('?')[0];
-                if (!seenColorBases.has(base)) { seenColorBases.add(base); allColorImages.push(cvImg); }
-              }
-              for (const gImg of (galleryData.byVariationId[cv.variation_id] || [])) {
-                const base = gImg.split('?')[0];
-                if (!seenColorBases.has(base)) { seenColorBases.add(base); allColorImages.push(gImg); }
+            // ── Product-level primary image ──
+            // Priority: 1) swatch image (clean product photo), 2) first variation gallery product shot, 3) preferProductShot from all images
+            const swatchUrl = detail.swatchImages?.get(colorSlug) || null;
+            let productPrimaryUrl = swatchUrl;
+
+            if (!productPrimaryUrl) {
+              // Fall back to the first product shot from any variation gallery in this color group
+              for (const { v: cv } of variations) {
+                const varGal = galleryData.byVariationId[cv.variation_id] || [];
+                const productShot = varGal.find(url => /variation|product|swatch/i.test(url.split('/').pop()));
+                if (productShot) { productPrimaryUrl = productShot; break; }
               }
             }
-            // Also include shared gallery as last resort — filtered by color
-            if (galleryShared.length > 0) {
-              const otherColorNames = [...colorGroups.keys()]
-                .filter(c => c && c !== colorSlug)
-                .map(c => deslugify(c));
-              const sharedNew = galleryShared.filter(u => {
-                const b = u.split('?')[0];
-                return !seenColorBases.has(b) && (seenColorBases.add(b), true);
-              });
-              const { matched, shared: neutral } = filterImagesByVariant(
-                sharedNew, deslugify(colorSlug),
-                { otherColors: otherColorNames, productName: collectionName }
-              );
-              allColorImages.push(...matched, ...neutral);
+
+            if (!productPrimaryUrl) {
+              // Last resort: collect all color images and pick the best product shot
+              const allColorImages = [];
+              const seenColorBases = new Set();
+              for (const { v: cv } of variations) {
+                const cvImg = cv.image?.url || cv.image?.src || null;
+                if (cvImg) {
+                  const base = cvImg.split('?')[0];
+                  if (!seenColorBases.has(base)) { seenColorBases.add(base); allColorImages.push(cvImg); }
+                }
+                for (const gImg of (galleryData.byVariationId[cv.variation_id] || [])) {
+                  const base = gImg.split('?')[0];
+                  if (!seenColorBases.has(base)) { seenColorBases.add(base); allColorImages.push(gImg); }
+                }
+              }
+              const colorCandidates = preferProductShot(filterImageUrls(filterWideBanners(allColorImages)), colorSlug);
+              productPrimaryUrl = colorCandidates[0] || null;
             }
-            const colorCandidates = preferProductShot(filterImageUrls(filterWideBanners(allColorImages)), colorSlug);
-            const productPrimaryUrl = colorCandidates[0] || null;
+
             if (productPrimaryUrl) {
               await upsertMediaAsset(pool, {
                 product_id: product.id,
@@ -522,24 +651,43 @@ export async function run(pool, job, source) {
               const variantName = buildVariantName(sizePart, finishPart);
 
               const accessory = isAccessory(apiProduct.title, apiProduct.description);
+
+              // ── Price list lookup ──
+              const plEntry = priceList
+                ? priceList.lookup(collectionName, colorSlug, v.attributes?.attribute_pa_size, v.attributes?.attribute_pa_finishes)
+                : null;
+
+              // Determine sell_by from price list unit or fallback
+              let sellBy;
+              if (plEntry) {
+                const unit = plEntry.unit;
+                if (unit === 'EA' || unit === 'SHT') sellBy = 'unit';
+                else sellBy = 'sqft';
+              } else {
+                sellBy = resolveSellBy(pimCatSlug, accessory, detail.soldBy);
+              }
+
               const sku = await upsertSku(pool, {
                 product_id: product.id,
                 vendor_sku: String(v.variation_id),
                 internal_sku: `AZT-${v.variation_id}`,
                 variant_name: variantName,
-                sell_by: resolveSellBy(pimCatSlug, accessory, detail.soldBy),
+                sell_by: sellBy,
                 ...(accessory && { variant_type: 'accessory' }),
               });
               if (sku.is_new) stats.skusCreated++;
 
-              // ── Pricing from variation (AZT display_price = dealer cost; 2x markup) ──
-              if (v.display_price) {
-                const aztCost = parseFloat(v.display_price);
+              // ── Pricing: price list only (no WC fallback — "Call for Price" if no match) ──
+              if (plEntry) {
+                const cost = plEntry.netPrice;
                 await upsertPricing(pool, sku.id, {
-                  cost: aztCost,
-                  retail_price: Math.round(aztCost * 2 * 100) / 100,
-                  price_basis: UNIT_CATEGORIES.has(pimCatSlug) ? 'per_unit' : 'per_sqft',
+                  cost,
+                  retail_price: Math.round(cost * 2 * 100) / 100,
+                  price_basis: sellBy === 'unit' ? 'per_unit' : 'per_sqft',
                 });
+                stats.priceListHits++;
+              } else {
+                stats.priceListMisses++;
               }
 
               // ── Inventory from variation ──
@@ -549,8 +697,17 @@ export async function run(pool, job, source) {
                 qty_in_transit_sqft: 0,
               });
 
-              // ── Packaging (skip for mosaics/countertops/slabs — no box packaging) ──
-              if (detail.packaging && Object.keys(detail.packaging).length > 0 && !NO_BOX_CATEGORIES.has(pimCatSlug)) {
+              // ── Packaging: price list first, then HTML-parsed fallback ──
+              if (plEntry && plEntry.sfPerBox) {
+                await upsertPackaging(pool, sku.id, {
+                  sqft_per_box: plEntry.sfPerBox || null,
+                  pieces_per_box: plEntry.pcsPerBox || null,
+                  weight_per_box_lbs: null,
+                  boxes_per_pallet: plEntry.boxesPerPallet || null,
+                  sqft_per_pallet: plEntry.sfPerPallet || null,
+                  weight_per_pallet_lbs: null,
+                });
+              } else if (detail.packaging && Object.keys(detail.packaging).length > 0 && !NO_BOX_CATEGORIES.has(pimCatSlug)) {
                 await upsertPackaging(pool, sku.id, {
                   sqft_per_box: detail.packaging.sqftPerBox || null,
                   pieces_per_box: detail.packaging.piecesPerBox || null,
@@ -569,8 +726,6 @@ export async function run(pool, job, source) {
                 await upsertSkuAttribute(pool, sku.id, 'size', cleanAttrValue(v.attributes.attribute_pa_size));
               }
               if (v.attributes?.attribute_pa_finishes) {
-                // Use the finish from variant name when it differs from the WooCommerce attribute
-                // (Arizona Tile's API sometimes returns the wrong finish slug for a variation)
                 let finishVal = cleanAttrValue(v.attributes.attribute_pa_finishes);
                 if (finishPart && finishPart.toLowerCase() !== finishVal.toLowerCase()) {
                   finishVal = finishPart;
@@ -582,21 +737,38 @@ export async function run(pool, job, source) {
               await upsertAllSpecAttributes(pool, sku.id, detail.specs, detail.technicalSpecs);
 
               // ── Per-variant images ──
+              // Priority for primary: 1) swatch image (product photo), 2) variation gallery product shot, 3) variation image field
               const varImage = v.image?.url || v.image?.src || null;
-              const sortBase = (vi + 1) * 100; // +1 to avoid collision with product-level sort_order=0
+              const sortBase = (vi + 1) * 100;
 
-              // Look up gallery images by variation_id first, then shared gallery as fallback
               const varGallery = galleryData.byVariationId[v.variation_id] || [];
 
-              // Build variant-only images first (no shared gallery)
+              // Build variant images: start with gallery (first entry is usually the product shot)
               const rawVarImages = [];
-              if (varImage) rawVarImages.push(varImage);
-              const seenBases = new Set(varImage ? [varImage.split('?')[0]] : []);
+              const seenBases = new Set();
+
+              // Insert swatch image first if available (this IS the product photo)
+              if (swatchUrl) {
+                const base = swatchUrl.split('?')[0];
+                seenBases.add(base);
+                rawVarImages.push(swatchUrl);
+              }
+
+              // Add variation gallery images (first one is typically the product shot for this size)
               for (const imgUrl of varGallery) {
                 const base = imgUrl.split('?')[0];
                 if (!seenBases.has(base)) {
                   seenBases.add(base);
                   rawVarImages.push(imgUrl);
+                }
+              }
+
+              // Add the WC variation image if not already included
+              if (varImage) {
+                const base = varImage.split('?')[0];
+                if (!seenBases.has(base)) {
+                  seenBases.add(base);
+                  rawVarImages.push(varImage);
                 }
               }
 
@@ -615,7 +787,8 @@ export async function run(pool, job, source) {
                 );
                 rawVarImages.push(...matched, ...neutral);
               }
-              // Filter junk + placeholders, then prefer product shots matching this variant's size + finish
+
+              // Filter junk + placeholders, then prefer product shots
               const filteredVarImages = await filterWidenPlaceholders(filterImageUrls(filterWideBanners(rawVarImages)));
               const allVarImages = preferProductShot(filteredVarImages, colorSlug, { size: sizePart, finish: finishPart });
 
@@ -637,8 +810,7 @@ export async function run(pool, job, source) {
                 stats.imagesSet++;
               }
 
-              // If no new images were assigned (all filtered as placeholders),
-              // promote existing first alternate to primary
+              // If no new images were assigned, promote existing first alternate to primary
               if (allVarImages.length === 0) {
                 await promoteToPrimary(pool, product.id, sku.id);
               }
@@ -675,72 +847,161 @@ export async function run(pool, job, source) {
           }
 
           const accessory = isAccessory(apiProduct.title, apiProduct.description);
-          const sku = await upsertSku(pool, {
-            product_id: product.id,
-            vendor_sku: String(apiProduct.wpId),
-            internal_sku: `AZT-${apiProduct.wpId}`,
-            variant_name: null,
-            sell_by: resolveSellBy(pimCatSlug, accessory, detail.soldBy),
-            ...(accessory && { variant_type: 'accessory' }),
-          });
-          if (sku.is_new) stats.skusCreated++;
 
-          // ── Pricing (AZT page price = dealer cost; 2x markup) ──
-          if (detail.pricing.retailPrice) {
-            const aztCost = detail.pricing.retailPrice;
-            await upsertPricing(pool, sku.id, {
-              cost: aztCost,
-              retail_price: Math.round(aztCost * 2 * 100) / 100,
-              price_basis: UNIT_CATEGORIES.has(pimCatSlug) ? 'per_unit' : (detail.pricing.priceBasis || 'per_sqft'),
-            });
-          } else if (detail.pricing._noPricing) {
-            await appendLog(pool, job.id, `Warning: no pricing found for simple product ${apiProduct.slug} (AZT-${apiProduct.wpId})`);
-          }
+          // ── Price list lookup for simple product ──
+          // For slab categories, try multi-gauge lookup to create per-thickness SKUs
+          const isSlab = pimCatSlug && SLAB_CATEGORIES.has(pimCatSlug);
+          const gaugeEntries = (isSlab && priceList)
+            ? priceList.lookupSimpleAllGauges(apiProduct.title, apiProduct.slug, detail.specs)
+            : [];
+          const plEntry = gaugeEntries.length > 0 ? gaugeEntries[0]
+            : (priceList ? priceList.lookupSimple(apiProduct.title, apiProduct.slug, detail.specs) : null);
 
-          // ── Inventory ──
-          await upsertInventorySnapshot(pool, sku.id, 'default', {
-            qty_on_hand_sqft: apiProduct.isInStock ? 1 : 0,
-            qty_in_transit_sqft: 0,
-          });
+          // Multi-gauge path: create one SKU per thickness
+          if (gaugeEntries.length > 1) {
+            for (const entry of gaugeEntries) {
+              const gauge = entry.normalizedGauge; // e.g. "2CM", "3CM"
+              const entrySellBy = (entry.unit === 'EA' || entry.unit === 'SHT') ? 'unit' : 'sqft';
 
-          // ── Packaging (skip for mosaics/countertops/slabs — no box packaging) ──
-          if (detail.packaging && Object.keys(detail.packaging).length > 0 && !NO_BOX_CATEGORIES.has(pimCatSlug)) {
-            if (detail.packaging._pdfOnly) {
-              await appendLog(pool, job.id, `Info: ${apiProduct.slug} has packaging PDF (${detail.packaging.pdfUrl}) but no inline data`);
-            } else {
-              await upsertPackaging(pool, sku.id, {
-                sqft_per_box: detail.packaging.sqftPerBox || null,
-                pieces_per_box: detail.packaging.piecesPerBox || null,
-                weight_per_box_lbs: detail.packaging.weightPerBox || null,
-                boxes_per_pallet: detail.packaging.boxesPerPallet || null,
-                sqft_per_pallet: detail.packaging.sqftPerPallet || null,
-                weight_per_pallet_lbs: detail.packaging.weightPerPallet || null,
-              });
-            }
-          }
-
-          // ── All spec attributes ──
-          await upsertAllSpecAttributes(pool, sku.id, detail.specs, detail.technicalSpecs);
-
-          // ── Images (sorted by preferProductShot, filtered by filterImageUrls) ──
-          if (simpleSorted.length > 0) {
-            for (let gi = 0; gi < simpleSorted.length; gi++) {
-              const imgUrl = simpleSorted[gi];
-              const isLife = isLifestyleUrl(imgUrl);
-              let assetType;
-              if (gi === 0) assetType = 'primary';
-              else if (isLife || gi > 2) assetType = 'lifestyle';
-              else assetType = 'alternate';
-
-              await upsertMediaAsset(pool, {
+              const sku = await upsertSku(pool, {
                 product_id: product.id,
-                sku_id: sku.id,
-                asset_type: assetType,
-                url: imgUrl,
-                original_url: imgUrl,
-                sort_order: gi,
+                vendor_sku: `${apiProduct.wpId}-${gauge}`,
+                internal_sku: `AZT-${apiProduct.wpId}-${gauge}`,
+                variant_name: gauge,
+                sell_by: entrySellBy,
+                ...(accessory && { variant_type: 'accessory' }),
               });
-              stats.imagesSet++;
+              if (sku.is_new) stats.skusCreated++;
+
+              // Pricing per gauge
+              const cost = entry.netPrice;
+              await upsertPricing(pool, sku.id, {
+                cost,
+                retail_price: Math.round(cost * 2 * 100) / 100,
+                price_basis: entrySellBy === 'unit' ? 'per_unit' : 'per_sqft',
+              });
+              stats.priceListHits++;
+
+              // Inventory per SKU
+              await upsertInventorySnapshot(pool, sku.id, 'default', {
+                qty_on_hand_sqft: apiProduct.isInStock ? 1 : 0,
+                qty_in_transit_sqft: 0,
+              });
+
+              // Spec attributes (shared across gauges)
+              await upsertAllSpecAttributes(pool, sku.id, detail.specs, detail.technicalSpecs);
+              // Override thickness with the specific gauge value
+              await upsertSkuAttribute(pool, sku.id, 'thickness', gauge);
+            }
+            // Images at product level only (sku_id: null) — API falls back to product-level media
+            if (simpleSorted.length > 0) {
+              for (let gi = 0; gi < simpleSorted.length; gi++) {
+                const imgUrl = simpleSorted[gi];
+                const isLife = isLifestyleUrl(imgUrl);
+                let assetType;
+                if (gi === 0) assetType = 'primary';
+                else if (isLife || gi > 2) assetType = 'lifestyle';
+                else assetType = 'alternate';
+
+                await upsertMediaAsset(pool, {
+                  product_id: product.id,
+                  sku_id: null,
+                  asset_type: assetType,
+                  url: imgUrl,
+                  original_url: imgUrl,
+                  sort_order: gi,
+                });
+                stats.imagesSet++;
+              }
+            }
+          } else {
+            // Single SKU path (non-slab, or slab with only one gauge)
+            let sellBy;
+            if (plEntry) {
+              const unit = plEntry.unit;
+              if (unit === 'EA' || unit === 'SHT') sellBy = 'unit';
+              else sellBy = 'sqft';
+            } else {
+              sellBy = resolveSellBy(pimCatSlug, accessory, detail.soldBy);
+            }
+
+            const sku = await upsertSku(pool, {
+              product_id: product.id,
+              vendor_sku: String(apiProduct.wpId),
+              internal_sku: `AZT-${apiProduct.wpId}`,
+              variant_name: null,
+              sell_by: sellBy,
+              ...(accessory && { variant_type: 'accessory' }),
+            });
+            if (sku.is_new) stats.skusCreated++;
+
+            // ── Pricing: price list only (no WC fallback — "Call for Price" if no match) ──
+            if (plEntry) {
+              const cost = plEntry.netPrice;
+              await upsertPricing(pool, sku.id, {
+                cost,
+                retail_price: Math.round(cost * 2 * 100) / 100,
+                price_basis: sellBy === 'unit' ? 'per_unit' : 'per_sqft',
+              });
+              stats.priceListHits++;
+            } else {
+              stats.priceListMisses++;
+            }
+
+            // ── Inventory ──
+            await upsertInventorySnapshot(pool, sku.id, 'default', {
+              qty_on_hand_sqft: apiProduct.isInStock ? 1 : 0,
+              qty_in_transit_sqft: 0,
+            });
+
+            // ── Packaging: price list first, then HTML-parsed ──
+            if (plEntry && plEntry.sfPerBox) {
+              await upsertPackaging(pool, sku.id, {
+                sqft_per_box: plEntry.sfPerBox || null,
+                pieces_per_box: plEntry.pcsPerBox || null,
+                weight_per_box_lbs: null,
+                boxes_per_pallet: plEntry.boxesPerPallet || null,
+                sqft_per_pallet: plEntry.sfPerPallet || null,
+                weight_per_pallet_lbs: null,
+              });
+            } else if (detail.packaging && Object.keys(detail.packaging).length > 0 && !NO_BOX_CATEGORIES.has(pimCatSlug)) {
+              if (detail.packaging._pdfOnly) {
+                await appendLog(pool, job.id, `Info: ${apiProduct.slug} has packaging PDF (${detail.packaging.pdfUrl}) but no inline data`);
+              } else {
+                await upsertPackaging(pool, sku.id, {
+                  sqft_per_box: detail.packaging.sqftPerBox || null,
+                  pieces_per_box: detail.packaging.piecesPerBox || null,
+                  weight_per_box_lbs: detail.packaging.weightPerBox || null,
+                  boxes_per_pallet: detail.packaging.boxesPerPallet || null,
+                  sqft_per_pallet: detail.packaging.sqftPerPallet || null,
+                  weight_per_pallet_lbs: detail.packaging.weightPerPallet || null,
+                });
+              }
+            }
+
+            // ── All spec attributes ──
+            await upsertAllSpecAttributes(pool, sku.id, detail.specs, detail.technicalSpecs);
+
+            // ── Images (sorted by preferProductShot, filtered by filterImageUrls) ──
+            if (simpleSorted.length > 0) {
+              for (let gi = 0; gi < simpleSorted.length; gi++) {
+                const imgUrl = simpleSorted[gi];
+                const isLife = isLifestyleUrl(imgUrl);
+                let assetType;
+                if (gi === 0) assetType = 'primary';
+                else if (isLife || gi > 2) assetType = 'lifestyle';
+                else assetType = 'alternate';
+
+                await upsertMediaAsset(pool, {
+                  product_id: product.id,
+                  sku_id: sku.id,
+                  asset_type: assetType,
+                  url: imgUrl,
+                  original_url: imgUrl,
+                  sort_order: gi,
+                });
+                stats.imagesSet++;
+              }
             }
           }
         }
@@ -794,7 +1055,8 @@ export async function run(pool, job, source) {
     await appendLog(pool, job.id,
       `Scrape complete. Found: ${stats.found}, Created: ${stats.created}, ` +
       `Updated: ${stats.updated}, SKUs: ${stats.skusCreated}, ` +
-      `Images: ${stats.imagesSet}, Skipped: ${stats.skipped}, Errors: ${stats.errors}`,
+      `Images: ${stats.imagesSet}, Skipped: ${stats.skipped}, Errors: ${stats.errors}, ` +
+      `PriceList hits: ${stats.priceListHits}, misses: ${stats.priceListMisses}`,
       {
         products_found: stats.found,
         products_created: stats.created,
@@ -863,6 +1125,7 @@ function parseDetailPage(html) {
     variations: parseVariations(html),
     soldBy: parseSoldBy(html),
     stockStatus: parseStockStatus(html),
+    swatchImages: parseSwatchImages(html),
   };
 }
 
@@ -1148,7 +1411,7 @@ function parseGallery(html) {
       .map(item => {
         if (typeof item === 'string') return item;
         if (typeof item === 'object' && item) {
-          return item.zoom || item.medium || item.thumb || item.url || item.src || null;
+          return item.full || item.zoom || item.medium || item.thumb || item.url || item.src || null;
         }
         return null;
       })
@@ -1254,6 +1517,41 @@ async function upsertAllSpecAttributes(pool, skuId, specs, technicalSpecs) {
   for (const [techKey, attrSlug] of Object.entries(techMap)) {
     if (technicalSpecs[techKey]) await upsertSkuAttribute(pool, skuId, attrSlug, technicalSpecs[techKey]);
   }
+}
+
+/**
+ * Parse color swatch images from the detail page.
+ * These are per-color product photos (e.g., "Aequa-Castor-12x48-variation.webp")
+ * displayed as clickable color option buttons.
+ *
+ * Structure: <span class="...color-variation..." data-parent-id="pa_color" data-value="castor" ...>
+ *              <i><img src="..." alt="Castor"></i>
+ *            </span>
+ *
+ * Returns Map<colorSlug, imageUrl>
+ */
+function parseSwatchImages(html) {
+  const swatches = new Map();
+  // Match color-variation spans with data-parent-id="pa_color" and data-value, then find inner img src
+  const regex = /data-parent-id="pa_color"[^>]*data-value="([^"]+)"[^>]*>[\s\S]*?<img[^>]+src="([^"]+)"/gi;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    const colorSlug = match[1].trim();
+    const url = htmlDecode(match[2]);
+    if (url && colorSlug && !url.includes('placeholder') && !url.includes('Line-Art')) {
+      swatches.set(colorSlug, url);
+    }
+  }
+  // Also try reverse attribute order: data-value before data-parent-id
+  const regex2 = /data-value="([^"]+)"[^>]*data-parent-id="pa_color"[^>]*>[\s\S]*?<img[^>]+src="([^"]+)"/gi;
+  while ((match = regex2.exec(html)) !== null) {
+    const colorSlug = match[1].trim();
+    const url = htmlDecode(match[2]);
+    if (url && colorSlug && !swatches.has(colorSlug) && !url.includes('placeholder') && !url.includes('Line-Art')) {
+      swatches.set(colorSlug, url);
+    }
+  }
+  return swatches;
 }
 
 /**

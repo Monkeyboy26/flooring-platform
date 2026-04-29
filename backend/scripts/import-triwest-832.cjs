@@ -802,6 +802,59 @@ async function upsertSkuAttribute(skuId, slug, value) {
   `, [skuId, attr.rows[0].id, String(value).trim()]);
 }
 
+// ---------------------------------------------------------------------------
+// AHF SKU-prefix → Collection Mapping (for groupIntoProducts)
+// AHF's 832 data lacks PID 77, so baseName-based grouping merges unrelated
+// collections. Instead, classify by vendor SKU prefix.
+// ---------------------------------------------------------------------------
+const AHF_SKU_COLLECTION_RULES = [
+  // Engineered Hardwood
+  { prefixes: ['EAKTB', 'EAHTB'], name: 'Hartco TimberBrushed Gold Engineered Hardwood' },
+  { prefixes: ['EKLP'], name: 'Hartco TimberBrushed Silver Engineered Hardwood' },
+  { prefixes: ['EKTB'], name: 'Hartco TimberBrushed Engineered Hardwood' },
+  { prefixes: ['ESB7', 'EKBH'], name: 'Hartco Coastal Highway Engineered Hardwood' },
+  { prefixes: ['EHHB', 'EKHB'], name: 'Hartco HydroBlok Engineered Hardwood' },
+  { prefixes: ['EKDP', 'EDP'], name: 'Hartco Dutton Pass Engineered Hardwood' },
+  { prefixes: ['EBM'], name: 'Hartco Beaumont Engineered Hardwood' },
+  { prefixes: ['EKDT', 'EDW'], name: 'Hartco Dogwood Pro Engineered Hardwood' },
+  { prefixes: ['ENC', 'EKNC', 'EHPC'], name: 'Hartco Necessity Engineered Hardwood' },
+  { prefixes: ['EPH', 'EKPH', 'EAK'], name: 'Hartco Prime Harvest Engineered Hardwood' },
+  { prefixes: ['EKAR'], name: 'Hartco Appalachian Ridge Engineered Hardwood' },
+  { prefixes: ['EKNW'], name: 'Hartco Nature Walk Engineered Hardwood' },
+  { prefixes: ['EKSF'], name: 'Hartco Sensory Forest Engineered Hardwood' },
+  // Solid Hardwood
+  { prefixes: ['SAS5', 'SAS3'], name: 'Hartco American Scrape Solid Hardwood' },
+  // Appalachian Ridge Solid — numeric prefixes removed (00730* collides with adhesive/wallbase SKUs)
+  { prefixes: ['ASO', '5188'], name: 'Hartco Ascot Solid Hardwood' },
+  { prefixes: ['SKTB'], name: 'Hartco TimberBrushed Solid Hardwood' },
+  { prefixes: ['APH', 'APK', 'APM', 'APF'], name: 'Hartco Prime Harvest Solid Hardwood' },
+  { prefixes: ['SNW', '1NS2'], name: 'Hartco Nature Walk Solid Hardwood' },
+  { prefixes: ['SSF'], name: 'Hartco Sensory Forest Solid Hardwood' },
+  { prefixes: ['YS'], name: 'Hartco Yorkshire Solid Hardwood' },
+  { prefixes: ['PAR', 'PARA'], name: 'Hartco Paragon Solid Hardwood' },
+  { prefixes: ['4210', '4225', '4510', '4722', '4211', '422', '5888'], name: 'Hartco Prime Harvest Solid Hardwood' },
+  // Rigid Core / SPC
+  { prefixes: ['EKEP', 'RKEG'], name: 'Hartco Everguard Rigid Core' },
+  { prefixes: ['RK7E', 'RK7L', 'BRLP70'], name: 'Hartco Pikes Peak SPC' },
+  { prefixes: ['RK7P', 'RP7'], name: 'Hartco Denali SPC' },
+  { prefixes: ['RK9', 'BRLR91'], name: 'Hartco Everest SPC' },
+  // TimberTru
+  { prefixes: ['LFR'], name: 'Hartco Back Home TimberTru' },
+];
+
+function extractAhfCollectionFromSku(vendorSku) {
+  if (!vendorSku) return null;
+  let bare = vendorSku.toUpperCase().replace(/-/g, '');
+  if (bare.startsWith('AHF')) bare = bare.slice(3);
+
+  for (const rule of AHF_SKU_COLLECTION_RULES) {
+    for (const prefix of rule.prefixes) {
+      if (bare.startsWith(prefix)) return rule.name;
+    }
+  }
+  return null;
+}
+
 function groupIntoProducts(items) {
   const products = new Map();
 
@@ -817,6 +870,13 @@ function groupIntoProducts(items) {
     // Product name = collection/trade name (in Tri-West 832, each LIN group is a collection/product)
     let baseName = item.product_name || item.vendor_sku || 'Unknown';
 
+    // AHF-specific: extract collection from SKU prefix instead of baseName
+    // This prevents merging unrelated collections (e.g., TimberBrushed Gold/Silver/Platinum)
+    let ahfCollection = null;
+    if (brand && (brand.toUpperCase() === 'AHF' || brand.toUpperCase() === 'AHF PRODUCTS')) {
+      ahfCollection = extractAhfCollectionFromSku(item.vendor_sku);
+    }
+
     // Strip color from product name for grouping
     if (item.color && !isAccessory) {
       const colorEsc = item.color.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -824,11 +884,13 @@ function groupIntoProducts(items) {
       if (stripped && stripped.length >= 3) baseName = stripped;
     }
 
-    // Group by brand + baseName (not collection — collection encodes color, not product)
-    const key = `${brand}|||${baseName}|||${isAccessory ? 'acc' : 'main'}`;
+    // Group by brand + collection/baseName
+    // For AHF: use SKU-derived collection to get correct grouping
+    const groupName = ahfCollection || baseName;
+    const key = `${brand}|||${groupName}|||${isAccessory ? 'acc' : 'main'}`;
 
     if (!products.has(key)) {
-      products.set(key, { baseName, collection, brand, category, isAccessory, items: [] });
+      products.set(key, { baseName: ahfCollection || baseName, collection, brand, category, isAccessory, items: [] });
     }
     products.get(key).items.push(item);
   }
@@ -863,7 +925,11 @@ async function importToDatabase(allItems) {
 
   for (const group of productGroups) {
     const categoryId = resolveCatId(group.category);
-    const collection = group.brand ? cleanAndTitle(group.brand) : (group.collection ? cleanAndTitle(group.collection) : null);
+    // AHF brands: use SKU-derived collection (e.g. "Hartco TimberBrushed Gold...")
+    // resolved in groupIntoProducts via AHF_SKU_COLLECTION_RULES.
+    // Other brands: use brand name as collection (Tri-West convention).
+    const isAhf = group.brand && /^AHF/i.test(group.brand);
+    const collection = isAhf ? group.baseName : (group.brand ? cleanAndTitle(group.brand) : (group.collection ? cleanAndTitle(group.collection) : null));
     const brand = group.brand ? cleanAndTitle(group.brand) : null;
 
     // Description

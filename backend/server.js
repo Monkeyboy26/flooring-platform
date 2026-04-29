@@ -17,6 +17,7 @@ import createSeoRouter from './services/seoRenderer.js';
 import { generate850 } from './services/ediGenerator.js';
 import { createSftpConnection, uploadFile } from './services/ediSftp.js';
 import { createFtpConnection, uploadFile as ftpUploadFile } from './services/ediFtp.js';
+import { spawn } from 'child_process';
 import sharp from 'sharp';
 import { pool } from './db.js';
 import { createAuthMiddleware } from './lib/auth.js';
@@ -90,6 +91,13 @@ const IMG_CACHE_DIR = path.join(process.cwd(), '_cache');
 if (!fs.existsSync(IMG_CACHE_DIR)) fs.mkdirSync(IMG_CACHE_DIR, { recursive: true });
 const imgInflight = new Map(); // cacheKey → Promise<Buffer> — dedup concurrent requests
 
+// Known bad/error image MD5 hashes — reject these at the proxy level
+const BAD_IMAGE_HASHES = new Set([
+  'd0a7127af62d07881dbc4e8a1d29bf26', // Armstrong "IT team" meme (577KB)
+  'd488a4a8c70e99179bfd4550fccd3297', // Armstrong placeholder.jpeg (61KB)
+  'aab2252aad617be32d88e1aa936cacdf', // Armstrong tiny blank swatch (~3KB)
+]);
+
 function isPrivateUrl(urlStr) {
   try {
     const u = new URL(urlStr);
@@ -153,6 +161,12 @@ app.get('/api/img', imgLimiter, async (req, res) => {
             if (!resp.ok) return null;
             inputBuffer = Buffer.from(await resp.arrayBuffer());
           } catch { clearTimeout(timeout); return null; }
+        }
+        // Reject known bad/error images (e.g. Armstrong CDN meme)
+        const inputHash = crypto.createHash('md5').update(inputBuffer).digest('hex');
+        if (BAD_IMAGE_HASHES.has(inputHash)) {
+          console.warn(`[img] Blocked bad image (hash ${inputHash}): ${url}`);
+          return null;
         }
         const resizeOpts = { width: w, fit: 'inside', withoutEnlargement: true };
         if (h) resizeOpts.height = h;
@@ -674,7 +688,7 @@ app.get('/api/storefront/featured', async (req, res) => {
         pr.retail_price, pr.price_basis, pr.cut_price,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-        COALESCE(si.url, pi.url, sany.url, pany.url, sib.url) as primary_image,
+        COALESCE(si.url, pi.url, sany.url, pany.url) as primary_image,
         COALESCE(sai.url, pai.url) as alternate_image,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
@@ -764,7 +778,7 @@ app.get('/api/storefront/featured', async (req, res) => {
             pr.retail_price, pr.price_basis, pr.cut_price,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-            COALESCE(si.url, pi.url, sany.url, pany.url, sib.url) as primary_image,
+            COALESCE(si.url, pi.url, sany.url, pany.url) as primary_image,
             COALESCE(sai.url, pai.url) as alternate_image,
             CASE
               WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
@@ -1404,7 +1418,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     let params = [];
     let paramIndex = 1;
     let whereClauses = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'", "COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')",
-      "p.collection NOT LIKE 'AHF%'", "(pr.retail_price IS NULL OR pr.retail_price > 0)"];
+      "(pr.retail_price IS NULL OR pr.retail_price > 0)"];
 
     // Category filter (includes children)
     if (category) {
@@ -1569,22 +1583,25 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       sku_any_images AS (
         SELECT DISTINCT ON (sku_id) sku_id, url
         FROM media_assets
-        WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
+        WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NOT NULL
         ORDER BY sku_id, sort_order
       ),
       product_any_images AS (
         SELECT DISTINCT ON (product_id) product_id, url
         FROM media_assets
-        WHERE asset_type = 'alternate' AND sku_id IS NULL
+        WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NULL
         ORDER BY product_id, sort_order
       ),
       sibling_images AS (
-        SELECT DISTINCT ON (s2.product_id) s2.product_id, ma.url
-        FROM media_assets ma
-        JOIN skus s2 ON s2.id = ma.sku_id
-        WHERE ma.asset_type = 'primary' AND ma.sku_id IS NOT NULL
+        SELECT DISTINCT ON (s1.id) s1.id as sku_id, ma.url
+        FROM skus s1
+        JOIN sku_attributes sa1 ON sa1.sku_id = s1.id
+        JOIN attributes a ON a.id = sa1.attribute_id AND a.slug = 'color'
+        JOIN sku_attributes sa2 ON sa2.attribute_id = sa1.attribute_id AND LOWER(sa2.value) = LOWER(sa1.value) AND sa2.sku_id != s1.id
+        JOIN skus s2 ON s2.id = sa2.sku_id AND s2.product_id = s1.product_id
           AND COALESCE(s2.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim','hardware','lighting','carved_wood','vanity','moulding','organizer','sink')
-        ORDER BY s2.product_id, ma.sort_order
+        JOIN media_assets ma ON ma.sku_id = s2.id AND ma.asset_type = 'primary'
+        ORDER BY s1.id, ma.sort_order
       ),
       variant_counts AS (
         SELECT product_id, COUNT(*) as variant_count
@@ -1603,7 +1620,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
           pr.retail_price, pr.price_basis, pr.cut_price,
           CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
           pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-          COALESCE(si.url, pi.url) as primary_image,
+          COALESCE(si.url, pi.url, sai.url, pai.url, sib.url, sany.url, pany.url) as primary_image,
           COALESCE(sai.url, pai.url) as alternate_image,
           CASE
             WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
@@ -1626,7 +1643,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         LEFT JOIN product_alt_images pai ON pai.product_id = p.id
         LEFT JOIN sku_any_images sany ON sany.sku_id = s.id
         LEFT JOIN product_any_images pany ON pany.product_id = p.id
-        LEFT JOIN sibling_images sib ON sib.product_id = p.id
+        LEFT JOIN sibling_images sib ON sib.sku_id = s.id
         LEFT JOIN variant_counts vc ON vc.product_id = p.id
         LEFT JOIN product_popularity pp ON pp.product_id = p.id
         WHERE ${whereSQL}
@@ -1942,18 +1959,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 ELSE 2 END, sort_order
       `, [sku.product_id]);
 
-      // If still no images, fall back to first non-accessory sibling SKU's primary image
-      if (mediaResult.rows.length === 0) {
-        mediaResult = await pool.query(`
-          SELECT ma.id, ma.asset_type, ma.url, ma.sort_order, ma.sku_id
-          FROM media_assets ma
-          JOIN skus s2 ON s2.id = ma.sku_id
-          WHERE ma.product_id = $1 AND ma.sku_id IS NOT NULL AND ma.asset_type = 'primary'
-            AND COALESCE(s2.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim','hardware','lighting','carved_wood','vanity','moulding','organizer','sink')
-          ORDER BY ma.sort_order
-          LIMIT 1
-        `, [sku.product_id]);
-      }
+      // No sibling fallback — show placeholder instead of a wrong color
     }
 
     // Deduplicate media by URL
@@ -1974,9 +1980,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         COALESCE(
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('alternate','swatch') ORDER BY CASE ma.asset_type WHEN 'alternate' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1),
-          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type IN ('alternate','swatch') ORDER BY CASE ma.asset_type WHEN 'alternate' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('alternate','swatch') ORDER BY CASE ma.asset_type WHEN 'alternate' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
         ) as primary_image,
         (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as sku_image,
         (SELECT ma.url FROM media_assets ma
@@ -1996,6 +2000,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
       WHERE s.product_id = $1 AND s.id != $2 AND s.is_sample = false AND s.status = 'active'
+        AND COALESCE(s.variant_type, '') != 'accessory'
       ORDER BY s.variant_name
     `, [sku.product_id, skuId]);
 
@@ -2017,6 +2022,32 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       }
       sameSiblings = sameSiblings.map(s => ({ ...s, attributes: sibAttrMap[s.sku_id] || [] }));
     }
+
+    // Per-SKU accessories (from sku_accessories junction table)
+    const skuAccessoriesResult = await pool.query(`
+      SELECT sa.sort_order,
+        s.id as sku_id, s.variant_name, s.vendor_sku, s.variant_type, s.sell_by,
+        s.accessory_label,
+        pr.retail_price, pr.price_basis,
+        CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+        COALESCE(
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
+        ) as primary_image,
+        CASE
+          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+          ELSE 'out_of_stock'
+        END as stock_status
+      FROM sku_accessories sa
+      JOIN skus s ON s.id = sa.accessory_sku_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      WHERE sa.parent_sku_id = $1 AND s.status = 'active'
+      ORDER BY sa.sort_order, s.accessory_label
+    `, [skuId]);
+    const skuAccessories = skuAccessoriesResult.rows;
 
     // Cross-product accessory suggestions (for vendors like Shaw where accessories
     // live in separate type-based products: "T Molding", "Round Stair Tread", etc.)
@@ -2265,6 +2296,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       media: dedupedMedia,
       countertop_image: countertopImage,
       tags: productTags,
+      accessories: skuAccessories,
       same_product_siblings: sameSiblings,
       cross_product_accessories: crossProductAccessories,
       collection_siblings: collectionSiblings,
@@ -5983,11 +6015,12 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
     const items = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color
+        sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1
@@ -6399,6 +6432,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       const skuResult = await client.query(`
         SELECT s.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
           pr.retail_price, pr.price_basis, pr.cost, pr.cut_price, pr.roll_price,
+          pr.cut_cost, pr.roll_cost,
           pk.sqft_per_box, pk.weight_per_box_lbs, pk.roll_width_ft,
           sa_c.value as color
         FROM skus s
@@ -6421,9 +6455,12 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
         computedSqft = parseFloat(sqft_needed || 0);
         const sqyd = computedSqft / 9;
         itemSubtotal = parseFloat((unitPrice * sqyd).toFixed(2));
+      } else if (isPerSqft) {
+        computedSqft = sqft_needed ? parseFloat(sqft_needed) : num_boxes * sqftPerBox;
+        itemSubtotal = parseFloat((unitPrice * computedSqft).toFixed(2));
       } else {
-        computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
-        itemSubtotal = parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+        computedSqft = null;
+        itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
       }
       itemVendorId = sku.vendor_id;
     } else {
@@ -6518,18 +6555,38 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       }
 
       // Build PO item values
-      let poCost, poRetail, poVendorSku, poProductName;
+      let poCost, poRetail, poQty, poSubtotal, poVendorSku, poProductName;
       if (sku) {
         const skuSqftPerBox = parseFloat(sku.sqft_per_box || 1);
-        const vendorCost = parseFloat(sku.cost || 0);
+        let vendorCost = parseFloat(sku.cost || 0);
+        if (sku.price_basis === 'per_sqyd' && sku.cut_cost != null) vendorCost = parseFloat(sku.cut_cost);
+        const isCarpet = sku.price_basis === 'per_sqyd';
         const poIsPerSqft = sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft';
-        poCost = poIsPerSqft ? vendorCost * skuSqftPerBox : vendorCost;
-        poRetail = poIsPerSqft ? unitPrice * skuSqftPerBox : unitPrice;
+
+        if (isCarpet) {
+          const sqyd = (parseFloat(sqft_needed) || 0) / 9;
+          poCost = vendorCost;
+          poRetail = unitPrice;
+          poQty = num_boxes;
+          poSubtotal = vendorCost * sqyd;
+        } else if (poIsPerSqft) {
+          poCost = vendorCost * skuSqftPerBox;
+          poRetail = unitPrice * skuSqftPerBox;
+          poQty = num_boxes;
+          poSubtotal = poCost * num_boxes;
+        } else {
+          poCost = vendorCost;
+          poRetail = unitPrice;
+          poQty = num_boxes;
+          poSubtotal = vendorCost * num_boxes;
+        }
         poVendorSku = sku.vendor_sku;
         poProductName = storedProductName;
       } else {
         poCost = unitPrice;
         poRetail = unitPrice;
+        poQty = num_boxes;
+        poSubtotal = poCost * num_boxes;
         poVendorSku = null;
         poProductName = product_name.trim();
       }
@@ -6541,9 +6598,9 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
            qty, sell_by, cost, original_cost, retail_price, subtotal)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10, $11)
       `, [poId, newItemId, sku?.id || null, poProductName, poVendorSku,
-          description || null, num_boxes, sku?.sell_by || null,
+          description || null, poQty, sku?.sell_by || null,
           poCost.toFixed(2), poRetail ? poRetail.toFixed(2) : null,
-          (poCost * num_boxes).toFixed(2)]);
+          poSubtotal.toFixed(2)]);
 
       // Recalculate PO subtotal
       await client.query(`
@@ -6563,11 +6620,12 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color
+        sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
@@ -6661,11 +6719,12 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color
+        sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
@@ -7367,7 +7426,7 @@ app.delete('/api/admin/import/templates/:id', staffAuth, requireRole('admin', 'm
 
 // Scrapers that launch a Puppeteer browser (high memory — need concurrency limits)
 const BROWSER_SCRAPERS = new Set([
-  'msi', 'bed', 'goton', 'tradepro-pricebooks', 'tradepro-inventory', 'bosphorus-inventory',
+  'msi', 'bed', 'tradepro-pricebooks', 'tradepro-inventory', 'bosphorus-inventory',
   'triwest-inventory',
   'triwest-provenza', 'triwest-paradigm', 'triwest-quickstep', 'triwest-armstrong',
   'triwest-metroflor', 'triwest-mirage', 'triwest-grandpacific',
@@ -7377,6 +7436,7 @@ const BROWSER_SCRAPERS = new Set([
   'triwest-tec',
   'triwest-babool', 'triwest-elysium', 'triwest-forester', 'triwest-hardwoodsspecialty',
   'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit',
+  'triwest-californiaclassics',
 ]);
 
 // Enrichment scrapers (triwest-* brand scrapers) — separate pool so they don't block catalog/inventory
@@ -7389,6 +7449,7 @@ const ENRICHMENT_SCRAPERS = new Set([
   'triwest-tec',
   'triwest-babool', 'triwest-elysium', 'triwest-forester', 'triwest-hardwoodsspecialty',
   'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit',
+  'triwest-californiaclassics',
   'lowes-mapei',
 ]);
 
@@ -7584,6 +7645,389 @@ async function runScraper(source, configOverride = null) {
   return job;
 }
 
+// ==================== Vendor Pipelines ====================
+
+const { getAvailablePipelines, getPipelineConfig } = await import('./pipelines/vendor-pipelines.js');
+const activePipelineRuns = new Map(); // pipelineRunId → { abortController, childProcess? }
+
+async function runPipeline(vendorCode) {
+  const config = getPipelineConfig(vendorCode);
+  if (!config) throw new Error('No pipeline defined for vendor: ' + vendorCode);
+
+  // Look up vendor by code — pipelines may map to a different vendor_code than the source vendor
+  // Try exact match first, then check if any vendor_source has a matching scraper_key
+  let vendor = (await pool.query('SELECT id, code, name FROM vendors WHERE code = $1', [vendorCode])).rows[0];
+  if (!vendor) {
+    // Try to find vendor through the first scraper step's sourceKey
+    const firstScraperStep = config.steps.find(s => s.type === 'scraper');
+    if (firstScraperStep) {
+      const vs = await pool.query(
+        'SELECT v.id, v.code, v.name FROM vendor_sources vs JOIN vendors v ON v.id = vs.vendor_id WHERE vs.scraper_key = $1 LIMIT 1',
+        [firstScraperStep.sourceKey]
+      );
+      vendor = vs.rows[0];
+    }
+  }
+  if (!vendor) throw new Error('Vendor not found for pipeline: ' + vendorCode);
+
+  // Check for already-running pipeline for this vendor
+  const running = await pool.query(
+    `SELECT id FROM pipeline_runs WHERE vendor_code = $1 AND status = 'running' LIMIT 1`,
+    [vendorCode]
+  );
+  if (running.rows.length > 0) {
+    return { skipped: true, reason: 'already_running', existing_run_id: running.rows[0].id };
+  }
+
+  // Create pipeline_run
+  const runResult = await pool.query(`
+    INSERT INTO pipeline_runs (vendor_id, vendor_code, status, total_steps)
+    VALUES ($1, $2, 'running', $3)
+    RETURNING *
+  `, [vendor.id, vendorCode, config.steps.length]);
+  const pipelineRun = runResult.rows[0];
+
+  // Create step rows
+  for (let i = 0; i < config.steps.length; i++) {
+    const step = config.steps[i];
+    await pool.query(`
+      INSERT INTO pipeline_step_runs (pipeline_run_id, step_index, step_type, step_label, step_key)
+      VALUES ($1, $2, $3, $4, $5)
+    `, [pipelineRun.id, i, step.type, step.label, step.type === 'scraper' ? step.sourceKey : step.path]);
+  }
+
+  const abortController = new AbortController();
+  activePipelineRuns.set(pipelineRun.id, { abortController, childProcess: null });
+
+  // Execute in background
+  executePipeline(pipelineRun.id, vendorCode, config, abortController).catch(err => {
+    console.error('[Pipeline] Unhandled error in executePipeline:', err.message);
+  });
+
+  return pipelineRun;
+}
+
+async function executePipeline(pipelineRunId, vendorCode, config, abortController) {
+  try {
+    for (let i = 0; i < config.steps.length; i++) {
+      if (abortController.signal.aborted) {
+        // Mark remaining steps as cancelled
+        await pool.query(
+          `UPDATE pipeline_step_runs SET status = 'cancelled' WHERE pipeline_run_id = $1 AND status = 'pending'`,
+          [pipelineRunId]
+        );
+        break;
+      }
+
+      const step = config.steps[i];
+      await pool.query(
+        `UPDATE pipeline_runs SET current_step_index = $2 WHERE id = $1`,
+        [pipelineRunId, i]
+      );
+
+      // Get step row
+      const stepRow = (await pool.query(
+        `SELECT id FROM pipeline_step_runs WHERE pipeline_run_id = $1 AND step_index = $2`,
+        [pipelineRunId, i]
+      )).rows[0];
+
+      await pool.query(
+        `UPDATE pipeline_step_runs SET status = 'running', started_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [stepRow.id]
+      );
+
+      try {
+        if (step.type === 'scraper') {
+          await executeScraperStep(stepRow.id, step, abortController);
+        } else if (step.type === 'script') {
+          await executeScriptStep(stepRow.id, step, pipelineRunId, abortController);
+        }
+
+        await pool.query(
+          `UPDATE pipeline_step_runs SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [stepRow.id]
+        );
+      } catch (stepErr) {
+        const wasCancelled = abortController.signal.aborted;
+        await pool.query(
+          `UPDATE pipeline_step_runs SET status = $2, completed_at = CURRENT_TIMESTAMP, error_message = $3 WHERE id = $1`,
+          [stepRow.id, wasCancelled ? 'cancelled' : 'failed', stepErr.message]
+        );
+
+        if (!wasCancelled) {
+          // Mark remaining steps as cancelled and fail the pipeline
+          await pool.query(
+            `UPDATE pipeline_step_runs SET status = 'cancelled' WHERE pipeline_run_id = $1 AND status = 'pending'`,
+            [pipelineRunId]
+          );
+          await pool.query(
+            `UPDATE pipeline_runs SET status = 'failed', completed_at = CURRENT_TIMESTAMP, error_message = $2 WHERE id = $1`,
+            [pipelineRunId, 'Step "' + step.label + '" failed: ' + stepErr.message]
+          );
+          return;
+        }
+      }
+    }
+
+    // Pipeline completed (or was cancelled)
+    const finalStatus = abortController.signal.aborted ? 'cancelled' : 'completed';
+    await pool.query(
+      `UPDATE pipeline_runs SET status = $2, completed_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [pipelineRunId, finalStatus]
+    );
+  } catch (err) {
+    console.error('[Pipeline] executePipeline error:', err.message);
+    await pool.query(
+      `UPDATE pipeline_runs SET status = 'failed', completed_at = CURRENT_TIMESTAMP, error_message = $2 WHERE id = $1`,
+      [pipelineRunId, err.message]
+    ).catch(() => {});
+  } finally {
+    activePipelineRuns.delete(pipelineRunId);
+  }
+}
+
+async function executeScraperStep(stepRunId, step, abortController) {
+  // Find vendor_source by scraper_key
+  const sourceResult = await pool.query(
+    'SELECT * FROM vendor_sources WHERE scraper_key = $1 LIMIT 1',
+    [step.sourceKey]
+  );
+  if (!sourceResult.rows.length) throw new Error('No vendor_source found for scraper_key: ' + step.sourceKey);
+  const source = sourceResult.rows[0];
+
+  // Call runScraper
+  const result = await runScraper(source);
+  if (result.skipped) {
+    // Wait for existing job to finish instead of failing
+    const existingJobId = result.existing_job_id;
+    await pollScrapeJob(existingJobId, abortController);
+    await pool.query(`UPDATE pipeline_step_runs SET scrape_job_id = $2 WHERE id = $1`, [stepRunId, existingJobId]);
+    return;
+  }
+
+  const jobId = result.id;
+  await pool.query(`UPDATE pipeline_step_runs SET scrape_job_id = $2 WHERE id = $1`, [stepRunId, jobId]);
+
+  // Poll until scrape job finishes
+  await pollScrapeJob(jobId, abortController);
+}
+
+async function pollScrapeJob(jobId, abortController) {
+  while (true) {
+    if (abortController.signal.aborted) throw new Error('Pipeline cancelled');
+    const jobResult = await pool.query('SELECT status FROM scrape_jobs WHERE id = $1', [jobId]);
+    if (!jobResult.rows.length) throw new Error('Scrape job disappeared: ' + jobId);
+    const status = jobResult.rows[0].status;
+    if (status === 'completed') return;
+    if (status === 'failed') throw new Error('Scrape job failed');
+    if (status === 'cancelled') throw new Error('Scrape job was cancelled');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+}
+
+async function executeScriptStep(stepRunId, step, pipelineRunId, abortController) {
+  const scriptPath = path.resolve(path.dirname(new URL(import.meta.url).pathname), step.path);
+  const args = step.args || [];
+
+  return new Promise((resolve, reject) => {
+    const child = spawn('node', [scriptPath, ...args], {
+      cwd: path.dirname(new URL(import.meta.url).pathname),
+      env: { ...process.env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    // Store child process reference so stopPipeline can kill it
+    const entry = activePipelineRuns.get(pipelineRunId);
+    if (entry) entry.childProcess = child;
+
+    let log = '';
+    const appendLog = (chunk) => {
+      log += chunk.toString();
+      // Truncate to last 50KB to avoid memory issues
+      if (log.length > 50000) log = log.slice(-50000);
+    };
+
+    child.stdout.on('data', appendLog);
+    child.stderr.on('data', appendLog);
+
+    // Listen for abort
+    const onAbort = () => {
+      child.kill('SIGTERM');
+      setTimeout(() => { if (!child.killed) child.kill('SIGKILL'); }, 5000);
+    };
+    abortController.signal.addEventListener('abort', onAbort, { once: true });
+
+    child.on('close', async (code) => {
+      abortController.signal.removeEventListener('abort', onAbort);
+      if (entry) entry.childProcess = null;
+
+      // Save log to DB
+      await pool.query(
+        `UPDATE pipeline_step_runs SET log = $2, exit_code = $3 WHERE id = $1`,
+        [stepRunId, log, code]
+      ).catch(() => {});
+
+      if (abortController.signal.aborted) {
+        reject(new Error('Pipeline cancelled'));
+      } else if (code !== 0) {
+        reject(new Error('Script exited with code ' + code));
+      } else {
+        resolve();
+      }
+    });
+
+    child.on('error', (err) => {
+      abortController.signal.removeEventListener('abort', onAbort);
+      if (entry) entry.childProcess = null;
+      reject(new Error('Failed to spawn script: ' + err.message));
+    });
+  });
+}
+
+function stopPipeline(pipelineRunId) {
+  const entry = activePipelineRuns.get(pipelineRunId);
+  if (!entry) return false;
+  entry.abortController.abort();
+  if (entry.childProcess && !entry.childProcess.killed) {
+    entry.childProcess.kill('SIGTERM');
+  }
+  return true;
+}
+
+// ==================== Pipeline API Endpoints ====================
+
+app.get('/api/admin/pipelines', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const pipelines = getAvailablePipelines();
+
+    // Enrich with vendor info and last run
+    const enriched = await Promise.all(pipelines.map(async (p) => {
+      const pConfig = getPipelineConfig(p.vendorCode);
+      // Find vendor
+      let vendor = (await pool.query('SELECT id, name, code FROM vendors WHERE code = $1', [p.vendorCode])).rows[0];
+      if (!vendor && pConfig) {
+        const firstScraperStep = pConfig.steps.find(s => s.type === 'scraper');
+        if (firstScraperStep) {
+          const vs = await pool.query(
+            'SELECT v.id, v.name, v.code FROM vendor_sources vs JOIN vendors v ON v.id = vs.vendor_id WHERE vs.scraper_key = $1 LIMIT 1',
+            [firstScraperStep.sourceKey]
+          );
+          vendor = vs.rows[0];
+        }
+      }
+
+      // Last run
+      const lastRun = (await pool.query(
+        `SELECT id, status, started_at, completed_at, current_step_index, total_steps, error_message
+         FROM pipeline_runs WHERE vendor_code = $1 ORDER BY created_at DESC LIMIT 1`,
+        [p.vendorCode]
+      )).rows[0] || null;
+
+      return {
+        ...p,
+        vendorId: vendor?.id || null,
+        vendorName: vendor?.name || p.label,
+        lastRun,
+      };
+    }));
+
+    res.json({ pipelines: enriched });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/admin/pipelines/:vendorCode/run', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { vendorCode } = req.params;
+    const result = await runPipeline(vendorCode);
+    if (result.skipped) {
+      return res.status(409).json({ error: 'A pipeline is already running for this vendor', existing_run_id: result.existing_run_id });
+    }
+    res.json({ run: result });
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/pipeline-runs/:id/stop', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const runResult = await pool.query('SELECT id, status FROM pipeline_runs WHERE id = $1', [id]);
+    if (!runResult.rows.length) return res.status(404).json({ error: 'Pipeline run not found' });
+    if (runResult.rows[0].status !== 'running') {
+      return res.status(400).json({ error: 'Pipeline is not running (status: ' + runResult.rows[0].status + ')' });
+    }
+
+    const stopped = stopPipeline(id);
+    if (!stopped) {
+      // Stale run — mark as cancelled
+      await pool.query(
+        `UPDATE pipeline_runs SET status = 'cancelled', completed_at = CURRENT_TIMESTAMP, error_message = 'Stopped by user (stale)' WHERE id = $1`,
+        [id]
+      );
+      await pool.query(
+        `UPDATE pipeline_step_runs SET status = 'cancelled' WHERE pipeline_run_id = $1 AND status IN ('pending', 'running')`,
+        [id]
+      );
+    }
+    res.json({ stopped: true, pipeline_run_id: id });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/admin/pipeline-runs', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { vendor_code, limit, offset } = req.query;
+    let query = `
+      SELECT pr.*, v.name as vendor_name
+      FROM pipeline_runs pr
+      JOIN vendors v ON v.id = pr.vendor_id
+    `;
+    const params = [];
+    let paramIdx = 1;
+
+    if (vendor_code) {
+      query += ` WHERE pr.vendor_code = $${paramIdx}`;
+      params.push(vendor_code);
+      paramIdx++;
+    }
+
+    query += ' ORDER BY pr.created_at DESC';
+    query += ` LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`;
+    params.push(parseInt(limit) || 20, parseInt(offset) || 0);
+
+    const result = await pool.query(query, params);
+    res.json({ runs: result.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/admin/pipeline-runs/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const runResult = await pool.query(`
+      SELECT pr.*, v.name as vendor_name
+      FROM pipeline_runs pr
+      JOIN vendors v ON v.id = pr.vendor_id
+      WHERE pr.id = $1
+    `, [id]);
+    if (!runResult.rows.length) return res.status(404).json({ error: 'Pipeline run not found' });
+
+    const stepsResult = await pool.query(
+      `SELECT * FROM pipeline_step_runs WHERE pipeline_run_id = $1 ORDER BY step_index`,
+      [id]
+    );
+
+    res.json({ run: runResult.rows[0], steps: stepsResult.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // List available scraper keys with defaults
 app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   const scraperMeta = {
@@ -7692,6 +8136,10 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
       label: 'Mapei Image Enrichment', source_type: 'website',
       base_url: 'https://www.mapei.com',
       categories: []
+    },
+    'daltile-unified': {
+      label: 'Daltile Unified Import (Coveo + EDI 832)', source_type: 'api',
+      base_url: 'https://www.daltile.com', categories: []
     },
     'daltile-832': {
       label: 'Daltile EDI 832 Catalog (FTP)', source_type: 'edi_ftp',
@@ -11918,11 +12366,12 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
     const items = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color
+        sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1
@@ -12323,11 +12772,12 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color
+        sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
@@ -12385,6 +12835,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       const skuResult = await client.query(`
         SELECT s.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
           pr.retail_price, pr.price_basis, pr.cost, pr.cut_price, pr.roll_price,
+          pr.cut_cost, pr.roll_cost,
           pk.sqft_per_box, pk.weight_per_box_lbs, pk.roll_width_ft,
           sa_c.value as color
         FROM skus s
@@ -12407,9 +12858,13 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
         computedSqft = parseFloat(sqft_needed || 0);
         const sqyd = computedSqft / 9;
         itemSubtotal = parseFloat((unitPrice * sqyd).toFixed(2));
+      } else if (isPerSqft) {
+        // Use sqft_needed from frontend if provided, otherwise derive from boxes
+        computedSqft = sqft_needed ? parseFloat(sqft_needed) : num_boxes * sqftPerBox;
+        itemSubtotal = parseFloat((unitPrice * computedSqft).toFixed(2));
       } else {
-        computedSqft = isPerSqft ? num_boxes * sqftPerBox : null;
-        itemSubtotal = parseFloat((isPerSqft ? unitPrice * computedSqft : unitPrice * num_boxes).toFixed(2));
+        computedSqft = null;
+        itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
       }
       itemVendorId = sku.vendor_id;
     } else {
@@ -12496,18 +12951,40 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
         poId = newPO.rows[0].id;
       }
 
-      let poCost, poRetail, poVendorSku, poProductName;
+      let poCost, poRetail, poQty, poSubtotal, poVendorSku, poProductName;
       if (sku) {
         const skuSqftPerBox = parseFloat(sku.sqft_per_box || 1);
-        const vendorCost = parseFloat(sku.cost || 0);
+        let vendorCost = parseFloat(sku.cost || 0);
+        // Use cut_cost / roll_cost when applicable (matches generatePurchaseOrders logic)
+        if (sku.price_basis === 'per_sqyd' && sku.cut_cost != null) vendorCost = parseFloat(sku.cut_cost);
+        const isCarpet = sku.price_basis === 'per_sqyd';
         const poIsPerSqft = sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft';
-        poCost = poIsPerSqft ? vendorCost * skuSqftPerBox : vendorCost;
-        poRetail = poIsPerSqft ? unitPrice * skuSqftPerBox : unitPrice;
+
+        if (isCarpet) {
+          // Carpet: cost per sqyd, qty = 1 (sqyd tracked via subtotal)
+          const sqyd = (parseFloat(sqft_needed) || 0) / 9;
+          poCost = vendorCost;
+          poRetail = unitPrice;
+          poQty = num_boxes;
+          poSubtotal = vendorCost * sqyd;
+        } else if (poIsPerSqft) {
+          poCost = vendorCost * skuSqftPerBox;
+          poRetail = unitPrice * skuSqftPerBox;
+          poQty = num_boxes;
+          poSubtotal = poCost * num_boxes;
+        } else {
+          poCost = vendorCost;
+          poRetail = unitPrice;
+          poQty = num_boxes;
+          poSubtotal = vendorCost * num_boxes;
+        }
         poVendorSku = sku.vendor_sku;
         poProductName = storedProductName;
       } else {
         poCost = unitPrice;
         poRetail = unitPrice;
+        poQty = num_boxes;
+        poSubtotal = poCost * num_boxes;
         poVendorSku = null;
         poProductName = product_name.trim();
       }
@@ -12518,9 +12995,9 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
            qty, sell_by, cost, original_cost, retail_price, subtotal)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10, $11)
       `, [poId, newItemId, sku?.id || null, poProductName, poVendorSku,
-          description || null, num_boxes, sku?.sell_by || null,
+          description || null, poQty, sku?.sell_by || null,
           poCost.toFixed(2), poRetail ? poRetail.toFixed(2) : null,
-          (poCost * num_boxes).toFixed(2)]);
+          poSubtotal.toFixed(2)]);
 
       await client.query(`
         UPDATE purchase_orders SET subtotal = (
@@ -12549,11 +13026,12 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color
+        sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
@@ -12654,11 +13132,12 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color
+        sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
@@ -12893,10 +13372,22 @@ app.get('/api/rep/skus/search', repAuth, async (req, res) => {
 
 app.get('/api/rep/products', repAuth, async (req, res) => {
   try {
-    const { search, category, collection, vendor, stock_status, min_price, max_price, page: pageParam, limit: limitParam } = req.query;
+    const { search, category, collection, vendor, stock_status, min_price, max_price, page: pageParam, limit: limitParam, sort } = req.query;
     const page = parseInt(pageParam) || 1;
     const limit = Math.min(parseInt(limitParam) || 30, 100);
     const offset = (page - 1) * limit;
+
+    const sortClauses = {
+      name_asc: 'name ASC',
+      name_desc: 'name DESC',
+      price_asc: 'price::numeric ASC NULLS LAST',
+      price_desc: 'price::numeric DESC NULLS LAST',
+      newest: 'created_at DESC',
+      stock_desc: 'qty_on_hand::numeric DESC NULLS LAST',
+      margin_asc: 'name ASC',
+      margin_desc: 'name ASC'
+    };
+    const orderBy = sortClauses[sort] || 'name ASC';
 
     let query = `
       SELECT p.*, v.name as vendor_name, v.code as vendor_code, c.name as category_name, c.slug as category_slug,
@@ -13032,7 +13523,7 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
       const countResult = await pool.query(countQuery, params);
       const total = countResult.rows[0].total;
 
-      query += ` ORDER BY filtered.name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      query += ` ORDER BY filtered.${orderBy} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       params.push(limit, offset);
       const result = await pool.query(query, params);
 
@@ -13042,13 +13533,15 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
         const margin_pct = retail > 0 ? ((retail - cost) / retail * 100) : 0;
         return { ...p, margin_pct: parseFloat(margin_pct.toFixed(1)) };
       });
+      if (sort === 'margin_desc') products.sort((a, b) => b.margin_pct - a.margin_pct);
+      if (sort === 'margin_asc') products.sort((a, b) => a.margin_pct - b.margin_pct);
       res.json({ products, total, page, limit });
     } else {
       const countQuery = `SELECT COUNT(*)::int as total FROM (${query}) AS counted`;
       const countResult = await pool.query(countQuery, params);
       const total = countResult.rows[0].total;
 
-      query = `SELECT * FROM (${query}) AS sorted ORDER BY sorted.name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      query = `SELECT * FROM (${query}) AS sorted ORDER BY sorted.${orderBy} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       params.push(limit, offset);
       const result = await pool.query(query, params);
 
@@ -13058,6 +13551,8 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
         const margin_pct = retail > 0 ? ((retail - cost) / retail * 100) : 0;
         return { ...p, margin_pct: parseFloat(margin_pct.toFixed(1)) };
       });
+      if (sort === 'margin_desc') products.sort((a, b) => b.margin_pct - a.margin_pct);
+      if (sort === 'margin_asc') products.sort((a, b) => a.margin_pct - b.margin_pct);
       res.json({ products, total, page, limit });
     }
   } catch (err) {
@@ -14144,11 +14639,13 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
     // Return full quote with items
     const fullQuote = await pool.query('SELECT * FROM quotes WHERE id = $1', [quote.id]);
     const quoteItems = await pool.query(`
-      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
+        pr.cost as vendor_cost
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN pricing pr ON pr.sku_id = qi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE qi.quote_id = $1
@@ -14173,11 +14670,13 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
 
     const items = await pool.query(`
-      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
+        pr.cost as vendor_cost
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN pricing pr ON pr.sku_id = qi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE qi.quote_id = $1 ORDER BY qi.id
@@ -14843,11 +15342,12 @@ app.get('/api/rep/estimates/:id', repAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color,
-        p.collection as current_collection
+        p.collection as current_collection, pr.cost as vendor_cost
       FROM estimate_items ei
       LEFT JOIN skus s ON s.id = ei.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, ei.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN pricing pr ON pr.sku_id = ei.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ei.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at
@@ -15185,11 +15685,12 @@ app.get('/api/rep/estimates/:id/preview', repAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color,
-        p.collection as current_collection
+        p.collection as current_collection, pr.cost as vendor_cost
       FROM estimate_items ei
       LEFT JOIN skus s ON s.id = ei.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, ei.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN pricing pr ON pr.sku_id = ei.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ei.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at
@@ -15237,11 +15738,12 @@ app.post('/api/rep/estimates/:id/send', repAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color,
-        p.collection as current_collection
+        p.collection as current_collection, pr.cost as vendor_cost
       FROM estimate_items ei
       LEFT JOIN skus s ON s.id = ei.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, ei.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN pricing pr ON pr.sku_id = ei.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ei.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at

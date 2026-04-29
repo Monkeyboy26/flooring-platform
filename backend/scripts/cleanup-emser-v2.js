@@ -65,6 +65,11 @@ function cleanDisplayName(name) {
   s = s.replace(/\/\d+x\d+/g, '');
   // Fix "ii" → "II" for series names
   s = s.replace(/\bii\b/g, 'II');
+  // Strip trailing material type suffix (e.g. "Porcelain Tile", "Ceramic Tile")
+  // from mosaic/glass products — the category conveys the material already
+  if (/mosaic|glass|pebble/i.test(s)) {
+    s = s.replace(/\s+(Porcelain|Ceramic)\s+Tile\s*$/i, '');
+  }
   // Collapse multiple spaces and trim
   s = s.replace(/\s{2,}/g, ' ').trim();
   return s;

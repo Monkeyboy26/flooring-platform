@@ -1001,7 +1001,9 @@ async function run() {
             await upsertPricing(client, skuId, cost, sellBy);
             totalPricing++;
             if (await upsertPackaging(client, skuId, pcs, sf, plt, sfPlt)) totalPkg++;
-            await upsertAttr(client, skuId, 'size', size);
+            // Use mosaic pattern as size (e.g., "Mosaic 2x2") instead of sheet size ("12x12")
+            const mosaicPattern = desc.replace(/^Porcelain\s+Mosaic\s*/i, '').trim();
+            await upsertAttr(client, skuId, 'size', 'Mosaic ' + (mosaicPattern || desc));
             await upsertAttr(client, skuId, 'color', colorName);
             await upsertAttr(client, skuId, 'material', 'Porcelain');
           }

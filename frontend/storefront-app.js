@@ -1,7 +1,6 @@
 (() => {
-  // frontend/storefront.jsx
-  var { useState, useEffect, useRef, useCallback, useMemo } = React;
-  var API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:3001" : `${window.location.protocol}//${window.location.hostname}:3001`;
+  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+  const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:3001" : `${window.location.protocol}//${window.location.hostname}:3001`;
   function getSessionId() {
     let id = localStorage.getItem("cart_session_id");
     if (!id) {
@@ -13,7 +12,7 @@
   function generateSlug(text) {
     return (text || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   }
-  var SITE_URL = "https://www.romaflooringdesigns.com";
+  const SITE_URL = "https://www.romaflooringdesigns.com";
   function updateSEO({ title, description, url, image }) {
     document.title = title || "Shop | Roma Flooring Designs";
     const setMeta = (selector, value) => {
@@ -43,14 +42,21 @@
   }
   function isSoldPerUnit(sku) {
     if (!sku) return false;
-    return sku.sell_by === "unit" || sku.price_basis === "per_unit";
+    if (sku.sell_by) return sku.sell_by === "unit";
+    return sku.price_basis === "per_unit";
   }
   function isSoldPerSqyd(sku) {
     if (!sku) return false;
-    return sku.sell_by === "sqyd" || sku.price_basis === "per_sqyd";
+    if (sku.sell_by) return sku.sell_by === "sqyd";
+    return sku.price_basis === "per_sqyd";
   }
   function isCarpet(sku) {
     return sku && sku.cut_price != null;
+  }
+  function parseRollWidthFt(productName) {
+    if (!productName) return 0;
+    const m = productName.match(/(?:^|\D)(12|6(?:\.\d{1,2})?)(?:\D|$)/);
+    return m ? parseFloat(m[1]) : 0;
   }
   function carpetSqftPrice(sqydPrice) {
     return (parseFloat(sqydPrice) / 9).toFixed(2);
@@ -95,7 +101,8 @@
         return u.toString();
       }
       if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
-        return url.replace("/upload/", `/upload/w_${width},f_auto,q_80/`);
+        // Replace existing transform groups (letter_value patterns) or insert new ones
+        return url.replace(/\/upload\/(?:[a-z]_[^/]+\/)*/, `/upload/w_${width},f_auto,q_80/`);
       }
       if (url.includes(".widen.net")) {
         const u = new URL(url);
@@ -127,7 +134,9 @@
         "equipeceramicas.com",
         "edilportale.com",
         "cegoceramiche.com",
-        "manningtonprod.pimcoreclient.com"
+        "manningtonprod.pimcoreclient.com",
+        "www.hartco.com",
+        "armstrongflooring.com"
       ];
       if (url.startsWith("/uploads/rom440/") || PROXY_DOMAINS.some((d) => url.includes(d))) {
         return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
@@ -141,8 +150,8 @@
     const srcSet = sizes.map((w) => `${optimizeImg(url, w)} ${w}w`).join(", ");
     return { srcSet };
   }
-  var RECENT_SEARCHES_KEY = "roma_recent_searches";
-  var MAX_RECENT_SEARCHES = 6;
+  const RECENT_SEARCHES_KEY = "roma_recent_searches";
+  const MAX_RECENT_SEARCHES = 6;
   function getRecentSearches() {
     try {
       return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || "[]");
@@ -170,7 +179,7 @@
       return text;
     }
   }
-  var STYLE_COLOR_MAP = {
+  const STYLE_COLOR_MAP = {
     // --- Blonde (light warm wood tones) ---
     "Akadia": "Blonde",
     "Austell Grove": "Blonde",
@@ -513,7 +522,7 @@
     "Select": null,
     "Uplifted": null
   };
-  var NON_COLOR_VALUES = /* @__PURE__ */ new Set([
+  const NON_COLOR_VALUES = /* @__PURE__ */ new Set([
     "wall",
     "gloss wall",
     "gloss",
@@ -543,7 +552,7 @@
     "up",
     "uplifted"
   ]);
-  var COLOR_FAMILIES = {
+  const COLOR_FAMILIES = {
     "White": { hex: "#f5f5f0", keywords: ["white", "ivory", "cream", "snow", "pearl", "alabaster", "frost", "arctic", "bright white", "blanc", "bianco", "bianca", "blanco", "calacatta", "carrara", "chalk", "dolomite", "thassos", "perla", "perle", "opal"] },
     "Gray": { hex: "#9e9e9e", keywords: ["gray", "grey", "charcoal", "silver", "slate", "ash", "smoke", "graphite", "pewter", "cement", "concrete", "fog", "grigio", "gris", "cenere", "steel", "platinum", "basalt", "mist", "dove", "bardiglio", "greige", "lead", "cloud", "anthracite", "antracita", "argento", "nickel", "pebble", "marengo", "flint", "shale"] },
     "Beige": { hex: "#d4c5a9", keywords: ["beige", "tan", "sand", "taupe", "khaki", "linen", "wheat", "bone", "champagne", "natural", "almond", "buff", "crema", "avorio", "fawn", "biscuit", "dune", "ecru", "oyster", "vanilla", "nude", "bamboo", "lino", "marfil", "sabbia", "creme", "clay", "putty", "latte", "fossil", "travertine", "parchment"] },
@@ -584,8 +593,8 @@
       return formatted.trim();
     }).join(" \u2014 ");
   }
-  var ROMAN_VAL = { "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10 };
-  var ROMAN_REGEX = /\b(I{1,3}|IV|V(?:I{1,3})?|IX|X)\b(?=\s+\d|\s*$)/;
+  const ROMAN_VAL = { "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10 };
+  const ROMAN_REGEX = /\b(I{1,3}|IV|V(?:I{1,3})?|IX|X)\b(?=\s+\d|\s*$)/;
   function hasRomanSuffix(name) {
     if (!name) return false;
     const m = name.match(ROMAN_REGEX);
@@ -596,7 +605,7 @@
     const m = name.match(ROMAN_REGEX);
     return m && ROMAN_VAL[m[1]] || 0;
   }
-  var _CATEGORY_SUFFIX_MAP = {
+  const _CATEGORY_SUFFIX_MAP = {
     "engineered hardwood": "Engineered Hardwood",
     "solid hardwood": "Solid Hardwood",
     "hardwood": "Hardwood",
@@ -655,7 +664,10 @@
     "stair treads & nosing": "Stair Tread",
     "hardscaping": "Paver",
     "pavers": "Paver",
-    "stacked stone": "Stacked Stone"
+    "stacked stone": "Stacked Stone",
+    "sheet vinyl": "Sheet Vinyl",
+    "vct": "VCT",
+    "vbt": "VBT"
   };
   function appendTypeSuffix(text, categoryName) {
     if (!categoryName) return text;
@@ -665,6 +677,7 @@
     const words = suffix.toLowerCase().split(/\s+/);
     if (lower.includes(suffix.toLowerCase())) return text;
     if (words.length > 1 && words.every((w) => lower.includes(w))) return text;
+    if (words.length > 0 && new RegExp("\\b" + words[0] + "\\b", "i").test(text)) return text;
     return text + " " + suffix;
   }
   function stripTypeSuffix(text, categoryName) {
@@ -701,8 +714,13 @@
         return appendTypeSuffix(_earlyResult, sku.category_name);
       } else {
         const dashIdx = col.indexOf(" - ");
-        if (dashIdx > 0 && nameLower === col.slice(dashIdx + 3).toLowerCase().trim()) {
-          showCollection = col.slice(0, dashIdx);
+        if (dashIdx > 0) {
+          const suffix = col.slice(dashIdx + 3).toLowerCase().trim();
+          if (nameLower === suffix || nameLower.startsWith(suffix + " ") || nameLower.startsWith(suffix + "-")) {
+            showCollection = col.slice(0, dashIdx);
+          } else {
+            showCollection = col;
+          }
         } else {
           showCollection = col;
         }
@@ -749,14 +767,29 @@
       const variantIsEmpty = !variant && colorAttr && rawName.toLowerCase().includes(colorAttr.value.toLowerCase());
       if (variantIsColor || variantIsEmpty) {
         const sizeAttr = (sku.attributes || []).find((a) => a.slug === "size");
-        const thicknessAttr = (sku.attributes || []).find((a) => a.slug === "thickness");
         const patternAttr = (sku.attributes || []).find((a) => a.slug === "pattern");
+        const finishAttr = (sku.attributes || []).find((a) => a.slug === "finish");
         const nameLowerDedup = name.toLowerCase();
-        const skipThickness = sizeAttr && thicknessAttr && sizeAttr.value.toLowerCase().includes(thicknessAttr.value.toLowerCase());
-        const extras = [patternAttr, sizeAttr, skipThickness ? null : thicknessAttr].filter(Boolean).filter((a) => !nameLowerDedup.includes(a.value.toLowerCase())).map((a) => a.value);
+        const extras = [patternAttr, sizeAttr].filter(Boolean).filter((a) => !nameLowerDedup.includes(a.value.toLowerCase())).map((a) => a.value);
         if (extras.length > 0) {
-          const suffix = extras.join(" ");
-          variant = variant ? variant + " " + suffix : suffix;
+          const sizePart = extras.join(" ");
+          const colorVal = variantIsColor ? variant : null;
+          const finishVal = finishAttr && finishAttr.value ? finishAttr.value : null;
+          const finishPos = finishVal ? nameLowerDedup.indexOf(finishVal.toLowerCase()) : -1;
+          if (finishPos > 0) {
+            const before = name.slice(0, finishPos).trim();
+            const after = name.slice(finishPos).trim();
+            name = before + (colorVal ? " " + colorVal : "") + " " + sizePart + " " + after;
+            if (colorVal) variant = null;
+          } else {
+            const colLc = (col || "").toLowerCase();
+            if (colLc && name.toLowerCase().startsWith(colLc + " ")) {
+              name = name.slice(0, col.length) + (colorVal ? " " + colorVal : "") + " " + sizePart + name.slice(col.length);
+              if (colorVal) variant = null;
+            } else {
+              variant = (colorVal ? colorVal + " " : "") + sizePart;
+            }
+          }
         }
       }
     }
@@ -820,7 +853,7 @@
     }
     return React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "2px" } }, stars);
   }
-  var stripeInstance = null;
+  let stripeInstance = null;
   (async () => {
     if (typeof Stripe === "undefined") return;
     try {
@@ -831,7 +864,7 @@
       console.warn("Failed to load Stripe key:", e);
     }
   })();
-  var _placesPromise = null;
+  let _placesPromise = null;
   function loadGooglePlaces(apiKey) {
     if (_placesPromise) return _placesPromise;
     if (window.google && window.google.maps && window.google.maps.places) {
@@ -851,7 +884,7 @@
     });
     return _placesPromise;
   }
-  var ErrorBoundary = class extends React.Component {
+  class ErrorBoundary extends React.Component {
     constructor(props) {
       super(props);
       this.state = { hasError: false, errorMsg: "" };
@@ -884,7 +917,7 @@
       }
       return this.props.children;
     }
-  };
+  }
   function useRevealOnScroll(options = {}) {
     const ref = useRef(null);
     const [isVisible, setIsVisible] = useState(false);
@@ -2989,6 +3022,7 @@
     const [sku, setSku] = useState(null);
     const [media, setMedia] = useState([]);
     const [siblings, setSiblings] = useState([]);
+    const [skuAccessories, setSkuAccessories] = useState([]);
     const [collectionSiblings, setCollectionSiblings] = useState([]);
     const [collectionAttributes, setCollectionAttributes] = useState({});
     const [groupedProducts, setGroupedProducts] = useState([]);
@@ -3045,6 +3079,7 @@
         setSku(data.sku);
         setMedia(data.media || []);
         setSiblings(data.same_product_siblings || []);
+        setSkuAccessories(data.accessories || []);
         setCollectionSiblings(data.collection_siblings || []);
         setCollectionAttributes(data.collection_attributes || {});
         setGroupedProducts(data.grouped_products || []);
@@ -3189,6 +3224,13 @@
     const isPerUnit = sku && isSoldPerUnit(sku);
     const hasBoxCalc = !isPerUnit && sqftPerBox > 0;
     const isSqftNoBox = !isPerUnit && sqftPerBox <= 0;
+    const sheetRollWidthFt = isSqftNoBox && !isCarpetSku && sku ? parseRollWidthFt(sku.product_name || "") : 0;
+    const isSheetVinyl = isSqftNoBox && !isCarpetSku && sheetRollWidthFt > 0;
+    const sheetMode = isSheetVinyl ? carpetInputMode === "linear" && sheetRollWidthFt <= 0 ? "dimensions" : carpetInputMode : null;
+    const sheetRawSqft = isSheetVinyl ? sheetMode === "linear" ? sheetRollWidthFt * (parseFloat(linearFeet) || 0) : sheetMode === "dimensions" ? (parseFloat(roomWidth) || 0) * (parseFloat(roomLength) || 0) : parseFloat(sqftInput) || 0 : 0;
+    const sheetSqft = isSheetVinyl && includeCarpetOverage ? Math.ceil(sheetRawSqft * 1.1) : sheetRawSqft;
+    const sheetSubtotal = sheetSqft * effectivePrice;
+    const sheetNeedsSeam = isSheetVinyl && sheetMode === "dimensions" && sheetRollWidthFt > 0 && (parseFloat(roomWidth) || 0) > sheetRollWidthFt;
     const slabMissingSize = isPerUnit && sku && (sku.price_basis === "sqft" || sku.price_basis === "per_sqft") && !(parseFloat(sku.sqft_per_box) > 0);
     const isSheetUnit = hasBoxCalc && sqftPerBox < 4 && !sku.pieces_per_box;
     const boxLabel = isSheetUnit ? "sheet" : "box";
@@ -3273,6 +3315,17 @@
           subtotal: subtotal.toFixed(2),
           sell_by: "sqft"
         });
+      } else if (isSheetVinyl) {
+        if (sheetSqft <= 0) return;
+        addToCart({
+          product_id: sku.product_id,
+          sku_id: sku.sku_id,
+          sqft_needed: sheetSqft,
+          num_boxes: 1,
+          unit_price: effectivePrice,
+          subtotal: sheetSubtotal.toFixed(2),
+          sell_by: "sqft"
+        });
       } else {
         const sqft = parseFloat(sqftInput) || 0;
         if (sqft <= 0) return;
@@ -3312,61 +3365,8 @@
     const images = media.filter((m) => m.asset_type !== "spec_pdf");
     const specPdfs = media.filter((m) => m.asset_type === "spec_pdf");
     const mainImage = images[selectedImage] || images[0];
-    const mainSiblings = siblings.filter((s) => s.variant_type !== "accessory");
-    const allAccessories = siblings.filter((s) => s.variant_type === "accessory");
-    let accessorySiblings = allAccessories;
-    if (allAccessories.length > 0) {
-      const vsku = (sku.vendor_sku || "").toUpperCase();
-      const currentColor = (sku.variant_name || "").toLowerCase().trim();
-      const hasColorAttr = allAccessories.some((acc) => (acc.attributes || []).some((a) => a.slug === "matching_color"));
-      const colorMatched = hasColorAttr ? allAccessories.filter((acc) => {
-        const mc = (acc.attributes || []).find((a) => a.slug === "matching_color");
-        return mc && mc.value && mc.value.toLowerCase() === currentColor;
-      }) : [];
-      if (hasColorAttr) {
-        accessorySiblings = colorMatched;
-      }
-      if (!hasColorAttr && vsku.length >= 4) {
-        const prefixMatched = allAccessories.filter((acc) => {
-          const asku = (acc.vendor_sku || "").toUpperCase();
-          return asku.startsWith(vsku + "-") || asku.startsWith(vsku);
-        });
-        if (prefixMatched.length > 0 && prefixMatched.length < allAccessories.length) {
-          accessorySiblings = prefixMatched;
-        }
-      }
-      if (accessorySiblings.length === allAccessories.length) {
-        const mainMatch = vsku.match(/^(?:P-)?(?:VTR|VTW|QUTR|QUPO)(?:XL)?(?:HD)?([A-Z]+)/);
-        if (mainMatch && mainMatch[1] && mainMatch[1].length >= 3) {
-          const mainColor = mainMatch[1];
-          const matched = allAccessories.filter((acc) => {
-            const asku = (acc.vendor_sku || acc.internal_sku || "").toUpperCase();
-            const accMatch = asku.match(/^(?:P-|MSI-)?(?:P-)?VTT(?:HD)?([A-Z]+)-/) || asku.match(/^(?:P-|MSI-)?TT([A-Z]+)-/);
-            if (!accMatch || !accMatch[1]) return true;
-            const accColor = accMatch[1];
-            return accColor.includes(mainColor) || mainColor.includes(accColor);
-          });
-          if (matched.length > 0) accessorySiblings = matched;
-        }
-      }
-      const typeGroups = {};
-      accessorySiblings.forEach((acc) => {
-        const key = acc.variant_name || acc.sku_id;
-        if (!typeGroups[key]) typeGroups[key] = [];
-        typeGroups[key].push(acc);
-      });
-      const hasDuplicateTypes = Object.values(typeGroups).some((g) => g.length > 1);
-      if (hasDuplicateTypes) {
-        const colorSkus = [sku, ...mainSiblings].filter((s) => s.variant_type !== "accessory");
-        colorSkus.sort((a, b) => (a.vendor_sku || "").localeCompare(b.vendor_sku || ""));
-        const colorIdx = colorSkus.findIndex((s) => s.sku_id === sku.sku_id || s.id === sku.sku_id);
-        accessorySiblings = Object.values(typeGroups).map((group) => {
-          if (group.length === 1) return group[0];
-          group.sort((a, b) => (a.vendor_sku || "").localeCompare(b.vendor_sku || ""));
-          return colorIdx >= 0 && colorIdx < group.length ? group[colorIdx] : group[0];
-        });
-      }
-    }
+    const mainSiblings = siblings;
+    const accessorySiblings = skuAccessories;
     const isAdexProduct = /adex/i.test(sku.vendor_name || "");
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sku-detail", "data-sku": sku.vendor_sku || sku.internal_sku, style: loading ? { opacity: 0.6, pointerEvents: "none", transition: "opacity 0.15s ease" } : { opacity: 1, transition: "opacity 0.15s ease" } }, /* @__PURE__ */ React.createElement("div", { className: "breadcrumbs" }, /* @__PURE__ */ React.createElement("a", { onClick: goBack }, "Shop"), /* @__PURE__ */ React.createElement("span", null, "/"), sku.category_name && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("a", { onClick: goBack }, sku.category_name), /* @__PURE__ */ React.createElement("span", null, "/")), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-800)" } }, fullProductName(sku))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-main" }, /* @__PURE__ */ React.createElement("div", { className: "sku-detail-gallery" }, /* @__PURE__ */ React.createElement("div", { className: "sku-detail-image" }, mainImage && /* @__PURE__ */ React.createElement("img", { src: optimizeImg(mainImage.url, 800), ...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200]), sizes: "(max-width: 768px) 100vw, 50vw", alt: sku.product_name, fetchPriority: "high", decoding: "async" })), images.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "gallery-thumbs" }, images.map((img, i) => /* @__PURE__ */ React.createElement("div", { key: img.id, className: "gallery-thumb" + (i === selectedImage ? " active" : ""), onClick: () => setSelectedImage(i) }, /* @__PURE__ */ React.createElement("img", { src: optimizeImg(img.url, 120), alt: "", loading: "lazy", decoding: "async", width: "80", height: "80", onError: (e) => {
       e.target.style.display = "none";
@@ -3559,17 +3559,22 @@
           })());
         }
       }
+      const normColor = (v) => (v || "").replace(/\s*\d+\.?\d*\s*[xX]+\s*\d+\.?\d*\s*/g, " ").replace(/\s*-?\s*\d+m[mi]l?\b/gi, "").replace(/^\s*-\s*/, "").replace(/\s+/g, " ").trim();
       let colorItems = [];
       const currentColorVal = currentAttrs["color"];
       const currentSizeVal = currentAttrs["size"];
+      const normalizedCurrentColor = normColor(currentColorVal);
       const distinctSiblingColors = new Set(
-        mainSiblings.map((s) => (s.attributes || []).find((a) => a.slug === "color")).filter(Boolean).map((a) => a.value)
+        mainSiblings.map((s) => (s.attributes || []).find((a) => a.slug === "color")).filter(Boolean).map((a) => normColor(a.value))
       );
-      if (currentColorVal && distinctSiblingColors.size > 0) {
+      const allNormalizedColors = new Set(
+        normalizedCurrentColor ? [normalizedCurrentColor, ...distinctSiblingColors] : [...distinctSiblingColors]
+      );
+      if (normalizedCurrentColor && allNormalizedColors.size > 1) {
         const byColor = /* @__PURE__ */ new Map();
-        byColor.set(currentColorVal, {
+        byColor.set(normalizedCurrentColor, {
           sku_id: sku.sku_id,
-          product_name: currentColorVal,
+          product_name: normalizedCurrentColor,
           primary_image: media && media[0] ? media[0].url : null,
           is_current: true
         });
@@ -3578,8 +3583,8 @@
           const ca = attrs.find((a) => a.slug === "color");
           const sa = attrs.find((a) => a.slug === "size");
           if (!ca) return;
-          const color = ca.value;
-          if (color === currentColorVal) return;
+          const color = normColor(ca.value);
+          if (color === normalizedCurrentColor) return;
           const existing = byColor.get(color);
           const matchesCurrentSize = sa && sa.value === currentSizeVal;
           if (!existing || matchesCurrentSize && !existing._sizeMatched) {
@@ -3593,15 +3598,18 @@
           }
         });
         colorItems = [...byColor.values()].sort((a, b) => (a.product_name || "").localeCompare(b.product_name || ""));
-      } else {
+      }
+      if (colorItems.length <= 1 && collectionSiblings.length > 0) {
         const siblingNameSet = new Set(collectionSiblings.map((s) => s.product_name));
         const hasRomanSibling = [...siblingNameSet].some((n) => hasRomanSuffix(n));
         const sharesNameWithCurrent = siblingNameSet.has(sku.product_name);
         const treatAsColorVariants = hasRomanSibling || sharesNameWithCurrent || siblingNameSet.size <= 6;
-        colorItems = treatAsColorVariants && collectionSiblings.length > 0 ? [
-          { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: media && media[0] ? media[0].url : null, is_current: true },
-          ...collectionSiblings
-        ].sort((a, b) => (a.product_name || "").localeCompare(b.product_name || "")) : [];
+        if (treatAsColorVariants) {
+          colorItems = [
+            { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: media && media[0] ? media[0].url : null, is_current: true },
+            ...collectionSiblings
+          ].sort((a, b) => (a.product_name || "").localeCompare(b.product_name || ""));
+        }
       }
       const attrMap = {};
       allSiblings.forEach((s) => {
@@ -3610,7 +3618,7 @@
           attrMap[a.slug].values.add(a.value);
         });
       });
-      const NON_SELECTABLE = /* @__PURE__ */ new Set(["pei_rating", "shade_variation", "water_absorption", "dcof", "material", "country", "application", "edge", "look", "color", "color_code", "style_code", "price_list", "companion_skus", "species", "subcategory", "upc", "msrp", "weight", "top_ref_sku", "sink_ref_sku", "optional_accessories", "group_number", "width", "height", "depth", "hardware_finish", "num_drawers", "num_doors", "num_shelves", "num_sinks", "soft_close", "sink_material", "sink_type", "vanity_type", "bowl_shape", "style", "origin", "countertop_material", "thickness", "construction", "sub_line", "collection", "brand", "surface_texture", "wear_layer", "ac_rating", "edge_treatment", "plank_width", "plank_length", "composition", "install_method", "features", "technology", "product_line", "color_family"]);
+      const NON_SELECTABLE = /* @__PURE__ */ new Set(["pei_rating", "shade_variation", "water_absorption", "dcof", "material", "country", "application", "edge", "look", "color", "color_code", "style_code", "price_list", "companion_skus", "species", "subcategory", "upc", "msrp", "weight", "top_ref_sku", "sink_ref_sku", "optional_accessories", "group_number", "width", "height", "depth", "hardware_finish", "num_drawers", "num_doors", "num_shelves", "num_sinks", "soft_close", "sink_material", "sink_type", "vanity_type", "bowl_shape", "style", "origin", "countertop_material", "construction", "sub_line", "collection", "brand", "surface_texture", "wear_layer", "ac_rating", "edge_treatment", "plank_width", "plank_length", "composition", "install_method", "features", "technology", "product_line", "color_family", "breaking_strength", "thickness", "mohs_hardness", "color_generic", "pattern"]);
       const curSubLineAttr = (sku.attributes || []).find((a) => a.slug === "sub_line");
       const curSubLine = curSubLineAttr ? curSubLineAttr.value : "";
       const subLineMap = /* @__PURE__ */ new Map();
@@ -3687,7 +3695,22 @@
           localAttrCounts[a.slug].add(a.value);
         });
       });
-      const attrSlugs = Object.keys(attrMap).filter((slug) => localAttrCounts[slug] && localAttrCounts[slug].size > 1 && !NON_SELECTABLE.has(slug)).sort((a, b) => a === "finish" ? -1 : b === "finish" ? 1 : 0);
+      const colorAttrValues = {};
+      effectiveSiblings.forEach((s) => {
+        const ca2 = (s.attributes || []).find((a) => a.slug === "color");
+        const c = ca2 && ca2.value || s.variant_name || "";
+        (s.attributes || []).forEach((a) => {
+          if (!colorAttrValues[a.slug]) colorAttrValues[a.slug] = {};
+          if (!colorAttrValues[a.slug][c]) colorAttrValues[a.slug][c] = /* @__PURE__ */ new Set();
+          colorAttrValues[a.slug][c].add(a.value);
+        });
+      });
+      const variesWithinColor = (slug) => {
+        const byColor = colorAttrValues[slug];
+        if (!byColor) return false;
+        return Object.values(byColor).some((vals) => vals.size > 1);
+      };
+      const attrSlugs = Object.keys(attrMap).filter((slug) => localAttrCounts[slug] && localAttrCounts[slug].size > 1 && !NON_SELECTABLE.has(slug) && variesWithinColor(slug)).sort((a, b) => a === "finish" ? -1 : b === "finish" ? 1 : 0);
       const sizeSort = (a, b) => {
         const na = parseFloat(a), nb = parseFloat(b);
         if (!isNaN(na) && !isNaN(nb)) return na - nb;
@@ -3846,9 +3869,12 @@
         })));
       }));
     })(), /* @__PURE__ */ React.createElement(StockBadge, { status: sku.stock_status, vendorHasInventory: sku.vendor_has_inventory }), sku.stock_status === "out_of_stock" && sku.vendor_has_inventory !== false && /* @__PURE__ */ React.createElement("div", { className: "stock-alert-box" }, alertSuccess || alertSubscribed ? /* @__PURE__ */ React.createElement("div", { className: "stock-alert-success" }, /* @__PURE__ */ React.createElement("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "#166534", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("path", { d: "M20 6L9 17l-5-5" })), "We'll notify you when this item is back in stock") : customer ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "Get notified when this item is back in stock"), /* @__PURE__ */ React.createElement("button", { className: "stock-alert-btn", onClick: handleStockAlertSubmit, disabled: alertLoading }, alertLoading ? "Subscribing..." : "Notify Me When Available")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "Get notified when this item is back in stock"), /* @__PURE__ */ React.createElement("div", { className: "stock-alert-form" }, /* @__PURE__ */ React.createElement("input", { type: "email", placeholder: "Enter your email", value: alertEmail, onChange: (e) => setAlertEmail(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "stock-alert-btn", onClick: handleStockAlertSubmit, disabled: alertLoading || !alertEmail }, alertLoading ? "Subscribing..." : "Notify Me")))), accessorySiblings.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "accessories-section-sf" }, /* @__PURE__ */ React.createElement("h3", null, "Matching Accessories"), /* @__PURE__ */ React.createElement("p", { className: "accessories-subtitle-sf" }, "Complete your installation with coordinating trim and transitions"), accessorySiblings.map((acc) => {
-      const accPrice = parseFloat(acc.retail_price) || 0;
+      const accPrice = parseFloat(acc.sale_price || acc.retail_price) || 0;
       const accQty = accessoryQtys[acc.sku_id] || 1;
-      return /* @__PURE__ */ React.createElement("div", { key: acc.sku_id, className: "accessory-card-sf" }, /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-header" }, /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-name" }, formatVariantName(acc.variant_name) || "Accessory"), /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-price" }, "$", accPrice.toFixed(2), " /ea")), /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-actions" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setAccessoryQtys((prev) => ({ ...prev, [acc.sku_id]: Math.max(1, (prev[acc.sku_id] || 1) - 1) })) }, "\u2212"), /* @__PURE__ */ React.createElement("input", { type: "number", min: "1", value: accQty, onChange: (e) => setAccessoryQtys((prev) => ({ ...prev, [acc.sku_id]: Math.max(1, parseInt(e.target.value) || 1) })) }), /* @__PURE__ */ React.createElement("button", { onClick: () => setAccessoryQtys((prev) => ({ ...prev, [acc.sku_id]: (prev[acc.sku_id] || 1) + 1 })) }, "+")), /* @__PURE__ */ React.createElement("button", { className: "btn", style: { padding: "0.6rem 1.5rem", fontSize: "0.8125rem" }, onClick: () => {
+      const accLabel = acc.accessory_label || formatVariantName(acc.variant_name) || "Accessory";
+      const accColor = acc.variant_name ? formatVariantName(acc.variant_name) : null;
+      const showColor = accColor && accColor !== accLabel;
+      return /* @__PURE__ */ React.createElement("div", { key: acc.sku_id, className: "accessory-card-sf" }, acc.primary_image && /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-image" }, /* @__PURE__ */ React.createElement("img", { src: optimizeImg(acc.primary_image, 80), alt: accLabel, width: "48", height: "48", loading: "lazy", decoding: "async" })), /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-header" }, /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-name" }, accLabel), showColor && /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-color" }, accColor), /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-price" }, "$", accPrice.toFixed(2), " ", acc.sell_by === "sqft" ? "/sqft" : "/ea")), /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-actions" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setAccessoryQtys((prev) => ({ ...prev, [acc.sku_id]: Math.max(1, (prev[acc.sku_id] || 1) - 1) })) }, "\u2212"), /* @__PURE__ */ React.createElement("input", { type: "number", min: "1", value: accQty, onChange: (e) => setAccessoryQtys((prev) => ({ ...prev, [acc.sku_id]: Math.max(1, parseInt(e.target.value) || 1) })) }), /* @__PURE__ */ React.createElement("button", { onClick: () => setAccessoryQtys((prev) => ({ ...prev, [acc.sku_id]: (prev[acc.sku_id] || 1) + 1 })) }, "+")), /* @__PURE__ */ React.createElement("button", { className: "btn", style: { padding: "0.6rem 1.5rem", fontSize: "0.8125rem" }, onClick: () => {
         addToCart({
           product_id: sku.product_id,
           sku_id: acc.sku_id,
@@ -3857,7 +3883,7 @@
           include_overage: false,
           unit_price: accPrice,
           subtotal: (accQty * accPrice).toFixed(2),
-          sell_by: "unit"
+          sell_by: acc.sell_by || "unit"
         });
       } }, "Add \u2014 $", (accQty * accPrice).toFixed(2))));
     })), !isCarpetSku && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "packaging-info" }, /* @__PURE__ */ React.createElement("h4", null, "Packaging Details"), /* @__PURE__ */ React.createElement("div", null, "Coverage: ", sqftPerBox, " sqft/", boxLabel), sku.pieces_per_box && /* @__PURE__ */ React.createElement("div", null, "Pieces: ", sku.pieces_per_box, "/", boxLabel), sku.weight_per_box_lbs && /* @__PURE__ */ React.createElement("div", null, "Weight: ", parseFloat(sku.weight_per_box_lbs).toFixed(1), " lbs/", boxLabel), sku.boxes_per_pallet && /* @__PURE__ */ React.createElement("div", null, "Pallet: ", sku.boxes_per_pallet, " ", boxLabelPlural, " (", parseFloat(sku.sqft_per_pallet || 0).toFixed(0), " sqft)")), isCarpetSku && (rollWidthFt > 0 || rollLengthFt > 0 || sku.sqft_per_pallet || sku.weight_per_pallet_lbs) && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info" }, /* @__PURE__ */ React.createElement("h4", null, "Roll Specifications"), /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-grid" }, rollWidthFt > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Width"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, rollWidthFt, " ft")), rollLengthFt > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Length"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, rollLengthFt, " ft")), sku.sqft_per_pallet && parseFloat(sku.sqft_per_pallet) > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Area"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, parseFloat(sku.sqft_per_pallet).toLocaleString(), " sqft")), sku.weight_per_pallet_lbs && parseFloat(sku.weight_per_pallet_lbs) > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Weight"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, parseFloat(sku.weight_per_pallet_lbs).toLocaleString(), " lbs")))), isCarpetSku && cutPrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Carpet Calculator"), rollWidthFt > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-width-header" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 20, height: 20 } }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "9", x2: "21", y2: "9" })), rollWidthFt, "' Wide Roll"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "0.375rem", marginBottom: "1rem" } }, rollWidthFt > 0 && /* @__PURE__ */ React.createElement(
@@ -3967,7 +3993,82 @@
       },
       "Add to Cart ",
       numBoxes > 0 ? `- $${subtotal.toFixed(2)}` : ""
-    )), !isCarpetSku && isSqftNoBox && effectivePrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Order by Square Footage"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Square Feet Needed"), /* @__PURE__ */ React.createElement(
+    )), isSheetVinyl && effectivePrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Roll Calculator"), /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-width-header" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 20, height: 20 } }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "9", x2: "21", y2: "9" })), sheetRollWidthFt, "' Wide Roll"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "0.375rem", marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => setCarpetInputMode("linear"),
+        style: { flex: 1, padding: "0.4375rem 0.25rem", border: "1px solid var(--stone-300)", borderRadius: "0.25rem", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 500, background: carpetInputMode === "linear" ? "var(--stone-900)" : "white", color: carpetInputMode === "linear" ? "white" : "var(--stone-700)", transition: "all 0.15s" }
+      },
+      "Linear Feet"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => setCarpetInputMode("dimensions"),
+        style: { flex: 1, padding: "0.4375rem 0.25rem", border: "1px solid var(--stone-300)", borderRadius: "0.25rem", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 500, background: carpetInputMode === "dimensions" ? "var(--stone-900)" : "white", color: carpetInputMode === "dimensions" ? "white" : "var(--stone-700)", transition: "all 0.15s" }
+      },
+      "Room Size"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => setCarpetInputMode("sqft"),
+        style: { flex: 1, padding: "0.4375rem 0.25rem", border: "1px solid var(--stone-300)", borderRadius: "0.25rem", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 500, background: carpetInputMode === "sqft" ? "var(--stone-900)" : "white", color: carpetInputMode === "sqft" ? "white" : "var(--stone-700)", transition: "all 0.15s" }
+      },
+      "Enter Sqft"
+    )), sheetMode === "linear" ? /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Linear Feet Needed"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "calc-input",
+        type: "number",
+        min: "0",
+        step: "0.5",
+        placeholder: "e.g. 50",
+        value: linearFeet,
+        onChange: (e) => setLinearFeet(e.target.value)
+      }
+    ))) : sheetMode === "dimensions" ? /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group" }, /* @__PURE__ */ React.createElement("label", null, "Room Width (ft)"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "calc-input",
+        type: "number",
+        min: "0",
+        step: "0.5",
+        placeholder: "0",
+        value: roomWidth,
+        onChange: (e) => setRoomWidth(e.target.value)
+      }
+    )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "flex-end", padding: "0 0.25rem 0.5rem", fontSize: "1.25rem", color: "var(--stone-400)" } }, "\xD7"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-group" }, /* @__PURE__ */ React.createElement("label", null, "Room Length (ft)"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "calc-input",
+        type: "number",
+        min: "0",
+        step: "0.5",
+        placeholder: "0",
+        value: roomLength,
+        onChange: (e) => setRoomLength(e.target.value)
+      }
+    ))) : /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Square Feet Needed"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "calc-input",
+        type: "number",
+        min: "0",
+        step: "1",
+        placeholder: "Enter sqft",
+        value: sqftInput,
+        onChange: (e) => setSqftInput(e.target.value)
+      }
+    ))), /* @__PURE__ */ React.createElement("label", { className: "carpet-overage-label" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: includeCarpetOverage, onChange: (e) => setIncludeCarpetOverage(e.target.checked) }), "Add 10% overage for seams & waste"), sheetNeedsSeam && /* @__PURE__ */ React.createElement("div", { className: "carpet-seam-note" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "10" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "8", x2: "12", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "16", x2: "12.01", y2: "16" })), "Room width (", parseFloat(roomWidth).toFixed(0), "') exceeds roll width (", sheetRollWidthFt, "') \u2014 a seam will be required"), sheetSqft > 0 && /* @__PURE__ */ React.createElement("div", { className: "calc-summary" }, sheetMode === "linear" && /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Cut Size"), /* @__PURE__ */ React.createElement("span", null, sheetRollWidthFt, " ft \xD7 ", parseFloat(linearFeet).toFixed(1), " ft = ", sheetRawSqft.toFixed(1), " sqft")), includeCarpetOverage && /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "+ 10% Overage"), /* @__PURE__ */ React.createElement("span", null, sheetSqft.toFixed(1), " sqft")), !includeCarpetOverage && sheetMode !== "linear" && /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Area"), /* @__PURE__ */ React.createElement("span", null, sheetSqft.toFixed(1), " sqft")), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Price"), /* @__PURE__ */ React.createElement("span", null, "$", effectivePrice.toFixed(2), "/sqft")), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-total" }, /* @__PURE__ */ React.createElement("span", null, "Subtotal"), /* @__PURE__ */ React.createElement("span", null, "$", sheetSubtotal.toFixed(2)))), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn",
+        style: { width: "100%", marginTop: "1.5rem" },
+        onClick: handleAddToCart,
+        disabled: sheetSqft <= 0
+      },
+      "Add to Cart ",
+      sheetSqft > 0 ? `- $${sheetSubtotal.toFixed(2)}` : ""
+    )), !isCarpetSku && !isSheetVinyl && isSqftNoBox && effectivePrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Order by Square Footage"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Square Feet Needed"), /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "calc-input",
