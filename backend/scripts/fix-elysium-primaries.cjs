@@ -14,6 +14,16 @@
  *
  * Also handles 4 broken images (missing/404) and product-level primaries.
  *
+ * HISTORY:
+ *   Round 1: 57 targets from initial visual audit → script run
+ *   Round 2: 15 more targets from aspect-ratio screening → script run
+ *   Round 3: 11 stubborn products still showing lifestyle after rounds 1-2.
+ *            The isLifestyleUrl() keyword check can't detect Elysium lifestyle images,
+ *            so the script kept cycling between lifestyle images. Fixed via direct SQL
+ *            targeting specific media_asset IDs based on visual confirmation of each
+ *            image. 10 swapped to confirmed product shots, 1 reclassified (Grey/Details
+ *            Wood — all images are lifestyle room scenes, no product shot available).
+ *
  * Run: docker compose exec api node scripts/fix-elysium-primaries.cjs [--dry-run]
  */
 const { Pool } = require('pg');
@@ -28,9 +38,13 @@ const DRY_RUN = process.argv.includes('--dry-run');
 // Elysium vendor UUID
 const ELYSIUM_VENDOR_ID = '550e8400-e29b-41d4-a716-446655440006';
 
-// 57 products identified in visual audit as having lifestyle/room-scene primaries.
+// Products identified in visual audit as having lifestyle/room-scene primaries.
+// Round 1: 57 products from initial audit.
+// Round 2: 15 more found via aspect-ratio screening + visual confirmation.
+// Round 3: 11 stubborn re-targets fixed via direct SQL (not in this list).
 // Format: [product_name, collection]
 const LIFESTYLE_TARGETS = [
+  // --- Round 1 (original 57) ---
   ['Gold', 'Aeris'],
   ['Gold', 'Aston'],
   ['Malaysia AMZN TRAV. White', 'Amazon Travertine'],
@@ -88,6 +102,22 @@ const LIFESTYLE_TARGETS = [
   ['Malaysia Roy White', 'White Tile'],
   ['Brown', 'Wild Wood'],
   ['Grey', 'Wild Wood'],
+  // --- Round 2 (aspect-ratio screening + visual confirmation) ---
+  ['Malaysia AMZN TRAV. Grey', 'Amazon Travertine'],
+  ['Graphite', 'Basalt'],
+  ['Bianco', 'Le Plance'],
+  ['Sand', 'Onyx of Cerim'],
+  ['OB03 Walnut', 'Orto Botanico'],
+  ['OB10 White', 'Orto Botanico'],
+  ['Belleville Marrone', 'Paris'],
+  ['Fan White Gloss', 'Scale'],
+  ['Black', 'Selection Oak'],
+  ['389 Gris', 'Skyline'],
+  ['Smoke', 'Soft'],
+  ['Beige', 'Supreme'],
+  ['Walnut', 'Urban Wood'],
+  ['Fume', 'Larix'],
+  ['White Gloss', 'Villa Rica'],
 ];
 
 // 4 broken images (no photo loads)
