@@ -641,38 +641,15 @@ app.get('/api/storefront/featured', async (req, res) => {
         FROM media_assets WHERE asset_type = 'primary' AND sku_id IS NOT NULL
         ORDER BY sku_id, sort_order
       ),
-      product_images AS (
-        SELECT DISTINCT ON (product_id) product_id, url
-        FROM media_assets WHERE asset_type = 'primary' AND sku_id IS NULL
-        ORDER BY product_id, sort_order
-      ),
       sku_alt_images AS (
         SELECT DISTINCT ON (sku_id) sku_id, url
         FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
         ORDER BY sku_id, sort_order
       ),
-      product_alt_images AS (
-        SELECT DISTINCT ON (product_id) product_id, url
-        FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NULL
-        ORDER BY product_id, sort_order
-      ),
-      sku_any_images AS (
+      sku_lifestyle_images AS (
         SELECT DISTINCT ON (sku_id) sku_id, url
-        FROM media_assets WHERE asset_type IN ('alternate', 'swatch') AND sku_id IS NOT NULL
-        ORDER BY sku_id, CASE asset_type WHEN 'alternate' THEN 0 ELSE 1 END, sort_order
-      ),
-      product_any_images AS (
-        SELECT DISTINCT ON (product_id) product_id, url
-        FROM media_assets WHERE asset_type IN ('alternate', 'swatch') AND sku_id IS NULL
-        ORDER BY product_id, CASE asset_type WHEN 'alternate' THEN 0 ELSE 1 END, sort_order
-      ),
-      sibling_images AS (
-        SELECT DISTINCT ON (s2.product_id) s2.product_id, ma.url
-        FROM media_assets ma
-        JOIN skus s2 ON s2.id = ma.sku_id
-        WHERE ma.asset_type = 'primary' AND ma.sku_id IS NOT NULL
-          AND COALESCE(s2.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim','hardware','lighting','carved_wood','vanity','moulding','organizer','sink')
-        ORDER BY s2.product_id, ma.sort_order
+        FROM media_assets WHERE asset_type = 'lifestyle' AND sku_id IS NOT NULL
+        ORDER BY sku_id, sort_order
       ),
       variant_counts AS (
         SELECT product_id, COUNT(*) as variant_count
@@ -688,8 +665,8 @@ app.get('/api/storefront/featured', async (req, res) => {
         pr.retail_price, pr.price_basis, pr.cut_price,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-        COALESCE(si.url, pi.url, sany.url, pany.url) as primary_image,
-        COALESCE(sai.url, pai.url) as alternate_image,
+        COALESCE(si.url, sli.url, sai.url) as primary_image,
+        sai.url as alternate_image,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -707,12 +684,8 @@ app.get('/api/storefront/featured', async (req, res) => {
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
       LEFT JOIN sku_images si ON si.sku_id = s.id
-      LEFT JOIN product_images pi ON pi.product_id = p.id
+      LEFT JOIN sku_lifestyle_images sli ON sli.sku_id = s.id
       LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
-      LEFT JOIN product_alt_images pai ON pai.product_id = p.id
-      LEFT JOIN sku_any_images sany ON sany.sku_id = s.id
-      LEFT JOIN product_any_images pany ON pany.product_id = p.id
-      LEFT JOIN sibling_images sib ON sib.product_id = p.id
       LEFT JOIN variant_counts vc ON vc.product_id = p.id
       ORDER BY b.times_ordered DESC
     `;
@@ -730,38 +703,15 @@ app.get('/api/storefront/featured', async (req, res) => {
           FROM media_assets WHERE asset_type = 'primary' AND sku_id IS NOT NULL
           ORDER BY sku_id, sort_order
         ),
-        product_images AS (
-          SELECT DISTINCT ON (product_id) product_id, url
-          FROM media_assets WHERE asset_type = 'primary' AND sku_id IS NULL
-          ORDER BY product_id, sort_order
-        ),
         sku_alt_images AS (
           SELECT DISTINCT ON (sku_id) sku_id, url
           FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
           ORDER BY sku_id, sort_order
         ),
-        product_alt_images AS (
-          SELECT DISTINCT ON (product_id) product_id, url
-          FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NULL
-          ORDER BY product_id, sort_order
-        ),
-        sku_any_images AS (
+        sku_lifestyle_images AS (
           SELECT DISTINCT ON (sku_id) sku_id, url
-          FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
+          FROM media_assets WHERE asset_type = 'lifestyle' AND sku_id IS NOT NULL
           ORDER BY sku_id, sort_order
-        ),
-        product_any_images AS (
-          SELECT DISTINCT ON (product_id) product_id, url
-          FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NULL
-          ORDER BY product_id, sort_order
-        ),
-        sibling_images AS (
-          SELECT DISTINCT ON (s2.product_id) s2.product_id, ma.url
-          FROM media_assets ma
-          JOIN skus s2 ON s2.id = ma.sku_id
-          WHERE ma.asset_type = 'primary' AND ma.sku_id IS NOT NULL
-            AND COALESCE(s2.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim','hardware','lighting','carved_wood','vanity','moulding','organizer','sink')
-          ORDER BY s2.product_id, ma.sort_order
         ),
         variant_counts AS (
           SELECT product_id, COUNT(*) as variant_count
@@ -778,8 +728,8 @@ app.get('/api/storefront/featured', async (req, res) => {
             pr.retail_price, pr.price_basis, pr.cut_price,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-            COALESCE(si.url, pi.url, sany.url, pany.url) as primary_image,
-            COALESCE(sai.url, pai.url) as alternate_image,
+            COALESCE(si.url, sli.url, sai.url) as primary_image,
+            sai.url as alternate_image,
             CASE
               WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
               WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -795,12 +745,8 @@ app.get('/api/storefront/featured', async (req, res) => {
           LEFT JOIN packaging pk ON pk.sku_id = s.id
           LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
           LEFT JOIN sku_images si ON si.sku_id = s.id
-          LEFT JOIN product_images pi ON pi.product_id = p.id
+          LEFT JOIN sku_lifestyle_images sli ON sli.sku_id = s.id
           LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
-          LEFT JOIN product_alt_images pai ON pai.product_id = p.id
-          LEFT JOIN sku_any_images sany ON sany.sku_id = s.id
-          LEFT JOIN product_any_images pany ON pany.product_id = p.id
-          LEFT JOIN sibling_images sib ON sib.product_id = p.id
           LEFT JOIN variant_counts vc ON vc.product_id = p.id
           WHERE p.status = 'active' AND s.status = 'active' AND s.is_sample = false
             AND COALESCE(s.variant_type, '') != 'accessory'
@@ -1125,8 +1071,9 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
           COALESCE(
             (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'primary' LIMIT 1),
             (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1),
-            (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type IN ('alternate','lifestyle') LIMIT 1),
-            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type IN ('alternate','lifestyle') AND sku_id IS NULL LIMIT 1)
+            (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'lifestyle' ORDER BY sort_order LIMIT 1),
+            (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'alternate' LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'alternate' AND sku_id IS NULL LIMIT 1)
           ) as primary_image
         FROM skus s
         JOIN products p ON p.id = s.product_id AND p.status = 'active'
@@ -1239,8 +1186,9 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
           COALESCE(
             (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'primary' LIMIT 1),
             (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1),
-            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type IN ('alternate','lifestyle') LIMIT 1),
-            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type IN ('alternate','lifestyle') AND sku_id IS NULL LIMIT 1)
+            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'lifestyle' ORDER BY sort_order LIMIT 1),
+            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'alternate' LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'alternate' AND sku_id IS NULL LIMIT 1)
           ) as primary_image
         FROM top_skus ts
         ORDER BY ts.final_score DESC
@@ -1293,8 +1241,9 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
           COALESCE(
             (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'primary' LIMIT 1),
             (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1),
-            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type IN ('alternate','lifestyle') LIMIT 1),
-            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type IN ('alternate','lifestyle') AND sku_id IS NULL LIMIT 1)
+            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'lifestyle' ORDER BY sort_order LIMIT 1),
+            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'alternate' LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'alternate' AND sku_id IS NULL LIMIT 1)
           ) as primary_image
         FROM top_skus ts
         ORDER BY ts.trgm_score DESC
@@ -1527,23 +1476,25 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     const whereSQL = whereClauses.join(' AND ');
 
     // Sort — relevance-first when searching (unless user explicitly chose a sort)
-    let orderBy = 'CASE WHEN primary_image IS NOT NULL THEN 0 ELSE 1 END, product_name ASC, variant_name ASC';
-    if (sort === 'discount') orderBy = 'CASE WHEN sale_price IS NOT NULL AND retail_price > 0 THEN (retail_price - sale_price) / retail_price ELSE 0 END DESC, product_name ASC';
-    else if (sort === 'price_asc') orderBy = 'retail_price ASC NULLS LAST, product_name ASC';
-    else if (sort === 'price_desc') orderBy = 'retail_price DESC NULLS LAST, product_name ASC';
-    else if (sort === 'newest') orderBy = 'created_at DESC';
-    else if (sort === 'name_asc') orderBy = 'product_name ASC, variant_name ASC';
-    else if (sort === 'name_desc') orderBy = 'product_name DESC, variant_name DESC';
+    // NOTE: PostgreSQL does not allow SELECT aliases inside expressions (CASE, LOWER, similarity, etc.)
+    // in ORDER BY. Use actual table.column references for expressions; bare aliases work for simple sorts.
+    let orderBy = 'CASE WHEN COALESCE(si.url, sai.url) IS NOT NULL THEN 0 ELSE 1 END, COALESCE(p.display_name, p.name) ASC, s.variant_name ASC';
+    if (sort === 'discount') orderBy = 'CASE WHEN pr.sale_price IS NOT NULL AND pr.retail_price > 0 THEN (pr.retail_price - pr.sale_price) / pr.retail_price ELSE 0 END DESC, COALESCE(p.display_name, p.name) ASC';
+    else if (sort === 'price_asc') orderBy = 'pr.retail_price ASC NULLS LAST, COALESCE(p.display_name, p.name) ASC';
+    else if (sort === 'price_desc') orderBy = 'pr.retail_price DESC NULLS LAST, COALESCE(p.display_name, p.name) ASC';
+    else if (sort === 'newest') orderBy = 's.created_at DESC';
+    else if (sort === 'name_asc') orderBy = 'COALESCE(p.display_name, p.name) ASC, s.variant_name ASC';
+    else if (sort === 'name_desc') orderBy = 'COALESCE(p.display_name, p.name) DESC, s.variant_name DESC';
     else if (searchParamIdx && !sort) {
       orderBy = `(
-        COALESCE(ts_rank(search_vector, to_tsquery('english', unaccent($${searchTsQueryIdx}))), 0) * 2
-        + greatest(similarity(product_name, $${searchParamIdx}), similarity(collection, $${searchParamIdx}))
-        + COALESCE(popularity_score, 0) * 0.1
-        + CASE WHEN LOWER(product_name) = LOWER($${searchParamIdx}) OR LOWER(collection) = LOWER($${searchParamIdx}) THEN 5.0 ELSE 0.0 END
-      ) DESC, product_name ASC`;
+        COALESCE(ts_rank(p.search_vector, to_tsquery('english', unaccent($${searchTsQueryIdx}))), 0) * 2
+        + greatest(similarity(COALESCE(p.display_name, p.name), $${searchParamIdx}), similarity(p.collection, $${searchParamIdx}))
+        + COALESCE(pp.popularity_score, 0) * 0.1
+        + CASE WHEN LOWER(COALESCE(p.display_name, p.name)) = LOWER($${searchParamIdx}) OR LOWER(p.collection) = LOWER($${searchParamIdx}) THEN 5.0 ELSE 0.0 END
+      ) DESC, COALESCE(p.display_name, p.name) ASC`;
     }
 
-    // Count query — count individual browseable SKUs (each color/variant is its own card)
+    // Count query
     const countSQL = `
       SELECT COUNT(DISTINCT s.id) as total
       FROM skus s
@@ -1562,46 +1513,17 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         WHERE asset_type = 'primary' AND sku_id IS NOT NULL
         ORDER BY sku_id, sort_order
       ),
-      product_images AS (
-        SELECT DISTINCT ON (product_id) product_id, url
-        FROM media_assets
-        WHERE asset_type = 'primary' AND sku_id IS NULL
-        ORDER BY product_id, sort_order
-      ),
       sku_alt_images AS (
         SELECT DISTINCT ON (sku_id) sku_id, url
         FROM media_assets
         WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
         ORDER BY sku_id, sort_order
       ),
-      product_alt_images AS (
-        SELECT DISTINCT ON (product_id) product_id, url
-        FROM media_assets
-        WHERE asset_type = 'alternate' AND sku_id IS NULL
-        ORDER BY product_id, sort_order
-      ),
-      sku_any_images AS (
+      sku_lifestyle_images AS (
         SELECT DISTINCT ON (sku_id) sku_id, url
         FROM media_assets
-        WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NOT NULL
+        WHERE asset_type = 'lifestyle' AND sku_id IS NOT NULL
         ORDER BY sku_id, sort_order
-      ),
-      product_any_images AS (
-        SELECT DISTINCT ON (product_id) product_id, url
-        FROM media_assets
-        WHERE asset_type IN ('alternate','lifestyle') AND sku_id IS NULL
-        ORDER BY product_id, sort_order
-      ),
-      sibling_images AS (
-        SELECT DISTINCT ON (s1.id) s1.id as sku_id, ma.url
-        FROM skus s1
-        JOIN sku_attributes sa1 ON sa1.sku_id = s1.id
-        JOIN attributes a ON a.id = sa1.attribute_id AND a.slug = 'color'
-        JOIN sku_attributes sa2 ON sa2.attribute_id = sa1.attribute_id AND LOWER(sa2.value) = LOWER(sa1.value) AND sa2.sku_id != s1.id
-        JOIN skus s2 ON s2.id = sa2.sku_id AND s2.product_id = s1.product_id
-          AND COALESCE(s2.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim','hardware','lighting','carved_wood','vanity','moulding','organizer','sink')
-        JOIN media_assets ma ON ma.sku_id = s2.id AND ma.asset_type = 'primary'
-        ORDER BY s1.id, ma.sort_order
       ),
       variant_counts AS (
         SELECT product_id, COUNT(*) as variant_count
@@ -1609,45 +1531,39 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         WHERE status = 'active' AND is_sample = false AND COALESCE(variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
         GROUP BY product_id
       )
-      SELECT * FROM (
-        SELECT
-          s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
-          COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short, p.search_vector,
-          p.slug as product_slug,
-          v.name as vendor_name,
-          COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
-          c.name as category_name, c.slug as category_slug,
-          pr.retail_price, pr.price_basis, pr.cut_price,
-          CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
-          pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-          COALESCE(si.url, pi.url, sai.url, pai.url, sib.url, sany.url, pany.url) as primary_image,
-          COALESCE(sai.url, pai.url) as alternate_image,
-          CASE
-            WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
-            WHEN inv.qty_on_hand > 10 THEN 'in_stock'
-            WHEN inv.qty_on_hand > 0 THEN 'low_stock'
-            ELSE 'out_of_stock'
-          END as stock_status,
-          COALESCE(vc.variant_count, 0) as variant_count,
-          COALESCE(pp.popularity_score, 0) as popularity_score
-        FROM skus s
-        JOIN products p ON p.id = s.product_id
-        JOIN vendors v ON v.id = p.vendor_id
-        LEFT JOIN categories c ON c.id = p.category_id
-        LEFT JOIN pricing pr ON pr.sku_id = s.id
-        LEFT JOIN packaging pk ON pk.sku_id = s.id
-        LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
-        LEFT JOIN sku_images si ON si.sku_id = s.id
-        LEFT JOIN product_images pi ON pi.product_id = p.id
-        LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
-        LEFT JOIN product_alt_images pai ON pai.product_id = p.id
-        LEFT JOIN sku_any_images sany ON sany.sku_id = s.id
-        LEFT JOIN product_any_images pany ON pany.product_id = p.id
-        LEFT JOIN sibling_images sib ON sib.sku_id = s.id
-        LEFT JOIN variant_counts vc ON vc.product_id = p.id
-        LEFT JOIN product_popularity pp ON pp.product_id = p.id
-        WHERE ${whereSQL}
-      ) browsable
+      SELECT
+        s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
+        COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short, p.search_vector,
+        p.slug as product_slug,
+        v.name as vendor_name,
+        COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
+        c.name as category_name, c.slug as category_slug,
+        pr.retail_price, pr.price_basis, pr.cut_price,
+        CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+        pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
+        COALESCE(si.url, sli.url, sai.url) as primary_image,
+        sai.url as alternate_image,
+        CASE
+          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+          ELSE 'out_of_stock'
+        END as stock_status,
+        COALESCE(vc.variant_count, 0) as variant_count,
+        COALESCE(pp.popularity_score, 0) as popularity_score
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      LEFT JOIN sku_images si ON si.sku_id = s.id
+      LEFT JOIN sku_lifestyle_images sli ON sli.sku_id = s.id
+      LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
+      LEFT JOIN variant_counts vc ON vc.product_id = p.id
+      LEFT JOIN product_popularity pp ON pp.product_id = p.id
+      WHERE ${whereSQL}
       ORDER BY ${orderBy}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
@@ -1741,10 +1657,7 @@ app.get('/api/storefront/skus/compare', async (req, res) => {
         pr.retail_price, pr.price_basis,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-        COALESCE(
-          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
-        ) as primary_image
+        (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
@@ -1850,7 +1763,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     const skuResult = await pool.query(`
       SELECT
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.variant_type,
-        COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, p.description_long, p.description_short,
+        COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, p.vendor_id, p.description_long, p.description_short,
         p.slug as product_slug,
         v.name as vendor_name, v.code as vendor_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
@@ -1889,18 +1802,37 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     }
 
     // Accessories that share a product with non-accessory SKUs redirect to the parent
-    // Standalone accessory products (e.g. "Console Base") render their own page
+    // EXCEPT "base cabinet only" accessories (no countertop_finish) — these render their own page
+    // so the storefront can show them as the "No Countertop" option
+    // Standalone accessory products (e.g. "Console Base") also render their own page
     if (sku.variant_type === 'accessory') {
-      const parentSku = await pool.query(`
-        SELECT s.id FROM skus s
-        WHERE s.product_id = $1 AND s.id != $2 AND COALESCE(s.variant_type, '') != 'accessory'
-          AND s.status = 'active' AND s.is_sample = false
-        ORDER BY s.created_at LIMIT 1
+      // Check if this accessory is a "base only" (no countertop_finish) for a product that has countertop variants
+      const isBaseCabinet = await pool.query(`
+        SELECT 1 FROM skus s
+        JOIN sku_attributes sa ON sa.sku_id = s.id
+        JOIN attributes a ON a.id = sa.attribute_id
+        WHERE s.product_id = $1 AND s.id != $2 AND a.slug = 'countertop_finish'
+          AND COALESCE(s.variant_type, '') != 'accessory' AND s.status = 'active'
+        LIMIT 1
       `, [sku.product_id, skuId]);
-      if (parentSku.rows.length) {
-        return res.json({ redirect_to_sku: parentSku.rows[0].id });
+      const thisHasCt = await pool.query(`
+        SELECT 1 FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+        WHERE sa.sku_id = $1 AND a.slug = 'countertop_finish' LIMIT 1
+      `, [skuId]);
+      const isBaseOnly = isBaseCabinet.rows.length > 0 && thisHasCt.rows.length === 0;
+
+      if (!isBaseOnly) {
+        const parentSku = await pool.query(`
+          SELECT s.id FROM skus s
+          WHERE s.product_id = $1 AND s.id != $2 AND COALESCE(s.variant_type, '') != 'accessory'
+            AND s.status = 'active' AND s.is_sample = false
+          ORDER BY s.created_at LIMIT 1
+        `, [sku.product_id, skuId]);
+        if (parentSku.rows.length) {
+          return res.json({ redirect_to_sku: parentSku.rows[0].id });
+        }
       }
-      // No non-accessory sibling — this is a standalone product, render normally
+      // Base-only cabinet or no non-accessory sibling — render normally
     }
 
     // SKU attributes
@@ -1921,45 +1853,33 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       sku.trade_tier = req.tradeCustomer.tier_name;
     }
 
-    // Media: prefer SKU-specific images; only fall back to product-level if no SKU images exist
+    // Media: SKU-specific product photos including lifestyle/room scenes
     const skuMediaResult = await pool.query(`
       SELECT id, asset_type, url, sort_order, sku_id
       FROM media_assets
-      WHERE product_id = $2 AND sku_id = $1
-      ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'swatch' THEN 2 WHEN 'lifestyle' THEN 3 ELSE 4 END, sort_order
+      WHERE product_id = $2 AND sku_id = $1 AND asset_type IN ('primary', 'alternate', 'swatch', 'lifestyle')
+      ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 WHEN 'swatch' THEN 3 ELSE 4 END, sort_order
     `, [skuId, sku.product_id]);
 
     let mediaResult;
     const isAdexVendor = /adex/i.test(sku.vendor_name || '');
     if (skuMediaResult.rows.length > 0) {
-      // SKU has its own images — also include product-level lifestyle (room scenes)
-      // For ADEX: also include product-level alternate (shape drawing) as the primary display image
-      const hasSkuPrimary = skuMediaResult.rows.some(r => r.asset_type === 'primary');
-      const extraTypes = isAdexVendor ? "'lifestyle','alternate'" : (hasSkuPrimary ? "'lifestyle'" : "'primary','alternate','lifestyle'");
-      const productExtra = await pool.query(`
-        SELECT id, asset_type, url, sort_order, sku_id
-        FROM media_assets
-        WHERE product_id = $1 AND sku_id IS NULL AND asset_type IN (${extraTypes})
-        ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END, sort_order
-      `, [sku.product_id]);
-      if (isAdexVendor || !hasSkuPrimary) {
-        // ADEX: show shape image first, then SKU color swatch, then lifestyle
-        // No SKU primary: prepend product-level images so the best image shows first
+      if (isAdexVendor) {
+        // ADEX: supplement with product-level alternate (shape drawing)
+        const productExtra = await pool.query(`
+          SELECT id, asset_type, url, sort_order, sku_id
+          FROM media_assets
+          WHERE product_id = $1 AND sku_id IS NULL AND asset_type = 'alternate'
+          ORDER BY sort_order
+        `, [sku.product_id]);
         mediaResult = { rows: [...productExtra.rows, ...skuMediaResult.rows] };
       } else {
-        mediaResult = { rows: [...skuMediaResult.rows, ...productExtra.rows] };
+        // Non-ADEX: only show SKU-specific images, no product-level supplements
+        mediaResult = skuMediaResult;
       }
     } else {
-      // No SKU images — fall back to product-level primary/alternate only (not lifestyle,
-      // which would show a random color variant's room scene)
-      mediaResult = await pool.query(`
-        SELECT id, asset_type, url, sort_order, sku_id
-        FROM media_assets
-        WHERE product_id = $1 AND sku_id IS NULL AND asset_type IN ('primary', 'alternate')
-        ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 ELSE 2 END, sort_order
-      `, [sku.product_id]);
-
-      // No sibling fallback — show placeholder instead of a wrong color
+      // No SKU images — show nothing rather than a potentially wrong product-level image
+      mediaResult = { rows: [] };
     }
 
     // Deduplicate media by URL
@@ -1980,9 +1900,13 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         COALESCE(
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'lifestyle' ORDER BY ma.sort_order LIMIT 1),
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('alternate','swatch') ORDER BY CASE ma.asset_type WHEN 'alternate' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
         ) as primary_image,
-        (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as sku_image,
+        COALESCE(
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'lifestyle' ORDER BY ma.sort_order LIMIT 1)
+        ) as sku_image,
         (SELECT ma.url FROM media_assets ma
          JOIN skus s_top ON s_top.id = ma.sku_id AND ma.asset_type = 'primary'
          JOIN sku_attributes sa_ref ON sa_ref.sku_id = s.id
@@ -2000,9 +1924,9 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
       WHERE s.product_id = $1 AND s.id != $2 AND s.is_sample = false AND s.status = 'active'
-        AND COALESCE(s.variant_type, '') != 'accessory'
+        AND (COALESCE(s.variant_type, '') NOT IN ('accessory') OR $3 = 'accessory')
       ORDER BY s.variant_name
-    `, [sku.product_id, skuId]);
+    `, [sku.product_id, skuId, sku.variant_type || '']);
 
     // Batch-fetch attributes for siblings
     let sameSiblings = siblingsResult.rows;
@@ -2023,17 +1947,66 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       sameSiblings = sameSiblings.map(s => ({ ...s, attributes: sibAttrMap[s.sku_id] || [] }));
     }
 
+    // Include "base only" accessories (no countertop) as siblings when the current SKU has a countertop
+    // This enables the "No Countertop" option in the variant selector
+    const curHasCt = sku.variant_type !== 'accessory' && (sku.attributes || []).some(a => a.slug === 'countertop_finish');
+    if (curHasCt) {
+      const baseOnlyResult = await pool.query(`
+        SELECT
+          s.id as sku_id, s.variant_name, s.internal_sku, s.vendor_sku, s.variant_type, s.sell_by,
+          pr.retail_price, pr.price_basis, pk.sqft_per_box,
+          CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+          COALESCE(
+            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('alternate','swatch') ORDER BY CASE ma.asset_type WHEN 'alternate' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+          ) as primary_image,
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as sku_image,
+          NULL as countertop_image,
+          CASE
+            WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+            WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+            WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+            ELSE 'out_of_stock'
+          END as stock_status
+        FROM skus s
+        LEFT JOIN pricing pr ON pr.sku_id = s.id
+        LEFT JOIN packaging pk ON pk.sku_id = s.id
+        LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+        WHERE s.product_id = $1 AND s.id != $2 AND s.status = 'active'
+          AND s.variant_type = 'accessory'
+          AND NOT EXISTS (
+            SELECT 1 FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+            WHERE sa.sku_id = s.id AND a.slug = 'countertop_finish'
+          )
+        ORDER BY s.variant_name
+      `, [sku.product_id, skuId]);
+      if (baseOnlyResult.rows.length > 0) {
+        const baseIds = baseOnlyResult.rows.map(s => s.sku_id);
+        const baseAttrResult = await pool.query(`
+          SELECT sa.sku_id, a.name, a.slug, sa.value
+          FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+          WHERE sa.sku_id = ANY($1) ORDER BY a.display_order
+        `, [baseIds]);
+        const baseAttrMap = {};
+        for (const row of baseAttrResult.rows) {
+          if (!baseAttrMap[row.sku_id]) baseAttrMap[row.sku_id] = [];
+          baseAttrMap[row.sku_id].push({ slug: row.slug, name: row.name, value: row.value });
+        }
+        const baseRows = baseOnlyResult.rows.map(s => ({ ...s, attributes: baseAttrMap[s.sku_id] || [] }));
+        sameSiblings = sameSiblings.concat(baseRows);
+      }
+    }
+
     // Per-SKU accessories (from sku_accessories junction table)
+    // Only show accessories matching the current SKU's color, deduplicated by label+name
     const skuAccessoriesResult = await pool.query(`
-      SELECT sa.sort_order,
+      SELECT DISTINCT ON (COALESCE(s.accessory_label, ''), s.variant_name)
+        sa.sort_order,
         s.id as sku_id, s.variant_name, s.vendor_sku, s.variant_type, s.sell_by,
         s.accessory_label,
         pr.retail_price, pr.price_basis,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
-        COALESCE(
-          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
-        ) as primary_image,
+        (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -2045,7 +2018,26 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
       WHERE sa.parent_sku_id = $1 AND s.status = 'active'
-      ORDER BY sa.sort_order, s.accessory_label
+        AND (
+          -- Accessory color must match parent color (or either has no color attr)
+          EXISTS (
+            SELECT 1 FROM sku_attributes pa
+            JOIN attributes a ON a.id = pa.attribute_id AND a.slug = 'color'
+            JOIN sku_attributes aa ON aa.attribute_id = pa.attribute_id AND aa.sku_id = s.id
+            WHERE pa.sku_id = $1 AND pa.value = aa.value
+          )
+          OR NOT EXISTS (
+            SELECT 1 FROM sku_attributes aa
+            JOIN attributes a ON a.id = aa.attribute_id AND a.slug = 'color'
+            WHERE aa.sku_id = s.id
+          )
+          OR NOT EXISTS (
+            SELECT 1 FROM sku_attributes pa
+            JOIN attributes a ON a.id = pa.attribute_id AND a.slug = 'color'
+            WHERE pa.sku_id = $1
+          )
+        )
+      ORDER BY COALESCE(s.accessory_label, ''), s.variant_name, sa.sort_order
     `, [skuId]);
     const skuAccessories = skuAccessoriesResult.rows;
 
@@ -2072,10 +2064,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             COALESCE(p.display_name, p.name) as product_name, p.id as accessory_product_id,
             pr.retail_price, pr.price_basis, pk.sqft_per_box,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
-            COALESCE(
-              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-              (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
-            ) as primary_image,
+            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image,
             CASE
               WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
               WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -2129,7 +2118,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           SELECT s.id as sku_id, s.variant_name, s.sell_by, p.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection,
             pr.retail_price, pr.price_basis, pk.sqft_per_box,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
-            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image,
+            COALESCE(
+              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'lifestyle' ORDER BY ma.sort_order LIMIT 1)
+            ) as primary_image,
             (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY ma.sort_order LIMIT 1) as shape_image,
             (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) as color,
             (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) as finish
@@ -2139,10 +2131,11 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           LEFT JOIN packaging pk ON pk.sku_id = s.id
           WHERE LOWER(p.collection) = LOWER($1) AND p.status = 'active'
             AND p.category_id = $2
+            AND p.vendor_id = $4
             AND s.id != $3
           ORDER BY p.name, s.variant_name
           LIMIT 500
-        `, [sku.collection, sku.category_id, skuId]);
+        `, [sku.collection, sku.category_id, skuId, sku.vendor_id]);
         collectionSiblings = collResult.rows;
       } else {
         const collResult = await pool.query(`
@@ -2150,25 +2143,25 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             s.id as sku_id, s.variant_name, s.sell_by, p.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection,
             pr.retail_price, pr.price_basis, pk.sqft_per_box,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
-            COALESCE(
-              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-              (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
-            ) as primary_image,
+            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image,
             (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) as color,
-            (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) as finish
+            (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) as finish,
+            (SELECT ARRAY_AGG(DISTINCT sa2.value) FROM skus s2 JOIN sku_attributes sa2 ON sa2.sku_id = s2.id JOIN attributes a2 ON a2.id = sa2.attribute_id WHERE s2.product_id = p.id AND a2.slug = 'size' AND s2.status = 'active' AND s2.is_sample = false) as available_sizes,
+            (SELECT ARRAY_AGG(DISTINCT sa2.value) FROM skus s2 JOIN sku_attributes sa2 ON sa2.sku_id = s2.id JOIN attributes a2 ON a2.id = sa2.attribute_id WHERE s2.product_id = p.id AND a2.slug = 'finish' AND s2.status = 'active' AND s2.is_sample = false) as available_finishes
           FROM products p
           JOIN skus s ON s.product_id = p.id AND s.is_sample = false AND s.status = 'active'
           LEFT JOIN pricing pr ON pr.sku_id = s.id
           LEFT JOIN packaging pk ON pk.sku_id = s.id
           WHERE LOWER(p.collection) = LOWER($1) AND p.id != $2 AND p.status = 'active'
             AND p.category_id = $3
+            AND p.vendor_id = $6
             AND (
               ($4 = true AND p.name ~* '(mosaic|hexagon|bullnose)')
               OR ($4 = false AND p.name !~* '(mosaic|hexagon|bullnose)')
             )
           ORDER BY p.id, (s.variant_name = $5) DESC, s.created_at
           LIMIT 50
-        `, [sku.collection, sku.product_id, sku.category_id, isMosaicProduct, sku.variant_name]);
+        `, [sku.collection, sku.product_id, sku.category_id, isMosaicProduct, sku.variant_name, sku.vendor_id]);
         collectionSiblings = collResult.rows;
       }
     }
@@ -2182,17 +2175,18 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         SELECT a.slug, a.name, ARRAY_AGG(DISTINCT sa.value) as values
         FROM products p
         JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
-          AND COALESCE(s.variant_type, '') <> 'accessory'
+          AND COALESCE(s.variant_type, '') NOT IN ('accessory', 'mosaic')
         JOIN sku_attributes sa ON sa.sku_id = s.id
         JOIN attributes a ON a.id = sa.attribute_id
         WHERE LOWER(p.collection) = LOWER($1) AND p.status = 'active'
           AND p.category_id = $2
+          AND p.vendor_id = $4
           AND (
             ($3 = true AND p.name ~* '(mosaic|hexagon|bullnose)')
             OR ($3 = false AND p.name !~* '(mosaic|hexagon|bullnose)')
           )
         GROUP BY a.slug, a.name
-      `, [sku.collection, sku.category_id, isMosaicProduct]);
+      `, [sku.collection, sku.category_id, isMosaicProduct, sku.vendor_id]);
       for (const row of caResult.rows) {
         collectionAttributes[row.slug] = { name: row.name, values: row.values };
       }
@@ -2232,10 +2226,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           c.name as category_name, c.slug as category_slug,
           pr.retail_price, pr.price_basis, pk.sqft_per_box,
           CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
-          COALESCE(
-            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' LIMIT 1),
-            (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' LIMIT 1)
-          ) as primary_image
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
         FROM sku_attributes sa
         JOIN skus s ON s.id = sa.sku_id AND s.status = 'active' AND s.is_sample = false
         JOIN products p ON p.id = s.product_id AND p.status = 'active'
@@ -6875,12 +6866,7 @@ async function searchSkus(pool, rawQuery) {
     LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = s.id
       AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)`;
   const imageSelect = `
-    COALESCE(
-      (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'primary' LIMIT 1),
-      (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1),
-      (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type IN ('alternate','lifestyle') LIMIT 1),
-      (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type IN ('alternate','lifestyle') AND sku_id IS NULL LIMIT 1)
-    ) as primary_image`;
+    (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, sort_order LIMIT 1) as primary_image`;
 
   // 1. SKU fast path — direct prefix match on vendor_sku / internal_sku
   let skuRows = [];
@@ -10529,6 +10515,28 @@ app.post('/api/staff/orders/:id/send-invoice', staffAuth, async (req, res) => {
   }
 });
 
+// Image audit — list primary images by vendor for visual QA (no auth for dev use)
+app.get('/api/admin/audit/primary-images', async (req, res) => {
+  try {
+    const { vendor_id, limit, offset } = req.query;
+    if (!vendor_id) return res.status(400).json({ error: 'vendor_id required' });
+    const result = await pool.query(`
+      SELECT ma.id as media_id, ma.url, p.name, p.collection,
+             ma.product_id, ma.sku_id
+      FROM media_assets ma
+      JOIN products p ON p.id = ma.product_id
+      WHERE ma.asset_type = 'primary' AND ma.sort_order = 0
+        AND ma.sku_id IS NOT NULL
+        AND p.vendor_id = $1
+      ORDER BY p.collection, p.name, ma.id
+      LIMIT $2 OFFSET $3
+    `, [vendor_id, parseInt(limit) || 200, parseInt(offset) || 0]);
+    res.json({ images: result.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Audit log (admin/manager)
 app.get('/api/admin/audit-log', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
@@ -13607,6 +13615,242 @@ app.get('/api/rep/products/:id', repAuth, async (req, res) => {
     res.json({ product: product.rows[0], skus: skuRows, media: media.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// SKU-centric detail for rep quick view (siblings + accessories with cost/margin)
+app.get('/api/rep/skus/:skuId', repAuth, async (req, res) => {
+  try {
+    const { skuId } = req.params;
+
+    // Main SKU with cost/margin data
+    const skuResult = await pool.query(`
+      SELECT
+        s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.variant_type,
+        COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, p.description_short,
+        v.name as vendor_name, v.id as vendor_id,
+        c.name as category_name,
+        pr.retail_price, pr.cost, pr.map_price, pr.price_basis,
+        pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.boxes_per_pallet,
+        inv.qty_on_hand,
+        CASE
+          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+          ELSE 'out_of_stock'
+        END as stock_status
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      WHERE s.id = $1 AND p.status = 'active'
+    `, [skuId]);
+
+    if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
+    const sku = skuResult.rows[0];
+
+    // Compute margin
+    const retail = parseFloat(sku.retail_price || 0);
+    const cost = parseFloat(sku.cost || 0);
+    sku.margin_pct = retail > 0 ? parseFloat(((retail - cost) / retail * 100).toFixed(1)) : 0;
+
+    // SKU attributes
+    const attrResult = await pool.query(`
+      SELECT a.name, a.slug, sa.value, a.display_order
+      FROM sku_attributes sa
+      JOIN attributes a ON a.id = sa.attribute_id
+      WHERE sa.sku_id = $1
+      ORDER BY a.display_order, a.name
+    `, [skuId]);
+    sku.attributes = attrResult.rows;
+
+    // Media: match storefront logic — SKU-specific product photos only (no lifestyle)
+    const skuMediaResult = await pool.query(`
+      SELECT id, asset_type, url, sort_order, sku_id
+      FROM media_assets
+      WHERE product_id = $2 AND sku_id = $1 AND asset_type IN ('primary', 'alternate', 'swatch')
+      ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'swatch' THEN 2 ELSE 3 END, sort_order
+    `, [skuId, sku.product_id]);
+
+    let mediaRows;
+    const isAdexVendor = /adex/i.test(sku.vendor_name || '');
+    if (skuMediaResult.rows.length > 0) {
+      if (isAdexVendor) {
+        // ADEX: supplement with product-level alternate (shape drawing)
+        const productExtra = await pool.query(`
+          SELECT id, asset_type, url, sort_order, sku_id
+          FROM media_assets
+          WHERE product_id = $1 AND sku_id IS NULL AND asset_type = 'alternate'
+          ORDER BY sort_order
+        `, [sku.product_id]);
+        mediaRows = [...productExtra.rows, ...skuMediaResult.rows];
+      } else {
+        mediaRows = skuMediaResult.rows;
+      }
+    } else {
+      // No SKU images — show nothing (matches storefront behavior)
+      mediaRows = [];
+    }
+    // Deduplicate
+    const seenUrls = new Set();
+    const media = [];
+    for (const row of mediaRows) {
+      if (!seenUrls.has(row.url)) { seenUrls.add(row.url); media.push(row); }
+    }
+
+    // Same-product siblings (non-accessory SKUs) with cost/margin
+    const siblingsResult = await pool.query(`
+      SELECT
+        s.id as sku_id, s.variant_name, s.vendor_sku, s.sell_by,
+        pr.retail_price, pr.cost,
+        pk.sqft_per_box,
+        COALESCE(
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('alternate','swatch') ORDER BY CASE ma.asset_type WHEN 'alternate' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+        ) as primary_image,
+        inv.qty_on_hand,
+        CASE
+          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+          ELSE 'out_of_stock'
+        END as stock_status
+      FROM skus s
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      WHERE s.product_id = $1 AND s.id != $2 AND s.is_sample = false AND s.status = 'active'
+        AND COALESCE(s.variant_type, '') != 'accessory'
+      ORDER BY s.variant_name
+    `, [sku.product_id, skuId]);
+
+    const siblings = siblingsResult.rows.map(s => {
+      const r = parseFloat(s.retail_price || 0);
+      const c = parseFloat(s.cost || 0);
+      return { ...s, margin_pct: r > 0 ? parseFloat(((r - c) / r * 100).toFixed(1)) : 0 };
+    });
+
+    // Batch-fetch sibling attributes
+    if (siblings.length > 0) {
+      const sibIds = siblings.map(s => s.sku_id);
+      const sibAttrResult = await pool.query(`
+        SELECT sa.sku_id, a.name, a.slug, sa.value
+        FROM sku_attributes sa
+        JOIN attributes a ON a.id = sa.attribute_id
+        WHERE sa.sku_id = ANY($1)
+        ORDER BY a.display_order
+      `, [sibIds]);
+      const sibAttrMap = {};
+      for (const row of sibAttrResult.rows) {
+        if (!sibAttrMap[row.sku_id]) sibAttrMap[row.sku_id] = [];
+        sibAttrMap[row.sku_id].push({ slug: row.slug, name: row.name, value: row.value });
+      }
+      siblings.forEach(s => { s.attributes = sibAttrMap[s.sku_id] || []; });
+    }
+
+    // Per-SKU accessories (color-matched, deduplicated by label+name)
+    const skuAccessoriesResult = await pool.query(`
+      SELECT DISTINCT ON (COALESCE(s.accessory_label, ''), s.variant_name)
+        sa.sort_order,
+        s.id as sku_id, s.variant_name, s.vendor_sku, s.sell_by,
+        s.accessory_label,
+        pr.retail_price, pr.cost,
+        (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image,
+        CASE
+          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+          ELSE 'out_of_stock'
+        END as stock_status
+      FROM sku_accessories sa
+      JOIN skus s ON s.id = sa.accessory_sku_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      WHERE sa.parent_sku_id = $1 AND s.status = 'active'
+        AND (
+          EXISTS (
+            SELECT 1 FROM sku_attributes pa
+            JOIN attributes a ON a.id = pa.attribute_id AND a.slug = 'color'
+            JOIN sku_attributes aa ON aa.attribute_id = pa.attribute_id AND aa.sku_id = s.id
+            WHERE pa.sku_id = $1 AND pa.value = aa.value
+          )
+          OR NOT EXISTS (
+            SELECT 1 FROM sku_attributes aa
+            JOIN attributes a ON a.id = aa.attribute_id AND a.slug = 'color'
+            WHERE aa.sku_id = s.id
+          )
+          OR NOT EXISTS (
+            SELECT 1 FROM sku_attributes pa
+            JOIN attributes a ON a.id = pa.attribute_id AND a.slug = 'color'
+            WHERE pa.sku_id = $1
+          )
+        )
+      ORDER BY COALESCE(s.accessory_label, ''), s.variant_name, sa.sort_order
+    `, [skuId]);
+
+    let accessories = skuAccessoriesResult.rows.map(a => {
+      const r = parseFloat(a.retail_price || 0);
+      const c = parseFloat(a.cost || 0);
+      return { ...a, margin_pct: r > 0 ? parseFloat(((r - c) / r * 100).toFixed(1)) : 0 };
+    });
+
+    // Cross-product accessories via companion_skus attribute
+    const companionAttr = (sku.attributes || []).find(a => a.slug === 'companion_skus');
+    const companionVskus = companionAttr
+      ? companionAttr.value.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+
+    if (companionVskus.length > 0 && sku.variant_type !== 'accessory') {
+      const cpaResult = await pool.query(`
+        SELECT DISTINCT ON (s.product_id)
+          s.id as sku_id, s.variant_name, s.sell_by,
+          COALESCE(p.display_name, p.name) as accessory_label,
+          pr.retail_price, pr.cost,
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image,
+          CASE
+            WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+            WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+            WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+            ELSE 'out_of_stock'
+          END as stock_status
+        FROM skus s
+        JOIN products p ON p.id = s.product_id AND p.status = 'active'
+        LEFT JOIN categories c ON c.id = p.category_id
+        LEFT JOIN pricing pr ON pr.sku_id = s.id
+        LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+        WHERE p.vendor_id = $1 AND s.status = 'active' AND s.is_sample = false
+          AND s.product_id != $2
+          AND c.name IN ('Transitions & Moldings','Wall Base','Installation & Sundries','Adhesives & Sealants','Underlayment')
+          AND s.vendor_sku = ANY($3::text[])
+        ORDER BY s.product_id, s.created_at
+        LIMIT 30
+      `, [sku.vendor_id, sku.product_id, companionVskus]);
+
+      const crossAccessories = cpaResult.rows.map(a => {
+        const r = parseFloat(a.retail_price || 0);
+        const c = parseFloat(a.cost || 0);
+        return { ...a, margin_pct: r > 0 ? parseFloat(((r - c) / r * 100).toFixed(1)) : 0 };
+      });
+      accessories = [...accessories, ...crossAccessories];
+    }
+
+    res.json({
+      sku,
+      product: {
+        id: sku.product_id, name: sku.product_name, collection: sku.collection,
+        vendor_name: sku.vendor_name, category_name: sku.category_name,
+        description_short: sku.description_short
+      },
+      media,
+      siblings,
+      accessories
+    });
+  } catch (err) {
+    console.error('Rep SKU detail error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
