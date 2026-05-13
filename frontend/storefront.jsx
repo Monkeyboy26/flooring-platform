@@ -960,6 +960,7 @@
       const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
       const [cartFlash, setCartFlash] = useState(false);
       const [deliveryMethod, setDeliveryMethod] = useState('shipping');
+      const [liftgateEnabled, setLiftgateEnabled] = useState(true);
       const [appliedPromoCode, setAppliedPromoCode] = useState(null);
 
       // Quick View
@@ -1148,7 +1149,7 @@
       // ---- Cart ----
       const fetchCart = () => {
         fetch(API + '/api/cart?session_id=' + encodeURIComponent(sessionId.current))
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => setCart(data.cart || []))
           .catch(err => console.error(err));
       };
@@ -1159,7 +1160,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...item, session_id: sessionId.current })
         })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => {
             if (data.error) { showToast(data.error, 'error'); return; }
             if (data.item) {
@@ -1183,7 +1184,7 @@
 
       const removeFromCart = (itemId) => {
         fetch(API + '/api/cart/' + itemId + '?session_id=' + encodeURIComponent(sessionId.current), { method: 'DELETE' })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(() => setCart(prev => prev.filter(i => i.id !== itemId)))
           .catch(err => console.error(err));
       };
@@ -1194,7 +1195,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...updates, session_id: sessionId.current })
         })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => {
             if (data.item) setCart(prev => prev.map(i => i.id === itemId ? data.item : i));
           })
@@ -1270,7 +1271,7 @@
             headers: { 'Content-Type': 'application/json', 'X-Customer-Token': token },
             body: JSON.stringify({ sku_ids: localWishlist })
           })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => {
             if (data.sku_ids) {
               setWishlist(data.sku_ids);
@@ -1280,7 +1281,7 @@
           .catch(() => {});
         } else {
           fetch(API + '/api/wishlist', { headers: { 'X-Customer-Token': token } })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => {
             if (data.sku_ids) {
               setWishlist(data.sku_ids);
@@ -1968,6 +1969,7 @@
             <CartPage cart={cart} goBrowse={goBrowse} removeFromCart={removeFromCart}
               updateCartItem={updateCartItem} goCheckout={goCheckout}
               deliveryMethod={deliveryMethod} setDeliveryMethod={setDeliveryMethod}
+              liftgateEnabled={liftgateEnabled} setLiftgateEnabled={setLiftgateEnabled}
               sessionId={sessionId.current} appliedPromoCode={appliedPromoCode} setAppliedPromoCode={setAppliedPromoCode}
               goHome={goHome} />
           )}
@@ -1975,7 +1977,7 @@
           {view === 'checkout' && (
             <CheckoutPage cart={cart} sessionId={sessionId.current}
               goCart={goCart} handleOrderComplete={handleOrderComplete}
-              deliveryMethod={deliveryMethod}
+              deliveryMethod={deliveryMethod} liftgateEnabled={liftgateEnabled}
               tradeCustomer={tradeCustomer} tradeToken={tradeToken}
               customer={customer} customerToken={customerToken}
               onCustomerLogin={handleCustomerLogin}
@@ -6079,13 +6081,12 @@
 
     // ==================== Cart Page ====================
 
-    function CartPage({ cart, goBrowse, removeFromCart, updateCartItem, goCheckout, deliveryMethod, setDeliveryMethod, sessionId, appliedPromoCode, setAppliedPromoCode, goHome }) {
+    function CartPage({ cart, goBrowse, removeFromCart, updateCartItem, goCheckout, deliveryMethod, setDeliveryMethod, liftgateEnabled, setLiftgateEnabled, sessionId, appliedPromoCode, setAppliedPromoCode, goHome }) {
       const [shippingZip, setShippingZip] = useState('');
       const [shippingEstimate, setShippingEstimate] = useState(null);
       const [shippingLoading, setShippingLoading] = useState(false);
       const [shippingError, setShippingError] = useState('');
       const [selectedShippingOption, setSelectedShippingOption] = useState(null);
-      const [liftgateEnabled, setLiftgateEnabled] = useState(true);
       const [promoCode, setPromoCode] = useState(appliedPromoCode || '');
       const [promoResult, setPromoResult] = useState(null);
       const [promoLoading, setPromoLoading] = useState(false);
@@ -6452,7 +6453,16 @@
 
     // ==================== Checkout Page ====================
 
-    function CheckoutPage({ cart, sessionId, goCart, handleOrderComplete, deliveryMethod, tradeCustomer, tradeToken, customer, customerToken, onCustomerLogin, appliedPromoCode, setAppliedPromoCode }) {
+    function CheckoutPage({ cart, sessionId, goCart, handleOrderComplete, deliveryMethod, liftgateEnabled, tradeCustomer, tradeToken, customer, customerToken, onCustomerLogin, appliedPromoCode, setAppliedPromoCode }) {
+      if (!cart || cart.length === 0) {
+        return (
+          <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+            <h2>Your cart is empty</h2>
+            <p style={{ color: 'var(--stone-500)', margin: '1rem 0' }}>Add items to your cart before checking out.</p>
+            <button className="btn" onClick={goCart}>Go to Cart</button>
+          </div>
+        );
+      }
       const [customerName, setCustomerName] = useState(tradeCustomer ? tradeCustomer.contact_name : (customer ? (customer.first_name + ' ' + customer.last_name) : ''));
       const [customerEmail, setCustomerEmail] = useState(tradeCustomer ? tradeCustomer.email : (customer ? customer.email : ''));
       const [phone, setPhone] = useState(customer ? (customer.phone || '') : '');
@@ -6487,7 +6497,7 @@
       const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'];
 
       useEffect(() => {
-        if (cardMounted.current) return;
+        if (cardMounted.current || !stripeInstance) return;
         const elements = stripeInstance.elements();
         const card = elements.create('card', {
           style: { base: { fontFamily: "'Inter', sans-serif", fontSize: '15px', color: '#292524', '::placeholder': { color: '#57534e' } } }
@@ -6557,7 +6567,7 @@
         const handler = async (ev) => {
           try {
             const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
-            if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = true; }
+            if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
             const piRes = await fetch(API + '/api/checkout/create-payment-intent', {
               method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(piBody)
             });
@@ -6585,7 +6595,7 @@
               customer_name: payerName, customer_email: payerEmail, phone: payerPhone,
               delivery_method: deliveryMethod,
               shipping: isPickup ? null : { line1, line2, city, state, zip },
-              residential: true, liftgate: true,
+              residential: true, liftgate: liftgateEnabled,
             };
             const orderHeaders = { 'Content-Type': 'application/json' };
             if (tradeToken) orderHeaders['X-Trade-Token'] = tradeToken;
@@ -6615,7 +6625,7 @@
         setProcessing(true);
         try {
           const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
-          if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = true; }
+          if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
           const piRes = await fetch(API + '/api/checkout/create-payment-intent', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(piBody)
           });
@@ -6632,7 +6642,7 @@
             customer_name: customerName, customer_email: customerEmail, phone,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
-            residential: true, liftgate: true,
+            residential: true, liftgate: liftgateEnabled,
             create_account: createAccount || undefined,
             account_password: createAccount ? accountPassword : undefined
           };
@@ -6716,6 +6726,7 @@
         taxDebounce.current = setTimeout(async () => {
           try {
             const resp = await fetch(API + '/api/cart/tax-estimate?zip=' + encodeURIComponent(taxZip) + '&session_id=' + encodeURIComponent(sessionId));
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
             const data = await resp.json();
             setTaxEstimate({ rate: data.rate || 0, amount: data.amount || 0 });
           } catch(e) { setTaxEstimate({ rate: 0, amount: 0 }); }
@@ -6776,7 +6787,7 @@
             customer_name: customerName, customer_email: customerEmail, phone,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
-            residential: true, liftgate: true,
+            residential: true, liftgate: liftgateEnabled,
             create_account: createAccount || undefined,
             account_password: createAccount ? accountPassword : undefined
           };
@@ -8459,7 +8470,7 @@
 
       useEffect(() => {
         fetch(API + '/api/collections')
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => { setCollections(data.collections || []); setLoading(false); })
           .catch(() => setLoading(false));
       }, []);
@@ -9082,6 +9093,7 @@
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
           });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
           const data = await res.json();
           if (data.error) { setError(data.error); setLoading(false); return; }
           onLogin(data.token, data.customer);
@@ -9096,6 +9108,7 @@
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName })
           });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
           const data = await res.json();
           if (data.error) { setError(data.error); setLoading(false); return; }
           onLogin(data.token, data.customer);
@@ -9110,6 +9123,7 @@
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email })
           });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
           const data = await res.json();
           if (data.error) { setError(data.error); setLoading(false); return; }
           setSuccess('If an account exists with that email, a reset link has been sent.');
@@ -9148,12 +9162,12 @@
                   {error && <div className="checkout-error">{error}</div>}
                   {mode === 'register' && (
                     <div className="checkout-row">
-                      <div className="checkout-field"><label>First Name</label><input className="checkout-input" value={firstName} onChange={e => setFirstName(e.target.value)} /></div>
-                      <div className="checkout-field"><label>Last Name</label><input className="checkout-input" value={lastName} onChange={e => setLastName(e.target.value)} /></div>
+                      <div className="checkout-field"><label>First Name</label><input className="checkout-input" value={firstName} onChange={e => setFirstName(e.target.value)} required /></div>
+                      <div className="checkout-field"><label>Last Name</label><input className="checkout-input" value={lastName} onChange={e => setLastName(e.target.value)} required /></div>
                     </div>
                   )}
-                  <div className="checkout-field"><label>Email</label><input className="checkout-input" type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
-                  <div className="checkout-field"><label>Password</label><input className="checkout-input" type="password" value={password} onChange={e => setPassword(e.target.value)} /></div>
+                  <div className="checkout-field"><label>Email</label><input className="checkout-input" type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
+                  <div className="checkout-field"><label>Password</label><input className="checkout-input" type="password" value={password} onChange={e => setPassword(e.target.value)} required /></div>
                   {mode === 'login' && (
                     <div style={{ textAlign: 'right', marginBottom: '1rem' }}>
                       <a onClick={() => switchMode('forgot')} style={{ fontSize: '0.8125rem', color: 'var(--gold)', cursor: 'pointer' }}>Forgot password?</a>

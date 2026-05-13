@@ -1012,6 +1012,7 @@
     const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
     const [cartFlash, setCartFlash] = useState(false);
     const [deliveryMethod, setDeliveryMethod] = useState("shipping");
+    const [liftgateEnabled, setLiftgateEnabled] = useState(true);
     const [appliedPromoCode, setAppliedPromoCode] = useState(null);
     const [quickViewSku, setQuickViewSku] = useState(null);
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -1195,14 +1196,20 @@
       else history.pushState(state, "", url);
     };
     const fetchCart = () => {
-      fetch(API + "/api/cart?session_id=" + encodeURIComponent(sessionId.current)).then((r) => r.json()).then((data) => setCart(data.cart || [])).catch((err) => console.error(err));
+      fetch(API + "/api/cart?session_id=" + encodeURIComponent(sessionId.current)).then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }).then((data) => setCart(data.cart || [])).catch((err) => console.error(err));
     };
     const addToCart = (item) => {
       fetch(API + "/api/cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...item, session_id: sessionId.current })
-      }).then((r) => r.json()).then((data) => {
+      }).then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }).then((data) => {
         if (data.error) {
           showToast(data.error, "error");
           return;
@@ -1225,14 +1232,20 @@
       }).catch((err) => console.error(err));
     };
     const removeFromCart = (itemId) => {
-      fetch(API + "/api/cart/" + itemId + "?session_id=" + encodeURIComponent(sessionId.current), { method: "DELETE" }).then((r) => r.json()).then(() => setCart((prev) => prev.filter((i) => i.id !== itemId))).catch((err) => console.error(err));
+      fetch(API + "/api/cart/" + itemId + "?session_id=" + encodeURIComponent(sessionId.current), { method: "DELETE" }).then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }).then(() => setCart((prev) => prev.filter((i) => i.id !== itemId))).catch((err) => console.error(err));
     };
     const updateCartItem = (itemId, updates) => {
       fetch(API + "/api/cart/" + itemId, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...updates, session_id: sessionId.current })
-      }).then((r) => r.json()).then((data) => {
+      }).then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }).then((data) => {
         if (data.item) setCart((prev) => prev.map((i) => i.id === itemId ? data.item : i));
       }).catch((err) => console.error(err));
     };
@@ -1301,7 +1314,10 @@
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Customer-Token": token },
           body: JSON.stringify({ sku_ids: localWishlist })
-        }).then((r) => r.json()).then((data) => {
+        }).then((r) => {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        }).then((data) => {
           if (data.sku_ids) {
             setWishlist(data.sku_ids);
             localStorage.setItem("wishlist", JSON.stringify(data.sku_ids));
@@ -1309,7 +1325,10 @@
         }).catch(() => {
         });
       } else {
-        fetch(API + "/api/wishlist", { headers: { "X-Customer-Token": token } }).then((r) => r.json()).then((data) => {
+        fetch(API + "/api/wishlist", { headers: { "X-Customer-Token": token } }).then((r) => {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        }).then((data) => {
           if (data.sku_ids) {
             setWishlist(data.sku_ids);
             localStorage.setItem("wishlist", JSON.stringify(data.sku_ids));
@@ -1996,6 +2015,8 @@
         goCheckout,
         deliveryMethod,
         setDeliveryMethod,
+        liftgateEnabled,
+        setLiftgateEnabled,
         sessionId: sessionId.current,
         appliedPromoCode,
         setAppliedPromoCode,
@@ -2009,6 +2030,7 @@
         goCart,
         handleOrderComplete,
         deliveryMethod,
+        liftgateEnabled,
         tradeCustomer,
         tradeToken,
         customer,
@@ -4382,13 +4404,12 @@
       "\u2605"
     ))), /* @__PURE__ */ React.createElement("input", { type: "text", placeholder: "Review title (optional)", value: reviewTitle, onChange: (e) => setReviewTitle(e.target.value), maxLength: 200 }), /* @__PURE__ */ React.createElement("textarea", { placeholder: "Share your experience with this product...", value: reviewBody, onChange: (e) => setReviewBody(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: handleReviewSubmit, disabled: reviewSubmitting || reviewRating < 1 }, reviewSubmitting ? "Submitting..." : reviewSubmitted ? "Update Review" : "Submit Review")) : /* @__PURE__ */ React.createElement("p", { className: "review-login-prompt" }, /* @__PURE__ */ React.createElement("a", { onClick: onShowAuth }, "Sign in"), " to write a review"))));
   }
-  function CartPage({ cart, goBrowse, removeFromCart, updateCartItem, goCheckout, deliveryMethod, setDeliveryMethod, sessionId, appliedPromoCode, setAppliedPromoCode, goHome }) {
+  function CartPage({ cart, goBrowse, removeFromCart, updateCartItem, goCheckout, deliveryMethod, setDeliveryMethod, liftgateEnabled, setLiftgateEnabled, sessionId, appliedPromoCode, setAppliedPromoCode, goHome }) {
     const [shippingZip, setShippingZip] = useState("");
     const [shippingEstimate, setShippingEstimate] = useState(null);
     const [shippingLoading, setShippingLoading] = useState(false);
     const [shippingError, setShippingError] = useState("");
     const [selectedShippingOption, setSelectedShippingOption] = useState(null);
-    const [liftgateEnabled, setLiftgateEnabled] = useState(true);
     const [promoCode, setPromoCode] = useState(appliedPromoCode || "");
     const [promoResult, setPromoResult] = useState(null);
     const [promoLoading, setPromoLoading] = useState(false);
@@ -4601,7 +4622,10 @@
       promoLoading ? "..." : "Apply"
     )), promoError && /* @__PURE__ */ React.createElement("div", { style: { color: "#dc2626", fontSize: "0.75rem", marginTop: "0.3rem" } }, promoError))), /* @__PURE__ */ React.createElement("div", { className: "order-summary-total" }, /* @__PURE__ */ React.createElement("span", null, selectedShippingOption ? "Estimated Total" : "Subtotal"), /* @__PURE__ */ React.createElement("span", null, "$", cartTotal.toFixed(2))), /* @__PURE__ */ React.createElement("button", { className: "btn", style: { width: "100%", marginTop: "1rem" }, onClick: goCheckout }, "Proceed to Checkout"))));
   }
-  function CheckoutPage({ cart, sessionId, goCart, handleOrderComplete, deliveryMethod, tradeCustomer, tradeToken, customer, customerToken, onCustomerLogin, appliedPromoCode, setAppliedPromoCode }) {
+  function CheckoutPage({ cart, sessionId, goCart, handleOrderComplete, deliveryMethod, liftgateEnabled, tradeCustomer, tradeToken, customer, customerToken, onCustomerLogin, appliedPromoCode, setAppliedPromoCode }) {
+    if (!cart || cart.length === 0) {
+      return /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "4rem 1rem" } }, /* @__PURE__ */ React.createElement("h2", null, "Your cart is empty"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", margin: "1rem 0" } }, "Add items to your cart before checking out."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goCart }, "Go to Cart"));
+    }
     const [customerName, setCustomerName] = useState(tradeCustomer ? tradeCustomer.contact_name : customer ? customer.first_name + " " + customer.last_name : "");
     const [customerEmail, setCustomerEmail] = useState(tradeCustomer ? tradeCustomer.email : customer ? customer.email : "");
     const [phone, setPhone] = useState(customer ? customer.phone || "" : "");
@@ -4633,7 +4657,7 @@
     const cartTotal = productSubtotal + sampleShipping + taxEstimate.amount;
     const US_STATES = ["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC"];
     useEffect(() => {
-      if (cardMounted.current) return;
+      if (cardMounted.current || !stripeInstance) return;
       const elements = stripeInstance.elements();
       const card = elements.create("card", {
         style: { base: { fontFamily: "'Inter', sans-serif", fontSize: "15px", color: "#292524", "::placeholder": { color: "#57534e" } } }
@@ -4701,7 +4725,7 @@
           if (!isPickup) {
             piBody.destination = { zip, city, state };
             piBody.residential = true;
-            piBody.liftgate = true;
+            piBody.liftgate = liftgateEnabled;
           }
           const piRes = await fetch(API + "/api/checkout/create-payment-intent", {
             method: "POST",
@@ -4744,7 +4768,7 @@
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
             residential: true,
-            liftgate: true
+            liftgate: liftgateEnabled
           };
           const orderHeaders = { "Content-Type": "application/json" };
           if (tradeToken) orderHeaders["X-Trade-Token"] = tradeToken;
@@ -4783,7 +4807,7 @@
         if (!isPickup) {
           piBody.destination = { zip, city, state };
           piBody.residential = true;
-          piBody.liftgate = true;
+          piBody.liftgate = liftgateEnabled;
         }
         const piRes = await fetch(API + "/api/checkout/create-payment-intent", {
           method: "POST",
@@ -4814,7 +4838,7 @@
           delivery_method: deliveryMethod,
           shipping: isPickup ? null : { line1, line2, city, state, zip },
           residential: true,
-          liftgate: true,
+          liftgate: liftgateEnabled,
           create_account: createAccount || void 0,
           account_password: createAccount ? accountPassword : void 0
         };
@@ -4902,6 +4926,7 @@
       taxDebounce.current = setTimeout(async () => {
         try {
           const resp = await fetch(API + "/api/cart/tax-estimate?zip=" + encodeURIComponent(taxZip) + "&session_id=" + encodeURIComponent(sessionId));
+          if (!resp.ok) throw new Error("HTTP " + resp.status);
           const data = await resp.json();
           setTaxEstimate({ rate: data.rate || 0, amount: data.amount || 0 });
         } catch (e) {
@@ -4992,7 +5017,7 @@
           delivery_method: deliveryMethod,
           shipping: isPickup ? null : { line1, line2, city, state, zip },
           residential: true,
-          liftgate: true,
+          liftgate: liftgateEnabled,
           create_account: createAccount || void 0,
           account_password: createAccount ? accountPassword : void 0
         };
@@ -5840,7 +5865,10 @@
     const [collections, setCollections] = useState([]);
     const [loading, setLoading] = useState(true);
     useEffect(() => {
-      fetch(API + "/api/collections").then((r) => r.json()).then((data) => {
+      fetch(API + "/api/collections").then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }).then((data) => {
         setCollections(data.collections || []);
         setLoading(false);
       }).catch(() => setLoading(false));
@@ -6214,6 +6242,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password })
         });
+        if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
         if (data.error) {
           setError(data.error);
@@ -6236,6 +6265,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName })
         });
+        if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
         if (data.error) {
           setError(data.error);
@@ -6259,6 +6289,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email })
         });
+        if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
         if (data.error) {
           setError(data.error);
@@ -6277,7 +6308,7 @@
       setError("");
       setSuccess("");
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("button", { className: "modal-close", onClick: onClose }, "\xD7"), /* @__PURE__ */ React.createElement("h2", null, mode === "login" ? "Sign In" : mode === "register" ? "Create Account" : "Reset Password"), mode === "forgot" ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.875rem", color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Enter your email and we'll send you a link to reset your password."), /* @__PURE__ */ React.createElement("form", { onSubmit: handleForgotPassword }, error && /* @__PURE__ */ React.createElement("div", { className: "checkout-error" }, error), success && /* @__PURE__ */ React.createElement("div", { style: { padding: "0.75rem 1rem", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 4, fontSize: "0.875rem", color: "#166534", marginBottom: "1rem" } }, success), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Email"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "email", value: email, onChange: (e) => setEmail(e.target.value), required: true })), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn", style: { width: "100%" }, disabled: loading || !!success }, loading ? "..." : "Send Reset Link")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: "1.5rem", fontSize: "0.875rem" } }, /* @__PURE__ */ React.createElement("a", { onClick: () => switchMode("login"), style: { color: "var(--gold)", cursor: "pointer" } }, "Back to Sign In"))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("form", { onSubmit: mode === "login" ? handleLogin : handleRegister }, error && /* @__PURE__ */ React.createElement("div", { className: "checkout-error" }, error), mode === "register" && /* @__PURE__ */ React.createElement("div", { className: "checkout-row" }, /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "First Name"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: firstName, onChange: (e) => setFirstName(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Last Name"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: lastName, onChange: (e) => setLastName(e.target.value) }))), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Email"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "email", value: email, onChange: (e) => setEmail(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Password"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "password", value: password, onChange: (e) => setPassword(e.target.value) })), mode === "login" && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("a", { onClick: () => switchMode("forgot"), style: { fontSize: "0.8125rem", color: "var(--gold)", cursor: "pointer" } }, "Forgot password?")), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn", style: { width: "100%" }, disabled: loading }, loading ? "..." : mode === "login" ? "Sign In" : "Create Account")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: "1.5rem", fontSize: "0.875rem" } }, mode === "login" ? /* @__PURE__ */ React.createElement("span", null, "No account? ", /* @__PURE__ */ React.createElement("a", { onClick: () => switchMode("register"), style: { color: "var(--gold)", cursor: "pointer" } }, "Create one")) : /* @__PURE__ */ React.createElement("span", null, "Have an account? ", /* @__PURE__ */ React.createElement("a", { onClick: () => switchMode("login"), style: { color: "var(--gold)", cursor: "pointer" } }, "Sign in"))))));
+    return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("button", { className: "modal-close", onClick: onClose }, "\xD7"), /* @__PURE__ */ React.createElement("h2", null, mode === "login" ? "Sign In" : mode === "register" ? "Create Account" : "Reset Password"), mode === "forgot" ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.875rem", color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Enter your email and we'll send you a link to reset your password."), /* @__PURE__ */ React.createElement("form", { onSubmit: handleForgotPassword }, error && /* @__PURE__ */ React.createElement("div", { className: "checkout-error" }, error), success && /* @__PURE__ */ React.createElement("div", { style: { padding: "0.75rem 1rem", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 4, fontSize: "0.875rem", color: "#166534", marginBottom: "1rem" } }, success), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Email"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "email", value: email, onChange: (e) => setEmail(e.target.value), required: true })), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn", style: { width: "100%" }, disabled: loading || !!success }, loading ? "..." : "Send Reset Link")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: "1.5rem", fontSize: "0.875rem" } }, /* @__PURE__ */ React.createElement("a", { onClick: () => switchMode("login"), style: { color: "var(--gold)", cursor: "pointer" } }, "Back to Sign In"))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("form", { onSubmit: mode === "login" ? handleLogin : handleRegister }, error && /* @__PURE__ */ React.createElement("div", { className: "checkout-error" }, error), mode === "register" && /* @__PURE__ */ React.createElement("div", { className: "checkout-row" }, /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "First Name"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: firstName, onChange: (e) => setFirstName(e.target.value), required: true })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Last Name"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: lastName, onChange: (e) => setLastName(e.target.value), required: true }))), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Email"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "email", value: email, onChange: (e) => setEmail(e.target.value), required: true })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Password"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "password", value: password, onChange: (e) => setPassword(e.target.value), required: true })), mode === "login" && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("a", { onClick: () => switchMode("forgot"), style: { fontSize: "0.8125rem", color: "var(--gold)", cursor: "pointer" } }, "Forgot password?")), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn", style: { width: "100%" }, disabled: loading }, loading ? "..." : mode === "login" ? "Sign In" : "Create Account")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: "1.5rem", fontSize: "0.875rem" } }, mode === "login" ? /* @__PURE__ */ React.createElement("span", null, "No account? ", /* @__PURE__ */ React.createElement("a", { onClick: () => switchMode("register"), style: { color: "var(--gold)", cursor: "pointer" } }, "Create one")) : /* @__PURE__ */ React.createElement("span", null, "Have an account? ", /* @__PURE__ */ React.createElement("a", { onClick: () => switchMode("login"), style: { color: "var(--gold)", cursor: "pointer" } }, "Sign in"))))));
   }
   function InstallationModal({ onClose, product }) {
     const [name, setName] = useState("");
