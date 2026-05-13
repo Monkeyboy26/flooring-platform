@@ -95,6 +95,11 @@
       if (isSoldPerSqyd(sku)) return '/sqyd';
       return '/sqft';
     }
+    // Customer-facing list price: cut_price for carpet (per sqyd), retail_price otherwise
+    function skuListPrice(sku) {
+      if (!sku) return 0;
+      return isCarpet(sku) ? sku.cut_price : sku.retail_price;
+    }
     // Slab pricing: when price is stored per sqft but sold per piece, compute piece price
     function displayPrice(sku, rawPrice) {
       const price = parseFloat(rawPrice || 0);
@@ -122,6 +127,16 @@
           // Stops before version segment (v1/, v2/) or asset path
           return url.replace(/\/upload\/(?:[a-z]_[^/]+\/)*/, `/upload/w_${width},f_auto,q_80/`);
         }
+        // Salsify: images.salsify.com — Cloudinary-backed, insert transforms after signature
+        if (url.includes('images.salsify.com') && url.includes('/upload/')) {
+          return url.replace(/\/upload\/(s--[A-Za-z0-9_-]+--\/)/, `/upload/$1w_${width},f_auto,q_80/`);
+        }
+        // Wix static: static.wixstatic.com
+        if (url.includes('static.wixstatic.com/media/')) {
+          // Append /v1/fill/w_{w},h_{w},al_c,q_80/image.jpg to get a resized version
+          const base = url.split('?')[0]; // strip any existing query params
+          return `${base}/v1/fill/w_${width},h_${width},al_c,q_80/image.jpg`;
+        }
         // Widen: *.widen.net
         if (url.includes('.widen.net')) {
           const u = new URL(url);
@@ -132,7 +147,7 @@
         // All other vendor domains: route through our resize proxy for
         // webp conversion, right-sizing, and nginx edge caching.
         const PROXY_DOMAINS = [
-          'cdn.msisurfaces.com', 'images.salsify.com', 'elysiumtile.com',
+          'cdn.msisurfaces.com', 'elysiumtile.com',
           'melangetile.com', 'ragnousa.com', 'onetile.us', 'energieker.it',
           'emilgroup.it', 'platformsurfaces.com', 'lafabbrica.it',
           'cercomceramiche.it', 'supergres.com', 'onetile.it',
@@ -159,7 +174,7 @@
     const RECENT_SEARCHES_KEY = 'roma_recent_searches';
     const MAX_RECENT_SEARCHES = 6;
     function getRecentSearches() {
-      try { return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || '[]'); } catch { return []; }
+      try { return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || '[]'); } catch(e) { return []; }
     }
     function addRecentSearch(term) {
       if (!term || term.length < 2) return;
@@ -177,7 +192,7 @@
         const parts = String(text).split(regex);
         if (parts.length === 1) return text;
         return parts.map((part, i) => regex.test(part) ? React.createElement('mark', { key: i, className: 'search-highlight' }, part) : part);
-      } catch { return text; }
+      } catch(e) { return text; }
     }
 
     // ==================== Mega Menu Data Maps ====================
@@ -511,6 +526,13 @@
       const m = name.match(ROMAN_REGEX);
       return (m && ROMAN_VAL[m[1]]) || 0;
     }
+    function romanPillLabel(name) {
+      if (!name) return name;
+      const m = name.match(ROMAN_REGEX);
+      if (!m) return name;
+      // Return everything from the roman numeral onward (e.g. "II 12", "III", "IV 15")
+      return name.substring(m.index).trim();
+    }
 
     const _CATEGORY_SUFFIX_MAP = {
       'engineered hardwood':'Engineered Hardwood','solid hardwood':'Solid Hardwood',
@@ -574,10 +596,17 @@
       // after variant/size info (avoids "Acqua Ceramic Tile 24x24" → want "Acqua 24x24 Ceramic Tile")
       name = stripTypeSuffix(name, sku.category_name);
 
+      // Vendors that use collection as a browsing taxonomy (not a product-line prefix)
+      // e.g. Bellezza's "Marble Look", "Concrete & Industrial" are grouping concepts, not product names
+      const TAXONOMY_COLLECTION_VENDORS = new Set(['BELLEZZA']);
+      const TAXONOMY_COLLECTION_VENDOR_NAMES = new Set(['BELLEZZA CERAMICA']);
+      const skipCollectionInTitle = TAXONOMY_COLLECTION_VENDORS.has((sku.vendor_code || '').toUpperCase())
+        || TAXONOMY_COLLECTION_VENDOR_NAMES.has((sku.vendor_name || '').toUpperCase());
+
       // If collection name appears inside product name, remove it to avoid repetition
       // e.g. name="Marble Onice Supreme Marfil", col="Onice Supreme" → "Marble Marfil"
       let showCollection = '';
-      if (col && name) {
+      if (col && name && !skipCollectionInTitle) {
         const colLower = col.toLowerCase();
         const nameLower = name.toLowerCase();
         if (colLower === nameLower) {
@@ -672,7 +701,17 @@
         const variantIsColor = colorAttr && variant && variant.toLowerCase() === formatVariantName(colorAttr.value).toLowerCase();
         const variantIsEmpty = !variant && colorAttr && rawName.toLowerCase().includes(colorAttr.value.toLowerCase());
         if (variantIsColor || variantIsEmpty) {
-          const sizeAttr = (sku.attributes || []).find(a => a.slug === 'size');
+          const rawSizeAttr = sku.sell_by !== 'sqyd' ? (sku.attributes || []).find(a => a.slug === 'size') : null;
+          // Skip roll dimensions (e.g. "12x150FT"), plank dimensions with decimals (e.g. "4.96x48.04", "9.06 Wide"),
+          // and simple width values (e.g. "5 in", "7 in") — the product name already carries the width
+          const rawSizeVal = rawSizeAttr ? (rawSizeAttr.value || '').trim() : '';
+          const sizeAttr = rawSizeAttr && (
+            /^\d+\s*[xX×]\s*\d+\s*ft$/i.test(rawSizeVal) ||
+            /^\d+\.\d+\s*[xX×]\s*\d+\.\d+$/.test(rawSizeVal) ||
+            /^\d+\.\d+\s+Wide$/i.test(rawSizeVal) ||
+            /^\d+\s+in$/i.test(rawSizeVal) ||
+            /^\d+\u2033$/.test(rawSizeVal)
+          ) ? null : rawSizeAttr;
           const patternAttr = (sku.attributes || []).find(a => a.slug === 'pattern');
           const finishAttr = (sku.attributes || []).find(a => a.slug === 'finish');
           const nameLowerDedup = name.toLowerCase();
@@ -715,7 +754,24 @@
           productLine = plAttr.value;
         }
       }
-      const result = [showCollection, productLine, name, variant].filter(Boolean).join(' ');
+      // Include brand at beginning (e.g., "Dream Weaver Astounding Amberwood I Carpet")
+      // Skip if brand duplicates collection, product name, or vendor name
+      let brand = '';
+      const brandAttr = (sku.attributes || []).find(a => a.slug === 'brand');
+      if (brandAttr && brandAttr.value) {
+        const bLower = brandAttr.value.toLowerCase();
+        const colLower2 = (showCollection || '').toLowerCase();
+        const nameLower2 = name.toLowerCase();
+        const vendorLower = (sku.vendor_name || '').toLowerCase();
+        if (bLower !== colLower2 && bLower !== nameLower2 && bLower !== vendorLower
+            && !nameLower2.includes(bLower) && !colLower2.includes(bLower)) {
+          brand = brandAttr.value;
+        }
+      }
+      // Append sub_line Roman numeral after color (e.g., "Astounding Amberwood III Carpet")
+      const subLineAttr = (sku.attributes || []).find(a => a.slug === 'sub_line');
+      const subLineNumeral = subLineAttr && /^I{1,3}$/.test(subLineAttr.value) ? subLineAttr.value : null;
+      const result = [brand, showCollection, productLine, name, variant, subLineNumeral].filter(Boolean).join(' ');
       return appendTypeSuffix(result, sku.category_name);
     }
 
@@ -947,17 +1003,17 @@
 
       // Wishlist
       const [wishlist, setWishlist] = useState(() => {
-        try { return JSON.parse(localStorage.getItem('wishlist') || '[]'); } catch { return []; }
+        try { return JSON.parse(localStorage.getItem('wishlist') || '[]'); } catch(e) { return []; }
       });
 
       // Recently viewed
       const [recentlyViewed, setRecentlyViewed] = useState(() => {
-        try { return JSON.parse(localStorage.getItem('recently_viewed') || '[]'); } catch { return []; }
+        try { return JSON.parse(localStorage.getItem('recently_viewed') || '[]'); } catch(e) { return []; }
       });
       const addRecentlyViewed = (skuData) => {
         setRecentlyViewed(prev => {
           const filtered = prev.filter(s => s.sku_id !== skuData.sku_id);
-          const updated = [{ sku_id: skuData.sku_id, product_name: skuData.product_name, variant_name: skuData.variant_name, primary_image: skuData.primary_image, retail_price: skuData.retail_price, price_basis: skuData.price_basis, sell_by: skuData.sell_by, sqft_per_box: skuData.sqft_per_box }, ...filtered].slice(0, 12);
+          const updated = [{ sku_id: skuData.sku_id, product_name: skuData.product_name, variant_name: skuData.variant_name, primary_image: skuData.primary_image, retail_price: skuData.retail_price, cut_price: skuData.cut_price, price_basis: skuData.price_basis, sell_by: skuData.sell_by, sqft_per_box: skuData.sqft_per_box }, ...filtered].slice(0, 12);
           localStorage.setItem('recently_viewed', JSON.stringify(updated));
           return updated;
         });
@@ -975,6 +1031,8 @@
       // ---- Stable refs for popstate handler ----
       const fetchSkusRef = useRef(null);
       const fetchFacetsRef = useRef(null);
+      const fetchSkusAbort = useRef(null);
+      const fetchFacetsAbort = useRef(null);
 
       // ---- Fetch SKUs ----
       const fetchSkus = useCallback((opts = {}) => {
@@ -1002,9 +1060,12 @@
         const tf = tags || [];
         if (tf.length > 0) params.set('tags', tf.join('|'));
 
+        if (fetchSkusAbort.current) fetchSkusAbort.current.abort();
+        const controller = new AbortController();
+        fetchSkusAbort.current = controller;
         setLoadingSkus(true);
-        fetch(API + '/api/storefront/skus?' + params.toString(), { headers: tradeHeaders() })
-          .then(r => r.json())
+        fetch(API + '/api/storefront/skus?' + params.toString(), { headers: tradeHeaders(), signal: controller.signal })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => {
             setSkus(data.skus || []);
             setTotalSkus(data.total || 0);
@@ -1016,7 +1077,7 @@
               requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, pos)));
             }
           })
-          .catch(err => { console.error(err); setLoadingSkus(false); });
+          .catch(err => { if (err.name !== 'AbortError') { console.error(err); setLoadingSkus(false); } });
       }, [selectedCategory, selectedCollection, searchQuery, filters, sortBy, currentPage, vendorFilters, userPriceRange, tagFilters]);
 
       // ---- Fetch Facets ----
@@ -1041,15 +1102,18 @@
         const tf = tags || [];
         if (tf.length > 0) params.set('tags', tf.join('|'));
 
-        fetch(API + '/api/storefront/facets?' + params.toString())
-          .then(r => r.json())
+        if (fetchFacetsAbort.current) fetchFacetsAbort.current.abort();
+        const facetController = new AbortController();
+        fetchFacetsAbort.current = facetController;
+        fetch(API + '/api/storefront/facets?' + params.toString(), { signal: facetController.signal })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => {
             setFacets(data.facets || []);
             setVendorFacets(data.vendors || []);
             setTagFacets(data.tags || []);
             if (data.priceRange) setPriceRange(data.priceRange);
           })
-          .catch(err => console.error(err));
+          .catch(err => { if (err.name !== 'AbortError') console.error(err); });
       }, [selectedCategory, selectedCollection, searchQuery, filters, vendorFilters, userPriceRange, tagFilters]);
 
       // Keep refs up to date so popstate always uses latest versions
@@ -1172,14 +1236,14 @@
       };
 
       // ---- Wishlist ----
-      const toggleWishlist = (productId) => {
-        const isWished = wishlist.includes(productId);
+      const toggleWishlist = (skuId) => {
+        const isWished = wishlist.includes(skuId);
         let updated;
         if (isWished) {
-          updated = wishlist.filter(id => id !== productId);
+          updated = wishlist.filter(id => id !== skuId);
           showToast('Removed from wishlist', 'info');
         } else {
-          updated = [productId, ...wishlist];
+          updated = [skuId, ...wishlist];
           showToast('Added to wishlist', 'success');
         }
         setWishlist(updated);
@@ -1187,12 +1251,12 @@
         const custToken = localStorage.getItem('customer_token');
         if (custToken) {
           if (isWished) {
-            fetch(API + '/api/wishlist/' + productId, { method: 'DELETE', headers: { 'X-Customer-Token': custToken } }).catch(() => {});
+            fetch(API + '/api/wishlist/' + skuId, { method: 'DELETE', headers: { 'X-Customer-Token': custToken } }).catch(() => {});
           } else {
             fetch(API + '/api/wishlist', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'X-Customer-Token': custToken },
-              body: JSON.stringify({ product_id: productId })
+              body: JSON.stringify({ sku_id: skuId })
             }).catch(() => {});
           }
         }
@@ -1204,13 +1268,13 @@
           fetch(API + '/api/wishlist/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Customer-Token': token },
-            body: JSON.stringify({ product_ids: localWishlist })
+            body: JSON.stringify({ sku_ids: localWishlist })
           })
           .then(r => r.json())
           .then(data => {
-            if (data.product_ids) {
-              setWishlist(data.product_ids);
-              localStorage.setItem('wishlist', JSON.stringify(data.product_ids));
+            if (data.sku_ids) {
+              setWishlist(data.sku_ids);
+              localStorage.setItem('wishlist', JSON.stringify(data.sku_ids));
             }
           })
           .catch(() => {});
@@ -1218,9 +1282,9 @@
           fetch(API + '/api/wishlist', { headers: { 'X-Customer-Token': token } })
           .then(r => r.json())
           .then(data => {
-            if (data.product_ids) {
-              setWishlist(data.product_ids);
-              localStorage.setItem('wishlist', JSON.stringify(data.product_ids));
+            if (data.sku_ids) {
+              setWishlist(data.sku_ids);
+              localStorage.setItem('wishlist', JSON.stringify(data.sku_ids));
             }
           })
           .catch(() => {});
@@ -1425,14 +1489,15 @@
       const handleCategorySelect = (slug) => {
         setSelectedCategory(slug);
         setSelectedCollection(null);
+        setSearchQuery('');
         setFilters({});
         setVendorFilters([]);
         setTagFilters([]);
         setUserPriceRange({ min: null, max: null });
         setCurrentPage(1);
-        fetchSkus({ cat: slug, coll: null, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
-        fetchFacets({ cat: slug, coll: null, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
-        pushShopUrl(slug, null, searchQuery, {}, false, [], null, null, []);
+        fetchSkus({ cat: slug, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
+        fetchFacets({ cat: slug, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
+        pushShopUrl(slug, null, '', {}, false, [], null, null, []);
       };
 
       const handleAxisSelect = (attrSlug, value) => {
@@ -2311,7 +2376,7 @@
                           {sku.variant_name && <div className="search-suggestion-variant">{formatCarpetValue(sku.variant_name)}</div>}
                           {tradeCustomer && sku.vendor_sku && <div className="search-suggestion-sku">SKU: {sku.vendor_sku}</div>}
                         </div>
-                        <span className="search-suggestion-price">${displayPrice(sku, sku.retail_price).toFixed(2)}{priceSuffix(sku)}</span>
+                        <span className="search-suggestion-price">${displayPrice(sku, skuListPrice(sku)).toFixed(2)}{priceSuffix(sku)}</span>
                       </div>
                     );
                   })}
@@ -2510,6 +2575,7 @@
       const [media, setMedia] = useState(initialSku.primary_image ? [{ url: initialSku.primary_image, asset_type: 'primary' }] : []);
       const [imgIndex, setImgIndex] = useState(0);
       const [loading, setLoading] = useState(true);
+      const [fetchError, setFetchError] = useState(false);
       const baseMediaRef = useRef(media);
       const isUnit = isSoldPerUnit(activeSku);
 
@@ -2535,10 +2601,11 @@
       useEffect(() => {
         let cancelled = false;
         setLoading(true);
+        setFetchError(false);
         fetch('/api/storefront/skus/' + initialSku.sku_id, { headers: getTradeHeaders() })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => { if (!cancelled) applyDetail(data); })
-          .catch(err => console.error('QuickView fetch error:', err))
+          .catch(err => { console.error('QuickView fetch error:', err); if (!cancelled) setFetchError(true); })
           .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
       }, [initialSku.sku_id]);
@@ -2548,7 +2615,7 @@
         const handleKey = (e) => {
           if (e.key === 'Escape') onClose();
           else if (e.key === 'ArrowLeft') setImgIndex(i => Math.max(0, i - 1));
-          else if (e.key === 'ArrowRight') setImgIndex(i => Math.min(i + 1, media.length - 1));
+          else if (e.key === 'ArrowRight') setImgIndex(i => media.length > 0 ? Math.min(i + 1, media.length - 1) : 0);
         };
         document.addEventListener('keydown', handleKey);
         document.body.style.overflow = 'hidden';
@@ -2574,7 +2641,7 @@
 
       const handleVariantClick = (sib) => {
         // Immediately show sibling image, then fetch full detail
-        setActiveSku(prev => ({ ...prev, sku_id: sib.sku_id, variant_name: sib.variant_name, retail_price: sib.retail_price, primary_image: sib.primary_image, sell_by: sib.sell_by, price_basis: sib.price_basis, sqft_per_box: sib.sqft_per_box }));
+        setActiveSku(prev => ({ ...prev, sku_id: sib.sku_id, variant_name: sib.variant_name, retail_price: sib.retail_price, cut_price: sib.cut_price, primary_image: sib.primary_image, sell_by: sib.sell_by, price_basis: sib.price_basis, sqft_per_box: sib.sqft_per_box }));
         fetch('/api/storefront/skus/' + sib.sku_id, { headers: getTradeHeaders() })
           .then(r => r.json())
           .then(data => applyDetail(data));
@@ -2586,6 +2653,12 @@
         <div className="quick-view-overlay" onClick={onClose}>
           <div className="quick-view" onClick={e => e.stopPropagation()}>
             <button className="quick-view-close" onClick={onClose}>&times;</button>
+            {fetchError ? (
+              <div style={{ padding: '3rem 2rem', textAlign: 'center', gridColumn: '1 / -1' }}>
+                <p style={{ color: 'var(--stone-600)', marginBottom: '1rem' }}>Unable to load product details.</p>
+                <button className="btn btn-outline" onClick={onClose}>Close</button>
+              </div>
+            ) : <>
             <div className="quick-view-gallery">
               <div className="quick-view-main-image">
                 {media.length > 1 && (
@@ -2630,22 +2703,22 @@
             <div className="quick-view-info">
               <h2>{fullProductName(activeSku)}</h2>
               <div className="price">
-                {activeSku.trade_price && activeSku.retail_price && (
+                {activeSku.trade_price && skuListPrice(activeSku) && (
                   <span style={{ textDecoration: 'line-through', color: 'var(--stone-500)', fontSize: '1rem', marginRight: '0.5rem' }}>
-                    ${displayPrice(activeSku, activeSku.retail_price).toFixed(2)}
+                    ${displayPrice(activeSku, skuListPrice(activeSku)).toFixed(2)}
                   </span>
                 )}
-                {!activeSku.trade_price && activeSku.sale_price && activeSku.retail_price && (
+                {!activeSku.trade_price && activeSku.sale_price && skuListPrice(activeSku) && (
                   <span className="sale-original-price">
-                    ${displayPrice(activeSku, activeSku.retail_price).toFixed(2)}
+                    ${displayPrice(activeSku, skuListPrice(activeSku)).toFixed(2)}
                   </span>
                 )}
                 <span className={!activeSku.trade_price && activeSku.sale_price ? 'sale-price-text' : ''}>
-                  ${displayPrice(activeSku, activeSku.trade_price || activeSku.sale_price || activeSku.retail_price || 0).toFixed(2)}
+                  ${displayPrice(activeSku, activeSku.trade_price || activeSku.sale_price || skuListPrice(activeSku) || 0).toFixed(2)}
                 </span>
                 <span>{priceSuffix(activeSku)}</span>
-                {!activeSku.trade_price && activeSku.sale_price && activeSku.retail_price && (
-                  <span className="sale-discount-tag">{Math.round((1 - parseFloat(activeSku.sale_price) / parseFloat(activeSku.retail_price)) * 100)}% off</span>
+                {!activeSku.trade_price && activeSku.sale_price && parseFloat(skuListPrice(activeSku)) > 0 && (
+                  <span className="sale-discount-tag">{Math.round((1 - parseFloat(activeSku.sale_price) / parseFloat(skuListPrice(activeSku))) * 100)}% off</span>
                 )}
               </div>
               {activeSku.description_short && (
@@ -2667,6 +2740,7 @@
                 <button className="btn btn-secondary" onClick={() => onViewDetail(activeSku.sku_id, activeSku.product_name)}>View Full Details</button>
               </div>
             </div>
+            </>}
           </div>
         </div>
       );
@@ -2774,7 +2848,7 @@
             const res = await fetch(API + '/api/storefront/search/suggest?q=' + encodeURIComponent(query));
             const data = await res.json();
             setSuggestData(data);
-          } catch { setSuggestData({ categories: [], collections: [], products: [], total: 0 }); }
+          } catch(e) { setSuggestData({ categories: [], collections: [], products: [], total: 0 }); }
           setLoading(false);
         }, 250);
       }, [query]);
@@ -2887,7 +2961,7 @@
                       <div>
                         <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{highlightMatch(fullProductName(sku), query)}</div>
                         {sku.vendor_name && <div className="search-suggestion-vendor">{sku.vendor_name}</div>}
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>${displayPrice(sku, sku.retail_price).toFixed(2)}{priceSuffix(sku)}</div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>${displayPrice(sku, skuListPrice(sku)).toFixed(2)}{priceSuffix(sku)}</div>
                       </div>
                     </div>
                   ))}
@@ -3836,8 +3910,8 @@
         <div className="sku-grid">
           {skus.map((sku, idx) => (
             <SkuCard key={sku.sku_id} sku={sku} index={idx} onClick={() => onSkuClick(sku.sku_id, sku.product_name || sku.collection)}
-              isWished={wishlist.includes(sku.product_id)}
-              onToggleWishlist={() => toggleWishlist(sku.product_id)}
+              isWished={wishlist.includes(sku.sku_id)}
+              onToggleWishlist={() => toggleWishlist(sku.sku_id)}
               onQuickView={setQuickViewSku ? () => setQuickViewSku(sku) : null} />
           ))}
         </div>
@@ -3873,8 +3947,9 @@
     function SkuCard({ sku, onClick, isWished, onToggleWishlist, onQuickView, index }) {
       const isAboveFold = index != null && index < 8;
       const onSale = sku.sale_price != null && !sku.trade_price;
-      const price = sku.trade_price || (onSale ? sku.sale_price : sku.retail_price);
-      const discountPct = onSale && sku.retail_price ? Math.round((1 - parseFloat(sku.sale_price) / parseFloat(sku.retail_price)) * 100) : 0;
+      const basePrice = isCarpet(sku) ? sku.cut_price : sku.retail_price;
+      const price = sku.trade_price || (onSale ? sku.sale_price : basePrice);
+      const discountPct = onSale && parseFloat(basePrice) > 0 ? Math.round((1 - parseFloat(sku.sale_price) / parseFloat(basePrice)) * 100) : 0;
       return (
         <div className="sku-card" onClick={onClick} data-sku={sku.vendor_sku || sku.internal_sku}>
           <button className={'wishlist-heart' + (isWished ? ' active' : '')}
@@ -3899,14 +3974,14 @@
           <div className="sku-card-price">
             {price ? (
               <>
-                {sku.trade_price && sku.retail_price && (
+                {sku.trade_price && basePrice && (
                   <span style={{ textDecoration: 'line-through', color: 'var(--stone-500)', fontSize: '0.875rem', marginRight: '0.5rem' }}>
-                    ${displayPrice(sku, sku.retail_price).toFixed(2)}
+                    ${displayPrice(sku, basePrice).toFixed(2)}
                   </span>
                 )}
                 {onSale && (
                   <span className="sale-original-price">
-                    ${displayPrice(sku, sku.retail_price).toFixed(2)}
+                    ${displayPrice(sku, basePrice).toFixed(2)}
                   </span>
                 )}
                 <span className={onSale ? 'sale-price-text' : ''}>
@@ -4000,7 +4075,7 @@
             setProductTags(data.tags || []);
             setLoading(false);
             if (data.sku && addRecentlyViewed) {
-              addRecentlyViewed({ sku_id: data.sku.sku_id, product_name: data.sku.product_name, variant_name: data.sku.variant_name, primary_image: (data.media && data.media[0]) ? data.media[0].url : null, retail_price: data.sku.retail_price, price_basis: data.sku.price_basis, sell_by: data.sku.sell_by, sqft_per_box: data.sku.sqft_per_box });
+              addRecentlyViewed({ sku_id: data.sku.sku_id, product_name: data.sku.product_name, variant_name: data.sku.variant_name, primary_image: (data.media && data.media[0]) ? data.media[0].url : null, retail_price: data.sku.retail_price, cut_price: data.sku.cut_price, price_basis: data.sku.price_basis, sell_by: data.sku.sell_by, sqft_per_box: data.sku.sqft_per_box });
             }
             if (data.sku) {
               const skuTitle = fullProductName(data.sku) + ' | Roma Flooring Designs';
@@ -4057,7 +4132,7 @@
           brand: { '@type': 'Brand', name: sku.vendor_name || 'Roma Flooring Designs' },
           category: sku.category_name || '',
           offers: { '@type': 'Offer', url: SITE_URL + '/shop/sku/' + skuId, priceCurrency: 'USD',
-            price: displayPrice(sku, sku.sale_price || sku.retail_price).toFixed(2),
+            price: displayPrice(sku, sku.sale_price || skuListPrice(sku)).toFixed(2),
             availability: sku.stock_status === 'in_stock' ? 'https://schema.org/InStock' : 'https://schema.org/PreOrder',
             seller: { '@type': 'Organization', name: 'Roma Flooring Designs' } }
         };
@@ -4077,7 +4152,7 @@
 
       // Sync sqft <-> boxes
       const sqftPerBox = sku ? parseFloat(sku.sqft_per_box) || 0 : 0;
-      const retailPrice = sku ? displayPrice(sku, sku.retail_price) : 0;
+      const retailPrice = sku ? displayPrice(sku, skuListPrice(sku)) : 0;
       const salePrice = sku && sku.sale_price ? displayPrice(sku, sku.sale_price) : null;
       const tradePrice = sku && sku.trade_price ? displayPrice(sku, sku.trade_price) : null;
       const isCarpetSku = sku && isCarpet(sku);
@@ -4327,7 +4402,7 @@
                       {rv.primary_image && <img src={optimizeImg(rv.primary_image, 400)} alt={rv.product_name} loading="lazy" />}
                     </div>
                     <div className="sibling-card-name">{fullProductName(rv)}</div>
-                    {rv.retail_price && <div className="sibling-card-price">${displayPrice(rv, rv.retail_price).toFixed(2)}{priceSuffix(rv)}</div>}
+                    {skuListPrice(rv) && <div className="sibling-card-price">${displayPrice(rv, skuListPrice(rv)).toFixed(2)}{priceSuffix(rv)}</div>}
                   </div>
                 ))}
               </div>
@@ -4371,7 +4446,7 @@
       );
       if (!sku) return <div style={{ textAlign: 'center', padding: '6rem', color: 'var(--stone-600)' }}>SKU not found</div>;
 
-      const images = media.filter(m => m.asset_type !== 'spec_pdf');
+      const images = media.filter(m => m.asset_type === 'primary' || m.asset_type === 'alternate' || m.asset_type === 'swatch' || m.asset_type === 'lifestyle');
       const specPdfs = media.filter(m => m.asset_type === 'spec_pdf');
       const mainImage = images[selectedImage] || images[0];
 
@@ -4379,7 +4454,7 @@
       const mainSiblings = siblings;
 
       // Per-SKU accessories come directly from the server (sku_accessories table)
-      const accessorySiblings = skuAccessories;
+      const accessorySiblings = groupedProducts.length > 0 ? [] : skuAccessories;
 
       // ADEX products use a 3-row variant selector (Color / Finish / Type) + grouped collection siblings
       const isAdexProduct = /adex/i.test(sku.vendor_name || '');
@@ -4558,7 +4633,7 @@
                       ${salePrice.toFixed(2)}
                     </span>
                     <span>{priceSuffix(sku)}</span>
-                    <span className="sale-discount-tag">{Math.round((1 - salePrice / retailPrice) * 100)}% off</span>
+                    {retailPrice > 0 && <span className="sale-discount-tag">{Math.round((1 - salePrice / retailPrice) * 100)}% off</span>}
                   </>
                 ) : retailPrice > 0 ? (
                   <>${retailPrice.toFixed(2)}<span>{priceSuffix(sku)}</span></>
@@ -4742,7 +4817,7 @@
                                           {(s.shape_image || s.primary_image) && <img src={optimizeImg(s.shape_image || s.primary_image, 120)} alt={displayName(s)} loading="lazy" decoding="async" />}
                                         </div>
                                         <div className="sibling-card-name">{displayName(s)}</div>
-                                        {s.retail_price && <div className="sibling-card-price">${displayPrice(s, s.retail_price).toFixed(2)}{priceSuffix(s)}</div>}
+                                        {skuListPrice(s) && <div className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</div>}
                                       </div>
                                     ))}
                                   </div>
@@ -4828,10 +4903,66 @@
                   colorItems = [...byColor.values()].sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''));
                 }
 
+                // Size pills from collection siblings (vanities where sizes are separate products)
+                // Computed BEFORE the merge so we can skip merging sizes into colorItems
+                let collectionSizeItems = [];
+                if (collectionSiblings.length > 0) {
+                  const extractSize = (name) => { const m = (name || '').match(/\b(\d+\.?\d*)\s*["″]?\s*/); return m ? m[1] : null; };
+                  const curSz = extractSize(sku.product_name);
+                  if (curSz) {
+                    const sizeMap = new Map();
+                    sizeMap.set(curSz, { label: curSz + '"', sku_id: sku.sku_id, is_current: true, sort: parseFloat(curSz), primary_image: media && media[0] ? media[0].url : null });
+                    collectionSiblings.forEach(s => {
+                      const sz = extractSize(s.product_name);
+                      if (sz && !sizeMap.has(sz)) {
+                        sizeMap.set(sz, { label: sz + '"', sku_id: s.sku_id, is_current: false, sort: parseFloat(sz), primary_image: s.primary_image || null });
+                      }
+                    });
+                    if (sizeMap.size > 1) {
+                      collectionSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
+                    }
+                  }
+                }
+                const showSizePills = collectionSizeItems.length > 0;
+
+                // Width-based size + color from same-product siblings (mirrors, bath accessories)
+                let sibSizeItems = [];
+                if (mainSiblings.length > 0 && !showSizePills) {
+                  const _getWidth = (attrs, vn) => { const wa = (attrs || []).find(a => a.slug === 'width'); if (wa) return parseFloat(wa.value); const m = (vn || '').match(/\b(\d+\.?\d*)\s*["″]/); return m ? parseFloat(m[1]) : null; };
+                  const _extractColor = (attrs, vn) => { const idx = (vn || '').lastIndexOf(','); if (idx > 0) return vn.substring(idx + 1).trim(); const ca = (attrs || []).find(a => a.slug === 'color'); if (ca) return ca.value; return null; };
+                  const curW = _getWidth(sku.attributes, sku.variant_name);
+                  const curC = _extractColor(sku.attributes, sku.variant_name);
+                  const dimItems = [{ sku_id: sku.sku_id, w: curW, c: curC, img: media && media[0] ? media[0].url : null, is_current: true }];
+                  mainSiblings.forEach(s => { dimItems.push({ sku_id: s.sku_id, w: _getWidth(s.attributes, s.variant_name), c: _extractColor(s.attributes, s.variant_name), img: s.primary_image || s.sku_image || null, is_current: false }); });
+                  const uniqueWidths = new Set(dimItems.filter(d => d.w).map(d => d.w));
+                  if (uniqueWidths.size > 1 && curW) {
+                    const sizeMap = new Map();
+                    dimItems.forEach(d => { if (!d.w) return; const ex = sizeMap.get(d.w); if (!ex || d.is_current || (!ex.is_current && d.c === curC && !ex._cm)) { sizeMap.set(d.w, { ...d, _cm: d.c === curC }); } });
+                    sibSizeItems = [...sizeMap.values()].map(d => ({ label: d.w + '"', sku_id: d.sku_id, is_current: d.w === curW, sort: d.w, primary_image: d.img })).sort((a, b) => a.sort - b.sort);
+                    if (colorItems.length > 0) {
+                      const availableAtWidth = new Set(dimItems.filter(d => d.w === curW && d.c).map(d => normColor(d.c)));
+                      colorItems = colorItems.filter(c => c.is_current || availableAtWidth.has(normColor(c.product_name)));
+                      colorItems = colorItems.map(c => { if (c.is_current) return c; const match = dimItems.find(d => d.w === curW && normColor(d.c) === normColor(c.product_name)); return match ? { ...c, sku_id: match.sku_id, primary_image: match.img || c.primary_image } : c; });
+                      if (colorItems.length <= 1) { colorItems = []; var _widthCleared = true; }
+                    }
+                  }
+                  const _hasColorAttr = (sku.attributes || []).some(a => a.slug === 'color');
+                  if (colorItems.length === 0 && curC && uniqueWidths.size >= 1 && (_widthCleared || !_hasColorAttr)) {
+                    const forColors = sibSizeItems.length > 0 && curW ? dimItems.filter(d => d.w === curW) : dimItems;
+                    const colorMap = new Map();
+                    forColors.forEach(d => { if (d.c && !colorMap.has(d.c)) { colorMap.set(d.c, { sku_id: d.sku_id, product_name: d.c, primary_image: d.img, is_current: d.is_current }); } });
+                    if (colorMap.size > 1) { colorItems = [...colorMap.values()].sort((a, b) => (a.product_name || '').localeCompare(b.product_name || '')); }
+                  }
+                }
+                const showSibSizes = sibSizeItems.length > 0;
+
                 // If same-product siblings have 0-1 colors, use collection siblings as color options
-                if (colorItems.length <= 1 && collectionSiblings.length > 0) {
+                // Skip if size pills are shown (sizes are separate products, not colors)
+                if (colorItems.length <= 1 && collectionSiblings.length > 0 && !showSizePills) {
                   const siblingNameSet = new Set(collectionSiblings.map(s => s.product_name));
-                  const hasRomanSibling = [...siblingNameSet].some(n => hasRomanSuffix(n));
+                  // Only treat as roman variants if a sibling shares the same base name (e.g., "Coastwood" → "Coastwood II")
+                  const curBase = (sku.product_name || '').replace(ROMAN_REGEX, '').trim();
+                  const hasRomanSibling = [...siblingNameSet].some(n => hasRomanSuffix(n) && n.replace(ROMAN_REGEX, '').trim() === curBase);
                   const sharesNameWithCurrent = siblingNameSet.has(sku.product_name);
                   const treatAsColorVariants = hasRomanSibling || sharesNameWithCurrent || siblingNameSet.size <= 6;
                   if (treatAsColorVariants) {
@@ -4851,6 +4982,12 @@
                     attrMap[a.slug].values.add(a.value);
                   });
                 });
+                // If some siblings have countertop_finish and others don't, add "No Countertop" option
+                const _hasNoCtSibling = attrMap['countertop_finish'] && allSiblings.some(s => !(s.attributes || []).some(a => a.slug === 'countertop_finish'));
+                if (_hasNoCtSibling) {
+                  attrMap['countertop_finish'].values.add('No Countertop');
+                  if (!currentAttrs['countertop_finish']) currentAttrs['countertop_finish'] = 'No Countertop';
+                }
                 const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory', 'upc', 'msrp', 'weight', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number', 'width', 'height', 'depth', 'hardware_finish', 'num_drawers', 'num_doors', 'num_shelves', 'num_sinks', 'soft_close', 'sink_material', 'sink_type', 'vanity_type', 'bowl_shape', 'style', 'origin', 'countertop_material', 'construction', 'sub_line', 'collection', 'brand', 'surface_texture', 'wear_layer', 'ac_rating', 'edge_treatment', 'plank_width', 'plank_length', 'composition', 'install_method', 'features', 'technology', 'product_line', 'color_family', 'breaking_strength', 'thickness', 'mohs_hardness', 'color_generic', 'pattern']);
 
                 // --- Sub-Line format selector (ADURA Max/Rigid/Flex/APEX) ---
@@ -4867,8 +5004,12 @@
                 });
                 const subLineValues = [...subLineMap.keys()].sort();
                 const showSubLinePill = subLineValues.length > 1;
+                // Detect Roman numeral sub-lines (I, II, III) vs ADURA-style (Max, Rigid, etc.)
+                const isRomanSubLine = showSubLinePill && subLineValues.every(sl => /^I{1,3}$/.test(sl));
+                const subLineSectionLabel = isRomanSubLine ? 'Series' : 'Format';
                 // Format sub-line label: "ADURA Max" → "Max", get thickness if available
                 const subLineLabel = (sl) => {
+                  if (isRomanSubLine) return sl; // "I", "II", "III" as-is
                   const short = sl.replace(/^ADURA\s*/i, '');
                   const rep = (subLineMap.get(sl) || [])[0];
                   if (rep) {
@@ -4942,10 +5083,12 @@
                     if (!localAttrCounts[a.slug]) localAttrCounts[a.slug] = new Set();
                     localAttrCounts[a.slug].add(a.value);
                   });
+                  if (_hasNoCtSibling && !(s.attributes || []).some(a => a.slug === 'countertop_finish')) {
+                    if (!localAttrCounts['countertop_finish']) localAttrCounts['countertop_finish'] = new Set();
+                    localAttrCounts['countertop_finish'].add('No Countertop');
+                  }
                 });
                 // Check if attribute varies WITHIN a color (not just across colors)
-                // E.g., Hartco has 20 colors each with one size — SIZE pill is useless
-                // But tile products have one color in multiple sizes — SIZE pill is useful
                 const colorAttrValues = {};
                 effectiveSiblings.forEach(s => {
                   const ca = (s.attributes || []).find(a => a.slug === 'color');
@@ -4955,25 +5098,164 @@
                     if (!colorAttrValues[a.slug][c]) colorAttrValues[a.slug][c] = new Set();
                     colorAttrValues[a.slug][c].add(a.value);
                   });
+                  if (_hasNoCtSibling && !(s.attributes || []).some(a => a.slug === 'countertop_finish')) {
+                    if (!colorAttrValues['countertop_finish']) colorAttrValues['countertop_finish'] = {};
+                    if (!colorAttrValues['countertop_finish'][c]) colorAttrValues['countertop_finish'][c] = new Set();
+                    colorAttrValues['countertop_finish'][c].add('No Countertop');
+                  }
                 });
                 const variesWithinColor = (slug) => {
                   const byColor = colorAttrValues[slug];
                   if (!byColor) return false;
                   return Object.values(byColor).some(vals => vals.size > 1);
                 };
-                const attrSlugs = Object.keys(attrMap).filter(slug => localAttrCounts[slug] && localAttrCounts[slug].size > 1 && !NON_SELECTABLE.has(slug) && variesWithinColor(slug))
+                const attrSlugs = Object.keys(attrMap).filter(slug => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === 'countertop_finish') && !NON_SELECTABLE.has(slug) && (slug === 'countertop_finish' || (localAttrCounts[slug].size > 1 ? variesWithinColor(slug) : true)))
                   .sort((a, b) => a === 'finish' ? -1 : b === 'finish' ? 1 : 0);
                 const sizeSort = (a, b) => { const na = parseFloat(a), nb = parseFloat(b); if (!isNaN(na) && !isNaN(nb)) return na - nb; return a.localeCompare(b); };
                 const showColors = colorItems.length >= 2;
                 const isRomanVariants = showColors && colorItems.some(c => hasRomanSuffix(c.product_name));
-                const colorLabel = attrMap['countertop_finish'] ? 'Size' : isRomanVariants ? 'Style' : 'Color';
+
+                // Build separate roman numeral style pills from collection siblings
+                // when colors already exist (carpet with both colors AND roman variants like I/II/III)
+                let romanStyleItems = [];
+                if (colorItems.length >= 2 && !isRomanVariants && collectionSiblings.length > 0) {
+                  const curBase = (sku.product_name || '').replace(ROMAN_REGEX, '').replace(/\s+\d+\s*$/, '').trim();
+                  const romanSibs = collectionSiblings.filter(s => {
+                    const sibBase = (s.product_name || '').replace(ROMAN_REGEX, '').replace(/\s+\d+\s*$/, '').trim();
+                    return sibBase === curBase && (hasRomanSuffix(s.product_name) || s.product_name !== sku.product_name);
+                  });
+                  if (romanSibs.length > 0 && (hasRomanSuffix(sku.product_name) || romanSibs.some(s => hasRomanSuffix(s.product_name)))) {
+                    // Deduplicate by product_name (keep first per name, prefer matching current color)
+                    const byName = new Map();
+                    byName.set(sku.product_name, { sku_id: sku.sku_id, product_name: sku.product_name, is_current: true });
+                    romanSibs.forEach(s => {
+                      if (!byName.has(s.product_name)) {
+                        byName.set(s.product_name, { sku_id: s.sku_id, product_name: s.product_name, is_current: false });
+                      }
+                    });
+                    romanStyleItems = [...byName.values()];
+                  }
+                }
+                const showRomanStylePills = romanStyleItems.length >= 2;
+
+                const colorLabel = attrMap['countertop_finish'] ? 'Cabinet Color' : isRomanVariants ? 'Style' : 'Color';
                 const showAttrs = attrSlugs.length > 0;
-                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill) return null;
+                // Check if the currently selected size/finish is available for a color swatch
+                const isColorCompatible = (c) => {
+                  if (c.is_current) return true;
+                  const curSize = currentAttrs['size'];
+                  const curFinish = currentAttrs['finish'];
+                  if (!curSize && !curFinish) return true;
+                  // Collection siblings have available_sizes/available_finishes from API
+                  if (c.available_sizes || c.available_finishes) {
+                    const sizeOk = !curSize || !c.available_sizes || c.available_sizes.includes(curSize);
+                    const finishOk = !curFinish || !c.available_finishes || c.available_finishes.includes(curFinish);
+                    return sizeOk && finishOk;
+                  }
+                  // Same-product color items: check effectiveSiblings
+                  const targetColor = c.color || c.product_name;
+                  const sameColorSibs = effectiveSiblings.filter(s => {
+                    const ca = (s.attributes || []).find(a => a.slug === 'color');
+                    return ca && normColor(ca.value) === normColor(targetColor);
+                  });
+                  if (sameColorSibs.length === 0) return true;
+                  const sizeOk = !curSize || sameColorSibs.some(s => {
+                    const sa = (s.attributes || []).find(a => a.slug === 'size');
+                    return sa && sa.value === curSize;
+                  });
+                  const targetFinishVal = sameColorSibs.length > 0 ? (sameColorSibs[0].attributes || []).find(a => a.slug === 'finish')?.value : null;
+                  const colorIsFinish = targetFinishVal && normColor(targetFinishVal) === normColor(targetColor);
+                  const finishOk = colorIsFinish || !curFinish || sameColorSibs.some(s => {
+                    const fa = (s.attributes || []).find(a => a.slug === 'finish');
+                    return fa && fa.value === curFinish;
+                  });
+                  return sizeOk && finishOk;
+                };
+                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showSibSizes) return null;
                 return (
                   <div className="variant-selectors">
+                    {showSizePills && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Size<span>{collectionSizeItems.find(s => s.is_current)?.label || ''}</span></div>
+                        <div className="color-swatches">
+                          {collectionSizeItems.map(s => (
+                            <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                              <div className={'color-swatch' + (s.is_current ? ' active' : '')}>
+                                {s.primary_image ? (
+                                  <img src={optimizeImg(s.primary_image, 120)} alt={s.label} loading="lazy" decoding="async" width="64" height="64" />
+                                ) : (
+                                  <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 600, color: 'var(--stone-500)' }}>{s.label}</div>
+                                )}
+                              </div>
+                              <div className="color-swatch-tooltip">{s.label}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {showSibSizes && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Size<span>{sibSizeItems.find(s => s.is_current)?.label || ''}</span></div>
+                        <div className="color-swatches">
+                          {sibSizeItems.map(s => (
+                            <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                              <div className={'color-swatch' + (s.is_current ? ' active' : '')}>
+                                {s.primary_image ? (
+                                  <img src={optimizeImg(s.primary_image, 120)} alt={s.label} loading="lazy" decoding="async" width="64" height="64" />
+                                ) : (
+                                  <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 600, color: 'var(--stone-500)' }}>{s.label}</div>
+                                )}
+                              </div>
+                              <div className="color-swatch-tooltip">{s.label}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {showColors && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">{colorLabel}</div>
+                        {isRomanVariants ? (
+                          <div className="attr-pills">
+                            {[...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map(c => (
+                                <button key={c.sku_id} className={'attr-pill' + (c.is_current ? ' active' : '')} onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
+                                  {romanPillLabel(c.product_name)}
+                                </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="color-swatches">
+                            {colorItems.map(c => {
+                              const label = c.color || c.variant_name || c.product_name;
+                              const compatible = isColorCompatible(c);
+                              return (
+                              <div key={c.sku_id} className={'color-swatch-wrap' + (!compatible ? ' disabled' : '')} onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
+                                <div className={'color-swatch' + (c.is_current ? ' active' : '')}>
+                                  {c.primary_image ? <img src={optimizeImg(c.primary_image, 120)} alt={label} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)' }} />}
+                                </div>
+                                <div className="color-swatch-tooltip">{label}{!compatible ? ' (limited options)' : ''}</div>
+                              </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {showRomanStylePills && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Style<span>{romanPillLabel(sku.product_name)}</span></div>
+                        <div className="attr-pills">
+                          {[...romanStyleItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map(c => (
+                            <button key={c.sku_id} className={'attr-pill' + (c.is_current ? ' active' : '')} onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
+                              {romanPillLabel(c.product_name)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {showSubLinePill && (
                       <div className="variant-selector-group">
-                        <div className="variant-selector-label">Format<span>{curSubLine ? curSubLine.replace(/^ADURA\s*/i, '') : ''}</span></div>
+                        <div className="variant-selector-label">{subLineSectionLabel}<span>{curSubLine ? (isRomanSubLine ? curSubLine : curSubLine.replace(/^ADURA\s*/i, '')) : ''}</span></div>
                         <div className="attr-pills">
                           {subLineValues.map(sl => {
                             const isActive = sl === curSubLine;
@@ -5000,34 +5282,6 @@
                             );
                           })}
                         </div>
-                      </div>
-                    )}
-                    {showColors && (
-                      <div className="variant-selector-group">
-                        <div className="variant-selector-label">{colorLabel}</div>
-                        {isRomanVariants ? (
-                          <div className="attr-pills">
-                            {[...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map(c => (
-                                <button key={c.sku_id} className={'attr-pill' + (c.is_current ? ' active' : '')} onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
-                                  {c.product_name}
-                                </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="color-swatches">
-                            {colorItems.map(c => {
-                              const label = c.color || c.variant_name || c.product_name;
-                              return (
-                              <div key={c.sku_id} className="color-swatch-wrap" onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
-                                <div className={'color-swatch' + (c.is_current ? ' active' : '')}>
-                                  {c.primary_image ? <img src={optimizeImg(c.primary_image, 120)} alt={label} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)' }} />}
-                                </div>
-                                <div className="color-swatch-tooltip">{label}</div>
-                              </div>
-                              );
-                            })}
-                          </div>
-                        )}
                       </div>
                     )}
                     {/* Format pill (Paver, Mosaic, etc.) — virtual attribute extracted from size values */}
@@ -5092,14 +5346,17 @@
                       const currentVal = currentAttrs[slug];
                       // Compute which values are compatible with current selections of OTHER attributes
                       const compatibleValues = new Set(allValues.filter(val => {
-                        return effectiveSiblings.some(s => {
+                        // Check same-product siblings first
+                        const inProduct = effectiveSiblings.some(s => {
                           const sa = (s.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
-                          if (sa[slug] !== val) return false;
+                          if (val === 'No Countertop' && slug === 'countertop_finish') { if (sa[slug]) return false; }
+                          else if (sa[slug] !== val) return false;
                           return attrSlugs.every(otherSlug => {
                             if (otherSlug === slug) return true;
                             return !currentAttrs[otherSlug] || !sa[otherSlug] || sa[otherSlug] === currentAttrs[otherSlug];
                           });
                         });
+                        return inProduct;
                       }));
                       if (allValues.length <= 1 && !currentVal) return null;
                       const findBest = (val) => {
@@ -5107,6 +5364,7 @@
                         const matching = effectiveSiblings.filter(s => {
                           if (s.sku_id === sku.sku_id) return false;
                           const sa = (s.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
+                          if (val === 'No Countertop' && slug === 'countertop_finish') return !sa[slug];
                           return sa[slug] === val;
                         });
                         if (matching.length === 0) return null;
@@ -5123,10 +5381,9 @@
                       // Image swatches for visually-distinct attributes where each variant looks different
                       const IMAGE_SWATCH_ATTRS = new Set(['countertop_finish', 'pattern']);
                       // finish gets image swatches only for vanity tops (where it means cabinet color)
-                      const useImageSwatches = (
+                      const useImageSwatches =
                         IMAGE_SWATCH_ATTRS.has(slug) ||
-                        (slug === 'finish' && attrMap['countertop_finish'])
-                      ) && allValues.length <= 10;
+                        (slug === 'finish' && attrMap['countertop_finish']);
                       const getSwatchImage = (val) => {
                         if (val === currentVal) {
                           if (slug === 'countertop_finish' && countertopImage) return countertopImage;
@@ -5147,14 +5404,7 @@
                       return (
                         <div key={slug} className="variant-selector-group">
                           <div className="variant-selector-label">{slug === 'finish' && attrMap['countertop_finish'] ? 'Cabinet Color' : slug === 'countertop_finish' ? 'Countertop' : attrMap[slug].name}<span>{displayVal(currentVal || '')}</span></div>
-                          {allValues.length > 10 ? (
-                            <select className="attr-select" value={currentVal || ''} onChange={(e) => {
-                              const best = findBest(e.target.value);
-                              if (best) onSkuClick(best.sku_id);
-                            }}>
-                              {allValues.map(val => <option key={val} value={val} disabled={!compatibleValues.has(val)}>{displayVal(val)}{!compatibleValues.has(val) ? ' (unavailable)' : ''}</option>)}
-                            </select>
-                          ) : useImageSwatches ? (
+                          {useImageSwatches ? (
                             <div className="color-swatches">
                               {allValues.map(val => {
                                 const isActive = val === currentVal;
@@ -5227,7 +5477,7 @@
               {accessorySiblings.length > 0 && (
                 <div className="accessories-section-sf">
                   <h3>Matching Accessories</h3>
-                  <p className="accessories-subtitle-sf">Complete your installation with coordinating trim and transitions</p>
+                  <p className="accessories-subtitle-sf">{/^bath/i.test(sku.category_slug || '') || /vanitie|mirror|cabinet/i.test(sku.category_name || '') ? 'Complete your bathroom with matching pieces' : 'Complete your installation with coordinating trim and transitions'}</p>
                   {accessorySiblings.map(acc => {
                     const accPrice = parseFloat(acc.sale_price || acc.retail_price) || 0;
                     const accQty = accessoryQtys[acc.sku_id] || 1;
@@ -5657,11 +5907,11 @@
               {/* Wishlist */}
               {sku && (
                 <button className="btn btn-secondary" style={{ width: '100%', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                  onClick={() => toggleWishlist(sku.product_id)}>
-                  <svg viewBox="0 0 24 24" fill={wishlist.includes(sku.product_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18, color: wishlist.includes(sku.product_id) ? '#e11d48' : 'currentColor' }}>
+                  onClick={() => toggleWishlist(sku.sku_id)}>
+                  <svg viewBox="0 0 24 24" fill={wishlist.includes(sku.sku_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18, color: wishlist.includes(sku.sku_id) ? '#e11d48' : 'currentColor' }}>
                     <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
                   </svg>
-                  {wishlist.includes(sku.product_id) ? 'Saved to Wishlist' : 'Add to Wishlist'}
+                  {wishlist.includes(sku.sku_id) ? 'Saved to Wishlist' : 'Add to Wishlist'}
                 </button>
               )}
 
@@ -5695,7 +5945,7 @@
                               {s.primary_image && <img src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
                             </div>
                             <div className="sibling-card-name">{s.product_name}</div>
-                            {s.retail_price && <div className="sibling-card-price">from ${displayPrice(s, s.retail_price).toFixed(2)}{priceSuffix(s)}</div>}
+                            {skuListPrice(s) && <div className="sibling-card-price">from ${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</div>}
                           </div>
                         ))}
                       </div>
@@ -5725,7 +5975,7 @@
                         if (differing.length === 0) return null;
                         return <div className="sibling-card-meta">{differing.map(a => formatCarpetValue(a.value)).join(' \u00B7 ')}</div>;
                       })()}
-                      {s.retail_price && <div className="sibling-card-price">${displayPrice(s, s.retail_price).toFixed(2)}{priceSuffix(s)}</div>}
+                      {skuListPrice(s) && <div className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</div>}
                     </div>
                   ))}
                 </div>
@@ -5748,7 +5998,7 @@
                           {s.primary_image && <img src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
                         </div>
                         <div className="sibling-card-name">{fullProductName(s)}</div>
-                        {s.retail_price && <div className="sibling-card-price">${displayPrice(s, s.retail_price).toFixed(2)}{priceSuffix(s)}</div>}
+                        {skuListPrice(s) && <div className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</div>}
                       </div>
                     ))}
                   </div>
@@ -5766,7 +6016,7 @@
                         {s.primary_image && <img src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
                       </div>
                       <div className="sibling-card-name">{fullProductName(s)}</div>
-                      {s.retail_price && <div className="sibling-card-price">${displayPrice(s, s.retail_price).toFixed(2)}{priceSuffix(s)}</div>}
+                      {skuListPrice(s) && <div className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</div>}
                     </div>
                   ))}
                 </div>
@@ -5951,7 +6201,7 @@
           const newSubtotal = (newBoxes * unitPrice).toFixed(2);
           updateCartItem(item.id, { num_boxes: newBoxes, subtotal: newSubtotal });
         } else {
-          const sqftPerBox = item.sqft_needed && item.num_boxes ? parseFloat(item.sqft_needed) / parseInt(item.num_boxes) : 17.11;
+          const sqftPerBox = item.sqft_needed && parseInt(item.num_boxes) > 0 ? parseFloat(item.sqft_needed) / parseInt(item.num_boxes) : 17.11;
           const newSqft = (newBoxes * sqftPerBox).toFixed(2);
           const newSubtotal = (newBoxes * sqftPerBox * unitPrice).toFixed(2);
           updateCartItem(item.id, { num_boxes: newBoxes, sqft_needed: newSqft, subtotal: newSubtotal });
@@ -6468,7 +6718,7 @@
             const resp = await fetch(API + '/api/cart/tax-estimate?zip=' + encodeURIComponent(taxZip) + '&session_id=' + encodeURIComponent(sessionId));
             const data = await resp.json();
             setTaxEstimate({ rate: data.rate || 0, amount: data.amount || 0 });
-          } catch { setTaxEstimate({ rate: 0, amount: 0 }); }
+          } catch(e) { setTaxEstimate({ rate: 0, amount: 0 }); }
         }, 400);
         return () => clearTimeout(taxDebounce.current);
       }, [zip, isPickup, sessionId]);
@@ -6791,7 +7041,7 @@
           const resp = await fetch(API + '/api/storefront/skus?search=' + encodeURIComponent(q) + '&limit=8');
           const data = await resp.json();
           setSampleSearchResults(data.skus || []);
-        } catch { setSampleSearchResults([]); }
+        } catch(e) { setSampleSearchResults([]); }
         setSearchingProducts(false);
       };
 
@@ -6810,7 +7060,7 @@
             const data = await resp.json();
             alert(data.error || 'Failed to add sample');
           }
-        } catch { alert('Failed to add sample'); }
+        } catch(e) { alert('Failed to add sample'); }
         setAddingSampleItem(null);
       };
 
@@ -6821,7 +7071,7 @@
           const resp = await fetch(API + '/api/customer/orders/' + orderId, { headers: authHeaders });
           const data = await resp.json();
           setOrderDetail(data);
-        } catch { setOrderDetail(null); }
+        } catch(e) { setOrderDetail(null); }
       };
 
       const viewQuoteDetail = async (quoteId) => {
@@ -6831,7 +7081,7 @@
           const resp = await fetch(API + '/api/customer/quotes/' + quoteId, { headers: authHeaders });
           const data = await resp.json();
           setQuoteDetail(data);
-        } catch { setQuoteDetail(null); }
+        } catch(e) { setQuoteDetail(null); }
       };
 
       const viewVisitDetail = async (visitId) => {
@@ -6841,7 +7091,7 @@
           const resp = await fetch(API + '/api/customer/visits/' + visitId, { headers: authHeaders });
           const data = await resp.json();
           setVisitDetail(data);
-        } catch { setVisitDetail(null); }
+        } catch(e) { setVisitDetail(null); }
       };
 
       const quoteStatusBadge = (status, expiresAt) => {
@@ -6870,7 +7120,7 @@
           if (!resp.ok) { setProfileError(data.error); setSaving(false); return; }
           setCustomer(data.customer);
           setProfileMsg('Profile updated successfully.');
-        } catch { setProfileError('Failed to save.'); }
+        } catch(e) { setProfileError('Failed to save.'); }
         setSaving(false);
       };
 
@@ -6886,7 +7136,7 @@
           if (!resp.ok) { setPwError(data.error); setPwSaving(false); return; }
           setPwMsg('Password updated successfully.');
           setCurrentPw(''); setNewPw(''); setConfirmPw('');
-        } catch { setPwError('Failed to update password.'); }
+        } catch(e) { setPwError('Failed to update password.'); }
         setPwSaving(false);
       };
 
@@ -7407,9 +7657,9 @@
                                   {item.collection && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{item.collection}</div>}
                                   {item.variant_name && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{item.variant_name}</div>}
                                 </div>
-                                {item.retail_price && (
+                                {skuListPrice(item) && (
                                   <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
-                                    ${displayPrice(item, item.retail_price).toFixed(2)}{priceSuffix(item)}
+                                    ${displayPrice(item, skuListPrice(item)).toFixed(2)}{priceSuffix(item)}
                                   </span>
                                 )}
                                 {item.rep_note && (
@@ -7522,21 +7772,16 @@
           setLoading(false);
           return;
         }
-        // Fetch wishlisted product SKUs by product_id filter
-        const productIds = wishlist.join(',');
-        fetch(API + '/api/storefront/skus?product_ids=' + encodeURIComponent(productIds) + '&limit=' + wishlist.length * 2)
+        // Fetch wishlisted SKUs by sku_id filter
+        const skuIds = wishlist.join(',');
+        fetch(API + '/api/storefront/skus?sku_ids=' + encodeURIComponent(skuIds) + '&limit=' + wishlist.length)
           .then(r => r.json())
           .then(data => {
             const all = data.skus || [];
-            // Get one representative SKU per wishlisted product
-            const seen = new Set();
-            const wishlisted = [];
-            all.forEach(sku => {
-              if (wishlist.includes(sku.product_id) && !seen.has(sku.product_id)) {
-                seen.add(sku.product_id);
-                wishlisted.push(sku);
-              }
-            });
+            // Keep only SKUs that are in the wishlist, in wishlist order
+            const skuMap = new Map();
+            all.forEach(sku => skuMap.set(sku.sku_id, sku));
+            const wishlisted = wishlist.map(id => skuMap.get(id)).filter(Boolean);
             setSkus(wishlisted);
             setLoading(false);
           })
@@ -7570,7 +7815,7 @@
                           {rv.primary_image && <img src={optimizeImg(rv.primary_image, 400)} alt={rv.product_name} loading="lazy" />}
                         </div>
                         <div className="sibling-card-name">{fullProductName(rv)}</div>
-                        {rv.retail_price && <div className="sibling-card-price">${displayPrice(rv, rv.retail_price).toFixed(2)}{priceSuffix(rv)}</div>}
+                        {skuListPrice(rv) && <div className="sibling-card-price">${displayPrice(rv, skuListPrice(rv)).toFixed(2)}{priceSuffix(rv)}</div>}
                       </div>
                     ))}
                   </div>
@@ -7582,7 +7827,7 @@
               {skus.map(sku => (
                 <SkuCard key={sku.sku_id} sku={sku} onClick={() => onSkuClick(sku.sku_id, sku.product_name || sku.collection)}
                   isWished={true}
-                  onToggleWishlist={() => toggleWishlist(sku.product_id)} />
+                  onToggleWishlist={() => toggleWishlist(sku.sku_id)} />
               ))}
             </div>
           )}
@@ -8005,7 +8250,7 @@
                                           </td>
                                           <td style={{ padding: '0.5rem', color: 'var(--stone-600)' }}>{item.variant_name || '\u2014'}</td>
                                           <td style={{ padding: '0.5rem', textAlign: 'right' }}>
-                                            {item.retail_price ? `$${displayPrice(item, item.retail_price).toFixed(2)}${priceSuffix(item)}` : '\u2014'}
+                                            {skuListPrice(item) ? `$${displayPrice(item, skuListPrice(item)).toFixed(2)}${priceSuffix(item)}` : '\u2014'}
                                           </td>
                                           <td style={{ padding: '0.5rem', color: 'var(--stone-500)', fontSize: '0.75rem', maxWidth: 180 }}>{item.rep_note || ''}</td>
                                         </tr>
@@ -8478,7 +8723,7 @@
                           {sku.primary_image && <img src={optimizeImg(sku.primary_image, 400)} alt={sku.product_name} loading="lazy" decoding="async" />}
                           <div className="quiz-result-card-info">
                             <div className="quiz-result-card-name">{sku.product_name}</div>
-                            <div className="quiz-result-card-price">{sku.retail_price ? '$' + displayPrice(sku, sku.retail_price).toFixed(2) + priceSuffix(sku) : ''}</div>
+                            <div className="quiz-result-card-price">{skuListPrice(sku) ? '$' + displayPrice(sku, skuListPrice(sku)).toFixed(2) + priceSuffix(sku) : ''}</div>
                           </div>
                         </div>
                       ))}
@@ -8840,7 +9085,7 @@
           const data = await res.json();
           if (data.error) { setError(data.error); setLoading(false); return; }
           onLogin(data.token, data.customer);
-        } catch { setError('Login failed'); setLoading(false); }
+        } catch(e) { setError('Login failed'); setLoading(false); }
       };
 
       const handleRegister = async (e) => {
@@ -8854,7 +9099,7 @@
           const data = await res.json();
           if (data.error) { setError(data.error); setLoading(false); return; }
           onLogin(data.token, data.customer);
-        } catch { setError('Registration failed'); setLoading(false); }
+        } catch(e) { setError('Registration failed'); setLoading(false); }
       };
 
       const handleForgotPassword = async (e) => {
@@ -8869,7 +9114,7 @@
           if (data.error) { setError(data.error); setLoading(false); return; }
           setSuccess('If an account exists with that email, a reset link has been sent.');
           setLoading(false);
-        } catch { setError('Unable to send reset email. Please try again.'); setLoading(false); }
+        } catch(e) { setError('Unable to send reset email. Please try again.'); setLoading(false); }
       };
 
       const switchMode = (newMode) => { setMode(newMode); setError(''); setSuccess(''); };
@@ -8956,7 +9201,7 @@
           const data = await res.json();
           if (data.error) { setError(data.error); return; }
           setSubmitted(true);
-        } catch { setError('Unable to submit. Please try again.'); }
+        } catch(e) { setError('Unable to submit. Please try again.'); }
       };
 
       return (
@@ -9569,7 +9814,7 @@
                 </div>
                 <div className="sku-card-name">{fullProductName(item)}</div>
                 <div className="sku-card-price">
-                  {item.retail_price ? '$' + displayPrice(item, item.retail_price).toFixed(2) + priceSuffix(item) : ''}
+                  {skuListPrice(item) ? '$' + displayPrice(item, skuListPrice(item)).toFixed(2) + priceSuffix(item) : ''}
                 </div>
                 {item.rep_note && (
                   <p style={{ margin: '0.5rem 0 0', fontSize: '0.8125rem', fontStyle: 'italic', color: 'var(--stone-400)', lineHeight: 1.4 }}>"{item.rep_note}"</p>
@@ -9611,7 +9856,7 @@
           if (!resp.ok) { setError(data.error); setLoading(false); return; }
           setSuccess(true);
           window.history.replaceState({}, '', window.location.pathname);
-        } catch { setError('Something went wrong.'); }
+        } catch(e) { setError('Something went wrong.'); }
         setLoading(false);
       };
 
