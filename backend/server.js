@@ -1069,11 +1069,11 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
           pr.retail_price, pr.price_basis, s.sell_by, pk.sqft_per_box,
           CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
           COALESCE(
-            (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'primary' LIMIT 1),
-            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1),
+            (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' AND sku_id IS NULL ORDER BY sort_order LIMIT 1),
             (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'lifestyle' ORDER BY sort_order LIMIT 1),
-            (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'alternate' LIMIT 1),
-            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'alternate' AND sku_id IS NULL LIMIT 1)
+            (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'alternate' ORDER BY sort_order LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'alternate' AND sku_id IS NULL ORDER BY sort_order LIMIT 1)
           ) as primary_image
         FROM skus s
         JOIN products p ON p.id = s.product_id AND p.status = 'active'
@@ -1184,11 +1184,11 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
         )
         SELECT ts.*,
           COALESCE(
-            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'primary' LIMIT 1),
-            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1),
+            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'primary' AND sku_id IS NULL ORDER BY sort_order LIMIT 1),
             (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'lifestyle' ORDER BY sort_order LIMIT 1),
-            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'alternate' LIMIT 1),
-            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'alternate' AND sku_id IS NULL LIMIT 1)
+            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'alternate' ORDER BY sort_order LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'alternate' AND sku_id IS NULL ORDER BY sort_order LIMIT 1)
           ) as primary_image
         FROM top_skus ts
         ORDER BY ts.final_score DESC
@@ -1239,11 +1239,11 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
         )
         SELECT ts.*,
           COALESCE(
-            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'primary' LIMIT 1),
-            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'primary' AND sku_id IS NULL LIMIT 1),
+            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'primary' AND sku_id IS NULL ORDER BY sort_order LIMIT 1),
             (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'lifestyle' ORDER BY sort_order LIMIT 1),
-            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'alternate' LIMIT 1),
-            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'alternate' AND sku_id IS NULL LIMIT 1)
+            (SELECT url FROM media_assets WHERE sku_id = ts.sku_id AND asset_type = 'alternate' ORDER BY sort_order LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = ts.product_id AND asset_type = 'alternate' AND sku_id IS NULL ORDER BY sort_order LIMIT 1)
           ) as primary_image
         FROM top_skus ts
         ORDER BY ts.trgm_score DESC
@@ -1416,12 +1416,21 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       }
     }
 
-    // Product IDs filter (for wishlist)
+    // Product IDs filter
     if (req.query.product_ids) {
       const pids = req.query.product_ids.split(',').filter(Boolean);
       if (pids.length > 0) {
         const pidPlaceholders = pids.map(pid => { params.push(pid); return `$${paramIndex++}`; });
         whereClauses.push(`p.id IN (${pidPlaceholders.join(',')})`);
+      }
+    }
+
+    // SKU IDs filter (for wishlist)
+    if (req.query.sku_ids) {
+      const sids = req.query.sku_ids.split(',').filter(Boolean);
+      if (sids.length > 0) {
+        const sidPlaceholders = sids.map(sid => { params.push(sid); return `$${paramIndex++}`; });
+        whereClauses.push(`s.id IN (${sidPlaceholders.join(',')})`);
       }
     }
 
@@ -1455,7 +1464,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       whereClauses.push(`p.id IN (SELECT pt.product_id FROM product_tags pt JOIN tag_definitions td ON td.id = pt.tag_id WHERE td.slug IN (${tagPlaceholders.join(',')}))`);
     }
 
-    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'product_ids', 'vendor', 'price_min', 'price_max', 'sale', 'tags'];
+    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'product_ids', 'sku_ids', 'vendor', 'price_min', 'price_max', 'sale', 'tags'];
     const attrFilters = {};
     for (const [key, val] of Object.entries(req.query)) {
       if (!reservedParams.includes(key) && val) {
@@ -1858,7 +1867,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       SELECT id, asset_type, url, sort_order, sku_id
       FROM media_assets
       WHERE product_id = $2 AND sku_id = $1 AND asset_type IN ('primary', 'alternate', 'swatch', 'lifestyle')
-      ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 WHEN 'swatch' THEN 3 ELSE 4 END, sort_order
+      ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 WHEN 'alternate' THEN 2 WHEN 'swatch' THEN 3 ELSE 4 END, sort_order
     `, [skuId, sku.product_id]);
 
     let mediaResult;
