@@ -8,7 +8,7 @@
       let id = localStorage.getItem('cart_session_id');
       if (!id) {
         id = 'sess_' + crypto.randomUUID();
-        localStorage.setItem('cart_session_id', id);
+        try { localStorage.setItem('cart_session_id', id); } catch(e) { /* quota exceeded */ }
       }
       return id;
     }
@@ -22,16 +22,16 @@
       document.title = title || 'Shop | Roma Flooring Designs';
       const setMeta = (selector, value) => {
         const el = document.querySelector(selector);
-        if (el && value) el.setAttribute('content', value);
+        if (el) el.setAttribute('content', value || '');
       };
       setMeta('meta[name="description"]', description);
       setMeta('meta[property="og:title"]', title);
       setMeta('meta[property="og:description"]', description);
       setMeta('meta[property="og:url"]', url);
-      if (image) setMeta('meta[property="og:image"]', image);
+      setMeta('meta[property="og:image"]', image || '');
       setMeta('meta[name="twitter:title"]', title);
       setMeta('meta[name="twitter:description"]', description);
-      if (image) setMeta('meta[name="twitter:image"]', image);
+      setMeta('meta[name="twitter:image"]', image || '');
       const canonical = document.querySelector('link[rel="canonical"]');
       if (canonical && url) canonical.setAttribute('href', url);
     }
@@ -180,7 +180,7 @@
       if (!term || term.length < 2) return;
       const recent = getRecentSearches().filter(t => t.toLowerCase() !== term.toLowerCase());
       recent.unshift(term);
-      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recent.slice(0, MAX_RECENT_SEARCHES)));
+      try { localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recent.slice(0, MAX_RECENT_SEARCHES))); } catch(e) { /* quota exceeded */ }
     }
     function clearRecentSearches() { localStorage.removeItem(RECENT_SEARCHES_KEY); }
 
@@ -191,7 +191,7 @@
         const regex = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
         const parts = String(text).split(regex);
         if (parts.length === 1) return text;
-        return parts.map((part, i) => regex.test(part) ? React.createElement('mark', { key: i, className: 'search-highlight' }, part) : part);
+        return parts.map((part, i) => i % 2 === 1 ? React.createElement('mark', { key: i, className: 'search-highlight' }, part) : part);
       } catch(e) { return text; }
     }
 
@@ -830,6 +830,7 @@
       if (typeof Stripe === 'undefined') return;
       try {
         const r = await fetch((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001' : '') + '/api/config/stripe-key');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
         const data = await r.json();
         if (data.key) stripeInstance = Stripe(data.key);
       } catch (e) { console.warn('Failed to load Stripe key:', e); }
@@ -993,14 +994,18 @@
       // Toast notifications
       const [toasts, setToasts] = useState([]);
       const toastIdRef = useRef(0);
+      const toastTimersRef = useRef([]);
       const showToast = useCallback((message, type = 'info', duration = 3500) => {
         const id = ++toastIdRef.current;
         setToasts(prev => [...prev, { id, message, type, leaving: false }]);
-        setTimeout(() => {
+        const t1 = setTimeout(() => {
           setToasts(prev => prev.map(t => t.id === id ? { ...t, leaving: true } : t));
-          setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 350);
+          const t2 = setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 350);
+          toastTimersRef.current.push(t2);
         }, duration);
+        toastTimersRef.current.push(t1);
       }, []);
+      useEffect(() => () => { toastTimersRef.current.forEach(t => clearTimeout(t)); }, []);
 
       // Wishlist
       const [wishlist, setWishlist] = useState(() => {
@@ -1015,7 +1020,7 @@
         setRecentlyViewed(prev => {
           const filtered = prev.filter(s => s.sku_id !== skuData.sku_id);
           const updated = [{ sku_id: skuData.sku_id, product_name: skuData.product_name, variant_name: skuData.variant_name, primary_image: skuData.primary_image, retail_price: skuData.retail_price, cut_price: skuData.cut_price, price_basis: skuData.price_basis, sell_by: skuData.sell_by, sqft_per_box: skuData.sqft_per_box }, ...filtered].slice(0, 12);
-          localStorage.setItem('recently_viewed', JSON.stringify(updated));
+          try { localStorage.setItem('recently_viewed', JSON.stringify(updated)); } catch(e) { /* quota exceeded */ }
           return updated;
         });
       };
@@ -1248,7 +1253,7 @@
           showToast('Added to wishlist', 'success');
         }
         setWishlist(updated);
-        localStorage.setItem('wishlist', JSON.stringify(updated));
+        try { localStorage.setItem('wishlist', JSON.stringify(updated)); } catch(e) { /* quota exceeded */ }
         const custToken = localStorage.getItem('customer_token');
         if (custToken) {
           if (isWished) {
@@ -1264,7 +1269,8 @@
       };
 
       const syncWishlistOnLogin = (token) => {
-        const localWishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+        let localWishlist;
+        try { localWishlist = JSON.parse(localStorage.getItem('wishlist') || '[]'); } catch(e) { localWishlist = []; }
         if (localWishlist.length > 0) {
           fetch(API + '/api/wishlist/sync', {
             method: 'POST',
@@ -1356,7 +1362,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: newsletterEmail })
-        }).then(r => r.json()).then(() => {
+        }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(() => {
           setNewsletterSubmitted(true);
         }).catch(() => {
           setNewsletterSubmitted(true);
@@ -1483,7 +1489,13 @@
         setCompletedOrder(orderData);
         setCart([]);
         setView('confirmation');
+        history.pushState({ view: 'confirmation' }, '', '/checkout/confirmation');
         window.scrollTo(0, 0);
+        fetch(API + '/api/cart/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId.current })
+        }).catch(() => {});
       };
 
       // ---- Filter Handlers ----
@@ -1524,6 +1536,19 @@
           const next = current.includes(value) ? current.filter(v => v !== value) : [...current, value];
           const updated = { ...prev };
           if (next.length > 0) updated[slug] = next;
+          else delete updated[slug];
+          setCurrentPage(1);
+          fetchSkus({ activeFilters: updated, page: 1 });
+          fetchFacets({ activeFilters: updated });
+          pushShopUrl(selectedCategory, selectedCollection, searchQuery, updated, true, vendorFilters, userPriceRange.min, userPriceRange.max, tagFilters);
+          return updated;
+        });
+      };
+
+      const handleBatchFilterSet = (slug, values) => {
+        setFilters(prev => {
+          const updated = { ...prev };
+          if (values.length > 0) updated[slug] = values;
           else delete updated[slug];
           setCurrentPage(1);
           fetchSkus({ activeFilters: updated, page: 1 });
@@ -1612,7 +1637,7 @@
       useEffect(() => {
         fetchCart();
 
-        fetch(API + '/api/categories').then(r => r.json())
+        fetch(API + '/api/categories').then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => setCategories(data.categories || []))
           .catch(err => console.error(err));
 
@@ -1636,18 +1661,19 @@
 
         // Fetch featured SKUs for homepage (best-sellers with newest fallback)
         fetch(API + '/api/storefront/featured')
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => { setFeaturedSkus(data.skus || []); setFeaturedLoading(false); })
           .catch(() => { setFeaturedLoading(false); });
 
         // Fetch global facets for axis navigation (By Look, By Color, By Size)
         fetch(API + '/api/storefront/facets')
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => setGlobalFacets(data.facets || []))
           .catch(console.error);
 
         // Parse URL
-        const path = window.location.pathname;
+        const rawPath = window.location.pathname;
+        const path = rawPath.length > 1 && rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath;
         const sp = new URLSearchParams(window.location.search);
 
         if (sp.get('reset_token')) {
@@ -1749,7 +1775,8 @@
             if (state.view === 'coming-soon' && state.title) setComingSoonTitle(state.title);
           } else {
             // Re-parse URL for unknown states
-            const p = window.location.pathname;
+            const rawP = window.location.pathname;
+            const p = rawP.length > 1 && rawP.endsWith('/') ? rawP.slice(0, -1) : rawP;
             if (p === '/' || p === '') { setView('home'); }
             else if (p.startsWith('/shop/sku/')) {
               const parts = p.replace('/shop/sku/', '').split('/');
@@ -2141,7 +2168,7 @@
 
       // Fetch popular searches once on mount
       useEffect(() => {
-        fetch(API + '/api/storefront/search/popular').then(r => r.json()).then(d => setPopularSearches(d.terms || [])).catch(() => {});
+        fetch(API + '/api/storefront/search/popular').then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => setPopularSearches(d.terms || [])).catch(() => {});
       }, []);
 
       const handleMaterialEnter = (slug) => { clearTimeout(materialTimerRef.current); setMaterialHover(slug); };
@@ -2171,6 +2198,7 @@
           abortRef.current = controller;
           try {
             const res = await fetch(API + '/api/storefront/search/suggest?q=' + encodeURIComponent(q), { signal: controller.signal });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
             const data = await res.json();
             if (!controller.signal.aborted) {
               setSuggestData(data);
@@ -2178,7 +2206,7 @@
               setActiveIdx(-1);
               setSuggestLoading(false);
             }
-          } catch(e) { if (e.name !== 'AbortError') setSuggestData({ categories: [], collections: [], products: [], total: 0 }); }
+          } catch(e) { if (e.name !== 'AbortError') { setSuggestData({ categories: [], collections: [], products: [], total: 0 }); setSuggestLoading(false); } }
         }, 300);
       }, []);
 
@@ -2487,9 +2515,9 @@
                         onMouseEnter={() => handleMaterialEnter(cat.slug)}
                         onMouseLeave={handleMaterialLeave}>
                         {children.map(child => (
-                          <a key={child.slug} onClick={() => onCategorySelect(child.slug)}>{child.name}</a>
+                          <a key={child.slug} href="#" onClick={e => { e.preventDefault(); onCategorySelect(child.slug); }}>{child.name}</a>
                         ))}
-                        <a className="material-dropdown-viewall" onClick={() => onCategorySelect(cat.slug)}>View All {cat.name} &rarr;</a>
+                        <a className="material-dropdown-viewall" href="#" onClick={e => { e.preventDefault(); onCategorySelect(cat.slug); }}>View All {cat.name} &rarr;</a>
                       </div>
                     )}
                   </div>
@@ -2578,6 +2606,7 @@
       const [imgIndex, setImgIndex] = useState(0);
       const [loading, setLoading] = useState(true);
       const [fetchError, setFetchError] = useState(false);
+      const [adding, setAdding] = useState(false);
       const baseMediaRef = useRef(media);
       const isUnit = isSoldPerUnit(activeSku);
 
@@ -2625,6 +2654,8 @@
       }, [media.length]);
 
       const handleAdd = () => {
+        if (adding) return;
+        setAdding(true);
         if (isUnit) {
           addToCart({ sku_id: activeSku.sku_id, num_boxes: qty, sell_by: 'unit' });
         }
@@ -2645,7 +2676,7 @@
         // Immediately show sibling image, then fetch full detail
         setActiveSku(prev => ({ ...prev, sku_id: sib.sku_id, variant_name: sib.variant_name, retail_price: sib.retail_price, cut_price: sib.cut_price, primary_image: sib.primary_image, sell_by: sib.sell_by, price_basis: sib.price_basis, sqft_per_box: sib.sqft_per_box }));
         fetch('/api/storefront/skus/' + sib.sku_id, { headers: getTradeHeaders() })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => applyDetail(data));
       };
 
@@ -2768,12 +2799,12 @@
               <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: 'var(--stone-500)', cursor: 'pointer' }}>&times;</button>
             </div>
             <div className="mobile-nav-links">
-              <a onClick={() => { goHome(); onClose(); }}>Home</a>
-              <a onClick={() => { goBrowse(); onClose(); }}>Shop All</a>
+              <a href="#" onClick={e => { e.preventDefault(); goHome(); onClose(); }}>Home</a>
+              <a href="#" onClick={e => { e.preventDefault(); goBrowse(); onClose(); }}>Shop All</a>
               {parentCats.map(cat => {
                 const children = categories.filter(c => c.parent_id === cat.id);
                 if (children.length === 0) {
-                  return <a key={cat.id} onClick={() => { onCategorySelect(cat.slug); onClose(); }}>{cat.name}</a>;
+                  return <a key={cat.id} href="#" onClick={e => { e.preventDefault(); onCategorySelect(cat.slug); onClose(); }}>{cat.name}</a>;
                 }
                 return (
                   <div key={cat.id} className="mobile-nav-cat-item">
@@ -2783,36 +2814,36 @@
                     </div>
                     {expandedCat === cat.id && (
                       <div className="mobile-nav-cat-children">
-                        <a onClick={() => { onCategorySelect(cat.slug); onClose(); }}>All {cat.name}</a>
+                        <a href="#" onClick={e => { e.preventDefault(); onCategorySelect(cat.slug); onClose(); }}>All {cat.name}</a>
                         {children.map(child => (
-                          <a key={child.id} onClick={() => { onCategorySelect(child.slug); onClose(); }}>{child.name}</a>
+                          <a key={child.id} href="#" onClick={e => { e.preventDefault(); onCategorySelect(child.slug); onClose(); }}>{child.name}</a>
                         ))}
                       </div>
                     )}
                   </div>
                 );
               })}
-              <a onClick={() => { goCollections(); onClose(); }}>Collections</a>
+              <a href="#" onClick={e => { e.preventDefault(); goCollections(); onClose(); }}>Collections</a>
             </div>
             {!tradeCustomer && (
-              <a className="mobile-nav-trade-cta" onClick={() => { onTradeClick(); onClose(); }}>Trade Program</a>
+              <a className="mobile-nav-trade-cta" href="#" onClick={e => { e.preventDefault(); onTradeClick(); onClose(); }}>Trade Program</a>
             )}
             <div className="mobile-nav-footer">
               {customer ? (
                 <div>
                   <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Signed in as {customer.first_name || customer.email}</div>
-                  <a onClick={() => { goAccount(); onClose(); }}>My Account</a>
-                  <a onClick={() => { onCustomerLogout(); onClose(); }}>Sign Out</a>
+                  <a href="#" onClick={e => { e.preventDefault(); goAccount(); onClose(); }}>My Account</a>
+                  <a href="#" onClick={e => { e.preventDefault(); onCustomerLogout(); onClose(); }}>Sign Out</a>
                 </div>
               ) : tradeCustomer ? (
                 <div>
                   <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Trade: {tradeCustomer.company_name}</div>
-                  <a onClick={() => { goTrade(); onClose(); }}>Trade Dashboard</a>
-                  <a onClick={() => { onTradeLogout(); onClose(); }}>Sign Out</a>
+                  <a href="#" onClick={e => { e.preventDefault(); goTrade(); onClose(); }}>Trade Dashboard</a>
+                  <a href="#" onClick={e => { e.preventDefault(); onTradeLogout(); onClose(); }}>Sign Out</a>
                 </div>
               ) : (
                 <div>
-                  <a onClick={() => { goAccount(); onClose(); }}>Sign In</a>
+                  <a href="#" onClick={e => { e.preventDefault(); goAccount(); onClose(); }}>Sign In</a>
                 </div>
               )}
             </div>
@@ -2836,7 +2867,7 @@
         if (open) {
           if (inputRef.current) setTimeout(() => inputRef.current.focus(), 100);
           setMobileRecent(getRecentSearches());
-          fetch(API + '/api/storefront/search/popular').then(r => r.json()).then(d => setMobilePopular(d.terms || [])).catch(() => {});
+          fetch(API + '/api/storefront/search/popular').then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => setMobilePopular(d.terms || [])).catch(() => {});
         }
         if (!open) { setQuery(''); setSuggestData({ categories: [], collections: [], products: [], total: 0 }); }
       }, [open]);
@@ -2848,11 +2879,13 @@
           setLoading(true);
           try {
             const res = await fetch(API + '/api/storefront/search/suggest?q=' + encodeURIComponent(query));
+            if (!res.ok) throw new Error('HTTP ' + res.status);
             const data = await res.json();
             setSuggestData(data);
           } catch(e) { setSuggestData({ categories: [], collections: [], products: [], total: 0 }); }
           setLoading(false);
         }, 250);
+        return () => clearTimeout(debounceRef.current);
       }, [query]);
 
       const handleSubmit = (e) => {
@@ -3365,7 +3398,7 @@
 
       // Shared FacetPanel props
       const facetProps = {
-        facets, filters, onFilterToggle, onClearFilters,
+        facets, filters, onFilterToggle, onBatchFilterSet: handleBatchFilterSet, onClearFilters,
         vendors: vendorFacets, vendorFilters, onVendorToggle,
         priceRange, userPriceRange, onPriceRangeChange,
         tagFacets, tagFilters, onTagToggle, totalSkus
@@ -3553,14 +3586,14 @@
             <div className="price-input-wrap">
               <span>$</span>
               <input type="number" min={min} max={max} step={step} value={localMin}
-                onChange={e => { const v = parseFloat(e.target.value) || min; setLocalMin(v); }}
+                onChange={e => { const v = parseFloat(e.target.value); setLocalMin(isNaN(v) ? min : v); }}
                 onBlur={() => commit(localMin, localMax)} />
             </div>
             <span className="price-range-dash">&ndash;</span>
             <div className="price-input-wrap">
               <span>$</span>
               <input type="number" min={min} max={max} step={step} value={localMax}
-                onChange={e => { const v = parseFloat(e.target.value) || max; setLocalMax(v); }}
+                onChange={e => { const v = parseFloat(e.target.value); setLocalMax(isNaN(v) ? max : v); }}
                 onBlur={() => commit(localMin, localMax)} />
             </div>
           </div>
@@ -3568,7 +3601,7 @@
       );
     }
 
-    function FacetPanel({ facets, filters, onFilterToggle, onClearFilters,
+    function FacetPanel({ facets, filters, onFilterToggle, onBatchFilterSet, onClearFilters,
       vendors, vendorFilters, onVendorToggle,
       priceRange, userPriceRange, onPriceRangeChange,
       tagFacets, tagFilters, onTagToggle,
@@ -3623,7 +3656,6 @@
       const handleFamilyClick = (familyName) => {
         const { keywords } = COLOR_FAMILIES[familyName];
         if (!colorFacet) return;
-        // Get all raw color values that belong to this family
         const familyRawValues = colorFacet.values.map(v => v.value).filter(v => {
           const lower = v.toLowerCase().trim();
           return keywords.some(kw => lower.includes(kw));
@@ -3631,17 +3663,13 @@
         if (familyRawValues.length === 0) return;
         const currentColors = filters.color || [];
         const isActive = familyRawValues.some(v => currentColors.includes(v));
+        let newColors;
         if (isActive) {
-          // Remove all raw values in this family
-          familyRawValues.forEach(v => {
-            if (currentColors.includes(v)) onFilterToggle('color', v);
-          });
+          newColors = currentColors.filter(v => !familyRawValues.includes(v));
         } else {
-          // Add all raw values in this family
-          familyRawValues.forEach(v => {
-            if (!currentColors.includes(v)) onFilterToggle('color', v);
-          });
+          newColors = [...currentColors, ...familyRawValues.filter(v => !currentColors.includes(v))];
         }
+        onBatchFilterSet('color', newColors);
       };
 
       // Separate color from other facets for custom rendering
@@ -3721,7 +3749,7 @@
             <div className="filter-group vendor-filter-group">
               <div className="filter-group-title" onClick={() => setCollapsed(prev => ({ ...prev, _vendor: !prev._vendor }))}>
                 <span>Brand{hasVendorFilters && <span className="filter-group-count-badge">{vendorFilters.length}</span>}</span>
-                {chevron(collapsed._vendor)}
+                {chevron(!collapsed._vendor)}
               </div>
               {!collapsed._vendor && (
                 <div style={{ marginTop: '0.625rem' }}>
@@ -4013,6 +4041,7 @@
       const [selectedImage, setSelectedImage] = useState(0);
       const [loading, setLoading] = useState(true);
       const [fetchError, setFetchError] = useState(null);
+      const [addingToCart, setAddingToCart] = useState(false);
 
       // Calculator state
       const [sqftInput, setSqftInput] = useState('');
@@ -4086,7 +4115,7 @@
               updateSEO({ title: skuTitle, description: skuDesc, url: SITE_URL + '/shop/sku/' + skuId, image: skuImage });
               // Fetch reviews for this product
               fetch(API + '/api/storefront/products/' + data.sku.product_id + '/reviews')
-                .then(r => r.json())
+                .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
                 .then(revData => {
                   setReviews(revData.reviews || []);
                   setAvgRating(revData.average_rating || 0);
@@ -4108,7 +4137,7 @@
                 const alertEmail = customer ? customer.email : '';
                 if (alertEmail) {
                   fetch(API + '/api/storefront/stock-alerts/check?sku_id=' + data.sku.sku_id + '&email=' + encodeURIComponent(alertEmail))
-                    .then(r => r.json())
+                    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
                     .then(d => { if (d.subscribed) setAlertSubscribed(true); })
                     .catch(() => {});
                 }
@@ -4296,7 +4325,9 @@
       };
 
       const handleAddToCart = () => {
-        if (!sku) return;
+        if (!sku || addingToCart) return;
+        setAddingToCart(true);
+        setTimeout(() => setAddingToCart(false), 1500);
         if (isCarpetSku) {
           if (carpetSqft <= 0) return;
           addToCart({
@@ -4416,7 +4447,7 @@
               <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 300, marginBottom: '1rem' }}>Popular Categories</h2>
               <div className="not-found-cats">
                 {categories.slice(0, 8).map(cat => (
-                  <a key={cat.slug} className="not-found-cat-link" onClick={() => { goBack(); }}>{cat.name}</a>
+                  <a key={cat.slug} className="not-found-cat-link" href="#" onClick={e => { e.preventDefault(); goBack(); }}>{cat.name}</a>
                 ))}
               </div>
             </div>
@@ -4465,9 +4496,9 @@
         <>
           <div className="sku-detail" data-sku={sku.vendor_sku || sku.internal_sku} style={loading ? { opacity: 0.6, pointerEvents: 'none', transition: 'opacity 0.15s ease' } : { opacity: 1, transition: 'opacity 0.15s ease' }}>
             <div className="breadcrumbs">
-              <a onClick={goBack}>Shop</a>
+              <a href="#" onClick={e => { e.preventDefault(); goBack(); }}>Shop</a>
               <span>/</span>
-              {sku.category_name && <><a onClick={goBack}>{sku.category_name}</a><span>/</span></>}
+              {sku.category_name && <><a href="#" onClick={e => { e.preventDefault(); goBack(); }}>{sku.category_name}</a><span>/</span></>}
               <span style={{ color: 'var(--stone-800)' }}>{fullProductName(sku)}</span>
             </div>
 
@@ -4581,7 +4612,7 @@
             </div>
 
             <div className="sku-detail-info">
-              <a className="back-btn" onClick={goBack}>&larr; Back to Shop</a>
+              <a className="back-btn" href="#" onClick={e => { e.preventDefault(); goBack(); }}>&larr; Back to Shop</a>
               <h1 className="sku-detail-title-row">
                 {fullProductName(sku)}
               </h1>
@@ -6070,7 +6101,7 @@
                 </div>
               ) : (
                 <p className="review-login-prompt">
-                  <a onClick={onShowAuth}>Sign in</a> to write a review
+                  <a href="#" onClick={e => { e.preventDefault(); onShowAuth(); }}>Sign in</a> to write a review
                 </p>
               )}
             </div>
@@ -6126,7 +6157,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, session_id: sessionId })
         })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => {
             if (data.valid) {
               setPromoResult(data);
@@ -6174,7 +6205,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ session_id: sessionId, destination: { zip }, residential: true, liftgate: liftgateEnabled })
         })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => {
             if (data.error) {
               setShippingError(data.error);
@@ -6217,7 +6248,7 @@
             { label: 'Home', onClick: goHome },
             { label: 'Cart' }
           ]} />
-          <a className="back-btn" onClick={goBrowse}>&larr; Continue Shopping</a>
+          <a className="back-btn" href="#" onClick={e => { e.preventDefault(); goBrowse(); }}>&larr; Continue Shopping</a>
           <h1>Your Cart</h1>
 
           {cart.length === 0 ? (
@@ -6415,7 +6446,7 @@
                       <div className="order-summary-row" style={{ color: '#16a34a' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                           <span style={{ background: '#dcfce7', color: '#166534', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>{promoResult.code}</span>
-                          <a onClick={removePromo} style={{ fontSize: '0.75rem', color: 'var(--stone-500)', cursor: 'pointer', textDecoration: 'underline' }}>Remove</a>
+                          <a href="#" onClick={e => { e.preventDefault(); removePromo(); }} style={{ fontSize: '0.75rem', color: 'var(--stone-500)', cursor: 'pointer', textDecoration: 'underline' }}>Remove</a>
                         </span>
                         <span style={{ fontWeight: 500 }}>-${promoDiscount.toFixed(2)}</span>
                       </div>
@@ -6454,15 +6485,6 @@
     // ==================== Checkout Page ====================
 
     function CheckoutPage({ cart, sessionId, goCart, handleOrderComplete, deliveryMethod, liftgateEnabled, tradeCustomer, tradeToken, customer, customerToken, onCustomerLogin, appliedPromoCode, setAppliedPromoCode }) {
-      if (!cart || cart.length === 0) {
-        return (
-          <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-            <h2>Your cart is empty</h2>
-            <p style={{ color: 'var(--stone-500)', margin: '1rem 0' }}>Add items to your cart before checking out.</p>
-            <button className="btn" onClick={goCart}>Go to Cart</button>
-          </div>
-        );
-      }
       const [customerName, setCustomerName] = useState(tradeCustomer ? tradeCustomer.contact_name : (customer ? (customer.first_name + ' ' + customer.last_name) : ''));
       const [customerEmail, setCustomerEmail] = useState(tradeCustomer ? tradeCustomer.email : (customer ? customer.email : ''));
       const [phone, setPhone] = useState(customer ? (customer.phone || '') : '');
@@ -6477,6 +6499,16 @@
       const cardRef = useRef(null);
       const cardMounted = useRef(false);
       const taxDebounce = useRef(null);
+
+      if (!cart || cart.length === 0) {
+        return (
+          <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+            <h2>Your cart is empty</h2>
+            <p style={{ color: 'var(--stone-500)', margin: '1rem 0' }}>Add items to your cart before checking out.</p>
+            <button className="btn" onClick={goCart}>Go to Cart</button>
+          </div>
+        );
+      }
       const addressInputRef = useRef(null);
       const autocompleteRef = useRef(null);
       const [placesReady, setPlacesReady] = useState(false);
@@ -6657,7 +6689,7 @@
           if (orderData.customer_token && orderData.customer && onCustomerLogin) {
             onCustomerLogin(orderData.customer_token, orderData.customer);
           }
-          handleOrderComplete(orderData.order);
+          handleOrderComplete({ order: orderData.order, sample_request: orderData.sample_request || null });
         } catch (err) {
           setError(err.message || 'Something went wrong. Please try again.');
           setProcessing(false);
@@ -6669,7 +6701,7 @@
         if (isPickup) return;
         let cancelled = false;
         fetch(API + '/api/config/google-places-key')
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => {
             if (cancelled || !data.key) return;
             return loadGooglePlaces(data.key).then(() => {
@@ -6770,7 +6802,7 @@
         setProcessing(true);
         try {
           const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
-          if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = true; }
+          if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
           const piRes = await fetch(API + '/api/checkout/create-payment-intent', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(piBody)
           });
@@ -6802,7 +6834,7 @@
           if (orderData.customer_token && orderData.customer && onCustomerLogin) {
             onCustomerLogin(orderData.customer_token, orderData.customer);
           }
-          handleOrderComplete(orderData.order);
+          handleOrderComplete({ order: orderData.order, sample_request: orderData.sample_request || null });
         } catch (err) {
           setError(err.message || 'Something went wrong. Please try again.');
           setProcessing(false);
@@ -6907,7 +6939,7 @@
             {sampleItems.length > 0 && <div className="order-summary-row muted"><span>Sample Shipping</span><span>$12.00</span></div>}
             {taxEstimate.amount > 0 && <div className="order-summary-row muted"><span>Estimated Tax ({(taxEstimate.rate * 100).toFixed(2)}%)</span><span>${taxEstimate.amount.toFixed(2)}</span></div>}
             <div className="order-summary-total"><span>Total</span><span>${cartTotal.toFixed(2)}</span></div>
-            <a className="back-btn" onClick={goCart} style={{ marginTop: '1rem', display: 'inline-block' }}>&larr; Back to Cart</a>
+            <a className="back-btn" href="#" onClick={e => { e.preventDefault(); goCart(); }} style={{ marginTop: '1rem', display: 'inline-block' }}>&larr; Back to Cart</a>
           </div>
         </div>
       );
@@ -7021,26 +7053,26 @@
 
       useEffect(() => {
         fetch(API + '/api/customer/orders', { headers: authHeaders })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => { setOrders(data.orders || []); setLoadingOrders(false); })
           .catch(() => setLoadingOrders(false));
         fetch(API + '/api/customer/sample-requests', { headers: authHeaders })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => { setSampleRequests(data.sample_requests || []); setLoadingSamples(false); })
           .catch(() => setLoadingSamples(false));
         fetch(API + '/api/customer/quotes', { headers: authHeaders })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => { setQuotes(data.quotes || []); setLoadingQuotes(false); })
           .catch(() => setLoadingQuotes(false));
         fetch(API + '/api/customer/visits', { headers: authHeaders })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => { setVisits(data.visits || []); setLoadingVisits(false); })
           .catch(() => setLoadingVisits(false));
       }, []);
 
       const refreshSamples = () => {
         fetch(API + '/api/customer/sample-requests', { headers: authHeaders })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => setSampleRequests(data.sample_requests || []))
           .catch(() => {});
       };
@@ -7786,7 +7818,7 @@
         // Fetch wishlisted SKUs by sku_id filter
         const skuIds = wishlist.join(',');
         fetch(API + '/api/storefront/skus?sku_ids=' + encodeURIComponent(skuIds) + '&limit=' + wishlist.length)
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => {
             const all = data.skus || [];
             // Keep only SKUs that are in the wishlist, in wishlist order
@@ -7878,29 +7910,29 @@
         setLoading(true);
         if (t === 'overview') {
           fetch(API + '/api/trade/dashboard', { headers: authHeaders })
-            .then(r => r.json()).then(d => { setDashData(d); setLoading(false); }).catch(() => setLoading(false));
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setDashData(d); setLoading(false); }).catch(() => setLoading(false));
         } else if (t === 'orders') {
           Promise.all([
-            fetch(API + '/api/trade/orders', { headers: authHeaders }).then(r => r.json()),
-            fetch(API + '/api/trade/projects', { headers: authHeaders }).then(r => r.json()).catch(() => ({ projects: [] }))
+            fetch(API + '/api/trade/orders', { headers: authHeaders }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+            fetch(API + '/api/trade/projects', { headers: authHeaders }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).catch(() => ({ projects: [] }))
           ]).then(([od, pd]) => { setOrders(od.orders || []); setProjects(pd.projects || []); setLoading(false); }).catch(() => setLoading(false));
         } else if (t === 'projects') {
           fetch(API + '/api/trade/projects', { headers: authHeaders })
-            .then(r => r.json()).then(d => { setProjects(d.projects || []); setLoading(false); }).catch(() => setLoading(false));
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setProjects(d.projects || []); setLoading(false); }).catch(() => setLoading(false));
         } else if (t === 'favorites') {
           fetch(API + '/api/trade/favorites', { headers: authHeaders })
-            .then(r => r.json()).then(d => { setFavorites(d.collections || []); setLoading(false); }).catch(() => setLoading(false));
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setFavorites(d.collections || []); setLoading(false); }).catch(() => setLoading(false));
         } else if (t === 'quotes') {
           fetch(API + '/api/trade/quotes', { headers: authHeaders })
-            .then(r => r.json()).then(d => { setQuotes(d.quotes || []); setExpandedQuote(null); setQuoteDetail(null); setLoading(false); }).catch(() => setLoading(false));
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setQuotes(d.quotes || []); setExpandedQuote(null); setQuoteDetail(null); setLoading(false); }).catch(() => setLoading(false));
         } else if (t === 'visits') {
           fetch(API + '/api/trade/visits', { headers: authHeaders })
-            .then(r => r.json()).then(d => { setVisits(d.visits || []); setExpandedVisit(null); setVisitDetail(null); setLoading(false); }).catch(() => setLoading(false));
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setVisits(d.visits || []); setExpandedVisit(null); setVisitDetail(null); setLoading(false); }).catch(() => setLoading(false));
         } else if (t === 'account') {
           Promise.all([
-            fetch(API + '/api/trade/account', { headers: authHeaders }).then(r => r.json()),
-            fetch(API + '/api/trade/membership', { headers: authHeaders }).then(r => r.json()).catch(() => ({})),
-            fetch(API + '/api/trade/my-rep', { headers: authHeaders }).then(r => r.json()).catch(() => ({}))
+            fetch(API + '/api/trade/account', { headers: authHeaders }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+            fetch(API + '/api/trade/membership', { headers: authHeaders }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).catch(() => ({})),
+            fetch(API + '/api/trade/my-rep', { headers: authHeaders }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).catch(() => ({}))
           ]).then(([acc, mem, rp]) => {
             setAccount(acc.customer || acc);
             setMembership(mem);
@@ -8527,6 +8559,7 @@
       const [results, setResults] = useState([]);
       const [loading, setLoading] = useState(false);
       const [filterParams, setFilterParams] = useState('');
+      useEffect(() => { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = ''; }; }, []);
 
       const rooms = [
         { id: 'kitchen', label: 'Kitchen', icon: (
@@ -8796,6 +8829,7 @@
       const [confirmPassword, setConfirmPassword] = useState('');
       const [error, setError] = useState('');
       const [success, setSuccess] = useState('');
+      useEffect(() => { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = ''; }; }, []);
       const [loading, setLoading] = useState(false);
       const [step, setStep] = useState(1);
       const [docs, setDocs] = useState({ ein: null, resale_cert: null, business_card: null });
@@ -8856,8 +8890,8 @@
           formData.append('doc_type', docType);
           formData.append('email', email);
           const resp = await fetch(API + '/api/trade/register/upload', { method: 'POST', body: formData });
+          if (!resp.ok) { const errData = await resp.json().catch(() => ({})); setError(errData.error || 'Upload failed'); setUploading(''); return; }
           const data = await resp.json();
-          if (!resp.ok) { setError(data.error || 'Upload failed'); setUploading(''); return; }
           setDocUploads(prev => ({ ...prev, [docType]: { id: data.document_id, file_name: file.name } }));
         } catch (err) {
           setError('Upload failed. Please try again.');
@@ -8886,8 +8920,9 @@
       };
 
       useEffect(() => {
+        let timerId = null;
         if (step === 3 && !cardMounted.current && setupIntentSecret && stripeInstance) {
-          setTimeout(() => {
+          timerId = setTimeout(() => {
             const el = document.getElementById('trade-card-element');
             if (!el) return;
             const elements = stripeInstance.elements();
@@ -8900,6 +8935,7 @@
           }, 100);
         }
         return () => {
+          if (timerId) clearTimeout(timerId);
           if (cardMounted.current && cardRef.current) {
             cardRef.current.unmount();
             cardMounted.current = false;
@@ -8956,7 +8992,7 @@
                   {loading ? 'Signing in...' : 'Sign In'}
                 </button>
                 <div className="trade-toggle">
-                  Don't have an account? <a onClick={() => { setMode('register'); setError(''); setSuccess(''); }}>Apply for Trade</a>
+                  Don't have an account? <a href="#" onClick={e => { e.preventDefault(); setMode('register'); setError(''); setSuccess(''); }}>Apply for Trade</a>
                 </div>
               </form>
             ) : step === 4 ? (
@@ -9018,7 +9054,7 @@
                     </div>
                     <button className="btn" onClick={goStep2} style={{ width: '100%', marginTop: '0.5rem' }}>Continue</button>
                     <div className="trade-toggle">
-                      Already have an account? <a onClick={() => { setMode('login'); setError(''); setSuccess(''); setStep(1); }}>Sign In</a>
+                      Already have an account? <a href="#" onClick={e => { e.preventDefault(); setMode('login'); setError(''); setSuccess(''); setStep(1); }}>Sign In</a>
                     </div>
                   </div>
                 )}
@@ -9084,6 +9120,7 @@
       const [error, setError] = useState('');
       const [success, setSuccess] = useState('');
       const [loading, setLoading] = useState(false);
+      useEffect(() => { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = ''; }; }, []);
 
       const handleLogin = async (e) => {
         e.preventDefault();
@@ -9093,9 +9130,8 @@
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
           });
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          const data = await res.json();
-          if (data.error) { setError(data.error); setLoading(false); return; }
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.error) { setError(data.error || 'Login failed'); setLoading(false); return; }
           onLogin(data.token, data.customer);
         } catch(e) { setError('Login failed'); setLoading(false); }
       };
@@ -9108,9 +9144,8 @@
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName })
           });
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          const data = await res.json();
-          if (data.error) { setError(data.error); setLoading(false); return; }
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.error) { setError(data.error || 'Registration failed'); setLoading(false); return; }
           onLogin(data.token, data.customer);
         } catch(e) { setError('Registration failed'); setLoading(false); }
       };
@@ -9123,9 +9158,8 @@
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email })
           });
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          const data = await res.json();
-          if (data.error) { setError(data.error); setLoading(false); return; }
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.error) { setError(data.error || 'Unable to send reset email. Please try again.'); setLoading(false); return; }
           setSuccess('If an account exists with that email, a reset link has been sent.');
           setLoading(false);
         } catch(e) { setError('Unable to send reset email. Please try again.'); setLoading(false); }
@@ -9153,7 +9187,7 @@
                   </button>
                 </form>
                 <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem' }}>
-                  <a onClick={() => switchMode('login')} style={{ color: 'var(--gold)', cursor: 'pointer' }}>Back to Sign In</a>
+                  <a href="#" onClick={e => { e.preventDefault(); switchMode('login'); }} style={{ color: 'var(--gold)', cursor: 'pointer' }}>Back to Sign In</a>
                 </div>
               </>
             ) : (
@@ -9170,7 +9204,7 @@
                   <div className="checkout-field"><label>Password</label><input className="checkout-input" type="password" value={password} onChange={e => setPassword(e.target.value)} required /></div>
                   {mode === 'login' && (
                     <div style={{ textAlign: 'right', marginBottom: '1rem' }}>
-                      <a onClick={() => switchMode('forgot')} style={{ fontSize: '0.8125rem', color: 'var(--gold)', cursor: 'pointer' }}>Forgot password?</a>
+                      <a href="#" onClick={e => { e.preventDefault(); switchMode('forgot'); }} style={{ fontSize: '0.8125rem', color: 'var(--gold)', cursor: 'pointer' }}>Forgot password?</a>
                     </div>
                   )}
                   <button type="submit" className="btn" style={{ width: '100%' }} disabled={loading}>
@@ -9179,9 +9213,9 @@
                 </form>
                 <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem' }}>
                   {mode === 'login' ? (
-                    <span>No account? <a onClick={() => switchMode('register')} style={{ color: 'var(--gold)', cursor: 'pointer' }}>Create one</a></span>
+                    <span>No account? <a href="#" onClick={e => { e.preventDefault(); switchMode('register'); }} style={{ color: 'var(--gold)', cursor: 'pointer' }}>Create one</a></span>
                   ) : (
-                    <span>Have an account? <a onClick={() => switchMode('login')} style={{ color: 'var(--gold)', cursor: 'pointer' }}>Sign in</a></span>
+                    <span>Have an account? <a href="#" onClick={e => { e.preventDefault(); switchMode('login'); }} style={{ color: 'var(--gold)', cursor: 'pointer' }}>Sign in</a></span>
                   )}
                 </div>
               </>
@@ -9202,6 +9236,7 @@
       const [message, setMessage] = useState('');
       const [submitted, setSubmitted] = useState(false);
       const [error, setError] = useState('');
+      useEffect(() => { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = ''; }; }, []);
 
       const handleSubmit = async (e) => {
         e.preventDefault();
@@ -9384,7 +9419,7 @@
 
       useEffect(() => {
         fetch('/api/storefront/sale/stats')
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => setStats(data))
           .catch(() => {});
       }, []);
@@ -9393,7 +9428,7 @@
         setLoading(true);
         const offset = (page - 1) * limit;
         fetch(`/api/storefront/skus?sale=true&sort=${sortBy}&limit=${limit}&offset=${offset}`)
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => {
             setSkus(data.skus || []);
             setTotal(data.total || 0);
@@ -9953,7 +9988,7 @@
             <React.Fragment key={i}>
               {i > 0 && <span aria-hidden="true">/</span>}
               {item.onClick ? (
-                <a onClick={item.onClick}>{item.label}</a>
+                <a href="#" onClick={e => { e.preventDefault(); item.onClick(); }}>{item.label}</a>
               ) : (
                 <span style={{ color: 'var(--stone-800)' }}>{item.label}</span>
               )}
@@ -9978,18 +10013,18 @@
             </div>
             <div className="footer-col">
               <h4>Shop</h4>
-              <a onClick={goBrowse}>All Products</a>
-              <a onClick={goCollections}>Collections</a>
-              <a onClick={() => onInstallClick && onInstallClick()}>Installation</a>
+              <a href="#" onClick={e => { e.preventDefault(); goBrowse(); }}>All Products</a>
+              <a href="#" onClick={e => { e.preventDefault(); goCollections(); }}>Collections</a>
+              <a href="#" onClick={e => { e.preventDefault(); onInstallClick && onInstallClick(); }}>Installation</a>
             </div>
             <div className="footer-col">
               <h4>Trade</h4>
-              <a onClick={goTrade}>Trade Program</a>
-              <a onClick={goTrade}>Apply Now</a>
+              <a href="#" onClick={e => { e.preventDefault(); goTrade(); }}>Trade Program</a>
+              <a href="#" onClick={e => { e.preventDefault(); goTrade(); }}>Apply Now</a>
             </div>
             <div className="footer-col">
               <h4>Company</h4>
-              <a onClick={goHome}>Home</a>
+              <a href="#" onClick={e => { e.preventDefault(); goHome(); }}>Home</a>
               <a href="mailto:Sales@romaflooringdesigns.com">Contact</a>
             </div>
           </div>

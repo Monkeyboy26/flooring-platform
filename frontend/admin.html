@@ -1152,7 +1152,10 @@
           window.location.reload();
           throw new Error('Unauthorized');
         }
-        return r.json();
+        return r.json().then(data => {
+          if (!r.ok) throw new Error(data.error || 'Upload failed (status ' + r.status + ')');
+          return data;
+        });
       });
     }
 
@@ -1223,7 +1226,7 @@
 
       useEffect(() => {
         fetch(API + '/api/staff/setup-check')
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => setMode(data.needs_setup ? 'setup' : 'login'))
           .catch(() => setMode('login'));
       }, []);
@@ -1879,7 +1882,7 @@
                   <tr key={o.id}>
                     <td><a style={{ cursor: 'pointer', color: 'var(--stone-800)', textDecoration: 'underline' }} onClick={() => navigate('order-detail', o.id)}>{o.order_number}</a></td>
                     <td>{o.customer_name}</td>
-                    <td>${parseFloat(o.total).toFixed(2)}</td>
+                    <td>${parseFloat(o.total || 0).toFixed(2)}</td>
                     <td><span className={'badge badge-' + o.status}>{o.status}</span></td>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(o.created_at).toLocaleDateString()}</td>
                   </tr>
@@ -2811,7 +2814,6 @@
       const [deleteTarget, setDeleteTarget] = useState(null);
       const fileInputRef = useRef(null);
 
-      const API = '';
       const assetTypes = ['primary', 'alternate', 'lifestyle', 'detail', 'spec_pdf', 'swatch'];
 
       const handleFiles = async (files) => {
@@ -3068,6 +3070,7 @@
             headers: getAuthHeaders(),
             body: fd
           });
+          if (!res.ok) { const errData = await res.json().catch(() => ({})); setError(errData.error || 'Upload failed (HTTP ' + res.status + ')'); setUploading(false); return; }
           const d = await res.json();
           if (d.error) { setError(d.error); setUploading(false); return; }
           setImportSession(d);
@@ -3645,7 +3648,7 @@
       const [myOrders, setMyOrders] = useState(false);
 
       const openStatuses = ['pending', 'confirmed', 'shipped'];
-      const closedStatuses = ['delivered', 'cancelled'];
+      const closedStatuses = ['delivered', 'cancelled', 'refunded'];
 
       const load = () => {
         setLoading(true);
@@ -3706,7 +3709,7 @@
                   <td>{o.customer_name}</td>
                   <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{o.customer_email}</td>
                   <td>{o.item_count}</td>
-                  <td>${parseFloat(o.total).toFixed(2)}</td>
+                  <td>${parseFloat(o.total || 0).toFixed(2)}</td>
                   <td>
                     {o.delivery_method === 'pickup'
                       ? <span className="badge badge-draft">Pickup</span>
@@ -4030,7 +4033,7 @@
           body: JSON.stringify({ sales_rep_id: repId || null })
         }).then(data => {
           if (data.order) setOrder(data.order);
-        }).catch(() => {});
+        }).catch(err => alert(err.message || 'Failed to assign rep'));
       };
 
       if (loading) return <div className="loading">Loading order...</div>;
@@ -4387,7 +4390,7 @@
                               body: JSON.stringify({ delivery_method: 'shipping', shipping_address: deliveryAddress })
                             });
                             if (data.shipping_options) setShippingOptions(data.shipping_options);
-                          } catch (err) {}
+                          } catch (err) { alert(err.message || 'Failed to get shipping rates'); }
                           setDeliveryUpdating(false);
                         }}>{deliveryUpdating ? 'Calculating...' : 'Get Rates'}</button>
                         <button className="btn btn-secondary btn-sm" onClick={() => { setShowDeliveryForm(false); setShippingOptions(null); }}>Cancel</button>
@@ -4414,7 +4417,7 @@
                                   });
                                   if (data.order) { setOrder(data.order); setShowDeliveryForm(false); setShippingOptions(null); }
                                   if (data.balance) setBalanceInfo(data.balance);
-                                } catch (err) {}
+                                } catch (err) { alert(err.message || 'Failed to apply shipping rate'); }
                                 setDeliveryUpdating(false);
                               }}>{deliveryUpdating ? 'Applying...' : 'Apply'}</button>
                             </div>
@@ -4443,7 +4446,7 @@
                         });
                         if (data.order) setOrder(data.order);
                         if (data.balance) setBalanceInfo(data.balance);
-                      } catch (err) {}
+                      } catch (err) { alert(err.message || 'Failed to switch to pickup'); }
                       setDeliveryUpdating(false);
                     }}>{deliveryUpdating ? 'Updating...' : 'Switch to Pickup'}</button>
                   )}
@@ -4885,7 +4888,7 @@
                       </thead>
                       <tbody>
                         {(po.items || []).map(item => {
-                          const cost = parseFloat(item.cost);
+                          const cost = parseFloat(item.cost || 0);
                           const retail = parseFloat(item.retail_price || 0);
                           const margin = retail > 0 ? ((retail - cost) / retail * 100) : 0;
                           return (
@@ -4943,7 +4946,7 @@
                                   ) : '—'}
                                 </td>
                               )}
-                              <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal).toFixed(2)}</td>
+                              <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</td>
                               {isDraft && (
                                 <td>
                                   <button onClick={() => deletePOItem(po.id, item.id)} title="Delete item"
@@ -4989,7 +4992,7 @@
                     </table>
                     </div>
                     <div style={{ textAlign: 'right', marginTop: '0.75rem', fontWeight: 600, fontSize: '0.9rem' }}>
-                      PO Total: ${parseFloat(po.subtotal).toFixed(2)}
+                      PO Total: ${parseFloat(po.subtotal || 0).toFixed(2)}
                     </div>
 
                     {/* Notes (draft editable) */}
@@ -5071,7 +5074,7 @@
             <div style={{ maxWidth: '350px', marginLeft: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem' }}>
                 <span>Subtotal</span>
-                <span>${parseFloat(order.subtotal).toFixed(2)}</span>
+                <span>${parseFloat(order.subtotal || 0).toFixed(2)}</span>
               </div>
               {order.delivery_method === 'pickup' ? (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem' }}>
@@ -5098,7 +5101,7 @@
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 0', fontSize: '1rem', fontWeight: 600, borderTop: '2px solid var(--stone-200)', marginTop: '0.5rem' }}>
                 <span>Total</span>
-                <span>${parseFloat(order.total).toFixed(2)}</span>
+                <span>${parseFloat(order.total || 0).toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '0.875rem', color: 'var(--stone-500)' }}>
                 <span>Amount Paid</span>
@@ -5162,8 +5165,8 @@
                           {p.payment_type === 'charge' ? 'Charge' : p.payment_type === 'refund' ? 'Refund' : 'Additional'}
                         </span>
                       </td>
-                      <td style={{ color: parseFloat(p.amount) < 0 ? '#dc2626' : '#16a34a', fontWeight: 500 }}>
-                        {parseFloat(p.amount) < 0 ? '-' : '+'}${Math.abs(parseFloat(p.amount)).toFixed(2)}
+                      <td style={{ color: parseFloat(p.amount || 0) < 0 ? '#dc2626' : '#16a34a', fontWeight: 500 }}>
+                        {parseFloat(p.amount || 0) < 0 ? '-' : '+'}${Math.abs(parseFloat(p.amount || 0)).toFixed(2)}
                       </td>
                       <td>{p.description || '—'}</td>
                       <td>{p.initiated_by_name || '—'}</td>
@@ -5266,7 +5269,7 @@
           <div className="modal-overlay" onClick={() => !refunding && setShowRefundModal(false)}>
             <div className="modal-box" onClick={e => e.stopPropagation()}>
               <h3>Confirm Refund</h3>
-              <p>Issue a full refund of <strong style={{ color: 'var(--stone-900)', fontSize: '1.1rem' }}>${parseFloat(order.total).toFixed(2)}</strong> to the customer's original payment method?</p>
+              <p>Issue a full refund of <strong style={{ color: 'var(--stone-900)', fontSize: '1.1rem' }}>${(() => { const ch = payments.filter(p => ['charge','additional_charge'].includes(p.payment_type) && p.status === 'completed').reduce((s,p) => s + parseFloat(p.amount || 0), 0); const rf = payments.filter(p => p.payment_type === 'refund' && p.status === 'completed').reduce((s,p) => s + Math.abs(parseFloat(p.amount || 0)), 0); return (ch - rf).toFixed(2); })()}</strong> to the customer's original payment method?</p>
               <p style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '-0.75rem' }}>This will process a Stripe refund and cannot be undone.</p>
               <div className="modal-actions">
                 <button className="btn btn-secondary" onClick={() => setShowRefundModal(false)} disabled={refunding}>Cancel</button>
@@ -5279,10 +5282,11 @@
                       setShowRefundModal(false);
                       const refreshed = await adminFetch('/api/admin/orders/' + editId);
                       setPayments(refreshed.payments || []);
+                      setBalanceInfo(refreshed.balance || null);
                     } catch (err) { alert(err.message); }
                     setRefunding(false);
                   }}>
-                  {refunding ? 'Processing...' : 'Refund $' + parseFloat(order.total).toFixed(2)}
+                  {refunding ? 'Processing...' : 'Refund $' + (() => { const ch = payments.filter(p => ['charge','additional_charge'].includes(p.payment_type) && p.status === 'completed').reduce((s,p) => s + parseFloat(p.amount || 0), 0); const rf = payments.filter(p => p.payment_type === 'refund' && p.status === 'completed').reduce((s,p) => s + Math.abs(parseFloat(p.amount || 0)), 0); return (ch - rf).toFixed(2); })()}
                 </button>
               </div>
             </div>
@@ -5294,8 +5298,8 @@
             <div className="modal-box" onClick={e => e.stopPropagation()}>
               <h3>Issue Partial Refund</h3>
               <p style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>Max refundable: ${(() => {
-                const charges = payments.filter(p => ['charge','additional_charge'].includes(p.payment_type) && p.status === 'completed').reduce((s,p) => s + parseFloat(p.amount), 0);
-                const refunds = payments.filter(p => p.payment_type === 'refund' && p.status === 'completed').reduce((s,p) => s + Math.abs(parseFloat(p.amount)), 0);
+                const charges = payments.filter(p => ['charge','additional_charge'].includes(p.payment_type) && p.status === 'completed').reduce((s,p) => s + parseFloat(p.amount || 0), 0);
+                const refunds = payments.filter(p => p.payment_type === 'refund' && p.status === 'completed').reduce((s,p) => s + Math.abs(parseFloat(p.amount || 0)), 0);
                 return (charges - refunds).toFixed(2);
               })()}</p>
               <div style={{ marginBottom: '1rem' }}>
@@ -7029,9 +7033,9 @@
               ) : tiers.map(t => (
                 <tr key={t.id}>
                   <td><strong>{t.name}</strong></td>
-                  <td>{parseFloat(t.discount_percent).toFixed(1)}%</td>
+                  <td>{parseFloat(t.discount_percent || 0).toFixed(1)}%</td>
                   <td>{t.customer_count}</td>
-                  <td>${(10 * (1 - parseFloat(t.discount_percent) / 100)).toFixed(2)}</td>
+                  <td>${(10 * (1 - parseFloat(t.discount_percent || 0) / 100)).toFixed(2)}</td>
                   <td>
                     <button className="btn-link" onClick={() => openEdit(t)}>Edit</button>
                     <button className="btn-link btn-link-danger" onClick={() => handleDelete(t)} style={{ marginLeft: '0.5rem' }}>Delete</button>
@@ -7209,7 +7213,7 @@
                       <select value={c.margin_tier_id || ''} onClick={e => e.stopPropagation()} onChange={e => updateCustomer(c.id, { margin_tier_id: e.target.value || null })}
                         style={{ padding: '0.3rem 0.4rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' }}>
                         <option value="">No tier</option>
-                        {tiers.map(t => <option key={t.id} value={t.id}>{t.name} ({parseFloat(t.discount_percent).toFixed(0)}%)</option>)}
+                        {tiers.map(t => <option key={t.id} value={t.id}>{t.name} ({parseFloat(t.discount_percent || 0).toFixed(0)}%)</option>)}
                       </select>
                     </td>
                     <td>
@@ -7672,7 +7676,7 @@
               // Load restricted product names
               if (code.restricted_product_ids && code.restricted_product_ids.length > 0) {
                 Promise.all(code.restricted_product_ids.map(pid =>
-                  fetch(API + '/api/products/' + pid).then(r => r.json()).then(d => ({ id: pid, name: d.name || pid })).catch(() => ({ id: pid, name: pid }))
+                  fetch(API + '/api/products/' + pid).then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(d => ({ id: pid, name: d.name || pid })).catch(() => ({ id: pid, name: pid }))
                 )).then(setProducts);
               }
             }
@@ -7687,7 +7691,7 @@
         if (term.length < 2) { setSearchResults([]); return; }
         searchTimeout.current = setTimeout(() => {
           fetch(API + '/api/products?search=' + encodeURIComponent(term))
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(); return r.json(); })
             .then(data => setSearchResults(data.products || []))
             .catch(() => {});
         }, 300);
@@ -8759,19 +8763,25 @@
       useEffect(() => { loadCommissions(); }, [filter.status, filter.rep_id, filter.from, filter.to, page]);
 
       const handleApprove = async (id) => {
-        await adminFetch('/api/admin/accounting/commissions/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'earned' }) });
-        loadCommissions(); loadSummary();
+        try {
+          await adminFetch('/api/admin/accounting/commissions/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'earned' }) });
+          loadCommissions(); loadSummary();
+        } catch (err) { alert(err.message || 'Failed to approve commission'); }
       };
       const handlePay = async (id) => {
-        await adminFetch('/api/admin/accounting/commissions/' + id + '/pay', { method: 'POST' });
-        loadCommissions(); loadSummary();
+        try {
+          await adminFetch('/api/admin/accounting/commissions/' + id + '/pay', { method: 'POST' });
+          loadCommissions(); loadSummary();
+        } catch (err) { alert(err.message || 'Failed to pay commission'); }
       };
       const handleBatchPay = async () => {
         if (!selected.length) return;
         if (!confirm('Pay ' + selected.length + ' selected commissions?')) return;
-        await adminFetch('/api/admin/accounting/commissions/batch-pay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: selected }) });
-        setSelected([]);
-        loadCommissions(); loadSummary();
+        try {
+          await adminFetch('/api/admin/accounting/commissions/batch-pay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: selected }) });
+          setSelected([]);
+          loadCommissions(); loadSummary();
+        } catch (err) { alert(err.message || 'Failed to process batch payment'); }
       };
       const handleEdit = (c) => {
         setEditingId(c.id);
@@ -8779,17 +8789,21 @@
       };
       const handleSaveEdit = async () => {
         setSaving(true);
-        await adminFetch('/api/admin/accounting/commissions/' + editingId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editForm) });
-        setEditingId(null);
+        try {
+          await adminFetch('/api/admin/accounting/commissions/' + editingId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editForm) });
+          setEditingId(null);
+          loadCommissions(); loadSummary();
+        } catch (err) { alert(err.message || 'Failed to save commission'); }
         setSaving(false);
-        loadCommissions(); loadSummary();
       };
       const handleSaveConfig = async () => {
         setSaving(true);
-        await adminFetch('/api/admin/accounting/commissions/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(configForm) });
-        setEditingConfig(false);
+        try {
+          await adminFetch('/api/admin/accounting/commissions/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(configForm) });
+          setEditingConfig(false);
+          loadConfig();
+        } catch (err) { alert(err.message || 'Failed to save config'); }
         setSaving(false);
-        loadConfig();
       };
 
       const toggleSelect = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -9014,11 +9028,13 @@
           if (receiptFile && expenseId) {
             const fd = new FormData();
             fd.append('file', receiptFile);
-            await fetch(API + '/api/admin/accounting/expenses/' + expenseId + '/receipt', {
+            const receiptRes = await fetch(API + '/api/admin/accounting/expenses/' + expenseId + '/receipt', {
               method: 'POST',
               headers: getAuthHeaders(),
               body: fd
-            }).then(r => r.json());
+            });
+            if (!receiptRes.ok) { const err = await receiptRes.json().catch(() => ({})); throw new Error(err.error || 'Receipt upload failed'); }
+            await receiptRes.json();
           }
           setShowModal(false);
           setReceiptFile(null);
@@ -9204,6 +9220,7 @@
       };
 
       useEffect(() => { loadInvoices(); loadStats(); }, []);
+      useEffect(() => { loadInvoices(); }, [filter.status, filter.from, filter.to]);
 
       const handleCreate = async () => {
         if (!createForm.customer_name || !createForm.items.some(it => it.description && it.unit_price)) { alert('Customer name and at least one item required'); return; }
@@ -9281,7 +9298,7 @@
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
               {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-primary btn-sm" onClick={() => handleSend(detailId)}>Send Invoice</button>}
               {(detail.status === 'overdue' || detail.status === 'partial') && <button className="btn btn-sm" style={{ background: '#fef3c7', color: '#d97706', border: 'none' }} onClick={() => handleSendReminder(detailId)}>Send Reminder</button>}
-              {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-sm" style={{ background: '#dcfce7', color: '#166534', border: 'none' }} onClick={() => { setPayForm(f => ({ ...f, amount: parseFloat(detail.balance).toFixed(2) })); setShowPayment(true); }}>Record Payment</button>}
+              {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-sm" style={{ background: '#dcfce7', color: '#166534', border: 'none' }} onClick={() => { setPayForm(f => ({ ...f, amount: parseFloat(detail.balance || 0).toFixed(2) })); setShowPayment(true); }}>Record Payment</button>}
               <a className="btn btn-secondary btn-sm" href={API + '/api/admin/accounting/invoices/' + detailId + '/pdf?preview=true&token=' + encodeURIComponent(sessionStorage.getItem('staff_token'))} target="_blank" rel="noopener">Download PDF</a>
               {detail.status !== 'void' && <button className="btn btn-sm" style={{ background: 'var(--red-light)', color: 'var(--red)', border: 'none' }} onClick={() => handleVoid(detailId)}>Void</button>}
             </div>
@@ -9350,7 +9367,7 @@
 
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
             {statusTabs.map(s => (
-              <button key={s} className={filter.status === s ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => { setFilter(f => ({ ...f, status: s })); setTimeout(loadInvoices, 50); }}>
+              <button key={s} className={filter.status === s ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => { setFilter(f => ({ ...f, status: s })); }}>
                 {s || 'All'}
               </button>
             ))}
@@ -9466,6 +9483,7 @@
       };
 
       useEffect(() => { loadBills(); loadVendors(); loadStats(); }, []);
+      useEffect(() => { loadBills(); }, [filter.status, filter.vendor_id, filter.from, filter.to]);
 
       const handleCreate = async () => {
         if (!createForm.vendor_id || !createForm.items.some(it => it.description && it.unit_price)) { alert('Vendor and at least one item required'); return; }
@@ -9529,7 +9547,7 @@
 
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
               {['draft', 'received'].includes(detail.status) && <button className="btn btn-primary btn-sm" onClick={() => handleApprove(detailId)}>Approve</button>}
-              {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-sm" style={{ background: '#dcfce7', color: '#166534', border: 'none' }} onClick={() => { setPayForm(f => ({ ...f, amount: parseFloat(detail.balance).toFixed(2) })); setShowPayment(true); }}>Record Payment</button>}
+              {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-sm" style={{ background: '#dcfce7', color: '#166534', border: 'none' }} onClick={() => { setPayForm(f => ({ ...f, amount: parseFloat(detail.balance || 0).toFixed(2) })); setShowPayment(true); }}>Record Payment</button>}
               {detail.status !== 'void' && <button className="btn btn-sm" style={{ background: 'var(--red-light)', color: 'var(--red)', border: 'none' }} onClick={() => handleVoid(detailId)}>Void</button>}
             </div>
 
@@ -9589,11 +9607,11 @@
 
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
             {statusTabs.map(s => (
-              <button key={s} className={filter.status === s ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => { setFilter(f => ({ ...f, status: s })); setTimeout(loadBills, 50); }}>
+              <button key={s} className={filter.status === s ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => { setFilter(f => ({ ...f, status: s })); }}>
                 {s || 'All'}
               </button>
             ))}
-            <select className="form-input" style={{ maxWidth: 180 }} value={filter.vendor_id} onChange={e => { setFilter(f => ({ ...f, vendor_id: e.target.value })); setTimeout(loadBills, 50); }}>
+            <select className="form-input" style={{ maxWidth: 180 }} value={filter.vendor_id} onChange={e => { setFilter(f => ({ ...f, vendor_id: e.target.value })); }}>
               <option value="">All Vendors</option>
               {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
             </select>
@@ -9812,11 +9830,11 @@
       const renderAgingBar = (aging) => {
         if (!aging) return null;
         const buckets = [
-          { label: 'Current', value: parseFloat(aging.current), color: '#6b8f71' },
-          { label: '1-30', value: parseFloat(aging.days_1_30), color: '#b8960c' },
-          { label: '31-60', value: parseFloat(aging.days_31_60), color: '#d97706' },
-          { label: '61-90', value: parseFloat(aging.days_61_90), color: '#dc2626' },
-          { label: '90+', value: parseFloat(aging.days_90_plus), color: '#7f1d1d' }
+          { label: 'Current', value: parseFloat(aging.current || 0), color: '#6b8f71' },
+          { label: '1-30', value: parseFloat(aging.days_1_30 || 0), color: '#b8960c' },
+          { label: '31-60', value: parseFloat(aging.days_31_60 || 0), color: '#d97706' },
+          { label: '61-90', value: parseFloat(aging.days_61_90 || 0), color: '#dc2626' },
+          { label: '90+', value: parseFloat(aging.days_90_plus || 0), color: '#7f1d1d' }
         ];
         const total = parseFloat(aging.total_outstanding) || 1;
         return (
@@ -10057,35 +10075,35 @@
       const fetchOverview = useCallback(() => {
         setLoading(true);
         fetch(API + '/api/admin/site-analytics?period=' + period, { headers })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(d => { setData(d); setLoading(false); })
           .catch(() => setLoading(false));
       }, [period]);
 
       const fetchFunnel = useCallback(() => {
         fetch(API + '/api/admin/site-analytics/funnel?period=' + period, { headers })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(d => setFunnelData(d))
           .catch(console.error);
       }, [period]);
 
       const fetchProducts = useCallback(() => {
         fetch(API + '/api/admin/site-analytics/products?period=' + period, { headers })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(d => setProductsData(d))
           .catch(console.error);
       }, [period]);
 
       const fetchSearches = useCallback(() => {
         fetch(API + '/api/admin/site-analytics/searches?period=' + period, { headers })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(d => setSearchData(d))
           .catch(console.error);
       }, [period]);
 
       const fetchRealtime = useCallback(() => {
         fetch(API + '/api/admin/site-analytics/realtime', { headers })
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(d => setRealtimeData(d))
           .catch(console.error);
       }, []);
@@ -10650,7 +10668,7 @@
       };
 
       const sendPOToVendor = async () => {
-        const ediEnabled = po.edi_config && JSON.parse(po.edi_config).enabled;
+        const ediEnabled = (() => { try { const cfg = typeof po.edi_config === 'string' ? JSON.parse(po.edi_config) : po.edi_config; return cfg && cfg.enabled; } catch { return false; } })();
         const method = ediEnabled ? 'EDI' : 'email';
         if (!confirm('Send this PO to the vendor via ' + method + '?')) return;
         setPoUpdating(true);
@@ -10991,7 +11009,7 @@
               </thead>
               <tbody>
                 {items.map(item => {
-                  const costVal = parseFloat(item.cost);
+                  const costVal = parseFloat(item.cost || 0);
                   const retailVal = parseFloat(item.retail_price || 0);
                   const margin = retailVal > 0 ? ((retailVal - costVal) / retailVal * 100) : 0;
                   return (
@@ -11031,7 +11049,7 @@
                         </select>
                       </td>
                     )}
-                    <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal).toFixed(2)}</td>
+                    <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</td>
                     {isDraft && canManage && (
                       <td className="actions">
                         <button className="btn btn-danger btn-sm" onClick={() => deletePOItem(item.id)}>Remove</button>

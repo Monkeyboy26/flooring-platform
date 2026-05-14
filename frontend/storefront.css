@@ -619,8 +619,8 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .attr-pill.disabled { border-style: dashed; opacity: 0.55; cursor: pointer; }
 .attr-pill.disabled:hover { border-color: var(--stone-600); opacity: 0.8; }
 .variant-selectors .color-swatch-wrap.disabled { cursor: pointer; }
-.variant-selectors .color-swatch-wrap.disabled .color-swatch { opacity: 0.5; border-style: dashed; border-color: var(--stone-300); }
-.variant-selectors .color-swatch-wrap.disabled:hover .color-swatch { border-color: var(--stone-500); opacity: 0.8; }
+.variant-selectors .color-swatch-wrap.disabled .color-swatch { opacity: 0.3; border: 2.5px dashed var(--stone-400); filter: grayscale(100%); transform: scale(0.88); }
+.variant-selectors .color-swatch-wrap.disabled:hover .color-swatch { border-color: var(--stone-600); opacity: 0.7; filter: grayscale(0%); transform: scale(1); }
 .attr-select { width: 100%; padding: 0.6rem 1rem; border: 1.5px solid var(--stone-300); background: white; font-size: 0.875rem; font-family: var(--font-body); color: var(--stone-800); cursor: pointer; appearance: auto; }
 .attr-select:hover { border-color: var(--stone-600); }
 .attr-select:focus { outline: none; border-color: var(--stone-900); }

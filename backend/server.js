@@ -6240,7 +6240,7 @@ app.put('/api/admin/orders/:id/delivery-method', staffAuth, requireRole('admin',
 
     // Switch to pickup
     if (delivery_method === 'pickup') {
-      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
       const updated = await pool.query(`
         UPDATE orders SET delivery_method = 'pickup', shipping = 0, shipping_method = 'pickup',
           shipping_carrier = NULL, shipping_transit_days = NULL, shipping_residential = false,
@@ -6279,7 +6279,7 @@ app.put('/api/admin/orders/:id/delivery-method', staffAuth, requireRole('admin',
 
     const selected = rates.options[optionIdx];
     const shippingCost = parseFloat(selected.amount || 0);
-    const newTotal = (parseFloat(order.subtotal) + shippingCost + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+    const newTotal = (parseFloat(order.subtotal) + shippingCost + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
 
     const updated = await pool.query(`
       UPDATE orders SET delivery_method = 'shipping', shipping = $2, shipping_method = $3,
@@ -6523,7 +6523,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       FROM order_items WHERE order_id = $1
     `, [id]);
     const newSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
-    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
+    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
 
     await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
       [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
@@ -6703,7 +6703,7 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
       FROM order_items WHERE order_id = $1
     `, [id]);
     const newSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
-    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
+    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
 
     await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
       [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
@@ -9281,7 +9281,21 @@ app.post('/api/trade/cancel-membership', tradeAuth, async (req, res) => {
 // Stripe webhook handler
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
-    const event = req.body;
+    let event;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (webhookSecret) {
+      const sig = req.headers['stripe-signature'];
+      try {
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      } catch (verifyErr) {
+        console.error('Stripe webhook signature verification failed:', verifyErr.message);
+        return res.status(400).json({ error: 'Webhook signature verification failed' });
+      }
+    } else {
+      // Fallback for dev — log warning
+      console.warn('STRIPE_WEBHOOK_SECRET not set — webhook signature verification disabled');
+      event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    }
     switch (event.type) {
       case 'invoice.payment_succeeded': {
         const sub = event.data.object.subscription;
@@ -12166,7 +12180,14 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         const unitPrice = parseFloat(sku.retail_price || 0);
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
         const sqftNeeded = sqftPerBox > 0 ? sqftPerBox * numBoxes : null;
-        const subtotal = unitPrice * numBoxes;
+        let subtotal;
+        if (sku.price_basis === 'per_sqyd' && sqftNeeded) {
+          subtotal = unitPrice * (sqftNeeded / 9);
+        } else if ((sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft') && sqftNeeded) {
+          subtotal = unitPrice * sqftNeeded;
+        } else {
+          subtotal = unitPrice * numBoxes;
+        }
 
         resolvedItems.push({
           product_id: sku.product_id,
@@ -12229,7 +12250,14 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       promoCodeStr = promoResult.promo.code;
     }
 
-    const total = subtotal - discountAmount;
+    // Calculate sales tax
+    const destZip = isPickup ? SHIP_FROM.zip : (shipping_address ? shipping_address.zip : SHIP_FROM.zip);
+    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(subtotal, destZip, false);
+    const total = Math.max(0, subtotal + taxAmount - discountAmount);
+    if (total <= 0 && !['cash', 'check', 'offline'].includes(payment_method)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Order total must be greater than zero for this payment method' });
+    }
     const orderNumber = await getNextOrderNumber();
     const paidInStore = ['cash', 'check', 'card', 'offline'].includes(payment_method);
     const orderStatus = paidInStore ? 'confirmed' : 'pending';
@@ -12261,8 +12289,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
         subtotal, shipping, total, status, sales_rep_id, payment_method, delivery_method,
         stripe_payment_intent_id, promo_code_id, promo_code, discount_amount,
-        amount_paid, customer_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        amount_paid, customer_id, tax_rate, tax_amount)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
       RETURNING *
     `, [orderNumber, customer_email.toLowerCase().trim(), customer_name, phone || null,
         isPickup ? null : shipping_address.line1, isPickup ? null : (shipping_address.line2 || null),
@@ -12270,7 +12298,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         subtotal.toFixed(2), total.toFixed(2), orderStatus, req.rep.id, payment_method,
         isPickup ? 'pickup' : 'shipping',
         stripePaymentIntentId, promoCodeId, promoCodeStr, discountAmount.toFixed(2),
-        paidInStore ? total.toFixed(2) : '0.00', cust.id]);
+        paidInStore ? total.toFixed(2) : '0.00', cust.id, taxRate, taxAmount.toFixed(2)]);
 
     const order = orderResult.rows[0];
 
@@ -12617,7 +12645,7 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
 
     // Switch to pickup
     if (delivery_method === 'pickup') {
-      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
       const updated = await pool.query(`
         UPDATE orders SET delivery_method = 'pickup', shipping = 0, shipping_method = 'pickup',
           shipping_carrier = NULL, shipping_transit_days = NULL, shipping_residential = false,
@@ -12660,7 +12688,7 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
 
     const selected = rates.options[optionIdx];
     const shippingCost = parseFloat(selected.amount || 0);
-    const newTotal = (parseFloat(order.subtotal) + shippingCost + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+    const newTotal = (parseFloat(order.subtotal) + shippingCost + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
 
     const updated = await pool.query(`
       UPDATE orders SET delivery_method = 'shipping', shipping = $2, shipping_method = $3,
@@ -12737,7 +12765,16 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
     const current = item.rows[0];
     const prevPrice = parseFloat(current.unit_price || 0);
     const prevSubtotal = parseFloat(current.subtotal || 0);
-    const newSubtotal = current.is_sample ? 0 : parseFloat((newPrice * current.num_boxes).toFixed(2));
+    let newSubtotal;
+    if (current.is_sample) {
+      newSubtotal = 0;
+    } else if (current.sell_by === 'sqft' && current.sqft_needed) {
+      newSubtotal = parseFloat((newPrice * parseFloat(current.sqft_needed)).toFixed(2));
+    } else if (current.sell_by === 'sqyd' && current.sqft_needed) {
+      newSubtotal = parseFloat((newPrice * parseFloat(current.sqft_needed) / 9).toFixed(2));
+    } else {
+      newSubtotal = parseFloat((newPrice * current.num_boxes).toFixed(2));
+    }
 
     // Record adjustment
     await client.query(`
@@ -12759,10 +12796,12 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
     `, [id]);
     const orderSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
 
-    const orderRow = await client.query('SELECT shipping, sample_shipping FROM orders WHERE id = $1', [id]);
+    const orderRow = await client.query('SELECT shipping, sample_shipping, discount_amount, tax_amount FROM orders WHERE id = $1', [id]);
     const shipping = parseFloat(orderRow.rows[0].shipping || 0);
     const sampleShipping = parseFloat(orderRow.rows[0].sample_shipping || 0);
-    const orderTotal = parseFloat((orderSubtotal + shipping + sampleShipping).toFixed(2));
+    const discount = parseFloat(orderRow.rows[0].discount_amount || 0);
+    const tax = parseFloat(orderRow.rows[0].tax_amount || 0);
+    const orderTotal = parseFloat((orderSubtotal + shipping + sampleShipping + tax - discount).toFixed(2));
 
     await client.query(
       'UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
@@ -12939,7 +12978,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       FROM order_items WHERE order_id = $1
     `, [id]);
     const newSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
-    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
+    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
 
     await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
       [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
@@ -13124,7 +13163,7 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
       FROM order_items WHERE order_id = $1
     `, [id]);
     const newSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
-    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
+    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
 
     await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
       [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
@@ -13344,7 +13383,7 @@ app.post('/api/rep/orders/:id/collect-payment', repAuth, async (req, res) => {
     }
 
     await logOrderActivity(client, id, 'payment_collected', req.rep.id, repName,
-      { method: payment_method, amount: payAmount.toFixed(2), status: paymentStatus });
+      { method: payment_method, amount: payAmount.toFixed(2), status: 'completed' });
 
     await client.query('COMMIT');
 

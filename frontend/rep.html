@@ -1238,6 +1238,32 @@
     .rc-qv-nav.prev { left: 0.5rem; }
     .rc-qv-nav.next { right: 0.5rem; }
 
+    /* Variant pills */
+    .rc-variant-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
+    .rc-variant-pill { width: 48px; height: 48px; border-radius: 6px; border: 2px solid var(--stone-200); cursor: pointer; overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s; padding: 0; background: var(--stone-100); flex-shrink: 0; }
+    .rc-variant-pill img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .rc-variant-pill .rc-pill-init { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 600; color: var(--stone-500); text-transform: uppercase; line-height: 1.1; text-align: center; padding: 2px; }
+    .rc-variant-pill:hover { border-color: var(--stone-400); }
+    .rc-variant-pill.active { border-color: var(--stone-800); box-shadow: 0 0 0 1px var(--stone-800); }
+    .rc-variant-pill-label { font-size: 0.6rem; color: var(--stone-500); text-align: center; max-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.15rem; }
+
+    /* Accessories */
+    .rc-accessories-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+    .rc-accessory-card { display: flex; gap: 0.6rem; padding: 0.5rem; border: 1px solid var(--stone-200); border-radius: var(--radius-sm); background: var(--stone-50); align-items: center; }
+    .rc-accessory-card img { width: 44px; height: 44px; object-fit: cover; border-radius: 4px; flex-shrink: 0; background: white; }
+    .rc-accessory-info { flex: 1; min-width: 0; }
+    .rc-accessory-name { font-size: 0.75rem; font-weight: 500; color: var(--stone-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rc-accessory-meta { font-size: 0.65rem; color: var(--stone-500); }
+    .rc-accessory-prices { text-align: right; flex-shrink: 0; }
+    .rc-accessory-prices .retail { font-size: 0.8rem; font-weight: 600; color: var(--stone-800); }
+    .rc-accessory-prices .cost { font-size: 0.65rem; color: var(--stone-500); }
+
+    /* Expandable section */
+    .rc-expandable-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; margin-bottom: 0.4rem; }
+    .rc-expandable-header:hover .rc-section-title { color: var(--stone-700); }
+    .rc-expand-arrow { font-size: 0.7rem; color: var(--stone-400); transition: transform 0.2s; }
+    .rc-expand-arrow.open { transform: rotate(180deg); }
+
     /* Simplified table */
     .rc-table-wrap { overflow-x: auto; }
     .rc-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
@@ -1820,7 +1846,7 @@
 <body>
   <div id="root"></div>
   <script type="text/babel" data-presets="env,react">
-    const { useState, useEffect, useCallback, useRef } = React;
+    const { useState, useEffect, useCallback, useRef, useMemo } = React;
 
         const API = (() => {
       const h = window.location.hostname;
@@ -1862,7 +1888,10 @@
         if (!ct.includes('application/json')) {
           throw new Error('Server returned non-JSON (status ' + r.status + ')');
         }
-        return r.json();
+        return r.json().then(data => {
+          if (!r.ok) throw new Error(data.error || 'Request failed (status ' + r.status + ')');
+          return data;
+        });
       });
     }
 
@@ -1890,7 +1919,10 @@
         body: formData
       }).then(r => {
         if (r.status === 401) { sessionStorage.removeItem('rep_token'); window.location.reload(); throw new Error('Unauthorized'); }
-        return r.json();
+        return r.json().then(data => {
+          if (!r.ok) throw new Error(data.error || 'Upload failed (status ' + r.status + ')');
+          return data;
+        });
       });
     }
 
@@ -2089,7 +2121,7 @@
           }
         };
         run();
-        return () => { cancelled = true; };
+        return () => { cancelled = true; cancelledRef.current = true; };
       }, []);
 
       const handleCancel = async () => {
@@ -3489,28 +3521,69 @@
       );
     }
 
+    // ========== QuickViewErrorBoundary ==========
+    class QuickViewErrorBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { hasError: false };
+      }
+      static getDerivedStateFromError() { return { hasError: true }; }
+      componentDidCatch(err) { console.error('QuickView render error:', err); }
+      componentDidUpdate(prevProps) {
+        // Reset error state when productId changes (new modal open)
+        if (this.props.productId !== prevProps.productId) this.setState({ hasError: false });
+      }
+      render() {
+        if (this.state.hasError) {
+          // Clean up body overflow and close the modal
+          document.body.style.overflow = '';
+          setTimeout(() => this.props.onClose(), 0);
+          return null;
+        }
+        return this.props.children;
+      }
+    }
+
     // ========== RepQuickViewModal ==========
     function RepQuickViewModal({ productId, products, showCost, navigate, onClose }) {
-      const [data, setData] = useState(null);
+      const [productData, setProductData] = useState(null);
+      const [skuData, setSkuData] = useState(null);
       const [loading, setLoading] = useState(true);
+      const [skuLoading, setSkuLoading] = useState(false);
       const [mainImgIdx, setMainImgIdx] = useState(0);
       const [lightbox, setLightbox] = useState(null);
       const [shareModal, setShareModal] = useState(null);
+      const [tableExpanded, setTableExpanded] = useState(false);
 
+      // Load product (gets all SKU IDs), then auto-load first SKU detail
       const loadProduct = useCallback((id) => {
         setLoading(true);
         setMainImgIdx(0);
+        setSkuData(null);
+        setTableExpanded(false);
         repFetch('/api/rep/products/' + id)
-          .then(d => { setData(d); setLoading(false); })
+          .then(d => {
+            setProductData(d);
+            setLoading(false);
+            // Auto-load first SKU via new endpoint
+            const firstSkuId = d.skus && d.skus.length > 0 ? d.skus[0].id : null;
+            if (firstSkuId) loadSku(firstSkuId);
+          })
           .catch(() => setLoading(false));
+      }, []);
+
+      const loadSku = useCallback((skuId) => {
+        setSkuLoading(true);
+        setMainImgIdx(0);
+        repFetch('/api/rep/skus/' + skuId)
+          .then(d => { setSkuData(d); setSkuLoading(false); })
+          .catch(() => setSkuLoading(false));
       }, []);
 
       useEffect(() => { if (productId) loadProduct(productId); }, [productId, loadProduct]);
 
       useEffect(() => {
-        const onKey = (e) => {
-          if (e.key === 'Escape') onClose();
-        };
+        const onKey = (e) => { if (e.key === 'Escape') onClose(); };
         document.addEventListener('keydown', onKey);
         document.body.style.overflow = 'hidden';
         return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
@@ -3520,12 +3593,28 @@
       const goPrev = () => { if (curIdx > 0) loadProduct(products[curIdx - 1].id); };
       const goNext = () => { if (curIdx < products.length - 1) loadProduct(products[curIdx + 1].id); };
 
-      const media = data ? (data.media || []).filter(m => m.asset_type !== 'spec_pdf') : [];
-      const product = data ? data.product : null;
-      const skus = data ? (data.skus || []) : [];
-      const firstSku = skus[0] || {};
+      const activeSku = skuData ? skuData.sku : {};
+      const product = skuData ? skuData.product : (productData ? productData.product : null);
+      const skuMedia = skuData ? (skuData.media || []).filter(m => m.asset_type !== 'spec_pdf') : [];
+      const siblings = skuData ? (skuData.siblings || []) : [];
+      const accessories = skuData ? (skuData.accessories || []) : [];
+      const allSkus = productData ? (productData.skus || []) : [];
+
+      // Build variant pill list: current SKU + siblings
+      const allVariants = useMemo(() => {
+        if (!activeSku.sku_id) return [];
+        const current = {
+          sku_id: activeSku.sku_id, variant_name: activeSku.variant_name,
+          primary_image: skuMedia.length > 0 ? skuMedia[0].url : null,
+          retail_price: activeSku.retail_price, cost: activeSku.cost, margin_pct: activeSku.margin_pct
+        };
+        return [current, ...siblings];
+      }, [activeSku.sku_id, siblings, skuMedia]);
 
       const marginClass = (pct) => pct >= 30 ? 'high' : pct >= 15 ? 'mid' : 'low';
+
+      // Use only SKU-specific media from the new endpoint (matches storefront)
+      const displayMedia = skuMedia;
 
       return ReactDOM.createPortal(
         React.createElement('div', { className: 'rc-qv-overlay', onClick: e => { if (e.target === e.currentTarget) onClose(); } },
@@ -3537,14 +3626,15 @@
             React.createElement('div', { className: 'rc-qv-gallery' },
               React.createElement('div', { className: 'rc-qv-main-img' },
                 loading ? React.createElement('div', { className: 'loading' }, 'Loading...') :
-                media.length > 0 ? React.createElement('img', {
-                  src: optimizeImg(media[mainImgIdx] ? media[mainImgIdx].url : media[0].url, 800), alt: '',
-                  onClick: () => setLightbox({ images: media.map(m => m.url), startIndex: mainImgIdx })
+                displayMedia.length > 0 ? React.createElement('img', {
+                  src: optimizeImg(displayMedia[mainImgIdx] ? displayMedia[mainImgIdx].url : displayMedia[0].url, 800), alt: '',
+                  style: skuLoading ? { opacity: 0.5, transition: 'opacity 0.15s' } : { transition: 'opacity 0.15s' },
+                  onClick: () => setLightbox({ images: displayMedia.map(m => m.url), startIndex: mainImgIdx })
                 }) : React.createElement('div', { className: 'rc-no-img' }, 'No Image')
               ),
-              media.length > 1 && React.createElement('div', { className: 'rc-qv-thumbs' },
-                media.map((m, i) => React.createElement('img', {
-                  key: m.id, src: optimizeImg(m.url, 120), alt: '',
+              displayMedia.length > 1 && React.createElement('div', { className: 'rc-qv-thumbs' },
+                displayMedia.map((m, i) => React.createElement('img', {
+                  key: m.id || i, src: optimizeImg(m.url, 120), alt: '',
                   className: 'rc-qv-thumb' + (i === mainImgIdx ? ' active' : ''),
                   onClick: () => setMainImgIdx(i)
                 }))
@@ -3555,36 +3645,101 @@
               loading ? React.createElement('div', { className: 'loading' }, 'Loading...') : product ? React.createElement(React.Fragment, null,
                 React.createElement('div', { className: 'rc-qv-vendor' }, product.vendor_name),
                 React.createElement('div', { className: 'rc-qv-title' }, product.name),
-                React.createElement('div', { className: 'rc-qv-meta' }, [product.collection, product.category_name].filter(Boolean).join(' \u2022 ')),
+                React.createElement('div', { className: 'rc-qv-meta' },
+                  [product.collection, product.category_name].filter(Boolean).join(' \u2022 '),
+                  activeSku.variant_name ? ' \u2014 ' + activeSku.variant_name : ''
+                ),
                 product.description_short && React.createElement('div', { className: 'rc-qv-desc' }, product.description_short),
 
-                /* Pricing card */
+                /* Variant pills — only show when >1 variant */
+                allVariants.length > 1 && React.createElement('div', null,
+                  React.createElement('div', { className: 'rc-section-title' }, 'Colors / Variants'),
+                  React.createElement('div', { className: 'rc-variant-pills' },
+                    allVariants.map(v => React.createElement('div', {
+                      key: v.sku_id,
+                      style: { display: 'flex', flexDirection: 'column', alignItems: 'center' }
+                    },
+                      React.createElement('button', {
+                        className: 'rc-variant-pill' + (v.sku_id === activeSku.sku_id ? ' active' : ''),
+                        title: v.variant_name || 'Variant',
+                        onClick: () => { if (v.sku_id !== activeSku.sku_id) loadSku(v.sku_id); }
+                      },
+                        v.primary_image
+                          ? React.createElement('img', { src: optimizeImg(v.primary_image, 96), alt: v.variant_name || '' })
+                          : React.createElement('span', { className: 'rc-pill-init' }, (v.variant_name || '?').substring(0, 6))
+                      ),
+                      React.createElement('span', { className: 'rc-variant-pill-label' }, v.variant_name || '\u2014')
+                    ))
+                  )
+                ),
+
+                /* Pricing card — uses activeSku */
                 showCost && React.createElement('div', null,
                   React.createElement('div', { className: 'rc-section-title' }, 'Pricing'),
                   React.createElement('div', { className: 'rc-pricing-card' },
                     React.createElement('div', { className: 'rc-pricing-item' },
                       React.createElement('label', null, 'Retail'),
-                      React.createElement('span', null, firstSku.retail_price ? '$' + parseFloat(firstSku.retail_price).toFixed(2) : '\u2014')
+                      React.createElement('span', null, activeSku.retail_price ? '$' + parseFloat(activeSku.retail_price).toFixed(2) + (activeSku.sell_by === 'sqft' ? '/sqft' : '/ea') : '\u2014')
                     ),
                     React.createElement('div', { className: 'rc-pricing-item' },
                       React.createElement('label', null, 'Cost'),
-                      React.createElement('span', null, firstSku.cost ? '$' + parseFloat(firstSku.cost).toFixed(2) : '\u2014')
+                      React.createElement('span', null, activeSku.cost ? '$' + parseFloat(activeSku.cost).toFixed(2) : '\u2014')
                     ),
                     React.createElement('div', { className: 'rc-pricing-item' },
                       React.createElement('label', null, 'Margin'),
-                      React.createElement('span', null, firstSku.retail_price ? React.createElement('span', { className: 'rc-margin-badge ' + marginClass(firstSku.margin_pct || 0) }, (firstSku.margin_pct || 0).toFixed(1) + '%') : '\u2014')
+                      React.createElement('span', null, activeSku.retail_price ? React.createElement('span', { className: 'rc-margin-badge ' + marginClass(activeSku.margin_pct || 0) }, (activeSku.margin_pct || 0).toFixed(1) + '%') : '\u2014')
                     ),
                     React.createElement('div', { className: 'rc-pricing-item' },
                       React.createElement('label', null, 'MAP'),
-                      React.createElement('span', null, firstSku.map_price ? '$' + parseFloat(firstSku.map_price).toFixed(2) : '\u2014')
+                      React.createElement('span', null, activeSku.map_price ? '$' + parseFloat(activeSku.map_price).toFixed(2) : '\u2014')
                     )
                   )
                 ),
 
-                /* SKU table */
-                skus.length > 0 && React.createElement('div', null,
-                  React.createElement('div', { className: 'rc-section-title' }, 'Variants (' + skus.length + ')'),
-                  React.createElement('div', { className: 'rc-sku-table-wrap' },
+                /* Packaging specs — uses activeSku */
+                React.createElement('div', null,
+                  React.createElement('div', { className: 'rc-section-title' }, 'Packaging'),
+                  React.createElement('div', { className: 'rc-specs-grid' },
+                    React.createElement('div', { className: 'rc-spec' }, React.createElement('label', null, 'Sqft/Box'), React.createElement('span', null, activeSku.sqft_per_box ? parseFloat(activeSku.sqft_per_box).toFixed(1) : '\u2014')),
+                    React.createElement('div', { className: 'rc-spec' }, React.createElement('label', null, 'Pcs/Box'), React.createElement('span', null, activeSku.pieces_per_box || '\u2014')),
+                    React.createElement('div', { className: 'rc-spec' }, React.createElement('label', null, 'Weight'), React.createElement('span', null, activeSku.weight_per_box_lbs ? parseFloat(activeSku.weight_per_box_lbs).toFixed(1) + ' lbs' : '\u2014')),
+                    React.createElement('div', { className: 'rc-spec' }, React.createElement('label', null, 'Box/Pallet'), React.createElement('span', null, activeSku.boxes_per_pallet || '\u2014'))
+                  )
+                ),
+
+                /* Matching Accessories */
+                accessories.length > 0 && React.createElement('div', null,
+                  React.createElement('div', { className: 'rc-section-title' }, 'Matching Accessories (' + accessories.length + ')'),
+                  React.createElement('div', { className: 'rc-accessories-list' },
+                    accessories.map(a => React.createElement('div', { key: a.sku_id, className: 'rc-accessory-card' },
+                      a.primary_image
+                        ? React.createElement('img', { src: optimizeImg(a.primary_image, 88), alt: a.variant_name || '' })
+                        : React.createElement('div', { style: { width: 44, height: 44, background: 'var(--stone-200)', borderRadius: 4, flexShrink: 0 } }),
+                      React.createElement('div', { className: 'rc-accessory-info' },
+                        React.createElement('div', { className: 'rc-accessory-name' }, a.accessory_label || a.variant_name || '\u2014'),
+                        React.createElement('div', { className: 'rc-accessory-meta' }, a.sell_by === 'sqft' ? 'per sqft' : 'per unit')
+                      ),
+                      React.createElement('div', { className: 'rc-accessory-prices' },
+                        React.createElement('div', { className: 'retail' }, a.retail_price ? '$' + parseFloat(a.retail_price).toFixed(2) : '\u2014'),
+                        showCost && a.cost && React.createElement('div', { className: 'cost' },
+                          'Cost $' + parseFloat(a.cost).toFixed(2),
+                          ' \u00B7 ', React.createElement('span', { className: 'rc-margin-badge ' + marginClass(a.margin_pct || 0) }, (a.margin_pct || 0).toFixed(1) + '%')
+                        )
+                      )
+                    ))
+                  )
+                ),
+
+                /* All Variants table — collapsed by default */
+                allSkus.length > 1 && React.createElement('div', null,
+                  React.createElement('div', {
+                    className: 'rc-expandable-header',
+                    onClick: () => setTableExpanded(!tableExpanded)
+                  },
+                    React.createElement('div', { className: 'rc-section-title', style: { marginBottom: 0 } }, 'All Variants (' + allSkus.length + ')'),
+                    React.createElement('span', { className: 'rc-expand-arrow' + (tableExpanded ? ' open' : '') }, '\u25BC')
+                  ),
+                  tableExpanded && React.createElement('div', { className: 'rc-sku-table-wrap' },
                     React.createElement('table', { className: 'rc-sku-table' },
                       React.createElement('thead', null,
                         React.createElement('tr', null,
@@ -3598,8 +3753,13 @@
                         )
                       ),
                       React.createElement('tbody', null,
-                        skus.map(s => React.createElement('tr', { key: s.id },
-                          React.createElement('td', { style: { fontWeight: 500 } }, s.variant_name || '\u2014'),
+                        allSkus.map(s => React.createElement('tr', {
+                          key: s.id,
+                          style: s.id === activeSku.sku_id ? { background: 'var(--stone-100)' } : {},
+                          onClick: () => { if (s.id !== activeSku.sku_id) loadSku(s.id); },
+                          className: s.id === activeSku.sku_id ? '' : 'rc-table-clickable'
+                        },
+                          React.createElement('td', { style: { fontWeight: s.id === activeSku.sku_id ? 600 : 500 } }, s.variant_name || '\u2014'),
                           React.createElement('td', null, s.retail_price ? '$' + parseFloat(s.retail_price).toFixed(2) : '\u2014'),
                           showCost && React.createElement('td', null, s.cost ? '$' + parseFloat(s.cost).toFixed(2) : '\u2014'),
                           showCost && React.createElement('td', null,
@@ -3621,22 +3781,11 @@
                   )
                 ),
 
-                /* Packaging specs */
-                React.createElement('div', null,
-                  React.createElement('div', { className: 'rc-section-title' }, 'Packaging'),
-                  React.createElement('div', { className: 'rc-specs-grid' },
-                    React.createElement('div', { className: 'rc-spec' }, React.createElement('label', null, 'Sqft/Box'), React.createElement('span', null, firstSku.sqft_per_box ? parseFloat(firstSku.sqft_per_box).toFixed(1) : '\u2014')),
-                    React.createElement('div', { className: 'rc-spec' }, React.createElement('label', null, 'Pcs/Box'), React.createElement('span', null, firstSku.pieces_per_box || '\u2014')),
-                    React.createElement('div', { className: 'rc-spec' }, React.createElement('label', null, 'Weight'), React.createElement('span', null, firstSku.weight_per_box_lbs ? parseFloat(firstSku.weight_per_box_lbs).toFixed(1) + ' lbs' : '\u2014')),
-                    React.createElement('div', { className: 'rc-spec' }, React.createElement('label', null, 'Box/Pallet'), React.createElement('span', null, firstSku.boxes_per_pallet || '\u2014'))
-                  )
-                ),
-
                 /* Actions */
                 React.createElement('div', { className: 'rc-qv-actions' },
                   React.createElement('button', { className: 'rc-action-btn primary', onClick: () => { onClose(); navigate('quote-create'); } }, '+ Create Quote'),
                   React.createElement('button', { className: 'rc-action-btn', onClick: () => { onClose(); navigate('sample-create'); } }, '\u2709 Request Sample'),
-                  React.createElement('button', { className: 'rc-action-btn', onClick: () => setShareModal({ product, media: data.media || [] }) }, '\u21AA Share with Customer')
+                  React.createElement('button', { className: 'rc-action-btn', onClick: () => setShareModal({ product, media: productData ? productData.media || [] : [] }) }, '\u21AA Share with Customer')
                 )
               ) : React.createElement('div', { className: 'loading' }, 'Product not found')
             )
@@ -3699,6 +3848,12 @@
       const [lightbox, setLightbox] = useState(null);
       const [shareModal, setShareModal] = useState(null);
       const searchTimer = useRef(null);
+
+      // Safety: clear any stuck overlay state on mount
+      useEffect(() => {
+        document.body.style.overflow = '';
+        return () => { document.body.style.overflow = ''; };
+      }, []);
 
       // Load filter data
       useEffect(() => {
@@ -3983,7 +4138,9 @@
           ),
 
           /* Quick View Modal */
-          quickViewId && React.createElement(RepQuickViewModal, { productId: quickViewId, products, showCost, navigate, onClose: () => setQuickViewId(null) }),
+          quickViewId && React.createElement(QuickViewErrorBoundary, { productId: quickViewId, onClose: () => setQuickViewId(null) },
+            React.createElement(RepQuickViewModal, { productId: quickViewId, products, showCost, navigate, onClose: () => setQuickViewId(null) })
+          ),
 
           /* Lightbox */
           lightbox && React.createElement(ImageLightbox, { images: lightbox.images, startIndex: lightbox.startIndex, onClose: () => setLightbox(null) }),
@@ -4275,6 +4432,20 @@
         const numBoxes = parseInt(addBoxes) || 1;
         const unitPrice = parseFloat(r.retail_price || 0);
         const sqftPerBox = parseFloat(r.sqft_per_box || 0);
+        const sqftNeeded = sqftPerBox ? sqftPerBox * numBoxes : null;
+        const sellBy = r.sell_by || 'sqft';
+        const isUnit = sellBy === 'unit' || sellBy === 'piece';
+        const isCarpet = r.price_basis === 'per_sqyd';
+        let subtotal;
+        if (isUnit) {
+          subtotal = unitPrice * numBoxes;
+        } else if (isCarpet && sqftNeeded) {
+          subtotal = unitPrice * (sqftNeeded / 9);
+        } else if (sqftNeeded) {
+          subtotal = unitPrice * sqftNeeded;
+        } else {
+          subtotal = unitPrice * numBoxes;
+        }
         setItems(prev => [...prev, {
           _key: Date.now(),
           sku_id: r.sku_id,
@@ -4287,11 +4458,13 @@
           vendor_sku: r.vendor_sku || r.internal_sku || '',
           unit_price: unitPrice,
           num_boxes: numBoxes,
-          subtotal: unitPrice * numBoxes,
+          subtotal,
           sqft_per_box: sqftPerBox,
-          sqft_needed: sqftPerBox ? sqftPerBox * numBoxes : null,
+          sqft_needed: sqftNeeded,
+          _sqft_per_box: sqftPerBox,
           is_sample: false,
-          sell_by: r.sell_by || 'sqft',
+          sell_by: sellBy,
+          price_basis: r.price_basis || null,
           cost: parseFloat(r.vendor_cost || r.cost || 0),
           vendor_cost: r.vendor_cost || null
         }]);
@@ -4305,6 +4478,14 @@
         const unitPrice = parseFloat(customItem.unit_price);
         if (!customItem.product_name.trim() || isNaN(unitPrice)) return;
         const sellBy = customItem.sell_by || 'sqft';
+        let subtotal;
+        if (sellBy === 'sqyd') {
+          subtotal = unitPrice * (numBoxes / 9); // numBoxes is sqft for carpet
+        } else if (sellBy === 'unit' || sellBy === 'piece') {
+          subtotal = unitPrice * numBoxes;
+        } else {
+          subtotal = unitPrice * numBoxes; // for custom sqft items, user enters qty directly
+        }
         setItems(prev => [...prev, {
           _key: Date.now(),
           sku_id: null,
@@ -4317,7 +4498,7 @@
           vendor_id: null,
           unit_price: unitPrice,
           num_boxes: numBoxes,
-          subtotal: unitPrice * numBoxes,
+          subtotal,
           description: customItem.description || null,
           sell_by: sellBy,
           is_custom: true,
@@ -4352,12 +4533,13 @@
         setItems(prev => prev.map(item => {
           if (item._key !== editingItemKey) return item;
           if (editField === 'price') {
-            return { ...item, unit_price: val, subtotal: val * item.num_boxes };
+            return { ...item, unit_price: val, subtotal: item.sqft_needed ? val * item.sqft_needed : val * item.num_boxes };
           } else if (editField === 'cost') {
             return { ...item, cost: val };
           } else if (editField === 'qty') {
             const qty = Math.max(1, Math.round(val));
-            return { ...item, num_boxes: qty, subtotal: item.unit_price * qty };
+            const sqft = item.sqft_per_box ? qty * item.sqft_per_box : 0;
+            return { ...item, num_boxes: qty, sqft_needed: sqft || item.sqft_needed, subtotal: sqft ? item.unit_price * sqft : item.unit_price * qty };
           }
           return item;
         }));
@@ -4399,8 +4581,8 @@
         setSaving(true);
         try {
           const orderItems = items.map(i => {
-            if (i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes };
-            return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, num_boxes: i.num_boxes, description: i.description };
+            if (i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, sqft_needed: i.sqft_needed, unit_price: i.unit_price, sell_by: i.sell_by };
+            return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, num_boxes: i.num_boxes, description: i.description, sell_by: i.sell_by };
           });
           const body = {
             customer_name: form.customer_name,
@@ -4787,9 +4969,17 @@
                               }}
                               onBlur={() => {
                                 const qty = Math.max(1, parseInt(editValue) || 1);
-                                setItems(prev => prev.map(it => it._key !== item._key ? it : {
-                                  ...it, num_boxes: qty, subtotal: it.unit_price * qty,
-                                  sqft_needed: it.sqft_per_box ? it.sqft_per_box * qty : it.sqft_needed
+                                setItems(prev => prev.map(it => {
+                                  if (it._key !== item._key) return it;
+                                  const sqft = it.sqft_per_box ? it.sqft_per_box * qty : 0;
+                                  const isUnit = it.sell_by === 'unit' || it.sell_by === 'piece';
+                                  const isCarpet = it.price_basis === 'per_sqyd';
+                                  let sub;
+                                  if (isUnit) sub = it.unit_price * qty;
+                                  else if (isCarpet && sqft) sub = it.unit_price * (sqft / 9);
+                                  else if (sqft) sub = it.unit_price * sqft;
+                                  else sub = it.unit_price * qty;
+                                  return { ...it, num_boxes: qty, sqft_needed: sqft || it.sqft_needed, subtotal: sub };
                                 }));
                                 setPromoResult(null); setPromoCode('');
                                 cancelEdit();
@@ -4825,8 +5015,16 @@
                               onBlur={() => {
                                 const price = parseFloat(editValue);
                                 if (!isNaN(price) && price >= 0) {
-                                  setItems(prev => prev.map(it => it._key !== item._key ? it : {
-                                    ...it, unit_price: price, subtotal: price * it.num_boxes
+                                  setItems(prev => prev.map(it => {
+                                    if (it._key !== item._key) return it;
+                                    const isUnit = it.sell_by === 'unit' || it.sell_by === 'piece';
+                                    const isCarpet = it.price_basis === 'per_sqyd';
+                                    let sub;
+                                    if (isUnit) sub = price * it.num_boxes;
+                                    else if (isCarpet && it.sqft_needed) sub = price * (parseFloat(it.sqft_needed) / 9);
+                                    else if (it.sqft_needed) sub = price * parseFloat(it.sqft_needed);
+                                    else sub = price * it.num_boxes;
+                                    return { ...it, unit_price: price, subtotal: sub };
                                   }));
                                   setPromoResult(null); setPromoCode('');
                                 }
@@ -4883,7 +5081,11 @@
                   These draft POs will be created automatically when the order is placed.
                 </p>
                 {Object.entries(vendorGroups).map(([vKey, group]) => {
-                  const poCost = group.items.reduce((sum, i) => sum + (i.cost || 0) * i.num_boxes, 0);
+                  const poCost = group.items.reduce((sum, i) => {
+                    const c = i.cost || 0;
+                    if (i.sell_by === 'unit' || i.sell_by === 'piece') return sum + c * i.num_boxes;
+                    return sum + c * (parseFloat(i.sqft_needed) || i.num_boxes);
+                  }, 0);
                   const poRetail = group.items.reduce((sum, i) => sum + i.subtotal, 0);
                   const margin = poRetail > 0 ? ((poRetail - poCost) / poRetail * 100) : 0;
                   return (
@@ -4946,7 +5148,7 @@
                                 <td data-label="Margin" style={{ color: itemMargin <= 0 ? 'var(--red, #dc2626)' : 'inherit', fontWeight: itemMargin <= 0 ? 600 : 400 }}>
                                   {itemRetail > 0 ? itemMargin.toFixed(1) + '%' : '\u2014'}
                                 </td>
-                                <td data-label="Subtotal" style={{ textAlign: 'right' }}>${(itemCost * item.num_boxes).toFixed(2)}</td>
+                                <td data-label="Subtotal" style={{ textAlign: 'right' }}>${((item.sell_by === 'unit' || item.sell_by === 'piece') ? itemCost * item.num_boxes : itemCost * (parseFloat(item.sqft_needed) || item.num_boxes)).toFixed(2)}</td>
                               </tr>
                             );
                           })}
@@ -6790,6 +6992,7 @@
       if (!data) return <div className="loading">Loading dashboard...</div>;
 
       const { stats, metrics, recent_orders } = data;
+      if (!stats || !metrics) return <div className="loading">Failed to load dashboard</div>;
       const momChange = metrics.month_over_month_change;
       const commEarned = commissionSummary ? parseFloat(commissionSummary.total_earned) + parseFloat(commissionSummary.total_pending) : 0;
 
@@ -7401,7 +7604,7 @@
           setShowCancelForm(false);
           setCancelReason('');
           setTrackingData({ tracking_number: '', carrier: '', shipped_at: new Date().toISOString().slice(0, 10) });
-        } catch (err) {}
+        } catch (err) { alert(err.message || 'Failed to update status'); }
         setUpdating(false);
       };
 
@@ -8491,14 +8694,14 @@
                                 ) : '—'}
                               </td>
                             )}
-                            <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal).toFixed(2)}</td>
+                            <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table></div>
                   <div style={{ textAlign: 'right', marginTop: '0.75rem', fontWeight: 600, fontSize: '0.9rem' }}>
-                    PO Total: ${parseFloat(po.subtotal).toFixed(2)}
+                    PO Total: ${parseFloat(po.subtotal || 0).toFixed(2)}
                   </div>
                 </div>
               ))}
@@ -9111,7 +9314,7 @@
       const addProductToQuote = async (sku) => {
         setShowResults(false);
         setProductSearch('');
-
+        try {
         const isCarpet = sku.price_basis === 'per_sqyd';
         const price = parseFloat(isCarpet ? (sku.cut_price || sku.price || 0) : (sku.price || 0));
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
@@ -9155,12 +9358,18 @@
         } else {
           setQuoteItems(prev => [...prev, { ...newItem, _temp_id: Date.now(), vendor_cost: sku.vendor_cost || null }]);
         }
+        } catch (err) { alert('Failed to add product: ' + (err.message || 'Unknown error')); }
       };
 
       const addCustomItemToQuote = async () => {
         if (!customItem.product_name || !customItem.unit_price) return;
+        try {
         const price = parseFloat(customItem.unit_price) || 0;
         const qty = parseInt(customItem.num_boxes) || 1;
+        const sellBy = customItem.sell_by || 'sqft';
+        let subtotal;
+        if (sellBy === 'sqyd') subtotal = price * (qty / 9);
+        else subtotal = price * qty;
         const newItem = {
           product_id: null,
           sku_id: null,
@@ -9170,8 +9379,8 @@
           sqft_needed: customItem.sqft_needed ? parseFloat(customItem.sqft_needed) : null,
           num_boxes: qty,
           unit_price: price.toFixed(2),
-          subtotal: (price * qty).toFixed(2),
-          sell_by: customItem.sell_by || 'sqft',
+          subtotal: subtotal.toFixed(2),
+          sell_by: sellBy,
           is_sample: false,
           _is_custom: true
         };
@@ -9193,6 +9402,7 @@
 
         setCustomItem({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'sqft' });
         setShowCustomForm(false);
+        } catch (err) { alert('Failed to add item: ' + (err.message || 'Unknown error')); }
       };
 
       const updateItemLocal = (index, field, value) => {
@@ -9211,9 +9421,14 @@
               item.subtotal = (price * (sqft / 9)).toFixed(2);
             } else {
               const boxes = field === 'num_boxes' ? parseInt(value) || 0 : parseInt(item.num_boxes) || 0;
-              item.subtotal = (price * boxes).toFixed(2);
               if (field === 'num_boxes' && item._sqft_per_box) {
                 item.sqft_needed = (boxes * parseFloat(item._sqft_per_box)).toFixed(2);
+              }
+              const sqft = parseFloat(item.sqft_needed) || 0;
+              if (item.sell_by === 'sqft' && sqft > 0) {
+                item.subtotal = (price * sqft).toFixed(2);
+              } else {
+                item.subtotal = (price * boxes).toFixed(2);
               }
             }
           }
@@ -9330,7 +9545,7 @@
               setPromoCode('');
             }
           }
-        } catch (err) {}
+        } catch (err) { alert(err.message || 'Failed to save quote'); }
         setSaving(false);
       };
 
@@ -9361,7 +9576,7 @@
           setQuote(data.quote);
           setSendFeedback({ emailed: result.emailed, message: result.message });
           setTimeout(() => setSendFeedback(null), 6000);
-        } catch (err) {}
+        } catch (err) { alert(err.message || 'Failed to send quote'); }
         setSaving(false);
       };
 
@@ -9837,7 +10052,7 @@
                           }
                         </td>
                       )}
-                      <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal).toFixed(2)}</td>
+                      <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</td>
                       {!isReadonly && (
                         <td data-label="" className="actions">
                           <button className="btn btn-danger btn-sm" onClick={() => removeItem(item, idx)}>Remove</button>
@@ -12470,7 +12685,7 @@
                         </select>
                       </td>
                     )}
-                    <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal).toFixed(2)}</td>
+                    <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</td>
                     {isDraft && (
                       <td className="actions">
                         <button className="btn btn-danger btn-sm" onClick={() => deletePOItem(item.id)}>Remove</button>
