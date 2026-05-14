@@ -1291,10 +1291,12 @@ export async function run(pool, job, source) {
       if (widthMea && lengthMea) {
         const wIn = toInches(widthMea);
         const lIn = toInches(lengthMea);
-        // Carpet uses FT directly (12x150FT); hard surface converts to inches
-        if (isCarpet) {
-          await upsertSkuAttribute(pool, skuId, 'size', `${widthMea.value}x${lengthMea.value}${lengthMea.unit_of_measure === 'EZ' ? 'FT' : (lengthMea.unit_of_measure || '')}`);
-        } else if (wIn > 0 && lIn > 0) {
+        // Carpet tile: size in inches; broadloom: skip — roll dimensions are packaging data
+        if (isCarpet && item.material_class === 'CARTIL') {
+          const tW = Math.round(wIn);
+          const tL = Math.round(lIn);
+          await upsertSkuAttribute(pool, skuId, 'size', `${tW}" x ${tL}"`);
+        } else if (!isCarpet && wIn > 0 && lIn > 0) {
           await upsertSkuAttribute(pool, skuId, 'size', `${fmtIn(wIn)}" x ${fmtIn(lIn)}"`);
         } else if (wIn > 0) {
           await upsertSkuAttribute(pool, skuId, 'size', `${fmtIn(wIn)}" Wide`);

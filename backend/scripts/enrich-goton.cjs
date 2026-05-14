@@ -205,37 +205,45 @@ function getSkuSize(variantName) {
  *   - Up to 4 images total
  *
  * Mosaics (Porcelain Mosaic 2x2 12x12, Hexagon, etc.):
- *   - ONLY use square-ish images (ratio 0.7–1.4) — these are tile face scans
- *   - Never show plank scans on a mosaic SKU
- *   - 1 image only
+ *   - ONLY use mosaic-specific shots (K/N pattern code in image title)
+ *   - Returns empty if no mosaic-specific image exists (no fallback to field tile)
  *
  * Accessories (Bullnose, V-Cap, Cove Base, etc.):
- *   - Use 1 image — the primary color swatch
+ *   - Returns empty — no accessory-specific photos available from Goton
+ *
+ * Pattern variants (Herringbone, Chevron, Basketweave):
+ *   - Returns empty — these look visually distinct from standard field tiles
  */
 function pickImagesForSku(allImages, variantName, variantType) {
   if (!allImages || allImages.length === 0) return [];
 
-  const isMosaic = /mosaic|hexag/i.test(variantName);
+  const isMosaic = variantType === 'mosaic' || /mosaic|hexag/i.test(variantName);
   const isAccessory = variantType === 'accessory';
 
+  // Pattern variants (herringbone, chevron, basketweave) look visually distinct
+  // from standard field tiles — don't reuse the field tile's image.
+  // But exclude mosaics since they have their own handling above.
+  const isPattern = !isMosaic && /herringbone|chevron|basketweave/i.test(variantName);
+
   if (isMosaic) {
-    // Prefer actual mosaic sheet close-up (K/N pattern code in title)
-    // over the field tile face scan which shows the raw material, not the mosaic.
-    const mosaicShots = allImages.filter(m => {
-      if (m.type === 'lifestyle') return false;
-      const t = m.title ? decodeURIComponent(m.title) : '';
-      return /[KN]\d{2,3}/.test(t);
-    });
-    if (mosaicShots.length > 0) return [mosaicShots[0]];
-    // Fallback: field tile face scan (same material, just not mosaic-cut)
-    const productShots = allImages.filter(m => m.type === 'product' || m.type === 'unknown');
-    if (productShots.length > 0) return [productShots[0]];
-    if (allImages.length > 0) return [allImages[0]];
+    // Mosaics come in many patterns (2x2, Hexagon, Opus, Basketweave, Chevron)
+    // that all look completely different. Since Goton doesn't provide
+    // separate images per mosaic pattern, don't assign any image —
+    // a 2x2 grid image would be wrong on a Hexagon or Opus SKU.
     return [];
   }
 
   if (isAccessory) {
-    return [allImages[0]]; // just primary
+    // Accessories (bullnose, cove base, v-cap) have unique profiles.
+    // Only use an image specifically shot for accessories, never the field tile image.
+    // Since Goton doesn't provide separate accessory photos, return empty.
+    return [];
+  }
+
+  if (isPattern) {
+    // Pattern variants need their own image — a herringbone layout looks
+    // nothing like a standard field tile. Don't assign the tile's image.
+    return [];
   }
 
   // ── Field tile: size-aware selection ──
@@ -407,17 +415,8 @@ function getPerColorImages(mapEntry) {
     return result;
   }
 
-  // Fallback: no titles matched anything — even-split as last resort
-  const perColor = Math.max(1, Math.floor(candidates.length / realColors.length));
-  for (let i = 0; i < realColors.length; i++) {
-    const [colorKey] = realColors[i];
-    const start = i * perColor;
-    const end = (i === realColors.length - 1) ? candidates.length : start + perColor;
-    const slice = candidates.slice(start, end);
-    if (slice.length > 0) {
-      result.set(colorKey, slice);
-    }
-  }
+  // No titles matched any color — return empty rather than guessing.
+  // Better to show no image than the wrong color's image.
   return result;
 }
 
@@ -515,6 +514,74 @@ async function run() {
       )
     `, [vendorId]);
     console.log(`Cleared ${delResult.rowCount} old media_assets\n`);
+
+    // ── Fix glass mosaic garbled color attributes ──
+    // Glass mosaics (single-SKU products) shouldn't have color attributes — delete any that exist
+    const glassColorDel = await client.query(`
+      DELETE FROM sku_attributes
+      WHERE attribute_id = $1
+        AND sku_id IN (
+          SELECT s.id FROM skus s
+          JOIN products p ON s.product_id = p.id
+          WHERE p.vendor_id = $2
+            AND (p.name LIKE 'Glass %' OR p.name LIKE 'Glass_%')
+        )
+    `, [colorAttrId, vendorId]);
+    if (glassColorDel.rowCount > 0) console.log(`Removed ${glassColorDel.rowCount} garbled glass mosaic color attributes`);
+
+    // ── Fix Vetro Collection finish attributes ──
+    // Ensure both Smooth and Textured variants have a finish attribute
+    const finishAttrRes = await client.query(`SELECT id FROM attributes WHERE slug = 'finish' LIMIT 1`);
+    const finishAttrId = finishAttrRes.rows[0]?.id;
+    if (finishAttrId) {
+      const vetroSkus = await client.query(`
+        SELECT s.id, s.variant_name FROM skus s
+        JOIN products p ON s.product_id = p.id
+        WHERE p.vendor_id = $1 AND p.name = 'Vetro Collection'
+          AND s.variant_type IS DISTINCT FROM 'accessory'
+      `, [vendorId]);
+      let finishFixed = 0;
+      for (const row of vetroSkus.rows) {
+        const finishVal = /Smooth/i.test(row.variant_name) ? 'Smooth'
+          : /Textured/i.test(row.variant_name) ? 'Textured' : null;
+        if (finishVal) {
+          const r = await client.query(`
+            INSERT INTO sku_attributes (sku_id, attribute_id, value)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (sku_id, attribute_id) DO UPDATE SET value = EXCLUDED.value
+          `, [row.id, finishAttrId, finishVal]);
+          if (r.rowCount > 0) finishFixed++;
+        }
+      }
+      if (finishFixed > 0) console.log(`Set ${finishFixed} Vetro finish attributes`);
+    }
+
+    // ── Fix missing color attributes (e.g., Krovanh has numeric-only colors) ──
+    const missingColorSkus = await client.query(`
+      SELECT s.id, s.variant_name FROM skus s
+      JOIN products p ON s.product_id = p.id
+      LEFT JOIN sku_attributes sa ON sa.sku_id = s.id AND sa.attribute_id = $1
+      WHERE p.vendor_id = $2 AND s.status = 'active'
+        AND sa.value IS NULL
+        AND p.name NOT LIKE 'Glass %'
+    `, [colorAttrId, vendorId]);
+    let colorFixed = 0;
+    for (const row of missingColorSkus.rows) {
+      // Extract color: everything before the first size/type keyword
+      const cm = row.variant_name.match(
+        /^(.+?)\s+(?:Porcelain|Mosaic|Hexag|Floor\s+Bullnose|Cove\s+Base|V-Cap|Out-Corner|1\/4\s+Round|Round\s+Beak|\d+x\d+)/i
+      );
+      const colorVal = cm ? cm[1].trim() : null;
+      if (colorVal) {
+        await client.query(`
+          INSERT INTO sku_attributes (sku_id, attribute_id, value)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (sku_id, attribute_id) DO UPDATE SET value = EXCLUDED.value
+        `, [row.id, colorAttrId, colorVal]);
+        colorFixed++;
+      }
+    }
+    if (colorFixed > 0) console.log(`Fixed ${colorFixed} missing color attributes`);
 
     // ── Fix mosaic size attributes: use pattern name instead of sheet size ──
     // e.g., "12x12" → "Mosaic 2x2", "9.5x11-3/4" → "Mosaic 2x6 Chevron"
@@ -670,8 +737,8 @@ async function run() {
           colorMatchLog.push(`${dbColor}→${wixKey}(${images.length})`);
 
           for (const sku of dbSkus) {
-            // Porcelain mosaics: same color swatch as field tiles
-            // (mosaic uses same material, so show the tile face scan)
+            // pickImagesForSku handles type-appropriate selection:
+            // tiles get tile scans, mosaics/accessories/patterns only get type-specific images
             const picked = pickImagesForSku(images, sku.variant_name, sku.variant_type);
             for (let i = 0; i < picked.length; i++) {
               const url = wixFullRes(picked[i].url);
@@ -687,10 +754,12 @@ async function run() {
           productImageCount += images.length;
         }
       } else {
-        // ── No color options: use all non-lifestyle media ──
-        if (allProductImages.length > 0) {
+        // ── No color options in product map ──
+        // Only assign images if this product has a single color group,
+        // so we're confident the images match. With multiple colors,
+        // we can't tell which image belongs to which color.
+        if (allProductImages.length > 0 && colorGroups.size <= 1) {
           for (const sku of productSkus) {
-            // All SKU types (including mosaics) use the same product images
             const picked = pickImagesForSku(allProductImages, sku.variant_name, sku.variant_type);
             for (let i = 0; i < picked.length; i++) {
               const url = wixFullRes(picked[i].url);
@@ -704,6 +773,8 @@ async function run() {
             skusMatched++;
           }
           productImageCount = allProductImages.length;
+        } else if (allProductImages.length > 0) {
+          console.log(`  ${product.name}: SKIP images — ${colorGroups.size} colors but no color map to match`);
         }
       }
 

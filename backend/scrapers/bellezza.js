@@ -29,41 +29,41 @@ const BASE_URL = 'https://bellezzaceramica.com';
 // Map DB product names → website product page slugs (can be multiple slugs per product).
 // Discovered by probing bellezzaceramica.com product pages (Mar 2026).
 const URL_MAP = {
-  // Porcelain & Ceramic Tiles
+  // ── Porcelain & Ceramic Tiles ────────────────────────────────────
   'Angelo Silk Shimmer':      ['angelo-silk'],
   'Anima Antracita':          ['anima-antracita'],
-  'Antwerp':                  ['antwerp-mosaic'],
   'Arena Chiaro':             ['arena-chiaro'],
   'Armani White':             ['armani-white'],
-  'Austral Blanco':           ['austral-blanco'],
+  'Austral Blanco':           ['austral-blanco', 'austral-blanco-calma-polished-wall-tile'],
   'Austral Essence Blanco':   ['austral-essence-blanco'],
   'Bolonia Marengo':          ['bolonia-marengo-polished', 'bolonia-marengo-matte'],
   'Calaca Gold':              ['calaca-gold', 'calaca-gold-matte'],
+  'Calacatta Brick Gloss':    ['calacatta-gold-brick-gloss'],
   'Calacatta Gold':           ['calacatta-gold', 'calacatta-gold-lux'],
   'Calacatta Gloss':          ['calacatta-gloss-polished'],
   'Calacatta Hex Gloss':      ['calacatta-hex-gloss'],
   'Calacatta Natural':        ['calacatta-natural-polished'],
   'Calcutta Gold':            ['calcutta-gold'],
-  'Camden':                   ['camden-mosaic'],
-  'Ceppo':                    ['ceppo'],
-  'Chamonix':                 ['chamonix'],
-  'Concretus':                ['concretus', 'concretus-light-matte'],
+  'Ceppo':                    ['ceppo', 'ceppo-di-gres-avorio', 'ceppo-di-gres-grigio', 'ceppo-di-gres-nero', 'ceppo-di-gres-sabbia'],
+  'Chamonix':                 ['chamonix-beige', 'chamonix-bianco', 'chamonix-dark-gray', 'chamonix-gray'],
+  'Concretus':                ['concretus', 'concretus-light-matte', 'concretus-light-12x24-matte', 'concretus-light-36x36-matte'],
   'Connor Beige':             ['connor-beige-matte'],
-  'District':                 ['district'],
+  'District':                 ['district-denim-calma-matte', 'district-moon-calma-matte', 'district-sabbia-calma', 'district-taupe-calma'],
   'Docks':                    ['docks', 'docks-beige', 'docks-white'],
   'Dolomite':                 ['dolomite-matte'],
   'Emporio Calacatta':        ['emporio-calacatta-matte'],
   'Elegance Marble Pearl':    ['elegance-marble-pearl', 'elegance-marble'],
-  'Epoque':                   ['epoque-white'],
-  'Fry':                      ['fry'],
+  'Epoque':                   ['epoque-white', 'epoque-black', 'epoque-ivory'],
+  'Fry':                      ['fry', 'fry-bianco-matte-24x48', 'fry-nero-matte-12x24'],
   'Granby Beige':             ['granby'],
   'Grunge':                   ['grunge', 'grunge-beige', 'grunge-smoke', 'grunge-multi'],
-  'Harley Lux':               ['harley-lux', 'harley-lux-black', 'harley-lux-graphite', 'harley-lux-super-white'],
-  'Ibiza':                    ['ibiza'],
-  'Kadence':                  ['kadence-gris-polished'],
+  'Harley Lux':               ['harley-lux', 'harley-lux-black', 'harley-lux-graphite', 'harley-lux-super-white', 'harley-lux-black-semi-polish-18x36', 'harley-lux-super-white-semi-polish-18x36'],
+  'Ibiza':                    ['ibiza', 'ibiza-blanco', 'ibiza-esmeralda', 'ibiza-navy', 'ibiza-perla', 'ibiza-decorado-indalo'],
+  'Kadence':                  ['kadence-gris-polished', 'kadence-gris-matte', 'kadence-marfil', 'kadence-perla'],
   'Larin Marfil':             ['larin-marfil'],
-  'Laurent Black':            ['laurent-black-matte', 'laurent-black-polish-36x36', 'laurent-black-matte-36x36'],
+  'Laurent Black':            ['laurent-black-matte', 'laurent-black-polish-36x36', 'laurent-black-matte-36x36', 'laurent-black-matte-17-1x46-5', 'laurent-black-polish-17-1x46-5'],
   'Leccese Cesellata':        ['leccese'],
+  'Lingot':                   ['deco-lingot-aqua', 'deco-lingot-blue', 'deco-lingot-coral', 'deco-lingot-mint', 'deco-lingot-white'],
   'Markina Gold':             ['markina-gold'],
   'Marmo Marfil':             ['navarti-marmo-marfil'],
   'Milano Crema':             ['milano-crema'],
@@ -81,30 +81,85 @@ const URL_MAP = {
   'Sekos White':              ['sekos-white'],
   'Spatula':                  ['spatula', 'spatula-antracite', 'spatula-grey', 'spatula-white', 'spatula-bone'],
   'Statuario Nice':           ['statuario-nice'],
-  'Temper':                   ['temper'],
+  'Temper':                   ['temper', 'temper-coal', 'temper-frost', 'temper-golden', 'temper-iron'],
   'Unique Ceppo Bone':        ['unique-ceppo-bone'],
   'Volga':                    ['volga', 'volga-grafito', 'volga-gris'],
   'Westmount Beige':          ['westmount-beige'],
-  'WG001':                    ['wg001m-matte'],
-  // Mosaics & Hex
+  'WG001':                    ['wg001m-matte', 'wg001g-24x24-polished', 'wg001g-32x32-polished', 'wg001m-matte-24x24'],
+
+  // ── New Porcelain (May 2026) ─────────────────────────────────────
+  'Golden Blanco':            ['golden-blanco'],
+  'Granby Ivory':             ['granby-ivory'],
+  'Panda':                    ['panda'],
+  'Statuario Spider':         ['statuario-spider'],
+  'Staturio Blue':            ['staturio-blue'],
+  'Vibrant Bianco':           ['vibrant-bianco'],
+  'Vilema':                   ['vilema-beige', 'vilema-blanco', 'vilema-roble', 'vilema-taupe'],
+
+  // ── New Wall Tiles (May 2026) ────────────────────────────────────
+  'Artistic White Brillo':    ['artistic-white-brillo-wall-tile'],
+  'Celian':                   ['celian-grafito', 'celian-ivory'],
+  'Elven':                    ['elven-blanco-lapatto', 'elven-concept-blanco-lapatto', 'elven-grafito-lapatto-wall-tile'],
+  'Insignia White':           ['insignia-white'],
+  'Kube Blanco':              ['kube-blanco-wall-tile'],
+  'Kyoto White':              ['kyoto-white-wall-tile'],
+  'Odissey Saphire':          ['odissey-saphire-matte', 'odissey-saphire-wall'],
+  'Scale Decor 3D':           ['scale-ivory-decor-3d-wall', 'scale-saphire-decor-3d-wall'],
+
+  // ── Mosaics & Hex ───────────────────────────────────────────────
+  'Black Marble Mosaic':      ['black-matte-mosaic'],
   'Hex XL Coimbra':           ['coimbra'],
   'Hex XL Fosco':             ['fosco'],
   'Hex XL Inverno Grey':      ['inverno-grey'],
-  // GIO Collection
-  'Gio':                      ['gio-white-glossy-hexagon-2x2', 'gio-white-matte-hexagon-2x2', 'gio-white-matte-hexagon-4x4'],
-  // Subway & Artisan
-  'Altea':                    ['altea-ash-blue-4x4-3x6', 'altea-black-4x4-3x6', 'altea-dusty-pink-4x4-3x6', 'altea-pine-green-4x4-3x6', 'altea-rosewood-4x4-3x6', 'altea-smoke-4x4-3x6', 'altea-thistle-blue-4x4-3x6', 'altea-white-4x4-3x6'],
+  'Dorset Hexagon':           ['dorset-black-hexagon', 'dorset-gray-hexagon', 'dorset-white-hexagon'],
+  'Nero Marquina Matte Hexagon': ['nero-marquina-matte-hexagon'],
+  'Metallic Dark Grey Mosaic': ['metallic-dark-grey-mosaic'],
+  'Stainless Gold Hexagon Mosaic': ['stainless-gold-hexagon-mosaic'],
+
+  // ── GIO Collection ──────────────────────────────────────────────
+  'Gio':                      [// Hexagons
+                               'gio-white-glossy-hexagon-2x2', 'gio-white-matte-hexagon-2x2', 'gio-white-matte-hexagon-4x4',
+                               'gio-black-matte-hexagon-2x2', 'gio-black-matte-hexagon-4x4', 'gio-black-glossy-hexagon-2x2',
+                               'gio-grey-matte-hexagon-4x4', 'gio-taupe-matte-hexagon-2x2',
+                               // Stacked Linear .82x2.8
+                               'gio-black-matte-stacked-linear-0-82x2-8', 'gio-white-matte-stacked-linear-0-82x2-8',
+                               'gio-taupe-matte-stacked-linear-0-82x2-8',
+                               // Stacked Linear .86x5.7
+                               'gio-black-matte-stacked-linear-0-86x5-7', 'gio-black-glossy-stacked-linear-0-86x5-7',
+                               'gio-white-matte-stacked-linear-0-86x5-7', 'gio-white-glossy-stacked-linear-0-86x5-7',
+                               'gio-colbat-glossy-stacked-linear-0-86x5-7', 'gio-grey-glossy-stacked-linear-0-86x5-7',
+                               // Stacked Linear 1.26x5.7
+                               'gio-white-matte-stacked-linear-1-26x5-7', 'gio-white-glossy-stacked-linear-1-26x5-7',
+                               'gio-colbat-glossy-stacked-linear-1-26x5-7', 'gio-grey-glossy-stacked-linear-1-26x5-7'],
+
+  // ── Subway & Artisan ────────────────────────────────────────────
+  'Altea':                    ['altea-ash-blue-4x4-3x6', 'altea-black-4x4-3x6', 'altea-dusty-pink-4x4-3x6', 'altea-matcha-4x4-3x6', 'altea-pine-green-4x4-3x6', 'altea-rosewood-4x4-3x6', 'altea-smoke-4x4-3x6', 'altea-thistle-blue-4x4-3x6', 'altea-white-4x4-3x6'],
   'Amazonia':                 ['amazonia-artic', 'amazonia-carbon', 'amazonia-chalk', 'amazonia-sand', 'amazonia-sapphire'],
-  'Limit':                    ['limit-blanc-2%c2%bdx-10', 'limit-bleu-clair-2%c2%bdx-10', 'limit-bleu-izu-2%c2%bdx-10'],
-  // Frammenti
-  'Frammenti':                ['frammenti-fr-10-bianco-3-x16', 'frammenti-fr-10-bianco-8x8', 'frammenti-fr-12-blu-notte-3-x16', 'frammenti-fr-2-azzurro-3-x16', 'frammenti-fr-5-grigio-3-x16', 'frammenti-fr-8-nero-micro-macro-8x8'],
-  // Recycled Glass (DB names: "NatureGlass Hex", "Silver Matte Hex", "Statuario Matte Hex")
+  'Limit':                    ['limit-blanc-2%c2%bdx-10', 'limit-bleu-clair-2%c2%bdx-10', 'limit-bleu-izu-2%c2%bdx-10',
+                               'limit-gris-2%c2%bdx-10', 'limit-jaune-2%c2%bdx-10', 'limit-menthe-2%c2%bdx-10',
+                               'limit-noir-2%c2%bdx-10', 'limit-rose-2%c2%bdx-10', 'limit-sable-2%c2%bdx-10',
+                               'limit-terre-2%c2%bdx-10', 'limit-vert-2%c2%bdx-10'],
+
+  // ── Frammenti ───────────────────────────────────────────────────
+  'Frammenti':                ['frammenti-fr-10-bianco-3-x16', 'frammenti-fr-10-bianco-8x8', 'frammenti-fr-12-blu-notte-3-x16',
+                               'frammenti-fr-2-azzurro-3-x16', 'frammenti-fr-2-azzurro-micro-macro-8-x8',
+                               'frammenti-fr-5-grigio-3-x16', 'frammenti-fr-8-nero-micro-macro-8x8'],
+
+  // ── Recycled Glass (Union Station series on website) ────────────
   'NatureGlass Hex':          ['natureglass-black-hexagon', 'natureglass-smooth-grey-hex', 'natureglass-white-hexagon', 'grey-hexagon'],
   'Silver Matte Hex':         ['silver-matte-hexagon'],
   'Statuario Matte Hex':      ['statuario-white-matte-hexagon', 'white-hexagon-4x4'],
-  // Panels
+  'Antwerp':                  ['union-station-antwerp-snow-mosaic'],
+  'Camden':                   ['union-station-camden-cloud-mosaic'],
+  'Grande':                   ['union-station-grande-cloud-mosaic'],
+  'Hudson':                   ['union-station-hudson-oslo-mosaic'],
+  'Nord':                     ['union-station-nord-rain-mosaic'],
+  'Park':                     ['union-station-park-cloud-mosaic'],
+
+  // ── Panels ──────────────────────────────────────────────────────
   'Acoustic MDF Sound Absorption Panel': ['mdf-acoustic-interior-medium-density-fiberboard'],
   'Exterior Composite Wall Panel':       ['wpc-exterior-wood-plastic-composite'],
+  'BPC Interior Panel':       ['bpc-interior-bamboo-plastic-composite'],
 };
 
 async function scrollToLoadAll(page) {
@@ -120,7 +175,7 @@ async function scrollToLoadAll(page) {
 
 async function extractProductImages(page, url) {
   try {
-    const resp = await page.goto(url, { waitUntil: 'networkidle2', timeout: 25000 });
+    const resp = await page.goto(url, { waitUntil: 'networkidle2', timeout: 35000 });
     if (!resp || resp.status() >= 400) {
       console.log(`    HTTP ${resp?.status()} for ${url}`);
       return { images: [], metadata: null };
@@ -290,6 +345,87 @@ function generateBasicDescription(productName, collection) {
   return `The ${productName} is a ${type} from the Bellezza Ceramica collection.`;
 }
 
+/**
+ * Normalize a slug into comparable tokens for variant matching.
+ * e.g. "gio-black-glossy-hexagon-2x2" → ["black", "glossy", "hexagon", "2x2"]
+ */
+function slugToTokens(productName, slug) {
+  // Remove product name prefix (e.g., "gio-" from "gio-black-glossy-...")
+  const prefix = productName.toLowerCase().replace(/\s+/g, '-') + '-';
+  let rest = slug.startsWith(prefix) ? slug.slice(prefix.length) : slug;
+
+  // Normalize known quirks
+  rest = rest
+    .replace(/colbat/gi, 'cobalt')
+    .replace(/0-82x2-8/g, '.82x2.8')
+    .replace(/0-86x5-7/g, '.86x5.7')
+    .replace(/1-26x5-7/g, '1.26x5.7')
+    .replace(/(\d)x(\d)/g, '$1x$2');  // keep size tokens like 2x2, 4x4
+
+  return rest.split('-').map(t => t.toLowerCase()).filter(Boolean);
+}
+
+// Color tokens get higher weight than finish/format tokens because
+// color is far more visually distinctive in product photos
+const COLOR_TOKENS = new Set([
+  'black', 'white', 'cobalt', 'grey', 'gray', 'taupe', 'beige', 'brown',
+  'cream', 'ivory', 'blue', 'green', 'red', 'gold', 'silver', 'charcoal',
+  'sand', 'pearl', 'onyx', 'bianco', 'nero', 'grigio',
+]);
+
+/**
+ * Score how well a slug matches a SKU variant_name.
+ * Higher score = better match. Color tokens score 3, others score 2.
+ */
+function scoreSlugMatch(productName, slug, variantName) {
+  const tokens = slugToTokens(productName, slug);
+  const variant = variantName.toLowerCase();
+
+  let score = 0;
+  for (const token of tokens) {
+    if (variant.includes(token)) {
+      // Color match is worth more than finish/format match
+      score += COLOR_TOKENS.has(token) ? 3 : 2;
+    } else {
+      // Partial match: check if size dimensions overlap (e.g., .86x5.7 shares "5.7" with 1.26x5.7)
+      const sizeMatch = token.match(/[\d.]+x([\d.]+)/);
+      if (sizeMatch && variant.includes('x' + sizeMatch[1])) {
+        score += 1;  // partial credit for matching one size dimension
+      }
+    }
+  }
+
+  // Format mismatch penalty: showing a hexagon image for a stacked linear SKU
+  // (or vice versa) is far worse than a color/size mismatch
+  const slugHasHex = tokens.some(t => t === 'hexagon' || t === 'hex');
+  const slugHasSL = tokens.some(t => t === 'stacked' || t === 'linear');
+  const variantHasHex = variant.includes('hex');
+  const variantHasSL = variant.includes('sl') || variant.includes('stacked') || variant.includes('linear');
+  if ((slugHasHex && variantHasSL) || (slugHasSL && variantHasHex)) {
+    score -= 10;
+  }
+
+  return score;
+}
+
+/**
+ * Find the best-matching slug for a given SKU variant.
+ * Returns the slug with highest token overlap.
+ */
+function findBestMatchingSlug(productName, variantName, slugs) {
+  let bestSlug = slugs[0];
+  let bestScore = -1;
+
+  for (const slug of slugs) {
+    const score = scoreSlugMatch(productName, slug, variantName);
+    if (score > bestScore) {
+      bestScore = score;
+      bestSlug = slug;
+    }
+  }
+  return bestSlug;
+}
+
 async function run() {
   const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'BELLEZZA'");
   if (!vendorRes.rows.length) {
@@ -310,17 +446,18 @@ async function run() {
     productMap.set(row.name, { id: row.id, collection: row.collection, description_short: row.description_short });
   }
 
-  const browser = await launchBrowser();
+  let browser = await launchBrowser();
   let imagesSaved = 0;
   let productsMatched = 0;
   let descriptionsSet = 0;
   let attributesSet = 0;
 
-  try {
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1920, height: 1080 });
-    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-    await page.setExtraHTTPHeaders({
+  // Helper to create a fresh page with anti-detection headers
+  async function createPage(br) {
+    const pg = await br.newPage();
+    await pg.setViewport({ width: 1920, height: 1080 });
+    await pg.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+    await pg.setExtraHTTPHeaders({
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
       'Accept-Encoding': 'gzip, deflate, br',
@@ -333,13 +470,17 @@ async function run() {
       'Sec-Fetch-User': '?1',
       'Upgrade-Insecure-Requests': '1',
     });
-    // Override webdriver detection
-    await page.evaluateOnNewDocument(() => {
+    await pg.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => false });
       Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
       Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
       window.chrome = { runtime: {} };
     });
+    return pg;
+  }
+
+  try {
+    let page = await createPage(browser);
 
     console.log('=== Scraping Product Pages ===\n');
 
@@ -351,34 +492,76 @@ async function run() {
       }
       const productId = prod.id;
 
-      const allImageUrls = [];
-      const seenUrls = new Set();
+      // Collect images per-slug (not flattened) for variant-aware assignment
+      const slugImages = new Map();  // slug → images[]
       let collectedMeta = null;
 
       for (const slug of slugs) {
         const url = `${BASE_URL}/product/${slug}/`;
         console.log(`  Visiting: ${url}`);
 
-        const { images, metadata } = await extractProductImages(page, url);
-        for (const imgUrl of images) {
-          if (!seenUrls.has(imgUrl)) {
-            seenUrls.add(imgUrl);
-            allImageUrls.push(imgUrl);
+        try {
+          const { images, metadata } = await extractProductImages(page, url);
+          if (images.length > 0) {
+            slugImages.set(slug, images);
+          }
+          // Keep first valid metadata
+          if (!collectedMeta && metadata) collectedMeta = metadata;
+          console.log(`    Found ${images.length} images${metadata ? ' + metadata' : ''}`);
+        } catch (pageErr) {
+          console.log(`    Error: ${pageErr.message}`);
+          // Browser/page may have crashed — try to recover
+          try {
+            await page.goto('about:blank', { timeout: 5000 }).catch(() => {});
+          } catch {
+            console.log('    Relaunching browser...');
+            try { await browser.close(); } catch {}
+            browser = await launchBrowser();
+            page = await createPage(browser);
           }
         }
-        // Keep first valid metadata
-        if (!collectedMeta && metadata) collectedMeta = metadata;
-        console.log(`    Found ${images.length} images${metadata ? ' + metadata' : ''}`);
         await delay(800);
       }
 
-      // Save images (up to 6)
-      if (allImageUrls.length > 0) {
-        const toSave = allImageUrls.slice(0, 6);
-        const skuRows = await pool.query('SELECT id FROM skus WHERE product_id = $1', [productId]);
+      // Save images — variant-aware for multi-slug products
+      if (slugImages.size > 0) {
+        const skuRows = await pool.query(
+          'SELECT id, variant_name FROM skus WHERE product_id = $1', [productId]
+        );
+        const isMultiSlug = slugs.length > 1;
+        // Collect all unique images across all slugs (for fallback / single-slug)
+        const allImageUrls = [];
+        const seenUrls = new Set();
+        for (const imgs of slugImages.values()) {
+          for (const img of imgs) {
+            if (!seenUrls.has(img)) { seenUrls.add(img); allImageUrls.push(img); }
+          }
+        }
+
         for (const skuRow of skuRows.rows) {
+          let toSave;
+
+          if (isMultiSlug && skuRow.variant_name) {
+            // Multi-slug product: match this SKU to its best slug
+            const bestSlug = findBestMatchingSlug(
+              productName, skuRow.variant_name, [...slugImages.keys()]
+            );
+            toSave = (slugImages.get(bestSlug) || allImageUrls).slice(0, 6);
+          } else {
+            // Single-slug product: all SKUs share same images
+            toSave = allImageUrls.slice(0, 6);
+          }
+
+          // Clear old primary + alternate images for this SKU before writing new ones
+          // (preserves lifestyle, swatch, spec_pdf that may have been manually curated)
+          await pool.query(`
+            DELETE FROM media_assets
+            WHERE sku_id = $1 AND asset_type IN ('primary', 'alternate')
+          `, [skuRow.id]);
+
+          // Save new images: index 0 = primary, rest = alternate
           for (let i = 0; i < toSave.length; i++) {
-            const assetType = i === 0 ? 'primary' : (i <= 2 ? 'alternate' : 'lifestyle');
+            const assetType = i === 0 ? 'primary' : 'alternate';
             await upsertMediaAsset(pool, {
               product_id: productId,
               sku_id: skuRow.id,
@@ -391,7 +574,7 @@ async function run() {
           }
         }
         productsMatched++;
-        console.log(`  [SAVED] ${productName} — ${toSave.length} image(s)`);
+        console.log(`  [SAVED] ${productName} — ${slugImages.size} page(s), ${skuRows.rowCount} SKU(s)`);
       } else {
         console.log(`  [NO IMAGES] ${productName}`);
       }

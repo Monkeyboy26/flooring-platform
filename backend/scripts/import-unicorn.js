@@ -72,6 +72,7 @@ const PRODUCTS = [
       ['Black', '24x24', 9.90, 3, 11.90, 48],
       ['Graphit', '24x24', 9.90, 3, 11.90, 48],
       ['Blue', '24x24', 9.90, 3, 11.90, 48],
+      ['White', '24x24', 9.90, 3, 11.90, 48],
       ['Black', '24x48', 10.90, 2, 15.90, 27],
     ],
   },
@@ -109,11 +110,15 @@ const PRODUCTS = [
     tile: [
       ['Terra', '12x24', 4.90, 6, 11.50, 40],
       ["D'Caravista Summer", '12x24', 4.90, 6, 11.50, 40],
+      ["D'Caravista Winter", '12x24', 4.90, 6, 11.50, 40],
     ],
   },
   {
     name: 'Catavento', col: 'Unicorn Tile', cat: 'porcelain',
-    tile: [['Umber', '23x23', 11.40, 2, 7.50, 44]],
+    tile: [
+      ['Umber', '23x23', 11.40, 2, 7.50, 44],
+      ['Linen', '23x23', 11.40, 2, 7.50, 44],
+    ],
   },
 
   // ── Page 5: C-D ──
@@ -141,6 +146,8 @@ const PRODUCTS = [
       ['Grey', '24x24', 5.40, 3, 11.63, 32],
       ['Grey', '12x24', 5.40, 5, 9.69, 48],
       ['Grey', '36x36', 6.40, null, null, null],
+      ['Nero', '12x24', 5.40, 5, 9.69, 48],
+      ['Nero', '24x24', 5.40, 3, 11.63, 32],
       ['Los Creacon Hexagonal', '24 hex', 14.40, 2, 6.32, 36],
     ],
     acc: [['Bullnose', '3x12', 14.00]],
@@ -294,6 +301,7 @@ const PRODUCTS = [
   },
   {
     name: 'Nox', col: 'Unicorn Tile', cat: 'ceramic',
+    colorOverride: 'Black', // All Nox tiles are black; variant names describe shape, not color
     tile: [
       ['Flat Glossy', '3x12', 4.10, 50, 12.4, 80],
       ['Flat Matte', '3x12', 4.90, 50, 12.4, 80],
@@ -350,6 +358,7 @@ const PRODUCTS = [
       ['White Glossy & Matte', '3x6', 3.58, 136, 17, 60],
       ['White Glossy & Matte', '3x12', 3.58, 50, 12.4, 80],
       ['White Glossy & Matte', '4x12', 3.18, 40, 13.2, 72],
+      ['White Glossy & Matte', '4x16', 3.58, 28, 12.10, 72],
       ['White Glossy & Matte', '6x6', 3.58, 68, 17, 60],
       ['White Glossy & Matte', '8x24', 3.58, 12, 16, 64],
       ['Crema Glossy & Matte', '3x12', 4.18, 50, 12.4, 80],
@@ -380,6 +389,8 @@ const PRODUCTS = [
     tile: [
       ['Calacatta Matte', '12x24', 3.58, 8, 15.90, 40],
       ['Calacatta Polished', '12x24', 3.58, 8, 15.90, 40],
+      ['Carrara Matte', '12x24', 3.58, 8, 15.90, 40],
+      ['Carrara Polished', '12x24', 3.58, 8, 15.90, 40],
     ],
     acc: [['Bullnose', '3x12', 14.00]],
   },
@@ -405,12 +416,64 @@ const PRODUCTS = [
   },
   {
     name: 'Track', col: 'Unicorn Tile', cat: 'porcelain',
-    tile: [['Blanco', '30x30', 6.50, 2, 12.16, 42]],
+    tile: [
+      ['Blanco', '30x30', 6.50, 2, 12.16, 42],
+      ['Gris', '30x30', 6.50, 2, 12.16, 42],
+    ],
   },
   {
     name: 'Vinson', col: 'Unicorn Tile', cat: 'ceramic',
     tile: [['Bianco Glossy', '12x24', 3.40, 5, 10, 84]],
     acc: [['Bullnose', '3x12', 14.00]],
+  },
+
+  // ── Website-only products (not in Q4-2025 price list, pricing estimated) ──
+  {
+    name: 'Borneo', col: 'Unicorn Tile', cat: 'porcelain',
+    tile: [
+      ['Gris', '9x48', 11.40, 4, 11.62, 40],
+      ['Taupe', '9x48', 11.40, 4, 11.62, 40],
+      ['Haya', '9x48', 11.40, 4, 11.62, 40],
+    ],
+  },
+  {
+    name: 'dAntilia', col: 'Unicorn Tile', cat: 'ceramic',
+    tile: [
+      ['Carrara', '12x24', 3.98, 8, 15.9, 60],
+      ['Carrara Wave', '12x24', 3.98, 8, 15.9, 60],
+    ],
+    acc: [['Bullnose', '3x12', 14.00]],
+  },
+  {
+    name: 'Hexagon', col: 'Unicorn Tile', cat: 'porcelain',
+    tile: [['Calacatta Gold Nat', '20.5x23.6', 11.40, 2, 7.50, 44]],
+  },
+  {
+    name: 'Le Que', col: 'Unicorn Tile', cat: 'porcelain',
+    tile: [['Neon', '13x40', 11.40, 4, 14, 48]],
+  },
+  {
+    name: 'Onda', col: 'Unicorn Tile', cat: 'mosaic',
+    unit: [['Black 2x2 Square Mosaic', '12x12 sheet', 8.90]],
+  },
+  {
+    name: 'Paulista', col: 'Unicorn Tile', cat: 'porcelain',
+    tile: [['Bloc White', '23x23', 11.40, 2, 7.50, 44]],
+  },
+  {
+    name: 'Rue De Paris', col: 'Unicorn Tile', cat: 'porcelain',
+    tile: [
+      ['Blanco', '36x36', 7.40, 2, 17.90, 27],
+      ['Beige', '36x36', 7.40, 2, 17.90, 27],
+    ],
+  },
+  {
+    name: 'Sparkling', col: 'Unicorn Tile', cat: 'porcelain',
+    tile: [['Contempo Black', '12x24', 3.58, 8, 15.9, 48]],
+  },
+  {
+    name: 'Veneziana', col: 'Unicorn Tile', cat: 'porcelain',
+    tile: [['Bone', '24x24', 5.40, 3, 11.63, 32]],
   },
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -607,8 +670,9 @@ async function run() {
 
           // Size attribute
           await upsertAttr(client, skuId, 'size', size);
-          // Color attribute
-          const colorClean = color.replace(/ (Glossy|Matte|Polished|& Matte|& Glossy|Indoor|Outdoor|C-1|C-3|Lappato|Picket|Undulated|Flat|Straight Edge|Surface|Anti Slip).*$/i, '').trim();
+          // Color attribute (use colorOverride if product has one, e.g. Nox = all Black)
+          const colorClean = prod.colorOverride ||
+            color.replace(/ (Glossy|Matte|Polished|& Matte|& Glossy|Indoor|Outdoor|C-1|C-3|Lappato|Picket|Undulated|Flat|Straight Edge|Surface|Anti Slip).*$/i, '').trim();
           if (colorClean) await upsertAttr(client, skuId, 'color', colorClean);
         }
       }

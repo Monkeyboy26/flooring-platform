@@ -129,7 +129,7 @@ const PRODUCTS = [
   { name: 'Austral Essence Blanco', material: 'Ceramic', origin: 'Spain',
     skus: [[111,'12.44x39.37','12.44x39.37',null,3.99,3.4,5,17]] },
 
-  { name: 'Bolonia Marengo', material: 'Porcelain', origin: 'Spain', disc: true,
+  { name: 'Bolonia Marengo', material: 'Porcelain', origin: 'Spain',
     skus: [[112,'Polished 24x24','24x24','Polished',3.99,3.87,4,15.49]] },
 
   { name: 'Calaca Gold', material: 'Porcelain', origin: 'Spain',
@@ -169,7 +169,7 @@ const PRODUCTS = [
   { name: 'Calcutta Gold', material: 'Porcelain', origin: 'USA',
     skus: [[124,'Matte 24x48','24x48','Matte',2.29,7.75,2,15.5]] },
 
-  { name: 'Ceppo', material: 'Porcelain', origin: 'Italy', disc: true,
+  { name: 'Ceppo', material: 'Porcelain', origin: 'Italy',
     desc: 'Full Body Porcelain Tile',
     skus: [
       [128,'Nero REG 24x24','24x24','Matte',4.99,3.876,3,11.63],
@@ -177,11 +177,12 @@ const PRODUCTS = [
       [293,'R11 Sabbia Mosaic 2x2','2x2','R11',9.99,null,null,null,'SH'],
     ] },
 
-  { name: 'Chamonix', material: 'Porcelain', origin: 'USA', disc: true,
+  { name: 'Chamonix', material: 'Porcelain', origin: 'USA',
     desc: 'Color Body Porcelain',
-    colors: ['Beige','Gray','Dark Gray','Ocean'],
+    colors: ['Beige','Bianco','Gray','Dark Gray','Ocean'],
     skus: [
       [130,'12x24','12x24',null,1.95,2,8,15.5],
+      [431,'24x24','24x24',null,2.09,4,4,16],
       [131,'24x48','24x48',null,2.29,7.75,2,15.5],
       [132,'Dark Gray Brick Mosaic','12x24',null,22.00,null,null,null,'SH'],
       [294,'Beige Mosaic 2x2','2x2',null,9.99,null,null,null,'SH'],
@@ -197,8 +198,8 @@ const PRODUCTS = [
   { name: 'Connor Beige', material: 'Porcelain', origin: 'Poland',
     skus: [[135,'24x48','24x48',null,3.69,7.69,2,15.39]] },
 
-  { name: 'District', material: 'Porcelain', origin: 'Spain', disc: true,
-    colors: ['Denim Calma','Sabbia Calma','Taupe Calma'],
+  { name: 'District', material: 'Porcelain', origin: 'Spain',
+    colors: ['Denim Calma','Moon Calma','Sabbia Calma','Taupe Calma'],
     skus: [[136,'9.88x29.5','9.88x29.5',null,1.99,2,7,14.2]] },
 
   { name: 'Docks', material: 'Porcelain', origin: 'Italy',
@@ -234,11 +235,11 @@ const PRODUCTS = [
     skus: [[151,'Matte Wall 15.55x46.92','15.55x46.92','Matte',1.99,5.085,4,20.34]] },
 
   { name: 'Epoque', material: 'Porcelain', origin: 'Italy',
-    colors: ['White'],
+    colors: ['Black','Ivory','White'],
     skus: [[152,'White 24x48','24x48',null,5.99,8,2,16]] },
 
-  { name: 'Fry', material: 'Porcelain', origin: 'Italy', disc: true,
-    colors: ['Grigio','Nero'],
+  { name: 'Fry', material: 'Porcelain', origin: 'Italy',
+    colors: ['Bianco','Grigio','Nero'],
     skus: [
       [153,'12x24','12x24',null,1.95,2,7,14],
       [298,'Bianco Mosaic 2x2','2x2',null,9.99,null,null,null,'SH'],
@@ -259,9 +260,9 @@ const PRODUCTS = [
       [157,'18x36','18x36',null,4.99,4.5,3,13.5],
     ] },
 
-  { name: 'Ibiza', material: 'Ceramic', origin: 'Spain', disc: true,
+  { name: 'Ibiza', material: 'Ceramic', origin: 'Spain',
     desc: 'Ceramic Wall Tile',
-    colors: ['Blanco','Esmeralda','Navy','Perla'],
+    colors: ['Blanco','Decorado Indalo','Esmeralda','Navy','Perla'],
     skus: [[158,'15.75x47.24','15.75x47.24',null,1.99,5.16,3,15.5]] },
 
   { name: 'Kadence', material: 'Porcelain', origin: 'Spain',
@@ -278,10 +279,12 @@ const PRODUCTS = [
   { name: 'Larin Marfil', material: 'Porcelain', origin: 'Spain', disc: true,
     skus: [[164,'Polished 24x48','24x48','Polished',3.99,8,2,16]] },
 
-  { name: 'Laurent Black', material: 'Porcelain', origin: 'Spain', disc: true,
+  { name: 'Laurent Black', material: 'Porcelain', origin: 'Spain',
     skus: [
       [166,'Matte 35.4x35.4','35.4x35.4','Matte',4.99,8.7,1,8.7],
       [167,'Polished 35.4x35.4','35.4x35.4','Polished',4.99,8.7,1,8.7],
+      [400,'Matte 17.1x46.5','17.1x46.5','Matte',4.99,5.52,2,11.04],
+      [401,'Polished 17.1x46.5','17.1x46.5','Polished',4.99,5.52,2,11.04],
     ] },
 
   { name: 'Leccese Cesellata', material: 'Porcelain', origin: 'Italy',
@@ -305,7 +308,7 @@ const PRODUCTS = [
     desc: 'Matte Wall Tile',
     skus: [[172,'Matte Wall 15.55x46.92','15.55x46.92','Matte',2.29,5.078,5,25.39]] },
 
-  { name: 'Manhattan', material: 'Porcelain', origin: 'Italy',
+  { name: 'Manhattan', material: 'Porcelain', origin: 'Italy', disc: true,
     colors: ['Mud','Pearl'],
     skus: [[173,'Matte 36x36','36x36','Matte',3.99,8.715,2,17.43]] },
 
@@ -378,11 +381,11 @@ const PRODUCTS = [
       [304,'Blanco Polished Mosaic 2x2','2x2','Polished',9.99,null,null,null,'SH'],
     ] },
 
-  { name: 'Scanda White', material: 'Ceramic', origin: 'Spain', disc: true,
+  { name: 'Scanda White', material: 'Ceramic', origin: 'Spain',
     desc: '3D Matte Wall Tile',
     skus: [[206,'3D Matte Wall 15.55x46.92','15.55x46.92','Matte',1.99,5.085,4,20.34]] },
 
-  { name: 'Sekos White', material: 'Ceramic', origin: 'Spain', disc: true,
+  { name: 'Sekos White', material: 'Ceramic', origin: 'Spain',
     skus: [[207,'12.44x39.37','12.44x39.37',null,1.99,3.4,5,17]] },
 
   { name: 'Sierra', material: 'Porcelain', origin: 'Middle East',
@@ -403,7 +406,7 @@ const PRODUCTS = [
       [212,'Matte Wall 12x24','12x24','Matte',2.79,1.94,9,17.44],
     ] },
 
-  { name: 'Temper', material: 'Porcelain', origin: 'Italy', disc: true,
+  { name: 'Temper', material: 'Porcelain', origin: 'Italy',
     desc: 'Color Body Porcelain',
     colors: ['Coal','Frost','Golden','Iron'],
     skus: [
@@ -428,11 +431,12 @@ const PRODUCTS = [
       [220,'Matte 12x24','12x24','Matte',2.59,2,8,16],
       [221,'Matte 24x24','24x24','Matte',2.59,4,4,16],
       [305,'Matte Mosaic 2x2','2x2','Matte',9.99,null,null,null,'SH'],
+      [430,'Polished 32x32','32x32','Polished',3.49,7.11,2,14.22],
     ] },
 
   // ── HEXAGON / MOSAIC (98% Recycled Glass, Pool Rated) ─────────
 
-  { name: 'NatureGlass Hex', material: 'Glass', origin: 'Spain', disc: true,
+  { name: 'NatureGlass Hex', material: 'Glass', origin: 'Spain',
     desc: '98% Recycled Glass, Pool Rated',
     skus: [
       [229,'Black 1x1','1x1',null,1.99,0.94,6,5.64,'SH'],
@@ -440,11 +444,11 @@ const PRODUCTS = [
       [231,'White 1x1','1x1',null,1.99,0.94,6,5.64,'SH'],
     ] },
 
-  { name: 'Silver Matte Hex', material: 'Glass', origin: 'Spain', disc: true,
+  { name: 'Silver Matte Hex', material: 'Glass', origin: 'Spain',
     desc: '98% Recycled Glass, Pool Rated',
     skus: [[232,'1x1','1x1','Matte',1.99,0.94,6,5.94,'SH']] },
 
-  { name: 'Statuario Matte Hex', material: 'Glass', origin: 'Spain', disc: true,
+  { name: 'Statuario Matte Hex', material: 'Glass', origin: 'Spain',
     desc: '98% Recycled Glass, Pool Rated',
     skus: [[233,'1x1','1x1','Matte',1.99,0.94,6,5.94,'SH']] },
 
@@ -475,27 +479,27 @@ const PRODUCTS = [
 
   // ── 100% RECYCLED GLASS (Pool Rated) ──────────────────────────
 
-  { name: 'Antwerp', material: 'Glass', origin: 'Far East', disc: true,
+  { name: 'Antwerp', material: 'Glass', origin: 'Far East',
     desc: '100% Recycled Glass, Pool Rated',
     skus: [[247,'Sheet','14.88x10.81',null,1.99,1.05,10,11.19,'SH']] },
 
-  { name: 'Camden', material: 'Glass', origin: 'Far East', disc: true,
+  { name: 'Camden', material: 'Glass', origin: 'Far East',
     desc: '100% Recycled Glass, Pool Rated',
     skus: [[248,'Sheet','12.38x11.56',null,1.99,0.99,10,9.93,'SH']] },
 
-  { name: 'Grande', material: 'Glass', origin: 'Far East', disc: true,
+  { name: 'Grande', material: 'Glass', origin: 'Far East',
     desc: '100% Recycled Glass, Pool Rated',
     skus: [[249,'Sheet','11.56x12.38',null,1.99,0.99,10,9.9,'SH']] },
 
-  { name: 'Hudson', material: 'Glass', origin: 'Far East', disc: true,
+  { name: 'Hudson', material: 'Glass', origin: 'Far East',
     desc: '100% Recycled Glass, Pool Rated',
     skus: [[250,'Sheet','8.25x17.31',null,1.99,0.99,10,9.88,'SH']] },
 
-  { name: 'Nord', material: 'Glass', origin: 'Far East', disc: true,
+  { name: 'Nord', material: 'Glass', origin: 'Far East',
     desc: '100% Recycled Glass, Pool Rated',
     skus: [[251,'Sheet','11.56x12.38',null,1.99,0.99,10,9.9,'SH']] },
 
-  { name: 'Park', material: 'Glass', origin: 'Far East', disc: true,
+  { name: 'Park', material: 'Glass', origin: 'Far East',
     desc: '100% Recycled Glass, Pool Rated',
     skus: [[252,'Sheet','11.56x12.38',null,1.99,0.99,10,9.9,'SH']] },
 
@@ -521,7 +525,7 @@ const PRODUCTS = [
 
   // ── FRAMMENTI (Porcelain) ──────────────────────────────────────
 
-  { name: 'Frammenti', material: 'Porcelain', origin: 'Italy', disc: true,
+  { name: 'Frammenti', material: 'Porcelain', origin: 'Italy',
     skus: [
       [267,'Azzurro Macro Matte 8x8','8x8','Matte',1.99,0.43,29,12.49],
       [268,'Nero Macro Matte 8x8','8x8','Matte',1.99,0.43,29,12.49],
@@ -544,9 +548,9 @@ const PRODUCTS = [
     colors: ['Aertic','Carbon','Chalk','Sand','Sapphire'],
     skus: [[281,'Subway 2.5x8','2.5x8','Glossy',4.24,null,48,6.67]] },
 
-  { name: 'Limit', material: 'Ceramic', origin: 'Spain', disc: true,
+  { name: 'Limit', material: 'Ceramic', origin: 'Spain',
     desc: 'Classic Vintage Glossy Finish',
-    colors: ['Blanc','Blue Izu','Gris','Jaune','Noir','Sable','Terre Cuit','Vert'],
+    colors: ['Blanc','Bleu Clair','Bleu Izu','Gris','Jaune','Menthe','Noir','Rose','Sable','Terre','Vert'],
     skus: [
       [288,'Subway 2.5x10','2.5x10','Glossy',1.99,null,34,5.38],
       [289,'Jolly Trim 1x8','1x8',null,1.99,null,66,null,'PC'],
@@ -557,7 +561,7 @@ const PRODUCTS = [
   { name: 'Black Marble Mosaic', material: 'Porcelain', origin: 'Spain',
     skus: [[292,'Matte 2x2','2x2','Matte',9.99,null,null,null,'SH']] },
 
-  { name: 'Chateau Mosaic', material: 'Porcelain', origin: null,
+  { name: 'Chateau Mosaic', material: 'Porcelain', origin: null, disc: true,
     skus: [[295,'Polished 2x2','2x2','Polished',3.99,null,null,null,'SH']] },
 
   // ── SCHLUTER STYLE TRIM ────────────────────────────────────────
@@ -585,6 +589,103 @@ const PRODUCTS = [
     desc: 'Heavy Duty Outdoor Wall Panel',
     colors: ['Coffee Brown','Dark Coffee','Jet Black','Grey'],
     skus: [[327,'114x7.5 Panel','114x7.5',null,69.00,5.9,null,null,'PC']] },
+
+  // ── NEW PRODUCTS (May 2026 website additions) ────────────────────
+  // Pricing estimated from similar existing products — verify with vendor price list
+
+  // New Porcelain Tiles
+  { name: 'Golden Blanco', material: 'Porcelain', origin: 'Spain',
+    desc: 'Polished Calacatta Look Porcelain',
+    skus: [[402,'Polished 24x48','24x48','Polished',3.99,7.75,2,15.5]] },
+
+  { name: 'Granby Ivory', material: 'Porcelain', origin: 'Poland',
+    skus: [[403,'12x24','12x24','Matte',2.89,2,8,16]] },
+
+  { name: 'Panda', material: 'Porcelain', origin: 'India',
+    desc: 'Polished Marble Look Porcelain',
+    skus: [[404,'Polished 24x48','24x48','Polished',3.99,7.75,2,15.5]] },
+
+  { name: 'Statuario Spider', material: 'Porcelain', origin: 'India',
+    skus: [[405,'Polished 12x24','12x24','Polished',3.99,2,6,12]] },
+
+  { name: 'Staturio Blue', material: 'Porcelain', origin: null,
+    desc: 'Satin & Polished Porcelain',
+    skus: [[406,'Satin 24x48','24x48','Satin',4.49,7.75,2,15.5]] },
+
+  { name: 'Vibrant Bianco', material: 'Porcelain', origin: null,
+    desc: 'Polished Marble Look Porcelain',
+    skus: [[407,'Polished 24x48','24x48','Polished',3.99,7.75,2,15.5]] },
+
+  { name: 'Vilema', material: 'Porcelain', origin: null,
+    desc: 'Wood Look Porcelain',
+    colors: ['Beige','Blanco','Roble','Taupe'],
+    skus: [[408,'9.25x47.25','9.25x47.25','Matte',1.99,3,4,12]] },
+
+  // New Wall Tiles
+  { name: 'Artistic White Brillo', material: 'Ceramic', origin: 'Spain',
+    desc: 'Semi-Polished Wall Tile',
+    skus: [[410,'Semi-Polish 13.1x35.4','13.1x35.4','Semi-Polished',2.99,3.22,4,12.88]] },
+
+  { name: 'Celian', material: 'Ceramic', origin: 'Spain',
+    desc: 'Matte Wall Tile',
+    colors: ['Grafito','Ivory'],
+    skus: [[411,'Matte 12x36','12x36','Matte',2.99,3,4,12]] },
+
+  { name: 'Elven', material: 'Ceramic', origin: 'Spain',
+    desc: 'Semi-Polished Lapatto Wall Tile',
+    colors: ['Blanco','Grafito'],
+    skus: [
+      [413,'Lapatto 15x60','15x60','Semi-Polished',3.49,6.25,2,12.5],
+      [414,'Concept Blanco Lapatto 15x60','15x60','Semi-Polished',3.49,6.25,2,12.5],
+    ] },
+
+  { name: 'Insignia White', material: 'Ceramic', origin: 'Spain',
+    desc: 'Matte Wall Tile',
+    skus: [[416,'Matte 12.44x39.37','12.44x39.37','Matte',1.99,3.4,5,17]] },
+
+  { name: 'Kube Blanco', material: 'Ceramic', origin: 'Spain',
+    desc: '3D Polish Wall Tile',
+    skus: [[417,'Polish 15.55x46.92','15.55x46.92','Polished',2.29,5.078,5,25.39]] },
+
+  { name: 'Kyoto White', material: 'Ceramic', origin: null,
+    desc: '3D Matte Wall Tile',
+    skus: [[418,'Matte 12x36','12x36','Matte',2.99,3,4,12]] },
+
+  { name: 'Odissey Saphire', material: 'Ceramic', origin: 'Spain',
+    desc: 'Glossy Ceramic Tile',
+    skus: [
+      [419,'Matte 24x24','24x24','Matte',3.99,3.87,4,15.49],
+      [420,'Polish Wall 12.44x39.37','12.44x39.37','Polished',2.99,3.4,5,17],
+    ] },
+
+  { name: 'Scale Decor 3D', material: 'Ceramic', origin: 'Spain',
+    desc: '3D Deco Wall Tile',
+    colors: ['Ivory','Saphire'],
+    skus: [[422,'Polish 12.44x39.37','12.44x39.37','Polished',2.99,3.4,5,17]] },
+
+  // New Mosaics
+  { name: 'Dorset Hexagon', material: 'Ceramic', origin: null,
+    desc: 'Polished Hexagon Mosaic',
+    colors: ['Black','Gray','White'],
+    skus: [[424,'8x9.5 Sheet','8x9.5','Polished',4.99,null,null,null,'SH']] },
+
+  { name: 'Nero Marquina Matte Hexagon', material: 'Porcelain', origin: null,
+    desc: 'Matte Marble Look Hexagon Mosaic',
+    skus: [[425,'11.86x11.43 Sheet','11.86x11.43','Matte',5.99,null,null,null,'SH']] },
+
+  { name: 'Metallic Dark Grey Mosaic', material: 'Metal', origin: null,
+    desc: 'Aluminum Mosaic',
+    skus: [[426,'Sheet','sheet',null,6.99,null,null,null,'SH']] },
+
+  { name: 'Stainless Gold Hexagon Mosaic', material: 'Metal', origin: null,
+    desc: 'Aluminum Hexagon Mosaic',
+    skus: [[427,'9.93x10.32 Sheet','9.93x10.32',null,6.99,null,null,null,'SH']] },
+
+  // New Wall Panel
+  { name: 'BPC Interior Panel', material: 'BPC', origin: null,
+    desc: 'Bamboo Plastic Composite 3D Fluted Indoor Wall Panel',
+    colors: ['Oak','White'],
+    skus: [[428,'107x6 Panel','107x6',null,79.00,4.45,null,null,'PC']] },
 ];
 
 
@@ -626,7 +727,7 @@ async function main() {
     if (prod.material === 'Ceramic') catId = CAT_CERAMIC || CAT_PORCELAIN;
     if (prod.material === 'Glass') catId = CAT_GLASS || CAT_PORCELAIN;
     if (prod.material === 'Metal') catId = CAT_TRIM || null;
-    if (prod.material === 'MDF' || prod.material === 'WPC') catId = null;
+    if (prod.material === 'MDF' || prod.material === 'WPC' || prod.material === 'BPC') catId = null;
     if (prod.material === 'Grout') catId = CAT_TRIM || null;
 
     const prodRec = await upsertProduct(vendorId, {
@@ -639,8 +740,39 @@ async function main() {
 
     let prodSkuCount = 0;
 
+    // Build the list of SKU entries to create. For products with a `colors`
+    // array, generic SKUs (variant name doesn't start with a known color)
+    // are duplicated per color so each gets its own internal_sku and color
+    // attribute. Color-specific SKUs (variant name starts with a color) are
+    // assigned to that single color.
+    const skuEntries = [];
     for (const s of prod.skus) {
       const [rowNum, variantName, size, finish, price, sqftPc, pcsBox, sqftBox, um] = s;
+      if (prod.colors && prod.colors.length > 1) {
+        const vnLower = (variantName || '').toLowerCase();
+        const matchedColor = prod.colors.find(c => vnLower.startsWith(c.toLowerCase()));
+        if (matchedColor) {
+          // Color-specific SKU — assign to that single color
+          skuEntries.push({ rowNum, variantName, size, finish, price, sqftPc, pcsBox, sqftBox, um, color: matchedColor });
+        } else {
+          // Generic SKU — duplicate for each color
+          for (const color of prod.colors) {
+            const colorCode = color.replace(/\s+/g, '').substring(0, 4).toUpperCase();
+            skuEntries.push({
+              rowNum, variantName: `${color} ${variantName}`, size, finish, price,
+              sqftPc, pcsBox, sqftBox, um, color, skuSuffix: colorCode,
+            });
+          }
+        }
+      } else {
+        // Single-color or no-color product
+        skuEntries.push({ rowNum, variantName, size, finish, price, sqftPc, pcsBox, sqftBox, um,
+          color: prod.colors ? prod.colors[0] : null });
+      }
+    }
+
+    for (const entry of skuEntries) {
+      const { rowNum, variantName, size, finish, price, sqftPc, pcsBox, sqftBox, um, color, skuSuffix } = entry;
       const unitMode = um || 'SF';
 
       const sellBy = unitMode === 'SF' ? 'sqft' : 'unit';
@@ -648,8 +780,8 @@ async function main() {
       const isAccessory = unitMode === 'PC';
       const variantType = isAccessory ? 'accessory' : null;
 
-      const vendorSku = `R${rowNum}`;
-      const internalSku = `BLZ-R${rowNum}`;
+      const vendorSku = skuSuffix ? `R${rowNum}-${skuSuffix}` : `R${rowNum}`;
+      const internalSku = skuSuffix ? `BLZ-R${rowNum}-${skuSuffix}` : `BLZ-R${rowNum}`;
 
       const sku = await upsertSku(prodRec.id, {
         vendor_sku: vendorSku,
@@ -678,7 +810,7 @@ async function main() {
       if (finish) await setAttr(sku.id, 'finish', finish);
       await setAttr(sku.id, 'material', prod.material);
       if (prod.origin) await setAttr(sku.id, 'country_of_origin', prod.origin);
-      if (prod.colors) await setAttr(sku.id, 'color', prod.colors.join(', '));
+      if (color) await setAttr(sku.id, 'color', color);
 
       prodSkuCount++;
     }

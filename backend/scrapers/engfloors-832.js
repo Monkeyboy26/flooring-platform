@@ -366,7 +366,8 @@ function cleanProductName(raw) {
   if (!raw) return null;
   let name = raw
     .replace(/\s*\([^)]*sq(?:ft|yd)[^)]*\)/gi, '')
-    .replace(/\s+\d+\.?\d*[xX]\d+\.?\d*/g, '')
+    // Remove dimension patterns: 7.60x54.45, 6.99 X 48, 1X94, 12X50, etc.
+    .replace(/\s+\d+\.?\d*"?\s*[xX×]\s*\d+\.?\d*"?/gi, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
   name = name.replace(/\b\w+/g, w =>

@@ -39,12 +39,21 @@ export function deslugify(slug) {
  * Normalize a size string: strip quotes/inch marks, collapse whitespace around "x".
  * "12 x 24" → "12x24", '12" x 24"' → "12x24"
  */
+// Equivalent metric→imperial sizes that vendors round differently.
+// Maps non-standard sizes to the industry-standard imperial equivalent.
+const SIZE_EQUIVALENTS = {
+  '12x25': '12x24',   // 30x63cm — most vendors use 12x24
+};
+
 export function normalizeSize(raw) {
   if (!raw) return '';
-  return raw
+  let s = raw
     .replace(/["″'']/g, '')
     .replace(/\s*[xX×]\s*/g, 'x')
     .trim();
+  // Remap vendor-specific size roundings to standard sizes
+  if (SIZE_EQUIVALENTS[s]) s = SIZE_EQUIVALENTS[s];
+  return s;
 }
 
 /**
@@ -686,9 +695,31 @@ const LIFESTYLE_KEYWORDS = [
   'spotlight', 'promo', 'campaign', '1920x1080', '_4k',
   '.mp4', '.mov', '.webm',
   'amb0', 'amb1', '_amb_', '-amb-', 'amb_', 'ambi_',
+  '_amb.', '-amb.', '-amb ',                               // "amb" abbreviation patterns (01_amb.jpg, amb.2_pav, AMB ELEVATION)
   'crop_upscale',
   'ambience', 'gallery', 'roomview', 'room-view', 'insitu', 'in-situ',
   'inspiration', 'styled',
+  // Italian room-scene words (common on Italian tile vendor sites)
+  'ambiente', 'bagno', 'cucina', 'ristorante', 'terrazza', 'soggiorno',
+  'camera_', 'camera-',                                      // Italian "camera" = room (Camera_Bagno, Camera-Beige)
+  'posa', 'esterno', 'ingresso', 'veranda', 'giardino',     // Italian: installation, exterior, entrance, veranda, garden
+  'pavimento', 'rivestimento', 'vetrina', 'negozio',         // Italian: floor, wall covering, display, shop
+  'parete', 'salotto', 'ufficio', 'balcone', 'realizzazione', // Italian: wall, lounge, office, balcony, realization
+  // Spanish room-scene words
+  'detalle',                                                  // Spanish: detail view / room detail
+  '_bano', '-bano',                                           // Spanish: bathroom (baño) — prefixed to avoid matching "urbano"
+  'cocina', 'proyecto',                                       // Spanish: kitchen, project
+  // Additional room-scene / showroom patterns
+  ' amb ',                                                    // space-delimited "amb" abbreviation (e.g., "DETALLE Amb Madison")
+  'restaurant',                                               // restaurant scene
+  '_shop.', '_shop_',                                         // showroom/shop display photo
+  'beauty center', 'beauty_center',                           // salon/beauty center scene
+  'smart working', 'smart_working',                           // home office scene
+  // Room types
+  'reception', 'lobby', 'lounge', 'hotel', 'corridor', 'patio',
+  'bedroom', 'dining', 'terrace', 'garden',
+  // Renders and marketing
+  'render', 'rendering',
 ];
 
 /**
@@ -754,8 +785,11 @@ export function preferProductShot(urls, colorHint, variantHints) {
     for (const kw of PRODUCT_KEYWORDS) {
       if (filename.includes(kw)) { score += 3; break; }
     }
+    // Penalize lifestyle keywords, but skip if the keyword is part of the product name
+    // (e.g., color "Amber" contains "amb", collection "Gallery" contains "gallery")
+    const prodNameLow = variantHints?.productName?.toLowerCase() || '';
     for (const kw of LIFESTYLE_KEYWORDS) {
-      if (filename.includes(kw)) { score -= 20; break; }
+      if (filename.includes(kw) && !prodNameLow.includes(kw)) { score -= 20; break; }
     }
 
     // Color-aware boost: if URL filename contains the color name, it's likely
@@ -782,8 +816,9 @@ export function preferProductShot(urls, colorHint, variantHints) {
     .map(x => x.url);
 
   // Hard guarantee: lifestyle image must never be primary
-  if (sorted.length > 1 && isLifestyleUrl(sorted[0])) {
-    const firstNonLifestyle = sorted.findIndex(u => !isLifestyleUrl(u));
+  const pName = variantHints?.productName || null;
+  if (sorted.length > 1 && isLifestyleUrl(sorted[0], pName)) {
+    const firstNonLifestyle = sorted.findIndex(u => !isLifestyleUrl(u, pName));
     if (firstNonLifestyle > 0) {
       const swap = sorted[firstNonLifestyle];
       sorted[firstNonLifestyle] = sorted[0];
@@ -1006,12 +1041,12 @@ export function filterImageUrls(urls, opts = {}) {
  * @returns {Promise<number>} Number of images saved
  */
 export async function saveProductImages(pool, productId, imageUrls, opts = {}) {
-  const { maxImages = 6 } = opts;
+  const { maxImages = 6, productName = null } = opts;
   const toSave = imageUrls.slice(0, maxImages);
 
   // Safety net: ensure a lifestyle image is never stored as primary
-  if (toSave.length > 1 && isLifestyleUrl(toSave[0])) {
-    const swapIdx = toSave.findIndex(u => !isLifestyleUrl(u));
+  if (toSave.length > 1 && isLifestyleUrl(toSave[0], productName)) {
+    const swapIdx = toSave.findIndex(u => !isLifestyleUrl(u, productName));
     if (swapIdx > 0) [toSave[0], toSave[swapIdx]] = [toSave[swapIdx], toSave[0]];
   }
 
@@ -1049,13 +1084,13 @@ export async function saveProductImages(pool, productId, imageUrls, opts = {}) {
  * @returns {Promise<number>} Number of images saved
  */
 export async function saveSkuImages(pool, productId, skuId, imageUrls, opts = {}) {
-  const { maxImages = 8 } = opts;
+  const { maxImages = 8, productName = null } = opts;
   const toSave = imageUrls.slice(0, maxImages);
 
   // Safety net: ensure a lifestyle image is never stored as primary.
-  // First try to swap with a non-lifestyle image in the list.
-  if (isLifestyleUrl(toSave[0])) {
-    const swapIdx = toSave.findIndex(u => !isLifestyleUrl(u));
+  // Pass productName to avoid false positives (e.g., color "Amber" matching keyword "amb").
+  if (isLifestyleUrl(toSave[0], productName)) {
+    const swapIdx = toSave.findIndex(u => !isLifestyleUrl(u, productName));
     if (swapIdx > 0) [toSave[0], toSave[swapIdx]] = [toSave[swapIdx], toSave[0]];
   }
 
@@ -1064,7 +1099,7 @@ export async function saveSkuImages(pool, productId, skuId, imageUrls, opts = {}
   for (let i = 0; i < toSave.length; i++) {
     // Never assign asset_type 'primary' to a lifestyle URL — store as 'lifestyle' instead.
     // The browse grid COALESCE chain will still find it via sku_any_images as last resort.
-    const isLifestyle = isLifestyleUrl(toSave[i]);
+    const isLifestyle = isLifestyleUrl(toSave[i], productName);
     const assetType = isLifestyle ? 'lifestyle'
       : i === 0 ? 'primary'
       : i <= 2 ? 'alternate'

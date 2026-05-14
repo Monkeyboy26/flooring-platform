@@ -38,6 +38,9 @@ const NAME_TO_SLUG = {
   'eclipse beveled': 'eclipse-beveled',
   'ellum stone': 'ellum-stone',
   'akila lux': 'akila-lux',
+  'le que': 'le-que',
+  'rue de paris': 'rue-de-paris',
+  'dantilia': 'dantilia',
 };
 
 function toSlug(s) {
@@ -232,10 +235,16 @@ function scoreImageForSku(image, skuColor, skuSize, skuVariantName) {
     return 0; // Format mismatch: mosaic vs field tile
   }
 
-  // Size bonus
+  // Size bonus / size-mismatch rejection
   if (variantSize) {
     const sn = norm(variantSize);
-    if (altNorm.includes(sn) || parsedNorm.includes(sn) || urlNorm.includes(sn)) score += 5;
+    if (altNorm.includes(sn) || parsedNorm.includes(sn) || urlNorm.includes(sn)) {
+      score += 5;
+    } else {
+      // Reject if image contains a DIFFERENT size than SKU
+      const imgSize = extractSize(url || '') || extractSize(alt || '') || extractSize(parsed || '');
+      if (imgSize && norm(imgSize) !== sn) return 0;
+    }
   }
 
   // ── Finish mismatch rejection ──
@@ -529,7 +538,13 @@ async function run() {
             const urlN = norm(img.url || '');
             const altN = norm(img.alt || '');
             const parsedN = norm(img.parsed || '');
-            if (urlN.includes(sn) || altN.includes(sn) || parsedN.includes(sn)) sc += 5;
+            if (urlN.includes(sn) || altN.includes(sn) || parsedN.includes(sn)) {
+              sc += 5;
+            } else {
+              // Reject if image contains a DIFFERENT size than SKU
+              const imgSize = extractSize(img.url || '') || extractSize(img.alt || '') || extractSize(img.parsed || '');
+              if (imgSize && norm(imgSize) !== sn) return { img, score: 0 };
+            }
           }
           return { img, score: sc };
         }).filter(s => s.score > 0).sort((a, b) => b.score - a.score);
@@ -579,7 +594,13 @@ async function run() {
               const urlN = norm(img.url || '');
               const altN = norm(img.alt || '');
               const parsedN = norm(img.parsed || '');
-              if (urlN.includes(sn) || altN.includes(sn) || parsedN.includes(sn)) sc += 5;
+              if (urlN.includes(sn) || altN.includes(sn) || parsedN.includes(sn)) {
+                sc += 5;
+              } else {
+                // Reject if image contains a DIFFERENT size than SKU
+                const imgSize = extractSize(img.url || '') || extractSize(img.alt || '') || extractSize(img.parsed || '');
+                if (imgSize && norm(imgSize) !== sn) return { img, score: 0 };
+              }
             }
             return { img, score: sc };
           }).filter(s => s.score > 0).sort((a, b) => b.score - a.score);

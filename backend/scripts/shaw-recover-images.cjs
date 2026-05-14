@@ -2,22 +2,21 @@
 /**
  * shaw-recover-images.cjs
  *
- * Recover images for the 240 Shaw products with zero images.
+ * Recover images for Shaw SKUs missing primary images.
  *
  * The Shaw Data API credentials stopped working between March 5 and March 26,
  * 2026, so we can't fetch fresh enrichment data. However, Shaw's public
- * sitemaps (https://shawfloors.com/en-us/sitemap/images/sampletype/7-11.xml)
+ * sitemaps (https://shawfloors.com/en-us/sitemap/images.xml)
  * list every style/color image on the Widen CDN.
  *
  * Strategy:
- *   1. Download all 5 image sitemaps
+ *   1. Download all image sitemaps recursively
  *   2. Parse out all "{styleCode}_{colorCode}_{variant}" URLs
  *   3. Build lookup by lowercase "{style}_{color}" key
- *   4. For each uncovered Shaw SKU, parse vendor_sku into style (5 chars) +
- *      color (5 chars) and look it up
+ *   4. For each Shaw SKU missing a SKU-level primary, parse vendor_sku
+ *      into style + color and look it up
  *   5. Insert matching _main as primary, _room as lifestyle
- *   6. If all SKUs of a product get matched, promote first primary to
- *      product-level
+ *   6. For products without a product-level primary, promote first matched
  *
  * Usage:
  *   node backend/scripts/shaw-recover-images.cjs --dry-run
@@ -109,21 +108,26 @@ async function main() {
   const vendorRes = await pool.query("SELECT id FROM vendors WHERE code='SHAW'");
   const vendorId = vendorRes.rows[0].id;
 
-  // Uncovered = product has no product-level primary AND SKU has no SKU-level primary
+  // Uncovered = SKU has no SKU-level primary (regardless of product-level)
+  // Also fetch style_code and color_code attributes for fallback matching
   const { rows: uncoveredSkus } = await pool.query(`
-    SELECT s.id AS sku_id, s.vendor_sku, s.product_id, p.name AS product_name
+    SELECT s.id AS sku_id, s.vendor_sku, s.product_id, p.name AS product_name,
+           EXISTS (
+             SELECT 1 FROM media_assets ma
+             WHERE ma.sku_id = s.id AND ma.asset_type = 'lifestyle'
+           ) AS has_lifestyle,
+           (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+            WHERE sa.sku_id = s.id AND a.slug = 'style_code' LIMIT 1) AS style_code,
+           (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+            WHERE sa.sku_id = s.id AND a.slug = 'color_code' LIMIT 1) AS color_code
     FROM skus s
     JOIN products p ON p.id = s.product_id
     WHERE p.vendor_id = $1
       AND s.status = 'active'
       AND s.vendor_sku IS NOT NULL
-      AND p.id NOT IN (
-        SELECT DISTINCT product_id FROM media_assets
-        WHERE asset_type='primary' AND sku_id IS NULL
-      )
-      AND s.id NOT IN (
-        SELECT DISTINCT sku_id FROM media_assets
-        WHERE asset_type='primary' AND sku_id IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM media_assets ma
+        WHERE ma.sku_id = s.id AND ma.asset_type = 'primary'
       )
   `, [vendorId]);
 
@@ -142,20 +146,31 @@ async function main() {
     // Shaw vendor_sku format: "{style5}{color5}" or "{style5} {color5}"
     // Style can be 5 chars (e.g. sns13, 5e901, cc73b) or shorter (e.g. vv492)
     const nosp = raw.replace(/\s+/g, '');
-    if (nosp.length < 8) { unmatched++; continue; }
 
-    // Try variations: split at 5 chars, 4 chars, 6 chars
     let hit = null;
     let hitKey = null;
-    for (const styleLen of [5, 4, 6]) {
-      if (nosp.length <= styleLen) continue;
-      const style = nosp.slice(0, styleLen);
-      const color = nosp.slice(styleLen);
-      const key = `${style}_${color}`;
+
+    // Method 1: Parse vendor_sku directly (works for E01430xxxx, 5E544xxxxx, etc.)
+    if (nosp.length >= 8) {
+      for (const styleLen of [5, 4, 6]) {
+        if (nosp.length <= styleLen) continue;
+        const style = nosp.slice(0, styleLen);
+        const color = nosp.slice(styleLen);
+        const key = `${style}_${color}`;
+        if (lookup.has(key)) {
+          hit = lookup.get(key);
+          hitKey = key;
+          break;
+        }
+      }
+    }
+
+    // Method 2: Use style_code + color_code attributes (works for text-based vendor_skus)
+    if (!hit && sku.style_code && sku.color_code) {
+      const key = `${sku.style_code.trim().toLowerCase()}_${sku.color_code.trim()}`;
       if (lookup.has(key)) {
         hit = lookup.get(key);
         hitKey = key;
-        break;
       }
     }
 
@@ -174,7 +189,7 @@ async function main() {
         original_url: hit.main,
       });
     }
-    if (hit.room) {
+    if (hit.room && !sku.has_lifestyle) {
       toInsertSkuLifestyle.push({
         sku_id: sku.sku_id,
         product_id: sku.product_id,
@@ -193,14 +208,22 @@ async function main() {
   console.log(`  Lifestyle images to insert: ${toInsertSkuLifestyle.length}\n`);
 
   // Phase 4: Determine product-level primary promotions
-  // For each product, pick the first SKU's primary to promote as product-level primary
+  // For products without a product-level primary, promote the first matched SKU's image
   console.log('Phase 4: Building product-level primary promotions...');
+  const { rows: existingProductPrimaries } = await pool.query(`
+    SELECT DISTINCT product_id FROM media_assets
+    WHERE asset_type = 'primary' AND sku_id IS NULL
+      AND product_id IN (SELECT id FROM products WHERE vendor_id = $1)
+  `, [vendorId]);
+  const hasProductPrimary = new Set(existingProductPrimaries.map(r => r.product_id));
+
   const productPrimary = new Map();
   for (const img of toInsertSkuPrimary) {
-    if (!productPrimary.has(img.product_id)) {
+    if (!hasProductPrimary.has(img.product_id) && !productPrimary.has(img.product_id)) {
       productPrimary.set(img.product_id, { url: img.url, original_url: img.original_url });
     }
   }
+  console.log(`  Products already with primary: ${hasProductPrimary.size}`);
   console.log(`  Products getting promoted primary: ${productPrimary.size}\n`);
 
   // Summary

@@ -548,10 +548,19 @@ function finalizeItem(item) {
   }
 
   // Convert SY prices to SF (1 SY = 9 SF)
+  // Note: MSI EDI may send CT (cost) in SY but ST (retail) in per-piece.
+  // Only the cost entry's UOM is captured, so retail may be on a different basis.
+  // We convert both using the cost UOM, then enforce minimum markup below.
   if (item.unit_of_measure && item.unit_of_measure.toUpperCase() === 'SY') {
     if (item.cost) item.cost = parseFloat((item.cost / 9).toFixed(4));
     if (item.retail_price) item.retail_price = parseFloat((item.retail_price / 9).toFixed(4));
     item.unit_of_measure = 'SF';
+  }
+
+  // Safety: if retail ended up below cost (UOM mismatch between CT and ST entries),
+  // or equal to cost (no ST price, fell back to CT), apply 2× markup
+  if (item.cost > 0 && (!item.retail_price || item.retail_price < item.cost * 1.5)) {
+    item.retail_price = parseFloat((item.cost * 2).toFixed(4));
   }
 
   if (!item.sell_by && item.unit_of_measure) {

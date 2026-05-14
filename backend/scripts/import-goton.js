@@ -23,6 +23,7 @@ const ATTR = {
   color:    'd50e8400-e29b-41d4-a716-446655440001',
   size:     'd50e8400-e29b-41d4-a716-446655440004',
   material: 'd50e8400-e29b-41d4-a716-446655440002',
+  finish:   'd50e8400-e29b-41d4-a716-446655440003',
 };
 
 // ── Vendor SKU generator ──
@@ -1050,10 +1051,10 @@ async function run() {
       totalProducts++;
 
       const sku = genSku('GLASS', code, size);
-      const variantName = `${code} ${size}`;
+      const variantName = `${code} ${pattern} ${size}`;
       const sellBy = sf ? 'sqft' : 'unit';
       const skuId = await upsertSku(client, {
-        productId, vendorSku: sku, variantName, sellBy, variantType: null,
+        productId, vendorSku: sku, variantName, sellBy, variantType: 'mosaic',
       });
       totalMosaicSkus++;
       await upsertPricing(client, skuId, cost, sellBy);
@@ -1061,6 +1062,7 @@ async function run() {
       if (await upsertPackaging(client, skuId, pcs, sf, plt, sfPlt)) totalPkg++;
       await upsertAttr(client, skuId, 'size', size);
       await upsertAttr(client, skuId, 'material', 'Glass');
+      // No color attribute for glass mosaics — each code is its own product
 
       console.log(`  ${code}: ${pattern} ${size}`);
     }
@@ -1096,6 +1098,9 @@ async function run() {
         await upsertAttr(client, skuId, 'size', size);
         await upsertAttr(client, skuId, 'color', colorName);
         await upsertAttr(client, skuId, 'material', 'Glass');
+        // Set finish: "Textured (LS)" → "Textured", "Smooth (LG)" → "Smooth"
+        const finishName = desc.match(/^(Textured|Smooth)/i)?.[1];
+        if (finishName) await upsertAttr(client, skuId, 'finish', finishName.charAt(0).toUpperCase() + finishName.slice(1).toLowerCase());
       }
 
       // Vetro accessories (quarter round)

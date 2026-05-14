@@ -885,12 +885,10 @@ function cleanProductName(raw) {
   let name = raw
     // Remove parenthetical sqft/sqyd info: (17.24sqft/box), (.051sqyd)
     .replace(/\s*\([^)]*sq(?:ft|yd)[^)]*\)/gi, '')
-    // Remove dimension patterns: 7.60x54.45, 1X94, 2X94, 12X50, 6.65x48.00, etc.
-    .replace(/\s+\d+\.?\d*[xX]\d+\.?\d*/g, '')
+    // Remove dimension patterns: 7.60x54.45, 6.99 X 48, 1X94, 12X50, 6.65x48.00, etc.
+    .replace(/\s+\d+\.?\d*"?\s*[xX×]\s*\d+\.?\d*"?/gi, '')
     // Strip trailing " BL" (broadloom — redundant with category)
     .replace(/\s+BL\s*$/i, '')
-    // Strip raw dimensions like 1" X 94", 3 X 94, 2 X 94, 1X94
-    .replace(/\s+\d+"?\s*[xX]\s*\d+"?\s*$/gi, '')
     // Clean up multiple spaces
     .replace(/\s{2,}/g, ' ')
     .trim();
@@ -1502,9 +1500,33 @@ async function importToDatabase(catalog) {
     return slug ? (catCache[slug] || null) : null;
   };
 
+  // Pre-fetch Pentz Commercial (PC) vendor SKUs to skip duplicates.
+  // Pentz Commercial is a brand under EF, but has its own vendor record with richer media data.
+  // Any vendor_sku that exists under PC should NOT be imported under EF.
+  const pcVendor = await pool.query("SELECT id FROM vendors WHERE code = 'PC'");
+  let pcSkuSet = new Set();
+  if (pcVendor.rows.length) {
+    const pcSkus = await pool.query(`
+      SELECT s.vendor_sku FROM skus s
+      JOIN products p ON p.id = s.product_id AND p.vendor_id = $1
+    `, [pcVendor.rows[0].id]);
+    pcSkuSet = new Set(pcSkus.rows.map(r => r.vendor_sku));
+    console.log(`\nLoaded ${pcSkuSet.size} PC (Pentz Commercial) vendor SKUs for dedup`);
+  }
+
+  // Filter out items whose vendor_sku already exists under PC
+  const filteredItems = catalog.items.filter(item => {
+    if (item.vendor_sku && pcSkuSet.has(item.vendor_sku)) return false;
+    return true;
+  });
+  const pcSkipped = catalog.items.length - filteredItems.length;
+  if (pcSkipped > 0) {
+    console.log(`Skipped ${pcSkipped} items already imported under Pentz Commercial (PC)`);
+  }
+
   // Group items into products
-  const productGroups = groupIntoProducts(catalog.items);
-  console.log(`\nGrouped ${catalog.items.length} items into ${productGroups.length} products`);
+  const productGroups = groupIntoProducts(filteredItems);
+  console.log(`\nGrouped ${filteredItems.length} items into ${productGroups.length} products`);
 
   const stats = { products_created: 0, products_updated: 0, skus_created: 0, skus_updated: 0, pricing_upserted: 0, packaging_upserted: 0, attributes_upserted: 0, images_upserted: 0 };
 
@@ -1805,13 +1827,13 @@ async function importToDatabase(catalog) {
       if (widthMea && lengthMea) {
         const isCarpet = /CARIND|CARTIL/.test(item.material_class || '');
         if (isCarpet) {
-          // Carpet: show in feet for broadloom, inches for tile
+          // Carpet tile: size in inches (e.g., "24" x 24")
+          // Broadloom: skip size attribute — roll dimensions are packaging data,
+          // not a product attribute. Stored in packaging.roll_width_ft/roll_length_ft.
           if (/CARTIL/.test(item.material_class || '')) {
             const tW = Math.round(widthMea.value * 12);
             const tL = Math.round(lengthMea.value * 12);
             await upsertSkuAttributeBySlug(skuId, 'size', `${tW}" x ${tL}"`);
-          } else {
-            await upsertSkuAttributeBySlug(skuId, 'size', `${widthMea.value}' x ${lengthMea.value}'`);
           }
         } else {
           const wIn = widthMea.unit_of_measure === 'EZ' ? widthMea.value * 12 : widthMea.value;

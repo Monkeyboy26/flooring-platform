@@ -416,11 +416,21 @@ async function main() {
   console.log(`build-sku-accessories.cjs — ${DRY_RUN ? 'DRY RUN' : 'LIVE'}`);
   console.log('─'.repeat(60));
 
-  // Step 1: Clear existing data
+  // Step 1: Clear existing data (preserve JMV links — managed by create-jmv-accessories.cjs)
   if (!DRY_RUN) {
-    await pool.query('DELETE FROM sku_accessories');
-    await pool.query('UPDATE skus SET accessory_label = NULL WHERE accessory_label IS NOT NULL');
-    console.log('Cleared existing sku_accessories and accessory_label data');
+    const delResult = await pool.query(`
+      DELETE FROM sku_accessories
+      WHERE parent_sku_id NOT IN (
+        SELECT s.id FROM skus s
+        JOIN products p ON p.id = s.product_id
+        JOIN vendors v ON v.id = p.vendor_id
+        WHERE v.code = 'JMV'
+      )
+    `);
+    // Note: we do NOT clear accessory_label here — labels may have been manually set
+    // for accessories where deriveLabel can't determine the type (e.g., EDI-coded products).
+    // The label update below will only overwrite when deriveLabel returns a recognized type.
+    console.log(`Cleared ${delResult.rowCount} existing sku_accessories links (preserved JMV)`);
   }
 
   // Step 2: Load all products with both accessory and non-accessory active SKUs
@@ -534,7 +544,7 @@ async function main() {
       vskus.forEach(v => allCompanionVskus.add(v));
     }
 
-    // Look up companion SKUs
+    // Look up companion SKUs by vendor_sku
     const companionSkuResult = await pool.query(`
       SELECT s.id, s.vendor_sku, s.variant_name, p.name as product_name,
         s.variant_type, s.sell_by
@@ -543,9 +553,25 @@ async function main() {
       WHERE s.vendor_sku = ANY($1) AND s.status = 'active'
     `, [Array.from(allCompanionVskus)]);
 
+    // Also look up by product name (Shaw EDI accessory products are named after their EDI code)
+    const companionNameResult = await pool.query(`
+      SELECT s.id, s.vendor_sku, s.variant_name, p.name as product_name,
+        s.variant_type, s.sell_by, upper(p.name) as match_key
+      FROM skus s
+      JOIN products p ON p.id = s.product_id AND p.status = 'active'
+      WHERE upper(p.name) = ANY($1) AND s.status = 'active'
+        AND s.vendor_sku != ALL($1)
+    `, [Array.from(allCompanionVskus)]);
+
     const companionMap = {};
     for (const r of companionSkuResult.rows) {
       companionMap[r.vendor_sku] = r;
+    }
+    // For product name matches, use the first SKU per product name as the representative
+    for (const r of companionNameResult.rows) {
+      if (!companionMap[r.match_key]) {
+        companionMap[r.match_key] = r;
+      }
     }
 
     let crossLinks = 0;
@@ -553,7 +579,7 @@ async function main() {
       const vskus = row.companion_skus.split(',').map(s => s.trim()).filter(Boolean);
       let sortOrder = 0;
       for (const vsku of vskus) {
-        const comp = companionMap[vsku];
+        const comp = companionMap[vsku] || companionMap[vsku.toUpperCase()];
         if (comp) {
           linkBatch.push([row.main_sku_id, comp.id, sortOrder++]);
           crossLinks++;
@@ -628,9 +654,10 @@ async function main() {
       for (const [skuId, label] of batch) {
         params.push(skuId, label);
       }
+      // Only update labels for SKUs that don't already have a manually-set label
       await pool.query(`
         UPDATE skus SET accessory_label = CASE ${caseLines} END, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ANY($${params.length + 1})
+        WHERE id = ANY($${params.length + 1}) AND accessory_label IS NULL
       `, [...params, ids]);
     }
     console.log(`  ${dedupedLabels.length} labels written`);

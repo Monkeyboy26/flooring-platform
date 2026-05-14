@@ -11,7 +11,7 @@
  * Matching logic:
  *   - Each PDF row = one style+size+back combo; price applies to ALL colors of that style
  *   - Match to DB SKUs by: vendor_sku LIKE '1-{styleCode}-%' AND size+back codes
- *   - For carpet (UM=SY): ROLL PRICE = dealer cost/sy, CUT PRICE = retail/sy
+ *   - For carpet (UM=SY): ROLL PRICE = dealer roll cost/sy, CUT PRICE = dealer cut cost/sy (may include cut surcharge)
  *   - For sqft items (UM=SF): prices already per sqft
  *   - For each items (UM=EA): prices per unit
  *
@@ -586,19 +586,28 @@ async function updatePricing(sku, rollPriceRaw, cutPriceRaw, um, back) {
   let cutPrice = null, rollPriceSy = null, cutCost = null, rollCost = null;
 
   if (um === 'SY') {
-    // Carpet: prices are per square yard
-    // ROLL PRICE = our dealer cost per SY
-    // CUT PRICE = retail/cut price per SY
+    // Carpet: both PDF prices are vendor costs per square yard
+    // ROLL PRICE = vendor roll cost per SY
+    // CUT PRICE = vendor cut cost per SY (may include cut surcharge)
     // Convert to per-sqft for base cost/retail (1 SY = 9 SF)
-    cost = rollPriceRaw / 9;          // cost per sqft
-    retailPrice = cutPriceRaw ? cutPriceRaw / 9 : cost;  // retail per sqft
+    cost = rollPriceRaw / 9;                // vendor cost per sqft
+    retailPrice = cost * 2;                 // retail per sqft (2× markup)
     priceBasis = 'per_sqft';
 
-    // Also store the per-SY values for carpet-specific pricing
-    rollCost = rollPriceRaw;        // dealer cost per SY
-    rollPriceSy = rollPriceRaw;     // roll price per SY
-    cutPrice = cutPriceRaw || null;  // cut price per SY
-    cutCost = rollPriceRaw;          // cut cost same as roll for this price list
+    // Per-SY fields for carpet-specific pricing
+    rollCost = rollPriceRaw;                // vendor roll cost per SY
+    rollPriceSy = Math.round(retailPrice * 9 * 100) / 100;  // retail roll price per SY
+
+    // Vendor cut cost: use PDF CUT PRICE if present (includes surcharge), else roll cost
+    cutCost = cutPriceRaw || rollPriceRaw;
+
+    if (cutPriceRaw && cutPriceRaw > rollPriceRaw) {
+      // Has cut surcharge — apply same margin ratio to vendor cut cost
+      cutPrice = Math.round(cutPriceRaw * (retailPrice / cost) * 100) / 100;
+    } else {
+      // No surcharge or null — retail cut price = retail roll price
+      cutPrice = rollPriceSy;
+    }
   } else if (um === 'SF') {
     // Hard surface: already per sqft
     cost = rollPriceRaw;
