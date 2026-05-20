@@ -162,6 +162,14 @@ const URL_MAP = {
   'BPC Interior Panel':       ['bpc-interior-bamboo-plastic-composite'],
 };
 
+// Manual override: force a specific gallery index for products where
+// automated scoring fails. Key = product name, value = gallery index to pick.
+const IMAGE_INDEX_OVERRIDE = {
+  'Armani White': 1,   // index 0,2,3 are room scenes; index 1 is product close-up
+  'Altea':        1,   // index 0,2 are bath scenes; index 1 is product swatch (27598_*)
+  'Limit':        1,   // index 0,3 are cocina, index 2 is bath; index 1 is product swatch (27526_*)
+};
+
 async function scrollToLoadAll(page) {
   await page.evaluate(async () => {
     for (let i = 0; i < 15; i++) {
@@ -186,32 +194,49 @@ async function extractProductImages(page, url) {
     const result = await page.evaluate(() => {
       const imgs = [];
       const seen = new Set();
+      let galleryIdx = 0;
 
-      // WooCommerce product gallery
+      // 1. Gallery images with full-size URLs and dimensions + gallery position
+      const galleryItems = document.querySelectorAll('.woocommerce-product-gallery__image');
+      for (const item of galleryItems) {
+        const a = item.querySelector('a');
+        const img = item.querySelector('img');
+        const href = a?.href || '';
+        if (href && !seen.has(href) && href.includes('/wp-content/uploads/')) {
+          seen.add(href);
+          const w = parseInt(img?.getAttribute('data-large_image_width') || '0', 10);
+          const h = parseInt(img?.getAttribute('data-large_image_height') || '0', 10);
+          imgs.push({ url: href, width: w, height: h, galleryIndex: galleryIdx });
+        }
+        galleryIdx++;
+      }
+
+      // 2. data-large_image attributes on gallery imgs (full-size fallback)
       const galleryImgs = document.querySelectorAll(
         '.woocommerce-product-gallery img, ' +
         '.wp-post-image, ' +
         'img.attachment-woocommerce_single'
       );
       for (const img of galleryImgs) {
-        const src = img.src || img.getAttribute('data-src') || img.getAttribute('data-large_image') || '';
+        const large = img.getAttribute('data-large_image') || '';
+        if (large && !seen.has(large) && large.includes('/wp-content/uploads/')) {
+          seen.add(large);
+          const w = parseInt(img.getAttribute('data-large_image_width') || '0', 10);
+          const h = parseInt(img.getAttribute('data-large_image_height') || '0', 10);
+          imgs.push({ url: large, width: w, height: h });
+        }
+      }
+
+      // 3. img.src — thumbnail fallback (only if no full-size found above)
+      for (const img of galleryImgs) {
+        const src = img.src || img.getAttribute('data-src') || '';
         if (src && !seen.has(src) && src.includes('/wp-content/uploads/') && !src.includes('placeholder')) {
           seen.add(src);
-          imgs.push(src);
+          imgs.push({ url: src, width: img.naturalWidth || 0, height: img.naturalHeight || 0 });
         }
       }
 
-      // Gallery link hrefs (full-size images)
-      const galleryLinks = document.querySelectorAll('.woocommerce-product-gallery__image a');
-      for (const a of galleryLinks) {
-        const href = a.href || '';
-        if (href && !seen.has(href) && href.includes('/wp-content/uploads/')) {
-          seen.add(href);
-          imgs.push(href);
-        }
-      }
-
-      // JSON-LD structured data
+      // 4. JSON-LD structured data
       const ldScripts = document.querySelectorAll('script[type="application/ld+json"]');
       for (const script of ldScripts) {
         try {
@@ -221,7 +246,7 @@ async function extractProductImages(page, url) {
             const u = typeof imgUrl === 'string' ? imgUrl : imgUrl.url || '';
             if (u && !seen.has(u) && u.includes('/wp-content/uploads/')) {
               seen.add(u);
-              imgs.push(u);
+              imgs.push({ url: u, width: 0, height: 0 });
             }
           }
         } catch {}
@@ -236,7 +261,7 @@ async function extractProductImages(page, url) {
               !src.includes('logo') && !src.includes('icon') && !src.includes('banner') &&
               img.naturalWidth > 100) {
             seen.add(src);
-            imgs.push(src);
+            imgs.push({ url: src, width: img.naturalWidth, height: img.naturalHeight });
           }
         }
       }
@@ -281,6 +306,74 @@ async function extractProductImages(page, url) {
     console.log(`    Error loading ${url}: ${err.message}`);
     return { images: [], metadata: null };
   }
+}
+
+/**
+ * Score an image URL to identify product close-up photos vs room/lifestyle scenes.
+ * Higher score = more likely a product photo (swatch, laydown, tile close-up).
+ * Lower/negative score = more likely a room/lifestyle scene.
+ */
+function scoreProductPhoto(imgObj) {
+  const filename = (imgObj.url || '').split('/').pop().toLowerCase();
+  const w = imgObj.width || 0;
+  const h = imgObj.height || 0;
+  const idx = imgObj.galleryIndex ?? -1;
+  let score = 0;
+
+  // ── Strong positive: product photo keywords ──
+  if (filename.includes('laydown')) score += 100;
+  if (/swatch|closeup|close-up|detail|texture/i.test(filename)) score += 80;
+
+  // Positive: "EC." prefix = product catalog/swatch image
+  if (filename.startsWith('ec.') || filename.startsWith('ec-')) score += 50;
+
+  // Positive: WhatsApp images are product photos shared by vendors
+  if (filename.includes('whatsapp') || /\bwa\d{4}\b/.test(filename)) score += 30;
+
+  // ── Strong negative: room/scene keywords ──
+  // Multi-language: wall, kitchen, bathroom, room, lobby, living, bedroom, shower,
+  //   cocina (ES kitchen), bano/baño (ES bathroom), lazienka (PL bathroom),
+  //   salon, interior, scene, installed, setting, render
+  if (/wall|kitchen|bath|room|lobby|living|bedroom|shower|cocina|bano|lazienka|salon|interior|scene|installed|setting/i.test(filename)) score -= 80;
+
+  // Negative: ambiance/lifestyle keywords (AMB, ambi, amb-)
+  if (/^amb[_-i]|[_-]amb[_-i]/i.test(filename)) score -= 70;
+
+  // Negative: camera render angles (cam1, cam2, etc.)
+  if (/cam\d/i.test(filename)) score -= 50;
+
+  // Negative: catalog/folder scans
+  if (/folder|katalog|catalog|brochure/i.test(filename)) score -= 40;
+
+  // Negative: award/marketing photos
+  if (/award|konkurs|prize/i.test(filename)) score -= 40;
+
+  // Negative: render resolution in filename
+  if (filename.includes('1920x1080') || filename.includes('1280x720')) score -= 60;
+
+  // Negative: exact common render dimensions (16:9 room renders)
+  if ((w === 1920 && h === 1080) || (w === 1280 && h === 720)) score -= 40;
+
+  // Slightly negative: very wide landscape ratio with large dimensions (likely room render)
+  if (w > 1000 && h > 0) {
+    const ratio = w / h;
+    if (ratio > 1.6 && ratio < 1.85) score -= 15; // 16:9 range
+  }
+
+  // ── Aspect ratio heuristics ──
+  // Product close-ups/swatches tend to be square (1:1).
+  // Room scenes tend to be wide landscape (16:9, 3:2, etc).
+  if (w > 200 && h > 200) {
+    const ratio = w / h;
+    if (ratio >= 0.85 && ratio <= 1.15) score += 20;  // square = likely product swatch
+  }
+
+  // ── Gallery position tiebreaker ──
+  // Bellezza typically uses room scenes as the featured (first) image.
+  // Penalize index 0 slightly so non-first images win ties.
+  if (idx === 0) score -= 5;
+
+  return score;
 }
 
 /** Generate a description from scraped metadata + product name */
@@ -523,58 +616,75 @@ async function run() {
         await delay(800);
       }
 
-      // Save images — variant-aware for multi-slug products
+      // Save images at product level only (not per-SKU)
       if (slugImages.size > 0) {
-        const skuRows = await pool.query(
-          'SELECT id, variant_name FROM skus WHERE product_id = $1', [productId]
-        );
-        const isMultiSlug = slugs.length > 1;
-        // Collect all unique images across all slugs (for fallback / single-slug)
-        const allImageUrls = [];
+        // Collect all unique images (as objects) across all slugs
+        const allImages = [];
         const seenUrls = new Set();
         for (const imgs of slugImages.values()) {
           for (const img of imgs) {
-            if (!seenUrls.has(img)) { seenUrls.add(img); allImageUrls.push(img); }
+            const url = typeof img === 'string' ? img : img.url;
+            if (!seenUrls.has(url)) {
+              seenUrls.add(url);
+              allImages.push(typeof img === 'string' ? { url: img, width: 0, height: 0 } : img);
+            }
           }
         }
 
+        // Check for manual override first
+        let bestImage;
+        const overrideIdx = IMAGE_INDEX_OVERRIDE[productName];
+        if (overrideIdx !== undefined && overrideIdx < allImages.length) {
+          bestImage = allImages[overrideIdx];
+          console.log(`    [OVERRIDE] Using gallery index ${overrideIdx}: ${bestImage.url.split('/').pop()}`);
+        } else {
+          // Score each image to find the best product close-up photo
+          const scored = allImages.map(img => ({ ...img, score: scoreProductPhoto(img) }));
+          scored.sort((a, b) => b.score - a.score);
+          bestImage = scored[0];
+          // Always log scores so we can identify products needing overrides
+          console.log(`    Scores: ${scored.map(s => `[${s.galleryIndex ?? '?'}]${s.url.split('/').pop()}=${s.score}`).join(', ')}`);
+        }
+        const bestFilename = bestImage.url.split('/').pop();
+
+        // Clear old product-level primary images
+        await pool.query(`
+          DELETE FROM media_assets
+          WHERE product_id = $1 AND sku_id IS NULL AND asset_type = 'primary'
+        `, [productId]);
+
+        // Clear old SKU-level primary/alternate/lifestyle images from previous runs
+        // (lifestyle images from initial import are room scenes that override our scored primary)
+        await pool.query(`
+          DELETE FROM media_assets
+          WHERE product_id = $1 AND sku_id IS NOT NULL AND asset_type IN ('primary', 'alternate', 'lifestyle')
+        `, [productId]);
+
+        // Save best product-level primary image
+        await upsertMediaAsset(pool, {
+          product_id: productId,
+          asset_type: 'primary',
+          url: bestImage.url,
+          original_url: bestImage.url,
+          sort_order: 0,
+        });
+
+        // Also save as SKU-level primary for each SKU (browse + detail endpoints query SKU-level)
+        const skuRows = await pool.query('SELECT id FROM skus WHERE product_id = $1', [productId]);
         for (const skuRow of skuRows.rows) {
-          let toSave;
-
-          if (isMultiSlug && skuRow.variant_name) {
-            // Multi-slug product: match this SKU to its best slug
-            const bestSlug = findBestMatchingSlug(
-              productName, skuRow.variant_name, [...slugImages.keys()]
-            );
-            toSave = (slugImages.get(bestSlug) || allImageUrls).slice(0, 6);
-          } else {
-            // Single-slug product: all SKUs share same images
-            toSave = allImageUrls.slice(0, 6);
-          }
-
-          // Clear old primary + alternate images for this SKU before writing new ones
-          // (preserves lifestyle, swatch, spec_pdf that may have been manually curated)
-          await pool.query(`
-            DELETE FROM media_assets
-            WHERE sku_id = $1 AND asset_type IN ('primary', 'alternate')
-          `, [skuRow.id]);
-
-          // Save new images: index 0 = primary, rest = alternate
-          for (let i = 0; i < toSave.length; i++) {
-            const assetType = i === 0 ? 'primary' : 'alternate';
-            await upsertMediaAsset(pool, {
-              product_id: productId,
-              sku_id: skuRow.id,
-              asset_type: assetType,
-              url: toSave[i],
-              original_url: toSave[i],
-              sort_order: i,
-            });
-            imagesSaved++;
-          }
+          await upsertMediaAsset(pool, {
+            product_id: productId,
+            sku_id: skuRow.id,
+            asset_type: 'primary',
+            url: bestImage.url,
+            original_url: bestImage.url,
+            sort_order: 0,
+          });
         }
+
+        imagesSaved++;
         productsMatched++;
-        console.log(`  [SAVED] ${productName} — ${slugImages.size} page(s), ${skuRows.rowCount} SKU(s)`);
+        console.log(`  [SAVED] ${productName} — ${bestFilename} (product + ${skuRows.rows.length} SKUs)`);
       } else {
         console.log(`  [NO IMAGES] ${productName}`);
       }
