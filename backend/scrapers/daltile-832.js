@@ -454,10 +454,10 @@ function finalizeItem(item) {
     const suUom = (surfMea.unit_of_measure || '').toUpperCase();
     if (suUom === 'SF' || suUom === 'FT2') {
       item.sqft_per_box = surfMea.value;
-      if (!item.sell_by) item.sell_by = 'sqft';
+      if (!item.sell_by) item.sell_by = 'box';
     } else if (suUom === 'SY') {
       item.sqft_per_box = surfMea.value * 9;
-      if (!item.sell_by) item.sell_by = 'sqft';
+      if (!item.sell_by) item.sell_by = 'box';
     } else if (suUom === 'EA') {
       if (!item.sell_by) item.sell_by = 'unit';
     }
@@ -467,11 +467,11 @@ function finalizeItem(item) {
   if (item.packaging) {
     const uom = (item.packaging.unit_of_measure || '').toUpperCase();
     if (!item.sqft_per_box) {
-      if (uom === 'SF' || uom === 'FT2') { item.sqft_per_box = item.packaging.size_per_pack; if (!item.sell_by) item.sell_by = 'sqft'; }
-      else if (uom === 'SY') { item.sqft_per_box = item.packaging.size_per_pack * 9; if (!item.sell_by) item.sell_by = 'sqft'; }
+      if (uom === 'SF' || uom === 'FT2') { item.sqft_per_box = item.packaging.size_per_pack; if (!item.sell_by) item.sell_by = 'box'; }
+      else if (uom === 'SY') { item.sqft_per_box = item.packaging.size_per_pack * 9; if (!item.sell_by) item.sell_by = 'box'; }
       else if (uom === 'EA' || uom === 'PC') { if (!item.sell_by) item.sell_by = 'unit'; }
       else if (uom === 'LF') { if (!item.sell_by) item.sell_by = 'unit'; }
-      else if (item.packaging.size_per_pack) { item.sqft_per_box = item.packaging.size_per_pack; if (!item.sell_by) item.sell_by = 'sqft'; }
+      else if (item.packaging.size_per_pack) { item.sqft_per_box = item.packaging.size_per_pack; if (!item.sell_by) item.sell_by = 'box'; }
     }
     item.pieces_per_box = item.packaging.pieces_per_pack || null;
     item.weight_per_box_lbs = item.packaging.gross_weight || null;
@@ -513,7 +513,7 @@ function finalizeItem(item) {
 
   if (!item.sell_by && item.unit_of_measure) {
     const puom = item.unit_of_measure.toUpperCase();
-    if (puom === 'SF' || puom === 'SY') item.sell_by = 'sqft';
+    if (puom === 'SF' || puom === 'SY') item.sell_by = 'box';
     else if (puom === 'EA' || puom === 'PC') item.sell_by = 'unit';
   }
 
@@ -526,7 +526,7 @@ function finalizeItem(item) {
   // Detect per-box prices disguised as per-sqft. Some mosaic/multi-sheet items have
   // the box price in the CTP but UOM = SF. If cost ÷ sqft_per_box gives a reasonable
   // per-sqft figure ($3-30) while the raw cost seems too high, convert to true per-sqft.
-  if (item.sell_by === 'sqft' && item.sqft_per_box >= 3 && item.cost > 30) {
+  if (item.sell_by === 'box' && item.sqft_per_box >= 3 && item.cost > 30) {
     const perSqft = item.cost / item.sqft_per_box;
     if (perSqft >= 3 && perSqft <= 30) {
       item.cost = parseFloat(perSqft.toFixed(4));
@@ -807,7 +807,7 @@ export async function run(pool, job, source) {
       for (const item of group.items) {
         const internalSku = makeInternalSku(item.vendor_sku, item.product_name);
         const vendorSku = item.vendor_sku || internalSku;
-        const sellBy = item.sell_by || 'sqft';
+        const sellBy = item.sell_by || 'box';
         // Per-item accessory detection (Bn items) takes priority, then group-level
         const variantType = item._isAccessory ? 'accessory'
           : (group.isAccessory ? 'accessory' : null);
@@ -835,7 +835,7 @@ export async function run(pool, job, source) {
         allImportedSkusByCollection.get(collKey).add(internalSku);
 
         if (item.cost || item.retail_price) {
-          const priceBasis = sellBy === 'sqft' ? 'per_sqft' : 'per_unit';
+          const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
           await upsertPricing(pool, skuId, {
             cost: item.cost || 0,
             retail_price: item.retail_price || retailFromCost(item.cost || 0),

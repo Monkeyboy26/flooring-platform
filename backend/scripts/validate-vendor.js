@@ -35,7 +35,7 @@ Usage:
 
 Flags:
   --vendor "Name"    Vendor name to validate (required, case-insensitive partial match)
-  --fix              Auto-fix trivial issues (e.g., set missing sell_by to 'sqft')
+  --fix              Auto-fix trivial issues (e.g., set missing sell_by to 'box')
   --json             Output results as JSON
   --check-urls       HEAD-request a sample of image URLs to check for broken links
   --help             Show this help
@@ -289,15 +289,15 @@ async function checkImageUrls(vendorId) {
 async function autoFix(vendorId) {
   const fixes = [];
 
-  // Fix missing sell_by → default to 'sqft'
+  // Fix missing sell_by → default to 'box'
   const sellByResult = await pool.query(`
-    UPDATE skus s SET sell_by = 'sqft'
+    UPDATE skus s SET sell_by = 'box'
     FROM products p
     WHERE s.product_id = p.id AND p.vendor_id = $1 AND s.sell_by IS NULL
     RETURNING s.id
   `, [vendorId]);
   if (sellByResult.rowCount > 0) {
-    fixes.push(`Set sell_by = 'sqft' on ${sellByResult.rowCount} SKUs`);
+    fixes.push(`Set sell_by = 'box' on ${sellByResult.rowCount} SKUs`);
   }
 
   return fixes;

@@ -87,8 +87,8 @@ export default function createCartRoutes(ctx) {
           const priceBasis = dbPrice.rows[0].price_basis;
           const sqftBox = parseFloat(dbPrice.rows[0].sqft_per_box) || 0;
           const pcsBox = parseFloat(dbPrice.rows[0].pieces_per_box) || 0;
-          // Convert per-unit price to per-sqft when sell_by is sqft
-          if (sell_by === 'sqft' && priceBasis === 'per_unit' && sqftBox > 0 && pcsBox > 0) {
+          // Convert per-unit price to per-sqft when sell_by is box
+          if (sell_by === 'box' && priceBasis === 'per_unit' && sqftBox > 0 && pcsBox > 0) {
             dbRetail = dbRetail / (sqftBox / pcsBox);
           }
           // Convert per-sqft price to per-unit when sell_by is unit
@@ -97,7 +97,7 @@ export default function createCartRoutes(ctx) {
           }
           if (Math.abs(parseFloat(validatedUnitPrice) - dbRetail) > 0.01) {
             validatedUnitPrice = dbRetail;
-            if (sell_by === 'sqft' && sqft_needed) {
+            if (sell_by === 'box' && sqft_needed) {
               validatedSubtotal = parseFloat((dbRetail * parseFloat(sqft_needed)).toFixed(2));
             } else {
               validatedSubtotal = parseFloat((dbRetail * num_boxes).toFixed(2));
@@ -150,7 +150,7 @@ export default function createCartRoutes(ctx) {
             const sqftBox = parseFloat(dbPrice.rows[0].sqft_per_box) || 0;
             const pcsBox = parseFloat(dbPrice.rows[0].pieces_per_box) || 0;
             const itemSellBy = existing.rows[0].sell_by;
-            if (itemSellBy === 'sqft' && priceBasis === 'per_unit' && sqftBox > 0 && pcsBox > 0) {
+            if (itemSellBy === 'box' && priceBasis === 'per_unit' && sqftBox > 0 && pcsBox > 0) {
               dbRetail = dbRetail / (sqftBox / pcsBox);
             }
             if (itemSellBy === 'unit' && (priceBasis === 'per_sqft' || priceBasis === 'sqft') && sqftBox > 0) {
@@ -158,7 +158,7 @@ export default function createCartRoutes(ctx) {
             }
             if (unit_price != null && Math.abs(parseFloat(unit_price) - dbRetail) > 0.01) {
               validatedUnitPrice = dbRetail;
-              if (num_boxes && itemSellBy === 'sqft' && sqft_needed) {
+              if (num_boxes && itemSellBy === 'box' && sqft_needed) {
                 validatedSubtotal = parseFloat((dbRetail * parseFloat(sqft_needed)).toFixed(2));
               } else if (num_boxes) {
                 validatedSubtotal = parseFloat((dbRetail * num_boxes).toFixed(2));

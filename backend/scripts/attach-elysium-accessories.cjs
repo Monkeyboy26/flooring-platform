@@ -135,7 +135,7 @@ async function main() {
   let withinCount = 0;
 
   for (const [productId, skus] of Object.entries(byProduct)) {
-    const mainSkus = skus.filter(s => s.variant_type !== 'accessory' && s.sell_by === 'sqft');
+    const mainSkus = skus.filter(s => s.variant_type !== 'accessory' && s.sell_by === 'box');
     const accSkus = skus.filter(s => s.variant_type === 'accessory');
 
     if (mainSkus.length === 0 || accSkus.length === 0) continue;
@@ -175,7 +175,7 @@ async function main() {
   // Find accessory-only products
   const accOnlyProducts = {};
   for (const [productId, skus] of Object.entries(byProduct)) {
-    const mainSkus = skus.filter(s => s.variant_type !== 'accessory' && s.sell_by === 'sqft');
+    const mainSkus = skus.filter(s => s.variant_type !== 'accessory' && s.sell_by === 'box');
     const accSkus = skus.filter(s => s.variant_type === 'accessory');
     if (mainSkus.length === 0 && accSkus.length > 0) {
       accOnlyProducts[productId] = { skus: accSkus, name: skus[0].product_name, collection: skus[0].collection };
@@ -185,7 +185,7 @@ async function main() {
   for (const [productId, { skus: accSkus, name: accProductName, collection }] of Object.entries(accOnlyProducts)) {
     // Find main products in the same collection
     const collectionSkus = (byCollection[collection] || [])
-      .filter(s => s.variant_type !== 'accessory' && s.sell_by === 'sqft' && s.product_id !== productId);
+      .filter(s => s.variant_type !== 'accessory' && s.sell_by === 'box' && s.product_id !== productId);
 
     if (collectionSkus.length === 0) {
       console.log(`  SKIP ${collection} / ${accProductName}: no main products in collection`);
@@ -328,7 +328,7 @@ async function main() {
     for (const [productId, { skus: accSkus, name }] of spcDiamondAccOnly) {
       // Find the matching main product by name
       const mainSkus = (byCollection['SPC Diamond'] || [])
-        .filter(s => s.variant_type !== 'accessory' && s.sell_by === 'sqft' && s.product_name === name && s.product_id !== productId);
+        .filter(s => s.variant_type !== 'accessory' && s.sell_by === 'box' && s.product_name === name && s.product_id !== productId);
       if (mainSkus.length > 0) {
         for (const main of mainSkus) {
           let sortOrder = 0;

@@ -1026,10 +1026,10 @@ function finalizeItem(item) {
     const suUom = (surfMea.unit_of_measure || '').toUpperCase();
     if (suUom === 'SF' || suUom === 'FT2') {
       item.sqft_per_box = surfMea.value;
-      if (!item.sell_by) item.sell_by = 'sqft';
+      if (!item.sell_by) item.sell_by = 'box';
     } else if (suUom === 'SY') {
       item.sqft_per_box = surfMea.value * 9; // 1 SY = 9 SF
-      if (!item.sell_by) item.sell_by = 'sqft';
+      if (!item.sell_by) item.sell_by = 'box';
     } else if (suUom === 'EA') {
       if (!item.sell_by) item.sell_by = 'unit';
     }
@@ -1042,17 +1042,17 @@ function finalizeItem(item) {
     if (!item.sqft_per_box) {
       if (uom === 'SF' || uom === 'FT2') {
         item.sqft_per_box = pkg.size_per_pack;
-        if (!item.sell_by) item.sell_by = 'sqft';
+        if (!item.sell_by) item.sell_by = 'box';
       } else if (uom === 'SY') {
         item.sqft_per_box = pkg.size_per_pack * 9;
-        if (!item.sell_by) item.sell_by = 'sqft';
+        if (!item.sell_by) item.sell_by = 'box';
       } else if (uom === 'EA' || uom === 'PC') {
         if (!item.sell_by) item.sell_by = 'unit';
       } else if (uom === 'LF') {
         if (!item.sell_by) item.sell_by = 'unit';
       } else if (pkg.size_per_pack) {
         item.sqft_per_box = pkg.size_per_pack;
-        if (!item.sell_by) item.sell_by = 'sqft';
+        if (!item.sell_by) item.sell_by = 'box';
       }
     }
     item.pieces_per_box = pkg.pieces_per_pack || null;
@@ -1109,7 +1109,7 @@ function finalizeItem(item) {
       // Also store per-sqft versions for retail_price/cost
       if (item.cost) item.cost = parseFloat((item.cost / 9).toFixed(4));
       if (item.retail_price) item.retail_price = parseFloat((item.retail_price / 9).toFixed(4));
-      item.sell_by = 'sqyd';
+      item.sell_by = 'roll';
     } else {
       if (item.cost) item.cost = parseFloat((item.cost / 9).toFixed(4));
       if (item.retail_price) item.retail_price = parseFloat((item.retail_price / 9).toFixed(4));
@@ -1120,7 +1120,7 @@ function finalizeItem(item) {
   // Infer sell_by from pricing UOM if not yet set
   if (!item.sell_by && item.unit_of_measure) {
     const puom = item.unit_of_measure.toUpperCase();
-    if (puom === 'SF' || puom === 'SY') item.sell_by = 'sqft';
+    if (puom === 'SF' || puom === 'SY') item.sell_by = 'box';
     else if (puom === 'EA' || puom === 'PC') item.sell_by = 'unit';
     else if (puom === 'LF') item.sell_by = 'unit';
   }
@@ -1176,7 +1176,7 @@ function finalizeItem(item) {
     // Carpet tile: calculate pieces from tile dims + coverage, set freight class
     if (/CARTIL/.test(item.material_class)) {
       item.freight_class = 65;
-      item.sell_by = 'sqft';
+      item.sell_by = 'box';
       // Calculate pieces: tile area × pieces = coverage
       if (item.roll_width_ft && item.roll_length_ft && item.sqft_per_box) {
         const tileSqft = item.roll_width_ft * item.roll_length_ft;
@@ -1657,7 +1657,7 @@ async function importToDatabase(catalog) {
         else if (skuSuffix === 'IL') variantName = (variantName || '') + ' (LifeGuard)';
         else if (skuSuffix === 'K') variantName = (variantName || '') + ' (KangaBack)';
       }
-      const sellBy = item.sell_by || 'sqft';
+      const sellBy = item.sell_by || 'box';
       const variantType = group.isAccessory ? 'accessory' : null;
 
       // Upsert SKU
@@ -1685,7 +1685,7 @@ async function importToDatabase(catalog) {
 
       // Upsert pricing — 2× markup like Shaw when retail = cost
       if (item.cost || item.retail_price) {
-        const priceBasis = sellBy === 'sqyd' ? 'per_sqyd' : sellBy === 'sqft' ? 'per_sqft' : 'per_unit';
+        const priceBasis = sellBy === 'roll' ? 'per_sqyd' : sellBy === 'box' ? 'per_sqft' : 'per_unit';
         const cost = item.cost || 0;
         const retail = (item.retail_price && item.retail_price !== item.cost)
           ? item.retail_price
@@ -1970,13 +1970,13 @@ async function main() {
   const withPrice = catalog.items.filter(i => i.cost || i.retail_price).length;
   const withPkg = catalog.items.filter(i => i.packaging).length;
   const withDesc = catalog.items.filter(i => i.product_name).length;
-  const bySqft = catalog.items.filter(i => i.sell_by === 'sqft').length;
+  const bySqft = catalog.items.filter(i => i.sell_by === 'box').length;
   const byUnit = catalog.items.filter(i => i.sell_by === 'unit').length;
 
   console.log(`  With pricing: ${withPrice}`);
   console.log(`  With packaging: ${withPkg}`);
   console.log(`  With product name: ${withDesc}`);
-  console.log(`  Sold by sqft: ${bySqft}`);
+  console.log(`  Sold by box: ${bySqft}`);
   console.log(`  Sold by unit: ${byUnit}`);
 
   // Show first few items as sample

@@ -406,7 +406,7 @@ export async function run(pool, job, source) {
                 vendor_sku: row.itemNumber,
                 internal_sku: internalSku,
                 variant_name: colorName,
-                sell_by: 'sqft',
+                sell_by: 'box',
                 variant_type: null,
               }, { jobId: job.id });
 

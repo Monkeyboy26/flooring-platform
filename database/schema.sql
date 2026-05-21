@@ -1729,7 +1729,7 @@ ALTER TABLE skus ADD CONSTRAINT skus_status_check
 
 ALTER TABLE skus DROP CONSTRAINT IF EXISTS skus_sell_by_check;
 ALTER TABLE skus ADD CONSTRAINT skus_sell_by_check
-  CHECK (sell_by IN ('sqft', 'unit', 'sqyd'));
+  CHECK (sell_by IN ('box', 'unit', 'roll'));
 
 ALTER TABLE skus DROP CONSTRAINT IF EXISTS skus_variant_type_check;
 ALTER TABLE skus ADD CONSTRAINT skus_variant_type_check

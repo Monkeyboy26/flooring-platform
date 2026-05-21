@@ -1094,28 +1094,28 @@ function resolveCategoryId(materialType, categoryLookup) {
  * Handles both object {Id: "SF", Name: "Sq. Ft."} and string formats.
  */
 function mapUomToSellBy(uom) {
-  if (!uom) return 'sqft';
+  if (!uom) return 'box';
 
   // Handle object format: {Id: "SF", Name: "Sq. Ft.", IsFractional: true}
   if (typeof uom === 'object') {
     const id = (uom.Id || uom.id || '').toUpperCase();
-    if (id === 'SF' || id === 'SQFT') return 'sqft';
+    if (id === 'SF' || id === 'SQFT') return 'box';
     if (id === 'PCS' || id === 'PC' || id === 'EA' || id === 'EACH') return 'unit';
-    if (id === 'CTN' || id === 'BOX') return 'sqft';
+    if (id === 'CTN' || id === 'BOX') return 'box';
     // Fall back to Name
     const name = (uom.Name || uom.name || '').toLowerCase();
-    if (name.includes('sq') || name.includes('foot') || name.includes('feet')) return 'sqft';
+    if (name.includes('sq') || name.includes('foot') || name.includes('feet')) return 'box';
     if (name.includes('piece') || name.includes('each')) return 'unit';
-    if (name.includes('carton') || name.includes('box')) return 'sqft';
-    return 'sqft';
+    if (name.includes('carton') || name.includes('box')) return 'box';
+    return 'box';
   }
 
   // Handle string format
   const lower = String(uom).toLowerCase();
-  if (lower.includes('sqft') || lower.includes('sq ft') || lower.includes('square')) return 'sqft';
+  if (lower.includes('sqft') || lower.includes('sq ft') || lower.includes('square')) return 'box';
   if (lower.includes('piece') || lower.includes('each') || lower.includes('unit')) return 'unit';
-  if (lower.includes('box') || lower.includes('carton')) return 'sqft';
-  return 'sqft';
+  if (lower.includes('box') || lower.includes('carton')) return 'box';
+  return 'box';
 }
 
 // ══════════════════════════════════════════════════════════════

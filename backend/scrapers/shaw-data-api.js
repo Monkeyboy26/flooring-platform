@@ -360,7 +360,7 @@ async function processColor(pool, color, style, productId, vendorId, existingSku
       vendor_sku: `${styleNumber} ${colorNumber}`.trim(),
       internal_sku: internalSku,
       variant_name: colorName || colorNumber || null,
-      sell_by: 'sqft',
+      sell_by: 'box',
     });
     skuId = result.id;
     isNewSku = result.is_new;

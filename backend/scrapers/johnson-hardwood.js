@@ -649,7 +649,7 @@ async function phase1UpsertPdfData(vendorId) {
         vendor_sku: color.sku,
         internal_sku: `JH-${color.sku}`,
         variant_name: color.name,
-        sell_by: 'sqft',
+        sell_by: 'box',
       });
       totalFlooringSkus++;
 

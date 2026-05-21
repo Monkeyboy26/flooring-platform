@@ -50,7 +50,7 @@
     }
     function isSoldPerSqyd(sku) {
       if (!sku) return false;
-      if (sku.sell_by) return sku.sell_by === 'sqyd';
+      if (sku.sell_by) return sku.sell_by === 'roll';
       return sku.price_basis === 'per_sqyd';
     }
     function isCarpet(sku) {
@@ -701,7 +701,7 @@
         const variantIsColor = colorAttr && variant && variant.toLowerCase() === formatVariantName(colorAttr.value).toLowerCase();
         const variantIsEmpty = !variant && colorAttr && rawName.toLowerCase().includes(colorAttr.value.toLowerCase());
         if (variantIsColor || variantIsEmpty) {
-          const rawSizeAttr = sku.sell_by !== 'sqyd' ? (sku.attributes || []).find(a => a.slug === 'size') : null;
+          const rawSizeAttr = sku.sell_by !== 'roll' ? (sku.attributes || []).find(a => a.slug === 'size') : null;
           // Skip roll dimensions (e.g. "12x150FT"), plank dimensions with decimals (e.g. "4.96x48.04", "9.06 Wide"),
           // and simple width values (e.g. "5 in", "7 in") — the product name already carries the width
           const rawSizeVal = rawSizeAttr ? (rawSizeAttr.value || '').trim() : '';
@@ -4337,7 +4337,7 @@
             num_boxes: 1,
             unit_price: carpetActivePrice,
             subtotal: carpetSubtotal.toFixed(2),
-            sell_by: 'sqyd',
+            sell_by: 'roll',
             price_tier: carpetPriceTier
           });
         } else if (isPerUnit) {
@@ -4360,10 +4360,10 @@
             include_overage: includeOverage,
             unit_price: effectivePrice,
             subtotal: subtotal.toFixed(2),
-            sell_by: 'sqft'
+            sell_by: 'box'
           });
         } else if (isSheetVinyl) {
-          // Sheet vinyl roll — sell by sqft
+          // Sheet vinyl roll — sell by box
           if (sheetSqft <= 0) return;
           addToCart({
             product_id: sku.product_id,
@@ -4372,10 +4372,10 @@
             num_boxes: 1,
             unit_price: effectivePrice,
             subtotal: sheetSubtotal.toFixed(2),
-            sell_by: 'sqft'
+            sell_by: 'box'
           });
         } else {
-          // sqft product without box data — sell by sqft directly
+          // sqft product without box data — sell by box directly
           const sqft = parseFloat(sqftInput) || 0;
           if (sqft <= 0) return;
           addToCart({
@@ -4385,7 +4385,7 @@
             num_boxes: 1,
             unit_price: effectivePrice,
             subtotal: (sqft * effectivePrice).toFixed(2),
-            sell_by: 'sqft'
+            sell_by: 'box'
           });
         }
       };
@@ -5528,7 +5528,7 @@
                         <div className="accessory-card-sf-header">
                           <div className="accessory-card-sf-name">{accLabel}</div>
                           {showColor && <div className="accessory-card-sf-color">{accColor}</div>}
-                          <div className="accessory-card-sf-price">${accPrice.toFixed(2)} {acc.sell_by === 'sqft' ? '/sqft' : '/ea'}</div>
+                          <div className="accessory-card-sf-price">${accPrice.toFixed(2)} {acc.sell_by === 'box' ? '/sqft' : '/ea'}</div>
                         </div>
                         <div className="accessory-card-sf-actions">
                           <div className="unit-qty-stepper">
@@ -6273,7 +6273,7 @@
                         <div className="cart-table-product-meta">
                           {item.is_sample ? 'Free sample' : (
                             <>
-                              ${parseFloat(item.unit_price).toFixed(2)}{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'sqyd' ? '/sqyd' : '/sqft'}
+                              ${parseFloat(item.unit_price).toFixed(2)}{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft'}
                               {item.price_tier && (
                                 <span style={{ display: 'inline-block', marginLeft: '0.375rem', padding: '0.0625rem 0.375rem', borderRadius: '0.1875rem', fontSize: '0.6875rem', fontWeight: 600, background: item.price_tier === 'roll' ? 'var(--sage, #6b9080)' : 'var(--stone-200)', color: item.price_tier === 'roll' ? 'white' : 'var(--stone-600)' }}>
                                   {item.price_tier === 'roll' ? 'Roll Price' : 'Cut Price'}

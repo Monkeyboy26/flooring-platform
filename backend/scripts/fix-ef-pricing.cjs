@@ -43,7 +43,7 @@ async function main() {
   // ════════════════════════════════════════════════════
   console.log('═══ Phase 1: Fix broadloom pricing (sqyd SKUs) ═══\n');
 
-  // Find all EF broadloom SKUs (sell_by = 'sqyd')
+  // Find all EF broadloom SKUs (sell_by = 'roll')
   const broadloomRes = await pool.query(`
     SELECT s.id AS sku_id, s.vendor_sku, s.variant_name,
            pr.cost, pr.retail_price, pr.roll_cost, pr.roll_price,
@@ -53,7 +53,7 @@ async function main() {
     JOIN pricing pr ON pr.sku_id = s.id
     WHERE p.vendor_id = $1
       AND s.status = 'active'
-      AND s.sell_by = 'sqyd'
+      AND s.sell_by = 'roll'
   `, [vendorId]);
 
   console.log(`Found ${broadloomRes.rows.length} broadloom SKUs\n`);
@@ -166,7 +166,7 @@ async function main() {
     JOIN pricing pr ON pr.sku_id = s.id
     WHERE p.vendor_id = $1
       AND s.status = 'active'
-      AND s.sell_by = 'sqft'
+      AND s.sell_by = 'box'
       AND pr.retail_price < 0.50
       AND pr.cost > 0
   `, [vendorId]);
@@ -206,7 +206,7 @@ async function main() {
     FROM sku_attributes sa
     JOIN attributes a ON a.id = sa.attribute_id AND a.slug = 'size'
     JOIN skus s ON s.id = sa.sku_id
-    WHERE s.sell_by = 'sqyd' AND s.status = 'active'
+    WHERE s.sell_by = 'roll' AND s.status = 'active'
   `);
 
   console.log(`Found ${rollSizeRes.rows.length} broadloom SKUs with size attribute\n`);
@@ -405,11 +405,11 @@ async function main() {
       FROM skus s
       JOIN products p ON s.product_id = p.id
       JOIN pricing pr ON pr.sku_id = s.id
-      WHERE p.vendor_id = $1 AND s.status = 'active' AND s.sell_by = 'sqyd'
+      WHERE p.vendor_id = $1 AND s.status = 'active' AND s.sell_by = 'roll'
     `, [vendorId]);
     const vb = verifyBroadloom.rows[0];
     console.log('Verification — Broadloom:');
-    console.log(`  Total sqyd SKUs:         ${vb.total}`);
+    console.log(`  Total roll SKUs:         ${vb.total}`);
     console.log(`  roll_price = roll_cost:   ${vb.still_equal} (should be 0)`);
     console.log(`  roll_price > roll_cost:   ${vb.has_markup} (should equal total)`);
     console.log(`  NULL cut_price:           ${vb.null_cut_price} (should be 0)\n`);
@@ -420,7 +420,7 @@ async function main() {
       FROM skus s
       JOIN products p ON s.product_id = p.id
       JOIN pricing pr ON pr.sku_id = s.id
-      WHERE p.vendor_id = $1 AND s.status = 'active' AND s.sell_by = 'sqft'
+      WHERE p.vendor_id = $1 AND s.status = 'active' AND s.sell_by = 'box'
         AND pr.retail_price < 0.50
     `, [vendorId]);
     console.log('Verification — LVP/LVT:');
@@ -433,7 +433,7 @@ async function main() {
       FROM skus s
       JOIN products p ON s.product_id = p.id
       JOIN pricing pr ON pr.sku_id = s.id
-      WHERE p.vendor_id = $1 AND s.status = 'active' AND s.sell_by = 'sqyd'
+      WHERE p.vendor_id = $1 AND s.status = 'active' AND s.sell_by = 'roll'
       LIMIT 3
     `, [vendorId]);
     console.log('Sample broadloom SKUs:');

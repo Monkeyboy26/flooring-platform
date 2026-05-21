@@ -186,14 +186,14 @@ function deriveColor(productName, collectionName) {
 /**
  * Determine sell_by based on Ecwid product context.
  * Mosaics sold by sheet → 'unit'
- * Tiles sold by sqft → 'sqft'
+ * Tiles sold by box → 'box'
  * Accessories (bullnose, quarter round) → 'unit'
  */
 function determineSellBy(productName, categoryName) {
   const lower = (productName + ' ' + categoryName).toLowerCase();
   if (lower.includes('mosaic')) return 'unit';
   if (lower.includes('bullnose') || lower.includes('quarter round') || lower.includes('trim')) return 'unit';
-  return 'sqft';
+  return 'box';
 }
 
 /**

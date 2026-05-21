@@ -205,7 +205,7 @@ async function createItemSku(pool, vendorId, series, block, item, categoryId, st
   else stats.productsUpdated++;
 
   const isSqft = block.unit === 'SF';
-  const sellBy = isSqft ? 'sqft' : 'unit';
+  const sellBy = isSqft ? 'box' : 'unit';
   const priceBasis = isSqft ? 'per_sqft' : 'per_unit';
 
   const sizeNorm = normalizeSize(block.size);

@@ -459,7 +459,7 @@ function parse832(raw) {
 
     // Sell by
     const uomHint = lprPrices[0]?.uom || suMea?.uom || '';
-    item.sell_by = /^(EA|PC|LF)$/i.test(uomHint) ? 'unit' : 'sqft';
+    item.sell_by = /^(EA|PC|LF)$/i.test(uomHint) ? 'unit' : 'box';
 
     // Detect accessories
     item.is_accessory = /accessory|trim|molding|transition|reducer|stairnose|quarter|threshold|end.?cap|t.?mold/i
@@ -666,7 +666,7 @@ async function importProducts(vendorId, edi832Map, dryRun = false) {
         [internalSku]
       );
 
-      const sellBy = ediData?.sell_by || 'sqft';
+      const sellBy = ediData?.sell_by || 'box';
       const variantName = color.name;
 
       if (existingSku.rows.length > 0) {
@@ -706,7 +706,7 @@ async function importProducts(vendorId, edi832Map, dryRun = false) {
       if (ediData) {
         // Pricing
         if (ediData.cost || ediData.retail_price) {
-          const priceBasis = sellBy === 'sqft' ? 'per_sqft' : 'per_unit';
+          const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
           const cost = ediData.cost || 0;
           const retail = ediData.map_price
             || ((ediData.retail_price && ediData.retail_price !== ediData.cost)
@@ -836,7 +836,7 @@ async function importProducts(vendorId, edi832Map, dryRun = false) {
 
         // Pricing
         if (item.cost || item.retail_price) {
-          const priceBasis = sellBy === 'sqft' ? 'per_sqft' : 'per_unit';
+          const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
           const cost = item.cost || 0;
           const retail = item.map_price || item.retail_price || Math.round(cost * 2 * 100) / 100;
           await pool.query(`

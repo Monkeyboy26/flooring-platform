@@ -127,8 +127,8 @@ async function main() {
 
     // Update sell_by based on pricelist
     const soldBy = (pl['Sold By'] || '').toLowerCase();
-    if (soldBy === 'box' && dbRow.sell_by !== 'sqft') {
-      // Sold by box — should use box calculator (sell_by stays 'sqft' with packaging data)
+    if (soldBy === 'box' && dbRow.sell_by !== 'box') {
+      // Sold by box — should use box calculator (sell_by stays 'box' with packaging data)
     }
 
     // Update pricing (cost = wholesale price)

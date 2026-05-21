@@ -149,7 +149,7 @@ export async function run(pool, job, source) {
             await upsertPricing(pool, skuId, {
               cost: variant.netPrice || variant.price,
               retail_price: variant.listPrice || 0,
-              price_basis: sellBy === 'sqft' ? 'per_sqft' : 'per_unit',
+              price_basis: sellBy === 'box' ? 'per_sqft' : 'per_unit',
             });
             stats.pricingUpdated++;
           }
@@ -416,10 +416,10 @@ function determineSellBy(size, sizeLabel) {
   }
 
   const normalized = normalizeSize(size);
-  if (!normalized) return 'sqft';
+  if (!normalized) return 'box';
 
   const match = normalized.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
-  if (!match) return 'sqft';
+  if (!match) return 'box';
 
   const dim1 = parseFloat(match[1]);
   const dim2 = parseFloat(match[2]);
@@ -429,7 +429,7 @@ function determineSellBy(size, sizeLabel) {
   if (maxDim <= 4) return 'unit';
   if (minDim <= 3 && maxDim >= 12) return 'unit';
 
-  return 'sqft';
+  return 'box';
 }
 
 function slugify(str) {

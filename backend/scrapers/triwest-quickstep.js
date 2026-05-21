@@ -269,7 +269,7 @@ export async function run(pool, job, source) {
               vendor_sku: itemNumber,
               internal_sku: internalSku,
               variant_name: color.color,
-              sell_by: 'sqft',
+              sell_by: 'box',
             }, { jobId: job.id });
 
             if (sku.is_new) stats.skusCreated++;

@@ -221,8 +221,8 @@ async function createItemSku(pool, vendorId, series, block, item, categoryId, st
   else stats.productsUpdated++;
 
   const sizeNorm = normSize(block.size);
-  const isSqft = block.unit === 'sqft';
-  const sellBy = isSqft ? 'sqft' : 'unit';
+  const isSqft = block.unit === 'box';
+  const sellBy = isSqft ? 'box' : 'unit';
   const priceBasis = isSqft ? 'per_sqft' : 'per_unit';
 
   const finishLabel = item.finish || '';
@@ -296,7 +296,7 @@ async function createBudgetSku(pool, vendorId, item, catMap, stats) {
     vendor_sku: internalSku,
     internal_sku: internalSku,
     variant_name: variantName,
-    sell_by: 'sqft',
+    sell_by: 'box',
   });
   if (sku.is_new) stats.skusCreated++;
 
@@ -331,7 +331,7 @@ async function createLiquidationSku(pool, vendorId, item, catMap, stats) {
     vendor_sku: internalSku,
     internal_sku: internalSku,
     variant_name: variantName,
-    sell_by: 'sqft',
+    sell_by: 'box',
   });
   if (sku.is_new) stats.skusCreated++;
 
@@ -371,8 +371,8 @@ async function createStoneSku(pool, vendorId, stone, item, type, categoryId, sta
 
   const isMosaic = type === 'mosaic';
   const isLiner = type === 'liner';
-  const sellBy = (isMosaic || isLiner) ? 'unit' : 'sqft';
-  const priceBasis = sellBy === 'sqft' ? 'per_sqft' : 'per_unit';
+  const sellBy = (isMosaic || isLiner) ? 'unit' : 'box';
+  const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
 
   const sku = await upsertSku(pool, {
     product_id: product.id,
@@ -903,7 +903,7 @@ function parseSizeColumns(line, trimmed, nextLines) {
     // Determine sub-type from context after the size (check next line too for sub-types)
     const afterSize = normLine.slice(match.index + match[0].length, match.index + match[0].length + 50).trim();
     let subType = null;
-    let unit = 'sqft';
+    let unit = 'box';
 
     if (/Porcelain\s+Mosaics?/i.test(afterSize) || /Mosaic/i.test(afterSize)) {
       subType = 'Mosaic';

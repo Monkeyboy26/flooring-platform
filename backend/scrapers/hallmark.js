@@ -680,7 +680,7 @@ async function run() {
           vendor_sku: sku,
           internal_sku: internalSku,
           variant_name: variantName,
-          sell_by: 'sqft',
+          sell_by: 'box',
         });
         colFloor++;
 

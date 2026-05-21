@@ -206,7 +206,7 @@ const NO_BOX_CATEGORIES = new Set([
 function resolveSellBy(pimSlug, accessory, parsedSoldBy) {
   if (accessory) return 'unit';
   if (pimSlug && UNIT_CATEGORIES.has(pimSlug)) return 'unit';
-  return parsedSoldBy || 'sqft';
+  return parsedSoldBy || 'box';
 }
 
 function isAccessory(title, description) {
@@ -447,7 +447,7 @@ export async function run(pool, job, source) {
 
             if (plEntry) {
               const cost = plEntry.netPrice;
-              const sellBy = (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'unit' : 'sqft';
+              const sellBy = (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'unit' : 'box';
               await upsertPricing(pool, skuId, {
                 cost,
                 retail_price: Math.round(cost * 2 * 100) / 100,
@@ -475,7 +475,7 @@ export async function run(pool, job, source) {
 
           if (plEntry) {
             const cost = plEntry.netPrice;
-            const sellBy = (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'unit' : 'sqft';
+            const sellBy = (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'unit' : 'box';
             await upsertPricing(pool, skuId, {
               cost,
               retail_price: Math.round(cost * 2 * 100) / 100,
@@ -662,7 +662,7 @@ export async function run(pool, job, source) {
               if (plEntry) {
                 const unit = plEntry.unit;
                 if (unit === 'EA' || unit === 'SHT') sellBy = 'unit';
-                else sellBy = 'sqft';
+                else sellBy = 'box';
               } else {
                 sellBy = resolveSellBy(pimCatSlug, accessory, detail.soldBy);
               }
@@ -861,7 +861,7 @@ export async function run(pool, job, source) {
           if (gaugeEntries.length > 1) {
             for (const entry of gaugeEntries) {
               const gauge = entry.normalizedGauge; // e.g. "2CM", "3CM"
-              const entrySellBy = (entry.unit === 'EA' || entry.unit === 'SHT') ? 'unit' : 'sqft';
+              const entrySellBy = (entry.unit === 'EA' || entry.unit === 'SHT') ? 'unit' : 'box';
 
               const sku = await upsertSku(pool, {
                 product_id: product.id,
@@ -920,7 +920,7 @@ export async function run(pool, job, source) {
             if (plEntry) {
               const unit = plEntry.unit;
               if (unit === 'EA' || unit === 'SHT') sellBy = 'unit';
-              else sellBy = 'sqft';
+              else sellBy = 'box';
             } else {
               sellBy = resolveSellBy(pimCatSlug, accessory, detail.soldBy);
             }
@@ -1370,9 +1370,9 @@ function parseSoldBy(html) {
   const soldByMatch = html.match(/sold\s+(?:by\s+)?(?:the\s+)?(box|sq\.?\s*ft\.?|piece|square\s*foot|unit)/i);
   if (soldByMatch) {
     const raw = soldByMatch[1].toLowerCase();
-    if (raw.includes('box')) return 'sqft';
+    if (raw.includes('box')) return 'box';
     if (raw.includes('piece') || raw.includes('unit')) return 'unit';
-    return 'sqft';
+    return 'box';
   }
   return null;
 }

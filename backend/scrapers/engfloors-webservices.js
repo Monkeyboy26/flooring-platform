@@ -292,7 +292,7 @@ export async function run(pool, job, source) {
           pricingDataFound++;
 
           // Determine price basis from sell_by
-          const isSqyd = sku.sell_by === 'sqyd';
+          const isSqyd = sku.sell_by === 'roll';
           const isUnit = sku.sell_by === 'unit';
 
           if (isSqyd) {

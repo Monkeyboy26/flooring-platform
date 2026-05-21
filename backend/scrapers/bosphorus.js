@@ -290,7 +290,7 @@ export async function run(pool, job, source) {
               await upsertPricing(pool, sku.id, {
                 cost: v.netPrice || v.price,
                 retail_price: v.listPrice || null,
-                price_basis: sellBy === 'sqft' ? 'per_sqft' : 'per_unit',
+                price_basis: sellBy === 'box' ? 'per_sqft' : 'per_unit',
               });
               stats.pricingSet++;
             }
@@ -1067,7 +1067,7 @@ function inferAccessoryType(sizeNorm, finish) {
 
 /**
  * Determine sell_by from the size label.
- * Tiles (12x24, 24x48, 48x48) → 'sqft'
+ * Tiles (12x24, 24x48, 48x48) → 'box'
  * Mosaics (2x2, 1x4) → 'unit'
  * Bullnose/trim (3x24, 3x48) → 'unit'
  * Quarter Round (3/4x5) → 'unit'
@@ -1079,10 +1079,10 @@ function determineSellBy(size, sizeLabel) {
   }
 
   const normalized = normalizeSize(size);
-  if (!normalized) return 'sqft';
+  if (!normalized) return 'box';
 
   const match = normalized.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
-  if (!match) return 'sqft';
+  if (!match) return 'box';
 
   const dim1 = parseFloat(match[1]);
   const dim2 = parseFloat(match[2]);
@@ -1096,7 +1096,7 @@ function determineSellBy(size, sizeLabel) {
   // Bullnose/trim: one dimension ≤ 3
   if (minDim <= 3) return 'unit';
 
-  return 'sqft';
+  return 'box';
 }
 
 function resolveCategory(productData, categoryLookup) {

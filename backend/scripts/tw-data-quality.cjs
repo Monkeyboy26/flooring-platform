@@ -604,7 +604,7 @@ async function phase6_propagatePackaging() {
         AND sib_p.collection = target_p.collection
         AND sib_p.is_active = true
         AND sib_sku.status = 'active'
-        AND sib_sku.sell_by = 'sqft'
+        AND sib_sku.sell_by = 'box'
         AND pkg.sqft_per_box IS NOT NULL
         AND pkg.sqft_per_box > 0
       LIMIT 1
@@ -612,7 +612,7 @@ async function phase6_propagatePackaging() {
     WHERE target_p.vendor_id = $1
       AND target_p.is_active = true
       AND target_sku.status = 'active'
-      AND target_sku.sell_by = 'sqft'
+      AND target_sku.sell_by = 'box'
       AND (target_pkg.sku_id IS NULL OR target_pkg.sqft_per_box IS NULL OR target_pkg.sqft_per_box = 0)
   `, [vendorId]);
 

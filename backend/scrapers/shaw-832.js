@@ -616,8 +616,8 @@ function finalizeItem(item) {
     item.sell_units = suMea.value;
     item.sell_unit_uom = suMea.unit_of_measure;
     const uom = (suMea.unit_of_measure || '').toUpperCase();
-    if (uom === 'SF') { item.sqft_per_box = suMea.value; item.sell_by = 'sqft'; }
-    else if (uom === 'SY') { item.sqft_per_box = suMea.value * 9; item.sell_by = 'sqyd'; }
+    if (uom === 'SF') { item.sqft_per_box = suMea.value; item.sell_by = 'box'; }
+    else if (uom === 'SY') { item.sqft_per_box = suMea.value * 9; item.sell_by = 'roll'; }
     else if (uom === 'EA' || uom === 'BX' || uom === 'PC') { item.sell_by = 'unit'; }
   }
 
@@ -639,10 +639,10 @@ function finalizeItem(item) {
   if (item.packaging) {
     const uom = (item.packaging.unit_of_measure || '').toUpperCase();
     if (!item.sqft_per_box) {
-      if (uom === 'SF' || uom === 'SY' || uom === 'FT2') { item.sqft_per_box = item.packaging.size_per_pack; item.sell_by = 'sqft'; }
+      if (uom === 'SF' || uom === 'SY' || uom === 'FT2') { item.sqft_per_box = item.packaging.size_per_pack; item.sell_by = 'box'; }
       else if (uom === 'EA' || uom === 'PC') { item.sell_by = 'unit'; }
       else if (uom === 'LF') { item.sell_by = 'unit'; }
-      else if (item.packaging.size_per_pack) { item.sqft_per_box = item.packaging.size_per_pack; item.sell_by = 'sqft'; }
+      else if (item.packaging.size_per_pack) { item.sqft_per_box = item.packaging.size_per_pack; item.sell_by = 'box'; }
     }
     if (!item.pieces_per_box) item.pieces_per_box = item.packaging.pieces_per_pack || null;
     if (!item.weight_per_box_lbs) item.weight_per_box_lbs = item.packaging.gross_weight || null;
@@ -681,8 +681,8 @@ function finalizeItem(item) {
 
   if (!item.sell_by && item.unit_of_measure) {
     const puom = item.unit_of_measure.toUpperCase();
-    if (puom === 'SF') item.sell_by = 'sqft';
-    else if (puom === 'SY') item.sell_by = 'sqyd';
+    if (puom === 'SF') item.sell_by = 'box';
+    else if (puom === 'SY') item.sell_by = 'roll';
     else if (puom === 'EA' || puom === 'PC' || puom === 'BX') item.sell_by = 'unit';
   }
 
@@ -743,7 +743,7 @@ function finalizeItem(item) {
     // Roll min sqft from CTP*ST quantity field (qty is in SY, convert to sqft)
     if (stdPrice && stdPrice.quantity > 0) {
       const qtyUom = (stdPrice.unit_of_measure || '').toUpperCase();
-      if (qtyUom === 'SY' || item.sell_by === 'sqyd') {
+      if (qtyUom === 'SY' || item.sell_by === 'roll') {
         item.roll_min_sqft = Math.round(stdPrice.quantity * 9 * 100) / 100;
       } else if (qtyUom === 'SF') {
         item.roll_min_sqft = stdPrice.quantity;
@@ -774,7 +774,7 @@ function finalizeItem(item) {
     // Carpet tile: sold in boxes (sqft), not rolls
     if (item.material_class === 'CARTIL') {
       item.freight_class = 65;
-      item.sell_by = 'sqft';
+      item.sell_by = 'box';
       // WD/LN for carpet tile are tile dimensions, not roll dimensions — clear roll fields
       item.roll_width_ft = null;
       item.roll_length_ft = null;
@@ -1146,7 +1146,7 @@ export async function run(pool, job, source) {
       if (rawSlVendorSku && !looksLikeSkuCode(rawSlVendorSku) && item.sub_lines.length > 1) continue;
       const slVendorSku = rawSlVendorSku;
       const internalSku = makeInternalSku(slVendorSku, item.product_name);
-      const sellBy = item.sell_by || 'sqft';
+      const sellBy = item.sell_by || 'box';
       const variantType = isAccessory ? 'accessory' : null;
       const rawVariant = sl.color || item.color || item.product_name || null;
       const variantName = rawVariant ? cleanAndTitle(rawVariant) : null;
@@ -1169,8 +1169,8 @@ export async function run(pool, job, source) {
         // Carpet: keep native $/SY pricing, price_basis = 'per_sqyd'
         // Hard surface: keep native $/SF pricing, price_basis = 'per_sqft'
         // Accessories: per_unit
-        const priceBasis = sellBy === 'sqyd' ? 'per_sqyd'
-          : sellBy === 'sqft' ? 'per_sqft' : 'per_unit';
+        const priceBasis = sellBy === 'roll' ? 'per_sqyd'
+          : sellBy === 'box' ? 'per_sqft' : 'per_unit';
 
         const markup = (v) => v ? Math.round(v * 2 * 100) / 100 : null;
 

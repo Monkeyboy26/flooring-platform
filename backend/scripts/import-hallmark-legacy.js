@@ -403,9 +403,9 @@ async function run() {
         // Upsert flooring SKU
         const skuRes = await client.query(`
           INSERT INTO skus (id, product_id, vendor_sku, internal_sku, variant_name, sell_by, status)
-          VALUES (gen_random_uuid(), $1, $2, $3, $4, 'sqft', 'active')
+          VALUES (gen_random_uuid(), $1, $2, $3, $4, 'box', 'active')
           ON CONFLICT ON CONSTRAINT skus_internal_sku_key
-          DO UPDATE SET variant_name = EXCLUDED.variant_name, sell_by = 'sqft', status = 'active'
+          DO UPDATE SET variant_name = EXCLUDED.variant_name, sell_by = 'box', status = 'active'
           RETURNING id
         `, [productId, sku, internalSku, `${color} ${species} ${col.size}`]);
         const skuId = skuRes.rows[0].id;

@@ -3679,7 +3679,7 @@
                   React.createElement('div', { className: 'rc-pricing-card' },
                     React.createElement('div', { className: 'rc-pricing-item' },
                       React.createElement('label', null, 'Retail'),
-                      React.createElement('span', null, activeSku.retail_price ? '$' + parseFloat(activeSku.retail_price).toFixed(2) + (activeSku.sell_by === 'sqft' ? '/sqft' : '/ea') : '\u2014')
+                      React.createElement('span', null, activeSku.retail_price ? '$' + parseFloat(activeSku.retail_price).toFixed(2) + (activeSku.sell_by === 'box' ? '/sqft' : '/ea') : '\u2014')
                     ),
                     React.createElement('div', { className: 'rc-pricing-item' },
                       React.createElement('label', null, 'Cost'),
@@ -3717,7 +3717,7 @@
                         : React.createElement('div', { style: { width: 44, height: 44, background: 'var(--stone-200)', borderRadius: 4, flexShrink: 0 } }),
                       React.createElement('div', { className: 'rc-accessory-info' },
                         React.createElement('div', { className: 'rc-accessory-name' }, a.accessory_label || a.variant_name || '\u2014'),
-                        React.createElement('div', { className: 'rc-accessory-meta' }, a.sell_by === 'sqft' ? 'per sqft' : 'per unit')
+                        React.createElement('div', { className: 'rc-accessory-meta' }, a.sell_by === 'box' ? 'per sqft' : 'per unit')
                       ),
                       React.createElement('div', { className: 'rc-accessory-prices' },
                         React.createElement('div', { className: 'retail' }, a.retail_price ? '$' + parseFloat(a.retail_price).toFixed(2) : '\u2014'),
@@ -3907,7 +3907,7 @@
       };
 
       const marginClass = (pct) => pct >= 30 ? 'high' : pct >= 15 ? 'mid' : 'low';
-      const unitLabel = (sell_by) => sell_by === 'sqft' ? '/sqft' : sell_by === 'unit' ? '/ea' : '';
+      const unitLabel = (sell_by) => sell_by === 'box' ? '/sqft' : sell_by === 'unit' ? '/ea' : '';
 
       const handleShare = (p) => {
         repFetch('/api/rep/products/' + p.id).then(d => {
@@ -4324,10 +4324,10 @@
       const skuSearchCounter = useRef(0);
       const [addBoxes, setAddBoxes] = useState(1);
       const [showCustom, setShowCustom] = useState(false);
-      const [customItem, setCustomItem] = useState({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'sqft' });
+      const [customItem, setCustomItem] = useState({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box' });
       const [vendors, setVendors] = useState([]);
       const [customVendor, setCustomVendor] = useState('');
-      const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'sqyd' ? 'sqft' : 'boxes';
+      const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'roll' ? 'sqft' : 'boxes';
       const [promoCode, setPromoCode] = useState('');
       const [promoResult, setPromoResult] = useState(null);
       const [promoError, setPromoError] = useState('');
@@ -4433,7 +4433,7 @@
         const unitPrice = parseFloat(r.retail_price || 0);
         const sqftPerBox = parseFloat(r.sqft_per_box || 0);
         const sqftNeeded = sqftPerBox ? sqftPerBox * numBoxes : null;
-        const sellBy = r.sell_by || 'sqft';
+        const sellBy = r.sell_by || 'box';
         const isUnit = sellBy === 'unit' || sellBy === 'piece';
         const isCarpet = r.price_basis === 'per_sqyd';
         let subtotal;
@@ -4477,9 +4477,9 @@
         const numBoxes = parseInt(customItem.num_boxes) || 1;
         const unitPrice = parseFloat(customItem.unit_price);
         if (!customItem.product_name.trim() || isNaN(unitPrice)) return;
-        const sellBy = customItem.sell_by || 'sqft';
+        const sellBy = customItem.sell_by || 'box';
         let subtotal;
-        if (sellBy === 'sqyd') {
+        if (sellBy === 'roll') {
           subtotal = unitPrice * (numBoxes / 9); // numBoxes is sqft for carpet
         } else if (sellBy === 'unit' || sellBy === 'piece') {
           subtotal = unitPrice * numBoxes;
@@ -4504,7 +4504,7 @@
           is_custom: true,
           cost: 0
         }]);
-        setCustomItem({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'sqft' });
+        setCustomItem({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box' });
         setCustomVendor('');
         setShowCustom(false);
       };
@@ -4902,15 +4902,15 @@
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label>Sold By *</label>
-                      <select value={customItem.sell_by || 'sqft'} onChange={e => setCustomItem(c => ({ ...c, sell_by: e.target.value }))}>
-                        <option value="sqft">Per SqFt (boxes)</option>
+                      <select value={customItem.sell_by || 'box'} onChange={e => setCustomItem(c => ({ ...c, sell_by: e.target.value }))}>
+                        <option value="box">Box</option>
                         <option value="unit">Per Unit (slabs/prefab)</option>
                         <option value="piece">Per Piece (mosaics)</option>
-                        <option value="sqyd">Per SqYd (carpet)</option>
+                        <option value="roll">Roll</option>
                       </select>
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label>{(customItem.sell_by === 'unit' || customItem.sell_by === 'piece') ? 'Qty *' : customItem.sell_by === 'sqyd' ? 'SqFt *' : 'Boxes *'}</label>
+                      <label>{(customItem.sell_by === 'unit' || customItem.sell_by === 'piece') ? 'Qty *' : customItem.sell_by === 'roll' ? 'SqFt *' : 'Boxes *'}</label>
                       <input type="number" min="1" value={customItem.num_boxes} onChange={e => setCustomItem(c => ({ ...c, num_boxes: e.target.value }))} />
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
@@ -5040,13 +5040,13 @@
                             {'$' + item.unit_price.toFixed(2)}
                           </button>
                         )}
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', whiteSpace: 'nowrap' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'sqyd' ? '/sqyd' : '/sqft'}</span>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', whiteSpace: 'nowrap' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft'}</span>
                       </div>
                     </td>
                     {showCost && (
                       <td data-label="Cost">
                         {(item.vendor_cost || item.cost)
-                          ? <span style={{ color: 'var(--stone-500)' }}>{'$' + parseFloat(item.vendor_cost || item.cost).toFixed(2)}<span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', marginLeft: '0.15rem' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'sqyd' ? '/sqyd' : '/sqft'}</span></span>
+                          ? <span style={{ color: 'var(--stone-500)' }}>{'$' + parseFloat(item.vendor_cost || item.cost).toFixed(2)}<span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', marginLeft: '0.15rem' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft'}</span></span>
                           : <span style={{ color: 'var(--stone-400)' }}>{'\u2014'}</span>
                         }
                       </td>
@@ -7403,7 +7403,7 @@
       const [paymentRequestMessage, setPaymentRequestMessage] = useState('');
       const [addingItem, setAddingItem] = useState(false);
       const [addItemSku, setAddItemSku] = useState('');
-      const [addItemSellBy, setAddItemSellBy] = useState('sqft');
+      const [addItemSellBy, setAddItemSellBy] = useState('box');
       const [skuSearchResults, setSkuSearchResults] = useState([]);
       const [skuSearching, setSkuSearching] = useState(false);
       const skuSearchTimer = useRef(null);
@@ -7419,7 +7419,7 @@
       const [customItemVendor, setCustomItemVendor] = useState('');
       const [customItemDesc, setCustomItemDesc] = useState('');
       const [customItemBoxes, setCustomItemBoxes] = useState(1);
-      const [customItemSellBy, setCustomItemSellBy] = useState('sqft');
+      const [customItemSellBy, setCustomItemSellBy] = useState('box');
       const [addItemVendors, setAddItemVendors] = useState([]);
       const [orderActivity, setOrderActivity] = useState(null);
       const [docPreview, setDocPreview] = useState(null);
@@ -7630,7 +7630,7 @@
       if (loading) return <div className="loading">Loading order...</div>;
       if (!order) return <div className="loading">Order not found</div>;
 
-      const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'sqyd' ? 'sqft' : 'boxes';
+      const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'roll' ? 'sqft' : 'boxes';
       const isPickup = order.delivery_method === 'pickup';
       const statusFlow = { pending: 'confirmed', confirmed: 'shipped', shipped: 'delivered' };
       const statusLabels = isPickup
@@ -8099,7 +8099,7 @@
                           </div>
                         </td>
                         <td data-label="SqFt">{item.sell_by === 'unit' || item.sell_by === 'piece' ? <span style={{ color: 'var(--stone-400)' }}>{'\u2014'}</span> : item.sqft_needed ? parseFloat(item.sqft_needed).toFixed(1) : '\u2014'}</td>
-                        <td data-label="Qty">{item.sell_by === 'sqyd' ? (item.sqft_needed || 0) : item.num_boxes} <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>{qtyLabel(item.sell_by)}</span></td>
+                        <td data-label="Qty">{item.sell_by === 'roll' ? (item.sqft_needed || 0) : item.num_boxes} <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>{qtyLabel(item.sell_by)}</span></td>
                         <td data-label="Unit Price">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                             {!item.is_sample && ['pending', 'confirmed'].includes(order.status) ? (
@@ -8127,13 +8127,13 @@
                             ) : (
                               <span>{'$' + parseFloat(item.unit_price || 0).toFixed(2)}</span>
                             )}
-                            <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', whiteSpace: 'nowrap' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'sqyd' ? '/sqyd' : '/sqft'}</span>
+                            <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', whiteSpace: 'nowrap' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft'}</span>
                           </div>
                         </td>
                         {showCost && (
                           <td data-label="Cost">
                             {item.vendor_cost
-                              ? <span style={{ color: 'var(--stone-500)' }}>{'$' + parseFloat(item.vendor_cost).toFixed(2)}<span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', marginLeft: '0.15rem' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'sqyd' ? '/sqyd' : '/sqft'}</span></span>
+                              ? <span style={{ color: 'var(--stone-500)' }}>{'$' + parseFloat(item.vendor_cost).toFixed(2)}<span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', marginLeft: '0.15rem' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft'}</span></span>
                               : <span style={{ color: 'var(--stone-400)' }}>{'\u2014'}</span>
                             }
                           </td>
@@ -8239,7 +8239,7 @@
                                         vendor_sku: r.vendor_sku || '',
                                         price: r.retail_price || 0,
                                         vendor_name: r.vendor_name || '',
-                                        sell_by: r.sell_by || 'sqft',
+                                        sell_by: r.sell_by || 'box',
                                         price_basis: r.price_basis || 'per_sqft',
                                         cut_price: r.cut_price,
                                         roll_price: r.roll_price,
@@ -8508,14 +8508,14 @@
                           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Sold By *</label>
                           <select value={customItemSellBy} onChange={e => setCustomItemSellBy(e.target.value)}
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }}>
-                            <option value="sqft">Per SqFt (boxes)</option>
+                            <option value="box">Box</option>
                             <option value="unit">Per Unit (slabs/prefab)</option>
                             <option value="piece">Per Piece (mosaics)</option>
-                            <option value="sqyd">Per SqYd (carpet)</option>
+                            <option value="roll">Roll</option>
                           </select>
                         </div>
                         <div style={{ width: '70px' }}>
-                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>{customItemSellBy === 'unit' ? 'Qty *' : customItemSellBy === 'piece' ? 'Qty *' : customItemSellBy === 'sqyd' ? 'SqFt *' : 'Boxes *'}</label>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>{customItemSellBy === 'unit' ? 'Qty *' : customItemSellBy === 'piece' ? 'Qty *' : customItemSellBy === 'roll' ? 'SqFt *' : 'Boxes *'}</label>
                           <input type="number" min="1" value={customItemBoxes} onChange={e => setCustomItemBoxes(parseInt(e.target.value) || 1)}
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
                         </div>
@@ -9151,7 +9151,7 @@
 
       // Custom item form
       const [showCustomForm, setShowCustomForm] = useState(false);
-      const [customItem, setCustomItem] = useState({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'sqft' });
+      const [customItem, setCustomItem] = useState({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'box' });
 
       // Inline cell editing
       const [editingCell, setEditingCell] = useState(null); // { idx, field }
@@ -9297,7 +9297,7 @@
               internal_sku: r.internal_sku,
               price: r.retail_price,
               sqft_per_box: r.sqft_per_box,
-              sell_by: r.sell_by || 'sqft',
+              sell_by: r.sell_by || 'box',
               vendor_id: r.vendor_id,
               price_basis: r.price_basis || 'per_sqft',
               cut_price: r.cut_price,
@@ -9318,7 +9318,7 @@
         const isCarpet = sku.price_basis === 'per_sqyd';
         const price = parseFloat(isCarpet ? (sku.cut_price || sku.price || 0) : (sku.price || 0));
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
-        const sellBy = isCarpet ? 'sqyd' : (sku.sell_by || 'sqft');
+        const sellBy = isCarpet ? 'roll' : (sku.sell_by || 'box');
         const descParts = [sku.color, sku.variant_name && sku.variant_name !== sku.color ? sku.variant_name : null].filter(Boolean).join(' · ');
         const productName = sku.collection
           ? (descParts ? sku.collection + ' — ' + descParts : sku.collection)
@@ -9366,9 +9366,9 @@
         try {
         const price = parseFloat(customItem.unit_price) || 0;
         const qty = parseInt(customItem.num_boxes) || 1;
-        const sellBy = customItem.sell_by || 'sqft';
+        const sellBy = customItem.sell_by || 'box';
         let subtotal;
-        if (sellBy === 'sqyd') subtotal = price * (qty / 9);
+        if (sellBy === 'roll') subtotal = price * (qty / 9);
         else subtotal = price * qty;
         const newItem = {
           product_id: null,
@@ -9400,7 +9400,7 @@
           setQuoteItems(prev => [...prev, { ...newItem, _temp_id: Date.now() }]);
         }
 
-        setCustomItem({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'sqft' });
+        setCustomItem({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'box' });
         setShowCustomForm(false);
         } catch (err) { alert('Failed to add item: ' + (err.message || 'Unknown error')); }
       };
@@ -9414,7 +9414,7 @@
           // Recalculate subtotal
           if (field === 'num_boxes' || field === 'unit_price' || field === 'sqft_needed') {
             const price = field === 'unit_price' ? parseFloat(value) || 0 : parseFloat(item.unit_price) || 0;
-            if (item.sell_by === 'sqyd') {
+            if (item.sell_by === 'roll') {
               // Carpet: sqft_needed is the qty, subtotal = price × (sqft / 9)
               const sqft = field === 'sqft_needed' ? parseFloat(value) || 0 : parseFloat(item.sqft_needed) || 0;
               item.sqft_needed = sqft;
@@ -9425,7 +9425,7 @@
                 item.sqft_needed = (boxes * parseFloat(item._sqft_per_box)).toFixed(2);
               }
               const sqft = parseFloat(item.sqft_needed) || 0;
-              if (item.sell_by === 'sqft' && sqft > 0) {
+              if (item.sell_by === 'box' && sqft > 0) {
                 item.subtotal = (price * sqft).toFixed(2);
               } else {
                 item.subtotal = (price * boxes).toFixed(2);
@@ -9615,7 +9615,7 @@
 
       const isReadonly = quote && !['draft', 'sent'].includes(quote.status);
       const calcSubtotal = quoteItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
-      const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'sqyd' ? 'sqft' : 'boxes';
+      const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'roll' ? 'sqft' : 'boxes';
 
       return (
         <div>
@@ -9912,14 +9912,14 @@
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label>Sold By *</label>
                         <select value={customItem.sell_by} onChange={e => setCustomItem(c => ({ ...c, sell_by: e.target.value }))}>
-                          <option value="sqft">Per SqFt (boxes)</option>
+                          <option value="box">Box</option>
                           <option value="unit">Per Unit (slabs/prefab)</option>
                           <option value="piece">Per Piece (mosaics)</option>
-                          <option value="sqyd">Per SqYd (carpet)</option>
+                          <option value="roll">Roll</option>
                         </select>
                       </div>
                       <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label>{customItem.sell_by === 'unit' ? 'Qty (units) *' : customItem.sell_by === 'piece' ? 'Qty (pieces) *' : customItem.sell_by === 'sqyd' ? 'SqFt *' : 'Qty (boxes) *'}</label>
+                        <label>{customItem.sell_by === 'unit' ? 'Qty (units) *' : customItem.sell_by === 'piece' ? 'Qty (pieces) *' : customItem.sell_by === 'roll' ? 'SqFt *' : 'Qty (boxes) *'}</label>
                         <input type="number" min="1" value={customItem.num_boxes} onChange={e => setCustomItem(c => ({ ...c, num_boxes: e.target.value }))} />
                       </div>
                       <div className="form-group" style={{ marginBottom: 0 }}>
@@ -9995,8 +9995,8 @@
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                         {!isReadonly ? (
                           (() => {
-                            const qtyField = item.sell_by === 'sqyd' ? 'sqft_needed' : 'num_boxes';
-                            const qtyVal = item.sell_by === 'sqyd' ? (item.sqft_needed || 0) : item.num_boxes;
+                            const qtyField = item.sell_by === 'roll' ? 'sqft_needed' : 'num_boxes';
+                            const qtyVal = item.sell_by === 'roll' ? (item.sqft_needed || 0) : item.num_boxes;
                             const isEditingQty = editingCell && editingCell.idx === idx && editingCell.field === 'qty';
                             return isEditingQty ? (
                               <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--primary)', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 0 0 2px rgba(180,130,80,0.15)' }}>
@@ -10014,7 +10014,7 @@
                             );
                           })()
                         ) : (
-                          <span>{item.sell_by === 'sqyd' ? (item.sqft_needed || 0) : item.num_boxes}</span>
+                          <span>{item.sell_by === 'roll' ? (item.sqft_needed || 0) : item.num_boxes}</span>
                         )}
                         <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>{qtyLabel(item.sell_by)}</span>
                         </div>
@@ -10041,13 +10041,13 @@
                               );
                             })()
                           ) : '$' + parseFloat(item.unit_price).toFixed(2)}
-                          <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', whiteSpace: 'nowrap' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'sqyd' ? '/sqyd' : '/sqft'}</span>
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', whiteSpace: 'nowrap' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft'}</span>
                         </div>
                       </td>
                       {showCost && (
                         <td data-label="Cost">
                           {item.vendor_cost
-                            ? <span style={{ color: 'var(--stone-500)' }}>{'$' + parseFloat(item.vendor_cost).toFixed(2)}<span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', marginLeft: '0.15rem' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'sqyd' ? '/sqyd' : '/sqft'}</span></span>
+                            ? <span style={{ color: 'var(--stone-500)' }}>{'$' + parseFloat(item.vendor_cost).toFixed(2)}<span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', marginLeft: '0.15rem' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft'}</span></span>
                             : <span style={{ color: 'var(--stone-400)' }}>{'\u2014'}</span>
                           }
                         </td>
@@ -10553,7 +10553,7 @@
               internal_sku: r.internal_sku,
               price: r.retail_price,
               sqft_per_box: r.sqft_per_box,
-              sell_by: r.sell_by || 'sqft',
+              sell_by: r.sell_by || 'box',
               vendor_id: r.vendor_id,
               price_basis: r.price_basis || 'per_sqft',
               cut_price: r.cut_price,
@@ -10573,7 +10573,7 @@
         const isCarpet = sku.price_basis === 'per_sqyd';
         const price = parseFloat(isCarpet ? (sku.cut_price || sku.price || 0) : (sku.price || 0));
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
-        const sellBy = isCarpet ? 'sqyd' : (sku.sell_by || 'sqft');
+        const sellBy = isCarpet ? 'roll' : (sku.sell_by || 'box');
         const descParts = [sku.color, sku.variant_name && sku.variant_name !== sku.color ? sku.variant_name : null].filter(Boolean).join(' · ');
         const productName = sku.collection
           ? (descParts ? sku.collection + ' — ' + descParts : sku.collection)
@@ -10583,7 +10583,7 @@
         const ovFactor = overageEnabled ? 1.10 : 1;
         const sub = isCarpet
           ? parseFloat((price * (sqftNeeded / 9) * ovFactor).toFixed(2))
-          : sellBy === 'sqft' ? parseFloat((sqftNeeded * ovFactor * price).toFixed(2)) : parseFloat((numBoxes * price).toFixed(2));
+          : sellBy === 'box' ? parseFloat((sqftNeeded * ovFactor * price).toFixed(2)) : parseFloat((numBoxes * price).toFixed(2));
 
         const newItem = {
           item_type: 'material',
@@ -10630,7 +10630,7 @@
         if (!local || !estimate) return;
 
         const isUnit = item.sell_by === 'unit' || item.sell_by === 'piece';
-        const isCarpet = item.sell_by === 'sqyd';
+        const isCarpet = item.sell_by === 'roll';
         const sqftPerBox = item._sqft_per_box || parseFloat(item.sqft_needed || 0) / Math.max(item.num_boxes || 1, 1);
         const merged = { ...item, ...local };
         const price = parseFloat(merged.unit_price || 0);
@@ -11024,7 +11024,7 @@
                   <tbody>
                     {materialItems.map(item => {
                       const isUnit = item.sell_by === 'unit' || item.sell_by === 'piece';
-                      const isCarpet = item.sell_by === 'sqyd';
+                      const isCarpet = item.sell_by === 'roll';
                       return (
                       <tr key={item.id}>
                         <td data-label="Product">
@@ -12297,7 +12297,7 @@
       const [skuSearching, setSkuSearching] = useState(false);
       const skuSearchTimer = useRef(null);
       const skuSearchCounter = useRef(0);
-      const [newPOItem, setNewPOItem] = useState({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'sqft' });
+      const [newPOItem, setNewPOItem] = useState({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'box' });
 
       const load = async () => {
         setLoading(true);
@@ -12384,7 +12384,7 @@
               setSkuSearchResults((data.results || []).map(r => ({
                 sku_id: r.sku_id, product_name: r.product_name || r.collection || '', variant_name: r.variant_name || '',
                 color: r.color || '', vendor_sku: r.vendor_sku || '', internal_sku: r.internal_sku || '',
-                vendor_name: r.vendor_name || '', sell_by: r.sell_by || 'sqft', cost: r.vendor_cost || 0,
+                vendor_name: r.vendor_name || '', sell_by: r.sell_by || 'box', cost: r.vendor_cost || 0,
                 retail_price: r.retail_price || 0, price_basis: r.price_basis || 'per_sqft',
                 sqft_per_box: r.sqft_per_box || 1,
                 primary_image: r.primary_image || null
@@ -12624,12 +12624,12 @@
                       <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Sell By</label>
                       <select value={newPOItem.sell_by} onChange={e => setNewPOItem({...newPOItem, sell_by: e.target.value})}
                         style={{ width: '100%', padding: '0.4rem 0.3rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '6px' }}>
-                        <option value="sqft">sqft</option>
+                        <option value="box">Box</option>
                         <option value="unit">unit</option>
                       </select>
                     </div>
                     <button className="btn btn-primary btn-sm" disabled={!newPOItem.product_name || !newPOItem.cost}
-                      onClick={() => { addPOItem(newPOItem); setNewPOItem({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'sqft' }); setAddingItem(false); }}>
+                      onClick={() => { addPOItem(newPOItem); setNewPOItem({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'box' }); setAddingItem(false); }}>
                       Add
                     </button>
                   </div>

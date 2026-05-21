@@ -639,10 +639,10 @@ async function updatePricing(sku, rollPriceRaw, cutPriceRaw, um, back) {
   // Update sell_by if needed
   if (um === 'EA' && sku.sell_by !== 'unit') {
     await pool.query('UPDATE skus SET sell_by = $1 WHERE id = $2', ['unit', sku.id]);
-  } else if (um === 'SY' && sku.sell_by !== 'sqyd') {
-    await pool.query('UPDATE skus SET sell_by = $1 WHERE id = $2', ['sqyd', sku.id]);
-  } else if (um === 'SF' && sku.sell_by !== 'sqft') {
-    await pool.query('UPDATE skus SET sell_by = $1 WHERE id = $2', ['sqft', sku.id]);
+  } else if (um === 'SY' && sku.sell_by !== 'roll') {
+    await pool.query('UPDATE skus SET sell_by = $1 WHERE id = $2', ['roll', sku.id]);
+  } else if (um === 'SF' && sku.sell_by !== 'box') {
+    await pool.query('UPDATE skus SET sell_by = $1 WHERE id = $2', ['box', sku.id]);
   }
 }
 

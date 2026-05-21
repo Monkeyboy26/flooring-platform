@@ -8,7 +8,7 @@
  *   - Cleaning/maintenance products (Once N Done, Shinekeeper, etc.) → sell_by: 'unit'
  *   - Rubber stair treads & cove base → sell_by: 'unit'
  *   - Wallbase & tapes → sell_by: 'unit'
- *   - Sheet vinyl products are left as sell_by: 'sqft' (correct — cut from rolls)
+ *   - Sheet vinyl products are left as sell_by: 'box' (correct — cut from rolls)
  *
  * Phase B — Scrape Armstrong website for sqft_per_box on tile/plank/VCT products
  *   that genuinely should have box packaging data.
@@ -367,7 +367,7 @@ async function main() {
     WHERE v.name = 'Tri-West'
       AND s.vendor_sku LIKE 'ARM%'
       AND s.status = 'active'
-      AND COALESCE(s.sell_by, 'sqft') = 'sqft'
+      AND COALESCE(s.sell_by, 'box') = 'box'
       AND COALESCE(s.variant_type, '') != 'accessory'
     ORDER BY p.name
   `);
@@ -410,7 +410,7 @@ async function main() {
       AND s.vendor_sku LIKE 'ARM%'
       AND COALESCE(s.variant_type, '') != 'accessory'
       AND s.status = 'active'
-      AND COALESCE(s.sell_by, 'sqft') = 'sqft'
+      AND COALESCE(s.sell_by, 'box') = 'box'
       AND (pkg.sqft_per_box IS NULL OR pkg.sqft_per_box = 0)
     ORDER BY p.name, s.vendor_sku
   `);
@@ -599,9 +599,9 @@ async function printSummary() {
 
   const summary = await pool.query(`
     SELECT
-      COALESCE(s.sell_by, 'sqft') as sell_by,
+      COALESCE(s.sell_by, 'box') as sell_by,
       CASE
-        WHEN COALESCE(s.sell_by, 'sqft') = 'unit' THEN 'n/a'
+        WHEN COALESCE(s.sell_by, 'box') = 'unit' THEN 'n/a'
         WHEN pkg.sqft_per_box > 0 THEN 'has_packaging'
         ELSE 'no_packaging'
       END as pkg_status,

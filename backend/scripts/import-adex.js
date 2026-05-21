@@ -74,7 +74,7 @@ async function upsertSku(productId, { vendorSku, internalSku, variantName, sellB
       variant_type = COALESCE(EXCLUDED.variant_type, skus.variant_type),
       updated_at = CURRENT_TIMESTAMP
     RETURNING id, (xmax = 0) AS is_new
-  `, [productId, vendorSku, internalSku, variantName || null, sellBy || 'sqft', variantType || null]);
+  `, [productId, vendorSku, internalSku, variantName || null, sellBy || 'box', variantType || null]);
   return result.rows[0];
 }
 
@@ -336,7 +336,7 @@ async function main() {
       for (const row of prod.skus) {
         const itemCode = String(row['ITEM CODE']).trim();
         const internalSku = 'ADEX-' + itemCode;
-        const sellBy = row.UM === 'SQFT' ? 'sqft' : 'unit';
+        const sellBy = row.UM === 'SQFT' ? 'box' : 'unit';
         const { color, finish } = parseColorFinish(row.COLOR);
         const { size } = parseDescription(row.DESCRIPTION);
 
@@ -361,7 +361,7 @@ async function main() {
           await upsertPricing(skuRec.id, {
             cost: cost.toFixed(2),
             retailPrice,
-            priceBasis: sellBy === 'sqft' ? 'per_sqft' : 'per_unit',
+            priceBasis: sellBy === 'box' ? 'per_sqft' : 'per_unit',
           });
           stats.pricing++;
         }

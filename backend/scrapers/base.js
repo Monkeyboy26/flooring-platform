@@ -77,7 +77,7 @@ function slugify(text) {
 
 const VALID_PRODUCT_STATUSES = ['draft', 'active', 'inactive', 'discontinued'];
 const VALID_SKU_STATUSES = ['active', 'draft', 'inactive'];
-const VALID_SELL_BY = ['sqft', 'unit', 'sqyd'];
+const VALID_SELL_BY = ['box', 'unit', 'roll'];
 const VALID_VARIANT_TYPES = [null, 'accessory', 'floor_tile', 'wall_tile', 'mosaic', 'lvt', 'quarry_tile', 'stone_tile', 'floor_deco'];
 const VALID_PRICE_BASIS = ['per_sqft', 'per_unit', 'per_sqyd', 'sqft', 'unit'];
 const VALID_ASSET_TYPES = ['primary', 'alternate', 'lifestyle', 'spec_pdf', 'swatch'];
@@ -127,10 +127,10 @@ export function validateSku({ product_id, vendor_sku, internal_sku, variant_name
   let cleanVariantName = variant_name ? variant_name.trim().replace(/\s{2,}/g, ' ') : null;
 
   // Validate sell_by enum
-  let cleanSellBy = sell_by || 'sqft';
+  let cleanSellBy = sell_by || 'box';
   if (!VALID_SELL_BY.includes(cleanSellBy)) {
-    warnings.push(`Invalid sell_by "${cleanSellBy}", defaulting to "sqft"`);
-    cleanSellBy = 'sqft';
+    warnings.push(`Invalid sell_by "${cleanSellBy}", defaulting to "box"`);
+    cleanSellBy = 'box';
   }
 
   // Validate variant_type enum
@@ -316,7 +316,7 @@ export async function upsertSku(pool, rawData, opts = {}) {
       variant_type = EXCLUDED.variant_type,
       updated_at = CURRENT_TIMESTAMP
     RETURNING id, (xmax = 0) AS is_new
-  `, [product_id, vendor_sku, internal_sku, variant_name || null, sell_by || 'sqft', variant_type || null]);
+  `, [product_id, vendor_sku, internal_sku, variant_name || null, sell_by || 'box', variant_type || null]);
   return result.rows[0];
 }
 

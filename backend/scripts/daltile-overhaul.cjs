@@ -1116,7 +1116,7 @@ async function main() {
       const targetKey = skuNewProduct.get(sku.id);
       const group = targetKey ? regroupPlan.get(targetKey) : null;
       if (group && !group.isAccessory) {
-        const correctSellBy = ACCESSORY_VARIANT_TYPES.has(coveoType) ? 'unit' : (sku.sell_by || 'sqft');
+        const correctSellBy = ACCESSORY_VARIANT_TYPES.has(coveoType) ? 'unit' : (sku.sell_by || 'box');
         const correctType = ACCESSORY_VARIANT_TYPES.has(coveoType) ? 'accessory' : coveoType;
         await client.query(`
           UPDATE skus SET variant_type = $2, sell_by = $3, updated_at = CURRENT_TIMESTAMP

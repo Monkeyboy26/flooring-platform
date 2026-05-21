@@ -239,7 +239,7 @@ async function createItemSku(pool, vendorId, brand, section, item, colorCode, co
     // Apply pricing to matched existing Coveo SKUs
     // Use SKU's sell_by to determine price_basis (prices are per-sqft or per-unit as stored)
     for (const row of matchedSkuRows) {
-      const skuBasis = row.sell_by === 'sqft' ? 'per_sqft' : priceBasis;
+      const skuBasis = row.sell_by === 'box' ? 'per_sqft' : priceBasis;
       await upsertPricing(pool, row.id, {
         cost: dalCost,
         retail_price: retailFromCost(dalCost),
@@ -262,7 +262,7 @@ async function createItemSku(pool, vendorId, brand, section, item, colorCode, co
     const internalSku = `${brand.code}-${pdfSku}`;
     const variantParts = [item.size, item.description].filter(Boolean);
     const variantName = variantParts.join(' ') || null;
-    const sellBy = isSqft ? 'sqft' : 'unit';
+    const sellBy = isSqft ? 'box' : 'unit';
 
     const sku = await upsertSku(pool, {
       product_id: product.id,

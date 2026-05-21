@@ -9,7 +9,7 @@ export function generateProductShareHTML(data) {
   } = data;
 
   const repName = [rep_first_name, rep_last_name].filter(Boolean).join(' ') || 'Your Sales Representative';
-  const priceLabel = price ? `$${parseFloat(price).toFixed(2)}${sell_by === 'sqft' ? '/sqft' : sell_by === 'unit' ? '/ea' : ''}` : '';
+  const priceLabel = price ? `$${parseFloat(price).toFixed(2)}${sell_by === 'box' ? '/sqft' : sell_by === 'unit' ? '/ea' : ''}` : '';
 
   const imageSection = image_url ? `
   <tr><td style="padding:0 40px 24px;text-align:center;">

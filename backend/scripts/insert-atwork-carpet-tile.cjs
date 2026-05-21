@@ -179,7 +179,7 @@ try {
         cost: item.cost,
         retail_price: item.retail_price,
         map_price: item.map_price,
-        sell_by: item.sell_by || 'sqft',
+        sell_by: item.sell_by || 'box',
         sqft_per_box: item.sqft_per_box,
         weight_per_box_lbs: item.weight_per_box_lbs,
       });

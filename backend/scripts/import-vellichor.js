@@ -135,7 +135,7 @@ async function upsertSku(product_id, { vendor_sku, internal_sku, variant_name, s
       variant_type = COALESCE(EXCLUDED.variant_type, skus.variant_type),
       updated_at = CURRENT_TIMESTAMP
     RETURNING id, (xmax = 0) AS is_new
-  `, [product_id, vendor_sku, internal_sku, variant_name || null, sell_by || 'sqft', variant_type || null]);
+  `, [product_id, vendor_sku, internal_sku, variant_name || null, sell_by || 'box', variant_type || null]);
   return result.rows[0];
 }
 
@@ -213,7 +213,7 @@ async function main() {
       vendor_sku: item.sku,
       internal_sku: internalSku,
       variant_name: variantName,
-      sell_by: 'sqft',
+      sell_by: 'box',
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
@@ -285,7 +285,7 @@ async function main() {
       vendor_sku: item.sku,
       internal_sku: internalSku,
       variant_name: variantName,
-      sell_by: 'sqft',
+      sell_by: 'box',
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 

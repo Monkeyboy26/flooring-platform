@@ -197,15 +197,15 @@ function finalizeEdiItem(item) {
     const uom = (item.packaging.unit_of_measure || '').toUpperCase();
     if (uom === 'SF' || uom === 'FT2') {
       item.sqft_per_box = item.packaging.size_per_pack;
-      item.sell_by = 'sqft';
+      item.sell_by = 'box';
     } else if (uom === 'SY') {
       item.sqft_per_box = item.packaging.size_per_pack * 9;
-      item.sell_by = 'sqft';
+      item.sell_by = 'box';
     } else if (uom === 'EA' || uom === 'PC' || uom === 'LF') {
       item.sell_by = 'unit';
     } else if (item.packaging.size_per_pack) {
       item.sqft_per_box = item.packaging.size_per_pack;
-      item.sell_by = 'sqft';
+      item.sell_by = 'box';
     }
     item.pieces_per_box = item.packaging.pieces_per_pack || null;
     item.weight_per_box_lbs = item.packaging.gross_weight || null;
@@ -222,12 +222,12 @@ function finalizeEdiItem(item) {
 
   if (!item.sell_by && item.unit_of_measure) {
     const puom = item.unit_of_measure.toUpperCase();
-    if (puom === 'SF' || puom === 'SY') item.sell_by = 'sqft';
+    if (puom === 'SF' || puom === 'SY') item.sell_by = 'box';
     else if (puom === 'EA' || puom === 'PC') item.sell_by = 'unit';
   }
 
   // Detect per-box prices disguised as per-sqft
-  if (item.sell_by === 'sqft' && item.sqft_per_box >= 3 && item.cost > 30) {
+  if (item.sell_by === 'box' && item.sqft_per_box >= 3 && item.cost > 30) {
     const perSqft = item.cost / item.sqft_per_box;
     if (perSqft >= 3 && perSqft <= 30) {
       item.cost = parseFloat(perSqft.toFixed(4));
@@ -815,7 +815,7 @@ async function processProduct(pool, ctx) {
     const variantName = variantParts.join(', ') || colorName;
 
     // Determine sell_by
-    let sellBy = isTrim ? 'unit' : 'sqft';
+    let sellBy = isTrim ? 'unit' : 'box';
 
     // Trim SKUs are regular products (browseable), not hidden accessories.
     // The sku_accessories junction table handles cross-linking.
@@ -838,7 +838,7 @@ async function processProduct(pool, ctx) {
     }
     if (ediItem) {
       stats.ediMatches++;
-      // Only let EDI override sell_by for trims — regular tiles are always sqft
+      // Only let EDI override sell_by for trims — regular tiles are always box
       if (ediItem.sell_by && isTrim) sellBy = ediItem.sell_by;
     } else {
       stats.ediMisses++;
@@ -927,11 +927,11 @@ async function processProduct(pool, ctx) {
       if (!retail || (cost > 0 && Math.abs(retail - cost) < 0.01)) {
         retail = retailFromCost(cost);
       }
-      const priceBasis = sellBy === 'sqft' ? 'per_sqft' : 'per_unit';
+      const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
 
-      // Detect per-piece prices mislabeled as per-sqft: if sell_by is sqft, price > $30,
+      // Detect per-piece prices mislabeled as per-sqft: if sell_by is box, price > $30,
       // and no sqft_per_box to trigger the 832 parser's detection, compute sqft from tile dims
-      if (sellBy === 'sqft' && cost > 30 && !ediItem.sqft_per_box) {
+      if (sellBy === 'box' && cost > 30 && !ediItem.sqft_per_box) {
         const sizeMatch = (sku.size || '').match(/^(\d+)X(\d+)$/i);
         if (sizeMatch) {
           const sqftPerPiece = (parseInt(sizeMatch[1]) * parseInt(sizeMatch[2])) / 144;

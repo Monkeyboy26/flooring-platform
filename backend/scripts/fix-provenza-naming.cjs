@@ -310,7 +310,7 @@ async function main() {
           targetVariantType = 'accessory';
         } else {
           targetName = collection;
-          targetSellBy = 'sqft';
+          targetSellBy = 'box';
           targetVariantType = null;
         }
 

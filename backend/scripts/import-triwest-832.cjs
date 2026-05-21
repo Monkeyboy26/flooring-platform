@@ -436,10 +436,10 @@ function parse832(raw) {
       const uom = (surfMea.unit_of_measure || '').toUpperCase();
       if (uom === 'SF' || uom === 'FT2') {
         item.sqft_per_box = surfMea.value;
-        if (!item.sell_by) item.sell_by = 'sqft';
+        if (!item.sell_by) item.sell_by = 'box';
       } else if (uom === 'SY') {
         item.sqft_per_box = surfMea.value * 9;
-        if (!item.sell_by) item.sell_by = 'sqft';
+        if (!item.sell_by) item.sell_by = 'box';
       }
     }
 
@@ -509,7 +509,7 @@ function parse832(raw) {
     // Infer sell_by from pricing UOM
     if (!item.sell_by && item.unit_of_measure) {
       const puom = item.unit_of_measure.toUpperCase();
-      if (puom === 'SF' || puom === 'SY') item.sell_by = 'sqft';
+      if (puom === 'SF' || puom === 'SY') item.sell_by = 'box';
       else if (puom === 'EA' || puom === 'PC') item.sell_by = 'unit';
       else if (puom === 'LF') item.sell_by = 'unit';
     }
@@ -978,7 +978,7 @@ async function importToDatabase(allItems) {
       const internalSku = makeInternalSku(item.vendor_sku, item.brand);
       const vendorSku = item.vendor_sku || internalSku;
       const variantName = item.color ? cleanAndTitle(item.color) : cleanAndTitle(item.product_name);
-      const sellBy = item.sell_by || 'sqft';
+      const sellBy = item.sell_by || 'box';
       const variantType = group.isAccessory ? 'accessory' : null;
 
       let skuId;
@@ -1004,7 +1004,7 @@ async function importToDatabase(allItems) {
 
       // Upsert pricing — use MAP as retail when available, else 2× markup
       if (item.cost || item.retail_price || item.map_price) {
-        const priceBasis = sellBy === 'sqft' ? 'per_sqft' : 'per_unit';
+        const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
         const cost = item.cost || 0;
         const mapVal = item.map_price || null;
         // Prefer MAP as retail, then explicit retail, then 2× cost fallback
@@ -1135,7 +1135,7 @@ async function main() {
   console.log(`Total SKUs: ${allItems.length}`);
   console.log(`With pricing: ${allItems.filter(i => i.cost || i.retail_price).length}`);
   console.log(`With product name: ${allItems.filter(i => i.product_name).length}`);
-  console.log(`Sold by sqft: ${allItems.filter(i => i.sell_by === 'sqft').length}`);
+  console.log(`Sold by box: ${allItems.filter(i => i.sell_by === 'box').length}`);
   console.log(`Sold by unit: ${allItems.filter(i => i.sell_by === 'unit').length}`);
 
   console.log('\nBrands found:');

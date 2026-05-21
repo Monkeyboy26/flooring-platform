@@ -2391,7 +2391,7 @@
       const addSku = () => {
         setSkus(prev => [...prev, {
           _new: true, _key: Date.now(),
-          vendor_sku: '', internal_sku: '', variant_name: '', sell_by: 'sqft',
+          vendor_sku: '', internal_sku: '', variant_name: '', sell_by: 'box',
           sqft_per_box: '', pieces_per_box: '', weight_per_box_lbs: '', freight_class: '70',
           boxes_per_pallet: '', sqft_per_pallet: '', weight_per_pallet_lbs: '',
           cost: '', retail_price: '', price_basis: 'per_sqft',
@@ -2438,7 +2438,7 @@
               vendor_sku: sku.vendor_sku,
               internal_sku: sku.internal_sku,
               variant_name: sku.variant_name,
-              sell_by: sku.sell_by || 'sqft',
+              sell_by: sku.sell_by || 'box',
               sqft_per_box: sku.sqft_per_box ? parseFloat(sku.sqft_per_box) : null,
               pieces_per_box: sku.pieces_per_box ? parseInt(sku.pieces_per_box) : null,
               weight_per_box_lbs: sku.weight_per_box_lbs ? parseFloat(sku.weight_per_box_lbs) : null,
@@ -2644,10 +2644,9 @@
             </div>
             <div className="form-group">
               <label>Sell By</label>
-              <select value={sku.sell_by || 'sqft'} onChange={e => u('sell_by', e.target.value)}>
-                <option value="sqft">Per SqFt</option>
-                <option value="sqyd">Per SqYd</option>
-                <option value="box">Per Box</option>
+              <select value={sku.sell_by || 'box'} onChange={e => u('sell_by', e.target.value)}>
+                <option value="box">Box</option>
+                <option value="roll">Roll</option>
                 <option value="unit">Per Unit</option>
               </select>
             </div>
@@ -3015,7 +3014,7 @@
       const [importCategory, setImportCategory] = useState('');
       const [importSession, setImportSession] = useState(null);
       const [mapping, setMapping] = useState({});
-      const [importDefaults, setImportDefaults] = useState({ sell_by: 'sqft', price_basis: 'per_sqft', status: 'draft' });
+      const [importDefaults, setImportDefaults] = useState({ sell_by: 'box', price_basis: 'per_sqft', status: 'draft' });
       const [validationResult, setValidationResult] = useState(null);
       const [importResult, setImportResult] = useState(null);
       const [uploading, setUploading] = useState(false);
@@ -3182,7 +3181,7 @@
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label>Default Sell By</label>
                   <select value={importDefaults.sell_by} onChange={e => setImportDefaults(d => ({ ...d, sell_by: e.target.value }))}>
-                    <option value="sqft">Per Sq Ft</option>
+                    <option value="box">Box</option>
                     <option value="unit">Per Unit</option>
                   </select>
                 </div>
@@ -3797,7 +3796,7 @@
       const [addingItem, setAddingItem] = useState(false);
       const [addItemSku, setAddItemSku] = useState('');
       const [addItemBoxes, setAddItemBoxes] = useState(1);
-      const [addItemSellBy, setAddItemSellBy] = useState('sqft');
+      const [addItemSellBy, setAddItemSellBy] = useState('box');
       const [skuSearchResults, setSkuSearchResults] = useState([]);
       const [skuSearching, setSkuSearching] = useState(false);
       const [skuSearchError, setSkuSearchError] = useState(null);
@@ -3809,7 +3808,7 @@
       const [customItemVendor, setCustomItemVendor] = useState('');
       const [customItemDesc, setCustomItemDesc] = useState('');
       const [customItemBoxes, setCustomItemBoxes] = useState(1);
-      const [customItemSellBy, setCustomItemSellBy] = useState('sqft');
+      const [customItemSellBy, setCustomItemSellBy] = useState('box');
       const [addItemVendors, setAddItemVendors] = useState([]);
       const [orderActivity, setOrderActivity] = useState(null);
       const [trackingData2, setTrackingData2] = useState(null);
@@ -4522,7 +4521,7 @@
               </thead>
               <tbody>
                 {items.map(item => {
-                  const qtyLabel = item.sell_by === 'unit' ? 'units' : item.sell_by === 'piece' ? 'pcs' : item.sell_by === 'sqyd' ? 'sqft' : 'boxes';
+                  const qtyLabel = item.sell_by === 'unit' ? 'units' : item.sell_by === 'piece' ? 'pcs' : item.sell_by === 'roll' ? 'sqft' : 'boxes';
                   return (
                   <tr key={item.id}>
                     <td data-label="Product">
@@ -4537,8 +4536,8 @@
                       </div>
                     </td>
                     <td data-label="SqFt">{item.sell_by === 'unit' || item.sell_by === 'piece' ? <span style={{ color: 'var(--stone-400)' }}>—</span> : item.sqft_needed ? parseFloat(item.sqft_needed).toFixed(1) : '—'}</td>
-                    <td data-label="Qty">{item.sell_by === 'sqyd' ? (item.sqft_needed || 0) : item.num_boxes} <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>{qtyLabel}</span></td>
-                    <td data-label="Unit Price">{item.unit_price ? '$' + parseFloat(item.unit_price).toFixed(2) : '—'} <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'sqyd' ? '/sqyd' : '/sqft'}</span></td>
+                    <td data-label="Qty">{item.sell_by === 'roll' ? (item.sqft_needed || 0) : item.num_boxes} <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>{qtyLabel}</span></td>
+                    <td data-label="Unit Price">{item.unit_price ? '$' + parseFloat(item.unit_price).toFixed(2) : '—'} <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft'}</span></td>
                     <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>{item.subtotal ? '$' + parseFloat(item.subtotal).toFixed(2) : '—'}</td>
                     {['pending', 'confirmed'].includes(order.status) && ['admin', 'manager'].includes(staffRole) && (
                       <td data-label="" className="actions">
@@ -4620,7 +4619,7 @@
                                       vendor_sku: r.vendor_sku || '',
                                       price: r.retail_price || 0,
                                       vendor_name: r.vendor_name || '',
-                                      sell_by: r.sell_by || 'sqft',
+                                      sell_by: r.sell_by || 'box',
                                       price_basis: r.price_basis || 'per_sqft',
                                       cut_price: r.cut_price,
                                       roll_price: r.roll_price,
@@ -4653,7 +4652,7 @@
                                   onClick={async () => {
                                     try {
                                       const isCarpet = r.price_basis === 'per_sqyd';
-                                      setAddItemSellBy(isCarpet ? 'sqyd' : r.sell_by);
+                                      setAddItemSellBy(isCarpet ? 'roll' : r.sell_by);
                                       const payload = isCarpet
                                         ? { sku_id: r.sku_id, sqft_needed: addItemBoxes, num_boxes: 1 }
                                         : { sku_id: r.sku_id, num_boxes: addItemBoxes };
@@ -4724,14 +4723,14 @@
                           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Sold By *</label>
                           <select value={customItemSellBy} onChange={e => setCustomItemSellBy(e.target.value)}
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }}>
-                            <option value="sqft">Per SqFt (boxes)</option>
+                            <option value="box">Box</option>
                             <option value="unit">Per Unit (slabs/prefab)</option>
                             <option value="piece">Per Piece (mosaics)</option>
-                            <option value="sqyd">Per SqYd (carpet)</option>
+                            <option value="roll">Roll</option>
                           </select>
                         </div>
                         <div style={{ width: '70px' }}>
-                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>{customItemSellBy === 'unit' ? 'Qty *' : customItemSellBy === 'piece' ? 'Qty *' : customItemSellBy === 'sqyd' ? 'SqFt *' : 'Boxes *'}</label>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>{customItemSellBy === 'unit' ? 'Qty *' : customItemSellBy === 'piece' ? 'Qty *' : customItemSellBy === 'roll' ? 'SqFt *' : 'Boxes *'}</label>
                           <input type="number" min="1" value={customItemBoxes} onChange={e => setCustomItemBoxes(parseInt(e.target.value) || 1)}
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
                         </div>
@@ -10600,7 +10599,7 @@
       const [skuSearchError, setSkuSearchError] = useState(null);
       const skuSearchTimer = useRef(null);
       const skuSearchCounter = useRef(0);
-      const [newPOItem, setNewPOItem] = useState({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'sqft' });
+      const [newPOItem, setNewPOItem] = useState({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'box' });
 
       const load = async () => {
         setLoading(true);
@@ -10717,7 +10716,7 @@
               setSkuSearchResults((data.results || []).map(r => ({
                 sku_id: r.sku_id, product_name: r.product_name || r.collection || '', variant_name: r.variant_name || '',
                 color: r.color || '', vendor_sku: r.vendor_sku || '', internal_sku: r.internal_sku || '',
-                vendor_name: r.vendor_name || '', sell_by: r.sell_by || 'sqft', cost: r.vendor_cost || 0,
+                vendor_name: r.vendor_name || '', sell_by: r.sell_by || 'box', cost: r.vendor_cost || 0,
                 retail_price: r.retail_price || 0, price_basis: r.price_basis || 'per_sqft',
                 sqft_per_box: r.sqft_per_box || 1,
                 primary_image: r.primary_image || null
@@ -10974,7 +10973,7 @@
                       <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Sell By</label>
                       <select value={newPOItem.sell_by} onChange={e => setNewPOItem({...newPOItem, sell_by: e.target.value})}
                         style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }}>
-                        <option value="sqft">Per SqFt</option>
+                        <option value="box">Box</option>
                         <option value="unit">Per Unit</option>
                       </select>
                     </div>
@@ -10984,7 +10983,7 @@
                         style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
                     </div>
                     <button className="btn btn-sm btn-primary" disabled={!newPOItem.product_name || !newPOItem.cost}
-                      onClick={() => { addPOItem(newPOItem); setNewPOItem({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'sqft' }); setAddingItem(false); }}>
+                      onClick={() => { addPOItem(newPOItem); setNewPOItem({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'box' }); setAddingItem(false); }}>
                       Add
                     </button>
                   </div>

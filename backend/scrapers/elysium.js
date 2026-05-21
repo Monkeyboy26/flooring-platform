@@ -283,7 +283,7 @@ function loadCsvPriceList(csvPath) {
       .trim();
 
     // Map per → sell_by and price_basis
-    let sellBy = 'sqft';
+    let sellBy = 'box';
     let priceBasis = 'per_sqft';
     if (per === 'sh' || per === 'pc' || per === 'set') {
       sellBy = 'unit';
@@ -1185,7 +1185,7 @@ function parseDetailPage(html) {
   if (soldByMatch) {
     const raw = soldByMatch[1].trim().toLowerCase();
     if (raw.includes('piece')) result.soldBy = 'unit';
-    else result.soldBy = 'sqft';
+    else result.soldBy = 'box';
   }
 
   // ── Gallery images from id="img_N" tags ──

@@ -5135,7 +5135,7 @@ app.post('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', 
       INSERT INTO skus (product_id, vendor_sku, internal_sku, variant_name, sell_by)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
-    `, [productId, vendor_sku, internal_sku, variant_name || null, sell_by || 'sqft']);
+    `, [productId, vendor_sku, internal_sku, variant_name || null, sell_by || 'box']);
 
     const skuId = sku.rows[0].id;
 
@@ -6466,7 +6466,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     } else {
       // Custom mode
       unitPrice = parseFloat(unit_price);
-      if (customSellBy === 'sqyd') {
+      if (customSellBy === 'roll') {
         // Carpet custom: num_boxes is sqft, price is per sqyd
         itemSubtotal = parseFloat((unitPrice * (num_boxes / 9)).toFixed(2));
       } else {
@@ -6502,10 +6502,10 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
         RETURNING id
       `, [id, sku.product_id, sku_id, storedProductName, sku.collection, storedDescription,
           sqft_needed || computedSqft || null, isCarpet ? 1 : num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
-          isCarpet ? 'sqyd' : (sku.sell_by || null)]);
+          isCarpet ? 'roll' : (sku.sell_by || null)]);
       newItemId = insertResult.rows[0].id;
     } else {
-      const isCustomCarpet = customSellBy === 'sqyd';
+      const isCustomCarpet = customSellBy === 'roll';
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description)
@@ -7179,7 +7179,7 @@ app.post('/api/admin/import/validate', staffAuth, requireRole('admin', 'manager'
       }
 
       // PIM enum validation
-      const VALID_SELL_BY = ['sqft', 'unit', 'sqyd'];
+      const VALID_SELL_BY = ['box', 'unit', 'roll'];
       const VALID_VARIANT_TYPES = ['accessory', 'floor_tile', 'wall_tile', 'mosaic', 'lvt', 'quarry_tile', 'stone_tile', 'floor_deco'];
       const VALID_PRICE_BASIS = ['per_sqft', 'per_unit', 'per_sqyd', 'sqft', 'unit'];
 
@@ -7230,7 +7230,7 @@ app.post('/api/admin/import/execute', staffAuth, requireRole('admin', 'manager')
   try {
     const { import_session_id, vendor_id, category_id, mapping, defaults } = req.body;
     const defaultStatus = (defaults && defaults.status) || 'draft';
-    const defaultSellBy = (defaults && defaults.sell_by) || 'sqft';
+    const defaultSellBy = (defaults && defaults.sell_by) || 'box';
     const defaultPriceBasis = (defaults && defaults.price_basis) || 'per_sqft';
 
     const session = importSessions.get(import_session_id);
@@ -12768,9 +12768,9 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
     let newSubtotal;
     if (current.is_sample) {
       newSubtotal = 0;
-    } else if (current.sell_by === 'sqft' && current.sqft_needed) {
+    } else if (current.sell_by === 'box' && current.sqft_needed) {
       newSubtotal = parseFloat((newPrice * parseFloat(current.sqft_needed)).toFixed(2));
-    } else if (current.sell_by === 'sqyd' && current.sqft_needed) {
+    } else if (current.sell_by === 'roll' && current.sqft_needed) {
       newSubtotal = parseFloat((newPrice * parseFloat(current.sqft_needed) / 9).toFixed(2));
     } else {
       newSubtotal = parseFloat((newPrice * current.num_boxes).toFixed(2));
@@ -12925,7 +12925,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       itemVendorId = sku.vendor_id;
     } else {
       unitPrice = parseFloat(unit_price);
-      if (customSellBy === 'sqyd') {
+      if (customSellBy === 'roll') {
         itemSubtotal = parseFloat((unitPrice * (num_boxes / 9)).toFixed(2));
       } else {
         itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
@@ -12958,10 +12958,10 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
         RETURNING id
       `, [id, sku.product_id, sku_id, storedProductName, sku.collection, storedDescription,
           sqft_needed || computedSqft || null, isCarpet ? 1 : num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
-          isCarpet ? 'sqyd' : (sku.sell_by || null)]);
+          isCarpet ? 'roll' : (sku.sell_by || null)]);
       newItemId = insertResult.rows[0].id;
     } else {
-      const isCustomCarpet = customSellBy === 'sqyd';
+      const isCustomCarpet = customSellBy === 'roll';
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description)
@@ -14292,7 +14292,7 @@ app.post('/api/rep/purchase-orders/:poId/items', repAuth, async (req, res) => {
     const itemResult = await client.query(
       `INSERT INTO purchase_order_items (purchase_order_id, sku_id, product_name, vendor_sku, description, qty, sell_by, cost, original_cost, retail_price, subtotal)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, $9, $10) RETURNING *`,
-      [poId, sku_id || null, product_name, vendor_sku || null, description || null, parsedQty, sell_by || 'sqft', parsedCost.toFixed(2), parsedRetail != null && !isNaN(parsedRetail) ? parsedRetail.toFixed(2) : null, subtotal.toFixed(2)]
+      [poId, sku_id || null, product_name, vendor_sku || null, description || null, parsedQty, sell_by || 'box', parsedCost.toFixed(2), parsedRetail != null && !isNaN(parsedRetail) ? parsedRetail.toFixed(2) : null, subtotal.toFixed(2)]
     );
 
     const totals = await client.query(
@@ -18331,7 +18331,7 @@ app.post('/api/admin/purchase-orders/:poId/items', staffAuth, requireRole('admin
     const itemResult = await client.query(
       `INSERT INTO purchase_order_items (purchase_order_id, sku_id, product_name, vendor_sku, description, qty, sell_by, cost, original_cost, retail_price, subtotal)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, $9, $10) RETURNING *`,
-      [poId, sku_id || null, product_name, vendor_sku || null, description || null, parsedQty, sell_by || 'sqft', parsedCost.toFixed(2), parsedRetail != null && !isNaN(parsedRetail) ? parsedRetail.toFixed(2) : null, subtotal.toFixed(2)]
+      [poId, sku_id || null, product_name, vendor_sku || null, description || null, parsedQty, sell_by || 'box', parsedCost.toFixed(2), parsedRetail != null && !isNaN(parsedRetail) ? parsedRetail.toFixed(2) : null, subtotal.toFixed(2)]
     );
 
     const totals = await client.query(
