@@ -77,9 +77,10 @@ async function filterWidenPlaceholders(urls) {
  *
  * Priority guide:
  *   90 — specific slab material (granite-slab, quartzite, della-terra-quartz)
+ *   85 — format-specific (mosaic, stacked-stone, pavers) — beats material
  *   80 — specific tile material (porcelain-and-ceramic, marble-tile)
  *   70 — material from Outer Limits / Special Order subcategories
- *   60 — format-specific (mosaic, stacked-stone, pavers, large-format)
+ *   55 — large-format, patterned, 3D
  *   50 — generic material parents (natural-stone-tile, natural-stone-slab)
  *   30 — generic cross-references (liners, special-order-series, outer-limits top-level)
  *    0 — skip (looks-like, recycled, made-in-usa, locations)
@@ -125,19 +126,19 @@ const CATEGORY_MAP = {
   'stone':                          ['natural-stone', 70],         // Special order natural stone (1437)
   'glass-special-order-series':     ['mosaic-tile', 70],           // Special order glass (1436)
 
-  // ── Format-specific (priority 60) ──
-  'decorative-mosaics-mesh-mounts': ['mosaic-tile', 60],
-  'porcelain-mosaics-mesh-mounts':  ['mosaic-tile', 60],
-  'natural-stone-mosaics-mesh-mounts': ['mosaic-tile', 60],
-  'glass-mosaics-mesh-mounts':      ['mosaic-tile', 60],
-  'stack':                          ['stacked-stone', 60],
-  'porcelain-stack':                ['stacked-stone', 60],
-  'natural-stone-stack':            ['stacked-stone', 60],
-  'stack-tile':                     ['stacked-stone', 60],
-  'pavers':                         ['pavers', 60],
-  'special-order-pavers':           ['pavers', 60],
-  'natural-stone-special-order-pavers': ['pavers', 60],
-  'porcelain-special-order-pavers': ['pavers', 60],
+  // ── Format-specific (priority 85) — beats material ──
+  'decorative-mosaics-mesh-mounts': ['mosaic-tile', 85],
+  'porcelain-mosaics-mesh-mounts':  ['mosaic-tile', 85],
+  'natural-stone-mosaics-mesh-mounts': ['mosaic-tile', 85],
+  'glass-mosaics-mesh-mounts':      ['mosaic-tile', 85],
+  'stack':                          ['stacked-stone', 86],
+  'porcelain-stack':                ['stacked-stone', 86],
+  'natural-stone-stack':            ['stacked-stone', 86],
+  'stack-tile':                     ['stacked-stone', 86],
+  'pavers':                         ['pavers', 85],
+  'special-order-pavers':           ['pavers', 85],
+  'natural-stone-special-order-pavers': ['pavers', 85],
+  'porcelain-special-order-pavers': ['pavers', 85],
   'large-format-tile':              ['large-format-tile', 55],
   'large-format-porcelain-tile':    ['large-format-tile', 55],
   'large-format-natural-stone-tile': ['natural-stone', 60],
@@ -193,6 +194,12 @@ const CATEGORY_SKIP = new Set([
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 const ACCESSORY_KEYWORDS = /\b(trim|molding|moulding|reducer|stair\s*nose|transition|threshold|t-molding|quarter\s*round|underlayment|adhesive|grout|sealer|caulk|bullnose|cove\s*base|pencil\s*liner)\b/i;
+
+// Size classification patterns — handles both raw (12x24) and WC-slugified (12-x-24) formats
+// Field tile: both dimensions ≥12, or specific large sizes (8x48, 6x36, etc.)
+const FIELD_SIZE = /(\d{2,})-?x-?(\d{2,})|8-?x-?48|8-?x-?36|6-?x-?36|6-?x-?24/;
+// Mosaic keywords in size attribute — these sizes are NOT field tile even if dimensions are large
+const MOSAIC_KW = /mosaic|mesh|hex|penny|basketweave|herringbone|stack|sheet/i;
 
 // Categories sold per piece/sheet (not per sqft in boxes)
 const UNIT_CATEGORIES = new Set([
@@ -563,6 +570,63 @@ export async function run(pool, job, source) {
                 }
               }
             }
+          }
+        }
+
+        // ── Mixed-product guard: mosaic should not win for field-tile collections ──
+        // Products like Marvel have both 12x24 field tiles AND 2x2 Mosaic variants.
+        // If a format category won via priority but the product has field-tile sizes,
+        // fall back to the best material category.
+        const FORMAT_CATS = new Set(['mosaic-tile', 'stacked-stone', 'pavers']);
+        if (FORMAT_CATS.has(pimCatSlug) && detail.variations.length > 0) {
+          const varSizes = detail.variations
+            .map(v => (v.attributes?.attribute_pa_size || ''))
+            .filter(Boolean);
+          const hasFieldTileSize = varSizes.some(s => FIELD_SIZE.test(s) && !MOSAIC_KW.test(s));
+
+          if (hasFieldTileSize) {
+            // Re-resolve: find best non-mosaic category
+            let altPriority = -1, altCatId = null, altSlug = null;
+            for (const catId of apiProduct.categoryIds) {
+              const azCat = azCategoryMap.get(catId);
+              if (!azCat || CATEGORY_SKIP.has(azCat.slug)) continue;
+              const mapping = CATEGORY_MAP[azCat.slug];
+              if (!mapping) continue;
+              const [slug, priority] = mapping;
+              // Skip all format categories — the product has field-tile sizes
+              if (slug === 'mosaic-tile' || slug === 'stacked-stone' || slug === 'pavers') continue;
+              if (priority > altPriority && categoryLookup.has(slug)) {
+                altPriority = priority;
+                altCatId = categoryLookup.get(slug);
+                altSlug = slug;
+              }
+            }
+            if (altCatId) {
+              categoryId = altCatId;
+              pimCatSlug = altSlug;
+            }
+          }
+        }
+
+        // ── Wall/backsplash tile detection ──
+        // Small-format porcelain tiles (3x6, 4x16, 2-1/4x9-3/4, etc.) are wall tiles
+        // IF the product has NO field-tile-sized variants (12x24, 24x48, etc.).
+        // This is size-based, not finish-based — many wall tiles aren't labeled glossy.
+        if (pimCatSlug === 'porcelain-tile' && categoryLookup.has('backsplash-wall')
+            && detail.variations.length > 0) {
+          const varSizes = detail.variations
+            .map(v => (v.attributes?.attribute_pa_size || ''))
+            .filter(s => s && s !== 'sample');
+          // Check if ANY variant has a field-tile size (≥12 in both dims)
+          const hasFieldSize = varSizes.some(s =>
+            FIELD_SIZE.test(s) && !MOSAIC_KW.test(s));
+          // Check if at least one variant has a recognized wall-tile size
+          // Handles raw (4x16), WC-slugified (4-x-16), and fractional (2-1-4-x-9-3-4)
+          const WALL_PATTERN = /\b(3-?x-?6|4-?x-?12|4-?x-?16|2-?x-?6|3-?x-?12|3-?x-?9|2\.?5-?x-?8|6-?x-?6|8-?x-?24)\b|\d-\d+-?\d*-x-\d/;
+          const hasWallSize = varSizes.some(s => WALL_PATTERN.test(s));
+          if (hasWallSize && !hasFieldSize) {
+            categoryId = categoryLookup.get('backsplash-wall');
+            pimCatSlug = 'backsplash-wall';
           }
         }
 
