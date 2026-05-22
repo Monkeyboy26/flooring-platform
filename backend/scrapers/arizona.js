@@ -5,7 +5,7 @@ import {
   appendLog, addJobError,
   downloadImage, upsertMediaAsset, resolveImageExtension,
   deslugify, buildVariantName, preferProductShot, filterImageUrls,
-  filterImagesByVariant, isLifestyleUrl
+  isLifestyleUrl
 } from './base.js';
 import { BASE_URL } from './arizona-auth.js';
 import { loadAllPriceLists } from './arizona-prices.js';
@@ -20,23 +20,31 @@ const DEFAULT_CONFIG = {
 const MAX_GALLERY_IMAGES = 8;
 
 /**
- * Filter out wide hero/banner images from Arizona Tile's Widen CDN.
- * These have URL params like w=2000&h=813 or w=1600&h=650 — extreme aspect
- * ratios (>2:1) that are collection banners, not product shots.
+ * Re-parameterize a Widen CDN URL to a standard 765×765 square crop.
+ * Replaces any existing w= and h= params; appends sizing if none present.
+ * Non-Widen URLs are returned unchanged.
  */
-function filterWideBanners(urls) {
-  return urls.filter(url => {
-    // Reject known placeholder filenames
-    if (/generic-photo-coming-soon/i.test(url)) return false;
-    const wMatch = url.match(/[?&]w=(\d+)/);
-    const hMatch = url.match(/[?&]h=(\d+)/);
-    if (wMatch && hMatch) {
-      const w = parseInt(wMatch[1]);
-      const h = parseInt(hMatch[1]);
-      if (h > 0 && w / h > 2) return false;
-    }
-    return true;
-  });
+function reParamWidenUrl(url) {
+  if (!url.includes('.widen.net')) return url;
+  const hasW = /[?&]w=\d+/.test(url);
+  const hasH = /[?&]h=\d+/.test(url);
+  if (hasW || hasH) {
+    return url
+      .replace(/([?&])w=\d+/, '$1w=765')
+      .replace(/([?&])h=\d+/, '$1h=765');
+  }
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}w=765&h=765&keep=c&crop=yes&quality=80`;
+}
+
+/**
+ * Normalize Widen CDN URLs: re-parameterize wide banners to 765×765 square crops
+ * instead of rejecting them. Still rejects known placeholder filenames.
+ */
+function normalizeWidenUrls(urls) {
+  return urls
+    .filter(url => !/generic-photo-coming-soon/i.test(url))
+    .map(url => reParamWidenUrl(url));
 }
 
 /**
@@ -600,36 +608,17 @@ export async function run(pool, job, source) {
             touchedProductIds.push(product.id);
 
             // ── Product-level primary image ──
-            // Priority: 1) swatch image (clean product photo), 2) first variation gallery product shot, 3) preferProductShot from all images
-            const swatchUrl = detail.swatchImages?.get(colorSlug) || null;
-            let productPrimaryUrl = swatchUrl;
-
-            if (!productPrimaryUrl) {
-              // Fall back to the first product shot from any variation gallery in this color group
-              for (const { v: cv } of variations) {
-                const varGal = galleryData.byVariationId[cv.variation_id] || [];
-                const productShot = varGal.find(url => /variation|product|swatch/i.test(url.split('/').pop()));
-                if (productShot) { productPrimaryUrl = productShot; break; }
-              }
+            // Per-variation gallery first image, fallback to variation.image
+            let productPrimaryUrl = null;
+            for (const { v: cv } of variations) {
+              const varGal = galleryData.byVariationId[cv.variation_id] || [];
+              if (varGal.length > 0) { productPrimaryUrl = reParamWidenUrl(varGal[0]); break; }
             }
-
             if (!productPrimaryUrl) {
-              // Last resort: collect all color images and pick the best product shot
-              const allColorImages = [];
-              const seenColorBases = new Set();
               for (const { v: cv } of variations) {
                 const cvImg = cv.image?.url || cv.image?.src || null;
-                if (cvImg) {
-                  const base = cvImg.split('?')[0];
-                  if (!seenColorBases.has(base)) { seenColorBases.add(base); allColorImages.push(cvImg); }
-                }
-                for (const gImg of (galleryData.byVariationId[cv.variation_id] || [])) {
-                  const base = gImg.split('?')[0];
-                  if (!seenColorBases.has(base)) { seenColorBases.add(base); allColorImages.push(gImg); }
-                }
+                if (cvImg) { productPrimaryUrl = reParamWidenUrl(cvImg); break; }
               }
-              const colorCandidates = preferProductShot(filterImageUrls(filterWideBanners(allColorImages)), colorSlug);
-              productPrimaryUrl = colorCandidates[0] || null;
             }
 
             if (productPrimaryUrl) {
@@ -737,62 +726,18 @@ export async function run(pool, job, source) {
               await upsertAllSpecAttributes(pool, sku.id, detail.specs, detail.technicalSpecs);
 
               // ── Per-variant images ──
-              // Priority for primary: 1) swatch image (product photo), 2) variation gallery product shot, 3) variation image field
+              // Gallery first (first = primary), variation.image as fallback only
               const varImage = v.image?.url || v.image?.src || null;
               const sortBase = (vi + 1) * 100;
 
               const varGallery = galleryData.byVariationId[v.variation_id] || [];
+              const allVarImages = await filterWidenPlaceholders(filterImageUrls(normalizeWidenUrls(varGallery)));
 
-              // Build variant images: start with gallery (first entry is usually the product shot)
-              const rawVarImages = [];
-              const seenBases = new Set();
-
-              // Insert swatch image first if available (this IS the product photo)
-              if (swatchUrl) {
-                const base = swatchUrl.split('?')[0];
-                seenBases.add(base);
-                rawVarImages.push(swatchUrl);
+              // If gallery is empty, fall back to variation.image
+              if (allVarImages.length === 0 && varImage) {
+                allVarImages.push(reParamWidenUrl(varImage));
               }
 
-              // Add variation gallery images (first one is typically the product shot for this size)
-              for (const imgUrl of varGallery) {
-                const base = imgUrl.split('?')[0];
-                if (!seenBases.has(base)) {
-                  seenBases.add(base);
-                  rawVarImages.push(imgUrl);
-                }
-              }
-
-              // Add the WC variation image if not already included
-              if (varImage) {
-                const base = varImage.split('?')[0];
-                if (!seenBases.has(base)) {
-                  seenBases.add(base);
-                  rawVarImages.push(varImage);
-                }
-              }
-
-              // Only pull from shared gallery when variant has no own images
-              if (rawVarImages.length === 0 && galleryShared.length > 0) {
-                const otherColorNames = [...colorGroups.keys()]
-                  .filter(c => c && c !== colorSlug)
-                  .map(c => deslugify(c));
-                const sharedNew = galleryShared.filter(u => {
-                  const b = u.split('?')[0];
-                  return !seenBases.has(b) && (seenBases.add(b), true);
-                });
-                const { matched, shared: neutral } = filterImagesByVariant(
-                  sharedNew, deslugify(colorSlug),
-                  { otherColors: otherColorNames, productName: collectionName }
-                );
-                rawVarImages.push(...matched, ...neutral);
-              }
-
-              // Filter junk + placeholders, then prefer product shots
-              const filteredVarImages = await filterWidenPlaceholders(filterImageUrls(filterWideBanners(rawVarImages)));
-              const allVarImages = preferProductShot(filteredVarImages, colorSlug, { size: sizePart, finish: finishPart });
-
-              // Upsert all images for this SKU
               for (let gi = 0; gi < allVarImages.length && gi < MAX_GALLERY_IMAGES; gi++) {
                 const imgUrl = allVarImages[gi];
                 const isLife = isLifestyleUrl(imgUrl);
@@ -808,11 +753,6 @@ export async function run(pool, job, source) {
                   sort_order: sortBase + gi,
                 });
                 stats.imagesSet++;
-              }
-
-              // If no new images were assigned, promote existing first alternate to primary
-              if (allVarImages.length === 0) {
-                await promoteToPrimary(pool, product.id, sku.id);
               }
             } // end for variations
           } // end for colorGroups
@@ -832,7 +772,7 @@ export async function run(pool, job, source) {
           touchedProductIds.push(product.id);
 
           // Product-level primary image (sorted by preferProductShot, placeholders removed)
-          const simpleFiltered = await filterWidenPlaceholders(filterImageUrls(filterWideBanners(galleryFlat)));
+          const simpleFiltered = await filterWidenPlaceholders(filterImageUrls(normalizeWidenUrls(galleryFlat)));
           const simpleSorted = preferProductShot(simpleFiltered, apiProduct.title);
           if (simpleSorted.length > 0) {
             await upsertMediaAsset(pool, {
@@ -1050,6 +990,43 @@ export async function run(pool, job, source) {
         if (ok) promoted++;
       }
       await appendLog(pool, job.id, `Promoted ${promoted}/${missingPrimary.rows.length} SKUs missing primary image`);
+    }
+
+    // ── Phase 5: Audit primary images — flag likely non-product-shots ──
+    await appendLog(pool, job.id, 'Phase 5: Auditing primary images...');
+    const primaryRows = await pool.query(`
+      SELECT ma.url, s.internal_sku, p.name as product_name, p.collection
+      FROM media_assets ma
+      JOIN skus s ON s.id = ma.sku_id
+      JOIN products p ON p.id = ma.product_id
+      WHERE s.internal_sku LIKE 'AZT-%'
+        AND ma.asset_type = 'primary'
+    `);
+
+    const suspects = [];
+    for (const row of primaryRows.rows) {
+      const filename = row.url.split('/').pop().split('?')[0];
+      if (isLifestyleUrl(row.url, row.product_name)) {
+        suspects.push({
+          sku: row.internal_sku,
+          product: `${row.collection} – ${row.product_name}`,
+          filename,
+        });
+      }
+    }
+
+    if (suspects.length > 0) {
+      await appendLog(pool, job.id,
+        `Primary image audit: ${suspects.length}/${primaryRows.rows.length} have lifestyle primary`
+      );
+      for (const s of suspects.slice(0, 50)) {
+        await appendLog(pool, job.id, `  ${s.sku} (${s.product}): ${s.filename}`);
+      }
+      if (suspects.length > 50) {
+        await appendLog(pool, job.id, `  ... and ${suspects.length - 50} more`);
+      }
+    } else {
+      await appendLog(pool, job.id, `Primary image audit: all ${primaryRows.rows.length} primaries are product shots`);
     }
 
     await appendLog(pool, job.id,
@@ -1411,12 +1388,15 @@ function parseGallery(html) {
       .map(item => {
         if (typeof item === 'string') return item;
         if (typeof item === 'object' && item) {
-          return item.full || item.zoom || item.medium || item.thumb || item.url || item.src || null;
+          // Prefer zoom (highest res square crop), then medium, then full
+          // Skip full if it's a .tif (400KB+ uncompressed)
+          const full = item.full && !/\.tif(\?|$)/i.test(item.full) ? item.full : null;
+          return item.zoom || item.medium || full || item.thumb || item.url || item.src || null;
         }
         return null;
       })
       .filter(Boolean)
-      .map(u => u.replace(/&amp;/g, '&'));
+      .map(u => reParamWidenUrl(u.replace(/&amp;/g, '&')));
 
     // Deduplicate by base filename
     const seen = new Set();
