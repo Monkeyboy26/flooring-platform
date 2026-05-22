@@ -166,7 +166,13 @@ const URL_MAP = {
 // Used when the vendor gallery doesn't contain a good swatch and the
 // correct image only exists elsewhere in their WP media library.
 const PRODUCT_PRIMARY_OVERRIDE = {
-  'Calacatta Gold': 'https://bellezzaceramica.com/wp-content/uploads/2022/05/06-Calacatta-Gold-Lux.jpg',
+  'Calacatta Gold':         'https://bellezzaceramica.com/wp-content/uploads/2022/05/06-Calacatta-Gold-Lux.jpg',
+  'Calacatta Natural':      'https://bellezzaceramica.com/wp-content/uploads/2022/05/calacatta-natural-36x36-768x766-1.jpeg',
+  'Granby Beige':           'https://bellezzaceramica.com/wp-content/uploads/2024/09/granby-beige-30x60-rf-1-e1695022413413-768x384-1.jpg',
+  'Granby Ivory':           'https://bellezzaceramica.com/wp-content/uploads/2024/09/Granby_beige_dark_grey_cam1.jpg',
+  'Modern Concrete Ivory':  'https://bellezzaceramica.com/wp-content/uploads/2024/09/modern-concrete-ivory-detal-768x1086-1.jpg',
+  'Montblanc Gold':         'https://bellezzaceramica.com/wp-content/uploads/2022/01/MONTBLANC-GOLD-24X48.jpg',
+  'Westmount Beige':        'https://bellezzaceramica.com/wp-content/uploads/2024/09/westmount-beige-30x60-rf-1-e1695212563999-768x384-1.jpg',
 };
 
 /**
@@ -208,10 +214,31 @@ const MANUAL_SKU_IMAGES = {
   'Gio::Cobalt Glossy Hexagon': 'https://bellezzaceramica.com/wp-content/uploads/2022/03/GIO-Colbat-Glossy-Stacked-Linear-0.86x5.7-3.jpg',
   'Mixit Concept::Gris':      'https://bellezzaceramica.com/wp-content/uploads/2022/05/restaurant-02-16-Mixit-Concept-Gris-Matte.jpg',
   'Metallic Dark Grey Mosaic::': 'https://bellezzaceramica.com/wp-content/uploads/2020/01/darkgreymattemosaic.jpg',
-  'Elegance Marble Pearl::':  'https://bellezzaceramica.com/wp-content/uploads/2022/02/1000_3204-Elegance-Marble-Blanco-120x120-1.jpg',
+  'Elegance Marble Pearl::':  'https://bellezzaceramica.com/wp-content/uploads/2022/02/elegance-white-gloss-marble-effect-porcelain-floor-tile-sample_3663602471349_10i.jpeg',
   'Temper::Frost':             'https://bellezzaceramica.com/wp-content/uploads/2022/09/Temper-Frost-0.png',
   'Temper::Golden':            'https://bellezzaceramica.com/wp-content/uploads/2022/09/Temper-Golden-0.png',
   'Temper::Iron':              'https://bellezzaceramica.com/wp-content/uploads/2022/09/Temper-Iron-0.png',
+  'Puccini::Marfil':           'https://bellezzaceramica.com/wp-content/uploads/2022/02/PUCCINO-Marfil-1.jpeg',
+  'Limit::Sable':              'https://bellezzaceramica.com/wp-content/uploads/2022/04/27530_LIMIT_SABLE_60x246.jpeg',
+  'Limit::Rose':               'https://bellezzaceramica.com/wp-content/uploads/2022/04/Limit_ROSE_lavabo_detalle.jpeg',
+
+  // ── Fix broken 404 images ──────────────────────────────────────
+  'Calacatta Natural::':       'https://bellezzaceramica.com/wp-content/uploads/2022/05/calacatta-natural-36x36-768x766-1.jpeg',
+  'Granby Beige::':            'https://bellezzaceramica.com/wp-content/uploads/2024/09/granby-beige-30x60-rf-1-e1695022413413-768x384-1.jpg',
+  'Modern Concrete Ivory::':   'https://bellezzaceramica.com/wp-content/uploads/2024/09/modern-concrete-ivory-detal-768x1086-1.jpg',
+  'Westmount Beige::':         'https://bellezzaceramica.com/wp-content/uploads/2024/09/westmount-beige-30x60-rf-1-e1695212563999-768x384-1.jpg',
+
+  // ── Fix wrong-color images ─────────────────────────────────────
+  'Leccese Cesellata::Fossile': 'https://bellezzaceramica.com/wp-content/uploads/2023/12/ambi-Leccese_Fossile-60x120_2.jpg',
+  'Leccese Cesellata::Fumo':    'https://bellezzaceramica.com/wp-content/uploads/2023/12/ambi_Leccese-Fumo_120x120.jpg',
+  'Chamonix::Ocean':            'https://bellezzaceramica.com/wp-content/uploads/2023/10/Chamonix_Beige_Laydown.jpg',  // no Ocean image exists; Beige laydown as fallback
+  'Elven::Grafito':             'https://bellezzaceramica.com/wp-content/uploads/2020/01/ElvenGrafitoLapattoWallTile15X60.jpg',
+
+  // ── Fix wrong-product image ────────────────────────────────────
+  'Montblanc Gold::':           'https://bellezzaceramica.com/wp-content/uploads/2022/01/MONTBLANC-GOLD-24X48.jpg',
+
+  // ── Fix wrong-color (no correct source available) ──────────────
+  'Granby Ivory::':             'https://bellezzaceramica.com/wp-content/uploads/2024/09/Granby_beige_dark_grey_cam1.jpg',  // vendor page only shows beige imagery
 };
 
 /** Look up a manual override for a SKU by product name + variant prefix */
