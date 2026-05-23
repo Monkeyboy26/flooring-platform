@@ -3188,11 +3188,12 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
 
     const result = await pool.query(`
       SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id,
-        s.variant_type, s.vendor_sku, c.slug as category_slug
+        s.variant_type, s.vendor_sku, c.slug as category_slug, pk.sqft_per_box
       FROM cart_items ci
       LEFT JOIN products p ON p.id = ci.product_id
       LEFT JOIN skus s ON s.id = ci.sku_id
       LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
       WHERE ci.session_id = $1
       ORDER BY ci.created_at
     `, [session_id]);
@@ -3206,6 +3207,13 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
     const sampleItems = items.filter(i => i.is_sample);
     const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
     const sampleShipping = sampleItems.length > 0 ? 12 : 0;
+
+    // Block checkout for slab items with no dimensions
+    const SLAB_CATS = new Set(['granite-countertops', 'marble-countertops', 'quartzite-countertops', 'quartz-countertops', 'porcelain-slabs', 'soapstone-countertops']);
+    const slabItem = productItems.find(i => SLAB_CATS.has(i.category_slug) && !(parseFloat(i.sqft_per_box) > 0));
+    if (slabItem) {
+      return res.status(400).json({ error: 'Slab products require in-store consultation. Please call (714) 999-0009 to confirm dimensions and availability.' });
+    }
 
     // Check stock status for all SKUs
     const skuIds = items.filter(i => i.sku_id).map(i => i.sku_id);
@@ -3324,11 +3332,12 @@ app.post('/api/checkout/create-bank-transfer-intent', async (req, res) => {
 
     const result = await pool.query(`
       SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id,
-        s.variant_type, s.vendor_sku, c.slug as category_slug
+        s.variant_type, s.vendor_sku, c.slug as category_slug, pk.sqft_per_box
       FROM cart_items ci
       LEFT JOIN products p ON p.id = ci.product_id
       LEFT JOIN skus s ON s.id = ci.sku_id
       LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
       WHERE ci.session_id = $1
       ORDER BY ci.created_at
     `, [session_id]);
@@ -3342,6 +3351,13 @@ app.post('/api/checkout/create-bank-transfer-intent', async (req, res) => {
     const sampleItems = items.filter(i => i.is_sample);
     const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
     const sampleShipping = sampleItems.length > 0 ? 12 : 0;
+
+    // Block checkout for slab items with no dimensions
+    const SLAB_CATS_BT = new Set(['granite-countertops', 'marble-countertops', 'quartzite-countertops', 'quartz-countertops', 'porcelain-slabs', 'soapstone-countertops']);
+    const slabItemBT = productItems.find(i => SLAB_CATS_BT.has(i.category_slug) && !(parseFloat(i.sqft_per_box) > 0));
+    if (slabItemBT) {
+      return res.status(400).json({ error: 'Slab products require in-store consultation. Please call (714) 999-0009 to confirm dimensions and availability.' });
+    }
 
     // Enforce $500 minimum for bank transfer
     if (productSubtotal < 500) {

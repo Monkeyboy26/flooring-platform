@@ -29,9 +29,12 @@ function reParamWidenUrl(url) {
   const hasW = /[?&]w=\d+/.test(url);
   const hasH = /[?&]h=\d+/.test(url);
   if (hasW || hasH) {
-    return url
+    let u = url
       .replace(/([?&])w=\d+/, '$1w=765')
       .replace(/([?&])h=\d+/, '$1h=765');
+    // Replace position=c (pad/center) with keep=c&crop=yes for tighter crops
+    u = u.replace(/([?&])position=c/, '$1keep=c&crop=yes');
+    return u;
   }
   const sep = url.includes('?') ? '&' : '?';
   return `${url}${sep}w=765&h=765&keep=c&crop=yes&quality=80`;
@@ -49,8 +52,9 @@ function normalizeWidenUrls(urls) {
 
 /**
  * Filter out Widen CDN placeholder images ("Preview Not Available").
- * Placeholders are exactly 8,016 bytes; real images at w=765 are 15KB+.
- * Uses HEAD requests to check Content-Length, rejects ≤ 10,000 bytes.
+ * Placeholders are ~8,016 bytes (caught by filename filter in normalizeWidenUrls).
+ * Minimal product shots (single tile on white) compress to 6-8KB at 765×765.
+ * Uses HEAD requests to check Content-Length, rejects ≤ 4,000 bytes.
  */
 async function filterWidenPlaceholders(urls) {
   if (!urls || urls.length === 0) return [];
@@ -59,7 +63,7 @@ async function filterWidenPlaceholders(urls) {
     try {
       const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
       const len = parseInt(res.headers.get('content-length') || '0', 10);
-      return { url, ok: len > 10000 };
+      return { url, ok: len > 4000 };
     } catch { return { url, ok: false }; }
   }));
   return checks
@@ -685,6 +689,11 @@ export async function run(pool, job, source) {
               }
             }
 
+            // Reject known placeholder filenames
+            if (productPrimaryUrl && /generic-photo-coming-soon/i.test(productPrimaryUrl)) {
+              productPrimaryUrl = null;
+            }
+
             if (productPrimaryUrl) {
               await upsertMediaAsset(pool, {
                 product_id: product.id,
@@ -714,7 +723,7 @@ export async function run(pool, job, source) {
               let sellBy;
               if (plEntry) {
                 const unit = plEntry.unit;
-                if (unit === 'EA' || unit === 'SHT') sellBy = 'unit';
+                if (unit === 'EA' || unit === 'SHT' || UNIT_CATEGORIES.has(pimCatSlug)) sellBy = 'unit';
                 else sellBy = 'box';
               } else {
                 sellBy = resolveSellBy(pimCatSlug, accessory, detail.soldBy);
@@ -797,8 +806,8 @@ export async function run(pool, job, source) {
               const varGallery = galleryData.byVariationId[v.variation_id] || [];
               const allVarImages = await filterWidenPlaceholders(filterImageUrls(normalizeWidenUrls(varGallery)));
 
-              // If gallery is empty, fall back to variation.image
-              if (allVarImages.length === 0 && varImage) {
+              // If gallery is empty, fall back to variation.image (skip placeholders)
+              if (allVarImages.length === 0 && varImage && !/generic-photo-coming-soon/i.test(varImage)) {
                 allVarImages.push(reParamWidenUrl(varImage));
               }
 
@@ -923,7 +932,7 @@ export async function run(pool, job, source) {
             let sellBy;
             if (plEntry) {
               const unit = plEntry.unit;
-              if (unit === 'EA' || unit === 'SHT') sellBy = 'unit';
+              if (unit === 'EA' || unit === 'SHT' || UNIT_CATEGORIES.has(pimCatSlug)) sellBy = 'unit';
               else sellBy = 'box';
             } else {
               sellBy = resolveSellBy(pimCatSlug, accessory, detail.soldBy);
@@ -1531,13 +1540,15 @@ function parseVariations(html) {
  */
 async function upsertAllSpecAttributes(pool, skuId, specs, technicalSpecs) {
   // General specs → attribute slugs
+  // Note: 'colors' (Stocked Colors) is intentionally excluded — it lists all
+  // colors in the collection, not the SKU's actual color.  The accurate color
+  // comes from attribute_pa_color on each variation.
   const specMap = {
     type: 'material',
     countryOfOrigin: 'country',
     finish: 'finish',
     thickness: 'thickness',
     application: 'application',
-    colors: 'color',
     edge: 'edge',
     look: 'look',
   };

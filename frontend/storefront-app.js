@@ -746,7 +746,17 @@
             showCollection = col;
           }
         } else {
-          showCollection = col;
+          const hyphenIdx = col.indexOf("-");
+          if (hyphenIdx > 0 && hyphenIdx < 5) {
+            const afterHyphen = col.slice(hyphenIdx + 1).toLowerCase().trim();
+            if (afterHyphen === nameLower || nameLower.startsWith(afterHyphen + " ") || nameLower.startsWith(afterHyphen + "-")) {
+              showCollection = "";
+            } else {
+              showCollection = col;
+            }
+          } else {
+            showCollection = col;
+          }
         }
       }
     }
@@ -783,6 +793,14 @@
             variant = variant.replace(/^\S+[\s,]*/, "").trim() || null;
           }
         }
+      }
+    }
+    if (variant && showCollection) {
+      const vcParts = variant.split(",");
+      const vcFirstSeg = vcParts[0].trim().toLowerCase();
+      const scLower = showCollection.toLowerCase();
+      if (vcFirstSeg === scLower || scLower.endsWith(" " + vcFirstSeg)) {
+        variant = vcParts.slice(1).map((p) => p.trim()).join(", ") || null;
       }
     }
     if (sku.attributes) {
@@ -3409,6 +3427,8 @@
     const isPerUnit = sku && isSoldPerUnit(sku);
     const hasBoxCalc = !isPerUnit && sqftPerBox > 0;
     const isSqftNoBox = !isPerUnit && sqftPerBox <= 0;
+    const SLAB_CATS = new Set(['granite-countertops', 'marble-countertops', 'quartzite-countertops', 'quartz-countertops', 'porcelain-slabs', 'soapstone-countertops']);
+    const isSlabNoBox = isSqftNoBox && sku && SLAB_CATS.has(sku.category_slug);
     const sheetRollWidthFt = isSqftNoBox && !isCarpetSku && sku ? parseRollWidthFt(sku.product_name || "") : 0;
     const isSheetVinyl = isSqftNoBox && !isCarpetSku && sheetRollWidthFt > 0;
     const sheetMode = isSheetVinyl ? carpetInputMode === "linear" && sheetRollWidthFt <= 0 ? "dimensions" : carpetInputMode : null;
@@ -4421,7 +4441,7 @@
       },
       "Add to Cart ",
       sheetSqft > 0 ? `- $${sheetSubtotal.toFixed(2)}` : ""
-    )), !isCarpetSku && !isSheetVinyl && isSqftNoBox && effectivePrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Order by Square Footage"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Square Feet Needed"), /* @__PURE__ */ React.createElement(
+    )), !isCarpetSku && !isSheetVinyl && isSqftNoBox && !isSlabNoBox && effectivePrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Order by Square Footage"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Square Feet Needed"), /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "calc-input",
@@ -4442,7 +4462,7 @@
       },
       "Add to Cart ",
       parseFloat(sqftInput) > 0 ? `- $${sqftOnlySubtotal.toFixed(2)}` : ""
-    )), isPerUnit && slabMissingSize && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { style: { background: "var(--stone-50, #fafaf9)", border: "1px solid var(--stone-200, #e7e5e4)", borderRadius: 8, padding: "1.25rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 0.5rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--stone-800, #292524)" } }, "Slab \u2014 Please Inquire"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.85rem", color: "var(--stone-600, #57534e)", lineHeight: 1.5 } }, "Contact us to confirm slab dimensions and availability before ordering."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "btn", style: { width: "100%", marginTop: "1rem", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009"))), isPerUnit && !slabMissingSize && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-row" }, /* @__PURE__ */ React.createElement("span", { className: "unit-qty-label" }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement(
+    )), isSlabNoBox && effectivePrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { style: { background: "var(--stone-50, #fafaf9)", border: "1px solid var(--stone-200, #e7e5e4)", borderRadius: 8, padding: "1.25rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 0.5rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--stone-800, #292524)" } }, "Slab \u2014 Please Inquire"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.85rem", color: "var(--stone-600, #57534e)", lineHeight: 1.5 } }, "Contact us to confirm slab dimensions and availability before ordering."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "btn", style: { width: "100%", marginTop: "1rem", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009"))), isPerUnit && slabMissingSize && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { style: { background: "var(--stone-50, #fafaf9)", border: "1px solid var(--stone-200, #e7e5e4)", borderRadius: 8, padding: "1.25rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 0.5rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--stone-800, #292524)" } }, "Slab \u2014 Please Inquire"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.85rem", color: "var(--stone-600, #57534e)", lineHeight: 1.5 } }, "Contact us to confirm slab dimensions and availability before ordering."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "btn", style: { width: "100%", marginTop: "1rem", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009"))), isPerUnit && !slabMissingSize && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-row" }, /* @__PURE__ */ React.createElement("span", { className: "unit-qty-label" }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "number",
