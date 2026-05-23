@@ -18,7 +18,7 @@ fi
 
 # Pull latest code
 echo "Pulling latest code..."
-git pull origin main
+git pull origin master
 
 # Bring down existing containers
 echo "Stopping containers..."
