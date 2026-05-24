@@ -823,16 +823,15 @@ const SERIES = [
 ];
 
 // ── Glass mosaic product naming ──
-// Maps code prefix to descriptive product name format
-function glassProductName(code, pattern) {
+// Maps code prefix to descriptive product name (no code suffix)
+function glassProductName(code) {
   const upper = code.toUpperCase();
-  if (/^GM[12]\d+$/.test(upper)) return `Glass Stone Mosaic ${upper}`;
-  if (/^GMH\d+$/.test(upper)) return `Glass Basketweave ${upper}`;
-  if (/^GML3\d+$/.test(upper)) return `Glass Lineal ${upper}`;
-  if (/^GML4\d+$/.test(upper)) return `Glass Metal Interlock ${upper}`;
-  if (/^(GM|GML)5\d+$/.test(upper)) return `Glass Quartzite ${upper}`;
-  // Fallback: title-case the pattern
-  return `${pattern} ${upper}`;
+  if (/^GM[12]\d+$/.test(upper)) return 'Glass Stone Mosaic';
+  if (/^GMH\d+$/.test(upper)) return 'Glass Basketweave';
+  if (/^GML3\d+$/.test(upper)) return 'Glass Lineal';
+  if (/^GML4\d+$/.test(upper)) return 'Glass Metal Interlock';
+  if (/^(GM|GML)5\d+$/.test(upper)) return 'Glass Quartzite';
+  return 'Glass Mosaic';
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -908,8 +907,8 @@ async function upsertSku(client, { productId, vendorSku, variantName, sellBy, va
     INSERT INTO skus (id, product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type, status)
     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'active')
     ON CONFLICT ON CONSTRAINT skus_internal_sku_key
-    DO UPDATE SET variant_name = EXCLUDED.variant_name, sell_by = EXCLUDED.sell_by,
-                  variant_type = EXCLUDED.variant_type, status = 'active'
+    DO UPDATE SET product_id = EXCLUDED.product_id, variant_name = EXCLUDED.variant_name,
+                  sell_by = EXCLUDED.sell_by, variant_type = EXCLUDED.variant_type, status = 'active'
     RETURNING id
   `, [productId, vendorSku, vendorSku, variantName, sellBy, variantType || null]);
   return res.rows[0].id;
@@ -970,13 +969,13 @@ async function run() {
       if (!series._subgroup) totalProducts++;
 
       for (const [colorName, code] of series.colors) {
-        // ── Tile SKUs (sell_by: sqft) ──
+        // ── Tile SKUs (sell_by: box) ──
         if (series.tile) {
           for (const [desc, size, pcs, sf, plt, sfPlt, cost] of series.tile) {
             const sku = genSku(series.name, `${code}-${size.replace(/[^0-9x]/gi, '')}`, '');
             const variantName = `${colorName} ${code} ${size}`;
             const skuId = await upsertSku(client, {
-              productId, vendorSku: sku, variantName, sellBy: 'sqft', variantType: null,
+              productId, vendorSku: sku, variantName, sellBy: 'box', variantType: null,
             });
             totalSkus++;
             await upsertPricing(client, skuId, cost, 'sqft');
@@ -988,18 +987,19 @@ async function run() {
           }
         }
 
-        // ── Mosaic SKUs (sell_by: sqft if sf data, else unit) ──
+        // ── Mosaic SKUs (sell_by: box if sf data, else unit) ──
         if (series.mosaic) {
           for (const [desc, size, pcs, sf, plt, sfPlt, cost] of series.mosaic) {
             const descAbbr = desc.replace(/[^A-Za-z0-9]/g, '').substring(0, 8).toUpperCase();
             const sku = genSku(series.name, `${code}-${descAbbr}`, size);
             const variantName = `${colorName} ${code} ${desc} ${size}`;
-            const sellBy = sf ? 'sqft' : 'unit';
+            const sellBy = sf ? 'box' : 'unit';
+            const priceBasis = sf ? 'sqft' : 'unit';
             const skuId = await upsertSku(client, {
               productId, vendorSku: sku, variantName, sellBy, variantType: null,
             });
             totalMosaicSkus++;
-            await upsertPricing(client, skuId, cost, sellBy);
+            await upsertPricing(client, skuId, cost, priceBasis);
             totalPricing++;
             if (await upsertPackaging(client, skuId, pcs, sf, plt, sfPlt)) totalPkg++;
             // Use mosaic pattern as size (e.g., "Mosaic 2x2") instead of sheet size ("12x12")
@@ -1035,11 +1035,19 @@ async function run() {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // GLASS MOSAICS (each code = one product with one SKU)
+    // GLASS MOSAICS (grouped by type — each code = one SKU)
     // ══════════════════════════════════════════════════════════════════════
     console.log(`\n── Glass & Stone Mosaics ──`);
-    for (const [code, pattern, size, pcs, sf, plt, sfPlt, cost] of GLASS_MOSAICS) {
-      const prodName = glassProductName(code, pattern);
+
+    // Group by product name
+    const glassByProduct = {};
+    for (const row of GLASS_MOSAICS) {
+      const prodName = glassProductName(row[0]);
+      if (!glassByProduct[prodName]) glassByProduct[prodName] = [];
+      glassByProduct[prodName].push(row);
+    }
+
+    for (const [prodName, items] of Object.entries(glassByProduct)) {
       const prodRes = await client.query(`
         INSERT INTO products (id, vendor_id, name, collection, category_id, status)
         VALUES (gen_random_uuid(), $1, $2, 'Goton Glass Mosaics', $3, 'active')
@@ -1050,21 +1058,38 @@ async function run() {
       const productId = prodRes.rows[0].id;
       totalProducts++;
 
-      const sku = genSku('GLASS', code, size);
-      const variantName = `${code} ${pattern} ${size}`;
-      const sellBy = sf ? 'sqft' : 'unit';
-      const skuId = await upsertSku(client, {
-        productId, vendorSku: sku, variantName, sellBy, variantType: 'mosaic',
-      });
-      totalMosaicSkus++;
-      await upsertPricing(client, skuId, cost, sellBy);
-      totalPricing++;
-      if (await upsertPackaging(client, skuId, pcs, sf, plt, sfPlt)) totalPkg++;
-      await upsertAttr(client, skuId, 'size', size);
-      await upsertAttr(client, skuId, 'material', 'Glass');
-      // No color attribute for glass mosaics — each code is its own product
+      for (const [code, pattern, size, pcs, sf, plt, sfPlt, cost] of items) {
+        const sku = genSku('GLASS', code, size);
+        const variantName = `${code} ${pattern} ${size}`;
+        const sellBy = sf ? 'box' : 'unit';
+        const priceBasis = sf ? 'sqft' : 'unit';
+        const skuId = await upsertSku(client, {
+          productId, vendorSku: sku, variantName, sellBy, variantType: 'mosaic',
+        });
+        totalMosaicSkus++;
+        await upsertPricing(client, skuId, cost, priceBasis);
+        totalPricing++;
+        if (await upsertPackaging(client, skuId, pcs, sf, plt, sfPlt)) totalPkg++;
+        await upsertAttr(client, skuId, 'size', size);
+        await upsertAttr(client, skuId, 'material', 'Glass');
 
-      console.log(`  ${code}: ${pattern} ${size}`);
+        console.log(`  ${prodName} → ${code}: ${pattern} ${size}`);
+      }
+    }
+
+    // Clean up old per-code glass mosaic products (e.g. "Glass Stone Mosaic GM101")
+    // First remove media_assets, then delete the orphaned products
+    const oldProductIds = await client.query(`
+      SELECT id, name FROM products
+      WHERE vendor_id = $1 AND collection = 'Goton Glass Mosaics'
+        AND name ~ ' (GM|GML|GMH)[0-9]+$'
+        AND NOT EXISTS (SELECT 1 FROM skus WHERE skus.product_id = products.id)
+    `, [vendorId]);
+    if (oldProductIds.rowCount > 0) {
+      const ids = oldProductIds.rows.map(r => r.id);
+      await client.query(`DELETE FROM media_assets WHERE product_id = ANY($1)`, [ids]);
+      await client.query(`DELETE FROM products WHERE id = ANY($1)`, [ids]);
+      console.log(`  Cleaned up ${oldProductIds.rowCount} old per-code products`);
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1086,7 +1111,7 @@ async function run() {
         const sku = genSku('VETRO', `${code}-${desc.substring(0, 4).toUpperCase()}`, size);
         const variantName = `${colorName} ${code} ${desc} ${size}`;
         const skuId = await upsertSku(client, {
-          productId: vetroProductId, vendorSku: sku, variantName, sellBy: 'sqft', variantType: null,
+          productId: vetroProductId, vendorSku: sku, variantName, sellBy: 'box', variantType: null,
         });
         totalSkus++;
         await upsertPricing(client, skuId, cost, 'sqft');
