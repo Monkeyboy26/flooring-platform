@@ -5850,31 +5850,8 @@
                 </div>
               )}
 
-              {/* Sqft entry without box calculator (no packaging data, non-sheet-vinyl) */}
-              {!isCarpetSku && !isSheetVinyl && isSqftNoBox && effectivePrice > 0 && (
-                <div className="calculator-widget">
-                  <h3>Order by Square Footage</h3>
-                  <div className="calc-input-row">
-                    <div className="calc-input-group" style={{ flex: 1 }}>
-                      <label>Square Feet Needed</label>
-                      <input className="calc-input" type="number" min="0" step="1" placeholder="Enter sqft"
-                        value={sqftInput} onChange={(e) => setSqftInput(e.target.value)} />
-                    </div>
-                  </div>
-                  {parseFloat(sqftInput) > 0 && (
-                    <div className="calc-summary">
-                      <div className="calc-summary-total"><span>Subtotal</span><span>${sqftOnlySubtotal.toFixed(2)}</span></div>
-                    </div>
-                  )}
-                  <button className="btn" style={{ width: '100%', marginTop: '1.5rem' }}
-                    onClick={handleAddToCart} disabled={!(parseFloat(sqftInput) > 0)}>
-                    Add to Cart {parseFloat(sqftInput) > 0 ? `- $${sqftOnlySubtotal.toFixed(2)}` : ''}
-                  </button>
-                </div>
-              )}
-
-              {/* Per-unit add to cart (slabs, mosaics, etc.) */}
-              {isPerUnit && slabMissingSize && (
+              {/* Per-unit inquiry (slabs missing size, or no pricing) */}
+              {isPerUnit && (slabMissingSize || effectivePrice <= 0) && (
                 <div className="unit-add-to-cart">
                   <div style={{ background: 'var(--stone-50, #fafaf9)', border: '1px solid var(--stone-200, #e7e5e4)', borderRadius: 8, padding: '1.25rem', textAlign: 'center' }}>
                     <p style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '0.95rem', color: 'var(--stone-800, #292524)' }}>Slab — Please Inquire</p>
@@ -5888,7 +5865,7 @@
                   </div>
                 </div>
               )}
-              {isPerUnit && !slabMissingSize && (
+              {isPerUnit && !slabMissingSize && effectivePrice > 0 && (
                 <div className="unit-add-to-cart">
                   <div className="unit-qty-row">
                     <span className="unit-qty-label">Quantity</span>
@@ -5907,7 +5884,7 @@
               )}
 
               {/* Call for Price & Stock — shown when no pricing is available */}
-              {!isCarpetSku && !isPerUnit && effectivePrice <= 0 && (
+              {!isCarpetSku && !isPerUnit && (effectivePrice <= 0 || (sqftPerBox <= 0 && !isSheetVinyl)) && (
                 <div style={{ background: 'var(--stone-50, #fafaf9)', border: '1px solid var(--stone-200, #e7e5e4)', borderRadius: 8, padding: '1.25rem', textAlign: 'center' }}>
                   <p style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '0.95rem', color: 'var(--stone-800, #292524)' }}>Call for Price &amp; Stock</p>
                   <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--stone-600, #57534e)', lineHeight: 1.5 }}>
