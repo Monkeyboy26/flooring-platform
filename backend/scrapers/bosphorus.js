@@ -202,6 +202,12 @@ export async function run(pool, job, source) {
             }
           }
 
+          // If no swatch and no product shots, promote first lifestyle to product shot
+          // so it can serve as the primary image
+          if (!swatchUrl && sliderProductShots.length === 0 && sliderLifestyle.length > 0) {
+            sliderProductShots.push(sliderLifestyle.shift());
+          }
+
           // ── Product-level images ──
           let productSortOrder = 0;
 
