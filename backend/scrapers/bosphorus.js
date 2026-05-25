@@ -83,39 +83,47 @@ export async function run(pool, job, source) {
 
   // ── Phase 1: Collect product detail URLs from listing pages ──
 
+  // Single-product debug mode: set BOSPHORUS_SINGLE_PRODUCT=slug to scrape one product
+  const singleProduct = process.env.BOSPHORUS_SINGLE_PRODUCT;
+
   await appendLog(pool, job.id, 'Phase 1: Collecting product URLs from listing pages...');
 
   const productUrls = [];
   const seenSlugs = new Set();
 
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    try {
-      const listUrl = `${BASE_URL}/products?page=${page}`;
-      const resp = await fetchWithRetry(listUrl, cookies);
-      const html = await resp.text();
+  if (singleProduct) {
+    productUrls.push(`${BASE_URL}/product-detail/${singleProduct}`);
+    await appendLog(pool, job.id, `Single-product mode: ${singleProduct}`);
+  } else {
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      try {
+        const listUrl = `${BASE_URL}/products?page=${page}`;
+        const resp = await fetchWithRetry(listUrl, cookies);
+        const html = await resp.text();
 
-      const links = extractProductLinks(html);
-      if (links.length === 0) break;
+        const links = extractProductLinks(html);
+        if (links.length === 0) break;
 
-      for (const link of links) {
-        const slug = link.replace(/.*\/product-detail\//, '');
-        if (seenSlugs.has(slug)) continue;
-        seenSlugs.add(slug);
-        productUrls.push(link.startsWith('http') ? link : `${BASE_URL}${link}`);
+        for (const link of links) {
+          const slug = link.replace(/.*\/product-detail\//, '');
+          if (seenSlugs.has(slug)) continue;
+          seenSlugs.add(slug);
+          productUrls.push(link.startsWith('http') ? link : `${BASE_URL}${link}`);
+        }
+
+        await appendLog(pool, job.id, `Page ${page}: found ${links.length} links (${productUrls.length} total unique)`);
+
+        // Check if there's a next page
+        const nextPagePattern = new RegExp(`page=${page + 1}`);
+        if (!nextPagePattern.test(html)) break;
+
+        await delay(config.delayMs);
+      } catch (err) {
+        await appendLog(pool, job.id, `ERROR fetching listing page ${page}: ${err.message}`);
+        await addJobError(pool, job.id, `Listing page ${page}: ${err.message}`);
+        stats.errors++;
+        break;
       }
-
-      await appendLog(pool, job.id, `Page ${page}: found ${links.length} links (${productUrls.length} total unique)`);
-
-      // Check if there's a next page
-      const nextPagePattern = new RegExp(`page=${page + 1}`);
-      if (!nextPagePattern.test(html)) break;
-
-      await delay(config.delayMs);
-    } catch (err) {
-      await appendLog(pool, job.id, `ERROR fetching listing page ${page}: ${err.message}`);
-      await addJobError(pool, job.id, `Listing page ${page}: ${err.message}`);
-      stats.errors++;
-      break;
     }
   }
 
@@ -165,21 +173,73 @@ export async function run(pool, job, source) {
           else stats.updated++;
           touchedProductIds.push(product.id);
 
-          // Collect color-specific images from variant carousel mapping
-          const colorImages = getColorImagesFromVariants(
+          // ── Resolve swatch image for this color ──
+          const colorId = variants[0]?.colorId;
+          const swatchEntry = colorId ? productData.swatchImagesByColorId.get(colorId) : null;
+          let swatchUrl = null;
+          if (swatchEntry) {
+            // Prefer full-size; fall back to thumbnail
+            swatchUrl = swatchEntry.full || swatchEntry.thumb;
+          }
+
+          // ── Collect slider images for this color and classify ──
+          const sliderImages = getColorSliderImages(
             productData.imagesByVariantId, variants, productData.images, colorName
           );
 
-          // Product-level images (from color-specific carousel images, already sorted by preferProductShot)
-          for (let gi = 0; gi < colorImages.length && gi < 12; gi++) {
-            const assetType = gi === 0 ? 'primary' : 'alternate';
+          // Separate slider images into product shots vs lifestyle, excluding
+          // any that duplicate the swatch URL
+          const swatchBase = swatchUrl ? swatchUrl.split('?')[0] : null;
+          const sliderProductShots = [];
+          const sliderLifestyle = [];
+          for (const img of sliderImages) {
+            const imgBase = img.split('?')[0];
+            if (swatchBase && imgBase === swatchBase) continue; // skip duplicate of swatch
+            if (isLifestyleUrl(img)) {
+              sliderLifestyle.push(img);
+            } else {
+              sliderProductShots.push(img);
+            }
+          }
+
+          // ── Product-level images ──
+          let productSortOrder = 0;
+
+          // Primary: swatch image
+          if (swatchUrl) {
             await upsertMediaAsset(pool, {
               product_id: product.id,
               sku_id: null,
-              asset_type: assetType,
-              url: colorImages[gi],
-              original_url: colorImages[gi],
-              sort_order: gi,
+              asset_type: 'primary',
+              url: swatchUrl,
+              original_url: swatchUrl,
+              sort_order: productSortOrder++,
+            });
+            stats.imagesSet++;
+          }
+
+          // Alternate: slider product shots
+          for (const img of sliderProductShots) {
+            await upsertMediaAsset(pool, {
+              product_id: product.id,
+              sku_id: null,
+              asset_type: swatchUrl ? 'alternate' : (productSortOrder === 0 ? 'primary' : 'alternate'),
+              url: img,
+              original_url: img,
+              sort_order: productSortOrder++,
+            });
+            stats.imagesSet++;
+          }
+
+          // Lifestyle: slider lifestyle images
+          for (let li = 0; li < sliderLifestyle.length; li++) {
+            await upsertMediaAsset(pool, {
+              product_id: product.id,
+              sku_id: null,
+              asset_type: 'lifestyle',
+              url: sliderLifestyle[li],
+              original_url: sliderLifestyle[li],
+              sort_order: li,
             });
             stats.imagesSet++;
           }
@@ -295,20 +355,42 @@ export async function run(pool, job, source) {
               stats.pricingSet++;
             }
 
-            // SKU-level images: match images to this SKU by size + finish in filename
-            if (colorImages.length > 0) {
-              const skuImages = pickSkuImages(colorImages, sizeNorm, v.finish);
-              for (let si = 0; si < skuImages.length; si++) {
-                const assetType = si === 0 ? 'primary' : 'alternate';
-                await upsertMediaAsset(pool, {
-                  product_id: product.id,
-                  sku_id: sku.id,
-                  asset_type: assetType,
-                  url: skuImages[si],
-                  original_url: skuImages[si],
-                  sort_order: si,
-                });
-                stats.imagesSet++;
+            // SKU-level primary image: swatch
+            let skuSortOrder = 0;
+            if (swatchUrl) {
+              await upsertMediaAsset(pool, {
+                product_id: product.id,
+                sku_id: sku.id,
+                asset_type: 'primary',
+                url: swatchUrl,
+                original_url: swatchUrl,
+                sort_order: skuSortOrder++,
+              });
+              stats.imagesSet++;
+            }
+
+            // SKU-level dispersed images: round-robin from slider pool
+            // Product shots → alternate, lifestyle → lifestyle
+            const allSliderForDispersal = [
+              ...sliderProductShots.map(u => ({ url: u, type: 'alternate' })),
+              ...sliderLifestyle.map(u => ({ url: u, type: 'lifestyle' })),
+            ];
+            if (allSliderForDispersal.length > 0) {
+              // Each SKU gets images at indices where (idx % totalSkus) === vi
+              const totalSkus = variants.length;
+              for (let si = 0; si < allSliderForDispersal.length; si++) {
+                if (si % totalSkus === vi) {
+                  const entry = allSliderForDispersal[si];
+                  await upsertMediaAsset(pool, {
+                    product_id: product.id,
+                    sku_id: sku.id,
+                    asset_type: (!swatchUrl && skuSortOrder === 0) ? 'primary' : entry.type,
+                    url: entry.url,
+                    original_url: entry.url,
+                    sort_order: skuSortOrder++,
+                  });
+                  stats.imagesSet++;
+                }
               }
             }
           }
@@ -457,6 +539,7 @@ function parseDetailPage(html, url) {
     finishes: [],      // { id, text }
     images: [],        // full URLs (collection-level)
     imagesByVariantId: new Map(), // variant productId → [full-size image URLs]
+    swatchImagesByColorId: new Map(), // color attrVal → { full: URL|null, thumb: URL }
     specs: {},
   };
 
@@ -630,6 +713,26 @@ function parseDetailPage(html, url) {
   // Sort images: product shots first
   result.images = preferProductShot(result.images);
 
+  // ── Parse color swatch background-image URLs ──
+  // Swatches are inline styles on <span> inside <label data-product-attribute-value="NNN">
+  // e.g. style="background-image: url('https://.../attribute-option-value/7592/Ostuni.jpg?v=...')"
+  // The color ID is extracted from the URL path (/attribute-option-value/{colorId}/...) rather
+  // than from the parent label, since the lazy regex can span across label boundaries.
+  const swatchRegex = /style="background-image:\s*url\('?(https?:\/\/[^'")\s]+attribute-option-value\/(\d+)\/[^'")\s]+)'?\);?"/g;
+  let swMatch;
+  while ((swMatch = swatchRegex.exec(html)) !== null) {
+    const rawUrl = normalizeImgUrl(swMatch[1]);
+    const colorId = swMatch[2];
+    if (result.swatchImagesByColorId.has(colorId)) continue; // first occurrence wins
+    const filename = rawUrl.split('/').pop().split('?')[0];
+    if (filename.startsWith('th-')) {
+      const fullUrl = rawUrl.replace(/\/th-([^/?]+)/, '/$1');
+      result.swatchImagesByColorId.set(colorId, { full: fullUrl, thumb: rawUrl });
+    } else {
+      result.swatchImagesByColorId.set(colorId, { full: rawUrl, thumb: null });
+    }
+  }
+
   return result;
 }
 
@@ -784,16 +887,15 @@ function groupVariantsByColor(productData) {
 // ─── Image helpers ────────────────────────────────────────────────────────────
 
 /**
- * Get images for a specific color by collecting images from the carousel
- * thumbnail → variant mapping. Each carousel image is associated with a
- * specific variant product ID via data-product-id. We collect images from
- * all variants of the same color.
+ * Get slider images for a specific color by collecting images from the carousel
+ * variant mapping. Each carousel image is associated with a specific variant
+ * product ID via its URL path. We collect images from all variants of the same color.
  *
- * Falls back to URL-based matching, then all images if no mapping exists.
+ * Returns raw slider images (no reordering) — caller handles classification.
+ * Falls back to filename-based color matching, then all images.
  */
-function getColorImagesFromVariants(imagesByVariantId, colorVariants, allImages, colorName) {
-  // Use carousel matching only if multiple product-ids exist.
-  // A single product-id means a "flat" carousel with no per-variant mapping.
+function getColorSliderImages(imagesByVariantId, colorVariants, allImages, colorName) {
+  // 1. Variant ID mapping (most reliable — carousel images keyed by variant product ID)
   if (imagesByVariantId && imagesByVariantId.size > 1) {
     const colorImgs = [];
     const seenBases = new Set();
@@ -809,72 +911,67 @@ function getColorImagesFromVariants(imagesByVariantId, colorVariants, allImages,
         }
       }
     }
-    if (colorImgs.length > 0) return preferProductShot(colorImgs, colorName);
+    if (colorImgs.length > 0) return colorImgs;
   }
 
-  // URL-based matching with cascading specificity (most strict → least strict)
-  if (allImages && allImages.length > 0) {
+  // 2. Filename-based color matching (fallback for pages without per-variant image mapping)
+  if (allImages && allImages.length > 0 && colorName) {
     const colorLower = colorName.toLowerCase();
     const colorSlug = colorLower.replace(/[^a-z0-9]+/g, '');
     const colorWords = colorLower.split(/[^a-z0-9]+/).filter(w => w.length >= 3);
     const numMatch = colorName.match(/^(\d+)\s/);
     const colorNum = numMatch ? numMatch[1] : null;
     const isColorMix = colorLower.includes('mix');
-    let matched;
 
-    // Helper: check if a word appears as a whole segment in a filename
-    // (split on _ and -) to prevent "abi" matching inside "sabi"
     const fnHasWord = (fn, word) => {
       const segments = fn.split(/[_\-]+/);
       return segments.some(seg => seg === word || seg.startsWith(word + 's'));
     };
-
-    // Helper: exclude mix images when matching non-mix colors, and vice versa.
-    // Prevents "mio_mix_crayonsand_fog__46231.jpg" from matching plain "Fog".
     const isMixImage = (fn) => fnHasWord(fn, 'mix');
     const mixFilter = (url) => {
       const fn = url.split('/').pop().split('?')[0].toLowerCase();
-      if (isColorMix) return true;           // Mix color: allow all images
-      return !isMixImage(fn);                // Non-mix color: exclude mix images
+      return isColorMix || !isMixImage(fn);
     };
 
-    // 1. Full slug match (e.g., "amibasalt" in filename)
+    let matched;
+
+    // Full slug match (e.g., "amibasalt" in filename)
     matched = allImages.filter(url => {
       const fn = url.split('/').pop().split('?')[0].toLowerCase();
       return (fn.includes(colorSlug) || fn.includes(colorLower.replace(/\s+/g, '-'))) && mixFilter(url);
     });
-    if (matched.length > 0) return preferProductShot(matched, colorName);
+    if (matched.length > 0) return matched;
 
-    // 2. ALL words match (AND logic, word-boundary) — most precise for multi-word names
+    // ALL words match (AND logic, word-boundary)
     if (colorWords.length >= 2) {
       matched = allImages.filter(url => {
         const fn = url.split('/').pop().split('?')[0].toLowerCase();
         return colorWords.every(w => fnHasWord(fn, w)) && mixFilter(url);
       });
-      if (matched.length > 0) return preferProductShot(matched, colorName);
+      if (matched.length > 0) return matched;
     }
 
-    // 3. Number prefix match (e.g., "style_1__" for "1 Ravello")
+    // Number prefix match (e.g., "style_1__" for "1 Ravello")
     if (colorNum) {
       matched = allImages.filter(url => {
         const fn = url.split('/').pop().split('?')[0].toLowerCase();
         const numPattern = new RegExp(`[_\\-]${colorNum}[_\\-]|^${colorNum}[_\\-]|[_\\-]${colorNum}\\b`);
         return numPattern.test(fn) && mixFilter(url);
       });
-      if (matched.length > 0) return preferProductShot(matched, colorName);
+      if (matched.length > 0) return matched;
     }
 
-    // 4. ANY word match (OR logic, word-boundary) — least strict, last URL-based attempt
+    // ANY word match (OR logic, word-boundary)
     if (colorWords.length > 0) {
       matched = allImages.filter(url => {
         const fn = url.split('/').pop().split('?')[0].toLowerCase();
         return colorWords.some(w => fnHasWord(fn, w)) && mixFilter(url);
       });
-      if (matched.length > 0) return preferProductShot(matched, colorName);
+      if (matched.length > 0) return matched;
     }
   }
 
-  // Last resort: shared images (capped at 3)
+  // 3. Last resort: shared images (capped at 3)
   return (allImages || []).slice(0, 3);
 }
 
