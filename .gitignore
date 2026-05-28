@@ -12,3 +12,20 @@ minio_data/
 backend/_cache/
 flooring_pim.db
 *.db
+
+# Temp/debug scripts (underscore-prefixed = scratch work)
+backend/scripts/_*
+backend/explore*
+backend/check-*
+backend/simulate-*
+backend/m[0-9]*.cjs
+backend/_paradigm-*
+
+# Temp audit HTML pages
+frontend/ely-*.html
+frontend/bellezza-*.html
+frontend/elysium-check.html
+
+# Temp data files
+backend/data/*.pdf
+backend/data/*.csv
