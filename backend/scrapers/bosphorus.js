@@ -20,7 +20,7 @@ import { bosphorusLogin, bosphorusLoginFromCookies, bosphorusFetch } from './bos
  * variant_groups (Price, PriceData.net_price, PriceData.price).
  *
  * Product → SKU mapping:
- *   Collection (series) → Product (per color) → SKU (per color+size+finish)
+ *   Collection (series) → Product (per size+finish) → SKU (per color)
  */
 
 const BASE_URL = 'https://www.bosphorusimports.com';
@@ -28,6 +28,8 @@ const VENDOR_CODE = 'BOS';
 const MAX_PAGES = 10; // safety limit
 const DEFAULT_DELAY_MS = 800;
 
+// Bosphorus website category labels → PIM category slugs.
+// All Bosphorus products are porcelain; "marble", "limestone", etc. are looks, not materials.
 const CATEGORY_MAP = {
   'wood look':      'porcelain-tile',
   'marble look':    'porcelain-tile',
@@ -39,13 +41,12 @@ const CATEGORY_MAP = {
   'subway look':    'backsplash-tile',
   'picket look':    'backsplash-tile',
   'hexagon look':   'porcelain-tile',
-  'mosaic':         'mosaic-tile',
   'paver':          'pavers',
-  'natural stone':  'natural-stone',
-  'marble':         'natural-stone',
-  'travertine':     'natural-stone',
-  'limestone':      'natural-stone',
+  'fluted':         'fluted-tile',
 };
+
+// Collections explicitly known to be mosaics (small-format pattern tiles)
+const MOSAIC_COLLECTIONS = new Set(['frammenti', 'boutique', 'marvel']);
 
 export async function run(pool, job, source) {
   const config = { delayMs: DEFAULT_DELAY_MS, ...(source.config || {}) };
@@ -149,20 +150,90 @@ export async function run(pool, job, source) {
         continue;
       }
 
-      // Clean collection name: strip trailing slashes, normalize whitespace
-      productData.name = productData.name.replace(/\s*\/\s*$/, '').trim();
+      // Clean collection name: strip trailing slashes, replace underscores, normalize whitespace
+      productData.name = productData.name
+        .replace(/\s*\/\s*$/, '')
+        .replace(/_/g, ' ')
+        .trim();
 
       // Resolve PIM category
       const { id: categoryId, slug: catSlug } = resolveCategory(productData, categoryLookup);
 
-      // Group variants by color → one product per color
+      // Handle no-variant case: populate from seriesColors if available
+      if (productData.variants.length === 0) {
+        const colors = productData.specs.seriesColors
+          ? productData.specs.seriesColors.split(',').map(c => c.trim()).filter(Boolean)
+          : [];
+        if (colors.length === 0) {
+          stats.skipped++;
+          continue;
+        }
+        for (const color of colors) {
+          productData.variants.push({
+            color, colorId: null, sizeId: null, finishId: null,
+            size: null, sizeLabel: '', finish: null,
+            vendorSku: productData.defaultSku,
+            stockStatus: productData.availability?.includes('InStock') ? 2 : 0,
+            totalStock: '0', price: 0, listPrice: 0, netPrice: 0,
+            areaNetPrice: 0, areaListPrice: 0, productId: null,
+          });
+        }
+      }
+
+      // Inherit finish for variants that failed to extract one.
+      // If the page has a single finish option, or all non-null finishes agree,
+      // apply that finish to variants missing it for naming consistency.
+      const hasNullFinish = productData.variants.some(v => !v.finish);
+      if (hasNullFinish) {
+        let defaultFinish = null;
+        if (productData.finishes.length === 1) {
+          defaultFinish = productData.finishes[0].text;
+        } else {
+          const finishCounts = new Map();
+          for (const v of productData.variants) {
+            if (v.finish) finishCounts.set(v.finish, (finishCounts.get(v.finish) || 0) + 1);
+          }
+          if (finishCounts.size === 1) {
+            defaultFinish = finishCounts.keys().next().value;
+          }
+        }
+        if (defaultFinish) {
+          for (const v of productData.variants) {
+            if (!v.finish) v.finish = defaultFinish;
+          }
+        }
+      }
+
+      // Group by color (sets _rawColor, used for image lookup)
       const colorGroups = groupVariantsByColor(productData);
 
-      for (const [colorName, variants] of colorGroups) {
+      // Group by size+finish (for product creation — one product per size+finish)
+      const sizeFinishGroups = groupVariantsBySizeFinish(productData);
+
+      if (sizeFinishGroups.size === 0) {
+        stats.skipped++;
+        continue;
+      }
+
+      for (const [groupKey, group] of sizeFinishGroups) {
+        const { sizeNorm, finish, isAccessory, accessoryType, colorVariants } = group;
+
         try {
+          // Build product name: "12x24, Matte" or "3x24, Matte (Bullnose)"
+          let productName = buildVariantName(sizeNorm, finish);
+          if (accessoryType) productName += ` (${accessoryType})`;
+          if (!productName) productName = productData.name;
+
+          // Determine sell_by from size (same for all colors in this group)
+          const firstVariant = [...colorVariants.values()][0];
+          const sellBy = isAccessory ? 'unit'
+            : catSlug === 'mosaic-tile' ? 'unit'
+            : determineSellBy(firstVariant.size, firstVariant.sizeLabel);
+
+          // UPSERT PRODUCT (one per size+finish combo)
           const product = await upsertProduct(pool, {
             vendor_id,
-            name: colorName,
+            name: productName,
             collection: productData.name,
             category_id: categoryId,
             description_short: cleanDescription(productData.description)?.slice(0, 255) || null,
@@ -173,140 +244,87 @@ export async function run(pool, job, source) {
           else stats.updated++;
           touchedProductIds.push(product.id);
 
-          // ── Resolve swatch image for this color ──
-          const colorId = variants[0]?.colorId;
-          const swatchEntry = colorId ? productData.swatchImagesByColorId.get(colorId) : null;
-          let swatchUrl = null;
-          if (swatchEntry) {
-            // Prefer full-size; fall back to thumbnail
-            swatchUrl = swatchEntry.full || swatchEntry.thumb;
-          }
+          // ── Product-level images ──
+          // Only color-NEUTRAL images go to product level (safe for any SKU gallery).
+          // Use getColorSliderImages itself to determine which images are claimed by
+          // specific colors — any image claimed by SOME but not ALL colors is color-specific.
+          const colors = [...colorVariants.entries()];
+          const ownImages = filterOwnCollectionImages(productData.images, productData.name);
 
-          // ── Collect slider images for this color and classify ──
-          const sliderImages = getColorSliderImages(
-            productData.imagesByVariantId, variants, productData.images, colorName
-          );
-
-          // Separate slider images into product shots vs lifestyle, excluding
-          // any that duplicate the swatch URL
-          const swatchBase = swatchUrl ? swatchUrl.split('?')[0] : null;
-          const sliderProductShots = [];
-          const sliderLifestyle = [];
-          for (const img of sliderImages) {
-            const imgBase = img.split('?')[0];
-            if (swatchBase && imgBase === swatchBase) continue; // skip duplicate of swatch
-            if (isLifestyleUrl(img)) {
-              sliderLifestyle.push(img);
-            } else {
-              sliderProductShots.push(img);
+          // Collect images claimed by each color via the same logic used for SKU-level assignment
+          const colorCount = colorGroups.size;
+          const claimedBases = new Map(); // base → count of colors that claim it
+          for (const [cn, variants] of colorGroups) {
+            const rawColor = variants[0]?._rawColor || cn;
+            const claimed = getColorSliderImages(
+              productData.imagesByVariantId, variants, productData.images, rawColor
+            );
+            const seenInColor = new Set();
+            for (const img of claimed) {
+              const base = img.split('?')[0];
+              if (!seenInColor.has(base)) {
+                seenInColor.add(base);
+                claimedBases.set(base, (claimedBases.get(base) || 0) + 1);
+              }
             }
           }
 
-          // If no swatch and no product shots, promote first lifestyle to product shot
-          // so it can serve as the primary image
-          if (!swatchUrl && sliderProductShots.length === 0 && sliderLifestyle.length > 0) {
-            sliderProductShots.push(sliderLifestyle.shift());
-          }
+          // An image is neutral if: NOT claimed by any color, OR claimed by ALL colors
+          const neutralImages = ownImages.filter(url => {
+            const base = url.split('?')[0];
+            const count = claimedBases.get(base) || 0;
+            return count === 0 || count === colorCount;
+          });
 
-          // ── Product-level images ──
+          const relevantNeutral = pickSkuImages(neutralImages, sizeNorm, finish);
+          const firstSwatchEntry = firstVariant.colorId
+            ? productData.swatchImagesByColorId.get(firstVariant.colorId) : null;
+          const { productShots: sliderProductShots, lifestyle: sliderLifestyle } =
+            classifySliderImages(relevantNeutral, null);
+
           let productSortOrder = 0;
+          const productPrimaryUrl = sliderProductShots[0];
 
-          // Primary: swatch image
-          if (swatchUrl) {
+          if (productPrimaryUrl) {
             await upsertMediaAsset(pool, {
-              product_id: product.id,
-              sku_id: null,
-              asset_type: 'primary',
-              url: swatchUrl,
-              original_url: swatchUrl,
+              product_id: product.id, sku_id: null,
+              asset_type: 'primary', url: productPrimaryUrl, original_url: productPrimaryUrl,
               sort_order: productSortOrder++,
             });
             stats.imagesSet++;
           }
-
-          // Alternate: slider product shots
-          for (const img of sliderProductShots) {
+          for (let si = 1; si < sliderProductShots.length; si++) {
             await upsertMediaAsset(pool, {
-              product_id: product.id,
-              sku_id: null,
-              asset_type: swatchUrl ? 'alternate' : (productSortOrder === 0 ? 'primary' : 'alternate'),
-              url: img,
-              original_url: img,
-              sort_order: productSortOrder++,
+              product_id: product.id, sku_id: null,
+              asset_type: 'alternate', url: sliderProductShots[si],
+              original_url: sliderProductShots[si], sort_order: productSortOrder++,
             });
             stats.imagesSet++;
           }
-
-          // Lifestyle: slider lifestyle images
           for (let li = 0; li < sliderLifestyle.length; li++) {
             await upsertMediaAsset(pool, {
-              product_id: product.id,
-              sku_id: null,
-              asset_type: 'lifestyle',
-              url: sliderLifestyle[li],
-              original_url: sliderLifestyle[li],
-              sort_order: li,
+              product_id: product.id, sku_id: null,
+              asset_type: 'lifestyle', url: sliderLifestyle[li],
+              original_url: sliderLifestyle[li], sort_order: li,
             });
             stats.imagesSet++;
           }
+          // No fallback — if all images are color-specific, product level stays empty.
+          // Each SKU has its own swatch + variant-matched images; supplementation with
+          // a wrong-color swatch is worse than no product-level image.
 
-          // Upsert each variant as a SKU
-          for (let vi = 0; vi < variants.length; vi++) {
-            const v = variants[vi];
+          // ── For each COLOR in this size+finish group, create a SKU ──
+          for (let ci = 0; ci < colors.length; ci++) {
+            const [colorName, v] = colors[ci];
 
-            // Strip trailing finish/type text from size (e.g., "12"x24" Matte" → "12"x24"")
-            const sizeClean = (v.size || '').replace(/\s+(Matte|Polished|Honed|Satin|Glossy|Natural|Textured|Grip|Rough|Lappato).*$/i, '');
-            const sizeNorm = normalizeSize(sizeClean);
-
-            // ── Accessory detection ──
-            // 1. Keyword-based: finish or size label contains jolly, bullnose, etc.
-            const finishLower = (v.finish || '').toLowerCase();
-            const sizeLabelLower = (v.sizeLabel || '').toLowerCase();
-            const accessoryKeywords = /\b(jolly|bullnose|pencil|liner|trim|molding|ogee|rope\s*liner|crown\s*molding|quarter\s*round)\b/i;
-            const hasKeywordInFinish = accessoryKeywords.test(finishLower);
-            const hasKeywordInSize = accessoryKeywords.test(sizeLabelLower);
-            let sizeIsSmallTrim = false;
-            if (sizeNorm) {
-              const dimMatch = sizeNorm.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
-              if (dimMatch) {
-                sizeIsSmallTrim = Math.min(parseFloat(dimMatch[1]), parseFloat(dimMatch[2])) <= 3;
-              } else {
-                sizeIsSmallTrim = !/^\d/.test(sizeNorm);
-              }
-            }
-            let isAccessory = hasKeywordInFinish || (hasKeywordInSize && sizeIsSmallTrim);
-
-            // 2. Size-based inference: Bosphorus often lists trim pieces by size alone
-            //    without labeling them as bullnose/quarter round in the finish name
-            let inferredAccessoryType = null;
-            if (!isAccessory) {
-              inferredAccessoryType = inferAccessoryType(sizeNorm, v.finish);
-              if (inferredAccessoryType) {
-                isAccessory = true;
-              }
-            }
-
-            // Build variant name — append accessory type for size-inferred accessories
-            let variantName = buildVariantName(sizeNorm, v.finish);
-            if (inferredAccessoryType) {
-              variantName += ` (${inferredAccessoryType})`;
-            }
-
-            // Mosaic category always sells per unit; accessories sell per unit; otherwise use size heuristic
-            const sellBy = isAccessory ? 'unit'
-              : catSlug === 'mosaic-tile' ? 'unit'
-              : determineSellBy(v.size, v.sizeLabel);
-
-            const internalSku = buildInternalSku(productData.name, colorName, sizeNorm, v.finish);
-
-            // Use vendorSku from variant data, or fall back to internal_sku
+            const internalSku = buildInternalSku(productData.name, sizeNorm, finish, colorName);
             const vendorSku = v.vendorSku || internalSku;
 
             const sku = await upsertSku(pool, {
               product_id: product.id,
               vendor_sku: vendorSku,
               internal_sku: internalSku,
-              variant_name: variantName,
+              variant_name: colorName,
               sell_by: sellBy,
               variant_type: isAccessory ? 'accessory' : null,
             });
@@ -325,7 +343,7 @@ export async function run(pool, job, source) {
             const attrs = [
               ['size', sizeNorm],
               ['color', colorName],
-              ['finish', v.finish],
+              ['finish', finish],
               ['material', productData.specs.material],
               ['thickness', productData.specs.thickness],
               ['country', productData.specs.origin],
@@ -338,72 +356,106 @@ export async function run(pool, job, source) {
               }
             }
 
-            // Packaging from specs (skip for mosaics — sold per sheet, not per box)
-            if ((productData.specs.sqftPerBox || productData.specs.piecesPerBox) && catSlug !== 'mosaic-tile') {
+            // Packaging — try per-size match first, then fall back to default/single packaging
+            const pkg = productData.packagingBySize.get(sizeNorm)
+              || productData.packagingBySize.get('_default')
+              || (productData.packagingBySize.size === 1
+                  ? productData.packagingBySize.values().next().value : null);
+            if (pkg && (pkg.sqftPerBox || pkg.piecesPerBox)) {
               await upsertPackaging(pool, sku.id, {
-                sqft_per_box: productData.specs.sqftPerBox || null,
-                pieces_per_box: productData.specs.piecesPerBox || null,
-                weight_per_box_lbs: productData.specs.boxWeight || null,
-                boxes_per_pallet: productData.specs.palletCount || null,
-                sqft_per_pallet: productData.specs.sqftPerPallet || null,
-                weight_per_pallet_lbs: productData.specs.palletWeight || null,
+                sqft_per_box: pkg.sqftPerBox || null,
+                pieces_per_box: pkg.piecesPerBox || null,
+                weight_per_box_lbs: pkg.boxWeight || null,
+                boxes_per_pallet: pkg.palletCount || null,
+                sqft_per_pallet: pkg.sqftPerPallet || null,
+                weight_per_pallet_lbs: pkg.palletWeight || null,
               });
               stats.packagingSet++;
             }
 
             // Pricing (requires authenticated session — v.price > 0 only when logged in)
             if (v.price > 0) {
+              let cost = v.netPrice || v.price;
+              let retailPrice = v.listPrice || null;
+              const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
+
+              if (sellBy === 'box') {
+                if (v.areaNetPrice > 0) {
+                  cost = v.areaNetPrice;
+                  retailPrice = v.areaListPrice || null;
+                } else {
+                  const sqftPerBox = (pkg && pkg.sqftPerBox) || v.sqft;
+                  if (sqftPerBox && sqftPerBox > 0) {
+                    cost = +(cost / sqftPerBox).toFixed(4);
+                    if (retailPrice) retailPrice = +(retailPrice / sqftPerBox).toFixed(4);
+                  }
+                }
+              }
+
               await upsertPricing(pool, sku.id, {
-                cost: v.netPrice || v.price,
-                retail_price: v.listPrice || null,
-                price_basis: sellBy === 'box' ? 'per_sqft' : 'per_unit',
+                cost,
+                retail_price: retailPrice,
+                price_basis: priceBasis,
               });
               stats.pricingSet++;
             }
 
-            // SKU-level primary image: swatch
+            // ── SKU-level images ──
+            // Pass ALL variants of this color (across all sizes/finishes) so that
+            // variant-ID matching works even when THIS size's productId isn't in the
+            // carousel.  colorGroups has the full list keyed by color name.
+            const rawColorForImages = v._rawColor || colorName;
+            const allColorVariants = colorGroups.get(colorName) || [v];
+            const colorSliderImages = getColorSliderImages(
+              productData.imagesByVariantId, allColorVariants, productData.images, rawColorForImages
+            );
+            // Filter out cross-collection contamination
+            const filteredColorImages = filterOwnCollectionImages(colorSliderImages, productData.name);
+            const swatchEntry = v.colorId
+              ? productData.swatchImagesByColorId.get(v.colorId) : null;
+            const swatchUrl = swatchEntry
+              ? (swatchEntry.full || swatchEntry.thumb) : null;
+
+            const { productShots: colorShots, lifestyle: colorLifestyle } =
+              classifySliderImages(filteredColorImages, swatchEntry);
+
             let skuSortOrder = 0;
+
+            // Primary: swatch image for this color
             if (swatchUrl) {
               await upsertMediaAsset(pool, {
-                product_id: product.id,
-                sku_id: sku.id,
-                asset_type: 'primary',
-                url: swatchUrl,
-                original_url: swatchUrl,
+                product_id: product.id, sku_id: sku.id,
+                asset_type: 'primary', url: swatchUrl, original_url: swatchUrl,
                 sort_order: skuSortOrder++,
               });
               stats.imagesSet++;
             }
-
-            // SKU-level dispersed images: round-robin from slider pool
-            // Product shots → alternate, lifestyle → lifestyle
-            const allSliderForDispersal = [
-              ...sliderProductShots.map(u => ({ url: u, type: 'alternate' })),
-              ...sliderLifestyle.map(u => ({ url: u, type: 'lifestyle' })),
-            ];
-            if (allSliderForDispersal.length > 0) {
-              // Each SKU gets images at indices where (idx % totalSkus) === vi
-              const totalSkus = variants.length;
-              for (let si = 0; si < allSliderForDispersal.length; si++) {
-                if (si % totalSkus === vi) {
-                  const entry = allSliderForDispersal[si];
-                  await upsertMediaAsset(pool, {
-                    product_id: product.id,
-                    sku_id: sku.id,
-                    asset_type: (!swatchUrl && skuSortOrder === 0) ? 'primary' : entry.type,
-                    url: entry.url,
-                    original_url: entry.url,
-                    sort_order: skuSortOrder++,
-                  });
-                  stats.imagesSet++;
-                }
-              }
+            // Alternates: ONLY matched color-specific slider product shots
+            for (const img of colorShots) {
+              await upsertMediaAsset(pool, {
+                product_id: product.id, sku_id: sku.id,
+                asset_type: swatchUrl ? 'alternate' : (skuSortOrder === 0 ? 'primary' : 'alternate'),
+                url: img, original_url: img,
+                sort_order: skuSortOrder++,
+              });
+              stats.imagesSet++;
             }
+            // Lifestyle: color-specific lifestyle images
+            for (const img of colorLifestyle) {
+              await upsertMediaAsset(pool, {
+                product_id: product.id, sku_id: sku.id,
+                asset_type: 'lifestyle', url: img, original_url: img,
+                sort_order: skuSortOrder++,
+              });
+              stats.imagesSet++;
+            }
+            // NO fallback — if no match, swatch alone is sufficient.
+            // Product-level images serve as the gallery via server.js supplementation.
           }
         } catch (err) {
           stats.errors++;
           if (stats.errors <= 30) {
-            await addJobError(pool, job.id, `${productData.name} / ${colorName}: ${err.message}`);
+            await addJobError(pool, job.id, `${productData.name} / ${groupKey}: ${err.message}`);
           }
         }
       }
@@ -466,16 +518,103 @@ export async function run(pool, job, source) {
     await appendLog(pool, job.id, `Cleaned trailing slashes from ${slashClean.rowCount} product names`);
   }
 
-  // Set display_name = collection where missing
+  // Replace underscores with spaces in collection names (e.g., Re_Style → Re Style)
+  const underscoreClean = await pool.query(
+    `UPDATE products SET
+      collection = REPLACE(collection, '_', ' '),
+      updated_at = CURRENT_TIMESTAMP
+    WHERE vendor_id = $1 AND collection LIKE '%\\_%'`,
+    [vendor_id]
+  );
+  if (underscoreClean.rowCount > 0) {
+    await appendLog(pool, job.id, `Cleaned underscores from ${underscoreClean.rowCount} collection names`);
+  }
+
+  // Set display_name: "Collection Size+Finish" (e.g., "Arenite 12x24, Matte")
   const dnResult = await pool.query(
-    `UPDATE products SET display_name = collection, updated_at = CURRENT_TIMESTAMP
-    WHERE vendor_id = $1 AND (display_name IS NULL OR display_name = '')
+    `UPDATE products SET
+      display_name = CASE
+        WHEN name = collection THEN collection
+        ELSE collection || ' ' || name
+      END,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE vendor_id = $1
     AND collection IS NOT NULL AND collection != ''`,
     [vendor_id]
   );
   if (dnResult.rowCount > 0) {
     await appendLog(pool, job.id, `Set display_name on ${dnResult.rowCount} products`);
   }
+
+  // ── Phase 4: Attach accessories ──
+  // Link tile SKUs (sold by box) to accessory SKUs (variant_type = 'accessory')
+  // within the same collection, matching by Color and base Finish.
+  // In the new model, accessories are separate products (same collection, different size).
+  const accResult = await pool.query(`
+    INSERT INTO sku_accessories (parent_sku_id, accessory_sku_id, sort_order)
+    SELECT DISTINCT tile.id, acc.id,
+      CASE
+        WHEN acc_size.value LIKE '3x%' THEN 1   -- Bullnose / Surface Bullnose
+        WHEN acc_size.value LIKE '2x%' AND acc_size.value NOT IN ('2x2') THEN 2  -- Pencil Liner / Cap
+        WHEN acc_size.value LIKE '1x%' AND acc_size.value NOT IN ('1x4') THEN 3  -- Quarter Round
+        WHEN acc_size.value LIKE '1/%' OR acc_size.value LIKE '0.%' THEN 4  -- Jolly Liner (1/2x)
+        WHEN acc_size.value IN ('2x2', '1x4') THEN 6  -- Mosaic Insert
+        ELSE 5
+      END
+    FROM skus tile
+    JOIN products p ON p.id = tile.product_id
+    JOIN products p_acc ON p_acc.collection = p.collection AND p_acc.vendor_id = p.vendor_id
+    JOIN skus acc ON acc.product_id = p_acc.id
+      AND acc.variant_type = 'accessory'
+      AND acc.status = 'active'
+    -- Match by color attribute
+    JOIN sku_attributes tile_color ON tile_color.sku_id = tile.id
+    JOIN attributes a_color ON a_color.id = tile_color.attribute_id AND a_color.slug = 'color'
+    JOIN sku_attributes acc_color ON acc_color.sku_id = acc.id
+      AND acc_color.attribute_id = a_color.id
+      AND acc_color.value = tile_color.value
+    -- Match by base finish (e.g. "Subway Glossy" matches "Jolly Liner Glossy")
+    JOIN sku_attributes tile_finish ON tile_finish.sku_id = tile.id
+    JOIN attributes a_finish ON a_finish.id = tile_finish.attribute_id AND a_finish.slug = 'finish'
+    JOIN sku_attributes acc_finish ON acc_finish.sku_id = acc.id
+      AND acc_finish.attribute_id = a_finish.id
+    -- Get accessory size for sort_order
+    LEFT JOIN attributes a_size ON a_size.slug = 'size'
+    LEFT JOIN sku_attributes acc_size ON acc_size.sku_id = acc.id
+      AND acc_size.attribute_id = a_size.id
+    WHERE p.vendor_id = $1
+      AND tile.variant_type IS NULL
+      AND tile.sell_by = 'box'
+      AND tile.status = 'active'
+      AND (
+        tile_finish.value = acc_finish.value
+        OR (CASE
+          WHEN LOWER(tile_finish.value) LIKE '%glossy' THEN 'glossy'
+          WHEN LOWER(tile_finish.value) LIKE '%matte' THEN 'matte'
+          WHEN LOWER(tile_finish.value) LIKE '%natural' THEN 'natural'
+          WHEN LOWER(tile_finish.value) LIKE '%polished' THEN 'polished'
+          WHEN LOWER(tile_finish.value) LIKE '%satin' THEN 'satin'
+          WHEN LOWER(tile_finish.value) LIKE '%textured' THEN 'textured'
+          WHEN LOWER(tile_finish.value) LIKE '%r11' THEN 'r11'
+          WHEN LOWER(tile_finish.value) LIKE '%grip' THEN 'grip'
+          WHEN LOWER(tile_finish.value) LIKE '%lappato' THEN 'lappato'
+          ELSE LOWER(tile_finish.value)
+        END) = (CASE
+          WHEN LOWER(acc_finish.value) LIKE '%glossy' THEN 'glossy'
+          WHEN LOWER(acc_finish.value) LIKE '%matte' THEN 'matte'
+          WHEN LOWER(acc_finish.value) LIKE '%natural' THEN 'natural'
+          WHEN LOWER(acc_finish.value) LIKE '%polished' THEN 'polished'
+          WHEN LOWER(acc_finish.value) LIKE '%satin' THEN 'satin'
+          WHEN LOWER(acc_finish.value) LIKE '%textured' THEN 'textured'
+          WHEN LOWER(acc_finish.value) LIKE '%r11' THEN 'r11'
+          WHEN LOWER(acc_finish.value) LIKE '%grip' THEN 'grip'
+          WHEN LOWER(acc_finish.value) LIKE '%lappato' THEN 'lappato'
+          ELSE LOWER(acc_finish.value)
+        END)
+      )
+    ON CONFLICT (parent_sku_id, accessory_sku_id) DO NOTHING
+  `, [vendor_id]);
+  await appendLog(pool, job.id, `Attached ${accResult.rowCount} accessory links`);
 
   await appendLog(pool, job.id,
     `Scrape complete. Products: ${stats.created} new / ${stats.updated} updated, ` +
@@ -547,6 +686,7 @@ function parseDetailPage(html, url) {
     imagesByVariantId: new Map(), // variant productId → [full-size image URLs]
     swatchImagesByColorId: new Map(), // color attrVal → { full: URL|null, thumb: URL }
     specs: {},
+    packagingBySize: new Map(), // normalizedSize → { sqftPerBox, piecesPerBox, boxWeight, palletCount, sqftPerPallet, palletWeight }
   };
 
   // ── JSON-LD ProductGroup ──
@@ -614,6 +754,12 @@ function parseDetailPage(html, url) {
         const listPrice = val.PriceData ? (parseFloat(val.PriceData.price) || 0) : 0;
         const netPrice = val.PriceData ? (parseFloat(val.PriceData.net_price) || dealerPrice) : dealerPrice;
 
+        // Per-sqft prices from price_text (pre-computed by the website)
+        const priceTxt = val.PriceData?.price_text;
+        const parseMoney = (s) => s ? parseFloat(String(s).replace(/[^0-9.]/g, '')) || 0 : 0;
+        const areaNetPrice = parseMoney(priceTxt?.area_net_price);
+        const areaListPrice = parseMoney(priceTxt?.area_price);
+
         result.variants.push({
           colorId: ids[0] || null,
           sizeId: ids[1] || null,
@@ -627,6 +773,8 @@ function parseDetailPage(html, url) {
           price: dealerPrice,
           listPrice,
           netPrice,
+          areaNetPrice,
+          areaListPrice,
           sqft: val.SQFT ? parseFloat(val.SQFT) : null,
         });
       }
@@ -671,13 +819,79 @@ function parseDetailPage(html, url) {
       result.specs.thickness = thick;
     }
     else if (label.includes('country')) result.specs.origin = value;
-    else if (label.includes('box weight')) result.specs.boxWeight = parseFloat(value.replace(/[^0-9.]/g, '')) || null;
-    else if (label.includes('sq ft per box') || label.includes('sqft per box')) result.specs.sqftPerBox = parseFloat(value.replace(/[^0-9.]/g, '')) || null;
-    else if (label.includes('box count') || label.includes('pieces per box')) result.specs.piecesPerBox = parseInt(value) || null;
-    else if (label.includes('pallet weight')) result.specs.palletWeight = parseFloat(value.replace(/[^0-9.,]/g, '').replace(',', '')) || null;
-    else if (label.includes('sq ft per pallet') || label.includes('sqft per pallet')) result.specs.sqftPerPallet = parseFloat(value.replace(/[^0-9.]/g, '')) || null;
-    else if (label.includes('pallet count') || label.includes('boxes per pallet')) result.specs.palletCount = parseInt(value) || null;
-    else if (label.includes('minimum')) result.specs.minimumPurchase = value;
+    else if (label.includes('box weight') || label.includes('sq ft per box') || label.includes('sqft per box')
+      || label.includes('box count') || label.includes('pieces per box') || label.includes('pallet weight')
+      || label.includes('sq ft per pallet') || label.includes('sqft per pallet') || label.includes('pallet count')
+      || label.includes('boxes per pallet') || label.includes('minimum')) {
+      // Packaging fields — handled in per-size pass below
+    }
+  }
+
+  // ── Parse per-size packaging blocks ──
+  // Packaging section has repeating groups: Size header → packaging rows → next Size header → ...
+  // We re-scan the table rows, tracking the current "packaging size" context.
+  let currentPkgSize = null;
+  let currentPkg = null;
+  const specsRegex2 = /<tr[^>]*>\s*<td[^>]*>\s*([\s\S]*?)\s*<\/td>\s*<td[^>]*>\s*([\s\S]*?)\s*<\/td>\s*<\/tr>/gi;
+  let specMatch2;
+  let seenPackagingField = false;
+  while ((specMatch2 = specsRegex2.exec(html)) !== null) {
+    const label2 = stripTags(specMatch2[1]).trim().toLowerCase();
+    const value2 = stripTags(specMatch2[2]).trim();
+    if (!value2) continue;
+
+    const isPackagingField = label2.includes('box weight') || label2.includes('sq ft per box') || label2.includes('sqft per box')
+      || label2.includes('box count') || label2.includes('pieces per box') || label2.includes('pallet weight')
+      || label2.includes('sq ft per pallet') || label2.includes('sqft per pallet') || label2.includes('pallet count')
+      || label2.includes('boxes per pallet') || label2.includes('minimum');
+
+    // "size" row in PACKAGING section starts a new packaging block.
+    // The label may be just "size" or may contain preceding HTML debris (e.g., "...packaging...size")
+    // when table cells bleed across accordion sections.
+    // Distinguish from SPECIFICATIONS "Size" row (comma-separated list of all sizes)
+    // by requiring either: already seen a packaging field, OR value is a single size (no commas/and).
+    const isLabelSize = label2 === 'size' || /\bsize\s*$/.test(label2);
+    if (isLabelSize) {
+      const isSingleSize = !value2.includes(',') && !value2.toLowerCase().includes(' and ');
+      if (seenPackagingField || isSingleSize) {
+        // Flush previous block
+        if (currentPkgSize && currentPkg) {
+          result.packagingBySize.set(currentPkgSize, currentPkg);
+        }
+        currentPkgSize = normalizeSize(value2);
+        currentPkg = {};
+        continue;
+      }
+    }
+
+    if (isPackagingField) {
+      seenPackagingField = true;
+      if (!currentPkg) {
+        // Packaging without a preceding size header — use a placeholder
+        currentPkgSize = '_default';
+        currentPkg = {};
+      }
+      if (label2.includes('box weight')) currentPkg.boxWeight = parseFloat(value2.replace(/[^0-9.]/g, '')) || null;
+      else if (label2.includes('sq ft per box') || label2.includes('sqft per box')) currentPkg.sqftPerBox = parseFloat(value2.replace(/[^0-9.]/g, '')) || null;
+      else if (label2.includes('box count') || label2.includes('pieces per box')) currentPkg.piecesPerBox = parseInt(value2) || null;
+      else if (label2.includes('pallet weight')) currentPkg.palletWeight = parseFloat(value2.replace(/[^0-9.,]/g, '').replace(',', '')) || null;
+      else if (label2.includes('sq ft per pallet') || label2.includes('sqft per pallet')) currentPkg.sqftPerPallet = parseFloat(value2.replace(/[^0-9.]/g, '')) || null;
+      else if (label2.includes('pallet count') || label2.includes('boxes per pallet')) currentPkg.palletCount = parseInt(value2) || null;
+    }
+  }
+  // Flush last block
+  if (currentPkgSize && currentPkg) {
+    result.packagingBySize.set(currentPkgSize, currentPkg);
+  }
+  // Backward compat: populate scalar specs from first packaging block (for products with single-size packaging)
+  if (result.packagingBySize.size > 0) {
+    const first = result.packagingBySize.values().next().value;
+    result.specs.sqftPerBox = first.sqftPerBox || null;
+    result.specs.piecesPerBox = first.piecesPerBox || null;
+    result.specs.boxWeight = first.boxWeight || null;
+    result.specs.palletCount = first.palletCount || null;
+    result.specs.sqftPerPallet = first.sqftPerPallet || null;
+    result.specs.palletWeight = first.palletWeight || null;
   }
 
   // ── Parse product images and map to variant IDs ──
@@ -721,15 +935,17 @@ function parseDetailPage(html, url) {
 
   // ── Parse color swatch background-image URLs ──
   // Swatches are inline styles on <span> inside <label data-product-attribute-value="NNN">
-  // e.g. style="background-image: url('https://.../attribute-option-value/7592/Ostuni.jpg?v=...')"
-  // The color ID is extracted from the URL path (/attribute-option-value/{colorId}/...) rather
-  // than from the parent label, since the lazy regex can span across label boundaries.
-  const swatchRegex = /style="background-image:\s*url\('?(https?:\/\/[^'")\s]+attribute-option-value\/(\d+)\/[^'")\s]+)'?\);?"/g;
+  // We extract each <label> block individually and find the background-image within it,
+  // using the label's data-product-attribute-value as the colorId (matches variant_groups keys).
+  const labelRegex = /<label[^>]*data-product-attribute-value="(\d+)"[^>]*>([\s\S]*?)<\/label>/g;
   let swMatch;
-  while ((swMatch = swatchRegex.exec(html)) !== null) {
-    const rawUrl = normalizeImgUrl(swMatch[1]);
-    const colorId = swMatch[2];
+  while ((swMatch = labelRegex.exec(html)) !== null) {
+    const colorId = swMatch[1];
     if (result.swatchImagesByColorId.has(colorId)) continue; // first occurrence wins
+    const inner = swMatch[2];
+    const bgMatch = inner.match(/style="background-image:\s*url\('?(https?:\/\/[^'")\s]+)'?\);?"/);
+    if (!bgMatch) continue;
+    const rawUrl = normalizeImgUrl(bgMatch[1]);
     const filename = rawUrl.split('/').pop().split('?')[0];
     if (filename.startsWith('th-')) {
       const fullUrl = rawUrl.replace(/\/th-([^/?]+)/, '/$1');
@@ -825,7 +1041,8 @@ function extractFromVariantName(name, field) {
 
   // Size regex that handles fractions: 3/4x5, 1/2x8, 10" 1/2x71, 12"x24", 10.25x63
   // Allows optional inch mark between integer and fraction: 10" 1/2
-  const sizePattern = /(?:\d+"?\s+)?\d+(?:\/\d+|\.\d*)?"?\s*x\s*(?:\d+"?\s+)?\d+(?:\/\d+|\.\d*)?"?/i;
+  // Negative lookahead (?![a-z]) prevents matching trailing digits before letters (e.g., "3D")
+  const sizePattern = /(?:\d+"?\s+)?\d+(?:\/\d+|\.\d*)?"?\s*x\s*(?:\d+"?\s+)?\d+(?:\/\d+|\.\d*)?"?(?![a-z])/i;
 
   if (field === 'size') {
     const sizeMatch = clean.match(sizePattern);
@@ -861,11 +1078,14 @@ function groupVariantsByColor(productData) {
   const groups = new Map();
 
   if (productData.variants.length === 0) {
-    // No variants parsed — create a single group from the collection name
-    // Use colors from specs if available
+    // No variants parsed — skip unless seriesColors provides real color names.
+    // Without real variant data (size, finish, price), creating products just
+    // produces orphan collection-parent rows with 0 usable SKUs.
     const colors = productData.specs.seriesColors
       ? productData.specs.seriesColors.split(',').map(c => c.trim()).filter(Boolean)
-      : [productData.name];
+      : [];
+
+    if (colors.length === 0) return groups; // nothing to create
 
     for (const color of colors) {
       groups.set(color, [{
@@ -882,15 +1102,149 @@ function groupVariantsByColor(productData) {
   }
 
   for (const v of productData.variants) {
-    const color = v.color || 'Default';
+    const rawColor = v.color || 'Default';
+    // Strip leading sort-order numbers: "1 Ravello" → "Ravello", "10 Sorrento" → "Sorrento"
+    const color = rawColor.replace(/^\d+\s+/, '');
+    // Preserve original for image filename matching (e.g., "8 Scala" → style_8__)
+    v._rawColor = rawColor;
     if (!groups.has(color)) groups.set(color, []);
     groups.get(color).push(v);
+  }
+
+  // Replace "Default" with the collection name when it's the only color
+  if (groups.size === 1 && groups.has('Default')) {
+    const variants = groups.get('Default');
+    groups.delete('Default');
+    groups.set(productData.name, variants);
   }
 
   return groups;
 }
 
+/**
+ * Group variants by size+finish → one product per size+finish combo.
+ * Each color within a group becomes a separate SKU.
+ * Returns Map<key, { sizeNorm, finish, isAccessory, accessoryType, colorVariants: Map<color, variant> }>
+ */
+function groupVariantsBySizeFinish(productData) {
+  const groups = new Map();
+
+  for (const v of productData.variants) {
+    const rawColor = v.color || 'Default';
+    const color = rawColor.replace(/^\d+\s+/, '');
+    v._rawColor = rawColor;
+
+    const sizeClean = (v.size || '').replace(/\s+(?:3D\s+)?(Matte|Polished|Honed|Satin|Glossy|Natural|Textured|Grip|Rough|Lappato).*$/i, '');
+    const sizeNorm = normalizeSize(sizeClean) || 'Standard';
+    const finish = v.finish || null;
+
+    // Detect accessory (same logic as before)
+    const finishLower = (finish || '').toLowerCase();
+    const sizeLabelLower = (v.sizeLabel || '').toLowerCase();
+    const accessoryKeywords = /\b(jolly|bullnose|pencil|liner|trim|molding|ogee|rope\s*liner|crown\s*molding|quarter\s*round)\b/i;
+    const hasKeywordInFinish = accessoryKeywords.test(finishLower);
+    const hasKeywordInSize = accessoryKeywords.test(sizeLabelLower);
+
+    let sizeIsSmallTrim = false;
+    if (sizeNorm) {
+      const dimMatch = sizeNorm.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
+      if (dimMatch) {
+        sizeIsSmallTrim = Math.min(parseFloat(dimMatch[1]), parseFloat(dimMatch[2])) <= 3;
+      } else {
+        sizeIsSmallTrim = !/^\d/.test(sizeNorm);
+      }
+    }
+    let isAccessory = hasKeywordInFinish || (hasKeywordInSize && sizeIsSmallTrim);
+
+    let accessoryType = null;
+    if (!isAccessory) {
+      accessoryType = inferAccessoryType(sizeNorm, finish);
+      if (accessoryType) isAccessory = true;
+    }
+
+    const key = `${sizeNorm}|${finish || ''}|${isAccessory ? (accessoryType || 'accessory') : ''}`;
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        sizeNorm, finish, isAccessory, accessoryType,
+        colorVariants: new Map(),
+      });
+    }
+    const group = groups.get(key);
+    if (!group.colorVariants.has(color)) {
+      group.colorVariants.set(color, v);
+    }
+  }
+
+  // If the only color across all groups is 'Default', replace with collection name
+  const allColorKeys = new Set();
+  for (const g of groups.values()) {
+    for (const k of g.colorVariants.keys()) allColorKeys.add(k);
+  }
+  if (allColorKeys.size === 1 && allColorKeys.has('Default')) {
+    for (const g of groups.values()) {
+      const v = g.colorVariants.get('Default');
+      g.colorVariants.delete('Default');
+      g.colorVariants.set(productData.name, v);
+    }
+  }
+
+  return groups;
+}
+
+/**
+ * Classify slider images into product shots vs lifestyle, excluding duplicates of the swatch.
+ * If no swatch and no product shots, promotes the first lifestyle image.
+ */
+function classifySliderImages(sliderImages, swatchEntry) {
+  const swatchUrl = swatchEntry ? (swatchEntry.full || swatchEntry.thumb) : null;
+  const swatchBase = swatchUrl ? swatchUrl.split('?')[0] : null;
+  const productShots = [];
+  const lifestyle = [];
+  for (const img of sliderImages) {
+    const imgBase = img.split('?')[0];
+    if (swatchBase && imgBase === swatchBase) continue;
+    if (isLifestyleUrl(img)) {
+      lifestyle.push(img);
+    } else {
+      productShots.push(img);
+    }
+  }
+  if (!swatchUrl && productShots.length === 0 && lifestyle.length > 0) {
+    productShots.push(lifestyle.shift());
+  }
+  return { productShots, lifestyle };
+}
+
 // ─── Image helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Filter image list to remove images that clearly belong to a different collection.
+ * Checks if image filename contains a different known collection's name/slug.
+ * Used to catch cross-collection contamination (e.g., Marvel images on Duality page).
+ */
+function filterOwnCollectionImages(images, collectionName) {
+  if (!images.length || !collectionName) return images;
+  const ownSlug = collectionName.toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+  const KNOWN_PREFIXES = [
+    'marvel', 'arenite', 'calypso', 'amalfi', 'duality', 'beyond', 'glocal',
+    'silverlake', 'castello', 'crayon', 'boost', 'gravel', 'holbox', 'limestone',
+    'soapstone', 'argile', 'iconica', 'vesta', 'forma', 'cusp', 'solid',
+    'geo', 'arrow', 'memory', 'pietra', 'eiche', 'fango', 'fuoritono',
+    'intreccio', 'mingle', 'nova', 'planches', 'pyper', 'silvan', 'splendours',
+    'frammenti', 'boutique', 'duplostone', 'reflet', 'tanger', 'match',
+    'cotto', 'fluted', 'element', 'norgestein', 'norge', 'golden', 'mealapis',
+    'boosticor', 'booststone', 'opart', 'restyle', 'porcellana', 'blackandwhite',
+  ];
+
+  return images.filter(url => {
+    const fn = url.split('/').pop().split('?')[0].toLowerCase();
+    if (fn.includes(ownSlug)) return true;
+    const otherPrefix = KNOWN_PREFIXES.find(p => p !== ownSlug && fn.includes(p));
+    return !otherPrefix;
+  });
+}
 
 /**
  * Get slider images for a specific color by collecting images from the carousel
@@ -901,7 +1255,13 @@ function groupVariantsByColor(productData) {
  * Falls back to filename-based color matching, then all images.
  */
 function getColorSliderImages(imagesByVariantId, colorVariants, allImages, colorName) {
-  // 1. Variant ID mapping (most reliable — carousel images keyed by variant product ID)
+  // 1. Variant ID mapping (carousel images keyed by variant product ID from URL path)
+  //    When imagesByVariantId has multiple keys, each key partitions images by variant —
+  //    this is the most reliable matching method.
+  //    When it has only 1 key, ALL images are under a single page ID. A variant's JSON
+  //    val.Id matching that single page ID is coincidental, not meaningful, so we skip
+  //    to filename matching instead to avoid false matches (e.g., Glocal Sugar getting
+  //    ALL Glocal images because its val.Id happens to equal the page path ID).
   if (imagesByVariantId && imagesByVariantId.size > 1) {
     const colorImgs = [];
     const seenBases = new Set();
@@ -977,8 +1337,9 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
     }
   }
 
-  // 3. Last resort: shared images (capped at 3)
-  return (allImages || []).slice(0, 3);
+  // 3. No fallback — return empty instead of shared images.
+  // Product-level images serve as the gallery via server.js supplementation.
+  return [];
 }
 
 /**
@@ -1113,10 +1474,11 @@ function escapeRegex(str) {
 
 // ─── SKU and category helpers ─────────────────────────────────────────────────
 
-function buildInternalSku(collection, color, size, finish) {
-  const parts = [VENDOR_CODE, slugify(collection), slugify(color)];
+function buildInternalSku(collection, size, finish, color) {
+  const parts = [VENDOR_CODE, slugify(collection)];
   if (size) parts.push(slugify(size));
   if (finish) parts.push(slugify(finish));
+  parts.push(slugify(color));
   return parts.join('-');
 }
 
@@ -1150,6 +1512,10 @@ function inferAccessoryType(sizeNorm, finish) {
     if (finishLower.includes('flat')) return 'Flat Liner';
     return 'Pencil Liner';
   }
+
+  // Mosaic Insert: small square or narrow rectangle (≤ 2" x ≤ 4")
+  // Covers 2x2, 1x4, 1x3 — sold per piece as accent/insert
+  if (minDim <= 2 && maxDim <= 4) return 'Mosaic Insert';
 
   // Trim Liner: narrow (> 1" but < 2.5") with long edge (≥ 8")
   // Covers 2x15, 2x16, 2x18 — deco strips, roman trim, etc.
@@ -1203,7 +1569,15 @@ function determineSellBy(size, sizeLabel) {
 }
 
 function resolveCategory(productData, categoryLookup) {
-  // Check material and description keywords
+  const collectionLower = (productData.name || '').toLowerCase();
+
+  // Explicit mosaic collections
+  if (MOSAIC_COLLECTIONS.has(collectionLower)) {
+    const catId = categoryLookup.get('mosaic-tile');
+    if (catId) return { id: catId, slug: 'mosaic-tile' };
+  }
+
+  // Check website category labels and description keywords
   const text = [
     productData.specs.material || '',
     productData.description || '',
@@ -1217,7 +1591,7 @@ function resolveCategory(productData, categoryLookup) {
     }
   }
 
-  // Default to porcelain-tile (most Bosphorus products are porcelain)
+  // Default to porcelain-tile (all Bosphorus products are porcelain)
   return { id: categoryLookup.get('porcelain-tile') || null, slug: 'porcelain-tile' };
 }
 
