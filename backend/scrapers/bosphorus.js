@@ -320,9 +320,38 @@ export async function run(pool, job, source) {
             });
             stats.imagesSet++;
           }
-          // No fallback — if all images are color-specific, product level stays empty.
-          // Each SKU has its own swatch + variant-matched images; supplementation with
-          // a wrong-color swatch is worse than no product-level image.
+          // Fallback: if product level got zero images, promote images from the most
+          // image-rich sibling color. Prefer lifestyle (room scenes) first; if none
+          // exist, fall back to non-swatch product shots. Far better than an empty
+          // gallery for swatch-only SKUs.
+          if (productSortOrder === 0 && colorCount > 0) {
+            let bestLifestyle = [];
+            let bestProductShots = [];
+            for (const [cn, variants] of colorGroups) {
+              const rawColor = variants[0]?._rawColor || cn;
+              const claimed = getColorSliderImages(
+                productData.imagesByVariantId, variants, productData.images, rawColor, siblingColorNamesForNeutral
+              );
+              const lifestyle = claimed.filter(u => isLifestyleUrl(u));
+              const nonSwatch = claimed.filter(u => {
+                if (isLifestyleUrl(u)) return false;
+                const fn = u.split('/').pop().split('?')[0].toLowerCase();
+                return !/swatch|chip|sample/.test(fn);
+              });
+              if (lifestyle.length > bestLifestyle.length) bestLifestyle = lifestyle;
+              if (nonSwatch.length > bestProductShots.length) bestProductShots = nonSwatch;
+            }
+            const fallbackImages = bestLifestyle.length > 0 ? bestLifestyle : bestProductShots;
+            const fallbackType = bestLifestyle.length > 0 ? 'lifestyle' : 'alternate';
+            for (const img of fallbackImages.slice(0, 3)) {
+              await upsertMediaAsset(pool, {
+                product_id: product.id, sku_id: null,
+                asset_type: fallbackType, url: img, original_url: img,
+                sort_order: productSortOrder++,
+              });
+              stats.imagesSet++;
+            }
+          }
 
           // ── For each COLOR in this size+finish group, create a SKU ──
           for (let ci = 0; ci < colors.length; ci++) {
@@ -1296,23 +1325,47 @@ function classifySliderImages(sliderImages, swatchEntry) {
 function filterOwnCollectionImages(images, collectionName) {
   if (!images.length || !collectionName) return images;
   const ownSlug = collectionName.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  // Also build word-separated variants for "Boost Stone" → "boost_stone", "boost-stone"
+  const ownWords = collectionName.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 2);
 
   const KNOWN_PREFIXES = [
     'marvel', 'arenite', 'calypso', 'amalfi', 'duality', 'beyond', 'glocal',
-    'silverlake', 'castello', 'crayon', 'boost', 'gravel', 'holbox', 'limestone',
+    'silverlake', 'castello', 'crayon', 'gravel', 'holbox', 'limestone',
     'soapstone', 'argile', 'iconica', 'vesta', 'forma', 'cusp', 'solid',
-    'geo', 'arrow', 'memory', 'pietra', 'eiche', 'fango', 'fuoritono',
+    'arrow', 'memory', 'pietra', 'eiche', 'fango', 'fuoritono',
     'intreccio', 'mingle', 'nova', 'planches', 'pyper', 'silvan', 'splendours',
-    'frammenti', 'boutique', 'duplostone', 'reflet', 'tanger', 'match',
-    'cotto', 'fluted', 'element', 'norgestein', 'norge', 'golden', 'mealapis',
-    'boosticor', 'booststone', 'opart', 'restyle', 'porcellana', 'blackandwhite',
+    'frammenti', 'boutique', 'duplostone', 'reflet', 'tanger',
+    'cotto', 'fluted', 'norgestein', 'norge', 'golden', 'mealapis',
+    'curiousity', 'curiosity', 'booststone', 'opart', 'restyle', 'porcellana', 'blackandwhite',
   ];
+  // Removed short/ambiguous prefixes: 'boost','geo','match','element' — too many false positives
+  // via substring matching (e.g., "boostexpression", "geometry", "element_hexagon")
+
+  // Check if filename belongs to this collection (using word boundaries)
+  function fnMatchesOwn(fn) {
+    if (fn.includes(ownSlug)) return true;
+    // Check word-separated form: all words present as filename segments
+    if (ownWords.length >= 2) {
+      const segments = fn.split(/[_\-.]+/);
+      if (ownWords.every(w => segments.some(seg => seg === w || seg.startsWith(w)))) return true;
+    }
+    return false;
+  }
+
+  // Check if filename matches another collection (word-boundary aware)
+  function fnMatchesOther(fn) {
+    const segments = fn.split(/[_\-.]+/);
+    return KNOWN_PREFIXES.find(p => {
+      if (p === ownSlug) return false;
+      // Must match as a full segment, not a substring inside a longer word
+      return segments.some(seg => seg === p || (p.length >= 5 && seg.startsWith(p)));
+    });
+  }
 
   return images.filter(url => {
     const fn = url.split('/').pop().split('?')[0].toLowerCase();
-    if (fn.includes(ownSlug)) return true;
-    const otherPrefix = KNOWN_PREFIXES.find(p => p !== ownSlug && fn.includes(p));
-    return !otherPrefix;
+    if (fnMatchesOwn(fn)) return true;
+    return !fnMatchesOther(fn);
   });
 }
 
