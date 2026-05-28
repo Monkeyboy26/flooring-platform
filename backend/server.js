@@ -1544,7 +1544,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short, p.search_vector,
         p.slug as product_slug,
-        v.name as vendor_name,
+        v.name as vendor_name, v.code as vendor_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.price_basis, pr.cut_price,
@@ -1872,23 +1872,31 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
 
     let mediaResult;
     const isAdexVendor = /adex/i.test(sku.vendor_name || '');
-    if (skuMediaResult.rows.length > 0) {
-      if (isAdexVendor) {
-        // ADEX: supplement with product-level alternate (shape drawing)
-        const productExtra = await pool.query(`
-          SELECT id, asset_type, url, sort_order, sku_id
-          FROM media_assets
-          WHERE product_id = $1 AND sku_id IS NULL AND asset_type = 'alternate'
-          ORDER BY sort_order
-        `, [sku.product_id]);
-        mediaResult = { rows: [...productExtra.rows, ...skuMediaResult.rows] };
-      } else {
-        // Non-ADEX: only show SKU-specific images, no product-level supplements
-        mediaResult = skuMediaResult;
-      }
+    if (skuMediaResult.rows.length > 1) {
+      // SKU has multiple images (swatch + matched color images) — use as-is, no supplement.
+      // Product-level images often contain other colors' images and would contaminate the gallery.
+      mediaResult = skuMediaResult;
+    } else if (skuMediaResult.rows.length === 1) {
+      // SKU has only a swatch — supplement with product-level lifestyle images only
+      // (lifestyle images are less likely to be color-specific than alternates)
+      const productExtra = await pool.query(`
+        SELECT id, asset_type, url, sort_order, sku_id
+        FROM media_assets
+        WHERE product_id = $1 AND sku_id IS NULL
+          AND asset_type = 'lifestyle'
+        ORDER BY sort_order
+      `, [sku.product_id]);
+      mediaResult = { rows: [...skuMediaResult.rows, ...productExtra.rows] };
     } else {
-      // No SKU images — show nothing rather than a potentially wrong product-level image
-      mediaResult = { rows: [] };
+      // No SKU images — use product-level images as fallback
+      const productFallback = await pool.query(`
+        SELECT id, asset_type, url, sort_order, sku_id
+        FROM media_assets
+        WHERE product_id = $1 AND sku_id IS NULL
+          AND asset_type IN ('primary', 'alternate', 'lifestyle')
+        ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 WHEN 'alternate' THEN 2 END, sort_order
+      `, [sku.product_id]);
+      mediaResult = productFallback;
     }
 
     // Deduplicate media by URL
@@ -2009,10 +2017,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     // Per-SKU accessories (from sku_accessories junction table)
     // Only show accessories matching the current SKU's color, deduplicated by label+name
     const skuAccessoriesResult = await pool.query(`
-      SELECT DISTINCT ON (COALESCE(s.accessory_label, ''), s.variant_name)
+      SELECT DISTINCT ON (COALESCE(NULLIF(s.accessory_label, ''), p_acc.name, ''), s.variant_name)
         sa.sort_order,
         s.id as sku_id, s.variant_name, s.vendor_sku, s.variant_type, s.sell_by,
-        s.accessory_label,
+        COALESCE(NULLIF(s.accessory_label, ''), p_acc.name) as accessory_label,
         pr.retail_price, pr.price_basis,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image,
@@ -2024,6 +2032,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         END as stock_status
       FROM sku_accessories sa
       JOIN skus s ON s.id = sa.accessory_sku_id
+      JOIN products p_acc ON p_acc.id = s.product_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
       WHERE sa.parent_sku_id = $1 AND s.status = 'active'
@@ -2046,7 +2055,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             WHERE pa.sku_id = $1
           )
         )
-      ORDER BY COALESCE(s.accessory_label, ''), s.variant_name, sa.sort_order
+      ORDER BY COALESCE(NULLIF(s.accessory_label, ''), p_acc.name, ''), s.variant_name, sa.sort_order
     `, [skuId]);
     const skuAccessories = skuAccessoriesResult.rows;
 
@@ -2133,7 +2142,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             ) as primary_image,
             (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY ma.sort_order LIMIT 1) as shape_image,
             (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) as color,
-            (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) as finish
+            (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) as finish,
+            (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'size' LIMIT 1) as size
           FROM products p
           JOIN skus s ON s.product_id = p.id AND s.is_sample = false AND s.status = 'active'
           LEFT JOIN pricing pr ON pr.sku_id = s.id
@@ -13740,23 +13750,29 @@ app.get('/api/rep/skus/:skuId', repAuth, async (req, res) => {
     `, [skuId, sku.product_id]);
 
     let mediaRows;
-    const isAdexVendor = /adex/i.test(sku.vendor_name || '');
-    if (skuMediaResult.rows.length > 0) {
-      if (isAdexVendor) {
-        // ADEX: supplement with product-level alternate (shape drawing)
-        const productExtra = await pool.query(`
-          SELECT id, asset_type, url, sort_order, sku_id
-          FROM media_assets
-          WHERE product_id = $1 AND sku_id IS NULL AND asset_type = 'alternate'
-          ORDER BY sort_order
-        `, [sku.product_id]);
-        mediaRows = [...productExtra.rows, ...skuMediaResult.rows];
-      } else {
-        mediaRows = skuMediaResult.rows;
-      }
+    if (skuMediaResult.rows.length > 1) {
+      // SKU has multiple images — use as-is, no supplement
+      mediaRows = skuMediaResult.rows;
+    } else if (skuMediaResult.rows.length === 1) {
+      // SKU has only swatch — supplement with product-level lifestyle only
+      const productExtra = await pool.query(`
+        SELECT id, asset_type, url, sort_order, sku_id
+        FROM media_assets
+        WHERE product_id = $1 AND sku_id IS NULL
+          AND asset_type = 'lifestyle'
+        ORDER BY sort_order
+      `, [sku.product_id]);
+      mediaRows = [...skuMediaResult.rows, ...productExtra.rows];
     } else {
-      // No SKU images — show nothing (matches storefront behavior)
-      mediaRows = [];
+      // No SKU images — use product-level images as fallback
+      const productFallback = await pool.query(`
+        SELECT id, asset_type, url, sort_order, sku_id
+        FROM media_assets
+        WHERE product_id = $1 AND sku_id IS NULL
+          AND asset_type IN ('primary', 'alternate', 'lifestyle')
+        ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 WHEN 'alternate' THEN 2 END, sort_order
+      `, [sku.product_id]);
+      mediaRows = productFallback.rows;
     }
     // Deduplicate
     const seenUrls = new Set();
