@@ -2,9 +2,13 @@
  * Unicorn Tile Corp — Per-SKU Image Assignment from Product Map
  *
  * Reads the pre-built product map (unicorn-product-map.json) and assigns
- * images to individual SKUs based on color/size matching in filenames and
- * alt text. Only uses images from each product's own page — never cross-matches
- * images from other products.
+ * images to individual SKUs using DOM-aware classification:
+ *
+ *  - Grid images (right column, per-color swatches) → PRIMARY product image
+ *    Matched by colorLabel from alt text on the product page.
+ *
+ *  - Slider images (left column, room scenes) → SECONDARY lifestyle images
+ *    Dispersed round-robin across all color SKUs of the same product.
  *
  * Prerequisites: Run build-unicorn-product-map.cjs first to scrape images.
  *
@@ -51,7 +55,7 @@ function norm(s) {
   return s.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-// Color synonyms — only used within same product page
+// Color synonyms for matching grid colorLabel → SKU color
 const COLOR_SYNONYMS = {
   crema: ['cream', 'ivory'],
   cream: ['crema', 'ivory'],
@@ -78,7 +82,6 @@ const COLOR_SYNONYMS = {
   gris: ['grey', 'gray'],
   grigio: ['grey', 'gray'],
   latte: ['lightbrown', 'brown'],
-  // Bode uses "Calacatta Statuario" in filenames for what DB calls "Statuario White"
   statuariowhite: ['calacattastatuario'],
   statuario: ['calacattastatuario'],
 };
@@ -115,34 +118,26 @@ function extractShape(text) {
   return m ? m[1].toLowerCase().replace('hexagon', 'hex') : '';
 }
 
-/**
- * Extract mosaic piece size from text.
- * Variant names: '3" Hex', '2" Square' → "3", "2"
- * Image filenames: '2x2-Hexagon', '3x3-Square-Mosaic' → "2", "3"
- */
 function extractPieceSize(text) {
   if (!text) return '';
-  // NxN before Hexagon/Square in filenames: "2x2-Hexagon", "3x3-Square"
   let m = text.match(/(\d+)x\d+[- _]?(?:hex|hexagon|square)/i);
   if (m) return m[1];
-  // N" before Hex/Square in variant names: '3" Hex', '2" Square'
   m = text.match(/(\d+)"\s*(?:hex|hexagon|square)\b/i);
   if (m) return m[1];
   return '';
 }
 
 /**
- * Score how well a product-page image matches a specific SKU.
- * Only used within the same product — never cross-product.
+ * Score how well a grid image's colorLabel matches a SKU's color.
+ * Returns 0 for no match, higher for better match.
  */
-function scoreImageForSku(image, skuColor, skuSize, skuVariantName) {
-  const { alt, parsed, url } = image;
+function scoreGridImage(image, skuColor, skuSize, skuVariantName) {
+  const { colorLabel, parsed, url } = image;
   const cleaned = cleanColor(skuColor);
   const colorNorm = norm(cleaned);
-  const variantSize = extractSize(skuVariantName);
-  const variantFinish = extractFinish(skuVariantName);
+  if (!colorNorm) return 0;
 
-  const altNorm = norm(alt || '');
+  const labelNorm = norm(colorLabel || '');
   const parsedNorm = norm(parsed || '');
   const urlNorm = norm(url || '');
 
@@ -154,15 +149,15 @@ function scoreImageForSku(image, skuColor, skuSize, skuVariantName) {
 
   let score = 0;
 
-  // Match color in alt text
+  // Best: exact color match in the alt-text label
   for (const cf of uniqueColorForms) {
-    if (altNorm && altNorm.includes(cf)) {
+    if (labelNorm && labelNorm.includes(cf)) {
       score = Math.max(score, cf === colorNorm ? 10 : 8);
       break;
     }
   }
 
-  // Match color in parsed filename
+  // Fallback: match in parsed filename
   if (!score) {
     for (const cf of uniqueColorForms) {
       if (parsedNorm && parsedNorm.includes(cf)) {
@@ -172,7 +167,7 @@ function scoreImageForSku(image, skuColor, skuSize, skuVariantName) {
     }
   }
 
-  // Match color in full URL
+  // Fallback: match in URL
   if (!score) {
     for (const cf of uniqueColorForms) {
       if (urlNorm.includes(cf)) {
@@ -184,7 +179,7 @@ function scoreImageForSku(image, skuColor, skuSize, skuVariantName) {
 
   // Multi-word color: all significant words present
   if (!score && colorWords.length >= 2) {
-    for (const text of [altNorm, parsedNorm, urlNorm]) {
+    for (const text of [labelNorm, parsedNorm, urlNorm]) {
       if (!text) continue;
       if (colorWords.every(w => text.includes(w))) { score = 7; break; }
     }
@@ -195,7 +190,7 @@ function scoreImageForSku(image, skuColor, skuSize, skuVariantName) {
     const generic = ['white', 'black', 'grey', 'gray', 'matte', 'polished', 'glossy'];
     const first = colorWords[0];
     if (first.length >= 4 && !generic.includes(first)) {
-      for (const text of [altNorm, parsedNorm, urlNorm]) {
+      for (const text of [labelNorm, parsedNorm, urlNorm]) {
         if (text && text.includes(first)) { score = 6; break; }
       }
     }
@@ -203,74 +198,56 @@ function scoreImageForSku(image, skuColor, skuSize, skuVariantName) {
 
   if (score <= 0) return 0;
 
-  const combinedText = [altNorm, parsedNorm, urlNorm].filter(Boolean).join(' ');
+  const combinedText = [labelNorm, parsedNorm, urlNorm].filter(Boolean).join(' ');
 
   // ── Shape mismatch rejection ──
-  // If SKU specifies a mosaic shape (hex, herringbone, square, etc.)
-  // and the image specifies a DIFFERENT shape, reject it.
   const skuShape = extractShape(skuVariantName || skuColor || '');
   if (skuShape) {
-    const imgShape = extractShape(combinedText.replace(/\d/g, ' ')); // strip digits for cleaner shape detection
-    // Re-extract from original texts with proper word boundaries
-    const imgShapeAlt = extractShape(alt || '');
+    const imgShapeAlt = extractShape(colorLabel || '');
     const imgShapeParsed = extractShape(parsed || '');
     const imgShapeUrl = extractShape(url || '');
     const foundShape = imgShapeAlt || imgShapeParsed || imgShapeUrl;
     if (foundShape) {
       const foundNorm = foundShape.replace('hexagon', 'hex');
-      if (foundNorm !== skuShape) {
-        return 0; // Image depicts a different shape
-      }
-      score += 6; // Shape match bonus
+      if (foundNorm !== skuShape) return 0;
+      score += 6;
     }
   }
 
   // ── Mosaic / field-tile format mismatch rejection ──
-  // Prevent field tile SKUs from getting mosaic images and vice versa.
   const MOSAIC_RE = /\b(mosaic|hexagon|hex|chevron|herringbone|penny|disco|picket)\b/i;
   const skuIsMosaic = /\b(sheet|mosaic)\b/i.test(skuVariantName) || MOSAIC_RE.test(skuVariantName);
-  const imgText = [alt || '', parsed || '', url || ''].join(' ');
-  const imgIsMosaic = MOSAIC_RE.test(imgText) || /\bmosaic\b/i.test(imgText);
-  if (skuIsMosaic !== imgIsMosaic) {
-    return 0; // Format mismatch: mosaic vs field tile
-  }
+  const imgText = [colorLabel || '', parsed || '', url || ''].join(' ');
+  const imgIsMosaic = MOSAIC_RE.test(imgText);
+  if (skuIsMosaic !== imgIsMosaic) return 0;
 
-  // Size bonus / size-mismatch rejection
+  // Size bonus / mismatch rejection
+  const variantSize = extractSize(skuVariantName);
   if (variantSize) {
     const sn = norm(variantSize);
-    if (altNorm.includes(sn) || parsedNorm.includes(sn) || urlNorm.includes(sn)) {
+    if (parsedNorm.includes(sn) || urlNorm.includes(sn) || labelNorm.includes(sn)) {
       score += 5;
     } else {
-      // Reject if image contains a DIFFERENT size than SKU
-      const imgSize = extractSize(url || '') || extractSize(alt || '') || extractSize(parsed || '');
+      const imgSize = extractSize(url || '') || extractSize(colorLabel || '') || extractSize(parsed || '');
       if (imgSize && norm(imgSize) !== sn) return 0;
     }
   }
 
-  // ── Finish mismatch rejection ──
-  // If the image explicitly labels a finish (matte, polished, glossy, etc.)
-  // and the SKU has a DIFFERENT finish, reject it.
+  // Finish mismatch rejection
+  const variantFinish = extractFinish(skuVariantName);
   if (variantFinish) {
-    const imgFinish = extractFinish(alt || '') || extractFinish(parsed || '') || extractFinish(url || '');
-    if (imgFinish && imgFinish !== variantFinish) {
-      return 0; // Image depicts a different finish
-    }
-    if (imgFinish === variantFinish) score += 5; // Finish match bonus
+    const imgFinish = extractFinish(colorLabel || '') || extractFinish(parsed || '') || extractFinish(url || '');
+    if (imgFinish && imgFinish !== variantFinish) return 0;
+    if (imgFinish === variantFinish) score += 5;
   }
 
-  // Shape bonus for mosaics (legacy — only if no shape rejection above)
-  if (!skuShape && skuColor) {
-    const shapes = (skuColor.match(/(hex|hexagon|square|herringbone|chevron|penny|disco|picket)/gi) || []).map(norm);
-    for (const sw of shapes) {
-      if (altNorm.includes(sw) || parsedNorm.includes(sw) || urlNorm.includes(sw)) {
-        score += 6;
-        break;
-      }
-    }
+  // Piece-size filter
+  const skuPS = extractPieceSize(skuVariantName || '');
+  if (skuPS) {
+    const imgPS = extractPieceSize(url || '') || extractPieceSize(colorLabel || '') || extractPieceSize(parsed || '');
+    if (imgPS && imgPS !== skuPS) return 0;
+    if (imgPS === skuPS) score += 3;
   }
-
-  // Product-type bonus
-  if (image.type === 'product') score += 3;
 
   return score;
 }
@@ -361,7 +338,6 @@ async function run() {
     const mainSkus = dbProd.skus.filter(s => s.variant_type !== 'accessory');
     if (!mainSkus.length) continue;
 
-    // No page on website → skip entirely
     if (!slug) {
       console.log(`  [NO PAGE] ${dbProd.name} — not on website, skipping`);
       continue;
@@ -375,71 +351,47 @@ async function run() {
     }
 
     const pageImages = productMap.products[slug].images || [];
-    const productShots = pageImages.filter(i => i.type === 'product');
-    const lifestyleShots = pageImages.filter(i => i.type === 'lifestyle');
+    const gridImages = pageImages.filter(i => i.source === 'grid');
+    const sliderImages = pageImages.filter(i => i.source === 'slider');
+
+    // Backwards compat: if product map lacks source field (old format), fall back
+    const hasSourceField = pageImages.some(i => i.source);
+    const productShots = hasSourceField ? gridImages : pageImages.filter(i => i.type === 'product');
+    const lifestyleShots = hasSourceField ? sliderImages : pageImages.filter(i => i.type === 'lifestyle');
 
     if (!pageImages.length) {
       console.log(`  [NO IMAGES] ${dbProd.name}`);
       continue;
     }
 
-    // Check if product page has images for multiple mosaic piece sizes (e.g. 2x2 AND 3x3)
-    // Only filter by piece size when both sizes exist on the page
-    const pagePieceSizes = new Set();
-    for (const img of pageImages) {
-      const ps = extractPieceSize(img.url || '') || extractPieceSize(img.alt || '') || extractPieceSize(img.parsed || '');
-      if (ps) pagePieceSizes.add(ps);
-    }
-    const hasMixedPieceSizes = pagePieceSizes.size > 1;
+    console.log(`  ${dbProd.name}: ${skusToProcess.length} SKUs, ${productShots.length} grid + ${lifestyleShots.length} slider`);
 
-    console.log(`  ${dbProd.name}: ${skusToProcess.length} SKUs, ${productShots.length} product + ${lifestyleShots.length} lifestyle`);
-
-    // Determine if this is a single-color product (all SKUs same base color)
-    // Finish-only "colors" (matte, polished, glossy, etc.) don't count as distinct colors
-    // so products like Montana White (Glossy + Matte) are treated as single-color.
-    // Finish mismatch rejection in scoreImageForSku and fallbacks prevents cross-finish mixing.
-    const FINISH_ONLY = new Set(['matte', 'polished', 'glossy', 'lappato', 'satin', 'honed']);
-    const realColors = mainSkus
-      .map(s => norm(cleanColor(s.color)))
-      .filter(c => c && !FINISH_ONLY.has(c));
-    const uniqueColors = new Set(realColors);
-    const isSingleColor = uniqueColors.size <= 1;
-
-    const usedUrls = new Set();
+    // ── Phase 1: Assign PRIMARY images from grid (right-side per-color swatches) ──
+    const skuPrimaryMap = new Map(); // sku_id → [urls]
 
     for (const sku of skusToProcess) {
-      // Score images from THIS product's page only
+      // Score grid images against this SKU's color
       const otherSkus = mainSkus.filter(s => s.sku_id !== sku.sku_id);
-      let scored = pageImages
+      let scored = productShots
         .map(img => {
-          const myScore = scoreImageForSku(img, sku.color, sku.size, sku.variant_name);
+          const myScore = scoreGridImage(img, sku.color, sku.size, sku.variant_name);
           if (myScore <= 0) return { img, score: 0 };
-          // Cross-check: reject if any sibling variant scores strictly higher,
-          // or if it scores equal AND the image text contains the sibling's
-          // distinctive color word (meaning it "belongs" to that sibling more).
-          const myColorNorm = norm(cleanColor(sku.color));
+          // Cross-check: reject if a sibling variant scores strictly higher
           for (const sib of otherSkus) {
-            const sibScore = scoreImageForSku(img, sib.color, sib.size, sib.variant_name);
+            const sibScore = scoreGridImage(img, sib.color, sib.size, sib.variant_name);
             if (sibScore > myScore) return { img, score: 0 };
-            // Tied score — break tie using full color phrase comparison.
-            // Compare stripped-of-shape-words color phrases (and synonyms)
-            // to avoid false matches from shared substrings (e.g. "calacatta"
-            // appearing in both Gold and Statuario image filenames).
+            // Tied score — break tie using color phrase comparison
             if (sibScore === myScore && sibScore > 0) {
               const SHAPE_RE = /\b(hex|hexagon|herringbone|square|chevron|penny|picket|disco|bullnose|mosaic|sheet)\b/gi;
               const myCore = norm(cleanColor(sku.color).replace(SHAPE_RE, '').trim());
               const sibCore = norm(cleanColor(sib.color).replace(SHAPE_RE, '').trim());
               if (sibCore && sibCore !== myCore) {
-                const imgText = [norm(img.alt || ''), norm(img.parsed || ''), norm(img.url || '')].join(' ');
-                // Check full phrase (or synonyms) for each variant
+                const imgText = [norm(img.colorLabel || img.alt || ''), norm(img.parsed || ''), norm(img.url || '')].join(' ');
                 const sibPhrases = [sibCore, ...(COLOR_SYNONYMS[sibCore] || []).map(norm)];
                 const myPhrases = [myCore, ...(COLOR_SYNONYMS[myCore] || []).map(norm)];
                 const sibInImg = sibPhrases.some(s => s.length >= 4 && imgText.includes(s));
                 const myInImg = myPhrases.some(s => s.length >= 4 && imgText.includes(s));
-                // If sibling's full color is in image but ours isn't → belongs to sibling
                 if (sibInImg && !myInImg) return { img, score: 0 };
-                // Specificity check: if sibling's color contains ours as substring
-                // (e.g. "darkgrey" contains "grey"), sibling is more specific → it wins
                 if (sibInImg && sibCore.includes(myCore) && sibCore !== myCore) return { img, score: 0 };
               }
             }
@@ -449,100 +401,46 @@ async function run() {
         .filter(s => s.score > 0)
         .sort((a, b) => b.score - a.score);
 
-      // Piece-size filter: when product has multiple piece sizes (e.g. 2x2 AND 3x3 hex),
-      // filter to only images matching the SKU's piece size
-      if (scored.length > 0 && hasMixedPieceSizes) {
-        const skuPS = extractPieceSize(sku.variant_name || '');
-        if (skuPS) {
-          const psFiltered = scored.filter(({ img }) => {
-            const imgPS = extractPieceSize(img.url || '') || extractPieceSize(img.alt || '') || extractPieceSize(img.parsed || '');
-            return !imgPS || imgPS === skuPS; // Keep matching or unlabeled images
-          });
-          if (psFiltered.length > 0) scored = psFiltered;
-        }
-      }
+      // Single-color fallback: if all SKUs are same base color and no match found
+      const FINISH_ONLY = new Set(['matte', 'polished', 'glossy', 'lappato', 'satin', 'honed']);
+      const realColors = mainSkus
+        .map(s => norm(cleanColor(s.color)))
+        .filter(c => c && !FINISH_ONLY.has(c));
+      const isSingleColor = new Set(realColors).size <= 1;
 
-      // Single-color fallback: if all SKUs are same color+finish and no color-based match,
-      // assign product shots differentiated by size
       if (!scored.length && isSingleColor && productShots.length) {
-        const MOSAIC_RE2 = /\b(mosaic|hexagon|hex|chevron|herringbone|penny|disco|picket)\b/i;
-        const skuIsMosaic2 = /\b(sheet|mosaic)\b/i.test(sku.variant_name) || MOSAIC_RE2.test(sku.variant_name);
-        // Build set of known colors to detect opposite-color images
-        // Compound colors (e.g., "greymix", "darkgrey") listed first so they match
-        // before their simpler substrings ("grey", "gray")
-        const KNOWN_COLORS = [
-          // Compound colors first (sorted longest-first)
-          'calacattastatuario', 'darkgreen', 'darkblue', 'darkgrey', 'darkgray',
-          'greymix', 'graymix', 'lightbrown',
-          // Simple colors
-          'black', 'white', 'grey', 'gray', 'blue', 'green', 'red', 'beige', 'cream', 'crema',
-          'silver', 'gold', 'latte', 'cotto', 'charcoal', 'sand', 'smoke', 'nero', 'bianco',
-          'blanco', 'branco', 'graphite', 'graphit', 'terra', 'umber', 'corten', 'verde',
-          'calacatta', 'statuario', 'ivory', 'brown',
-        ];
-        const skuColorNorm = norm(cleanColor(sku.color));
-        const skuColorSyns = new Set([skuColorNorm, ...(COLOR_SYNONYMS[skuColorNorm] || []).map(norm)]);
-        // Only apply opposite-color rejection if SKU has a real color (not just a finish)
-        const skuHasRealColor = skuColorNorm && !FINISH_ONLY.has(skuColorNorm);
+        const MOSAIC_RE = /\b(mosaic|hexagon|hex|chevron|herringbone|penny|disco|picket)\b/i;
+        const skuIsMosaic = /\b(sheet|mosaic)\b/i.test(sku.variant_name) || MOSAIC_RE.test(sku.variant_name);
+        const KNOWN_SHAPES = ['covebase', 'undulated', 'picket', 'flat', 'bullnose',
+          'etoile', 'leaf', 'renze', 'wave', 'jolly', 'coral', 'jazz', 'solene'];
+        const skuNameNorm = norm(sku.variant_name || '');
+
         scored = productShots.map(img => {
-          // Mosaic/field-tile format mismatch check
-          const imgTxt = [img.alt || '', img.parsed || '', img.url || ''].join(' ');
-          const imgIsMosaic2 = MOSAIC_RE2.test(imgTxt);
-          if (skuIsMosaic2 !== imgIsMosaic2) return { img, score: 0 };
+          const imgTxt = [img.colorLabel || img.alt || '', img.parsed || '', img.url || ''].join(' ');
+          const imgIsMosaic = MOSAIC_RE.test(imgTxt);
+          if (skuIsMosaic !== imgIsMosaic) return { img, score: 0 };
 
-          // Shape/pattern mismatch rejection: for products where variants differ by shape
-          // (e.g., Nox: Flat, Picket, Undulated, Covebase), reject images from wrong shape
-          const KNOWN_SHAPES = ['covebase', 'undulated', 'picket', 'flat', 'bullnose',
-            'etoile', 'leaf', 'renze', 'wave', 'jolly', 'coral', 'jazz', 'solene'];
-          const imgTextNormForShape = norm(imgTxt);
-          const skuNameNorm = norm(sku.variant_name || '');
+          // Shape mismatch rejection
+          const imgTextNorm = norm(imgTxt);
           for (const shape of KNOWN_SHAPES) {
-            const imgHas = imgTextNormForShape.includes(shape);
-            const skuHas = skuNameNorm.includes(shape);
-            if (imgHas && !skuHas) return { img, score: 0 }; // Image is for a different shape
-          }
-
-          // Opposite-color rejection: if image filename explicitly mentions a known color
-          // that differs from the SKU's color, reject it (only when SKU has a real color)
-          // Process compound colors first to avoid "gray" matching inside "graymix"
-          if (skuHasRealColor) {
-            const imgTextNorm = norm(imgTxt);
-            const matchedCompounds = new Set();
-            for (const kc of KNOWN_COLORS) {
-              if (!imgTextNorm.includes(kc)) continue;
-              // Skip if this simple color is part of a compound we already matched
-              let isSubstring = false;
-              for (const mc of matchedCompounds) {
-                if (mc.includes(kc)) { isSubstring = true; break; }
-              }
-              if (isSubstring) continue;
-              matchedCompounds.add(kc);
-              if (!skuColorSyns.has(kc)) {
-                // Image mentions a color that isn't ours or a synonym → wrong color
-                return { img, score: 0 };
-              }
-            }
+            if (imgTextNorm.includes(shape) && !skuNameNorm.includes(shape)) return { img, score: 0 };
           }
 
           let sc = 5;
           const vs = extractSize(sku.variant_name);
           const vf = extractFinish(sku.variant_name);
-          // Reject if image has a different finish than SKU
           if (vf) {
-            const imgFinish = extractFinish(img.url || '') || extractFinish(img.alt || '') || extractFinish(img.parsed || '');
+            const imgFinish = extractFinish(img.url || '') || extractFinish(img.colorLabel || img.alt || '') || extractFinish(img.parsed || '');
             if (imgFinish && imgFinish !== vf) return { img, score: 0 };
             if (imgFinish === vf) sc += 5;
           }
           if (vs) {
             const sn = norm(vs);
             const urlN = norm(img.url || '');
-            const altN = norm(img.alt || '');
             const parsedN = norm(img.parsed || '');
-            if (urlN.includes(sn) || altN.includes(sn) || parsedN.includes(sn)) {
-              sc += 5;
-            } else {
-              // Reject if image contains a DIFFERENT size than SKU
-              const imgSize = extractSize(img.url || '') || extractSize(img.alt || '') || extractSize(img.parsed || '');
+            if (urlN.includes(sn) || parsedN.includes(sn)) sc += 5;
+            else {
+              const imgSize = extractSize(img.url || '') || extractSize(img.parsed || '');
               if (imgSize && norm(imgSize) !== sn) return { img, score: 0 };
             }
           }
@@ -550,11 +448,8 @@ async function run() {
         }).filter(s => s.score > 0).sort((a, b) => b.score - a.score);
       }
 
-      // Unlabeled-image fallback: if a multi-color product page has images
-      // without any color label (e.g. "Arte 3x12 Glossy" = white variant),
-      // match those to unmatched SKUs by size/finish/shape
+      // Unlabeled-image fallback for multi-color products
       if (!scored.length && !isSingleColor && productShots.length) {
-        // Find product shots that have NO recognizable color in their alt/filename
         const ALL_COLORS = new Set([
           'black', 'white', 'grey', 'gray', 'blue', 'green', 'red', 'beige', 'cream', 'crema',
           'silver', 'gold', 'latte', 'cotto', 'charcoal', 'sand', 'smoke', 'nero', 'bianco',
@@ -563,42 +458,36 @@ async function run() {
           'picket', 'flat', 'undulated', 'covebase', 'darkblue', 'darkgreen',
         ]);
         const unlabeled = productShots.filter(img => {
-          const altN = norm(img.alt || '');
+          const labelN = norm(img.colorLabel || img.alt || '');
           const parsedN = norm(img.parsed || '');
           const urlN = norm(img.url || '');
           for (const c of ALL_COLORS) {
-            if (altN.includes(c) || parsedN.includes(c) || urlN.includes(c)) return false;
+            if (labelN.includes(c) || parsedN.includes(c) || urlN.includes(c)) return false;
           }
           return true;
         });
         if (unlabeled.length) {
-          const MOSAIC_RE3 = /\b(mosaic|hexagon|hex|chevron|herringbone|penny|disco|picket)\b/i;
-          const skuIsMosaic3 = /\b(sheet|mosaic)\b/i.test(sku.variant_name) || MOSAIC_RE3.test(sku.variant_name);
+          const MOSAIC_RE = /\b(mosaic|hexagon|hex|chevron|herringbone|penny|disco|picket)\b/i;
+          const skuIsMosaic = /\b(sheet|mosaic)\b/i.test(sku.variant_name) || MOSAIC_RE.test(sku.variant_name);
           scored = unlabeled.map(img => {
-            // Mosaic/field-tile format mismatch check
-            const imgTxt = [img.alt || '', img.parsed || '', img.url || ''].join(' ');
-            const imgIsMosaic3 = MOSAIC_RE3.test(imgTxt);
-            if (skuIsMosaic3 !== imgIsMosaic3) return { img, score: 0 };
-
+            const imgTxt = [img.colorLabel || img.alt || '', img.parsed || '', img.url || ''].join(' ');
+            const imgIsMosaic = MOSAIC_RE.test(imgTxt);
+            if (skuIsMosaic !== imgIsMosaic) return { img, score: 0 };
             let sc = 4;
             const vs = extractSize(sku.variant_name);
             const vf = extractFinish(sku.variant_name);
-            // Reject if image has a different finish than SKU
             if (vf) {
-              const imgFinish = extractFinish(img.url || '') || extractFinish(img.alt || '') || extractFinish(img.parsed || '');
+              const imgFinish = extractFinish(img.url || '') || extractFinish(img.parsed || '');
               if (imgFinish && imgFinish !== vf) return { img, score: 0 };
               if (imgFinish === vf) sc += 5;
             }
             if (vs) {
               const sn = norm(vs);
               const urlN = norm(img.url || '');
-              const altN = norm(img.alt || '');
               const parsedN = norm(img.parsed || '');
-              if (urlN.includes(sn) || altN.includes(sn) || parsedN.includes(sn)) {
-                sc += 5;
-              } else {
-                // Reject if image contains a DIFFERENT size than SKU
-                const imgSize = extractSize(img.url || '') || extractSize(img.alt || '') || extractSize(img.parsed || '');
+              if (urlN.includes(sn) || parsedN.includes(sn)) sc += 5;
+              else {
+                const imgSize = extractSize(img.url || '') || extractSize(img.parsed || '');
                 if (imgSize && norm(imgSize) !== sn) return { img, score: 0 };
               }
             }
@@ -607,76 +496,102 @@ async function run() {
         }
       }
 
-      // Lifestyle-only fallback: if the page has NO product shots (e.g. Markina),
-      // assign lifestyle images to all SKUs
-      if (!scored.length && !productShots.length && lifestyleShots.length) {
-        scored = lifestyleShots.map(img => ({ img, score: 3 }));
-      }
-
-      if (!scored.length) {
-        console.log(`    ${sku.vendor_sku} (${sku.color}) — no match`);
-        continue;
-      }
-
-      // Pick best: product shot primary, then alternates
-      const skuUrls = [];
+      // Collect primary URLs for this SKU
+      const primaryUrls = [];
       const seen = new Set();
-
       for (const { img } of scored) {
-        if (img.type === 'product' && !seen.has(img.fullUrl)) {
-          skuUrls.push(img.fullUrl);
+        if (!seen.has(img.fullUrl)) {
+          primaryUrls.push(img.fullUrl);
           seen.add(img.fullUrl);
-          usedUrls.add(img.fullUrl);
-          break;
+          if (primaryUrls.length >= 2) break; // up to 2 grid images per SKU
         }
       }
 
-      for (const { img } of scored) {
-        if (seen.has(img.fullUrl)) continue;
-        skuUrls.push(img.fullUrl);
-        seen.add(img.fullUrl);
-        usedUrls.add(img.fullUrl);
-        if (skuUrls.length >= 4) break;
+      if (primaryUrls.length) {
+        skuPrimaryMap.set(sku.sku_id, primaryUrls);
+      } else {
+        console.log(`    ${sku.vendor_sku} (${sku.color}) — no grid match`);
       }
+    }
 
-      if (!skuUrls.length) {
-        for (const { img } of scored) {
-          if (!seen.has(img.fullUrl)) {
-            skuUrls.push(img.fullUrl);
-            seen.add(img.fullUrl);
-            usedUrls.add(img.fullUrl);
-            if (skuUrls.length >= 3) break;
+    // ── Phase 2: Assign slider/lifestyle images to SKUs by color ──
+    // Many slider images have color/finish/shape in their filenames
+    // (e.g. "Melanie-3x12-Scene-Black.jpg", "Silom-Scene-Leaf-Glossy.jpg").
+    // Score each slider image against each SKU; matched images go to the
+    // best-matching SKU. Unmatched (generic) images get distributed round-robin.
+    const skuSliderMap = new Map(); // sku_id → [urls]
+
+    if (lifestyleShots.length && skusToProcess.length) {
+      const genericSlider = []; // images that don't match any SKU
+
+      for (const img of lifestyleShots) {
+        // Score this slider image against all SKUs
+        let bestSkuId = null;
+        let bestScore = 0;
+
+        for (const sku of skusToProcess) {
+          // Reuse scoreGridImage — it works on url/parsed/colorLabel fields
+          // Slider images have no colorLabel but do have parsed filenames
+          const score = scoreGridImage(
+            { ...img, colorLabel: img.colorLabel || '' },
+            sku.color, sku.size, sku.variant_name,
+          );
+          if (score > bestScore) {
+            bestScore = score;
+            bestSkuId = sku.sku_id;
           }
         }
+
+        if (bestSkuId && bestScore > 0) {
+          if (!skuSliderMap.has(bestSkuId)) skuSliderMap.set(bestSkuId, []);
+          skuSliderMap.get(bestSkuId).push(img.fullUrl);
+        } else {
+          genericSlider.push(img.fullUrl);
+        }
       }
 
-      if (skuUrls.length) {
-        const cleaned = filterImageUrls(skuUrls, { maxImages: 6 });
-        if (cleaned.length) {
-          const saved = await saveSkuImages(pool, dbProd.product_id, sku.sku_id, cleaned, { maxImages: 6 });
-          totalSaved += saved;
-          skusWithImages++;
-          console.log(`    ${sku.vendor_sku} (${sku.color}) → ${saved} images`);
+      // Round-robin distribute generic (unmatched) slider images
+      if (genericSlider.length) {
+        for (let i = 0; i < genericSlider.length; i++) {
+          const skuIdx = i % skusToProcess.length;
+          const skuId = skusToProcess[skuIdx].sku_id;
+          if (!skuSliderMap.has(skuId)) skuSliderMap.set(skuId, []);
+          skuSliderMap.get(skuId).push(genericSlider[i]);
         }
       }
     }
 
-    // Unused lifestyle at product level
-    const unusedLifestyle = lifestyleShots.filter(i => !usedUrls.has(i.fullUrl)).map(i => i.fullUrl);
-    if (unusedLifestyle.length) {
-      const cleaned = filterImageUrls(unusedLifestyle, { maxImages: 4 });
-      for (let i = 0; i < cleaned.length; i++) {
-        try {
-          await pool.query(`
-            INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order, source)
-            VALUES ($1, NULL, 'lifestyle', $2, $2, $3, 'scraper')
-            ON CONFLICT (product_id, asset_type, sort_order) WHERE sku_id IS NULL
-            DO UPDATE SET url = EXCLUDED.url, original_url = EXCLUDED.original_url
-          `, [dbProd.product_id, cleaned[i], 100 + i]);
-          totalSaved++;
-        } catch (e) { /* ignore */ }
+    // ── Phase 3: Save combined images per SKU ──
+    for (const sku of skusToProcess) {
+      const primary = skuPrimaryMap.get(sku.sku_id) || [];
+      const secondary = skuSliderMap.get(sku.sku_id) || [];
+
+      // If no grid match but we have slider images, use first slider as primary
+      // (better than no image at all)
+      const combined = [...primary, ...secondary];
+
+      if (!combined.length) {
+        // Last resort: if page has NO grid AND NO slider, try lifestyle-only fallback
+        if (!productShots.length && lifestyleShots.length) {
+          const fallback = lifestyleShots.map(i => i.fullUrl);
+          const cleaned = filterImageUrls(fallback, { maxImages: 3 });
+          if (cleaned.length) {
+            const saved = await saveSkuImages(pool, dbProd.product_id, sku.sku_id, cleaned, { maxImages: 3 });
+            totalSaved += saved;
+            skusWithImages++;
+            console.log(`    ${sku.vendor_sku} (${sku.color}) → ${saved} images (lifestyle fallback)`);
+          }
+        }
+        continue;
       }
-      console.log(`    + ${cleaned.length} lifestyle at product level`);
+
+      const cleaned = filterImageUrls(combined, { maxImages: 6 });
+      if (cleaned.length) {
+        const saved = await saveSkuImages(pool, dbProd.product_id, sku.sku_id, cleaned, { maxImages: 6 });
+        totalSaved += saved;
+        skusWithImages++;
+        console.log(`    ${sku.vendor_sku} (${sku.color}) → ${saved} images (${primary.length} grid + ${secondary.length} slider)`);
+      }
     }
   }
 

@@ -1,25 +1,27 @@
 {
-  "generated": "2026-04-28T04:27:35.798Z",
+  "generated": "2026-05-25T18:43:19.126Z",
   "domain": "unicorntiles.com",
   "summary": {
     "products": 39,
     "failed": 1,
     "totalImages": 341,
-    "productShots": 234,
-    "lifestyleShots": 107
+    "gridImages": 130,
+    "sliderImages": 211
   },
   "products": {
     "akila-lux": {
       "url": "https://unicorntiles.com/products/akila-lux/",
       "imageCount": 8,
-      "productShots": 4,
-      "lifestyleShots": 4,
+      "gridCount": 4,
+      "sliderCount": 4,
       "images": [
         {
           "url": "Akila-Lux-24x24-Blue.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Akila-Lux-24x24-Blue.jpg",
           "alt": "Akila Lux - Blue",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Akila Lux - Blue",
           "parsed": "24x24-Blue"
         },
         {
@@ -27,6 +29,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Akila-Lux-24x24-Black.jpg",
           "alt": "Akila Lux - Black",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Akila Lux - Black",
           "parsed": "24x24-Black"
         },
         {
@@ -34,6 +38,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Akila-Lux-24x24-Graphite.jpg",
           "alt": "Akila Lux - Graphite",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Akila Lux - Graphite",
           "parsed": "24x24-Graphite"
         },
         {
@@ -41,6 +47,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Akila-Lux-24x24-White.jpg",
           "alt": "Akila Lux - White",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Akila Lux - White",
           "parsed": "24x24-White"
         },
         {
@@ -48,6 +56,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Akila-Lux-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -55,6 +64,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Akila-Lux-Scene-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -62,6 +72,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Akila-Lux-Scene-3.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -69,6 +80,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Akila-Lux-Scene-4.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         }
       ]
@@ -76,14 +88,16 @@
     "arte": {
       "url": "https://unicorntiles.com/products/arte/",
       "imageCount": 14,
-      "productShots": 13,
-      "lifestyleShots": 1,
+      "gridCount": 8,
+      "sliderCount": 6,
       "images": [
         {
           "url": "Arte-3x12-Glossy-4.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-3x12-Glossy-4.jpg",
           "alt": "Arte 3&quot;x12&quot; Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Arte 3&quot;x12&quot; Glossy",
           "parsed": "3x12-Glossy"
         },
         {
@@ -91,6 +105,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-3x12-Matte-7-1.jpg",
           "alt": "Arte 3&quot;x12&quot; Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Arte 3&quot;x12&quot; Matte",
           "parsed": "3x12-Matte-7"
         },
         {
@@ -98,6 +114,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-6x6-Matte-Tile-6.jpg",
           "alt": "Arte 6&quot;x6&quot; Matte Tile",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Arte 6&quot;x6&quot; Matte Tile",
           "parsed": "6x6-Matte-Tile"
         },
         {
@@ -105,6 +123,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-6x6-Glossy-Tile-5.jpg",
           "alt": "Arte 6&quot;x6&quot; Glossy Tile",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Arte 6&quot;x6&quot; Glossy Tile",
           "parsed": "6x6-Glossy-Tile"
         },
         {
@@ -112,6 +132,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-Picket-3x12-Glossy-7.jpg",
           "alt": "Arte Picket 3&quot;x12&quot; Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Arte Picket 3&quot;x12&quot; Glossy",
           "parsed": "Picket-3x12-Glossy"
         },
         {
@@ -119,6 +141,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-Picket-3x12-Matte-6.jpg",
           "alt": "Arte Picket 3&quot;x12&quot; Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Arte Picket 3&quot;x12&quot; Matte",
           "parsed": "Picket-3x12-Matte"
         },
         {
@@ -126,6 +150,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-3x12-Silver-Light-Gray-Glossy-2.jpg",
           "alt": "Arte 3x12 Silver",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Arte 3x12 Silver",
           "parsed": "3x12-Silver-Light-Gray-Glossy"
         },
         {
@@ -133,41 +159,48 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-3x12-Latte-Light-Brown-Glossy-3.jpg",
           "alt": "Arte 3x12 Latte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Arte 3x12 Latte",
           "parsed": "3x12-Latte-Light-Brown-Glossy"
         },
         {
           "url": "Arte-3x12-Glossy-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-3x12-Glossy-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-Glossy"
         },
         {
           "url": "Arte-3x12-Glossy-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-3x12-Glossy-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-Glossy"
         },
         {
           "url": "Arte-3x12-Glossy-3.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-3x12-Glossy-3.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-Glossy"
         },
         {
           "url": "Arte-3x12-Matte-2-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-3x12-Matte-2-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-Matte-2"
         },
         {
           "url": "Arte-3x12-Latte-Light-Brown-Glossy-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-3x12-Latte-Light-Brown-Glossy-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-Latte-Light-Brown-Glossy"
         },
         {
@@ -175,6 +208,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Arte-3x12-Scene-Colors-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-Scene-Colors"
         }
       ]
@@ -182,14 +216,16 @@
     "bode": {
       "url": "https://unicorntiles.com/products/bode/",
       "imageCount": 16,
-      "productShots": 16,
-      "lifestyleShots": 0,
+      "gridCount": 10,
+      "sliderCount": 6,
       "images": [
         {
           "url": "Bode-Calacatta-Gold-Porcelain-2x2-Hexagon-Mosaic-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Calacatta-Gold-Porcelain-2x2-Hexagon-Mosaic-1.jpg",
           "alt": "Calacatta Gold 2x2 Hexagon",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Calacatta Gold 2x2 Hexagon",
           "parsed": "Calacatta-Gold-Porcelain-2x2-Hexagon-Mosaic"
         },
         {
@@ -197,6 +233,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Calacatta-Gold-Porcelain-2x2-Square-Mosaic-1.jpg",
           "alt": "Calacatta Gold 2x2 Square",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Calacatta Gold 2x2 Square",
           "parsed": "Calacatta-Gold-Porcelain-2x2-Square-Mosaic"
         },
         {
@@ -204,6 +242,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Calacatta-Gold-Porcelain-2x8-Herringbone-Mosaic-1.jpg",
           "alt": "Calacatta Gold 2x8 Herringbone",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Calacatta Gold 2x8 Herringbone",
           "parsed": "Calacatta-Gold-Porcelain-2x8-Herringbone-Mosaic"
         },
         {
@@ -211,6 +251,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Calacatta-Gold-Porcelain-3x3-Hexagon-Mosaic-1.jpg",
           "alt": "Calacatta Gold 3x3 Hexagon",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Calacatta Gold 3x3 Hexagon",
           "parsed": "Calacatta-Gold-Porcelain-3x3-Hexagon-Mosaic"
         },
         {
@@ -218,6 +260,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Calacatta-Statuario-Porcelain-2x2-Hexagon-Mosaic-1.jpg",
           "alt": "Statuario 2x2 Hexagon",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Statuario 2x2 Hexagon",
           "parsed": "Calacatta-Statuario-Porcelain-2x2-Hexagon-Mosaic"
         },
         {
@@ -225,6 +269,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Calacatta-Statuario-Porcelain-2x2-Square-Mosaic-1.jpg",
           "alt": "Statuario 2x2 Square",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Statuario 2x2 Square",
           "parsed": "Calacatta-Statuario-Porcelain-2x2-Square-Mosaic"
         },
         {
@@ -232,6 +278,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Calacatta-Statuario-Porcelain-2x8-Herringbone-Mosaic-1.jpg",
           "alt": "Statuario 2x8 Herringbone",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Statuario 2x8 Herringbone",
           "parsed": "Calacatta-Statuario-Porcelain-2x8-Herringbone-Mosaic"
         },
         {
@@ -239,6 +287,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Calacatta-Statuario-Porcelain-3x3-Hexagon-Mosaic-1.jpg",
           "alt": "Statuario 3x3 Hexagon",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Statuario 3x3 Hexagon",
           "parsed": "Calacatta-Statuario-Porcelain-3x3-Hexagon-Mosaic"
         },
         {
@@ -246,6 +296,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Silver-Gray-2x8-Herringbone-Mosaic-1.jpg",
           "alt": "Silver Core 2x8 Herringbone Mosaic",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Silver Core 2x8 Herringbone Mosaic",
           "parsed": "Silver-Gray-2x8-Herringbone-Mosaic"
         },
         {
@@ -253,48 +305,56 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Silver-Gray-3x3-Hexagon-Mosaic-1.jpg",
           "alt": "Silver Core 3x3 Hexagon",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Silver Core 3x3 Hexagon",
           "parsed": "Silver-Gray-3x3-Hexagon-Mosaic"
         },
         {
           "url": "Bode-Calacatta-Gold-Porcelain-2x2-Hexagon-Mosaic-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Calacatta-Gold-Porcelain-2x2-Hexagon-Mosaic-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Calacatta-Gold-Porcelain-2x2-Hexagon-Mosaic"
         },
         {
           "url": "Bode-Calacatta-Gold-Porcelain-2x2-Square-Mosaic-4.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Calacatta-Gold-Porcelain-2x2-Square-Mosaic-4.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Calacatta-Gold-Porcelain-2x2-Square-Mosaic"
         },
         {
           "url": "Bode-Calacatta-Statuario-Porcelain-2x8-Herringbone-Mosaic-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Calacatta-Statuario-Porcelain-2x8-Herringbone-Mosaic-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Calacatta-Statuario-Porcelain-2x8-Herringbone-Mosaic"
         },
         {
           "url": "Bode-Calacatta-Statuario-Porcelain-3x3-Hexagon-Mosaic-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Calacatta-Statuario-Porcelain-3x3-Hexagon-Mosaic-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Calacatta-Statuario-Porcelain-3x3-Hexagon-Mosaic"
         },
         {
           "url": "Bode-Silver-Gray-2x8-Herringbone-Mosaic-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Silver-Gray-2x8-Herringbone-Mosaic-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Silver-Gray-2x8-Herringbone-Mosaic"
         },
         {
           "url": "Bode-Silver-Gray-3x3-Hexagon-Mosaic-4.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Bode-Silver-Gray-3x3-Hexagon-Mosaic-4.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Silver-Gray-3x3-Hexagon-Mosaic"
         }
       ]
@@ -302,21 +362,24 @@
     "borneo": {
       "url": "https://unicorntiles.com/products/borneo/",
       "imageCount": 2,
-      "productShots": 2,
-      "lifestyleShots": 0,
+      "gridCount": 1,
+      "sliderCount": 1,
       "images": [
         {
           "url": "Borneo.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Borneo.jpg",
           "alt": "Borneo",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Borneo",
           "parsed": "Borneo"
         },
         {
           "url": "boreno-Haya.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/boreno-Haya.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "boreno-Haya"
         }
       ]
@@ -324,14 +387,16 @@
     "brick": {
       "url": "https://unicorntiles.com/products/brick/",
       "imageCount": 14,
-      "productShots": 10,
-      "lifestyleShots": 4,
+      "gridCount": 3,
+      "sliderCount": 11,
       "images": [
         {
           "url": "Kepingan_Roman_dBrick_Terra_30x60.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Kepingan_Roman_dBrick_Terra_30x60.jpg",
           "alt": "Brick 12&quot; x 24&quot; - Terra",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Brick 12&quot; x 24&quot; - Terra",
           "parsed": "Kepingan_Roman_dBrick_Terra_30x60"
         },
         {
@@ -339,6 +404,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Kepingan_Roman_dCaravista_Summer_30x60.jpg",
           "alt": "Brick 12&quot; x 24&quot; - Cara Summer",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Brick 12&quot; x 24&quot; - Cara Summer",
           "parsed": "Kepingan_Roman_dCaravista_Summer_30x60"
         },
         {
@@ -346,27 +413,32 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Kepingan_Roman_dCaravista_Winter_30x60.jpg",
           "alt": "Brick 12&quot; x 24&quot; - Cara Winter",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Brick 12&quot; x 24&quot; - Cara Winter",
           "parsed": "Kepingan_Roman_dCaravista_Winter_30x60"
         },
         {
           "url": "FotoDetail_Roman_dBrick_Terra_30x60-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/FotoDetail_Roman_dBrick_Terra_30x60-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "FotoDetail_Roman_dBrick_Terra_30x60"
         },
         {
           "url": "RandomFaces_Roman_dBrick_Terra_30x60.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/RandomFaces_Roman_dBrick_Terra_30x60.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "RandomFaces_Roman_dBrick_Terra_30x60"
         },
         {
           "url": "Roman_dBrick_Terra_30x60.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Roman_dBrick_Terra_30x60.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Roman_dBrick_Terra_30x60"
         },
         {
@@ -374,6 +446,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/dCaravista-Scene-Winter-White-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "dCaravista-Scene-Winter-White"
         },
         {
@@ -381,34 +454,39 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/dCaravista-Scene-Winter-White-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "dCaravista-Scene-Winter-White"
         },
         {
           "url": "dCaravista-Tile-Summer-Red-Brick-1-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/dCaravista-Tile-Summer-Red-Brick-1-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "dCaravista-Tile-Summer-Red-Brick-1"
         },
         {
           "url": "dCaravista-Tile-Summer-Red-Brick-Random-Faces.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/dCaravista-Tile-Summer-Red-Brick-Random-Faces.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "dCaravista-Tile-Summer-Red-Brick-Random-Faces"
         },
         {
           "url": "dCaravista-Tile-Summer-Winter-White-1-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/dCaravista-Tile-Summer-Winter-White-1-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "dCaravista-Tile-Summer-Winter-White-1"
         },
         {
           "url": "dCaravista-Tile-Winter-White-Random-Faces.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/dCaravista-Tile-Winter-White-Random-Faces.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "dCaravista-Tile-Winter-White-Random-Faces"
         },
         {
@@ -416,6 +494,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/dCaravista-Scene-Summer-Red-Brick-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "dCaravista-Scene-Summer-Red-Brick"
         },
         {
@@ -423,6 +502,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/dCaravista-Scene-Summer-Red-Brick-2-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "dCaravista-Scene-Summer-Red-Brick-2"
         }
       ]
@@ -430,14 +510,16 @@
     "catavento": {
       "url": "https://unicorntiles.com/products/catavento/",
       "imageCount": 11,
-      "productShots": 11,
-      "lifestyleShots": 0,
+      "gridCount": 2,
+      "sliderCount": 9,
       "images": [
         {
           "url": "Catavento-Linen-3.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Catavento-Linen-3.jpg",
           "alt": "Catavento Linen",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Catavento Linen",
           "parsed": "Linen"
         },
         {
@@ -445,69 +527,80 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Catavento-Umber-4.jpg",
           "alt": "Catavento Umber",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Catavento Umber",
           "parsed": "Umber"
         },
         {
           "url": "Catavento-Linen-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Catavento-Linen-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Linen"
         },
         {
           "url": "Catavento-Linen-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Catavento-Linen-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Linen"
         },
         {
           "url": "Catavento-Umber-8.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Catavento-Umber-8.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Umber"
         },
         {
           "url": "Catavento-Umber-7.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Catavento-Umber-7.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Umber"
         },
         {
           "url": "Catavento-Umber-6.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Catavento-Umber-6.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Umber"
         },
         {
           "url": "Catavento-Umber-5.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Catavento-Umber-5.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Umber"
         },
         {
           "url": "Catavento-Umber-3.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Catavento-Umber-3.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Umber"
         },
         {
           "url": "Catavento-Umber-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Catavento-Umber-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Umber"
         },
         {
           "url": "Catavento-Umber-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Catavento-Umber-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Umber"
         }
       ]
@@ -515,28 +608,31 @@
     "cortina": {
       "url": "https://unicorntiles.com/products/cortina/",
       "imageCount": 3,
-      "productShots": 3,
-      "lifestyleShots": 0,
+      "gridCount": 0,
+      "sliderCount": 3,
       "images": [
         {
           "url": "3_X12_PorcelainSubwayWallTile-1.png",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/3_X12_PorcelainSubwayWallTile-1.png",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "3_X12_PorcelainSubwayWallTile"
         },
         {
           "url": "3_X12_PorcelainSubwayWallTile-2.png",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/3_X12_PorcelainSubwayWallTile-2.png",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "3_X12_PorcelainSubwayWallTile"
         },
         {
           "url": "Cortina-4x12-White-Glossy-4.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Cortina-4x12-White-Glossy-4.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "4x12-White-Glossy"
         }
       ]
@@ -544,14 +640,16 @@
     "creacon-creative-concrete": {
       "url": "https://unicorntiles.com/products/creacon-creative-concrete/",
       "imageCount": 19,
-      "productShots": 3,
-      "lifestyleShots": 16,
+      "gridCount": 3,
+      "sliderCount": 16,
       "images": [
         {
           "url": "Creacon-Dark-Grey.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Dark-Grey.jpg",
           "alt": "Dark Grey",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Dark Grey",
           "parsed": "Creacon-Dark-Grey"
         },
         {
@@ -559,6 +657,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Grey.jpg",
           "alt": "Grey",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Grey",
           "parsed": "Creacon-Grey"
         },
         {
@@ -566,6 +666,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Nero.jpg",
           "alt": "Nero",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Nero",
           "parsed": "Creacon-Nero"
         },
         {
@@ -573,6 +675,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -580,6 +683,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -587,6 +691,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-11.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -594,6 +699,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-8.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -601,6 +707,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-7.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -608,6 +715,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-6.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -615,6 +723,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-5.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -622,6 +731,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-4.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -629,6 +739,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-3.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -636,6 +747,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-14.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -643,6 +755,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-22.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -650,6 +763,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-21.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -657,6 +771,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-20.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -664,6 +779,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-19.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -671,6 +787,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-18.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         },
         {
@@ -678,6 +795,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Creacon-Scene-17.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Creacon-Scene"
         }
       ]
@@ -685,42 +803,48 @@
     "dalia": {
       "url": "https://unicorntiles.com/products/dalia/",
       "imageCount": 5,
-      "productShots": 5,
-      "lifestyleShots": 0,
+      "gridCount": 1,
+      "sliderCount": 4,
       "images": [
         {
           "url": "Dalia-17x25-Branco-White-9.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Dalia-17x25-Branco-White-9.jpg",
           "alt": "Dalia 17x25 Branco White",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Dalia 17x25 Branco White",
           "parsed": "17x25-Branco-White"
         },
         {
           "url": "Dalia-17x25-Branco-White-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Dalia-17x25-Branco-White-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "17x25-Branco-White"
         },
         {
           "url": "Dalia-17x25-Branco-White-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Dalia-17x25-Branco-White-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "17x25-Branco-White"
         },
         {
           "url": "Dalia-17x25-Branco-White-5.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Dalia-17x25-Branco-White-5.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "17x25-Branco-White"
         },
         {
           "url": "Dalia-17x25-Branco-White-7.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Dalia-17x25-Branco-White-7.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "17x25-Branco-White"
         }
       ]
@@ -728,14 +852,16 @@
     "dantilia": {
       "url": "https://unicorntiles.com/products/dantilia/",
       "imageCount": 4,
-      "productShots": 4,
-      "lifestyleShots": 0,
+      "gridCount": 2,
+      "sliderCount": 2,
       "images": [
         {
           "url": "Antilia-Wave.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Antilia-Wave.jpg",
           "alt": "dAntilia Wave",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "dAntilia Wave",
           "parsed": "Antilia-Wave"
         },
         {
@@ -743,20 +869,24 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/dAntilia-Carrara-2-scaled.jpg",
           "alt": "dAntilia Carrara",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "dAntilia Carrara",
           "parsed": "Carrara-2-scaled"
         },
         {
           "url": "dAntilia-Carrara-5.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/dAntilia-Carrara-5.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Carrara"
         },
         {
           "url": "dAntilia-Carrara-6.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/dAntilia-Carrara-6.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Carrara"
         }
       ]
@@ -764,14 +894,16 @@
     "decor-white": {
       "url": "https://unicorntiles.com/products/decor-white/",
       "imageCount": 7,
-      "productShots": 3,
-      "lifestyleShots": 4,
+      "gridCount": 3,
+      "sliderCount": 4,
       "images": [
         {
           "url": "Solene-White-Tile-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Solene-White-Tile-1.jpg",
           "alt": "Solene White",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Solene White",
           "parsed": "Solene-White-Tile"
         },
         {
@@ -779,6 +911,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Jazz-White-Tile-2.jpg",
           "alt": "Jazz White",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Jazz White",
           "parsed": "Jazz-White-Tile"
         },
         {
@@ -786,6 +920,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Coral13_x40_3DTexturedPorcelainWallTile.jpg",
           "alt": "Coral White",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Coral White",
           "parsed": "Coral13_x40_3DTexturedPorcelainWallTile"
         },
         {
@@ -793,6 +929,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Jazz-White-Scene-1-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Jazz-White-Scene-1"
         },
         {
@@ -800,6 +937,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Jazz-White-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Jazz-White-Scene"
         },
         {
@@ -807,6 +945,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Solene-White-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Solene-White-Scene"
         },
         {
@@ -814,6 +953,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Solene-White-Scene-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Solene-White-Scene"
         }
       ]
@@ -821,42 +961,48 @@
     "domus": {
       "url": "https://unicorntiles.com/products/domus/",
       "imageCount": 5,
-      "productShots": 5,
-      "lifestyleShots": 0,
+      "gridCount": 1,
+      "sliderCount": 4,
       "images": [
         {
           "url": "Domus-6x36-12.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Domus-6x36-12.jpg",
           "alt": "Domus Lappato",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Domus Lappato",
           "parsed": "6x36"
         },
         {
           "url": "Domus-6x36-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Domus-6x36-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "6x36"
         },
         {
           "url": "Domus-6x36-4.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Domus-6x36-4.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "6x36"
         },
         {
           "url": "Domus-6x36-9.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Domus-6x36-9.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "6x36"
         },
         {
           "url": "Domus-6x36-10.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Domus-6x36-10.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "6x36"
         }
       ]
@@ -864,14 +1010,16 @@
     "drapeado": {
       "url": "https://unicorntiles.com/products/drapeado/",
       "imageCount": 6,
-      "productShots": 2,
-      "lifestyleShots": 4,
+      "gridCount": 2,
+      "sliderCount": 4,
       "images": [
         {
           "url": "Drapeado-Corten-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Drapeado-Corten-1.jpg",
           "alt": "Drapeado - Corten",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Drapeado - Corten",
           "parsed": "Corten"
         },
         {
@@ -879,6 +1027,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Drapeado-23x23-Tile-Branco-White-1.jpg",
           "alt": "Drapeado - Branco",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Drapeado - Branco",
           "parsed": "23x23-Tile-Branco-White"
         },
         {
@@ -886,6 +1036,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Drapeado-Scene-Branco-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene-Branco"
         },
         {
@@ -893,6 +1044,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Drapeado-Scene-Corten-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene-Corten"
         },
         {
@@ -900,6 +1052,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Drapeado-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -907,6 +1060,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Drapeado-Scene-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         }
       ]
@@ -914,14 +1068,16 @@
     "eclipse-beveled": {
       "url": "https://unicorntiles.com/products/eclipse-beveled/",
       "imageCount": 8,
-      "productShots": 8,
-      "lifestyleShots": 0,
+      "gridCount": 2,
+      "sliderCount": 6,
       "images": [
         {
           "url": "Eclipse-Beveled-4x12-Glossy-16.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Eclipse-Beveled-4x12-Glossy-16.jpg",
           "alt": "Eclipse Beveled White Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Eclipse Beveled White Glossy",
           "parsed": "4x12-Glossy"
         },
         {
@@ -929,48 +1085,56 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Eclipse-Beveled-4x12-Matte-3.jpg",
           "alt": "Eclipse Beveled White Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Eclipse Beveled White Matte",
           "parsed": "4x12-Matte"
         },
         {
           "url": "Eclipse-Beveled-4x12-Glossy-6.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Eclipse-Beveled-4x12-Glossy-6.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "4x12-Glossy"
         },
         {
           "url": "Eclipse-Beveled-4x12-Glossy-7.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Eclipse-Beveled-4x12-Glossy-7.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "4x12-Glossy"
         },
         {
           "url": "Eclipse-Beveled-4x12-Glossy-8.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Eclipse-Beveled-4x12-Glossy-8.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "4x12-Glossy"
         },
         {
           "url": "Eclipse-4x12-Matte-White-Beveled.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Eclipse-4x12-Matte-White-Beveled.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Eclipse-4x12-Matte-White-Beveled"
         },
         {
           "url": "Eclipse-Beveled-4x12-Matte-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Eclipse-Beveled-4x12-Matte-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "4x12-Matte"
         },
         {
           "url": "Eclipse-Beveled-4x12-Matte-4.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Eclipse-Beveled-4x12-Matte-4.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "4x12-Matte"
         }
       ]
@@ -978,14 +1142,16 @@
     "ellum-stone": {
       "url": "https://unicorntiles.com/products/ellum-stone/",
       "imageCount": 8,
-      "productShots": 6,
-      "lifestyleShots": 2,
+      "gridCount": 6,
+      "sliderCount": 2,
       "images": [
         {
           "url": "Ellum-24x48-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Ellum-24x48-1.jpg",
           "alt": "Ellum 6",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Ellum 6",
           "parsed": "Ellum-24x48"
         },
         {
@@ -993,6 +1159,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Ellum-24x48-2.jpg",
           "alt": "Ellum 5",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Ellum 5",
           "parsed": "Ellum-24x48"
         },
         {
@@ -1000,6 +1168,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Ellum-24x48-3.jpg",
           "alt": "Ellum 4",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Ellum 4",
           "parsed": "Ellum-24x48"
         },
         {
@@ -1007,6 +1177,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Ellum-24x48-4.jpg",
           "alt": "Ellum 3",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Ellum 3",
           "parsed": "Ellum-24x48"
         },
         {
@@ -1014,6 +1186,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Ellum-24x48-5.jpg",
           "alt": "Ellum 2",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Ellum 2",
           "parsed": "Ellum-24x48"
         },
         {
@@ -1021,6 +1195,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Ellum-24x48-6.jpg",
           "alt": "Ellum 1",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Ellum 1",
           "parsed": "Ellum-24x48"
         },
         {
@@ -1028,6 +1204,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Ellum-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Ellum-Scene"
         },
         {
@@ -1035,6 +1212,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Ellum-Scene-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Ellum-Scene"
         }
       ]
@@ -1042,42 +1220,48 @@
     "hexagon": {
       "url": "https://unicorntiles.com/products/hexagon/",
       "imageCount": 5,
-      "productShots": 5,
-      "lifestyleShots": 0,
+      "gridCount": 1,
+      "sliderCount": 4,
       "images": [
         {
           "url": "Hexagon-Calacatta-Gold-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Hexagon-Calacatta-Gold-1.jpg",
           "alt": "Hexagon Calacatta Gold",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Hexagon Calacatta Gold",
           "parsed": "Calacatta-Gold"
         },
         {
           "url": "Hexagon-Calacatta-Gold-3.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Hexagon-Calacatta-Gold-3.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Calacatta-Gold"
         },
         {
           "url": "Hexagon-Calacatta-Gold-4.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Hexagon-Calacatta-Gold-4.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Calacatta-Gold"
         },
         {
           "url": "Hexagon-Calacatta-Gold-5.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Hexagon-Calacatta-Gold-5.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Calacatta-Gold"
         },
         {
           "url": "Hexagon-Calacatta-Gold-6.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Hexagon-Calacatta-Gold-6.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Calacatta-Gold"
         }
       ]
@@ -1085,14 +1269,16 @@
     "korea": {
       "url": "https://unicorntiles.com/products/korea/",
       "imageCount": 7,
-      "productShots": 4,
-      "lifestyleShots": 3,
+      "gridCount": 1,
+      "sliderCount": 6,
       "images": [
         {
           "url": "Korea-Tile.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Korea-Tile.jpg",
           "alt": "Korea Tile",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Korea Tile",
           "parsed": "Tile"
         },
         {
@@ -1100,6 +1286,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Korea-Scene.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -1107,6 +1294,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Korea-13x40-Scene-4.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "13x40-Scene"
         },
         {
@@ -1114,27 +1302,31 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Korea-13x40-Scene-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "13x40-Scene"
         },
         {
           "url": "Korea-13x40-Tile-3.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Korea-13x40-Tile-3.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "13x40-Tile"
         },
         {
           "url": "Korea-13x40-Tile-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Korea-13x40-Tile-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "13x40-Tile"
         },
         {
           "url": "Korea-13x40-Tile-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Korea-13x40-Tile-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "13x40-Tile"
         }
       ]
@@ -1142,42 +1334,48 @@
     "le-que": {
       "url": "https://unicorntiles.com/products/le-que/",
       "imageCount": 5,
-      "productShots": 5,
-      "lifestyleShots": 0,
+      "gridCount": 1,
+      "sliderCount": 4,
       "images": [
         {
           "url": "LeQue-9.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/LeQue-9.jpg",
           "alt": "LeQue Neon",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "LeQue Neon",
           "parsed": "LeQue"
         },
         {
           "url": "LeQue-3.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/LeQue-3.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "LeQue"
         },
         {
           "url": "LeQue-6.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/LeQue-6.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "LeQue"
         },
         {
           "url": "LeQue-7.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/LeQue-7.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "LeQue"
         },
         {
           "url": "LeQue-5.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/LeQue-5.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "LeQue"
         }
       ]
@@ -1185,14 +1383,16 @@
     "longo": {
       "url": "https://unicorntiles.com/products/longo/",
       "imageCount": 10,
-      "productShots": 9,
-      "lifestyleShots": 1,
+      "gridCount": 4,
+      "sliderCount": 6,
       "images": [
         {
           "url": "Onda-Design-Photos.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Onda-Design-Photos.jpg",
           "alt": "Longo Variations",
-          "type": "lifestyle",
+          "type": "product",
+          "source": "grid",
+          "colorLabel": "Longo Variations",
           "parsed": "Onda-Design-Photos"
         },
         {
@@ -1200,6 +1400,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Longo-Black-Mosaic-Chevron-4.jpg",
           "alt": "Longo Black Mosaic Chevron",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Longo Black Mosaic Chevron",
           "parsed": "Black-Mosaic-Chevron"
         },
         {
@@ -1207,6 +1409,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Longo-Black-Mosaic-Hexagon-4.jpg",
           "alt": "Longo Black Mosaic Hexagon",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Longo Black Mosaic Hexagon",
           "parsed": "Black-Mosaic-Hexagon"
         },
         {
@@ -1214,48 +1418,56 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Longo-Black-4x12-2.jpg",
           "alt": "Longo Black 4x12",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Longo Black 4x12",
           "parsed": "Black-4x12"
         },
         {
           "url": "4-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/4-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "4"
         },
         {
           "url": "4-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/4-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "4"
         },
         {
           "url": "2-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/2-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "2"
         },
         {
           "url": "2-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/2-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "2"
         },
         {
           "url": "1-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/1-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "1"
         },
         {
           "url": "1-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/1-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "1"
         }
       ]
@@ -1263,35 +1475,40 @@
     "magnum": {
       "url": "https://unicorntiles.com/products/magnum/",
       "imageCount": 4,
-      "productShots": 4,
-      "lifestyleShots": 0,
+      "gridCount": 1,
+      "sliderCount": 3,
       "images": [
         {
           "url": "Magnum-Super-White-6-scaled.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Magnum-Super-White-6-scaled.jpg",
           "alt": "Magnum White Polished",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Magnum White Polished",
           "parsed": "Super-White-6-scaled"
         },
         {
           "url": "Magnum-Super-White-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Magnum-Super-White-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Super-White"
         },
         {
           "url": "Magnum-Super-White-7.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Magnum-Super-White-7.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Super-White"
         },
         {
           "url": "Magnum-Super-White-11.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Magnum-Super-White-11.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Super-White"
         }
       ]
@@ -1299,14 +1516,16 @@
     "markina": {
       "url": "https://unicorntiles.com/products/markina/",
       "imageCount": 9,
-      "productShots": 0,
-      "lifestyleShots": 9,
+      "gridCount": 1,
+      "sliderCount": 8,
       "images": [
         {
           "url": "Markina-Scene-Variations-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Markina-Scene-Variations-1.jpg",
           "alt": "Markina - Variations",
-          "type": "lifestyle",
+          "type": "product",
+          "source": "grid",
+          "colorLabel": "Markina - Variations",
           "parsed": "Scene-Variations"
         },
         {
@@ -1314,6 +1533,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Markina-Scene-Indoor-1-3.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene-Indoor-1"
         },
         {
@@ -1321,6 +1541,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Markina-Scene-Indoor-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene-Indoor"
         },
         {
@@ -1328,6 +1549,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Markina-Scene-Indoor-4.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene-Indoor"
         },
         {
@@ -1335,6 +1557,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Markina-Scene-Outdoor-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene-Outdoor"
         },
         {
@@ -1342,6 +1565,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Markina-Scene-Outdoor-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene-Outdoor"
         },
         {
@@ -1349,6 +1573,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Markina-Scene-Outdoor-4-3.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene-Outdoor-4"
         },
         {
@@ -1356,6 +1581,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Markina-Scene-Outdoor-5-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene-Outdoor-5"
         },
         {
@@ -1363,6 +1589,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Markina-Scene-Outdoor-5-3.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene-Outdoor-5"
         }
       ]
@@ -1370,14 +1597,16 @@
     "melanie": {
       "url": "https://unicorntiles.com/products/melanie/",
       "imageCount": 14,
-      "productShots": 7,
-      "lifestyleShots": 7,
+      "gridCount": 7,
+      "sliderCount": 7,
       "images": [
         {
           "url": "Melanie-3x12-Beige.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-Beige.jpg",
           "alt": "Melanie 3x12 - Beige",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Melanie 3x12 - Beige",
           "parsed": "3x12-Beige"
         },
         {
@@ -1385,6 +1614,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-Black.jpg",
           "alt": "Melanie 3x12 - Black",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Melanie 3x12 - Black",
           "parsed": "3x12-Black"
         },
         {
@@ -1392,6 +1623,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-Cotto.jpg",
           "alt": "Melanie 3x12 - Cotto",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Melanie 3x12 - Cotto",
           "parsed": "3x12-Cotto"
         },
         {
@@ -1399,6 +1632,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-Dark-Green.jpg",
           "alt": "Melanie 3x12 - Dark Green",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Melanie 3x12 - Dark Green",
           "parsed": "3x12-Dark-Green"
         },
         {
@@ -1406,6 +1641,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-Gray.jpg",
           "alt": "Melanie 3x12 - Gray",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Melanie 3x12 - Gray",
           "parsed": "3x12-Gray"
         },
         {
@@ -1413,6 +1650,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-White.jpg",
           "alt": "Melanie 3x12 - White",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Melanie 3x12 - White",
           "parsed": "3x12-White"
         },
         {
@@ -1420,6 +1659,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-Dark-Blue.jpg",
           "alt": "Melanie 3x12 -Dark Blue",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Melanie 3x12 -Dark Blue",
           "parsed": "3x12-Dark-Blue"
         },
         {
@@ -1427,6 +1668,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-Scene-Black.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-Scene-Black"
         },
         {
@@ -1434,6 +1676,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-Scene-Cotto.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-Scene-Cotto"
         },
         {
@@ -1441,6 +1684,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-Scene-Cream.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-Scene-Cream"
         },
         {
@@ -1448,6 +1692,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-Scene-Dark-Blue.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-Scene-Dark-Blue"
         },
         {
@@ -1455,6 +1700,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-Scene-Dark-Green.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-Scene-Dark-Green"
         },
         {
@@ -1462,6 +1708,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-Scene-Gray.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-Scene-Gray"
         },
         {
@@ -1469,6 +1716,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Melanie-3x12-Scene-White.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-Scene-White"
         }
       ]
@@ -1476,14 +1724,16 @@
     "montana-white": {
       "url": "https://unicorntiles.com/products/montana-white/",
       "imageCount": 3,
-      "productShots": 1,
-      "lifestyleShots": 2,
+      "gridCount": 1,
+      "sliderCount": 2,
       "images": [
         {
           "url": "Montana-White-Tile-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Montana-White-Tile-1.jpg",
           "alt": "Montana White Tile",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Montana White Tile",
           "parsed": "Tile"
         },
         {
@@ -1491,6 +1741,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Montana-White-Scene-1-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene-1"
         },
         {
@@ -1498,6 +1749,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Montana-White-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         }
       ]
@@ -1505,14 +1757,16 @@
     "morokko": {
       "url": "https://unicorntiles.com/products/morokko/",
       "imageCount": 6,
-      "productShots": 4,
-      "lifestyleShots": 2,
+      "gridCount": 4,
+      "sliderCount": 2,
       "images": [
         {
           "url": "Morokko-Rectangle-Green.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Morokko-Rectangle-Green.jpg",
           "alt": "Morokko Rectangle Verde",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Morokko Rectangle Verde",
           "parsed": "Rectangle-Green"
         },
         {
@@ -1520,6 +1774,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Morokko-Rectangle-White.jpg",
           "alt": "Morokko Rectangle Blanco",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Morokko Rectangle Blanco",
           "parsed": "Rectangle-White"
         },
         {
@@ -1527,6 +1783,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Morokko-Picket-Green.jpg",
           "alt": "Morokko Picket Verde",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Morokko Picket Verde",
           "parsed": "Picket-Green"
         },
         {
@@ -1534,6 +1792,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Morokko-Picket-White.jpg",
           "alt": "Morokko Picket Blanco",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Morokko Picket Blanco",
           "parsed": "Picket-White"
         },
         {
@@ -1541,6 +1801,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Morokko-Rectangle-Scene-White.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Rectangle-Scene-White"
         },
         {
@@ -1548,6 +1809,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Morokko-Rectangle-Scene-White-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Rectangle-Scene-White"
         }
       ]
@@ -1555,14 +1817,16 @@
     "nano": {
       "url": "https://unicorntiles.com/products/nano/",
       "imageCount": 5,
-      "productShots": 3,
-      "lifestyleShots": 2,
+      "gridCount": 3,
+      "sliderCount": 2,
       "images": [
         {
           "url": "Nano-24x24-Black-Polished.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Nano-24x24-Black-Polished.jpg",
           "alt": "24&quot;x24&quot;",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "24&quot;x24&quot;",
           "parsed": "24x24-Black-Polished"
         },
         {
@@ -1570,6 +1834,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Nano-4x24-Black-Polished.jpg",
           "alt": "4&quot;x24&quot; Bullnose",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "4&quot;x24&quot; Bullnose",
           "parsed": "4x24-Black-Polished"
         },
         {
@@ -1577,6 +1843,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/05/Nano-Absolute-Black-Mosaic-12x12-Tile-5.jpg",
           "alt": "3&quot; x 3&quot; Hexagon",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3&quot; x 3&quot; Hexagon",
           "parsed": "Absolute-Black-Mosaic-12x12-Tile"
         },
         {
@@ -1584,6 +1852,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Nano-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -1591,6 +1860,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2015/07/Nano-Scene-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         }
       ]
@@ -1598,14 +1868,16 @@
     "nox": {
       "url": "https://unicorntiles.com/products/nox/",
       "imageCount": 23,
-      "productShots": 22,
-      "lifestyleShots": 1,
+      "gridCount": 12,
+      "sliderCount": 11,
       "images": [
         {
           "url": "Arte-3x12-Picket-Black-Nox-Glossy-1-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Arte-3x12-Picket-Black-Nox-Glossy-1-2.jpg",
           "alt": "3x12 Picket Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x12 Picket Glossy",
           "parsed": "Arte-3x12-Picket-Black-Nox-Glossy-1"
         },
         {
@@ -1613,6 +1885,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Arte-3x12-Picket-Black-Nox-Matte-2-2.jpg",
           "alt": "3x12 Picket Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x12 Picket Matte",
           "parsed": "Arte-3x12-Picket-Black-Nox-Matte-2"
         },
         {
@@ -1620,6 +1894,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Arte-Nox-3x12-Black-Glossy-5.jpg",
           "alt": "3x12 Undulated Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x12 Undulated Glossy",
           "parsed": "Arte-Nox-3x12-Black-Glossy"
         },
         {
@@ -1627,6 +1903,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Shades-Nox-3x12-Black-Glossy-4.jpg",
           "alt": "3x12 Flat Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x12 Flat Glossy",
           "parsed": "Shades-Nox-3x12-Black-Glossy"
         },
         {
@@ -1634,6 +1912,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Shades-Nox-3x12-Black-Matte-4.jpg",
           "alt": "3x12 Flat Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x12 Flat Matte",
           "parsed": "Shades-Nox-3x12-Black-Matte"
         },
         {
@@ -1641,6 +1921,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Nox-Black-1x3-Herringbone-Mosaic-1.jpg",
           "alt": "1x3 Herringbone Mosaic",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "1x3 Herringbone Mosaic",
           "parsed": "Black-1x3-Herringbone-Mosaic"
         },
         {
@@ -1648,6 +1930,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Nox-Black-2x8-Herringbone-Mosaic-1.jpg",
           "alt": "2x8 Herringbone Mosaic",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "2x8 Herringbone Mosaic",
           "parsed": "Black-2x8-Herringbone-Mosaic"
         },
         {
@@ -1655,6 +1939,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Nox-Black-3x3-Hexagon-Mosaic-1.jpg",
           "alt": "3x3 Hexagon Mosaic",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x3 Hexagon Mosaic",
           "parsed": "Black-3x3-Hexagon-Mosaic"
         },
         {
@@ -1662,6 +1948,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Nox-Black-Penny-Round-Mosaic-1.jpg",
           "alt": "Penny Round Mosaic",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Penny Round Mosaic",
           "parsed": "Black-Penny-Round-Mosaic"
         },
         {
@@ -1669,6 +1957,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Nox-Black-Stacked-Fluted-Mosaic-1.jpg",
           "alt": "Stacked Mosaic",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Stacked Mosaic",
           "parsed": "Black-Stacked-Fluted-Mosaic"
         },
         {
@@ -1676,6 +1966,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Nox-Covebase-6x6-Glossy-1.jpg",
           "alt": "Covebase 6x6 Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Covebase 6x6 Glossy",
           "parsed": "Covebase-6x6-Glossy"
         },
         {
@@ -1683,20 +1975,24 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Nox-Covebase-6x6-Matte-1.jpg",
           "alt": "Covebase 6x6 Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Covebase 6x6 Matte",
           "parsed": "Covebase-6x6-Matte"
         },
         {
           "url": "Arte-3x12-Picket-Black-Nox-Glossy-6.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Arte-3x12-Picket-Black-Nox-Glossy-6.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Arte-3x12-Picket-Black-Nox-Glossy"
         },
         {
           "url": "Arte-3x12-Picket-Black-Nox-Matte-4.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Arte-3x12-Picket-Black-Nox-Matte-4.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Arte-3x12-Picket-Black-Nox-Matte"
         },
         {
@@ -1704,62 +2000,71 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Arte-Nox-3x12-Picket-Black-Glossy-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Arte-Nox-3x12-Picket-Black-Glossy-Scene"
         },
         {
           "url": "Urbano-Glossy-4-x-12-Ceramic-Sub-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Urbano-Glossy-4-x-12-Ceramic-Sub-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Urbano-Glossy-4-x-12-Ceramic-Sub"
         },
         {
           "url": "Shades-Nox-3x12-Black-Matte-6.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Shades-Nox-3x12-Black-Matte-6.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Shades-Nox-3x12-Black-Matte"
         },
         {
           "url": "Shades-Nox-3x12-Black-Matte-7.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Shades-Nox-3x12-Black-Matte-7.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Shades-Nox-3x12-Black-Matte"
         },
         {
           "url": "Arte-Nox-3x12-Black-Glossy-9.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Arte-Nox-3x12-Black-Glossy-9.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Arte-Nox-3x12-Black-Glossy"
         },
         {
           "url": "Shades-Nox-Black-3x12-Matte-Glossy-Mix.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Shades-Nox-Black-3x12-Matte-Glossy-Mix.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Shades-Nox-Black-3x12-Matte-Glossy-Mix"
         },
         {
           "url": "Nox-Black-1x3-Herringbone-Mosaic-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Nox-Black-1x3-Herringbone-Mosaic-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Black-1x3-Herringbone-Mosaic"
         },
         {
           "url": "Nox-Black-Penny-Round-Mosaic-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Nox-Black-Penny-Round-Mosaic-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Black-Penny-Round-Mosaic"
         },
         {
           "url": "Nox-Black-Stacked-Fluted-Mosaic-3.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Nox-Black-Stacked-Fluted-Mosaic-3.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Black-Stacked-Fluted-Mosaic"
         }
       ]
@@ -1767,14 +2072,16 @@
     "onda": {
       "url": "https://unicorntiles.com/products/onda/",
       "imageCount": 5,
-      "productShots": 1,
-      "lifestyleShots": 4,
+      "gridCount": 2,
+      "sliderCount": 3,
       "images": [
         {
           "url": "Onda-Design-Photos-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Onda-Design-Photos-1.jpg",
           "alt": "12&quot; x 24&quot; Variations",
-          "type": "lifestyle",
+          "type": "product",
+          "source": "grid",
+          "colorLabel": "12&quot; x 24&quot; Variations",
           "parsed": "Design-Photos"
         },
         {
@@ -1782,6 +2089,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Onda-Black-Mosaic-Square-3.jpg",
           "alt": "2&quot; x 2&quot; Square Mosaic",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "2&quot; x 2&quot; Square Mosaic",
           "parsed": "Black-Mosaic-Square"
         },
         {
@@ -1789,6 +2098,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Onda-Scene-3.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -1796,6 +2106,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Onda-Scene-4.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -1803,6 +2114,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Onda-Scene-5.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         }
       ]
@@ -1810,14 +2122,16 @@
     "paulista": {
       "url": "https://unicorntiles.com/products/paulista/",
       "imageCount": 5,
-      "productShots": 2,
-      "lifestyleShots": 3,
+      "gridCount": 1,
+      "sliderCount": 4,
       "images": [
         {
           "url": "Bloc-White-Tile-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Bloc-White-Tile-2.jpg",
           "alt": "Bloc White",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Bloc White",
           "parsed": "Bloc-White-Tile"
         },
         {
@@ -1825,6 +2139,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Bloc-White-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Bloc-White-Scene"
         },
         {
@@ -1832,6 +2147,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Bloc-White-Scene-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Bloc-White-Scene"
         },
         {
@@ -1839,13 +2155,15 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Bloc-White-Scene-3.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Bloc-White-Scene"
         },
         {
           "url": "Bloc-White-Tile-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Bloc-White-Tile-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Bloc-White-Tile"
         }
       ]
@@ -1853,56 +2171,64 @@
     "rue-de-paris": {
       "url": "https://unicorntiles.com/products/rue-de-paris/",
       "imageCount": 7,
-      "productShots": 7,
-      "lifestyleShots": 0,
+      "gridCount": 1,
+      "sliderCount": 6,
       "images": [
         {
           "url": "Rue-De-Paris-36_x36_-Blanco-White-5.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Rue-De-Paris-36_x36_-Blanco-White-5.jpg",
           "alt": "36&quot; x 36&quot; Blanco White",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "36&quot; x 36&quot; Blanco White",
           "parsed": "36_x36_-Blanco-White"
         },
         {
           "url": "Rue-De-paris-balnco.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Rue-De-paris-balnco.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "balnco"
         },
         {
           "url": "Rue-de-paris-beige.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Rue-de-paris-beige.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "beige"
         },
         {
           "url": "Rue-De-Paris-36_x36_-Blanco-White-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Rue-De-Paris-36_x36_-Blanco-White-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "36_x36_-Blanco-White"
         },
         {
           "url": "Rue-De-Paris-36_x36_-Blanco-White-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Rue-De-Paris-36_x36_-Blanco-White-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "36_x36_-Blanco-White"
         },
         {
           "url": "Rue-De-Paris-36_x36_-Blanco-White-3.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Rue-De-Paris-36_x36_-Blanco-White-3.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "36_x36_-Blanco-White"
         },
         {
           "url": "Rue-De-Paris-36_x36_-Blanco-White-4.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Rue-De-Paris-36_x36_-Blanco-White-4.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "36_x36_-Blanco-White"
         }
       ]
@@ -1910,14 +2236,16 @@
     "sage": {
       "url": "https://unicorntiles.com/products/sage/",
       "imageCount": 16,
-      "productShots": 16,
-      "lifestyleShots": 0,
+      "gridCount": 9,
+      "sliderCount": 7,
       "images": [
         {
           "url": "Sage-2x2-Hexagon-Mosaic-Black-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Hexagon-Mosaic-Black-1.jpg",
           "alt": "Hexagon Black",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Hexagon Black",
           "parsed": "2x2-Hexagon-Mosaic-Black"
         },
         {
@@ -1925,6 +2253,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Hexagon-Mosaic-Gray-Mix-1.jpg",
           "alt": "Hexagon Gray Mix",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Hexagon Gray Mix",
           "parsed": "2x2-Hexagon-Mosaic-Gray-Mix"
         },
         {
@@ -1932,6 +2262,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Hexagon-Mosaic-Gray-4.jpg",
           "alt": "Hexagon Gray",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Hexagon Gray",
           "parsed": "2x2-Hexagon-Mosaic-Gray"
         },
         {
@@ -1939,6 +2271,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Hexagon-Mosaic-Light-Gray-Smoke-5.jpg",
           "alt": "Hexagon Smoke",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Hexagon Smoke",
           "parsed": "2x2-Hexagon-Mosaic-Light-Gray-Smoke"
         },
         {
@@ -1946,6 +2280,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Hexagon-Mosaic-White-1.jpg",
           "alt": "Hexagon White",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Hexagon White",
           "parsed": "2x2-Hexagon-Mosaic-White"
         },
         {
@@ -1953,6 +2289,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Square-Mosaic-Beige-Sand-1.jpg",
           "alt": "Square Sand",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Square Sand",
           "parsed": "2x2-Square-Mosaic-Beige-Sand"
         },
         {
@@ -1960,6 +2298,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Square-Mosaic-Black-4.jpg",
           "alt": "Square Black",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Square Black",
           "parsed": "2x2-Square-Mosaic-Black"
         },
         {
@@ -1967,6 +2307,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Square-Mosaic-Gray-3.jpg",
           "alt": "Square Gray",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Square Gray",
           "parsed": "2x2-Square-Mosaic-Gray"
         },
         {
@@ -1974,55 +2316,64 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Square-Mosaic-White-1.jpg",
           "alt": "Square White",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Square White",
           "parsed": "2x2-Square-Mosaic-White"
         },
         {
           "url": "Sage-2x2-Hexagon-Mosaic-Black-3.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Hexagon-Mosaic-Black-3.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "2x2-Hexagon-Mosaic-Black"
         },
         {
           "url": "Sage-2x2-Hexagon-Mosaic-Gray-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Hexagon-Mosaic-Gray-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "2x2-Hexagon-Mosaic-Gray"
         },
         {
           "url": "Sage-2x2-Hexagon-Mosaic-Light-Gray-Smoke-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Hexagon-Mosaic-Light-Gray-Smoke-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "2x2-Hexagon-Mosaic-Light-Gray-Smoke"
         },
         {
           "url": "Sage-2x2-Hexagon-Mosaic-White-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Hexagon-Mosaic-White-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "2x2-Hexagon-Mosaic-White"
         },
         {
           "url": "Sage-2x2-Square-Mosaic-Beige-Sand-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Square-Mosaic-Beige-Sand-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "2x2-Square-Mosaic-Beige-Sand"
         },
         {
           "url": "Sage-2x2-Square-Mosaic-Black-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Square-Mosaic-Black-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "2x2-Square-Mosaic-Black"
         },
         {
           "url": "Sage-2x2-Square-Mosaic-White-3.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2021/07/Sage-2x2-Square-Mosaic-White-3.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "2x2-Square-Mosaic-White"
         }
       ]
@@ -2030,14 +2381,16 @@
     "sapporo": {
       "url": "https://unicorntiles.com/products/sapporo/",
       "imageCount": 3,
-      "productShots": 2,
-      "lifestyleShots": 1,
+      "gridCount": 2,
+      "sliderCount": 1,
       "images": [
         {
           "url": "Sapporo-Geometric.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Sapporo-Geometric.jpg",
           "alt": "Sapporo Geometric",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Sapporo Geometric",
           "parsed": "Geometric"
         },
         {
@@ -2045,6 +2398,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Sapporo-White.jpg",
           "alt": "Sapporo White",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Sapporo White",
           "parsed": "White"
         },
         {
@@ -2052,6 +2407,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/08/Sapporo-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         }
       ]
@@ -2059,14 +2415,16 @@
     "shades": {
       "url": "https://unicorntiles.com/products/shades/",
       "imageCount": 20,
-      "productShots": 20,
-      "lifestyleShots": 0,
+      "gridCount": 14,
+      "sliderCount": 6,
       "images": [
         {
           "url": "Shades-3x12-White-Bianco-Glossy-6.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-3x12-White-Bianco-Glossy-6.jpg",
           "alt": "3x12 Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x12 Glossy",
           "parsed": "3x12-White-Bianco-Glossy"
         },
         {
@@ -2074,6 +2432,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-3x12-White-Matte-2.jpg",
           "alt": "3x12 Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x12 Matte",
           "parsed": "3x12-White-Matte"
         },
         {
@@ -2081,6 +2441,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-4x12-White-Glossy-3.jpg",
           "alt": "4x12 Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "4x12 Glossy",
           "parsed": "4x12-White-Glossy"
         },
         {
@@ -2088,6 +2450,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-4x12-White-Matte-2-1.jpg",
           "alt": "4x12 Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "4x12 Matte",
           "parsed": "4x12-White-Matte-2"
         },
         {
@@ -2095,6 +2459,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-4x16-White-Glossy-5.jpg",
           "alt": "4x16 Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "4x16 Glossy",
           "parsed": "4x16-White-Glossy"
         },
         {
@@ -2102,6 +2468,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-4x16-White-Matte-2.jpg",
           "alt": "4x16 Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "4x16 Matte",
           "parsed": "4x16-White-Matte"
         },
         {
@@ -2109,6 +2477,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-8x24-White-Glossy-5.jpg",
           "alt": "8x24 Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "8x24 Glossy",
           "parsed": "8x24-White-Glossy"
         },
         {
@@ -2116,6 +2486,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-8x24-White-Matte-2-scaled.jpg",
           "alt": "8x24 Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "8x24 Matte",
           "parsed": "8x24-White-Matte-2-scaled"
         },
         {
@@ -2123,6 +2495,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-3x12-Silver-Light-Gray-Matte-5.jpg",
           "alt": "3x12 Silver Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x12 Silver Matte",
           "parsed": "3x12-Silver-Light-Gray-Matte"
         },
         {
@@ -2130,6 +2504,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-3x12-Cream-Ivory-Glossy-11.jpg",
           "alt": "3x12 Cream Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x12 Cream Glossy",
           "parsed": "3x12-Cream-Ivory-Glossy"
         },
         {
@@ -2137,6 +2513,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-3x12-Cream-Ivory-Matte-5.jpg",
           "alt": "3x12 Cream Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x12 Cream Matte",
           "parsed": "3x12-Cream-Ivory-Matte"
         },
         {
@@ -2144,6 +2522,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-3x12-Latte-Light-Brown-Glossy-5.jpg",
           "alt": "3x12 Latte Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x12 Latte Glossy",
           "parsed": "3x12-Latte-Light-Brown-Glossy"
         },
         {
@@ -2151,6 +2531,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-3x12-Latte-Light-Brown-Matte-5.jpg",
           "alt": "3x12 Latte Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x12 Latte Matte",
           "parsed": "3x12-Latte-Light-Brown-Matte"
         },
         {
@@ -2158,48 +2540,56 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-3x12-Silver-Light-Gray-Glossy-6.jpg",
           "alt": "3x12 Silver Glossy",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "3x12 Silver Glossy",
           "parsed": "3x12-Silver-Light-Gray-Glossy"
         },
         {
           "url": "Shades-3x12-White-Bianco-Glossy-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-3x12-White-Bianco-Glossy-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-White-Bianco-Glossy"
         },
         {
           "url": "Shades-3x12-White-Matte-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-3x12-White-Matte-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "3x12-White-Matte"
         },
         {
           "url": "Shades-4x12-White-Glossy-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-4x12-White-Glossy-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "4x12-White-Glossy"
         },
         {
           "url": "Shades-4x12-White-Matte-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-4x12-White-Matte-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "4x12-White-Matte"
         },
         {
           "url": "Shades-8x24-White-Glossy-11.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-8x24-White-Glossy-11.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "8x24-White-Glossy"
         },
         {
           "url": "Shades-8x24-White-Matte-4.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Shades-8x24-White-Matte-4.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "8x24-White-Matte"
         }
       ]
@@ -2207,14 +2597,16 @@
     "silom": {
       "url": "https://unicorntiles.com/products/silom/",
       "imageCount": 12,
-      "productShots": 5,
-      "lifestyleShots": 7,
+      "gridCount": 5,
+      "sliderCount": 7,
       "images": [
         {
           "url": "Silom-Wave-Glossy-Tile-STA6300-C-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Silom-Wave-Glossy-Tile-STA6300-C-2.jpg",
           "alt": "Silom Wave",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Silom Wave",
           "parsed": "Wave-Glossy-Tile-STA6300-C"
         },
         {
@@ -2222,6 +2614,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Silom-Etoile-Tile-1-STA6300-G.jpg",
           "alt": "Silom Etoile",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Silom Etoile",
           "parsed": "Etoile-Tile-1-STA6300-G"
         },
         {
@@ -2229,6 +2623,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Silom-Leaf-Tile-1-STA6300-F.jpg",
           "alt": "Silom Leaf",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Silom Leaf",
           "parsed": "Leaf-Tile-1-STA6300-F"
         },
         {
@@ -2236,6 +2632,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Silom-Renze-Tile-1-STA6300-R.jpg",
           "alt": "Silom Renze",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Silom Renze",
           "parsed": "Renze-Tile-1-STA6300-R"
         },
         {
@@ -2243,6 +2641,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Silom-Plain-White.jpg",
           "alt": "Silom Plain White",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Silom Plain White",
           "parsed": "Plain-White"
         },
         {
@@ -2250,6 +2650,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Silom-White-3D-Scene-Etoile-Glossy.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "White-3D-Scene-Etoile-Glossy"
         },
         {
@@ -2257,6 +2658,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Silom-White-3D-Scene-Etoile-Matte.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "White-3D-Scene-Etoile-Matte"
         },
         {
@@ -2264,6 +2666,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Silom-White-3D-Scene-Leaf-Glossy.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "White-3D-Scene-Leaf-Glossy"
         },
         {
@@ -2271,6 +2674,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Silom-White-3D-Scene-Leaf-Matte.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "White-3D-Scene-Leaf-Matte"
         },
         {
@@ -2278,6 +2682,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Silom-White-3D-Scene-Renze-Matte.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "White-3D-Scene-Renze-Matte"
         },
         {
@@ -2285,6 +2690,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Silom-White-3D-Scene-Wave-Glossy-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "White-3D-Scene-Wave-Glossy"
         },
         {
@@ -2292,6 +2698,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Silom-White-3D-Scene-Wave-Matte-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "White-3D-Scene-Wave-Matte"
         }
       ]
@@ -2299,14 +2706,16 @@
     "sparkling": {
       "url": "https://unicorntiles.com/products/sparkling/",
       "imageCount": 4,
-      "productShots": 1,
-      "lifestyleShots": 3,
+      "gridCount": 1,
+      "sliderCount": 3,
       "images": [
         {
           "url": "Sparkling-Tile-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Sparkling-Tile-1.jpg",
           "alt": "Sparkling Tile 1",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Sparkling Tile 1",
           "parsed": "Tile"
         },
         {
@@ -2314,6 +2723,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Roman-Sparkling-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Roman-Sparkling-Scene"
         },
         {
@@ -2321,6 +2731,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Roman-Sparkling-Scene-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Roman-Sparkling-Scene"
         },
         {
@@ -2328,6 +2739,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Roman-Sparkling-Scene-3.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Roman-Sparkling-Scene"
         }
       ]
@@ -2335,14 +2747,16 @@
     "spectrum": {
       "url": "https://unicorntiles.com/products/spectrum/",
       "imageCount": 10,
-      "productShots": 10,
-      "lifestyleShots": 0,
+      "gridCount": 5,
+      "sliderCount": 5,
       "images": [
         {
           "url": "Spectrum-12x24-Calacatta-Polished-5.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2018/08/Spectrum-12x24-Calacatta-Polished-5.jpg",
           "alt": "Calacatta Polished",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Calacatta Polished",
           "parsed": "12x24-Calacatta-Polished"
         },
         {
@@ -2350,6 +2764,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2018/08/Spectrum-12x24-Carrara-Polished-6.jpg",
           "alt": "Carrara Polished",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Carrara Polished",
           "parsed": "12x24-Carrara-Polished"
         },
         {
@@ -2357,6 +2773,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2018/08/Spectrum-12x24-Calacatta-Matte-3.jpg",
           "alt": "Calacatta Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Calacatta Matte",
           "parsed": "12x24-Calacatta-Matte"
         },
         {
@@ -2364,6 +2782,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2018/08/Spectrum-12x24-Carrara-Polished-4.jpg",
           "alt": "Carrara Matte",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Carrara Matte",
           "parsed": "12x24-Carrara-Polished"
         },
         {
@@ -2371,41 +2791,48 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2018/08/Spectrum-2x2-Square-Mosaic-Calacatta-4.jpg",
           "alt": "Calacatta 2x2 Square Mosaic",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Calacatta 2x2 Square Mosaic",
           "parsed": "2x2-Square-Mosaic-Calacatta"
         },
         {
           "url": "Spectrum-12x24-Calacatta-Polished-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2018/08/Spectrum-12x24-Calacatta-Polished-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "12x24-Calacatta-Polished"
         },
         {
           "url": "Spectrum-12x24-Calacatta-Polished-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2018/08/Spectrum-12x24-Calacatta-Polished-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "12x24-Calacatta-Polished"
         },
         {
           "url": "Spectrum-12x24-Carrara-Polished-9.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2018/08/Spectrum-12x24-Carrara-Polished-9.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "12x24-Carrara-Polished"
         },
         {
           "url": "Spectrum-12x24-Carrara-Polished-10.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2018/08/Spectrum-12x24-Carrara-Polished-10.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "12x24-Carrara-Polished"
         },
         {
           "url": "Spectrum-12x24-Calacatta-Matte-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2018/08/Spectrum-12x24-Calacatta-Matte-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "12x24-Calacatta-Matte"
         }
       ]
@@ -2413,14 +2840,16 @@
     "statuarietto": {
       "url": "https://unicorntiles.com/products/statuarietto/",
       "imageCount": 8,
-      "productShots": 3,
-      "lifestyleShots": 5,
+      "gridCount": 2,
+      "sliderCount": 6,
       "images": [
         {
           "url": "Statuarietto-12x24-Polished.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Statuarietto-12x24-Polished.jpg",
           "alt": "12&quot; x 24&quot;",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "12&quot; x 24&quot;",
           "parsed": "12x24-Polished"
         },
         {
@@ -2428,13 +2857,16 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Statuarietto-36x36-1.jpg",
           "alt": "36&quot; x 36&quot;",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "36&quot; x 36&quot;",
           "parsed": "36x36"
         },
         {
           "url": "Statuarietto-12x24-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Statuarietto-12x24-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "12x24"
         },
         {
@@ -2442,6 +2874,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Statuarietto-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2449,6 +2882,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Statuarietto-Scene-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2456,6 +2890,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Statuarietto-Scene-3.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2463,6 +2898,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Statuarietto-Scene-4.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2470,6 +2906,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2023/04/Statuarietto-Scene-5.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         }
       ]
@@ -2477,14 +2914,16 @@
     "track": {
       "url": "https://unicorntiles.com/products/track/",
       "imageCount": 23,
-      "productShots": 2,
-      "lifestyleShots": 21,
+      "gridCount": 2,
+      "sliderCount": 21,
       "images": [
         {
           "url": "Track-Blanco-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Blanco-1.jpg",
           "alt": "Track Blanco 1",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Track Blanco 1",
           "parsed": "Blanco"
         },
         {
@@ -2492,6 +2931,8 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Gris-1.jpg",
           "alt": "Track Gris 1",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Track Gris 1",
           "parsed": "Gris"
         },
         {
@@ -2499,6 +2940,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2506,6 +2948,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-2.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2513,6 +2956,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-3.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2520,6 +2964,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-4.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2527,6 +2972,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-5.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2534,6 +2980,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-6.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2541,6 +2988,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-9.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2548,6 +2996,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-10.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2555,6 +3004,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-11.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2562,6 +3012,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-12.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2569,6 +3020,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-13.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2576,6 +3028,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-14.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2583,6 +3036,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-15.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2590,6 +3044,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-16.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2597,6 +3052,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-17.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2604,6 +3060,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-18.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2611,6 +3068,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-19.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2618,6 +3076,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-21.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2625,6 +3084,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-22.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2632,6 +3092,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-24.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         },
         {
@@ -2639,6 +3100,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2017/08/Track-Scene-25.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         }
       ]
@@ -2646,42 +3108,48 @@
     "veneziana": {
       "url": "https://unicorntiles.com/products/veneziana/",
       "imageCount": 5,
-      "productShots": 5,
-      "lifestyleShots": 0,
+      "gridCount": 1,
+      "sliderCount": 4,
       "images": [
         {
           "url": "Veneziana-Bone-24x24-Terrazzo-5.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Veneziana-Bone-24x24-Terrazzo-5.jpg",
           "alt": "Veneziana Bone 24&quot;x24&quot;",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Veneziana Bone 24&quot;x24&quot;",
           "parsed": "Bone-24x24-Terrazzo"
         },
         {
           "url": "Veneziana-Bone-24x24-Terrazzo-4.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Veneziana-Bone-24x24-Terrazzo-4.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Bone-24x24-Terrazzo"
         },
         {
           "url": "Veneziana-Bone-24x24-Terrazzo-3.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Veneziana-Bone-24x24-Terrazzo-3.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Bone-24x24-Terrazzo"
         },
         {
           "url": "Veneziana-Bone-24x24-Terrazzo-2.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Veneziana-Bone-24x24-Terrazzo-2.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Bone-24x24-Terrazzo"
         },
         {
           "url": "Veneziana-Bone-24x24-Terrazzo-1.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Veneziana-Bone-24x24-Terrazzo-1.jpg",
           "alt": "",
-          "type": "product",
+          "type": "lifestyle",
+          "source": "slider",
           "parsed": "Bone-24x24-Terrazzo"
         }
       ]
@@ -2689,14 +3157,16 @@
     "vinson": {
       "url": "https://unicorntiles.com/products/vinson/",
       "imageCount": 2,
-      "productShots": 1,
-      "lifestyleShots": 1,
+      "gridCount": 1,
+      "sliderCount": 1,
       "images": [
         {
           "url": "Vinson-Bianco.jpg",
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Vinson-Bianco.jpg",
           "alt": "Vinson Bianco",
           "type": "product",
+          "source": "grid",
+          "colorLabel": "Vinson Bianco",
           "parsed": "Bianco"
         },
         {
@@ -2704,6 +3174,7 @@
           "fullUrl": "https://unicorntiles.com/wp-content/uploads/2020/10/Vinson-Scene-1.jpg",
           "alt": "",
           "type": "lifestyle",
+          "source": "slider",
           "parsed": "Scene"
         }
       ]

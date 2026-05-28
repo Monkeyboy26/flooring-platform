@@ -1,8 +1,9 @@
 /**
  * Build Unicorn Tiles product map from unicorntiles.com
  *
- * Scrapes all product pages and extracts per-variant images with labels.
- * Each image is classified as 'product' or 'lifestyle' based on filename.
+ * Scrapes all product pages and extracts images based on DOM position:
+ *  - Left column: Nectar slider with background-image CSS → lifestyle/room scenes
+ *  - Right column: wpb_gallery with <img> tags + alt text → per-color product shots
  *
  * Usage: node backend/scripts/build-unicorn-product-map.cjs
  * Output: backend/data/unicorn-product-map.json
@@ -43,70 +44,118 @@ async function discoverProducts() {
 }
 
 /**
- * Classify image by filename:
- *  - 'product'   = clean product shot (tile face, close-up, swatch)
- *  - 'lifestyle' = room scene, rendering, installed view
+ * Normalize a URL to full-size (strip -300x300 or -WxH thumbnail suffix).
  */
-function classifyImage(filename) {
-  const f = filename.toLowerCase();
-  if (/scene|room|interior|kitchen|bath|living|ambiente|render|display|styled|setting|showroom|installed|design-photo/i.test(f)) return 'lifestyle';
-  // "Onda-Design-Photos" style names are lifestyle/catalog shots
-  if (/design.photo/i.test(f)) return 'lifestyle';
-  return 'product';
+function toFullSize(url) {
+  return url.replace(/-\d+x\d+(\.[a-zA-Z]+)$/, '$1');
 }
 
 /**
- * Extract all wp-content/uploads images from a product page HTML.
- * Returns array of { url, fullUrl, alt, label, filename, type }.
+ * Resolve a URL to absolute.
  */
-function extractImages(html, pageUrl) {
-  const images = [];
+function resolveUrl(src) {
+  if (!src) return '';
+  if (src.startsWith('//')) return 'https:' + src;
+  if (src.startsWith('/')) return BASE_URL + src;
+  if (!src.startsWith('http')) return BASE_URL + '/' + src;
+  return src;
+}
+
+/**
+ * Extract images from a product page HTML using DOM-aware parsing.
+ *
+ * Two distinct sources:
+ *  1. Slider (left column): background-image: url(...) inside the nectar slider section
+ *  2. Grid (right column): <img> tags with alt/title text (per-color product swatches)
+ */
+function extractImages(html) {
   const seen = new Set();
+  const sliderImages = [];
+  const gridImages = [];
 
-  // Pattern 1: img tags with alt text (variant product images)
-  const imgRegex = /<img[^>]*(?:src|data-src|data-large_image)="([^"]*\/wp-content\/uploads\/[^"]+\.(?:jpg|jpeg|png|webp))"[^>]*alt="([^"]*)"[^>]*/gi;
+  // ── 1. Slider images: background-image URLs from nectar slider ──
+  // These are inline styles on swiper-slide divs: style="background-image: url('...')"
+  const bgRegex = /background-image:\s*url\(['"]?([^'")]+\/wp-content\/uploads\/[^'")]+)['"]?\)/gi;
   let m;
-  while ((m = imgRegex.exec(html)) !== null) {
-    processImage(m[1], m[2]);
-  }
-
-  // Pattern 2: alt before src (some pages use this order)
-  const imgRegex2 = /<img[^>]*alt="([^"]*)"[^>]*(?:src|data-src|data-large_image)="([^"]*\/wp-content\/uploads\/[^"]+\.(?:jpg|jpeg|png|webp))"[^>]*/gi;
-  while ((m = imgRegex2.exec(html)) !== null) {
-    processImage(m[2], m[1]);
-  }
-
-  // Pattern 3: a href wrapping images (full-size links)
-  const aRegex = /href="([^"]*\/wp-content\/uploads\/[^"]+\.(?:jpg|jpeg|png|webp))"/gi;
-  while ((m = aRegex.exec(html)) !== null) {
-    processImage(m[1], '');
-  }
-
-  function processImage(src, alt) {
-    if (!src) return;
-    let url = src;
-    if (url.startsWith('/')) url = BASE_URL + url;
-
-    // Skip logos, icons, favicons, banners
-    if (/logo|icon|favicon|banner/i.test(url)) return;
-
-    // Get full-size URL (strip -300x300 or -WxH thumbnails)
-    const fullUrl = url.replace(/-\d+x\d+(\.[a-zA-Z]+)$/, '$1');
-    if (seen.has(fullUrl)) return;
+  while ((m = bgRegex.exec(html)) !== null) {
+    const raw = resolveUrl(m[1]);
+    const fullUrl = toFullSize(raw);
+    if (seen.has(fullUrl)) continue;
+    if (/logo|icon|favicon|banner/i.test(fullUrl)) continue;
     seen.add(fullUrl);
-
     const filename = fullUrl.split('/').pop() || '';
-    const type = classifyImage(filename);
-
-    images.push({
+    sliderImages.push({
       url: filename,
       fullUrl,
-      alt: alt || '',
-      type,
+      alt: '',
+      type: 'lifestyle',
+      source: 'slider',
     });
   }
 
-  return images;
+  // ── 2. Grid images: <img> tags with src pointing to wp-content/uploads ──
+  // These are the per-color product swatches in the right column gallery.
+  // Match both orderings: src before alt, and alt before src.
+  const imgPatterns = [
+    /<img[^>]*(?:src|data-src|data-large_image)="([^"]*\/wp-content\/uploads\/[^"]+\.(?:jpg|jpeg|png|webp))"[^>]*alt="([^"]*)"[^>]*/gi,
+    /<img[^>]*alt="([^"]*)"[^>]*(?:src|data-src|data-large_image)="([^"]*\/wp-content\/uploads\/[^"]+\.(?:jpg|jpeg|png|webp))"[^>]*/gi,
+  ];
+
+  for (let pi = 0; pi < imgPatterns.length; pi++) {
+    const regex = imgPatterns[pi];
+    while ((m = regex.exec(html)) !== null) {
+      const src = pi === 0 ? m[1] : m[2];
+      const alt = pi === 0 ? m[2] : m[1];
+      const raw = resolveUrl(src);
+      const fullUrl = toFullSize(raw);
+      if (seen.has(fullUrl)) continue;
+      if (/logo|icon|favicon|banner/i.test(fullUrl)) continue;
+      seen.add(fullUrl);
+      const filename = fullUrl.split('/').pop() || '';
+      gridImages.push({
+        url: filename,
+        fullUrl,
+        alt: alt || '',
+        type: 'product',
+        source: 'grid',
+        colorLabel: alt || '',
+      });
+    }
+  }
+
+  // ── 3. Fallback: <a> href links to full-size images not yet captured ──
+  // Some pages wrap product images in <a> tags with href to full-size.
+  const aRegex = /href="([^"]*\/wp-content\/uploads\/[^"]+\.(?:jpg|jpeg|png|webp))"/gi;
+  while ((m = aRegex.exec(html)) !== null) {
+    const raw = resolveUrl(m[1]);
+    const fullUrl = toFullSize(raw);
+    if (seen.has(fullUrl)) continue;
+    if (/logo|icon|favicon|banner/i.test(fullUrl)) continue;
+    seen.add(fullUrl);
+    const filename = fullUrl.split('/').pop() || '';
+    // Classify by filename as fallback
+    const isLifestyle = /scene|room|interior|kitchen|bath|living|ambiente|render|display|styled|setting|showroom|installed|design.photo/i.test(filename);
+    if (isLifestyle) {
+      sliderImages.push({
+        url: filename,
+        fullUrl,
+        alt: '',
+        type: 'lifestyle',
+        source: 'slider',
+      });
+    } else {
+      gridImages.push({
+        url: filename,
+        fullUrl,
+        alt: '',
+        type: 'product',
+        source: 'grid',
+        colorLabel: '',
+      });
+    }
+  }
+
+  return { sliderImages, gridImages };
 }
 
 /**
@@ -118,22 +167,14 @@ function slugFromUrl(url) {
 
 /**
  * Extract color/size info from an image filename.
- * Pattern: {Series}-{details}.jpg
- * Returns { color, size, finish } best-effort.
  */
 function parseFilename(filename, series) {
-  // Remove extension and thumbnail suffix
   let base = filename.replace(/\.[a-z]+$/i, '').replace(/-\d+x\d+$/, '');
-
-  // Remove series prefix (case-insensitive)
   const seriesNorm = series.replace(/[^a-zA-Z0-9]/g, '-');
   const prefixRegex = new RegExp(`^${seriesNorm}-`, 'i');
   base = base.replace(prefixRegex, '');
-
-  // Remove trailing number (image sequence number like -1, -2, -3)
   base = base.replace(/-\d+$/, '');
-
-  return base; // e.g. "3x12-White-Bianco-Glossy" or "24x24-Black-Polished"
+  return base;
 }
 
 async function run() {
@@ -161,33 +202,35 @@ async function run() {
       continue;
     }
 
-    const images = extractImages(html, url);
-
-    // Separate product shots from lifestyle
-    const productShots = images.filter(i => i.type === 'product');
-    const lifestyleShots = images.filter(i => i.type === 'lifestyle');
+    const { sliderImages, gridImages } = extractImages(html);
+    const allImages = [...gridImages, ...sliderImages];
 
     products[slug] = {
       url,
-      imageCount: images.length,
-      productShots: productShots.length,
-      lifestyleShots: lifestyleShots.length,
-      images: images.map(img => ({
+      imageCount: allImages.length,
+      gridCount: gridImages.length,
+      sliderCount: sliderImages.length,
+      images: allImages.map(img => ({
         url: img.url,
         fullUrl: img.fullUrl,
         alt: img.alt,
         type: img.type,
+        source: img.source,
+        ...(img.colorLabel ? { colorLabel: img.colorLabel } : {}),
         parsed: parseFilename(img.url, slug),
       })),
     };
 
-    totalImages += images.length;
-    console.log(`    ${productShots.length} product + ${lifestyleShots.length} lifestyle = ${images.length} total`);
+    totalImages += allImages.length;
+    console.log(`    ${gridImages.length} grid (product) + ${sliderImages.length} slider (lifestyle) = ${allImages.length} total`);
 
     await delay(1500);
   }
 
   // Step 3: Write output
+  const totalGrid = Object.values(products).reduce((s, p) => s + p.gridCount, 0);
+  const totalSlider = Object.values(products).reduce((s, p) => s + p.sliderCount, 0);
+
   const output = {
     generated: new Date().toISOString(),
     domain: 'unicorntiles.com',
@@ -195,8 +238,8 @@ async function run() {
       products: Object.keys(products).length,
       failed,
       totalImages,
-      productShots: Object.values(products).reduce((s, p) => s + p.productShots, 0),
-      lifestyleShots: Object.values(products).reduce((s, p) => s + p.lifestyleShots, 0),
+      gridImages: totalGrid,
+      sliderImages: totalSlider,
     },
     products,
   };
@@ -206,8 +249,8 @@ async function run() {
   console.log(`Products: ${output.summary.products}`);
   console.log(`Failed: ${output.summary.failed}`);
   console.log(`Total images: ${output.summary.totalImages}`);
-  console.log(`Product shots: ${output.summary.productShots}`);
-  console.log(`Lifestyle shots: ${output.summary.lifestyleShots}`);
+  console.log(`Grid (product) images: ${totalGrid}`);
+  console.log(`Slider (lifestyle) images: ${totalSlider}`);
   console.log(`Saved to: ${OUTPUT}`);
 }
 
