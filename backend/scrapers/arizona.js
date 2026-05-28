@@ -216,6 +216,8 @@ const SLAB_CATEGORIES = new Set([
   'granite-countertops', 'marble-countertops', 'quartz-countertops',
   'quartzite-countertops', 'porcelain-slabs',
 ]);
+// Format categories that need variant-level splitting when mixed with field tiles
+const FORMAT_CATS = new Set(['mosaic-tile', 'stacked-stone', 'pavers']);
 // Categories that don't use box packaging (slabs, sheets)
 const NO_BOX_CATEGORIES = new Set([
   'mosaic-tile', 'granite-countertops', 'marble-countertops',
@@ -230,6 +232,32 @@ function resolveSellBy(pimSlug, accessory, parsedSoldBy) {
 
 function isAccessory(title, description) {
   return ACCESSORY_KEYWORDS.test(title) || (description && ACCESSORY_KEYWORDS.test(description));
+}
+
+/**
+ * Classify a single variation by format based on its size attribute.
+ * Used to sub-group variants within a color group so each format gets its own PIM product.
+ * Returns 'mosaic', 'stacked', 'tile', or 'default'.
+ */
+function classifyVariation(sizeAttr, originalFormatSlug, originalSlabSlug) {
+  const size = sizeAttr || '';
+  // Explicitly mosaic keywords (subset of MOSAIC_KW without "stack"/"mesh" which
+  // are ambiguous — stacked stone panels can also be mesh-mounted)
+  const MOSAIC_EXPLICIT = /mosaic|hex|penny|basketweave|herringbone|sheet/i;
+  // Mosaic-explicit sizes always win — even inside stacked-stone products,
+  // a "2x2 Hex Mosaic" is a mosaic, not a ledger panel.
+  if (MOSAIC_EXPLICIT.test(size)) return 'mosaic';
+  // Stacked stone: if product originally won stacked-stone, keep variants as
+  // stacked unless BOTH dimensions are >=12 (real field tile).
+  if (originalFormatSlug === 'stacked-stone') {
+    const m = size.match(/(\d+)-?x-?(\d+)/);
+    if (!m || Math.min(parseInt(m[1]), parseInt(m[2])) < 12) return 'stacked';
+  }
+  // Remaining MOSAIC_KW matches (mesh, stack) — only for non-stacked products
+  if (MOSAIC_KW.test(size)) return 'mosaic';
+  // Slab-category product with tile-format variant
+  if (originalSlabSlug && FIELD_SIZE.test(size)) return 'tile';
+  return 'default';
 }
 
 /**
@@ -577,11 +605,14 @@ export async function run(pool, job, source) {
           }
         }
 
+        // Save pre-guard category state for variant-level format splitting
+        const originalFormatSlug = FORMAT_CATS.has(pimCatSlug) ? pimCatSlug : null;
+        const originalSlabSlug = SLAB_CATEGORIES.has(pimCatSlug) ? pimCatSlug : null;
+
         // ── Mixed-product guard: mosaic should not win for field-tile collections ──
         // Products like Marvel have both 12x24 field tiles AND 2x2 Mosaic variants.
         // If a format category won via priority but the product has field-tile sizes,
         // fall back to the best material category.
-        const FORMAT_CATS = new Set(['mosaic-tile', 'stacked-stone', 'pavers']);
         if (FORMAT_CATS.has(pimCatSlug) && detail.variations.length > 0) {
           const varSizes = detail.variations
             .map(v => (v.attributes?.attribute_pa_size || ''))
@@ -608,6 +639,25 @@ export async function run(pool, job, source) {
             if (altCatId) {
               categoryId = altCatId;
               pimCatSlug = altSlug;
+            }
+          }
+        }
+
+        // Resolve non-slab material category for tile-format variants in slab products
+        let tileCatId = null, tileCatSlug = null;
+        if (originalSlabSlug && SLAB_CATEGORIES.has(pimCatSlug)) {
+          let altP = -1;
+          for (const catId of apiProduct.categoryIds) {
+            const azCat = azCategoryMap.get(catId);
+            if (!azCat || CATEGORY_SKIP.has(azCat.slug)) continue;
+            const mapping = CATEGORY_MAP[azCat.slug];
+            if (!mapping) continue;
+            const [slug, priority] = mapping;
+            if (SLAB_CATEGORIES.has(slug) || FORMAT_CATS.has(slug)) continue;
+            if (priority > altP && categoryLookup.has(slug)) {
+              altP = priority;
+              tileCatId = categoryLookup.get(slug);
+              tileCatSlug = slug;
             }
           }
         }
@@ -662,11 +712,44 @@ export async function run(pool, job, source) {
             // If no color, fall back to the API title
             const productName = colorSlug ? deslugify(colorSlug) : apiProduct.title;
 
+            // Sub-group variations by format for variant-level category splitting
+            const formatGroups = new Map();
+            for (const entry of variations) {
+              const fmt = classifyVariation(
+                entry.v.attributes?.attribute_pa_size,
+                originalFormatSlug,
+                originalSlabSlug
+              );
+              if (!formatGroups.has(fmt)) formatGroups.set(fmt, []);
+              formatGroups.get(fmt).push(entry);
+            }
+
+            const needsSuffix = formatGroups.size > 1;
+
+            for (const [fmt, fmtVariations] of formatGroups) {
+              let effectiveCollection = collectionName;
+              let effectiveCatId = categoryId;
+              let effectiveCatSlug = pimCatSlug;
+
+              if (fmt === 'mosaic') {
+                const mosaicId = categoryLookup.get('mosaic-tile');
+                if (mosaicId) { effectiveCatId = mosaicId; effectiveCatSlug = 'mosaic-tile'; }
+                if (needsSuffix) effectiveCollection += ' Mosaics';
+              } else if (fmt === 'stacked') {
+                const stackedId = categoryLookup.get('stacked-stone');
+                if (stackedId) { effectiveCatId = stackedId; effectiveCatSlug = 'stacked-stone'; }
+                if (needsSuffix) effectiveCollection += ' Stacked Stone';
+              } else if (fmt === 'tile' && tileCatId) {
+                effectiveCatId = tileCatId;
+                effectiveCatSlug = tileCatSlug;
+                if (needsSuffix) effectiveCollection += ' Tile';
+              }
+
             const product = await upsertProduct(pool, {
               vendor_id,
               name: productName,
-              collection: collectionName,
-              category_id: categoryId,
+              collection: effectiveCollection,
+              category_id: effectiveCatId,
               description_short: apiProduct.description ? apiProduct.description.slice(0, 255) : null,
               description_long: apiProduct.description
             });
@@ -678,12 +761,12 @@ export async function run(pool, job, source) {
             // ── Product-level primary image ──
             // Per-variation gallery first image, fallback to variation.image
             let productPrimaryUrl = null;
-            for (const { v: cv } of variations) {
+            for (const { v: cv } of fmtVariations) {
               const varGal = galleryData.byVariationId[cv.variation_id] || [];
               if (varGal.length > 0) { productPrimaryUrl = reParamWidenUrl(varGal[0]); break; }
             }
             if (!productPrimaryUrl) {
-              for (const { v: cv } of variations) {
+              for (const { v: cv } of fmtVariations) {
                 const cvImg = cv.image?.url || cv.image?.src || null;
                 if (cvImg) { productPrimaryUrl = reParamWidenUrl(cvImg); break; }
               }
@@ -706,7 +789,7 @@ export async function run(pool, job, source) {
               stats.imagesSet++;
             }
 
-            for (const { vi, v } of variations) {
+            for (const { vi, v } of fmtVariations) {
               // Variant name: size + finish (color is now in product name)
               const sizePart = v.attributes?.attribute_pa_size ? deslugify(v.attributes.attribute_pa_size) : '';
               const finishPart = v.attributes?.attribute_pa_finishes ? deslugify(v.attributes.attribute_pa_finishes) : '';
@@ -723,10 +806,10 @@ export async function run(pool, job, source) {
               let sellBy;
               if (plEntry) {
                 const unit = plEntry.unit;
-                if (unit === 'EA' || unit === 'SHT' || UNIT_CATEGORIES.has(pimCatSlug)) sellBy = 'unit';
+                if (unit === 'EA' || unit === 'SHT' || UNIT_CATEGORIES.has(effectiveCatSlug)) sellBy = 'unit';
                 else sellBy = 'box';
               } else {
-                sellBy = resolveSellBy(pimCatSlug, accessory, detail.soldBy);
+                sellBy = resolveSellBy(effectiveCatSlug, accessory, detail.soldBy);
               }
 
               const sku = await upsertSku(pool, {
@@ -769,7 +852,7 @@ export async function run(pool, job, source) {
                   sqft_per_pallet: plEntry.sfPerPallet || null,
                   weight_per_pallet_lbs: null,
                 });
-              } else if (detail.packaging && Object.keys(detail.packaging).length > 0 && !NO_BOX_CATEGORIES.has(pimCatSlug)) {
+              } else if (detail.packaging && Object.keys(detail.packaging).length > 0 && !NO_BOX_CATEGORIES.has(effectiveCatSlug)) {
                 await upsertPackaging(pool, sku.id, {
                   sqft_per_box: detail.packaging.sqftPerBox || null,
                   pieces_per_box: detail.packaging.piecesPerBox || null,
@@ -828,6 +911,7 @@ export async function run(pool, job, source) {
                 stats.imagesSet++;
               }
             } // end for variations
+            } // end for formatGroups
           } // end for colorGroups
         } else {
           // Simple product: single SKU — use title as name, no collection grouping

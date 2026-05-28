@@ -114,8 +114,13 @@ export function buildLookupKey(collection, colorSlug, sizeSlug, finishSlug) {
     size = size.replace(/\bSCORED\b/g, '').trim();
     // Remove TRAPEZOID suffix
     size = size.replace(/\bTRAPEZOID\b/g, '').trim();
-    // Normalize dimensions: "8 X 32" → "8X32"
-    size = size.replace(/\s*X\s*/g, 'X');
+    // Normalize dimensions: "8 X 32" → "8X32" (only between digits to preserve HEX, etc.)
+    size = size.replace(/(\d)\s*X\s*(\d)/g, '$1X$2');
+    // Handle hex with fraction: "2-3/8X2-3/8 HEX" → "HEX 2-3/8 IN"
+    const hexFracMatch = size.match(/(\d+-\d+\/\d+)\s*X\s*\1\s*HEX/i);
+    if (hexFracMatch) {
+      size = `HEX ${hexFracMatch[1]} IN`;
+    }
     // Handle hex mesh: "2 1 2 X 2 1 2 HEX MESH" → "HEX 2-1/2 MOSAICO"
     const hexMatch = size.match(/(\d+)\s+(\d+)\s+(\d+)\s*X\s*\1\s+\2\s+\3\s*HEX/i);
     if (hexMatch) {
@@ -134,6 +139,8 @@ export function buildLookupKey(collection, colorSlug, sizeSlug, finishSlug) {
     if (/^HEX\s*\d+X\d+\s*MESH$/i.test(size)) {
       size = 'HEXAGON';
     }
+    // "MESH SHEET" → "MESH" (price list uses just MESH for mesh-mounted mosaics)
+    size = size.replace(/^MESH\s+SHEET$/i, 'MESH');
     // Remove trailing MESH for non-hex mosaics
     size = size.replace(/\s+MESH$/i, '').trim();
     if (size) parts.push(size);
@@ -386,6 +393,8 @@ export function loadAllPriceLists() {
     const finishName = (finishSlug && !/r11/i.test(finishSlug))
       ? finishSlug.toUpperCase().replace(/-/g, ' ').replace(/\s*FINISH$/, '').trim()
       : '';
+    const FINISH_ABBR_LOOKUP = { POLISHED: 'POL', HONED: 'HON', MATTE: 'MAT' };
+    const finishAbbr = FINISH_ABBR_LOOKUP[finishName] || '';
     if (finishName) {
       // Insert finish before the size dimension
       const keyWithFinish = key.replace(/(\d[\d\-\/]*X[\d\-\/]+)/, `${finishName} $1`);
@@ -393,6 +402,56 @@ export function loadAllPriceLists() {
       // Also try finish before mosaic-style suffixes
       const keyWithFinishMosaico = key.replace(/(MOSAICO|STACK|HEXAGON)/, `${finishName} $1`);
       if (keyWithFinishMosaico !== key && allMaps.has(keyWithFinishMosaico)) return allMaps.get(keyWithFinishMosaico);
+      // Insert finish before shape words (PICKET, RHOMBOID, LONG HEX)
+      const keyWithFinishShape = key.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX)\b/, `${finishName} $&`);
+      if (keyWithFinishShape !== key && allMaps.has(keyWithFinishShape)) return allMaps.get(keyWithFinishShape);
+      // Try with dimension-shape swap: "6X10 RHOMBOID" → "RHOMBOID 6X10" then insert finish
+      const swapped = key.replace(/(\d+X\d+)\s+(PICKET|RHOMBOID|LONG\s+HEX)/, '$2 $1');
+      if (swapped !== key) {
+        const keySwappedFinish = swapped.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX)\b/, `${finishName} $&`);
+        if (allMaps.has(keySwappedFinish)) return allMaps.get(keySwappedFinish);
+      }
+      // Insert finish before standalone HEX with fraction (hex mosaic: "HEX 2-3/8 IN")
+      const keyWithFinishHex = key.replace(/\bHEX\s+(\d+-\d+\/\d+)/, `${finishName} HEX $1`);
+      if (keyWithFinishHex !== key && allMaps.has(keyWithFinishHex)) return allMaps.get(keyWithFinishHex);
+      // Try abbreviated finish (POLISHED → POL, HONED → HON)
+      if (finishAbbr) {
+        const keyAbbrDim = key.replace(/(\d[\d\-\/]*X[\d\-\/]+)/, `${finishAbbr} $1`);
+        if (keyAbbrDim !== key && allMaps.has(keyAbbrDim)) return allMaps.get(keyAbbrDim);
+        const keyAbbrMosaico = key.replace(/(MOSAICO|STACK|HEXAGON)/, `${finishAbbr} $1`);
+        if (keyAbbrMosaico !== key && allMaps.has(keyAbbrMosaico)) return allMaps.get(keyAbbrMosaico);
+        const keyAbbrHex = key.replace(/\bHEX\s+(\d+-\d+\/\d+)/, `${finishAbbr} HEX $1`);
+        if (keyAbbrHex !== key && allMaps.has(keyAbbrHex)) return allMaps.get(keyAbbrHex);
+      }
+    }
+
+    // Compound finish: when finish contains multiple values (e.g. "Glossy (G), Matte (M)"),
+    // parse individual finishes and try each one
+    if (finishName) {
+      const KNOWN_FINISH_WORDS = ['GLOSSY', 'MATTE', 'POLISHED', 'HONED', 'SATIN', 'NATURAL'];
+      const parsedFinishes = KNOWN_FINISH_WORDS.filter(f => new RegExp('\\b' + f + '\\b').test(finishName));
+      if (parsedFinishes.length > 1) {
+        const FINISH_SHORT = { POLISHED: 'POL', HONED: 'HON' };
+        for (const sf of parsedFinishes) {
+          // Insert before dimension
+          const k1 = key.replace(/(\d[\d\-\/]*X[\d\-\/]+)/, `${sf} $1`);
+          if (k1 !== key && allMaps.has(k1)) return allMaps.get(k1);
+          // Insert before shape words (PICKET, RHOMBOID, etc.)
+          const k2 = key.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX|HEXAGON|MOSAICO|STACK)\b/, `${sf} $&`);
+          if (k2 !== key && allMaps.has(k2)) return allMaps.get(k2);
+          // Try with dimension-shape swap: "6X10 RHOMBOID" → "RHOMBOID 6X10"
+          const swapped = key.replace(/(\d+X\d+)\s+(PICKET|RHOMBOID|LONG\s+HEX)/, '$2 $1');
+          if (swapped !== key) {
+            const k3 = swapped.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX)\b/, `${sf} $&`);
+            if (allMaps.has(k3)) return allMaps.get(k3);
+          }
+          // Abbreviation (POLISHED → POL)
+          if (FINISH_SHORT[sf]) {
+            const k4 = key.replace(/(\d[\d\-\/]*X[\d\-\/]+)/, `${FINISH_SHORT[sf]} $1`);
+            if (k4 !== key && allMaps.has(k4)) return allMaps.get(k4);
+          }
+        }
+      }
     }
 
     // Deduplicated name: "NEGRO MARQUINA NEGRO MARQUINA 12X12" → "NEGRO MARQUINA 12X12"
@@ -433,6 +492,16 @@ export function loadAllPriceLists() {
         // Also try with RECT
         const tryKeyRect = key.replace(/(\d[\d\-\/]*X[\d\-\/]+)/, `${f} RECT $1`);
         if (tryKeyRect !== key && allMaps.has(tryKeyRect)) return allMaps.get(tryKeyRect);
+        // Insert before shape words (PICKET, RHOMBOID, etc.) — handles cases
+        // where finish goes between color and shape in price list
+        const tryShape = key.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX|HEXAGON|MOSAICO|STACK)\b/, `${f} $&`);
+        if (tryShape !== key && allMaps.has(tryShape)) return allMaps.get(tryShape);
+        // Try with dimension-shape swap: "6X10 RHOMBOID" → "RHOMBOID 6X10"
+        const swapped = key.replace(/(\d+X\d+)\s+(PICKET|RHOMBOID|LONG\s+HEX)/, '$2 $1');
+        if (swapped !== key) {
+          const trySwapped = swapped.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX)\b/, `${f} $&`);
+          if (allMaps.has(trySwapped)) return allMaps.get(trySwapped);
+        }
       }
     }
 
@@ -450,6 +519,79 @@ export function loadAllPriceLists() {
           const dedupColorSlug = colorWords.slice(n).join('-').toLowerCase() || null;
           const dedupKey = buildLookupKey(collection, dedupColorSlug, sizeSlug, finishSlug);
           if (dedupKey && allMaps.has(dedupKey)) return allMaps.get(dedupKey);
+          break;
+        }
+      }
+    }
+
+    // Color === Size dedup: when both produce the same text, try with just one
+    // Handles e.g. Digitalart "Blend Straight Stack" as both color and size
+    if (colorSlug && sizeSlug) {
+      const colorNorm = colorSlug.toUpperCase().replace(/-/g, ' ').trim();
+      const sizeNorm = sizeSlug.toUpperCase().replace(/-/g, ' ').trim();
+      if (colorNorm === sizeNorm) {
+        const kNoSize = buildLookupKey(collection, colorSlug, null, finishSlug);
+        if (kNoSize && allMaps.has(kNoSize)) return allMaps.get(kNoSize);
+      }
+    }
+
+    // Collection name prefix in color: strip prefix and try variations
+    // Handles e.g. Reverie + "Reverie Blanc" → try just "Blanc"
+    if (collection && colorSlug) {
+      const collUp = collection.toUpperCase().trim();
+      const colorUp = colorSlug.toUpperCase().replace(/-/g, ' ').trim();
+      if (colorUp.startsWith(collUp + ' ') && colorUp.length > collUp.length + 1) {
+        const stripped = colorUp.slice(collUp.length + 1);
+        const strippedSlug = stripped.toLowerCase().replace(/ /g, '-');
+
+        // Direct match with stripped color
+        const sk = buildLookupKey(collection, strippedSlug, sizeSlug, finishSlug);
+        if (sk && allMaps.has(sk)) return allMaps.get(sk);
+
+        // With finish inserted before dimension or MESH
+        if (finishName && sk) {
+          const skF1 = sk.replace(/(\d[\d\-\/]*X[\d\-\/]+)/, `${finishName} $1`);
+          if (skF1 !== sk && allMaps.has(skF1)) return allMaps.get(skF1);
+          const skF2 = sk.replace(/\b(MESH|MOSAICO|STACK|HEXAGON)\b/, `${finishName} $&`);
+          if (skF2 !== sk && allMaps.has(skF2)) return allMaps.get(skF2);
+        }
+
+        // Slash between color words: "BLANC LUNA" → "BLANC/LUNA"
+        // Price list uses "/" for multicolor mosaics (Petal, Prism, ZigZag)
+        const words = stripped.split(' ');
+        if (words.length >= 2) {
+          for (let i = 1; i < words.length; i++) {
+            const slashColor = words.slice(0, i).join(' ') + '/' + words.slice(i).join(' ');
+            const slashSlug = slashColor.toLowerCase().replace(/ /g, '-');
+            const skSlash = buildLookupKey(collection, slashSlug, sizeSlug, finishSlug);
+            if (skSlash && allMaps.has(skSlash)) return allMaps.get(skSlash);
+            if (finishName && skSlash) {
+              const skSlashF = skSlash.replace(/\b(MESH|MOSAICO|STACK|HEXAGON)\b/, `${finishName} $&`);
+              if (skSlashF !== skSlash && allMaps.has(skSlashF)) return allMaps.get(skSlashF);
+            }
+          }
+        }
+
+        // Numbered → DECOR N: Reverie "1" → "DECOR 1"
+        if (/^\d+$/.test(stripped)) {
+          const decorSlug = 'decor-' + stripped;
+          const skDecor = buildLookupKey(collection, decorSlug, sizeSlug, finishSlug);
+          if (skDecor && allMaps.has(skDecor)) return allMaps.get(skDecor);
+        }
+      }
+    }
+
+    // Collection-size overlap dedup: when color dropped and collection end = size start
+    // Handles e.g. "Honey Tumbled Lyon" + size "Lyon Pattern" → "HONEY TUMBLED LYON PATTERN"
+    if (collection && sizeSlug) {
+      const collWords = collection.toUpperCase().trim().split(/\s+/);
+      const sizeUp = sizeSlug.toUpperCase().replace(/-/g, ' ').trim();
+      const sizeWords = sizeUp.split(/\s+/);
+      for (let n = Math.min(collWords.length - 1, sizeWords.length); n >= 1; n--) {
+        if (collWords.slice(-n).join(' ') === sizeWords.slice(0, n).join(' ')) {
+          const trimmedSize = sizeWords.slice(n).join('-').toLowerCase() || null;
+          const overlapKey = buildLookupKey(collection, null, trimmedSize, null);
+          if (overlapKey && allMaps.has(overlapKey)) return allMaps.get(overlapKey);
           break;
         }
       }
