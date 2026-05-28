@@ -565,7 +565,14 @@ export async function extractLargeImages(page, excludeUrls = new Set(), minDimen
   const EXCLUDE_PATTERNS = [
     'logo', 'icon', 'favicon', 'social', 'sprite', 'pixel', 'tracking',
     'blank', 'spacer', 'nav', 'menu', 'footer', 'header', 'badge', 'flag',
-    'spinner', 'loader', 'avatar', 'arrow', 'caret', 'chevron', 'close',
+    'spinner', 'loader', 'avatar', 'caret',
+    // Directional UI icons only — bare 'chevron'/'arrow'/'close' clash with
+    // tile pattern names (Chevron, Arrow) and photo descriptors (close-up)
+    'chevron-left', 'chevron-right', 'chevron-up', 'chevron-down',
+    'chevron_left', 'chevron_right', 'chevron_up', 'chevron_down',
+    'arrow-left', 'arrow-right', 'arrow-up', 'arrow-down',
+    'arrow_left', 'arrow_right', 'arrow_up', 'arrow_down',
+    'close-btn', 'close-icon', 'btn-close', 'icon-close',
     'search', 'cart', 'phone', 'email', 'map-pin', 'marker', 'play-btn',
     'share', 'print', 'pdf-icon', 'download-icon', 'ClaimU',
     '1x1', '1px', 'transparent.gif', 'transparent.png',
@@ -985,7 +992,14 @@ export function filterImageUrls(urls, opts = {}) {
   const EXCLUDE = [
     'logo', 'icon', 'favicon', 'social', 'sprite', 'pixel', 'tracking',
     'blank', 'spacer', 'nav', 'menu', 'footer', 'header', 'badge', 'flag',
-    'spinner', 'loader', 'avatar', 'arrow', 'caret', 'chevron', 'close',
+    'spinner', 'loader', 'avatar', 'caret',
+    // Directional UI icons only — bare 'chevron'/'arrow'/'close' clash with
+    // tile pattern names (Chevron, Arrow) and photo descriptors (close-up)
+    'chevron-left', 'chevron-right', 'chevron-up', 'chevron-down',
+    'chevron_left', 'chevron_right', 'chevron_up', 'chevron_down',
+    'arrow-left', 'arrow-right', 'arrow-up', 'arrow-down',
+    'arrow_left', 'arrow_right', 'arrow_up', 'arrow_down',
+    'close-btn', 'close-icon', 'btn-close', 'icon-close',
     'search', 'cart', 'phone', 'email', 'map-pin', 'marker', 'play-btn',
     'share', 'print', 'pdf-icon', 'download-icon',
     '1x1', '1px', 'transparent.gif', 'transparent.png',
