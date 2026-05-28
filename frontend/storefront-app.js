@@ -746,17 +746,7 @@
             showCollection = col;
           }
         } else {
-          const hyphenIdx = col.indexOf("-");
-          if (hyphenIdx > 0 && hyphenIdx < 5) {
-            const afterHyphen = col.slice(hyphenIdx + 1).toLowerCase().trim();
-            if (afterHyphen === nameLower || nameLower.startsWith(afterHyphen + " ") || nameLower.startsWith(afterHyphen + "-")) {
-              showCollection = "";
-            } else {
-              showCollection = col;
-            }
-          } else {
-            showCollection = col;
-          }
+          showCollection = col;
         }
       }
     }
@@ -795,14 +785,6 @@
         }
       }
     }
-    if (variant && showCollection) {
-      const vcParts = variant.split(",");
-      const vcFirstSeg = vcParts[0].trim().toLowerCase();
-      const scLower = showCollection.toLowerCase();
-      if (vcFirstSeg === scLower || scLower.endsWith(" " + vcFirstSeg)) {
-        variant = vcParts.slice(1).map((p) => p.trim()).join(", ") || null;
-      }
-    }
     if (sku.attributes) {
       const colorAttr = (sku.attributes || []).find((a) => a.slug === "color");
       const variantIsColor = colorAttr && variant && variant.toLowerCase() === formatVariantName(colorAttr.value).toLowerCase();
@@ -810,7 +792,8 @@
       if (variantIsColor || variantIsEmpty) {
         const rawSizeAttr = sku.sell_by !== "roll" ? (sku.attributes || []).find((a) => a.slug === "size") : null;
         const rawSizeVal = rawSizeAttr ? (rawSizeAttr.value || "").trim() : "";
-        const sizeAttr = rawSizeAttr && (/^\d+\s*[xX×]\s*\d+\s*ft$/i.test(rawSizeVal) || /^\d+\.\d+\s*[xX×]\s*\d+\.\d+$/.test(rawSizeVal) || /^\d+\.\d+\s+Wide$/i.test(rawSizeVal) || /^\d+\s+in$/i.test(rawSizeVal) || /^\d+\u2033$/.test(rawSizeVal)) ? null : rawSizeAttr;
+        const isAdexVendor = (sku.vendor_code || "").toUpperCase() === "ADEX";
+        const sizeAttr = rawSizeAttr && !isAdexVendor && (/^\d+\s*[xX×]\s*\d+\s*ft$/i.test(rawSizeVal) || /^\d+\.\d+\s*[xX×]\s*\d+\.\d+$/.test(rawSizeVal) || /^\d+\.\d+\s+Wide$/i.test(rawSizeVal) || /^\d+\s+in$/i.test(rawSizeVal) || /^\d+\u2033$/.test(rawSizeVal)) ? null : rawSizeAttr;
         const patternAttr = (sku.attributes || []).find((a) => a.slug === "pattern");
         const finishAttr = (sku.attributes || []).find((a) => a.slug === "finish");
         const nameLowerDedup = name.toLowerCase();
@@ -860,7 +843,17 @@
     }
     const subLineAttr = (sku.attributes || []).find((a) => a.slug === "sub_line");
     const subLineNumeral = subLineAttr && /^I{1,3}$/.test(subLineAttr.value) ? subLineAttr.value : null;
-    const result = [brand, showCollection, productLine, name, variant, subLineNumeral].filter(Boolean).join(" ");
+    let orderedName = name;
+    let orderedVariant = variant;
+    if (variant) {
+      const sizeMatch = name.match(/^(.*?\s)?(\d+(?:\.\d+)?(?:\/\d+)?\s*[xX×]\s*\d.*)$/);
+      if (sizeMatch && sizeMatch[2]) {
+        const prefix = (sizeMatch[1] || "").trimEnd();
+        orderedName = (prefix ? prefix + " " : "") + variant + " " + sizeMatch[2];
+        orderedVariant = null;
+      }
+    }
+    const result = [brand, showCollection, productLine, orderedName, orderedVariant, subLineNumeral].filter(Boolean).join(" ");
     return appendTypeSuffix(result, sku.category_name);
   }
   function cleanDescription(text, vendorName) {
@@ -3199,7 +3192,7 @@
     const basePrice = isCarpet(sku) ? sku.cut_price : sku.retail_price;
     const price = sku.trade_price || (onSale ? sku.sale_price : basePrice);
     const discountPct = onSale && parseFloat(basePrice) > 0 ? Math.round((1 - parseFloat(sku.sale_price) / parseFloat(basePrice)) * 100) : 0;
-    return /* @__PURE__ */ React.createElement("div", { className: "sku-card", onClick, "data-sku": sku.vendor_sku || sku.internal_sku }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "sku-card" + (sku.vendor_code === "ADEX" ? " sku-card--contain" : ""), onClick, "data-sku": sku.vendor_sku || sku.internal_sku }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "wishlist-heart" + (isWished ? " active" : ""),
@@ -3427,8 +3420,6 @@
     const isPerUnit = sku && isSoldPerUnit(sku);
     const hasBoxCalc = !isPerUnit && sqftPerBox > 0;
     const isSqftNoBox = !isPerUnit && sqftPerBox <= 0;
-    const SLAB_CATS = new Set(['granite-countertops', 'marble-countertops', 'quartzite-countertops', 'quartz-countertops', 'porcelain-slabs', 'soapstone-countertops']);
-    const isSlabNoBox = isSqftNoBox && sku && SLAB_CATS.has(sku.category_slug);
     const sheetRollWidthFt = isSqftNoBox && !isCarpetSku && sku ? parseRollWidthFt(sku.product_name || "") : 0;
     const isSheetVinyl = isSqftNoBox && !isCarpetSku && sheetRollWidthFt > 0;
     const sheetMode = isSheetVinyl ? carpetInputMode === "linear" && sheetRollWidthFt <= 0 ? "dimensions" : carpetInputMode : null;
@@ -3576,7 +3567,7 @@
     const mainSiblings = siblings;
     const accessorySiblings = groupedProducts.length > 0 ? [] : skuAccessories;
     const isAdexProduct = /adex/i.test(sku.vendor_name || "");
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sku-detail", "data-sku": sku.vendor_sku || sku.internal_sku, style: loading ? { opacity: 0.6, pointerEvents: "none", transition: "opacity 0.15s ease" } : { opacity: 1, transition: "opacity 0.15s ease" } }, /* @__PURE__ */ React.createElement("div", { className: "breadcrumbs" }, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sku-detail" + (sku.vendor_code === "ADEX" ? " sku-detail--contain" : ""), "data-sku": sku.vendor_sku || sku.internal_sku, style: loading ? { opacity: 0.6, pointerEvents: "none", transition: "opacity 0.15s ease" } : { opacity: 1, transition: "opacity 0.15s ease" } }, /* @__PURE__ */ React.createElement("div", { className: "breadcrumbs" }, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
       e.preventDefault();
       goBack();
     } }, "Shop"), /* @__PURE__ */ React.createElement("span", null, "/"), sku.category_name && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
@@ -3691,13 +3682,16 @@
         const curFinishAttr = (sku.attributes || []).find((a) => a.slug === "finish");
         const curFinish = curFinishAttr ? curFinishAttr.value : "";
         const curSkuPrimary = media ? media.find((m) => m.sku_id && m.asset_type === "primary") : null;
+        const curSizeAttr = (sku.attributes || []).find((a) => a.slug === "size");
+        const curSize = curSizeAttr ? curSizeAttr.value : "";
         allCollection.push({
           sku_id: sku.sku_id,
           product_name: sku.product_name,
           variant_name: sku.variant_name,
           primary_image: curSkuPrimary ? curSkuPrimary.url : null,
           color: curColor,
-          finish: curFinish
+          finish: curFinish,
+          size: curSize
         });
         seenIds.add(sku.sku_id);
         mainSiblings.forEach((s) => {
@@ -3705,7 +3699,8 @@
           seenIds.add(s.sku_id);
           const ca = (s.attributes || []).find((a) => a.slug === "color");
           const fa = (s.attributes || []).find((a) => a.slug === "finish");
-          allCollection.push({ ...s, product_name: sku.product_name, color: ca ? ca.value : "", finish: fa ? fa.value : "", primary_image: s.sku_image || null });
+          const sa = (s.attributes || []).find((a) => a.slug === "size");
+          allCollection.push({ ...s, product_name: sku.product_name, color: ca ? ca.value : "", finish: fa ? fa.value : "", size: sa ? sa.value : "", primary_image: s.sku_image || null });
         });
         collectionSiblings.forEach((s) => {
           if (seenIds.has(s.sku_id)) return;
@@ -3722,7 +3717,8 @@
           );
           const uniqueColors = [...new Set(sameProductFinish.map((s) => s.color))].filter(Boolean).sort();
           const colorSwatches = uniqueColors.map((color) => {
-            const rep = sameProductFinish.find((s) => s.color === color);
+            const rep = sameProductFinish.find((s) => s.color === color && s.size === curSize)
+              || sameProductFinish.find((s) => s.color === color);
             return { color, sku_id: rep.sku_id, primary_image: rep.primary_image, is_current: color === curColor };
           });
           const sameProductColor = allCollection.filter(
@@ -3735,7 +3731,7 @@
             if (!c.is_current) onSkuClick(c.sku_id);
           } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (c.is_current ? " active" : "") }, c.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(c.primary_image, 120), alt: c.color, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.625rem", fontWeight: 600, color: "var(--stone-500)", textAlign: "center", lineHeight: 1.2, padding: "4px" } }, c.color)), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, c.color))))), showFinishRow && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Finish", /* @__PURE__ */ React.createElement("span", null, curFinish || "Standard")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, finishesForColor.map((f) => {
             const isActive = f === curFinish;
-            const match = sameProductColor.find((s) => s.finish === f) || allCollection.find((s) => s.color === curColor && s.finish === f && s.product_name === sku.product_name);
+            const match = sameProductColor.find((s) => s.finish === f && s.size === curSize) || sameProductColor.find((s) => s.finish === f) || allCollection.find((s) => s.color === curColor && s.finish === f && s.product_name === sku.product_name);
             return /* @__PURE__ */ React.createElement("button", { key: f || "_std", className: "attr-pill" + (isActive ? " active" : ""), onClick: () => {
               if (!isActive && match) onSkuClick(match.sku_id);
             } }, f || "Standard");
@@ -3761,8 +3757,10 @@
               const vn = s.variant_name || "";
               const dashIdx = vn.indexOf(" - ");
               const prefix = dashIdx > 0 ? vn.substring(0, dashIdx) : "";
-              if (/^End Cap|^Frame Corner|^Beak|^FE Corner/i.test(prefix)) return s.product_name + " \u2014 " + prefix;
-              return s.product_name;
+              let name = s.product_name;
+              if (/^End Cap|^Frame Corner|^Beak|^FE Corner/i.test(prefix)) name = s.product_name + " \u2014 " + prefix;
+              if (s.size) name += " " + s.size;
+              return name;
             };
             const groups = {};
             matchingVariants.forEach((s) => {
@@ -3772,7 +3770,7 @@
             });
             const CATEGORY_ORDER = ["Field Tiles", "Beveled Tiles", "Decorative Accessories", "Decorative Accents", "Finishing Edges", "Bullnoses", "Glazed Edges", "Moldings & Trim", "Finishing Touches", "Other Pieces"];
             const orderedGroups = CATEGORY_ORDER.filter((cat) => groups[cat] && groups[cat].length > 0);
-            return /* @__PURE__ */ React.createElement("div", { style: { marginTop: "1.5rem" } }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label", style: { marginBottom: "0.75rem" } }, curColor, curFinish ? " " + curFinish : "", " \u2014 ", sku.collection, " Collection", /* @__PURE__ */ React.createElement("span", null, matchingVariants.length, " pieces")), orderedGroups.map((cat) => /* @__PURE__ */ React.createElement("div", { key: cat, style: { marginBottom: "1.25rem" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--stone-500)", marginBottom: "0.5rem" } }, cat), /* @__PURE__ */ React.createElement("div", { className: "variant-grid" }, groups[cat].map((s) => /* @__PURE__ */ React.createElement("div", { key: s.sku_id, className: "sibling-card", onClick: () => onSkuClick(s.sku_id) }, /* @__PURE__ */ React.createElement("div", { className: "sibling-card-image" }, (s.shape_image || s.primary_image) && /* @__PURE__ */ React.createElement("img", { src: optimizeImg(s.shape_image || s.primary_image, 120), alt: displayName(s), loading: "lazy", decoding: "async" })), /* @__PURE__ */ React.createElement("div", { className: "sibling-card-name" }, displayName(s)), skuListPrice(s) && /* @__PURE__ */ React.createElement("div", { className: "sibling-card-price" }, "$", displayPrice(s, skuListPrice(s)).toFixed(2), priceSuffix(s))))))));
+            return /* @__PURE__ */ React.createElement("div", { style: { marginTop: "1.5rem" } }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label", style: { marginBottom: "0.75rem" } }, curColor, curFinish ? " " + curFinish : "", " \u2014 ", sku.collection, " Collection", /* @__PURE__ */ React.createElement("span", null, matchingVariants.length, " pieces")), orderedGroups.map((cat) => /* @__PURE__ */ React.createElement("div", { key: cat, style: { marginBottom: "1.25rem" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--stone-500)", marginBottom: "0.5rem" } }, cat), /* @__PURE__ */ React.createElement("div", { className: "variant-grid" }, groups[cat].map((s) => /* @__PURE__ */ React.createElement("div", { key: s.sku_id, className: "sibling-card", onClick: () => onSkuClick(s.sku_id) }, /* @__PURE__ */ React.createElement("div", { className: "sibling-card-image" }, (s.primary_image || s.shape_image) && /* @__PURE__ */ React.createElement("img", { src: optimizeImg(s.primary_image || s.shape_image, 120), alt: displayName(s), loading: "lazy", decoding: "async" })), /* @__PURE__ */ React.createElement("div", { className: "sibling-card-name" }, displayName(s)), skuListPrice(s) && /* @__PURE__ */ React.createElement("div", { className: "sibling-card-price" }, "$", displayPrice(s, skuListPrice(s)).toFixed(2), priceSuffix(s))))))));
           })());
         }
       }
@@ -3818,19 +3816,36 @@
       }
       let collectionSizeItems = [];
       if (collectionSiblings.length > 0) {
-        const extractSize = (name) => {
-          const m = (name || "").match(/\b(\d+\.?\d*)\s*["″]?\s*/);
-          return m ? m[1] : null;
+        const extractDims = (name) => {
+          const m = (name || "").match(/(\d+(?:\.\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?(?:\/\d+)?)/);
+          if (m) return m[0];
+          const s = (name || "").match(/\b(\d+\.?\d*)\s*["″]/);
+          return s ? s[0] : null;
         };
-        const curSz = extractSize(sku.product_name);
+        const extractFinish = (name) => {
+          const m = (name || "").match(/,\s*(.+?)(?:\s*\(|$)/);
+          return m ? m[1].trim() : null;
+        };
+        const extractSort = (sz) => {
+          const m = (sz || "").match(/(\d+)/);
+          return m ? parseFloat(m[1]) : 0;
+        };
+        const curSz = extractDims(sku.product_name);
+        const curFinishVal = extractFinish(sku.product_name);
+        const allItems = [{ product_name: sku.product_name, sku_id: sku.sku_id, primary_image: media && media[0] ? media[0].url : null }, ...collectionSiblings];
+        const comboMap = /* @__PURE__ */ new Map();
+        allItems.forEach((s) => {
+          const sz = extractDims(s.product_name);
+          const fn = extractFinish(s.product_name);
+          if (sz && fn) comboMap.set(sz + "|" + fn, s.sku_id);
+        });
         if (curSz) {
           const sizeMap = /* @__PURE__ */ new Map();
-          sizeMap.set(curSz, { label: curSz + '"', sku_id: sku.sku_id, is_current: true, sort: parseFloat(curSz), primary_image: media && media[0] ? media[0].url : null });
-          collectionSiblings.forEach((s) => {
-            const sz = extractSize(s.product_name);
-            if (sz && !sizeMap.has(sz)) {
-              sizeMap.set(sz, { label: sz + '"', sku_id: s.sku_id, is_current: false, sort: parseFloat(sz), primary_image: s.primary_image || null });
-            }
+          allItems.forEach((s) => {
+            const sz = extractDims(s.product_name);
+            if (!sz || sizeMap.has(sz)) return;
+            const target = comboMap.get(sz + "|" + curFinishVal) || s.sku_id;
+            sizeMap.set(sz, { label: sz, sku_id: target, is_current: sz === curSz, sort: extractSort(sz) });
           });
           if (sizeMap.size > 1) {
             collectionSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
@@ -3838,6 +3853,39 @@
         }
       }
       const showSizePills = collectionSizeItems.length > 0;
+      let collectionFinishItems = [];
+      if (collectionSiblings.length > 0) {
+        const extractDims2 = (name) => {
+          const m = (name || "").match(/(\d+(?:\.\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?(?:\/\d+)?)/);
+          return m ? m[0] : null;
+        };
+        const extractFinish2 = (name) => {
+          const m = (name || "").match(/,\s*(.+?)(?:\s*\(|$)/);
+          return m ? m[1].trim() : null;
+        };
+        const curSz2 = extractDims2(sku.product_name);
+        const curFn = extractFinish2(sku.product_name);
+        const allItems2 = [{ product_name: sku.product_name, sku_id: sku.sku_id }, ...collectionSiblings];
+        const comboMap2 = /* @__PURE__ */ new Map();
+        allItems2.forEach((s) => {
+          const sz = extractDims2(s.product_name);
+          const fn = extractFinish2(s.product_name);
+          if (sz && fn) comboMap2.set(sz + "|" + fn, s.sku_id);
+        });
+        if (curFn) {
+          const finishMap = /* @__PURE__ */ new Map();
+          allItems2.forEach((s) => {
+            const fn = extractFinish2(s.product_name);
+            if (!fn || finishMap.has(fn)) return;
+            const target = comboMap2.get(curSz2 + "|" + fn) || s.sku_id;
+            finishMap.set(fn, { label: fn, sku_id: target, is_current: fn === curFn });
+          });
+          if (finishMap.size > 1) {
+            collectionFinishItems = [...finishMap.values()];
+          }
+        }
+      }
+      const showFinishPills = collectionFinishItems.length > 0;
       let sibSizeItems = [];
       if (mainSiblings.length > 0 && !showSizePills) {
         const _getWidth = (attrs, vn) => {
@@ -4085,12 +4133,8 @@
         });
         return sizeOk && finishOk;
       };
-      if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showSibSizes) return null;
-      return /* @__PURE__ */ React.createElement("div", { className: "variant-selectors" }, showSizePills && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, collectionSizeItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, collectionSizeItems.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.label, className: "color-swatch-wrap", onClick: () => {
-        if (!s.is_current) onSkuClick(s.sku_id);
-      } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (s.is_current ? " active" : "") }, s.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(s.primary_image, 120), alt: s.label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 600, color: "var(--stone-500)" } }, s.label)), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, s.label))))), showSibSizes && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, sibSizeItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, sibSizeItems.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.label, className: "color-swatch-wrap", onClick: () => {
-        if (!s.is_current) onSkuClick(s.sku_id);
-      } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (s.is_current ? " active" : "") }, s.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(s.primary_image, 120), alt: s.label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 600, color: "var(--stone-500)" } }, s.label)), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, s.label))))), showColors && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, colorLabel), isRomanVariants ? /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, [...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map((c) => /* @__PURE__ */ React.createElement("button", { key: c.sku_id, className: "attr-pill" + (c.is_current ? " active" : ""), onClick: () => {
+      if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes) return null;
+      return /* @__PURE__ */ React.createElement("div", { className: "variant-selectors" }, showColors && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, colorLabel), isRomanVariants ? /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, [...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map((c) => /* @__PURE__ */ React.createElement("button", { key: c.sku_id, className: "attr-pill" + (c.is_current ? " active" : ""), onClick: () => {
         if (!c.is_current) onSkuClick(c.sku_id);
       } }, romanPillLabel(c.product_name)))) : /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, colorItems.map((c) => {
         const label = c.color || c.variant_name || c.product_name;
@@ -4098,7 +4142,13 @@
         return /* @__PURE__ */ React.createElement("div", { key: c.sku_id, className: "color-swatch-wrap" + (!compatible ? " disabled" : ""), onClick: () => {
           if (!c.is_current) onSkuClick(c.sku_id);
         } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (c.is_current ? " active" : "") }, c.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(c.primary_image, 120), alt: label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)" } })), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, label, !compatible ? " (limited options)" : ""));
-      }))), showRomanStylePills && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Style", /* @__PURE__ */ React.createElement("span", null, romanPillLabel(sku.product_name))), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, [...romanStyleItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map((c) => /* @__PURE__ */ React.createElement("button", { key: c.sku_id, className: "attr-pill" + (c.is_current ? " active" : ""), onClick: () => {
+      }))), showSizePills && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, collectionSizeItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, collectionSizeItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), onClick: () => {
+        if (!s.is_current) onSkuClick(s.sku_id);
+      } }, s.label)))), showFinishPills && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Finish", /* @__PURE__ */ React.createElement("span", null, collectionFinishItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, collectionFinishItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), onClick: () => {
+        if (!s.is_current) onSkuClick(s.sku_id);
+      } }, s.label)))), showSibSizes && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, sibSizeItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, sibSizeItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), onClick: () => {
+        if (!s.is_current) onSkuClick(s.sku_id);
+      } }, s.label)))), showRomanStylePills && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Style", /* @__PURE__ */ React.createElement("span", null, romanPillLabel(sku.product_name))), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, [...romanStyleItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map((c) => /* @__PURE__ */ React.createElement("button", { key: c.sku_id, className: "attr-pill" + (c.is_current ? " active" : ""), onClick: () => {
         if (!c.is_current) onSkuClick(c.sku_id);
       } }, romanPillLabel(c.product_name))))), showSubLinePill && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, subLineSectionLabel, /* @__PURE__ */ React.createElement("span", null, curSubLine ? isRomanSubLine ? curSubLine : curSubLine.replace(/^ADURA\s*/i, "") : "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, subLineValues.map((sl) => {
         const isActive = sl === curSubLine;
@@ -4441,28 +4491,7 @@
       },
       "Add to Cart ",
       sheetSqft > 0 ? `- $${sheetSubtotal.toFixed(2)}` : ""
-    )), !isCarpetSku && !isSheetVinyl && isSqftNoBox && !isSlabNoBox && effectivePrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Order by Square Footage"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Square Feet Needed"), /* @__PURE__ */ React.createElement(
-      "input",
-      {
-        className: "calc-input",
-        type: "number",
-        min: "0",
-        step: "1",
-        placeholder: "Enter sqft",
-        value: sqftInput,
-        onChange: (e) => setSqftInput(e.target.value)
-      }
-    ))), parseFloat(sqftInput) > 0 && /* @__PURE__ */ React.createElement("div", { className: "calc-summary" }, /* @__PURE__ */ React.createElement("div", { className: "calc-summary-total" }, /* @__PURE__ */ React.createElement("span", null, "Subtotal"), /* @__PURE__ */ React.createElement("span", null, "$", sqftOnlySubtotal.toFixed(2)))), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "btn",
-        style: { width: "100%", marginTop: "1.5rem" },
-        onClick: handleAddToCart,
-        disabled: !(parseFloat(sqftInput) > 0)
-      },
-      "Add to Cart ",
-      parseFloat(sqftInput) > 0 ? `- $${sqftOnlySubtotal.toFixed(2)}` : ""
-    )), isSlabNoBox && effectivePrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { style: { background: "var(--stone-50, #fafaf9)", border: "1px solid var(--stone-200, #e7e5e4)", borderRadius: 8, padding: "1.25rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 0.5rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--stone-800, #292524)" } }, "Slab \u2014 Please Inquire"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.85rem", color: "var(--stone-600, #57534e)", lineHeight: 1.5 } }, "Contact us to confirm slab dimensions and availability before ordering."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "btn", style: { width: "100%", marginTop: "1rem", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009"))), isPerUnit && slabMissingSize && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { style: { background: "var(--stone-50, #fafaf9)", border: "1px solid var(--stone-200, #e7e5e4)", borderRadius: 8, padding: "1.25rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 0.5rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--stone-800, #292524)" } }, "Slab \u2014 Please Inquire"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.85rem", color: "var(--stone-600, #57534e)", lineHeight: 1.5 } }, "Contact us to confirm slab dimensions and availability before ordering."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "btn", style: { width: "100%", marginTop: "1rem", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009"))), isPerUnit && !slabMissingSize && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-row" }, /* @__PURE__ */ React.createElement("span", { className: "unit-qty-label" }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement(
+    )), isPerUnit && (slabMissingSize || effectivePrice <= 0) && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { style: { background: "var(--stone-50, #fafaf9)", border: "1px solid var(--stone-200, #e7e5e4)", borderRadius: 8, padding: "1.25rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 0.5rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--stone-800, #292524)" } }, "Slab \u2014 Please Inquire"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.85rem", color: "var(--stone-600, #57534e)", lineHeight: 1.5 } }, "Contact us to confirm slab dimensions and availability before ordering."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "btn", style: { width: "100%", marginTop: "1rem", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009"))), isPerUnit && !slabMissingSize && effectivePrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-row" }, /* @__PURE__ */ React.createElement("span", { className: "unit-qty-label" }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "number",
@@ -4480,7 +4509,7 @@
         disabled: unitQty <= 0
       },
       effectivePrice > 0 ? `Add to Cart \u2014 $${unitSubtotal.toFixed(2)}` : "Add to Cart"
-    )), !isCarpetSku && !isPerUnit && effectivePrice <= 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "var(--stone-50, #fafaf9)", border: "1px solid var(--stone-200, #e7e5e4)", borderRadius: 8, padding: "1.25rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 0.5rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--stone-800, #292524)" } }, "Call for Price & Stock"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.85rem", color: "var(--stone-600, #57534e)", lineHeight: 1.5 } }, "Contact us for current pricing, stock availability, and lead times."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "btn", style: { width: "100%", marginTop: "1rem", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009")), /* @__PURE__ */ React.createElement(
+    )), !isCarpetSku && !isPerUnit && (effectivePrice <= 0 || sqftPerBox <= 0 && !isSheetVinyl) && /* @__PURE__ */ React.createElement("div", { style: { background: "var(--stone-50, #fafaf9)", border: "1px solid var(--stone-200, #e7e5e4)", borderRadius: 8, padding: "1.25rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 0.5rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--stone-800, #292524)" } }, "Call for Price & Stock"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.85rem", color: "var(--stone-600, #57534e)", lineHeight: 1.5 } }, "Contact us for current pricing, stock availability, and lead times."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "btn", style: { width: "100%", marginTop: "1rem", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009")), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn roomvo-visualize-btn",

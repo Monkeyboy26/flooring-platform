@@ -705,7 +705,8 @@
           // Skip roll dimensions (e.g. "12x150FT"), plank dimensions with decimals (e.g. "4.96x48.04", "9.06 Wide"),
           // and simple width values (e.g. "5 in", "7 in") — the product name already carries the width
           const rawSizeVal = rawSizeAttr ? (rawSizeAttr.value || '').trim() : '';
-          const sizeAttr = rawSizeAttr && (
+          const isAdexVendor = (sku.vendor_code || '').toUpperCase() === 'ADEX';
+          const sizeAttr = rawSizeAttr && !isAdexVendor && (
             /^\d+\s*[xX×]\s*\d+\s*ft$/i.test(rawSizeVal) ||
             /^\d+\.\d+\s*[xX×]\s*\d+\.\d+$/.test(rawSizeVal) ||
             /^\d+\.\d+\s+Wide$/i.test(rawSizeVal) ||
@@ -771,7 +772,20 @@
       // Append sub_line Roman numeral after color (e.g., "Astounding Amberwood III Carpet")
       const subLineAttr = (sku.attributes || []).find(a => a.slug === 'sub_line');
       const subLineNumeral = subLineAttr && /^I{1,3}$/.test(subLineAttr.value) ? subLineAttr.value : null;
-      const result = [brand, showCollection, productLine, name, variant, subLineNumeral].filter(Boolean).join(' ');
+      // When product name contains a size dimension (e.g., "12x24, Matte" or "Arenite 12x24, Matte"),
+      // insert the color/variant before the size so it reads "Arenite Ostuni 12x24, Matte"
+      // instead of "Arenite 12x24, Matte Ostuni".
+      let orderedName = name;
+      let orderedVariant = variant;
+      if (variant) {
+        const sizeMatch = name.match(/^(.*?\s)?(\d+(?:\.\d+)?(?:\/\d+)?\s*[xX×]\s*\d.*)$/);
+        if (sizeMatch && sizeMatch[2]) {
+          const prefix = (sizeMatch[1] || '').trimEnd();
+          orderedName = (prefix ? prefix + ' ' : '') + variant + ' ' + sizeMatch[2];
+          orderedVariant = null;
+        }
+      }
+      const result = [brand, showCollection, productLine, orderedName, orderedVariant, subLineNumeral].filter(Boolean).join(' ');
       return appendTypeSuffix(result, sku.category_name);
     }
 
@@ -1961,7 +1975,7 @@
               selectedCollection={selectedCollection} searchQuery={searchQuery}
               onCategorySelect={handleCategorySelect} onSearch={handleSearch}
               facets={facets} filters={filters}
-              onFilterToggle={handleFilterToggle} onClearFilters={handleClearFilters}
+              onFilterToggle={handleFilterToggle} onBatchFilterSet={handleBatchFilterSet} onClearFilters={handleClearFilters}
               sortBy={sortBy} onSortChange={handleSortChange}
               onSkuClick={goSkuDetail}
               currentPage={currentPage} onPageChange={handlePageChange}
@@ -3371,7 +3385,7 @@
 
     // ==================== Browse View ====================
 
-    function BrowseView({ skus, totalSkus, loading, categories, selectedCategory, selectedCollection, searchQuery, onCategorySelect, onSearch, facets, filters, onFilterToggle, onClearFilters, sortBy, onSortChange, onSkuClick, currentPage, onPageChange, wishlist, toggleWishlist, setQuickViewSku, filterDrawerOpen, setFilterDrawerOpen, goHome,
+    function BrowseView({ skus, totalSkus, loading, categories, selectedCategory, selectedCollection, searchQuery, onCategorySelect, onSearch, facets, filters, onFilterToggle, onBatchFilterSet, onClearFilters, sortBy, onSortChange, onSkuClick, currentPage, onPageChange, wishlist, toggleWishlist, setQuickViewSku, filterDrawerOpen, setFilterDrawerOpen, goHome,
       vendorFacets, vendorFilters, onVendorToggle, priceRange, userPriceRange, onPriceRangeChange, tagFacets, tagFilters, onTagToggle, didYouMean }) {
       const totalPages = Math.ceil(totalSkus / 24);
       const hasAttrFilters = Object.keys(filters).length > 0;
@@ -3398,7 +3412,7 @@
 
       // Shared FacetPanel props
       const facetProps = {
-        facets, filters, onFilterToggle, onBatchFilterSet: handleBatchFilterSet, onClearFilters,
+        facets, filters, onFilterToggle, onBatchFilterSet, onClearFilters,
         vendors: vendorFacets, vendorFilters, onVendorToggle,
         priceRange, userPriceRange, onPriceRangeChange,
         tagFacets, tagFilters, onTagToggle, totalSkus
@@ -3981,7 +3995,7 @@
       const price = sku.trade_price || (onSale ? sku.sale_price : basePrice);
       const discountPct = onSale && parseFloat(basePrice) > 0 ? Math.round((1 - parseFloat(sku.sale_price) / parseFloat(basePrice)) * 100) : 0;
       return (
-        <div className="sku-card" onClick={onClick} data-sku={sku.vendor_sku || sku.internal_sku}>
+        <div className={'sku-card' + (sku.vendor_code === 'ADEX' ? ' sku-card--contain' : '')} onClick={onClick} data-sku={sku.vendor_sku || sku.internal_sku}>
           <button className={'wishlist-heart' + (isWished ? ' active' : '')}
             onClick={(e) => { e.stopPropagation(); onToggleWishlist(); }}>
             <svg viewBox="0 0 24 24" fill={isWished ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -4494,7 +4508,7 @@
 
       return (
         <>
-          <div className="sku-detail" data-sku={sku.vendor_sku || sku.internal_sku} style={loading ? { opacity: 0.6, pointerEvents: 'none', transition: 'opacity 0.15s ease' } : { opacity: 1, transition: 'opacity 0.15s ease' }}>
+          <div className={'sku-detail' + (sku.vendor_code === 'ADEX' ? ' sku-detail--contain' : '')} data-sku={sku.vendor_sku || sku.internal_sku} style={loading ? { opacity: 0.6, pointerEvents: 'none', transition: 'opacity 0.15s ease' } : { opacity: 1, transition: 'opacity 0.15s ease' }}>
             <div className="breadcrumbs">
               <a href="#" onClick={e => { e.preventDefault(); goBack(); }}>Shop</a>
               <span>/</span>
@@ -4718,10 +4732,12 @@
                   const curFinish = curFinishAttr ? curFinishAttr.value : '';
                   // For color swatches, use SKU-level primary (color swatch), not shape/fallback image
                   const curSkuPrimary = media ? media.find(m => m.sku_id && m.asset_type === 'primary') : null;
+                  const curSizeAttr = (sku.attributes || []).find(a => a.slug === 'size');
+                  const curSize = curSizeAttr ? curSizeAttr.value : '';
                   allCollection.push({
                     sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name,
                     primary_image: curSkuPrimary ? curSkuPrimary.url : null,
-                    color: curColor, finish: curFinish
+                    color: curColor, finish: curFinish, size: curSize
                   });
                   seenIds.add(sku.sku_id);
 
@@ -4731,7 +4747,8 @@
                     seenIds.add(s.sku_id);
                     const ca = (s.attributes || []).find(a => a.slug === 'color');
                     const fa = (s.attributes || []).find(a => a.slug === 'finish');
-                    allCollection.push({ ...s, product_name: sku.product_name, color: ca ? ca.value : '', finish: fa ? fa.value : '', primary_image: s.sku_image || null });
+                    const sa = (s.attributes || []).find(a => a.slug === 'size');
+                    allCollection.push({ ...s, product_name: sku.product_name, color: ca ? ca.value : '', finish: fa ? fa.value : '', size: sa ? sa.value : '', primary_image: s.sku_image || null });
                   });
 
                   // Collection siblings (primary_image is already SKU-only for ADEX from backend)
@@ -4754,7 +4771,8 @@
                     );
                     const uniqueColors = [...new Set(sameProductFinish.map(s => s.color))].filter(Boolean).sort();
                     const colorSwatches = uniqueColors.map(color => {
-                      const rep = sameProductFinish.find(s => s.color === color);
+                      const rep = sameProductFinish.find(s => s.color === color && s.size === curSize)
+                        || sameProductFinish.find(s => s.color === color);
                       return { color, sku_id: rep.sku_id, primary_image: rep.primary_image, is_current: color === curColor };
                     });
 
@@ -4792,7 +4810,8 @@
                               {finishesForColor.map(f => {
                                 const isActive = f === curFinish;
                                 // Find same product+color in this finish (main variant, not accessory)
-                                const match = sameProductColor.find(s => s.finish === f)
+                                const match = sameProductColor.find(s => s.finish === f && s.size === curSize)
+                                  || sameProductColor.find(s => s.finish === f)
                                   || allCollection.find(s => s.color === curColor && s.finish === f && s.product_name === sku.product_name);
                                 return (
                                   <button key={f || '_std'} className={'attr-pill' + (isActive ? ' active' : '')} onClick={() => { if (!isActive && match) onSkuClick(match.sku_id); }}>
@@ -4826,8 +4845,10 @@
                             const vn = s.variant_name || '';
                             const dashIdx = vn.indexOf(' - ');
                             const prefix = dashIdx > 0 ? vn.substring(0, dashIdx) : '';
-                            if (/^End Cap|^Frame Corner|^Beak|^FE Corner/i.test(prefix)) return s.product_name + ' — ' + prefix;
-                            return s.product_name;
+                            let name = s.product_name;
+                            if (/^End Cap|^Frame Corner|^Beak|^FE Corner/i.test(prefix)) name = s.product_name + ' — ' + prefix;
+                            if (s.size) name += ' ' + s.size;
+                            return name;
                           };
                           const groups = {};
                           matchingVariants.forEach(s => {
@@ -4847,7 +4868,7 @@
                                     {groups[cat].map(s => (
                                       <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
                                         <div className="sibling-card-image">
-                                          {(s.shape_image || s.primary_image) && <img src={optimizeImg(s.shape_image || s.primary_image, 120)} alt={displayName(s)} loading="lazy" decoding="async" />}
+                                          {(s.primary_image || s.shape_image) && <img src={optimizeImg(s.primary_image || s.shape_image, 120)} alt={displayName(s)} loading="lazy" decoding="async" />}
                                         </div>
                                         <div className="sibling-card-name">{displayName(s)}</div>
                                         {skuListPrice(s) && <div className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</div>}
@@ -4940,16 +4961,37 @@
                 // Computed BEFORE the merge so we can skip merging sizes into colorItems
                 let collectionSizeItems = [];
                 if (collectionSiblings.length > 0) {
-                  const extractSize = (name) => { const m = (name || '').match(/\b(\d+\.?\d*)\s*["″]?\s*/); return m ? m[1] : null; };
-                  const curSz = extractSize(sku.product_name);
+                  const extractDims = (name) => {
+                    const m = (name || '').match(/(\d+(?:\.\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?(?:\/\d+)?)/);
+                    if (m) return m[0];
+                    const s = (name || '').match(/\b(\d+\.?\d*)\s*["″]/);
+                    return s ? s[0] : null;
+                  };
+                  const extractFinish = (name) => {
+                    const m = (name || '').match(/,\s*(.+?)(?:\s*\(|$)/);
+                    return m ? m[1].trim() : null;
+                  };
+                  const extractSort = (sz) => { const m = (sz || '').match(/(\d+)/); return m ? parseFloat(m[1]) : 0; };
+
+                  // Build a lookup of all size+finish combos → sku_id
+                  const curSz = extractDims(sku.product_name);
+                  const curFinishVal = extractFinish(sku.product_name);
+                  const allItems = [{ product_name: sku.product_name, sku_id: sku.sku_id, primary_image: media && media[0] ? media[0].url : null }, ...collectionSiblings];
+                  const comboMap = new Map(); // "size|finish" → sku_id
+                  allItems.forEach(s => {
+                    const sz = extractDims(s.product_name);
+                    const fn = extractFinish(s.product_name);
+                    if (sz && fn) comboMap.set(sz + '|' + fn, s.sku_id);
+                  });
+
                   if (curSz) {
                     const sizeMap = new Map();
-                    sizeMap.set(curSz, { label: curSz + '"', sku_id: sku.sku_id, is_current: true, sort: parseFloat(curSz), primary_image: media && media[0] ? media[0].url : null });
-                    collectionSiblings.forEach(s => {
-                      const sz = extractSize(s.product_name);
-                      if (sz && !sizeMap.has(sz)) {
-                        sizeMap.set(sz, { label: sz + '"', sku_id: s.sku_id, is_current: false, sort: parseFloat(sz), primary_image: s.primary_image || null });
-                      }
+                    allItems.forEach(s => {
+                      const sz = extractDims(s.product_name);
+                      if (!sz || sizeMap.has(sz)) return;
+                      // For this size, prefer same finish as current; fall back to any
+                      const target = comboMap.get(sz + '|' + curFinishVal) || s.sku_id;
+                      sizeMap.set(sz, { label: sz, sku_id: target, is_current: sz === curSz, sort: extractSort(sz) });
                     });
                     if (sizeMap.size > 1) {
                       collectionSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
@@ -4957,6 +4999,35 @@
                   }
                 }
                 const showSizePills = collectionSizeItems.length > 0;
+
+                // Finish pills from collection siblings
+                let collectionFinishItems = [];
+                if (collectionSiblings.length > 0) {
+                  const extractDims2 = (name) => { const m = (name || '').match(/(\d+(?:\.\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?(?:\/\d+)?)/); return m ? m[0] : null; };
+                  const extractFinish2 = (name) => { const m = (name || '').match(/,\s*(.+?)(?:\s*\(|$)/); return m ? m[1].trim() : null; };
+                  const curSz2 = extractDims2(sku.product_name);
+                  const curFn = extractFinish2(sku.product_name);
+                  const allItems2 = [{ product_name: sku.product_name, sku_id: sku.sku_id }, ...collectionSiblings];
+                  const comboMap2 = new Map();
+                  allItems2.forEach(s => {
+                    const sz = extractDims2(s.product_name);
+                    const fn = extractFinish2(s.product_name);
+                    if (sz && fn) comboMap2.set(sz + '|' + fn, s.sku_id);
+                  });
+                  if (curFn) {
+                    const finishMap = new Map();
+                    allItems2.forEach(s => {
+                      const fn = extractFinish2(s.product_name);
+                      if (!fn || finishMap.has(fn)) return;
+                      const target = comboMap2.get(curSz2 + '|' + fn) || s.sku_id;
+                      finishMap.set(fn, { label: fn, sku_id: target, is_current: fn === curFn });
+                    });
+                    if (finishMap.size > 1) {
+                      collectionFinishItems = [...finishMap.values()];
+                    }
+                  }
+                }
+                const showFinishPills = collectionFinishItems.length > 0;
 
                 // Width-based size + color from same-product siblings (mirrors, bath accessories)
                 let sibSizeItems = [];
@@ -5204,47 +5275,9 @@
                   });
                   return sizeOk && finishOk;
                 };
-                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showSibSizes) return null;
+                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes) return null;
                 return (
                   <div className="variant-selectors">
-                    {showSizePills && (
-                      <div className="variant-selector-group">
-                        <div className="variant-selector-label">Size<span>{collectionSizeItems.find(s => s.is_current)?.label || ''}</span></div>
-                        <div className="color-swatches">
-                          {collectionSizeItems.map(s => (
-                            <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
-                              <div className={'color-swatch' + (s.is_current ? ' active' : '')}>
-                                {s.primary_image ? (
-                                  <img src={optimizeImg(s.primary_image, 120)} alt={s.label} loading="lazy" decoding="async" width="64" height="64" />
-                                ) : (
-                                  <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 600, color: 'var(--stone-500)' }}>{s.label}</div>
-                                )}
-                              </div>
-                              <div className="color-swatch-tooltip">{s.label}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {showSibSizes && (
-                      <div className="variant-selector-group">
-                        <div className="variant-selector-label">Size<span>{sibSizeItems.find(s => s.is_current)?.label || ''}</span></div>
-                        <div className="color-swatches">
-                          {sibSizeItems.map(s => (
-                            <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
-                              <div className={'color-swatch' + (s.is_current ? ' active' : '')}>
-                                {s.primary_image ? (
-                                  <img src={optimizeImg(s.primary_image, 120)} alt={s.label} loading="lazy" decoding="async" width="64" height="64" />
-                                ) : (
-                                  <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 600, color: 'var(--stone-500)' }}>{s.label}</div>
-                                )}
-                              </div>
-                              <div className="color-swatch-tooltip">{s.label}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                     {showColors && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">{colorLabel}</div>
@@ -5272,6 +5305,42 @@
                             })}
                           </div>
                         )}
+                      </div>
+                    )}
+                    {showSizePills && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Size<span>{collectionSizeItems.find(s => s.is_current)?.label || ''}</span></div>
+                        <div className="attr-pills">
+                          {collectionSizeItems.map(s => (
+                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {showFinishPills && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Finish<span>{collectionFinishItems.find(s => s.is_current)?.label || ''}</span></div>
+                        <div className="attr-pills">
+                          {collectionFinishItems.map(s => (
+                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {showSibSizes && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Size<span>{sibSizeItems.find(s => s.is_current)?.label || ''}</span></div>
+                        <div className="attr-pills">
+                          {sibSizeItems.map(s => (
+                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                     {showRomanStylePills && (

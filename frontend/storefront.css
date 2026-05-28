@@ -552,9 +552,16 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect fill='%23f5f0eb' width='100' height='100'/%3E%3Cg transform='translate(25,25)' opacity='0.18'%3E%3Crect x='5' y='5' width='40' height='40' rx='4' fill='none' stroke='%23a0937d' stroke-width='2'/%3E%3Ccircle cx='18' cy='18' r='4' fill='none' stroke='%23a0937d' stroke-width='2'/%3E%3Cpath d='M45 35L33 23 15 45' fill='none' stroke='%23a0937d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: center; background-size: 40%;
 }
-.sku-card-image { width: 100%; aspect-ratio: 1; background-color: var(--stone-50); overflow: hidden; margin-bottom: 0.75rem; position: relative; }
-.sku-card-image img { width: 100%; height: 100%; object-fit: contain; display: block; opacity: 1; background: var(--stone-50); }
-.sku-card-image .sku-card-alt-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 0.4s; background: var(--stone-50); }
+.sku-card-image { width: 100%; aspect-ratio: 1; background-color: var(--stone-50); overflow: hidden; margin-bottom: 0.75rem; position: relative; padding: 8%; }
+.sku-card-image img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 1; background: var(--stone-50); }
+.sku-card--contain .sku-card-image img { object-fit: contain; }
+.sku-card-image .sku-card-alt-img { position: absolute; top: 8%; left: 8%; width: 84%; height: 84%; object-fit: cover; opacity: 0; transition: opacity 0.4s; background: var(--stone-50); }
+.sku-card--contain .sku-card-image .sku-card-alt-img { object-fit: contain; }
+.sku-detail--contain .gallery-thumb img { object-fit: contain; }
+.sku-detail--contain .sibling-card-image img { object-fit: contain; }
+.sku-detail--contain .variant-grid .sibling-card-image img { object-fit: contain; }
+.sku-detail--contain .accessory-card-sf-image img { object-fit: contain; }
+.sku-detail--contain .accessory-card-sf-img img { object-fit: contain; }
 .sku-card:hover .sku-card-image .sku-card-alt-img { opacity: 1; }
 .sku-card-image .quick-view-btn { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); color: var(--stone-900); border: none; padding: 0.6rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer; opacity: 0; transform: translateY(100%); transition: all 0.25s; font-family: var(--font-body); }
 .sku-card:hover .sku-card-image .quick-view-btn { opacity: 1; transform: translateY(0); }
@@ -1755,8 +1762,8 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 
 /* ── BROWSER FALLBACKS ── */
 @supports not (aspect-ratio: 1) {
-  .sku-card-image { height: 0; padding-bottom: 100%; position: relative; }
-  .sku-card-image img { position: absolute; top: 0; left: 0; }
+  .sku-card-image { height: 0; padding-bottom: 100%; position: relative; padding-left: 8%; padding-right: 8%; padding-top: 8%; }
+  .sku-card-image img { position: absolute; top: 8%; left: 8%; width: 84%; height: 84%; }
   .collection-card-image { height: 0; padding-bottom: 75%; position: relative; }
   .collection-card-image img { position: absolute; top: 0; left: 0; }
   .hero { height: auto; padding: 6rem 3rem; }
