@@ -566,6 +566,46 @@ export async function run(pool, job, source) {
     await appendLog(pool, job.id, `Set display_name on ${dnResult.rowCount} products`);
   }
 
+  // ── Phase 3c: Backfill packaging from same-size siblings ──
+  // Some collections have empty packaging sections on the website.
+  // Since same-manufacturer/same-size tiles share identical packaging,
+  // fill gaps using the most common packaging values for each size.
+  const backfillResult = await pool.query(`
+    WITH size_packaging AS (
+      -- Get the most common packaging for each size across all Bosphorus SKUs
+      SELECT DISTINCT ON (sa.value)
+        sa.value AS size,
+        pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
+        pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs
+      FROM packaging pk
+      JOIN skus s ON s.id = pk.sku_id
+      JOIN products p ON p.id = s.product_id
+      JOIN sku_attributes sa ON sa.sku_id = s.id
+      JOIN attributes a ON a.id = sa.attribute_id AND a.name = 'Size'
+      WHERE p.vendor_id = $1
+        AND pk.sqft_per_box IS NOT NULL
+      GROUP BY sa.value, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
+               pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs
+      ORDER BY sa.value, COUNT(*) DESC
+    )
+    INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, weight_per_box_lbs,
+                           boxes_per_pallet, sqft_per_pallet, weight_per_pallet_lbs)
+    SELECT s.id, sp.sqft_per_box, sp.pieces_per_box, sp.weight_per_box_lbs,
+           sp.boxes_per_pallet, sp.sqft_per_pallet, sp.weight_per_pallet_lbs
+    FROM skus s
+    JOIN products p ON p.id = s.product_id
+    JOIN sku_attributes sa ON sa.sku_id = s.id
+    JOIN attributes a ON a.id = sa.attribute_id AND a.name = 'Size'
+    JOIN size_packaging sp ON sp.size = sa.value
+    LEFT JOIN packaging pk ON pk.sku_id = s.id
+    WHERE p.vendor_id = $1
+      AND pk.sku_id IS NULL
+    ON CONFLICT (sku_id) DO NOTHING
+  `, [vendor_id]);
+  if (backfillResult.rowCount > 0) {
+    await appendLog(pool, job.id, `Backfilled packaging for ${backfillResult.rowCount} SKUs from same-size siblings`);
+  }
+
   // ── Phase 4: Attach accessories ──
   // Link tile SKUs (sold by box) to accessory SKUs (variant_type = 'accessory')
   // within the same collection, matching by Color and base Finish.
@@ -878,7 +918,12 @@ function parseDetailPage(html, url) {
         if (currentPkgSize && currentPkg) {
           result.packagingBySize.set(currentPkgSize, currentPkg);
         }
-        currentPkgSize = normalizeSize(value2);
+        // Strip descriptive text after the dimension pattern, e.g.
+        // '20" x 48" Ceramic Field Tile' → '20" x 48"'
+        // '20" x 48" 3D Ceramic Tile'    → '20" x 48"'
+        const dimMatch = value2.match(/^(\d[\d\s/]*["″'']?\s*[xX×]\s*\d[\d\s/]*["″'']?)/);
+        const sizeOnly = dimMatch ? dimMatch[1].trim() : value2;
+        currentPkgSize = normalizeSize(sizeOnly);
         currentPkg = {};
         continue;
       }
