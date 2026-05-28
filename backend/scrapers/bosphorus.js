@@ -253,11 +253,12 @@ export async function run(pool, job, source) {
 
           // Collect images claimed by each color via the same logic used for SKU-level assignment
           const colorCount = colorGroups.size;
+          const siblingColorNamesForNeutral = [...colorGroups.keys()];
           const claimedBases = new Map(); // base → count of colors that claim it
           for (const [cn, variants] of colorGroups) {
             const rawColor = variants[0]?._rawColor || cn;
             const claimed = getColorSliderImages(
-              productData.imagesByVariantId, variants, productData.images, rawColor
+              productData.imagesByVariantId, variants, productData.images, rawColor, siblingColorNamesForNeutral
             );
             const seenInColor = new Set();
             for (const img of claimed) {
@@ -269,10 +270,14 @@ export async function run(pool, job, source) {
             }
           }
 
-          // An image is neutral if: NOT claimed by any color, OR claimed by ALL colors
+          // An image is neutral if: NOT claimed by any color, OR claimed by ALL colors.
+          // For single-color products, only truly unclaimed images go to product level —
+          // "claimed by all colors" is meaningless when there's only 1 color, and would
+          // wrongly promote all matched images to product level leaving the SKU with just a swatch.
           const neutralImages = ownImages.filter(url => {
             const base = url.split('?')[0];
             const count = claimedBases.get(base) || 0;
+            if (colorCount <= 1) return count === 0;
             return count === 0 || count === colorCount;
           });
 
@@ -281,6 +286,12 @@ export async function run(pool, job, source) {
             ? productData.swatchImagesByColorId.get(firstVariant.colorId) : null;
           const { productShots: sliderProductShots, lifestyle: sliderLifestyle } =
             classifySliderImages(relevantNeutral, null);
+
+          // Clear stale product-level images before re-inserting current set.
+          await pool.query(
+            'DELETE FROM media_assets WHERE product_id = $1 AND sku_id IS NULL',
+            [product.id]
+          );
 
           let productSortOrder = 0;
           const productPrimaryUrl = sliderProductShots[0];
@@ -406,8 +417,9 @@ export async function run(pool, job, source) {
             // carousel.  colorGroups has the full list keyed by color name.
             const rawColorForImages = v._rawColor || colorName;
             const allColorVariants = colorGroups.get(colorName) || [v];
+            const siblingColorNames = [...colorGroups.keys()];
             const colorSliderImages = getColorSliderImages(
-              productData.imagesByVariantId, allColorVariants, productData.images, rawColorForImages
+              productData.imagesByVariantId, allColorVariants, productData.images, rawColorForImages, siblingColorNames
             );
             // Filter out cross-collection contamination
             const filteredColorImages = filterOwnCollectionImages(colorSliderImages, productData.name);
@@ -418,6 +430,14 @@ export async function run(pool, job, source) {
 
             const { productShots: colorShots, lifestyle: colorLifestyle } =
               classifySliderImages(filteredColorImages, swatchEntry);
+
+            // Clear stale SKU-level images before re-inserting current set.
+            // Without this, images from previous scrapes persist at higher sort_orders
+            // even when the current scrape no longer matches them to this SKU.
+            await pool.query(
+              'DELETE FROM media_assets WHERE product_id = $1 AND sku_id = $2',
+              [product.id, sku.id]
+            );
 
             let skuSortOrder = 0;
 
@@ -1141,16 +1161,21 @@ function groupVariantsBySizeFinish(productData) {
     // Detect accessory (same logic as before)
     const finishLower = (finish || '').toLowerCase();
     const sizeLabelLower = (v.sizeLabel || '').toLowerCase();
-    const accessoryKeywords = /\b(jolly|bullnose|pencil|liner|trim|molding|ogee|rope\s*liner|crown\s*molding|quarter\s*round)\b/i;
+    const accessoryKeywords = /\b(jolly|bullnose|pencil|liner|trim|molding|ogee|rope\s*liner|crown\s*molding|quarter\s*round|chair\s*rail)\b/i;
     const hasKeywordInFinish = accessoryKeywords.test(finishLower);
     const hasKeywordInSize = accessoryKeywords.test(sizeLabelLower);
 
     let sizeIsSmallTrim = false;
     if (sizeNorm) {
-      const dimMatch = sizeNorm.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
-      if (dimMatch) {
-        sizeIsSmallTrim = Math.min(parseFloat(dimMatch[1]), parseFloat(dimMatch[2])) <= 3;
-      } else {
+      const sizeParts = sizeNorm.split(/x/i);
+      if (sizeParts.length === 2) {
+        const sd1 = parseDimension(sizeParts[0]);
+        const sd2 = parseDimension(sizeParts[1]);
+        if (!isNaN(sd1) && !isNaN(sd2)) {
+          sizeIsSmallTrim = Math.min(sd1, sd2) <= 3;
+        }
+      }
+      if (!sizeIsSmallTrim && sizeParts.length !== 2) {
         sizeIsSmallTrim = !/^\d/.test(sizeNorm);
       }
     }
@@ -1254,7 +1279,21 @@ function filterOwnCollectionImages(images, collectionName) {
  * Returns raw slider images (no reordering) — caller handles classification.
  * Falls back to filename-based color matching, then all images.
  */
-function getColorSliderImages(imagesByVariantId, colorVariants, allImages, colorName) {
+
+/** Check if a filename segment matches a color word, with fuzzy prefix matching
+ *  to handle typos like "terrazo" vs "terrazzo" (shared prefix ≥ 5 chars). */
+function segFuzzyMatch(seg, w) {
+  if (seg === w || seg.startsWith(w) || w.startsWith(seg)) return true;
+  const minLen = Math.min(seg.length, w.length);
+  if (minLen >= 5) {
+    let shared = 0;
+    while (shared < minLen && seg[shared] === w[shared]) shared++;
+    if (shared >= 5) return true;
+  }
+  return false;
+}
+
+function getColorSliderImages(imagesByVariantId, colorVariants, allImages, colorName, siblingColorNames) {
   // 1. Variant ID mapping (carousel images keyed by variant product ID from URL path)
   //    When imagesByVariantId has multiple keys, each key partitions images by variant —
   //    this is the most reliable matching method.
@@ -1277,7 +1316,48 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
         }
       }
     }
-    if (colorImgs.length > 0) return colorImgs;
+    if (colorImgs.length > 0) {
+      // Apply cross-color filename filter: remove images whose filenames mention
+      // a sibling color's distinctive words but NOT this color's words.
+      // This catches variant-ID grouping that lumps multiple colors together.
+      if (siblingColorNames && siblingColorNames.length > 1 && colorName) {
+        const colorLower = colorName.toLowerCase();
+        const myWords = colorLower.split(/[^a-z0-9]+/).filter(w => w.length >= 3);
+        const mySlug = colorLower.replace(/[^a-z0-9]+/g, '');
+
+        // Build list of sibling-only words: words that appear in a sibling but not in our color
+        const siblingOnlyWords = [];
+        for (const sib of siblingColorNames) {
+          if (sib.toLowerCase() === colorLower) continue;
+          const sibWords = sib.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 3);
+          const uniqueWords = sibWords.filter(w => !myWords.includes(w));
+          if (uniqueWords.length > 0) {
+            siblingOnlyWords.push({ sib, uniqueWords, allWords: sibWords });
+          }
+        }
+
+        if (siblingOnlyWords.length > 0) {
+          const filtered = colorImgs.filter(url => {
+            const fn = url.split('/').pop().split('?')[0].toLowerCase();
+            const segments = fn.split(/[_\-.]+/);
+            // Keep image unless a sibling's unique words ALL appear in the filename
+            // AND this color's distinctive words do NOT appear (or are shared)
+            return !siblingOnlyWords.some(({ uniqueWords, allWords }) => {
+              const sibUniquesPresent = uniqueWords.every(w =>
+                segments.some(seg => segFuzzyMatch(seg, w))
+              );
+              if (!sibUniquesPresent) return false;
+              // Check if ALL sibling words are present (full sibling match)
+              return allWords.every(w =>
+                segments.some(seg => segFuzzyMatch(seg, w))
+              );
+            });
+          });
+          if (filtered.length > 0) return filtered;
+        }
+      }
+      return colorImgs;
+    }
   }
 
   // 2. Filename-based color matching (fallback for pages without per-variant image mapping)
@@ -1289,6 +1369,16 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
     const colorNum = numMatch ? numMatch[1] : null;
     const isColorMix = colorLower.includes('mix');
 
+    // Words that describe product type/finish, NOT color. These must never be used
+    // alone for image matching because they appear in filenames of many different colors
+    // (e.g., "deco" in "castello_miele_deco_room", "castello_paglierino_deco_room").
+    const NOISE_WORDS = new Set([
+      'deco', 'ceramic', 'mix', 'mosaic', 'matte', 'glossy', 'polished',
+      'satin', 'grip', 'room', 'style', 'masonry', 'wheat', 'insert',
+    ]);
+    // Color-meaningful words: exclude noise and short words
+    const meaningfulWords = colorWords.filter(w => !NOISE_WORDS.has(w));
+
     const fnHasWord = (fn, word) => {
       const segments = fn.split(/[_\-]+/);
       return segments.some(seg => seg === word || seg.startsWith(word + 's'));
@@ -1299,16 +1389,61 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
       return isColorMix || !isMixImage(fn);
     };
 
+    // Specificity guard: filter out images that a longer/more-specific sibling
+    // color would claim. e.g., "Green" should not claim "laurel_green" images
+    // when "Laurel Green" exists as a sibling color.
+    // Build sibling info: each sibling that is a superset of this color's words.
+    const siblingSpecs = (siblingColorNames || [])
+      .filter(sib => sib.toLowerCase() !== colorName.toLowerCase())
+      .map(sib => {
+        const sibLower = sib.toLowerCase();
+        const sibSlug = sibLower.replace(/[^a-z0-9]+/g, '');
+        const sibWords = sibLower.split(/[^a-z0-9]+/).filter(w => w.length >= 3);
+        return { sibSlug, sibWords };
+      })
+      .filter(({ sibSlug, sibWords }) =>
+        // Sibling must be longer and contain our slug as a substring
+        (sibSlug.length > colorSlug.length && sibSlug.includes(colorSlug)) ||
+        // OR sibling's words must be a superset of our meaningful words
+        (sibWords.length > meaningfulWords.length && meaningfulWords.every(w => sibWords.includes(w)))
+      );
+
+    const applySpecificityGuard = (imgs) => {
+      if (imgs.length === 0 || siblingSpecs.length === 0) return imgs;
+      const filtered = imgs.filter(url => {
+        const fn = url.split('/').pop().split('?')[0].toLowerCase();
+        const segments = fn.split(/[_\-.]+/);
+        // Keep image if no longer sibling matches this filename
+        return !siblingSpecs.some(({ sibSlug, sibWords }) => {
+          // Check concatenated slug match (e.g., "articterrazzo" in filename)
+          const concatPattern = new RegExp(`(?:^|[_\\-.])${sibSlug}(?:[_\\-.]|$)`);
+          if (concatPattern.test(fn)) return true;
+          // Check word-segment match: all sibling words present as filename segments
+          // (e.g., "laurel" + "green" both in "hopp_5x40_laurel_green__07530")
+          // Also handles filename typos like "terrazo" vs "terrazzo" via segFuzzyMatch.
+          if (sibWords.length >= 2 && sibWords.every(w => segments.some(seg => segFuzzyMatch(seg, w)))) return true;
+          return false;
+        });
+      });
+      return filtered.length > 0 ? filtered : imgs;
+    };
+
     let matched;
 
-    // Full slug match (e.g., "amibasalt" in filename)
+    // Full slug match (e.g., "doratodeco" or "amibasalt" in filename)
+    // Use word-boundary regex: slug must be at start/end or bounded by _ - .
+    // This prevents "artic" matching inside "articterrazzo", "nero" inside "fuorinero", etc.
+    const slugPattern = new RegExp(`(?:^|[_\\-.])${colorSlug}(?:[_\\-.]|$)`);
+    const hyphenSlug = colorLower.replace(/\s+/g, '-');
+    const hyphenPattern = new RegExp(`(?:^|[_\\-.])${hyphenSlug.replace(/[^a-z0-9-]/g, '')}(?:[_\\-.]|$)`);
     matched = allImages.filter(url => {
       const fn = url.split('/').pop().split('?')[0].toLowerCase();
-      return (fn.includes(colorSlug) || fn.includes(colorLower.replace(/\s+/g, '-'))) && mixFilter(url);
+      return (slugPattern.test(fn) || hyphenPattern.test(fn)) && mixFilter(url);
     });
+    matched = applySpecificityGuard(matched);
     if (matched.length > 0) return matched;
 
-    // ALL words match (AND logic, word-boundary)
+    // ALL words match (AND logic, word-boundary) — uses all words including noise
     if (colorWords.length >= 2) {
       matched = allImages.filter(url => {
         const fn = url.split('/').pop().split('?')[0].toLowerCase();
@@ -1327,12 +1462,15 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
       if (matched.length > 0) return matched;
     }
 
-    // ANY word match (OR logic, word-boundary)
-    if (colorWords.length > 0) {
+    // ANY word match (OR logic) — only use meaningful color words to avoid
+    // matching generic terms like "deco" that appear in many colors' filenames.
+    // e.g., "Dorato Deco" should match on "dorato" only, not "deco".
+    if (meaningfulWords.length > 0) {
       matched = allImages.filter(url => {
         const fn = url.split('/').pop().split('?')[0].toLowerCase();
-        return colorWords.some(w => fnHasWord(fn, w)) && mixFilter(url);
+        return meaningfulWords.some(w => fnHasWord(fn, w)) && mixFilter(url);
       });
+      matched = applySpecificityGuard(matched);
       if (matched.length > 0) return matched;
     }
   }
@@ -1483,22 +1621,43 @@ function buildInternalSku(collection, size, finish, color) {
 }
 
 /**
+ * Parse a dimension string that may contain fractions (e.g., "1/2", "2 1/2", "3/4")
+ * into a decimal number. Returns NaN if unparseable.
+ */
+function parseDimension(s) {
+  if (!s) return NaN;
+  s = s.trim();
+  // "2 1/2" → 2 + 1/2 = 2.5 (mixed fraction)
+  const mixedMatch = s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixedMatch) return parseInt(mixedMatch[1]) + parseInt(mixedMatch[2]) / parseInt(mixedMatch[3]);
+  // "1/2" → 0.5 (simple fraction)
+  const fracMatch = s.match(/^(\d+)\/(\d+)$/);
+  if (fracMatch) return parseInt(fracMatch[1]) / parseInt(fracMatch[2]);
+  // "2.5" or "12" (decimal or integer)
+  return parseFloat(s);
+}
+
+/**
  * Infer accessory type from size dimensions.
  * Returns null for regular field tiles/mosaics, or a type string for trim/accessories.
  *
  * Quarter Round:   min dim < 1" & max ≤ 6" (e.g., 3/4x5, 3/4x6)
  * Pencil Liner:    min dim ≤ 1" & max > 6"  (e.g., 1/2x8, 1/2x12, 1/2x15)
  * Trim Liner:      1" < min dim < 2.5" & max ≥ 8" (e.g., 2x15, 2x16, 2x18)
+ * Chair Rail:      1" < min dim ≤ 3" & max ≤ 8" with "chair rail" in finish
  * Bullnose:        2.5" ≤ min dim ≤ 3" & max ≥ 8"  (e.g., 3x12, 3x24, 3x36, 3x48)
  */
 function inferAccessoryType(sizeNorm, finish) {
   if (!sizeNorm) return null;
 
-  const dimMatch = sizeNorm.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
-  if (!dimMatch) return null;
+  // Split on 'x' and parse each dimension, handling fractions like "1/2", "2 1/2"
+  const parts = sizeNorm.split(/x/i);
+  if (parts.length !== 2) return null;
 
-  const d1 = parseFloat(dimMatch[1]);
-  const d2 = parseFloat(dimMatch[2]);
+  const d1 = parseDimension(parts[0]);
+  const d2 = parseDimension(parts[1]);
+  if (isNaN(d1) || isNaN(d2)) return null;
+
   const minDim = Math.min(d1, d2);
   const maxDim = Math.max(d1, d2);
 
@@ -1513,9 +1672,14 @@ function inferAccessoryType(sizeNorm, finish) {
     return 'Pencil Liner';
   }
 
-  // Mosaic Insert: small square or narrow rectangle (≤ 2" x ≤ 4")
-  // Covers 2x2, 1x4, 1x3 — sold per piece as accent/insert
-  if (minDim <= 2 && maxDim <= 4) return 'Mosaic Insert';
+  // Mosaic Insert: small square or narrow rectangle (≤ 2.5" x ≤ 5")
+  // Covers 2x2, 1x4, 1x3, 2.5x2.5, 2.5x5 — sold per piece as accent/insert
+  if (minDim <= 2.5 && maxDim <= 5) return 'Mosaic Insert';
+
+  // Chair Rail: finish explicitly says "chair rail", narrow profile
+  if (finishLower.includes('chair rail') && minDim <= 3 && maxDim <= 8) {
+    return 'Chair Rail';
+  }
 
   // Trim Liner: narrow (> 1" but < 2.5") with long edge (≥ 8")
   // Covers 2x15, 2x16, 2x18 — deco strips, roman trim, etc.
