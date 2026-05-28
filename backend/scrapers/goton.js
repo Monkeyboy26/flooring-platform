@@ -22,15 +22,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PRODUCT_MAP_PATH = join(__dirname, '..', 'data', 'goton-product-map.json');
 const WIX_CDN = 'https://static.wixstatic.com/media/';
 
-// ── Glass mosaic collection pages ──
-// Maps collection slug → code patterns for matching products to collection pages
-const GLASS_COLLECTION_PAGES = [
-  { slug: 'glass-stone-mosaic',                             codePatterns: [/\bGM[12]\d{2}\b/i] },
-  { slug: 'glass-stone-mosaic-basketweave-and-linear-line', codePatterns: [/\bGMH\d+\b/i, /\bGML3\d+\b/i] },
-  { slug: 'glass-metal-lineal-mosaic',                      codePatterns: [/\bGML4\d+\b/i] },
-  { slug: 'glass-quartzite-mosaic',                         codePatterns: [/\bGM5\d+\b/i, /\bGML5\d+\b/i] },
-  { slug: 'glass-tile',                                     codePatterns: [/\bVetro\b/i] },
-];
+// ── Glass product name → Wix product map key ──
+// DB product names (after code-suffix removal) mapped to product map keys
+const GLASS_NAME_TO_MAP_KEY = {
+  'Glass Stone Mosaic':    'GLASS & STONE MOSAIC',
+  'Glass Basketweave':     'GLASS & STONE MOSAIC  (basketweave and linear line)',
+  'Glass Lineal':          'GLASS & STONE MOSAIC  (basketweave and linear line)',
+  'Glass Metal Interlock': 'GLASS & METAL LINEAL MOSAIC',
+  'Glass Quartzite':       'GLASS & QUARTZITE MOSAIC',
+  'Vetro Collection':      'GLASS TILE',
+};
 
 /**
  * Build full-res Wix CDN URL from the product map's url field.
@@ -115,23 +116,12 @@ function matchColor(dbColorName, wixColors) {
 }
 
 /**
- * Extract glass mosaic code from product name.
+ * Extract glass mosaic code from SKU variant_name.
+ * e.g. "GM101 5/8x5/8 11-11/16x11-11/16" → "GM101"
  */
-function extractGlassCode(productName) {
-  const match = productName.match(/\b(GM[LH]?\d+)\b/i);
+function extractGlassCodeFromVariant(variantName) {
+  const match = variantName.match(/\b(GM[LH]?\d+)\b/i);
   return match ? match[1].toUpperCase() : null;
-}
-
-/**
- * Find which glass collection page a product belongs to.
- */
-function getGlassCollectionSlug(productName) {
-  for (const { slug, codePatterns } of GLASS_COLLECTION_PAGES) {
-    for (const pattern of codePatterns) {
-      if (pattern.test(productName)) return slug;
-    }
-  }
-  return null;
 }
 
 /**
@@ -197,24 +187,41 @@ function getSkuSize(variantName) {
  * Mosaics: only square-ish images (no plank scans), 1 image
  * Accessories: 1 image (primary only)
  */
+function isPatternImage(title) {
+  if (!title) return false;
+  const t = decodeURIComponent(title);
+  return /[HJKN]\d{2,3}/.test(t) || /FL[A-Z]?\d{2,3}/.test(t);
+}
+
 function pickImagesForSku(allImages, variantName, variantType) {
   if (!allImages || allImages.length === 0) return [];
 
-  const isMosaic = /mosaic|hexag/i.test(variantName);
+  const isMosaic = /mosaic|hexag|chevron|herring/i.test(variantName);
   const isAccessory = variantType === 'accessory';
 
   if (isMosaic) {
-    // Prefer actual mosaic sheet close-up (K/N pattern code in title)
-    // over the field tile face scan which shows the raw material, not the mosaic.
-    const mosaicShots = allImages.filter(m => {
+    // Determine mosaic shape from variant name
+    const isHexagon = /hexag/i.test(variantName);
+    const isChevron = /chevron|herring/i.test(variantName);
+    const isOpus = /opus|floor.?layout/i.test(variantName);
+
+    // Try shape-specific pattern image first
+    // H=hexagon, J=chevron, K/N=regular mosaic sheet, FL=floor layout/opus
+    const patternShots = allImages.filter(m => {
       if (m.type === 'lifestyle') return false;
       const t = m.title ? decodeURIComponent(m.title) : '';
+      if (isHexagon) return /[H]\d{2,3}/.test(t);
+      if (isChevron) return /[J]\d{2,3}/.test(t);
+      if (isOpus) return /FL[A-Z]?\d{2,3}/.test(t);
       return /[KN]\d{2,3}/.test(t);
     });
-    if (mosaicShots.length > 0) return [mosaicShots[0]];
-    // Fallback: field tile face scan (same material, just not mosaic-cut)
-    const productShots = allImages.filter(m => m.type === 'product' || m.type === 'unknown');
-    if (productShots.length > 0) return [productShots[0]];
+    if (patternShots.length > 0) return [patternShots[0]];
+
+    // No shape-specific image — fall back to field tile scan (exclude pattern images)
+    const fieldShots = allImages.filter(m =>
+      (m.type === 'product' || m.type === 'unknown') && !isPatternImage(m.title)
+    );
+    if (fieldShots.length > 0) return [fieldShots[0]];
     if (allImages.length > 0) return [allImages[0]];
     return [];
   }
@@ -223,8 +230,10 @@ function pickImagesForSku(allImages, variantName, variantType) {
     return [allImages[0]];
   }
 
-  // ── Field tile: size-aware selection ──
-  const productImgs = allImages.filter(m => m.type === 'product' || m.type === 'unknown');
+  // ── Field tile: size-aware selection (exclude mosaic pattern images) ──
+  const productImgs = allImages.filter(m =>
+    (m.type === 'product' || m.type === 'unknown') && !isPatternImage(m.title)
+  );
   const lifestyleImgs = allImages.filter(m => m.type === 'lifestyle');
 
   const skuSize = getSkuSize(variantName);
@@ -501,13 +510,12 @@ export async function run(pool, job, source) {
     if (skus.length === 0) continue;
 
     // Check if this is a glass mosaic product
-    const glassSlug = getGlassCollectionSlug(product.name);
-    const glassCode = extractGlassCode(product.name);
+    const glassMapKey = GLASS_NAME_TO_MAP_KEY[product.name];
 
     let mapEntry;
-    if (glassSlug) {
-      // Glass products: look up the collection page in the product map
-      mapEntry = findInProductMap(productMap, glassSlug);
+    if (glassMapKey) {
+      // Glass products: look up by product map key directly
+      mapEntry = productMap.products[glassMapKey] || null;
     } else {
       // Regular products: look up by name
       mapEntry = findInProductMap(productMap, product.name);
@@ -556,16 +564,17 @@ export async function run(pool, job, source) {
     // Prepare rendered gallery images for mosaic SKUs
     const galleryImages = prepareGalleryImages(mapEntry.renderedGallery);
 
-    if (glassCode && mapEntry.colors) {
-      // ── Glass mosaic: match by code in color options ──
-      const matchedColor = Object.keys(mapEntry.colors).find(c =>
-        c.toUpperCase().includes(glassCode)
-      );
-      const images = matchedColor
-        ? productOnly(mapEntry.colors[matchedColor].images)
-        : allProductImages;
-
+    if (glassMapKey && glassMapKey !== 'GLASS TILE' && mapEntry.colors) {
+      // ── Glass mosaic: match each SKU's code to a color key ──
       for (const sku of skus) {
+        const code = extractGlassCodeFromVariant(sku.variant_name);
+        const matchedColor = code
+          ? Object.keys(mapEntry.colors).find(c => c.toUpperCase().includes(code))
+          : null;
+        const images = matchedColor
+          ? productOnly(mapEntry.colors[matchedColor].images)
+          : allProductImages;
+
         const picked = pickImagesForSku(images, sku.variant_name, sku.variant_type);
         let saved = 0;
         for (let i = 0; i < picked.length; i++) {
@@ -578,9 +587,8 @@ export async function run(pool, job, source) {
           saved++;
         }
         imagesSaved += saved;
-        if (saved > 0) skusMatched++;
+        if (saved > 0) { skusMatched++; productImageCount++; }
       }
-      productImageCount = images.length;
 
     } else if (mapEntry.colors && Object.keys(mapEntry.colors).length > 0) {
       // ── Regular product with color options ──

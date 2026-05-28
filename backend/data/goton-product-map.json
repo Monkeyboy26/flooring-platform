@@ -1,5 +1,5 @@
 {
-  "generated": "2026-04-29T18:43:23.122Z",
+  "generated": "2026-05-24T05:38:34.512Z",
   "domain": "www.gotontiles.com",
   "summary": {
     "products": 58,
@@ -2445,7 +2445,7 @@
               "title": "海岸木-J137-B321.jpg",
               "width": 854,
               "height": 1024,
-              "type": "unknown"
+              "type": "product"
             }
           ]
         },
@@ -2479,7 +2479,7 @@
               "title": "海岸木-J137-B323.jpg",
               "width": 854,
               "height": 859,
-              "type": "unknown"
+              "type": "product"
             },
             {
               "url": "a0c5fc_de350933d2ca43a8a9e9feab611cf574~mv2.jpg",
@@ -2508,7 +2508,7 @@
               "title": "海岸木-H055-B324.jpg",
               "width": 954,
               "height": 782,
-              "type": "unknown"
+              "type": "product"
             }
           ]
         },
@@ -2529,13 +2529,13 @@
               "title": "海岸木-J137-B325.jpg",
               "width": 854,
               "height": 859,
-              "type": "unknown"
+              "type": "product"
             }
           ]
         }
       },
       "mediaCount": 15,
-      "productShots": 6,
+      "productShots": 10,
       "lifestyleShots": 4,
       "allMedia": [
         {
@@ -2592,7 +2592,7 @@
           "title": "海岸木-J137-B321.jpg",
           "width": 854,
           "height": 1024,
-          "type": "unknown"
+          "type": "product"
         },
         {
           "url": "a0c5fc_9cc430ffacca43bcb6ab750e66120990~mv2.jpg",
@@ -2624,7 +2624,7 @@
           "title": "海岸木-J137-B323.jpg",
           "width": 854,
           "height": 859,
-          "type": "unknown"
+          "type": "product"
         },
         {
           "url": "a0c5fc_870ac59a40cb4560bcf533bc4d34051b~mv2.jpg",
@@ -2640,7 +2640,7 @@
           "title": "海岸木-H055-B324.jpg",
           "width": 954,
           "height": 782,
-          "type": "unknown"
+          "type": "product"
         },
         {
           "url": "a0c5fc_0a186799ae1d4e8b85b38b31f62b1a26~mv2.jpg",
@@ -2656,7 +2656,7 @@
           "title": "海岸木-J137-B325.jpg",
           "width": 854,
           "height": 859,
-          "type": "unknown"
+          "type": "product"
         }
       ]
     },
@@ -5786,7 +5786,7 @@
         }
       },
       "mediaCount": 10,
-      "productShots": 9,
+      "productShots": 10,
       "lifestyleShots": 0,
       "allMedia": [
         {
@@ -5795,7 +5795,7 @@
           "title": "LG316-01==-.jpg",
           "width": 2598,
           "height": 1937,
-          "type": "unknown"
+          "type": "product"
         },
         {
           "url": "a0c5fc_1f7b394d97794ac29f213e36455e867b~mv2.jpg",

@@ -76,6 +76,8 @@ function classifyImage(title, width, height) {
   // EXCEPT K/N prefix codes which are mosaic sheet close-ups (石化-K050-B336)
   // Small images (<1500px) with J/H pattern codes are tile pattern product shots (chevron, hexagon)
   if (/^[\u4e00-\u9fff]+-[A-Z]\d{3}-/.test(decoded) && !/^[\u4e00-\u9fff]+-[KN]\d{2,3}/i.test(decoded) && maxDim >= 1500) return 'lifestyle';
+  // Chinese product-name + H/J pattern code at small size = tile pattern product shot (chevron, hexagon)
+  if (/^[\u4e00-\u9fff]+-[HJ]\d{3}-/.test(decoded) && maxDim < 1500) return 'product';
   // Chinese 副本 (copy) — lifestyle UNLESS it contains a tile/mosaic code
   if (/\u526F\u672C/.test(decoded) && !/\d{2}[A-Z]\d{3}/.test(decoded) && !/^GM[LH]?\d{3}/i.test(decoded) && !/^[NHK]\d{2,3}[A-Z]?[-_]/i.test(decoded)) return 'lifestyle';
   // Scaled photos are typically room/promo shots
@@ -90,12 +92,14 @@ function classifyImage(title, width, height) {
   if (/^\d{2,4}[A-Z]\d{3}/i.test(decoded)) return 'product';
   // Glass mosaic codes: "gm103.jpg", "GML402 副本.jpg", "GMH614_edited.jpg"
   if (/^GM[LH]?\d{3}/i.test(decoded)) return 'product';
+  // Wix auto-edited suffix: "GMH614_edited.jpg", "60B191_edited.png"
+  if (/_edited\.(jpg|png)$/i.test(decoded)) return 'product';
   // Full-width GM codes: "ＧＭ５０１+GM503"
   if (/\uFF27\uFF2D/i.test(decoded)) return 'product';
   // Chinese 图 prefix at small size = product diagram
   if (decoded.startsWith('\u56FE')) return 'product';
   // Product codes with L prefix: "LB748511-.jpg", "LC960531.jpg", "LG316-01==-.jpg"
-  if (/^L[BCGK]\d{4,}/i.test(decoded)) return 'product';
+  if (/^L[BCGK]\d{3,}/i.test(decoded)) return 'product';
   // Mosaic pattern thumbnails: "K050-B411.jpg", "K078-C402B.jpg", "N048-C400T.jpg"
   if (/^[KN]\d{3}-[BC]\d{3}/i.test(decoded)) return 'product';
   // Floor layout thumbs: "FLB326YG.jpg", "FLC402G.jpg"
