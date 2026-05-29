@@ -342,9 +342,11 @@ async function main() {
 
   // Build lookup maps
   const skuToProduct = new Map();
+  const skuCodeToSku = new Map(); // vendor_sku → full SKU object (for direct resolution)
   for (const s of skus) {
     const raw = s.vendor_sku.replace(/^SA-/, '');
     skuToProduct.set(raw.toUpperCase(), s.product_id);
+    skuCodeToSku.set(raw.toUpperCase(), s);
   }
 
   // Group SKUs by product (ordered by created_at from the query)
@@ -456,11 +458,13 @@ async function main() {
     const skuCandidates = extractSkuCandidates(excerpt);
     let productId = null;
     let matchMethod = null;
+    let exactSkuFromCode = null; // preserve the exact SKU when matched by code
     for (const candidate of skuCandidates) {
       const pid = skuToProduct.get(candidate);
       if (pid) {
         productId = pid;
         matchMethod = 'sku';
+        exactSkuFromCode = skuCodeToSku.get(candidate) || null;
         break;
       }
     }
@@ -562,10 +566,12 @@ async function main() {
     }
 
     // Resolve specific SKU for this product
+    // When Strategy 1 matched by SKU code, use that exact SKU directly — the code
+    // is the most specific identifier and shouldn't be overridden by title heuristics
     const matchedProduct = productById.get(productId);
-    const matchedSku = matchedProduct
-      ? findMatchingSku(productId, title, matchedProduct, productSkus)
-      : null;
+    const matchedSku = exactSkuFromCode
+      ? exactSkuFromCode
+      : (matchedProduct ? findMatchingSku(productId, title, matchedProduct, productSkus) : null);
 
     if (!matchedSku) {
       if (VERBOSE) console.log(`    WARNING: No active SKU for product ${productId} — skipping images`);

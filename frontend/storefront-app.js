@@ -762,6 +762,9 @@
       } else if (vNorm.startsWith(pLower + " ") || vLower.startsWith(pLower + ",") || vLower.startsWith(pLower + "-")) {
         const suffix = sku.variant_name.replace(new RegExp("^" + rawName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[\\s,\\-]+", "i"), "").trim();
         variant = suffix ? formatVariantName(suffix) : null;
+      } else if (nLower !== pLower && (vNorm.startsWith(nLower + " ") || vLower.startsWith(nLower + ",") || vLower.startsWith(nLower + "-"))) {
+        const suffix = sku.variant_name.replace(new RegExp("^" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[\\s,\\-]+", "i"), "").trim();
+        variant = suffix ? formatVariantName(suffix) : null;
       } else if (pLower.startsWith(vNorm + " ") || pLower === vNorm) {
         variant = null;
       } else if (vNorm.length > 2 && (nLower.includes(" " + vNorm + " ") || nLower.endsWith(" " + vNorm) || nLower.startsWith(vNorm + " "))) {

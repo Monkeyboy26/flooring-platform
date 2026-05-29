@@ -666,6 +666,10 @@
           // variant_name starts with product_name + separator → strip prefix, keep the rest
           const suffix = sku.variant_name.replace(new RegExp('^' + rawName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\s,\\-]+', 'i'), '').trim();
           variant = suffix ? formatVariantName(suffix) : null;
+        } else if (nLower !== pLower && (vNorm.startsWith(nLower + ' ') || vLower.startsWith(nLower + ',') || vLower.startsWith(nLower + '-'))) {
+          // variant_name starts with stripped name (sans type suffix) → strip that prefix
+          const suffix = sku.variant_name.replace(new RegExp('^' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\s,\\-]+', 'i'), '').trim();
+          variant = suffix ? formatVariantName(suffix) : null;
         } else if (pLower.startsWith(vNorm + ' ') || pLower === vNorm) {
           // product_name already contains variant info
           variant = null;
