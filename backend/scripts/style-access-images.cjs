@@ -174,12 +174,16 @@ function findMatchingSku(productId, wpTitle, product, productSkusMap) {
   const wpSize = extractSize(variantPart);
   const wpDescriptors = extractDescriptors(variantPart).map(canonicalDescriptor);
 
+  // Detect if WP title indicates an accessory product
+  const wpIsAccessory = /\b(jolly|trim|bullnose)\b/i.test(variantPart);
+
   let bestSku = null;
   let bestScore = -1;
 
   for (const sku of skuList) {
     let score = 0;
     const vn = sku.variant_name || '';
+    const skuIsAccessory = sku.variant_type === 'accessory' || /\b(jolly|trim|bullnose)\b/i.test(vn);
 
     // Size matching (strong signal)
     const skuSize = extractSize(vn);
@@ -200,9 +204,13 @@ function findMatchingSku(productId, wpTitle, product, productSkusMap) {
       if (wpDescriptors.includes(sd)) score += 20;
     }
 
-    // Penalize accessory/trim/jolly SKUs so main tiles are preferred
-    if (sku.variant_type === 'accessory' || /\b(jolly|trim|bullnose)\b/i.test(vn)) {
-      score -= 50;
+    // Bidirectional accessory scoring:
+    // If WP title says "Jolly/Trim", boost accessory SKUs and penalize main tiles
+    // If WP title is for a main tile, penalize accessory SKUs
+    if (wpIsAccessory) {
+      score += skuIsAccessory ? 50 : -50;
+    } else {
+      if (skuIsAccessory) score -= 50;
     }
 
     if (score > bestScore) {
@@ -583,10 +591,11 @@ async function main() {
       console.log(`    -> SKU: ${matchedSku.variant_name || '(default)'} [${matchMethod}]`);
     }
 
-    // Only upsert if no higher-confidence match already assigned this SKU
+    // Only upsert if no strictly-higher-confidence match already assigned this SKU
+    // Same-priority matches CAN overwrite (later, more specific pages win)
     const newPriority = METHOD_PRIORITY[matchMethod] || 0;
     const existingAssignment = assignedSkus.get(matchedSku.id);
-    if (existingAssignment && existingAssignment.priority >= newPriority) {
+    if (existingAssignment && existingAssignment.priority > newPriority) {
       if (VERBOSE) console.log(`    SKIP: SKU ${matchedSku.variant_name} already has ${existingAssignment.method} match (higher priority)`);
     } else {
       if (!DRY_RUN) {
