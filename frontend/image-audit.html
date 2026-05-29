@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html><head><title>Primary Image Audit</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; }
+.header { position: sticky; top: 0; z-index: 100; background: #16213e; padding: 12px 20px; border-bottom: 2px solid #0f3460; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.header h1 { font-size: 18px; color: #e94560; white-space: nowrap; }
+.header select, .header button { padding: 6px 12px; border-radius: 4px; border: 1px solid #0f3460; background: #1a1a2e; color: #e0e0e0; font-size: 13px; cursor: pointer; }
+.header button { background: #e94560; color: white; border: none; font-weight: 600; }
+.header button:hover { background: #c73e54; }
+.header button.secondary { background: #0f3460; }
+.header button.secondary:hover { background: #1a4a8a; }
+.stats { font-size: 12px; color: #aaa; }
+.controls { display: flex; gap: 8px; align-items: center; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px; padding: 8px; }
+.card { background: #16213e; border-radius: 6px; overflow: hidden; cursor: pointer; position: relative; border: 2px solid transparent; transition: border-color 0.2s; }
+.card:hover { border-color: #0f3460; }
+.card.flagged { border-color: #e94560; }
+.card.flagged::after { content: 'FLAGGED'; position: absolute; top: 4px; right: 4px; background: #e94560; color: white; font-size: 9px; padding: 2px 6px; border-radius: 3px; font-weight: bold; }
+.card img { width: 100%; height: 160px; object-fit: contain; background: #0d1117; display: block; }
+.card img.broken { background: #3a0000; }
+.card .info { padding: 4px 6px; font-size: 10px; line-height: 1.3; }
+.card .info .name { font-weight: 600; color: #e0e0e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .info .coll { color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loading { text-align: center; padding: 60px; font-size: 16px; color: #888; }
+.pager { display: flex; justify-content: center; gap: 8px; padding: 16px; }
+.pager button { padding: 8px 16px; }
+.summary { padding: 12px 20px; background: #0d1117; border-top: 1px solid #0f3460; font-size: 13px; }
+.flagged-list { max-height: 300px; overflow-y: auto; padding: 8px; }
+.flagged-list .item { padding: 4px 8px; background: #16213e; margin-bottom: 2px; border-radius: 3px; font-size: 11px; display: flex; justify-content: space-between; }
+.flagged-list .item button { font-size: 10px; background: none; border: 1px solid #555; color: #aaa; padding: 1px 6px; border-radius: 2px; cursor: pointer; }
+.modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 200; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; }
+.modal.active { display: flex; }
+.modal img { max-width: 90vw; max-height: 85vh; object-fit: contain; }
+.modal .close { position: absolute; top: 10px; right: 20px; font-size: 30px; color: white; cursor: pointer; }
+.modal .label { position: absolute; bottom: 20px; text-align: center; width: 100%; color: white; font-size: 14px; }
+#flagPanel { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 150; background: #0d1117; border-top: 2px solid #e94560; max-height: 40vh; overflow-y: auto; }
+#flagPanel.active { display: block; }
+#flagPanel .header2 { padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; background: #16213e; }
+#flagPanel h3 { font-size: 14px; color: #e94560; }
+</style>
+</head><body>
+<div class="header">
+  <h1>Primary Image Audit</h1>
+  <select id="vendorSelect"></select>
+  <div class="controls">
+    <button onclick="loadPage(1)">Load</button>
+    <button class="secondary" onclick="prevPage()">Prev</button>
+    <button class="secondary" onclick="nextPage()">Next</button>
+    <span class="stats" id="pageInfo">-</span>
+  </div>
+  <div class="controls">
+    <button class="secondary" onclick="toggleFlagPanel()">Flagged (<span id="flagCount">0</span>)</button>
+    <button onclick="exportFlagged()">Export SQL</button>
+  </div>
+</div>
+<div id="gridContainer" class="grid"></div>
+<div id="loadingMsg" class="loading">Select a vendor and click Load</div>
+
+<div id="modal" class="modal" onclick="closeModal()">
+  <span class="close">&times;</span>
+  <img id="modalImg" src="">
+  <div class="label" id="modalLabel"></div>
+</div>
+
+<div id="flagPanel">
+  <div class="header2">
+    <h3>Flagged Images</h3>
+    <button onclick="toggleFlagPanel()" style="background:none;border:1px solid #555;color:#aaa;padding:2px 8px;border-radius:3px;cursor:pointer">Close</button>
+  </div>
+  <div class="flagged-list" id="flaggedList"></div>
+</div>
+
+<script>
+const vendors = [
+  { id: 'c94f3624-6796-4b3b-b5d7-0f5e544955a5', name: 'Hardware Resources', count: 8191 },
+  { id: '4da72c7d-2f82-458b-aec5-5ec0ba8a554c', name: 'Shaw Floors', count: 7335 },
+  { id: '550e8400-e29b-41d4-a716-446655440003', name: 'Daltile', count: 4735 },
+  { id: '67bcdc1e-642b-45b9-b939-9de4d79c35d0', name: 'Engineered Floors', count: 4138 },
+  { id: '75b1dd45-e9bf-4e8e-be8a-22dccc14e8df', name: 'James Martin Vanities', count: 4059 },
+  { id: '550e8400-e29b-41d4-a716-446655440008', name: 'Tri-West', count: 2913 },
+  { id: '3597f068-7677-4fde-aed7-da90ded36676', name: 'Emser Tile', count: 2323 },
+  { id: '550e8400-e29b-41d4-a716-446655440001', name: 'MSI Surfaces', count: 1908 },
+  { id: '550e8400-e29b-41d4-a716-446655440006', name: 'Elysium Tile', count: 1870 },
+  { id: '550e8400-e29b-41d4-a716-446655440002', name: 'Bedrosians Tile', count: 1855 },
+  { id: '42181113-efe9-49a6-b7a3-75fcb32d10c8', name: 'Pentz Commercial', count: 826 },
+  { id: '2687294d-fff3-49bf-8165-db0cbd3bbd54', name: 'Bosphorus Imports', count: 557 },
+  { id: '12a55bb7-a610-4abd-94f7-6f0d96c880e9', name: 'Melange Boutique Tile', count: 423 },
+  { id: 'f27ae784-80e6-4e5d-b4d9-36dee24851b7', name: 'Goton Tiles', count: 406 },
+  { id: 'dabbf50b-c1ed-4e81-8bf1-c1ac88a5a4bd', name: 'Mannington', count: 373 },
+  { id: '3b0162df-e860-4eb4-ac7f-91a306c1e60d', name: 'Bellezza Ceramica', count: 357 },
+  { id: '8ec5135f-8ded-4818-925e-2ca70bef4c0a', name: 'Fujiwa Tile', count: 223 },
+  { id: '1d176520-5f9a-444d-9dc7-1f7e06165c22', name: 'Johnson Hardwood', count: 158 },
+  { id: '0bbeac3b-5101-4335-be94-808a3c197126', name: 'ADEX USA', count: 142 },
+  { id: 'dedba8a9-d35a-42cb-ad3a-97c65a806dbc', name: 'Hallmark Floors', count: 136 },
+  { id: 'c84e14c4-aabe-4968-9e8d-cdadb93298d1', name: 'Unicorn Tile Corp', count: 114 },
+  { id: 'ea6a54c8-1dee-4bec-9a0d-decfd1b20d99', name: 'Style Access', count: 101 },
+  { id: 'e557a4e8-8b0b-4a5a-abe4-a76d1a92e238', name: 'Eternity Flooring', count: 80 },
+  { id: 'a70fee3b-9bad-4511-a4e1-edae12adde72', name: 'MegaClic', count: 78 },
+  { id: '550e8400-e29b-41d4-a716-446655440007', name: 'Arizona Tile', count: 72 },
+  { id: 'fef29851-2a27-461d-8e00-ae05d10c4ead', name: 'Gaia Flooring', count: 53 },
+  { id: '5d207b1f-c296-436f-a9d2-d5e9c425489a', name: 'Vellichor Floors', count: 40 },
+  { id: '4b61b12a-8856-41e2-b3cc-f6b82be43a81', name: 'Citywide LVT', count: 36 },
+];
+
+const PAGE_SIZE = 200;
+let currentVendor = null;
+let currentPage = 1;
+let totalForVendor = 0;
+let allImages = [];
+let flaggedIds = new Set(JSON.parse(localStorage.getItem('flaggedIds') || '[]'));
+
+// Populate vendor dropdown
+const sel = document.getElementById('vendorSelect');
+vendors.forEach(v => {
+  const opt = document.createElement('option');
+  opt.value = v.id;
+  opt.textContent = `${v.name} (${v.count})`;
+  sel.appendChild(opt);
+});
+
+function saveFlagged() {
+  localStorage.setItem('flaggedIds', JSON.stringify([...flaggedIds]));
+  document.getElementById('flagCount').textContent = flaggedIds.size;
+}
+
+async function loadPage(page) {
+  currentVendor = sel.value;
+  currentPage = page;
+  const vendor = vendors.find(v => v.id === currentVendor);
+  totalForVendor = vendor ? vendor.count : 0;
+  const offset = (page - 1) * PAGE_SIZE;
+
+  const grid = document.getElementById('gridContainer');
+  const loading = document.getElementById('loadingMsg');
+  grid.innerHTML = '';
+  loading.style.display = 'block';
+  loading.textContent = `Loading ${vendor.name} page ${page}...`;
+
+  try {
+    const resp = await fetch(`/api/admin/audit/primary-images?vendor_id=${currentVendor}&limit=${PAGE_SIZE}&offset=${offset}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    allImages = data.images || [];
+
+    loading.style.display = 'none';
+    const totalPages = Math.ceil(totalForVendor / PAGE_SIZE);
+    document.getElementById('pageInfo').textContent =
+      `Page ${page}/${totalPages} | ${allImages.length} images | ${totalForVendor} total`;
+
+    allImages.forEach((img, idx) => {
+      const card = document.createElement('div');
+      card.className = 'card' + (flaggedIds.has(img.media_id) ? ' flagged' : '');
+      card.dataset.mediaId = img.media_id;
+      card.onclick = (e) => {
+        if (e.shiftKey) { toggleFlag(img, card); return; }
+        openModal(img);
+      };
+      card.oncontextmenu = (e) => { e.preventDefault(); toggleFlag(img, card); };
+
+      const imgEl = document.createElement('img');
+      imgEl.loading = 'lazy';
+      imgEl.src = img.url;
+      imgEl.alt = img.name;
+      imgEl.onerror = function() { this.classList.add('broken'); this.alt = 'BROKEN'; };
+
+      const info = document.createElement('div');
+      info.className = 'info';
+      info.innerHTML = `<div class="name" title="${img.name}">${img.name}</div>` +
+        `<div class="coll" title="${img.collection}">${img.collection}</div>`;
+
+      card.appendChild(imgEl);
+      card.appendChild(info);
+      grid.appendChild(card);
+    });
+  } catch (err) {
+    loading.textContent = `Error: ${err.message}. Make sure the audit API endpoint exists.`;
+  }
+}
+
+function toggleFlag(img, card) {
+  if (flaggedIds.has(img.media_id)) {
+    flaggedIds.delete(img.media_id);
+    card.classList.remove('flagged');
+  } else {
+    flaggedIds.add(img.media_id);
+    card.classList.add('flagged');
+  }
+  saveFlagged();
+  updateFlagPanel();
+}
+
+function prevPage() { if (currentPage > 1) loadPage(currentPage - 1); }
+function nextPage() {
+  const totalPages = Math.ceil(totalForVendor / PAGE_SIZE);
+  if (currentPage < totalPages) loadPage(currentPage + 1);
+}
+
+function openModal(img) {
+  document.getElementById('modalImg').src = img.url;
+  document.getElementById('modalLabel').textContent = `${img.name} / ${img.collection} [${img.media_id.substring(0,8)}]`;
+  document.getElementById('modal').classList.add('active');
+}
+function closeModal() { document.getElementById('modal').classList.remove('active'); }
+
+function toggleFlagPanel() {
+  const panel = document.getElementById('flagPanel');
+  panel.classList.toggle('active');
+  updateFlagPanel();
+}
+
+function updateFlagPanel() {
+  const list = document.getElementById('flaggedList');
+  if (flaggedIds.size === 0) {
+    list.innerHTML = '<div style="padding:16px;color:#888">No flagged images. Right-click or Shift+click to flag.</div>';
+    return;
+  }
+  list.innerHTML = [...flaggedIds].map(id =>
+    `<div class="item"><span>${id.substring(0,8)}...</span><button onclick="unflag('${id}')">Remove</button></div>`
+  ).join('');
+}
+
+function unflag(id) {
+  flaggedIds.delete(id);
+  saveFlagged();
+  updateFlagPanel();
+  const card = document.querySelector(`[data-media-id="${id}"]`);
+  if (card) card.classList.remove('flagged');
+}
+
+function exportFlagged() {
+  if (flaggedIds.size === 0) { alert('No flagged images'); return; }
+  const ids = [...flaggedIds].map(id => `'${id}'`).join(',\n  ');
+  const sql = `-- Reclassify ${flaggedIds.size} flagged primary images to lifestyle\nUPDATE media_assets SET asset_type = 'lifestyle', sort_order = 30\nWHERE id IN (\n  ${ids}\n) AND asset_type = 'primary';\n`;
+
+  const blob = new Blob([sql], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'fix-flagged-primaries.sql';
+  a.click();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'ArrowRight') nextPage();
+  if (e.key === 'ArrowLeft') prevPage();
+});
+
+saveFlagged();
+</script>
+</body></html>
