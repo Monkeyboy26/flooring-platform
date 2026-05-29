@@ -341,9 +341,10 @@ app.get('/api/products/:id', optionalTradeAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const product = await pool.query(`
-      SELECT p.*, v.name as vendor_name, c.name as category_name, c.slug as category_slug
+      SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, c.name as category_name, c.slug as category_slug
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       WHERE p.id = $1
     `, [id]);
@@ -651,6 +652,16 @@ app.get('/api/storefront/featured', async (req, res) => {
         FROM media_assets WHERE asset_type = 'lifestyle' AND sku_id IS NOT NULL
         ORDER BY sku_id, sort_order
       ),
+      product_images AS (
+        SELECT DISTINCT ON (product_id) product_id, url
+        FROM media_assets WHERE asset_type = 'primary' AND sku_id IS NULL
+        ORDER BY product_id, sort_order
+      ),
+      product_alt_images AS (
+        SELECT DISTINCT ON (product_id) product_id, url
+        FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NULL
+        ORDER BY product_id, sort_order
+      ),
       variant_counts AS (
         SELECT product_id, COUNT(*) as variant_count
         FROM skus WHERE status = 'active' AND is_sample = false AND COALESCE(variant_type, '') != 'accessory'
@@ -660,13 +671,14 @@ app.get('/api/storefront/featured', async (req, res) => {
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short,
         v.name as vendor_name,
+        COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.price_basis, pr.cut_price,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-        COALESCE(si.url, sli.url, sai.url) as primary_image,
-        sai.url as alternate_image,
+        COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
+        COALESCE(sai.url, pai.url) as alternate_image,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -679,6 +691,7 @@ app.get('/api/storefront/featured', async (req, res) => {
       JOIN skus s ON s.id = b.sku_id
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -686,6 +699,8 @@ app.get('/api/storefront/featured', async (req, res) => {
       LEFT JOIN sku_images si ON si.sku_id = s.id
       LEFT JOIN sku_lifestyle_images sli ON sli.sku_id = s.id
       LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
+      LEFT JOIN product_images pi ON pi.product_id = p.id
+      LEFT JOIN product_alt_images pai ON pai.product_id = p.id
       LEFT JOIN variant_counts vc ON vc.product_id = p.id
       ORDER BY b.times_ordered DESC
     `;
@@ -713,6 +728,16 @@ app.get('/api/storefront/featured', async (req, res) => {
           FROM media_assets WHERE asset_type = 'lifestyle' AND sku_id IS NOT NULL
           ORDER BY sku_id, sort_order
         ),
+        product_images AS (
+          SELECT DISTINCT ON (product_id) product_id, url
+          FROM media_assets WHERE asset_type = 'primary' AND sku_id IS NULL
+          ORDER BY product_id, sort_order
+        ),
+        product_alt_images AS (
+          SELECT DISTINCT ON (product_id) product_id, url
+          FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NULL
+          ORDER BY product_id, sort_order
+        ),
         variant_counts AS (
           SELECT product_id, COUNT(*) as variant_count
           FROM skus WHERE status = 'active' AND is_sample = false AND COALESCE(variant_type, '') != 'accessory'
@@ -723,13 +748,14 @@ app.get('/api/storefront/featured', async (req, res) => {
             s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
             COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short,
             v.name as vendor_name,
+            COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
             COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
             c.name as category_name, c.slug as category_slug,
             pr.retail_price, pr.price_basis, pr.cut_price,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-            COALESCE(si.url, sli.url, sai.url) as primary_image,
-            sai.url as alternate_image,
+            COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
+            COALESCE(sai.url, pai.url) as alternate_image,
             CASE
               WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
               WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -740,6 +766,7 @@ app.get('/api/storefront/featured', async (req, res) => {
           FROM skus s
           JOIN products p ON p.id = s.product_id
           JOIN vendors v ON v.id = p.vendor_id
+          LEFT JOIN brands br ON br.id = p.brand_id
           LEFT JOIN categories c ON c.id = p.category_id
           LEFT JOIN pricing pr ON pr.sku_id = s.id
           LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -747,6 +774,8 @@ app.get('/api/storefront/featured', async (req, res) => {
           LEFT JOIN sku_images si ON si.sku_id = s.id
           LEFT JOIN sku_lifestyle_images sli ON sli.sku_id = s.id
           LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
+          LEFT JOIN product_images pi ON pi.product_id = p.id
+          LEFT JOIN product_alt_images pai ON pai.product_id = p.id
           LEFT JOIN variant_counts vc ON vc.product_id = p.id
           WHERE p.status = 'active' AND s.status = 'active' AND s.is_sample = false
             AND COALESCE(s.variant_type, '') != 'accessory'
@@ -1434,11 +1463,18 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       }
     }
 
-    // Vendor filter
+    // Vendor filter (internal/PO — filters by vendor name)
     if (req.query.vendor) {
       const vendorNames = req.query.vendor.split('|').map(v => v.trim()).filter(Boolean);
       const vendorPlaceholders = vendorNames.map(v => { params.push(v); return `$${paramIndex++}`; });
       whereClauses.push(`v.name IN (${vendorPlaceholders.join(',')})`);
+    }
+
+    // Brand filter (customer-facing — filters by COALESCE(brand, vendor) name)
+    if (req.query.brand) {
+      const brandNames = req.query.brand.split('|').map(v => v.trim()).filter(Boolean);
+      const brandPlaceholders = brandNames.map(v => { params.push(v); return `$${paramIndex++}`; });
+      whereClauses.push(`COALESCE(br.name, v.name) IN (${brandPlaceholders.join(',')})`);
     }
 
     // Price range filters
@@ -1464,7 +1500,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       whereClauses.push(`p.id IN (SELECT pt.product_id FROM product_tags pt JOIN tag_definitions td ON td.id = pt.tag_id WHERE td.slug IN (${tagPlaceholders.join(',')}))`);
     }
 
-    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'product_ids', 'sku_ids', 'vendor', 'price_min', 'price_max', 'sale', 'tags'];
+    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'product_ids', 'sku_ids', 'vendor', 'brand', 'price_min', 'price_max', 'sale', 'tags'];
     const attrFilters = {};
     for (const [key, val] of Object.entries(req.query)) {
       if (!reservedParams.includes(key) && val) {
@@ -1487,7 +1523,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     // Sort — relevance-first when searching (unless user explicitly chose a sort)
     // NOTE: PostgreSQL does not allow SELECT aliases inside expressions (CASE, LOWER, similarity, etc.)
     // in ORDER BY. Use actual table.column references for expressions; bare aliases work for simple sorts.
-    let orderBy = 'CASE WHEN COALESCE(si.url, sai.url) IS NOT NULL THEN 0 ELSE 1 END, COALESCE(p.display_name, p.name) ASC, s.variant_name ASC';
+    let orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, COALESCE(p.display_name, p.name) ASC, s.variant_name ASC';
     if (sort === 'discount') orderBy = 'CASE WHEN pr.sale_price IS NOT NULL AND pr.retail_price > 0 THEN (pr.retail_price - pr.sale_price) / pr.retail_price ELSE 0 END DESC, COALESCE(p.display_name, p.name) ASC';
     else if (sort === 'price_asc') orderBy = 'pr.retail_price ASC NULLS LAST, COALESCE(p.display_name, p.name) ASC';
     else if (sort === 'price_desc') orderBy = 'pr.retail_price DESC NULLS LAST, COALESCE(p.display_name, p.name) ASC';
@@ -1509,6 +1545,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       WHERE ${whereSQL}
@@ -1534,6 +1571,18 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         WHERE asset_type = 'lifestyle' AND sku_id IS NOT NULL
         ORDER BY sku_id, sort_order
       ),
+      product_images AS (
+        SELECT DISTINCT ON (product_id) product_id, url
+        FROM media_assets
+        WHERE asset_type = 'primary' AND sku_id IS NULL
+        ORDER BY product_id, sort_order
+      ),
+      product_alt_images AS (
+        SELECT DISTINCT ON (product_id) product_id, url
+        FROM media_assets
+        WHERE asset_type = 'alternate' AND sku_id IS NULL
+        ORDER BY product_id, sort_order
+      ),
       variant_counts AS (
         SELECT product_id, COUNT(*) as variant_count
         FROM skus
@@ -1545,13 +1594,14 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short, p.search_vector,
         p.slug as product_slug,
         v.name as vendor_name, v.code as vendor_code,
+        COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.price_basis, pr.cut_price,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-        COALESCE(si.url, sli.url, sai.url) as primary_image,
-        sai.url as alternate_image,
+        COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
+        COALESCE(sai.url, pai.url) as alternate_image,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -1563,6 +1613,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -1570,6 +1621,8 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       LEFT JOIN sku_images si ON si.sku_id = s.id
       LEFT JOIN sku_lifestyle_images sli ON sli.sku_id = s.id
       LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
+      LEFT JOIN product_images pi ON pi.product_id = p.id
+      LEFT JOIN product_alt_images pai ON pai.product_id = p.id
       LEFT JOIN variant_counts vc ON vc.product_id = p.id
       LEFT JOIN product_popularity pp ON pp.product_id = p.id
       WHERE ${whereSQL}
@@ -1662,6 +1715,7 @@ app.get('/api/storefront/skus/compare', async (req, res) => {
         s.id as sku_id, s.variant_name, s.sell_by,
         COALESCE(p.display_name, p.name) as product_name, p.collection,
         v.name as vendor_name,
+        COALESCE(br.name, v.name) as brand_name,
         c.name as category_name,
         pr.retail_price, pr.price_basis,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
@@ -1670,6 +1724,7 @@ app.get('/api/storefront/skus/compare', async (req, res) => {
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -1772,9 +1827,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     const skuResult = await pool.query(`
       SELECT
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.variant_type,
-        COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, p.vendor_id, p.description_long, p.description_short,
+        COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, p.vendor_id, p.brand_id, p.description_long, p.description_short,
         p.slug as product_slug,
         v.name as vendor_name, v.code as vendor_code,
+        COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.cost, pr.price_basis,
@@ -1794,6 +1850,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -2377,11 +2434,18 @@ app.get('/api/storefront/facets', async (req, res) => {
       }
     }
 
-    // Vendor filter
+    // Vendor filter (internal/PO)
     if (req.query.vendor) {
       const vendorNames = req.query.vendor.split('|').map(v => v.trim()).filter(Boolean);
       const vendorPlaceholders = vendorNames.map(v => { params.push(v); return `$${paramIndex++}`; });
       baseWhere.push(`v.name IN (${vendorPlaceholders.join(',')})`);
+    }
+
+    // Brand filter (customer-facing)
+    if (req.query.brand) {
+      const brandNames = req.query.brand.split('|').map(v => v.trim()).filter(Boolean);
+      const brandPlaceholders = brandNames.map(v => { params.push(v); return `$${paramIndex++}`; });
+      baseWhere.push(`COALESCE(br.name, v.name) IN (${brandPlaceholders.join(',')})`);
     }
 
     // Price range filters
@@ -2407,7 +2471,7 @@ app.get('/api/storefront/facets', async (req, res) => {
     }
 
     // Collect attribute filters from query params
-    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'vendor', 'price_min', 'price_max', 'product_ids', 'sale', 'tags'];
+    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'vendor', 'brand', 'price_min', 'price_max', 'product_ids', 'sale', 'tags'];
     const attrFilters = {};
     for (const [key, val] of Object.entries(req.query)) {
       if (!reservedParams.includes(key) && val) {
@@ -2441,6 +2505,7 @@ app.get('/api/storefront/facets', async (req, res) => {
       JOIN skus s ON s.id = sa.sku_id
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       WHERE ${allAttrWhere}
@@ -2476,6 +2541,7 @@ app.get('/api/storefront/facets', async (req, res) => {
         JOIN skus s ON s.id = sa.sku_id
         JOIN products p ON p.id = s.product_id
         JOIN vendors v ON v.id = p.vendor_id
+        LEFT JOIN brands br ON br.id = p.brand_id
         LEFT JOIN categories c ON c.id = p.category_id
         LEFT JOIN pricing pr ON pr.sku_id = s.id
         WHERE a.slug = $${facetParamIndex} AND ${facetWhere.join(' AND ')}
@@ -2492,17 +2558,18 @@ app.get('/api/storefront/facets', async (req, res) => {
       };
     });
 
-    // Vendor counts (disjunctive: skip vendor filter from WHERE)
-    const vendorWhereFragments = [...baseWhere.filter(w => !w.startsWith('v.name IN')), ...attrWhereFragments.map(f => f.clause)];
-    const vendorSQL = `
-      SELECT v.name, COUNT(DISTINCT s.id) as count
+    // Brand counts (disjunctive: skip brand filter from WHERE)
+    const brandWhereFragments = [...baseWhere.filter(w => !w.startsWith('COALESCE(br.name')), ...attrWhereFragments.map(f => f.clause)];
+    const brandSQL = `
+      SELECT COALESCE(br.name, v.name) as name, COUNT(DISTINCT s.id) as count
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
-      WHERE ${vendorWhereFragments.join(' AND ')}
-      GROUP BY v.name
+      WHERE ${brandWhereFragments.join(' AND ')}
+      GROUP BY COALESCE(br.name, v.name)
       ORDER BY count DESC
     `;
 
@@ -2513,6 +2580,7 @@ app.get('/api/storefront/facets', async (req, res) => {
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       WHERE pr.retail_price IS NOT NULL AND pr.retail_price::numeric > 0 AND ${priceWhereFragments.join(' AND ')}
@@ -2527,6 +2595,7 @@ app.get('/api/storefront/facets', async (req, res) => {
       JOIN products p ON p.id = pt.product_id
       JOIN skus s ON s.product_id = p.id
       JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       WHERE ${tagWhereFragments.join(' AND ')}
@@ -2535,15 +2604,15 @@ app.get('/api/storefront/facets', async (req, res) => {
       ORDER BY td.category, td.display_order
     `;
 
-    const [facetResults, vendorResult, priceResult, tagFacetResult] = await Promise.all([
+    const [facetResults, brandResult, priceResult, tagFacetResult] = await Promise.all([
       Promise.all(facetPromises),
-      pool.query(vendorSQL, attrWhereParams),
+      pool.query(brandSQL, attrWhereParams),
       pool.query(priceSQL, attrWhereParams),
       pool.query(tagFacetSQL, attrWhereParams)
     ]);
 
     const facets = facetResults.filter(f => f.values.length > 0);
-    const vendors = vendorResult.rows.map(r => ({ name: r.name, count: parseInt(r.count) }));
+    const brands = brandResult.rows.map(r => ({ name: r.name, count: parseInt(r.count) }));
     const priceRow = priceResult.rows[0];
     const priceRange = {
       min: priceRow && priceRow.min_price ? parseFloat(parseFloat(priceRow.min_price).toFixed(2)) : 0,
@@ -2551,7 +2620,8 @@ app.get('/api/storefront/facets', async (req, res) => {
     };
     const tags = tagFacetResult.rows.map(r => ({ slug: r.slug, name: r.name, category: r.category, count: parseInt(r.count) }));
 
-    res.json({ facets, vendors, priceRange, tags });
+    // Return both `brands` and `vendors` (aliased for backwards compat)
+    res.json({ facets, brands, vendors: brands, priceRange, tags });
   } catch (err) {
     console.error('Storefront facets error:', err);
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -4067,9 +4137,10 @@ app.get('/api/admin/stats', staffAuth, requireRole('admin', 'manager'), async (r
         (SELECT COUNT(*)::int FROM orders) as orders
     `);
     const recent = await pool.query(`
-      SELECT p.id, p.name, p.status, v.name as vendor_name, p.created_at
+      SELECT p.id, p.name, p.status, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, p.created_at
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       ORDER BY p.created_at DESC LIMIT 5
     `);
     const recentOrders = await pool.query(`
@@ -4718,13 +4789,14 @@ app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async
     const countResult = await pool.query(
       `SELECT COUNT(*)::int as total FROM products p
        LEFT JOIN vendors v ON v.id = p.vendor_id
+       LEFT JOIN brands br ON br.id = p.brand_id
        LEFT JOIN categories c ON c.id = p.category_id
        ${qualityJoin}
        ${whereClause}`, params
     );
 
     const dataResult = await pool.query(
-      `SELECT p.*, v.name as vendor_name, c.name as category_name,
+      `SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, br.code as brand_code, c.name as category_name,
         (SELECT COUNT(*)::int FROM skus s WHERE s.product_id = p.id) as sku_count,
         (SELECT pr.retail_price FROM pricing pr
          JOIN skus s ON s.id = pr.sku_id
@@ -4740,6 +4812,7 @@ app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async
          ) FROM sku_quality_scores qs3 WHERE qs3.product_id = p.id) as quality_flags
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       ${qualityJoin}
       ${whereClause}
@@ -4870,9 +4943,10 @@ app.get('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
   try {
     const { id } = req.params;
     const product = await pool.query(`
-      SELECT p.*, v.name as vendor_name, c.name as category_name, c.slug as category_slug
+      SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, c.name as category_name, c.slug as category_slug
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       WHERE p.id = $1
     `, [id]);
@@ -5013,14 +5087,14 @@ app.patch('/api/admin/products/bulk/tags', staffAuth, requireRole('admin', 'mana
 // Create product
 app.post('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    const { name, collection, vendor_id, category_id, status, description_short, description_long } = req.body;
+    const { name, collection, vendor_id, category_id, brand_id, status, description_short, description_long } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
 
     const result = await pool.query(`
-      INSERT INTO products (name, collection, vendor_id, category_id, status, description_short, description_long)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO products (name, collection, vendor_id, category_id, brand_id, status, description_short, description_long)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
-    `, [name, collection || null, vendor_id || null, category_id || null, status || 'draft', description_short || null, description_long || null]);
+    `, [name, collection || null, vendor_id || null, category_id || null, brand_id || null, status || 'draft', description_short || null, description_long || null]);
 
     res.json({ product: result.rows[0] });
   } catch (err) {
@@ -5032,7 +5106,7 @@ app.post('/api/admin/products', staffAuth, requireRole('admin', 'manager'), asyn
 app.put('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, collection, vendor_id, category_id, status, description_short, description_long } = req.body;
+    const { name, collection, vendor_id, category_id, brand_id, status, description_short, description_long } = req.body;
 
     // Activation guard: check product is ready before setting to 'active'
     if (status === 'active') {
@@ -5062,13 +5136,14 @@ app.put('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
         collection = COALESCE($2, collection),
         vendor_id = COALESCE($3, vendor_id),
         category_id = COALESCE($4, category_id),
-        status = COALESCE($5, status),
-        description_short = COALESCE($6, description_short),
-        description_long = COALESCE($7, description_long),
+        brand_id = COALESCE($5, brand_id),
+        status = COALESCE($6, status),
+        description_short = COALESCE($7, description_short),
+        description_long = COALESCE($8, description_long),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $8
+      WHERE id = $9
       RETURNING *
-    `, [name, collection, vendor_id, category_id, status, description_short, description_long, id]);
+    `, [name, collection, vendor_id, category_id, brand_id, status, description_short, description_long, id]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Product not found' });
     clearSearchCaches();
@@ -5572,6 +5647,94 @@ app.patch('/api/admin/vendors/:id/toggle', staffAuth, requireRole('admin', 'mana
   }
 });
 
+// ==================== Brand CRUD ====================
+
+app.get('/api/admin/brands', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT b.*,
+        (SELECT COUNT(*) FROM products p WHERE p.brand_id = b.id AND p.status = 'active')::int as product_count,
+        COALESCE(
+          (SELECT json_agg(json_build_object('vendor_id', vb.vendor_id, 'vendor_name', v.name, 'is_primary', vb.is_primary))
+           FROM vendor_brands vb JOIN vendors v ON v.id = vb.vendor_id WHERE vb.brand_id = b.id),
+          '[]'::json
+        ) as vendors
+      FROM brands b
+      ORDER BY b.name
+    `);
+    res.json({ brands: result.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/admin/brands', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { name, code, logo_url, website, description } = req.body;
+    if (!name || !code) return res.status(400).json({ error: 'Name and code are required' });
+    const result = await pool.query(`
+      INSERT INTO brands (name, code, logo_url, website, description)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [name, code.toUpperCase(), logo_url || null, website || null, description || null]);
+    res.json({ brand: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Brand code already exists' });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.put('/api/admin/brands/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, code, logo_url, website, description } = req.body;
+    if (!name || !code) return res.status(400).json({ error: 'Name and code are required' });
+    const result = await pool.query(`
+      UPDATE brands SET name = $2, code = $3, logo_url = $4, website = $5, description = $6, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+    `, [id, name, code.toUpperCase(), logo_url || null, website || null, description || null]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Brand not found' });
+    res.json({ brand: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Brand code already exists' });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.patch('/api/admin/brands/:id/toggle', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(`
+      UPDATE brands SET is_active = NOT is_active, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+    `, [id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Brand not found' });
+    res.json({ brand: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Public brands list for storefront
+app.get('/api/storefront/brands', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT b.id, b.name, b.code, b.logo_url, b.website,
+        (SELECT COUNT(*) FROM products p
+         JOIN skus s ON s.product_id = p.id AND s.status = 'active'
+         WHERE p.brand_id = b.id AND p.status = 'active')::int as sku_count
+      FROM brands b
+      WHERE b.is_active = true
+      ORDER BY b.name
+    `);
+    res.json({ brands: result.rows.filter(b => b.sku_count > 0) });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== Vendor Health ====================
 
 // Vendor health summary (all vendors)
@@ -6040,12 +6203,13 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
         sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -6645,12 +6809,13 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
         sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -6744,12 +6909,13 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
         sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -6888,7 +7054,7 @@ async function searchSkus(pool, rawQuery) {
   const baseCols = `
     s.id as sku_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
     COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
-    v.name as vendor_name,
+    v.name as vendor_name, COALESCE(br.name, v.name) as brand_name,
     pr.retail_price, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
     pk.sqft_per_box, pk.roll_width_ft,
     sa_c.value as color`;
@@ -6896,6 +7062,7 @@ async function searchSkus(pool, rawQuery) {
     FROM skus s
     JOIN products p ON p.id = s.product_id
     LEFT JOIN vendors v ON v.id = p.vendor_id
+    LEFT JOIN brands br ON br.id = p.brand_id
     LEFT JOIN pricing pr ON pr.sku_id = s.id
     LEFT JOIN packaging pk ON pk.sku_id = s.id
     LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = s.id
@@ -12436,12 +12603,13 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
         sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -12853,12 +13021,13 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
         sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -13107,12 +13276,13 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
         sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -13213,12 +13383,13 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, s.vendor_sku, s.variant_name,
+        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
         sa_c.value as color, pr.cost as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -13472,7 +13643,9 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
     const orderBy = sortClauses[sort] || 'name ASC';
 
     let query = `
-      SELECT p.*, v.name as vendor_name, v.code as vendor_code, c.name as category_name, c.slug as category_slug,
+      SELECT p.*, v.name as vendor_name, v.code as vendor_code,
+        COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
+        c.name as category_name, c.slug as category_slug,
         (SELECT COUNT(*)::int FROM skus s WHERE s.product_id = p.id AND s.status = 'active') as sku_count,
         (SELECT pr.retail_price FROM pricing pr
          JOIN skus s ON s.id = pr.sku_id
@@ -13516,6 +13689,7 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
         ) as stock_status
       FROM products p
       JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       WHERE p.status = 'active'
     `;
