@@ -164,12 +164,11 @@ function extractProductCards(html) {
     const block = html.slice(start, Math.min(end, start + 6000));
 
     // Extract background-image URL (product thumbnail)
-    // Do NOT strip WP size suffix — some product card images only exist at thumbnail size
     let imageUrl = null;
     const bgRe = /background-image:\s*url\(&quot;([^&]+)&quot;\)|background-image:\s*url\(["']?([^"');\s]+)["']?\)/i;
     const bgMatch = block.match(bgRe);
     if (bgMatch) {
-      imageUrl = bgMatch[1] || bgMatch[2];
+      imageUrl = stripWpSizeSuffix(bgMatch[1] || bgMatch[2]);
     }
 
     // Extract product name from h5
