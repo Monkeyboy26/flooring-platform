@@ -155,7 +155,7 @@
           'domita.it', 'refin-ceramic-tiles.com', 'tilelook.com',
           'somertile.com', 'equipeceramicas.com', 'edilportale.com', 'cegoceramiche.com',
           'manningtonprod.pimcoreclient.com', 'www.hartco.com',
-          'armstrongflooring.com'
+          'armstrongflooring.com', 'style-access.com'
         ];
         if (url.startsWith('/uploads/rom440/') || PROXY_DOMAINS.some(d => url.includes(d))) {
           return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
@@ -1074,7 +1074,7 @@
           if (af[slug] && af[slug].length > 0) params.set(slug, af[slug].join('|'));
         });
         const vf = vendors || [];
-        if (vf.length > 0) params.set('vendor', vf.join('|'));
+        if (vf.length > 0) params.set('brand', vf.join('|'));
         if (priceMin != null) params.set('price_min', String(priceMin));
         if (priceMax != null) params.set('price_max', String(priceMax));
         const tf = tags || [];
@@ -1116,7 +1116,7 @@
           if (af[slug] && af[slug].length > 0) params.set(slug, af[slug].join('|'));
         });
         const vf = vendors || [];
-        if (vf.length > 0) params.set('vendor', vf.join('|'));
+        if (vf.length > 0) params.set('brand', vf.join('|'));
         if (priceMin != null) params.set('price_min', String(priceMin));
         if (priceMax != null) params.set('price_max', String(priceMax));
         const tf = tags || [];
@@ -1129,7 +1129,7 @@
           .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => {
             setFacets(data.facets || []);
-            setVendorFacets(data.vendors || []);
+            setVendorFacets(data.brands || data.vendors || []);
             setTagFacets(data.tags || []);
             if (data.priceRange) setPriceRange(data.priceRange);
           })
@@ -2416,7 +2416,7 @@
                         <div className="search-suggestion-img">{sku.primary_image ? <img src={optimizeImg(sku.primary_image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} /> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, color: 'var(--stone-300)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>}</div>
                         <div className="search-suggestion-text">
                           <div className="search-suggestion-name">{highlightMatch(fullProductName(sku), searchInput)}</div>
-                          {sku.vendor_name && <div className="search-suggestion-vendor">{sku.vendor_name}</div>}
+                          {(sku.brand_name || sku.vendor_name) && <div className="search-suggestion-vendor">{sku.brand_name || sku.vendor_name}</div>}
                           {sku.variant_name && <div className="search-suggestion-variant">{formatCarpetValue(sku.variant_name)}</div>}
                           {tradeCustomer && sku.vendor_sku && <div className="search-suggestion-sku">SKU: {sku.vendor_sku}</div>}
                         </div>
@@ -2584,7 +2584,7 @@
                           {item.is_sample && <span className="sample-tag">Sample</span>}
                         </div>
                         <div className="cart-drawer-item-meta">
-                          {item.is_sample ? 'FREE SAMPLE' : item.sell_by === 'unit' ? `Qty: ${item.num_boxes}` : `${item.price_tier ? '' : item.num_boxes + ' box' + (parseInt(item.num_boxes) !== 1 ? 'es' : '') + ' · '}${parseFloat(item.sqft_needed || 0).toFixed(0)} sqft`}
+                          {item.is_sample ? 'FREE SAMPLE' : item.sell_by === 'unit' ? `Qty: ${item.num_boxes}` : item.sell_by === 'sqft' ? `${parseFloat(item.sqft_needed || 0).toFixed(0)} sqft` : `${item.price_tier ? '' : item.num_boxes + ' box' + (parseInt(item.num_boxes) !== 1 ? 'es' : '') + ' · '}${parseFloat(item.sqft_needed || 0).toFixed(0)} sqft`}
                           {item.price_tier && (
                             <span style={{ display: 'inline-block', marginLeft: '0.375rem', padding: '0.0625rem 0.375rem', borderRadius: '0.1875rem', fontSize: '0.6875rem', fontWeight: 600, background: item.price_tier === 'roll' ? 'var(--sage, #6b9080)' : 'var(--stone-200)', color: item.price_tier === 'roll' ? 'white' : 'var(--stone-600)' }}>
                               {item.price_tier === 'roll' ? 'Roll' : 'Cut'}
@@ -3009,7 +3009,7 @@
                       </div>
                       <div>
                         <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{highlightMatch(fullProductName(sku), query)}</div>
-                        {sku.vendor_name && <div className="search-suggestion-vendor">{sku.vendor_name}</div>}
+                        {(sku.brand_name || sku.vendor_name) && <div className="search-suggestion-vendor">{sku.brand_name || sku.vendor_name}</div>}
                         <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>${displayPrice(sku, skuListPrice(sku)).toFixed(2)}{priceSuffix(sku)}</div>
                       </div>
                     </div>
@@ -4009,7 +4009,7 @@
             {onQuickView && <button className="quick-view-btn" onClick={(e) => { e.stopPropagation(); onQuickView(); }}>Quick View</button>}
           </div>
           <div className="sku-card-name">{fullProductName(sku)}</div>
-          {sku.vendor_name && <div className="sku-card-vendor">{sku.vendor_name}</div>}
+          {(sku.brand_name || sku.vendor_name) && <div className="sku-card-vendor">{sku.brand_name || sku.vendor_name}</div>}
           {sku.variant_count > 1 && (
             <div className="sku-card-options">
               {sku.variant_count} {(sku.attributes || []).some(a => a.slug === 'color') ? 'colors' : 'options'}
@@ -4124,7 +4124,7 @@
             }
             if (data.sku) {
               const skuTitle = fullProductName(data.sku) + ' | Roma Flooring Designs';
-              const skuDesc = cleanDescription(data.sku.description_short, data.sku.vendor_name) || ('Premium ' + data.sku.product_name + ' from Roma Flooring Designs');
+              const skuDesc = cleanDescription(data.sku.description_short, data.sku.brand_name || data.sku.vendor_name) || ('Premium ' + data.sku.product_name + ' from Roma Flooring Designs');
               const skuImage = (data.media && data.media[0]) ? data.media[0].url : null;
               updateSEO({ title: skuTitle, description: skuDesc, url: SITE_URL + '/shop/sku/' + skuId, image: skuImage });
               // Fetch reviews for this product
@@ -4168,13 +4168,13 @@
       // JSON-LD Product schema with aggregateRating
       useEffect(() => {
         if (!sku) return;
-        const skuDesc = cleanDescription(sku.description_short, sku.vendor_name) || ('Premium ' + sku.product_name + ' from Roma Flooring Designs');
+        const skuDesc = cleanDescription(sku.description_short, sku.brand_name || sku.vendor_name) || ('Premium ' + sku.product_name + ' from Roma Flooring Designs');
         const skuImage = (media && media[0]) ? media[0].url : null;
         const product = {
           '@type': 'Product', name: sku.product_name, description: skuDesc, image: skuImage,
           sku: sku.sku_code || String(sku.sku_id),
           mpn: sku.sku_code || '',
-          brand: { '@type': 'Brand', name: sku.vendor_name || 'Roma Flooring Designs' },
+          brand: { '@type': 'Brand', name: sku.brand_name || sku.vendor_name || 'Roma Flooring Designs' },
           category: sku.category_name || '',
           offers: { '@type': 'Offer', url: SITE_URL + '/shop/sku/' + skuId, priceCurrency: 'USD',
             price: displayPrice(sku, sku.sale_price || skuListPrice(sku)).toFixed(2),
@@ -4216,7 +4216,7 @@
             ? ((parseFloat(roomWidth) || 0) * (parseFloat(roomLength) || 0))
             : (parseFloat(sqftInput) || 0))
         : 0;
-      const carpetSqft = includeCarpetOverage ? Math.ceil(carpetRawSqft * 1.1) : carpetRawSqft;
+      const carpetSqft = includeCarpetOverage ? Math.ceil(carpetRawSqft * 11 / 10) : carpetRawSqft;
       const carpetPriceTier = isCarpetSku && rollMinSqft > 0 && carpetSqft >= rollMinSqft ? 'roll' : 'cut';
       const carpetActivePrice = isCarpetSku ? (carpetPriceTier === 'roll' ? rollPrice : cutPrice) : 0;
       const carpetSqyd = carpetSqft / 9;
@@ -4273,8 +4273,9 @@
       const subtotal = actualSqft * effectivePrice;
 
       const isPerUnit = sku && isSoldPerUnit(sku);
-      const hasBoxCalc = !isPerUnit && sqftPerBox > 0;
-      const isSqftNoBox = !isPerUnit && sqftPerBox <= 0;
+      const isSoldPerSqft = sku && sku.sell_by === 'sqft';
+      const hasBoxCalc = !isPerUnit && !isSoldPerSqft && sqftPerBox > 0;
+      const isSqftNoBox = !isPerUnit && !isSoldPerSqft && sqftPerBox <= 0;
       // Sheet vinyl roll calculator
       const sheetRollWidthFt = isSqftNoBox && !isCarpetSku && sku
         ? parseRollWidthFt(sku.product_name || '') : 0;
@@ -4288,7 +4289,7 @@
           : parseFloat(sqftInput) || 0)
         : 0;
       const sheetSqft = isSheetVinyl && includeCarpetOverage
-        ? Math.ceil(sheetRawSqft * 1.1) : sheetRawSqft;
+        ? Math.ceil(sheetRawSqft * 11 / 10) : sheetRawSqft;
       const sheetSubtotal = sheetSqft * effectivePrice;
       const sheetNeedsSeam = isSheetVinyl && sheetMode === 'dimensions'
         && sheetRollWidthFt > 0 && (parseFloat(roomWidth) || 0) > sheetRollWidthFt;
@@ -4300,6 +4301,9 @@
       const boxLabelPlural = isSheetUnit ? 'sheets' : 'boxes';
       const unitSubtotal = unitQty * effectivePrice;
       const sqftOnlySubtotal = (parseFloat(sqftInput) || 0) * effectivePrice;
+      const sqftCalcRaw = parseFloat(sqftInput) || 0;
+      const sqftCalcAmount = isSoldPerSqft && includeOverage ? Math.ceil(sqftCalcRaw * 11 / 10) : sqftCalcRaw;
+      const sqftCalcSubtotal = sqftCalcAmount * effectivePrice;
 
       const handleReviewSubmit = async () => {
         if (!customer || !customerToken || reviewRating < 1) return;
@@ -4363,6 +4367,17 @@
             unit_price: effectivePrice,
             subtotal: unitSubtotal.toFixed(2),
             sell_by: 'unit'
+          });
+        } else if (isSoldPerSqft) {
+          if (sqftCalcAmount <= 0) return;
+          addToCart({
+            product_id: sku.product_id,
+            sku_id: sku.sku_id,
+            sqft_needed: sqftCalcAmount,
+            num_boxes: 1,
+            unit_price: effectivePrice,
+            subtotal: sqftCalcSubtotal.toFixed(2),
+            sell_by: 'sqft'
           });
         } else if (hasBoxCalc) {
           if (numBoxes <= 0) return;
@@ -4595,7 +4610,7 @@
 
               {/* Description — below gallery */}
               {(sku.description_long || sku.description_short) && (() => {
-                const cleaned = cleanDescription(sku.description_long || sku.description_short, sku.vendor_name);
+                const cleaned = cleanDescription(sku.description_long || sku.description_short, sku.brand_name || sku.vendor_name);
                 return cleaned ? (
                   <div style={{ marginTop: '1rem', fontSize: '0.9rem', lineHeight: 1.7, color: 'var(--stone-600)' }}>
                     {cleaned}
@@ -5786,6 +5801,35 @@
                 </div>
               )}
 
+              {/* Coverage Calculator (sqft-sold products — no box rounding) */}
+              {!isCarpetSku && isSoldPerSqft && effectivePrice > 0 && (
+                <div className="calculator-widget">
+                  <h3>Coverage Calculator</h3>
+                  <div className="calc-input-row">
+                    <div className="calc-input-group" style={{ flex: 1 }}>
+                      <label>Square Feet Needed</label>
+                      <input className="calc-input" type="number" min="0" step="1" placeholder="0"
+                        value={sqftInput} onChange={(e) => setSqftInput(e.target.value)} />
+                    </div>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer', marginBottom: '1rem' }}>
+                    <input type="checkbox" checked={includeOverage} onChange={(e) => setIncludeOverage(e.target.checked)} />
+                    Add 10% overage for cuts &amp; breakage
+                  </label>
+                  {sqftCalcAmount > 0 && (
+                    <div className="calc-summary">
+                      <div className="calc-summary-row"><span>Coverage</span><span>{sqftCalcAmount.toFixed(1)} sqft</span></div>
+                      <div className="calc-summary-row"><span>Price</span><span>${effectivePrice.toFixed(2)}/sqft</span></div>
+                      <div className="calc-summary-total"><span>Subtotal</span><span>${sqftCalcSubtotal.toFixed(2)}</span></div>
+                    </div>
+                  )}
+                  <button className="btn" style={{ width: '100%', marginTop: '1.5rem' }}
+                    onClick={handleAddToCart} disabled={sqftCalcAmount <= 0}>
+                    Add to Cart {sqftCalcAmount > 0 ? `- $${sqftCalcSubtotal.toFixed(2)}` : ''}
+                  </button>
+                </div>
+              )}
+
               {/* Coverage Calculator (box-based products) */}
               {!isCarpetSku && hasBoxCalc && effectivePrice > 0 && (
                 <div className="calculator-widget">
@@ -5953,7 +5997,7 @@
               )}
 
               {/* Call for Price & Stock — shown when no pricing is available */}
-              {!isCarpetSku && !isPerUnit && (effectivePrice <= 0 || (sqftPerBox <= 0 && !isSheetVinyl)) && (
+              {!isCarpetSku && !isPerUnit && !isSoldPerSqft && (effectivePrice <= 0 || (sqftPerBox <= 0 && !isSheetVinyl)) && (
                 <div style={{ background: 'var(--stone-50, #fafaf9)', border: '1px solid var(--stone-200, #e7e5e4)', borderRadius: 8, padding: '1.25rem', textAlign: 'center' }}>
                   <p style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '0.95rem', color: 'var(--stone-800, #292524)' }}>Call for Price &amp; Stock</p>
                   <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--stone-600, #57534e)', lineHeight: 1.5 }}>
@@ -6334,6 +6378,10 @@
                           <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>
                             {parseFloat(item.sqft_needed || 0).toFixed(0)} sqft
                           </div>
+                        ) : item.sell_by === 'sqft' ? (
+                          <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                            {parseFloat(item.sqft_needed || 0).toFixed(0)} sqft
+                          </div>
                         ) : (
                           <>
                             <div className="cart-qty-controls">
@@ -6347,7 +6395,7 @@
                           </>
                         )}
                       </div>
-                      <div>{item.is_sample || item.sell_by === 'unit' ? '\u2014' : parseFloat(item.sqft_needed || 0).toFixed(1) + ' sqft'}</div>
+                      <div>{item.is_sample || item.sell_by === 'unit' || item.sell_by === 'sqft' ? '\u2014' : parseFloat(item.sqft_needed || 0).toFixed(1) + ' sqft'}</div>
                       <div style={{ fontWeight: 500 }}>{item.is_sample ? 'FREE' : '$' + parseFloat(item.subtotal).toFixed(2)}</div>
                       <div>
                         <button className="cart-remove-btn" onClick={() => removeFromCart(item.id)} title="Remove">

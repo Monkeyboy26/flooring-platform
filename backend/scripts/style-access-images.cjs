@@ -2,18 +2,23 @@
 /**
  * style-access-images.cjs
  *
- * Fetches product images from Style Access WooCommerce REST API
- * and matches them to existing products in the DB by SKU code + name.
+ * Scrapes product gallery images from Style Access product pages
+ * and matches them to existing products in the DB.
+ *
+ * Phase 1: Fetch product list from WP REST API (slug, title, SKU)
+ * Phase 2: Scrape each product page for gallery images (et_pb_gallery_image)
+ * Phase 3: Match to DB products and upsert images in slider order
  *
  * Matching strategy (in priority order):
  *  1. SKU code from WP excerpt → skus.vendor_sku
  *  2. Exact normalized name match
- *  3. Collection-level match (WP title = collection name → all products in collection)
- *  4. Fuzzy: WP title contains product name or vice versa
- *  5. Abbreviation-expanded fuzzy match
+ *  3. Expanded abbreviation match
+ *  4. Fuzzy: substring, reversed word order, collection+color
+ *  5. Collection-level match (WP title = collection name)
  *
- * Primary = product silo/detail shot (typically the featured image)
- * Alternate = room scene or additional images from product gallery
+ * Images stored at product level (sku_id = NULL):
+ *  - First gallery image → asset_type: 'primary', sort_order: 0
+ *  - Subsequent images → asset_type: 'alternate', sort_order: 1, 2, ...
  */
 const { Pool } = require('pg');
 
@@ -38,11 +43,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 function decodeHtmlEntities(s) {
   if (!s) return '';
   return s
-    .replace(/&#8243;/g, '"')   // right double quotation / inch mark
-    .replace(/&#8242;/g, "'")   // prime / foot mark
-    .replace(/&#215;/g, '×')    // multiplication sign
-    .replace(/&#8211;/g, '–')   // en dash
-    .replace(/&#8217;/g, "'")   // right single quotation
+    .replace(/&#8243;/g, '"')
+    .replace(/&#8242;/g, "'")
+    .replace(/&#215;/g, '×')
+    .replace(/&#8211;/g, '–')
+    .replace(/&#8217;/g, "'")
     .replace(/&#038;/g, '&')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
@@ -50,7 +55,7 @@ function decodeHtmlEntities(s) {
     .replace(/&quot;/g, '"')
     .replace(/&#8220;/g, '"')
     .replace(/&#8221;/g, '"')
-    .replace(/<[^>]+>/g, '')    // strip remaining HTML tags
+    .replace(/<[^>]+>/g, '')
     .trim();
 }
 
@@ -71,20 +76,28 @@ function normalizeForMatch(s) {
 
 function expandAbbrevs(s) {
   let n = normalizeForMatch(s);
-  // Strip all numeric size specs (e.g., "1 25", "3", "1 6", "3 6", "24 48") before shape words
-  // This handles "1.25" Discs" → "1 25 discs" → "discs" and "1×6 Bars" → "1 6 bars" → "bars"
   const shapeWords = 'hexagon|hex|discs?|disks?|bars?|penny\\s*round|pennyround|mosaic|chevron|herringbone|bevel|linear|spackle|lantern|concave|bullnose';
   n = n.replace(new RegExp(`(\\b\\d+\\s+)+(${shapeWords})\\b`, 'g'), '$2');
-  // Expand abbreviations
   for (const [abbr, full] of Object.entries(ABBREVS)) {
     n = n.replace(new RegExp(`\\b${abbr}\\b`, 'g'), full);
   }
-  // Remove trailing "mosaic", "unglazed" for better matching
   n = n.replace(/\s+(mosaic|unglazed|matte|polished|honed)\s*$/g, '');
-  // Strip "2cm" outdoor thickness marker
   n = n.replace(/\s+2cm\b/g, '');
   return n.replace(/\s+/g, ' ').trim();
 }
+
+function extractSkuFromExcerpt(excerpt) {
+  if (!excerpt) return null;
+  const text = excerpt.replace(/<[^>]+>/g, '').trim();
+  const m = text.match(/\b(CT[A-Z0-9]{4,}|CE[A-Z0-9]{4,}|LG[A-Z0-9]{4,})\b/i);
+  return m ? m[1].toUpperCase() : null;
+}
+
+function getTitle(wpProduct) {
+  return decodeHtmlEntities(wpProduct.title?.rendered || '');
+}
+
+// ── Phase 1: Fetch product list from WP REST API ──
 
 async function fetchAllWpProducts() {
   const allProducts = [];
@@ -92,7 +105,7 @@ async function fetchAllWpProducts() {
   let totalPages = 1;
 
   while (page <= totalPages) {
-    const url = `${WP_API}?per_page=${PER_PAGE}&page=${page}&_embed`;
+    const url = `${WP_API}?per_page=${PER_PAGE}&page=${page}`;
     const res = await fetch(url);
     if (!res.ok) {
       console.log(`  API error on page ${page}: ${res.status}`);
@@ -108,72 +121,69 @@ async function fetchAllWpProducts() {
   return allProducts;
 }
 
-function extractSkuFromExcerpt(excerpt) {
-  if (!excerpt) return null;
-  const text = excerpt.replace(/<[^>]+>/g, '').trim();
-  // SKU patterns: CT/CE/LG prefix + alphanumeric
-  const m = text.match(/\b(CT[A-Z0-9]{4,}|CE[A-Z0-9]{4,}|LG[A-Z0-9]{4,})\b/i);
-  return m ? m[1].toUpperCase() : null;
-}
+// ── Phase 2: Scrape product page for gallery images ──
 
-function getFeaturedImageUrl(wpProduct) {
+async function scrapeGalleryImages(slug) {
+  const pageUrl = `https://style-access.com/product/${slug}/`;
   try {
-    const media = wpProduct._embedded?.['wp:featuredmedia'];
-    if (media && media[0]) {
-      return media[0].source_url || media[0].media_details?.sizes?.full?.source_url;
+    const res = await fetch(pageUrl);
+    if (!res.ok) {
+      if (VERBOSE) console.log(`    Page ${res.status}: ${pageUrl}`);
+      return [];
     }
-  } catch (e) {}
-  return null;
-}
+    const html = await res.text();
 
-function getGalleryImageUrls(wpProduct) {
-  const urls = [];
-  const content = wpProduct.content?.rendered || '';
-  const imgRegex = /src="(https:\/\/style-access\.com\/wp-content\/uploads\/[^"]+)"/g;
-  let match;
-  while ((match = imgRegex.exec(content)) !== null) {
-    urls.push(match[1]);
+    // Extract full-size image URLs from et_pb_gallery_image <a href="..."> in DOM order
+    const urls = [];
+    const galleryRegex = /et_pb_gallery_image[^>]*>[\s\S]*?<a\s+href="([^"]+)"/g;
+    let match;
+    while ((match = galleryRegex.exec(html)) !== null) {
+      const href = match[1];
+      if (href && /\.(jpe?g|png|webp)/i.test(href)) {
+        urls.push(href);
+      }
+    }
+
+    // Deduplicate while preserving order
+    const seen = new Set();
+    return urls.filter(u => {
+      if (seen.has(u)) return false;
+      seen.add(u);
+      return true;
+    });
+  } catch (err) {
+    if (VERBOSE) console.log(`    Fetch error for ${slug}: ${err.message}`);
+    return [];
   }
-  return urls;
 }
 
-function getTitle(wpProduct) {
-  return decodeHtmlEntities(wpProduct.title?.rendered || '');
+// ── Phase 3: Match & upsert ──
+
+async function upsertImages(productId, imageUrls, counters) {
+  if (!imageUrls.length) return;
+
+  // Delete existing Style Access media_assets for this product
+  const { rowCount } = await pool.query(
+    `DELETE FROM media_assets WHERE product_id = $1 AND url LIKE '%style-access.com%'`,
+    [productId]
+  );
+  if (rowCount > 0) counters.deleted += rowCount;
+
+  for (let i = 0; i < imageUrls.length; i++) {
+    const assetType = i === 0 ? 'primary' : 'alternate';
+    await pool.query(`
+      INSERT INTO media_assets (product_id, url, asset_type, sort_order)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT DO NOTHING
+    `, [productId, imageUrls[i], assetType, i]);
+    counters.inserted++;
+    if (i === 0) counters.primaries++;
+  }
 }
 
-function isProductShot(url) {
-  if (!url) return false;
-  // Room scenes / lifestyle shots
-  if (/(-RS|-room|-scene|-install|-lifestyle)/i.test(url)) return false;
-  // Silo / product shots
-  if (/silo|_TN|_T1|redux/i.test(url)) return true;
-  // Default: assume product shot (most featured images are)
-  return true;
-}
-
-async function insertImage(productId, url, assetType, existingProductUrls, productsWithPrimary, counters) {
-  // Check per-product URL uniqueness (same URL can be shared across products)
-  const key = `${productId}::${url}`;
-  if (existingProductUrls.has(key)) return;
-
-  const hasPrimary = productsWithPrimary.has(productId);
-  const finalType = (assetType === 'primary' && !hasPrimary) ? 'primary' :
-                    (assetType === 'primary' && hasPrimary) ? 'alternate' : assetType;
-
-  const sortOrder = finalType === 'primary' ? 0 :
-    (await pool.query(`SELECT COALESCE(MAX(sort_order), 0) + 1 as next FROM media_assets WHERE product_id = $1`, [productId])).rows[0].next;
-
-  await pool.query(`
-    INSERT INTO media_assets (product_id, url, asset_type, sort_order)
-    VALUES ($1, $2, $3, $4)
-    ON CONFLICT DO NOTHING
-  `, [productId, url, finalType, sortOrder]);
-
-  existingProductUrls.add(key);
-  counters.newImages++;
-  if (finalType === 'primary') {
-    counters.newPrimaries++;
-    productsWithPrimary.add(productId);
+async function upsertImagesForProducts(productIds, imageUrls, counters) {
+  for (const pid of productIds) {
+    await upsertImages(pid, imageUrls, counters);
   }
 }
 
@@ -205,7 +215,6 @@ async function main() {
     skuToProduct.set(raw.toUpperCase(), s.product_id);
   }
 
-  // name → product (exact normalized)
   const nameToProduct = new Map();
   for (const p of products) {
     nameToProduct.set(normalizeForMatch(p.name), p);
@@ -214,7 +223,6 @@ async function main() {
     }
   }
 
-  // collection → [products] for collection-level matching
   const collectionToProducts = new Map();
   for (const p of products) {
     if (!p.collection) continue;
@@ -223,7 +231,6 @@ async function main() {
     collectionToProducts.get(key).push(p);
   }
 
-  // expanded name → product for abbreviation matching
   const expandedNameToProduct = new Map();
   for (const p of products) {
     expandedNameToProduct.set(expandAbbrevs(p.name), p);
@@ -232,49 +239,56 @@ async function main() {
     }
   }
 
-  // Load existing images
+  // Count existing images before
   const { rows: existingImages } = await pool.query(`
     SELECT product_id, url FROM media_assets ma
     JOIN products p ON p.id = ma.product_id
     WHERE p.vendor_id = $1
   `, [vendorId]);
-  const existingProductUrls = new Set(existingImages.map(i => `${i.product_id}::${i.url}`));
-  const productsWithPrimary = new Set();
-  const { rows: primaries } = await pool.query(`
-    SELECT DISTINCT ma.product_id FROM media_assets ma
-    JOIN products p ON p.id = ma.product_id
-    WHERE p.vendor_id = $1 AND ma.asset_type = 'primary'
-  `, [vendorId]);
-  for (const r of primaries) productsWithPrimary.add(r.product_id);
-
-  // Track which DB products get images
-  const productsWithAnyImage = new Set(existingImages.map(i => i.product_id));
+  const productsWithImageBefore = new Set(existingImages.map(i => i.product_id));
 
   console.log(`  DB: ${products.length} products, ${skus.length} SKUs`);
-  console.log(`  DB: ${productsWithPrimary.size} products already have primary image`);
-  console.log(`  DB: ${productsWithAnyImage.size} products have any image`);
+  console.log(`  DB: ${productsWithImageBefore.size} products have images`);
   console.log(`  DB: ${existingImages.length} existing image rows\n`);
 
-  // Fetch WP products
-  console.log('Fetching from WooCommerce API...');
+  // Phase 1: Fetch WP products
+  console.log('Phase 1: Fetching product list from WP API...');
   const wpProducts = await fetchAllWpProducts();
-  console.log(`\n  Fetched ${wpProducts.length} WP products total\n`);
+  console.log(`  Fetched ${wpProducts.length} WP products total\n`);
 
-  const counters = { newImages: 0, newPrimaries: 0 };
-  let matched = 0, skipped = 0, noMatch = 0, collectionMatches = 0;
+  const counters = { inserted: 0, deleted: 0, primaries: 0 };
+  let matched = 0, scraped = 0, skippedNoImages = 0, noMatch = 0, collectionMatches = 0;
   const unmatchedTitles = [];
-  const matchLog = []; // track what matched how
+  const matchLog = [];
+  const productsWithImageAfter = new Set(productsWithImageBefore);
 
-  for (const wp of wpProducts) {
+  // Phase 2 & 3: Scrape each product page and match
+  console.log('Phase 2-3: Scraping product pages and matching...\n');
+
+  for (let idx = 0; idx < wpProducts.length; idx++) {
+    const wp = wpProducts[idx];
     const title = getTitle(wp);
     const excerpt = wp.excerpt?.rendered || '';
-    const featuredUrl = getFeaturedImageUrl(wp);
-    const galleryUrls = getGalleryImageUrls(wp);
+    const slug = wp.slug;
 
-    if (!featuredUrl && galleryUrls.length === 0) {
-      skipped++;
+    // Progress indicator
+    if ((idx + 1) % 50 === 0 || idx === wpProducts.length - 1) {
+      console.log(`  Progress: ${idx + 1}/${wpProducts.length} (matched: ${matched}, no-match: ${noMatch})`);
+    }
+
+    // Scrape the product page for gallery images
+    const imageUrls = await scrapeGalleryImages(slug);
+    scraped++;
+
+    if (imageUrls.length === 0) {
+      skippedNoImages++;
+      if (VERBOSE) console.log(`  No gallery images: "${title}" (${slug})`);
       continue;
     }
+
+    if (VERBOSE) console.log(`  ${imageUrls.length} images: "${title}" (${slug})`);
+
+    // ── Matching strategies ──
 
     // Strategy 1: SKU from excerpt
     const sku = extractSkuFromExcerpt(excerpt);
@@ -295,8 +309,7 @@ async function main() {
       if (product) { productId = product.id; matchMethod = 'expanded-name'; }
     }
 
-    // Strategy 4: Fuzzy matching (prefer longest/most specific match)
-    // Combines: substring contains, reversed word order, expanded abbreviations
+    // Strategy 4: Fuzzy matching
     if (!productId) {
       const normTitle = normalizeForMatch(title);
       const expTitle = expandAbbrevs(title);
@@ -310,38 +323,32 @@ async function main() {
         const normName = normalizeForMatch(p.name);
         const expName = expandAbbrevs(p.name);
 
-        // 4a: Title contains product name (substring)
         if (normTitle.includes(normName) && normName.length > 3) {
-          const score = normName.length * 10; // weight by length
+          const score = normName.length * 10;
           if (score > bestScore) { bestMatch = p; bestScore = score; }
         }
 
-        // 4b: Expanded title contains expanded name
         if (expTitle.includes(expName) && expName.length > 3) {
           const score = expName.length * 10;
           if (score > bestScore) { bestMatch = p; bestScore = score; }
         }
 
-        // 4c: Expanded name contains expanded title
         if (expName.includes(expTitle) && expTitle.length > 3) {
           const score = expTitle.length * 10;
           if (score > bestScore) { bestMatch = p; bestScore = score; }
         }
 
-        // 4d: Reversed word order ("Al Hamra Papillon" ↔ "Papillon in Al Hamra")
         const nameWords = normName.replace(/\b(in|of|and|the|with)\b/g, '').replace(/\s+/g, ' ').trim().split(' ');
         if (nameWords.length >= 2 && titleWordSet.size >= 2) {
           const nameWordSet = new Set(nameWords.filter(w => w.length > 2));
           const titleInName = [...titleWordSet].every(w => nameWordSet.has(w));
           const nameInTitle = [...nameWordSet].every(w => titleWordSet.has(w));
           if ((titleInName || nameInTitle) && Math.min(titleWordSet.size, nameWordSet.size) >= 2) {
-            // Reversed-word matches score higher than short substring matches
             const score = (titleWordSet.size + nameWordSet.size) * 50;
             if (score > bestScore) { bestMatch = p; bestScore = score; }
           }
         }
 
-        // 4e: Collection context — title contains collection AND color part
         const normColl = normalizeForMatch(p.collection || '');
         if (normColl && normTitle.includes(normColl)) {
           const colorPart = normName.replace(normColl, '').trim();
@@ -358,8 +365,7 @@ async function main() {
       }
     }
 
-    // Strategy 6: Collection-level match — WP title IS a collection name
-    // Apply image to ALL products in that collection (especially those missing images)
+    // Strategy 5: Collection-level match
     if (!productId) {
       const normTitle = normalizeForMatch(title);
       const collProducts = collectionToProducts.get(normTitle);
@@ -368,24 +374,12 @@ async function main() {
         if (VERBOSE) console.log(`  COLLECTION MATCH: "${title}" → ${collProducts.length} products`);
 
         if (!DRY_RUN) {
-          for (const p of collProducts) {
-            if (featuredUrl) {
-              await insertImage(p.id, featuredUrl, isProductShot(featuredUrl) ? 'primary' : 'alternate',
-                existingProductUrls, productsWithPrimary, counters);
-              productsWithAnyImage.add(p.id);
-            }
-            for (const gUrl of galleryUrls) {
-              if (gUrl === featuredUrl) continue;
-              await insertImage(p.id, gUrl, isProductShot(gUrl) ? 'primary' : 'alternate',
-                existingProductUrls, productsWithPrimary, counters);
-              productsWithAnyImage.add(p.id);
-            }
-          }
-        } else {
-          for (const p of collProducts) productsWithAnyImage.add(p.id);
+          await upsertImagesForProducts(collProducts.map(p => p.id), imageUrls, counters);
         }
+        for (const p of collProducts) productsWithImageAfter.add(p.id);
         matched++;
         matchLog.push({ title, method: 'collection', count: collProducts.length });
+        await sleep(DELAY_MS);
         continue;
       }
     }
@@ -393,6 +387,7 @@ async function main() {
     if (!productId) {
       noMatch++;
       unmatchedTitles.push(title);
+      await sleep(DELAY_MS);
       continue;
     }
 
@@ -400,43 +395,31 @@ async function main() {
     if (VERBOSE) matchLog.push({ title, method: matchMethod, productId });
 
     if (!DRY_RUN) {
-      if (featuredUrl) {
-        await insertImage(productId, featuredUrl, isProductShot(featuredUrl) ? 'primary' : 'alternate',
-          existingProductUrls, productsWithPrimary, counters);
-        productsWithAnyImage.add(productId);
-      }
-      for (const gUrl of galleryUrls) {
-        if (gUrl === featuredUrl) continue;
-        await insertImage(productId, gUrl, isProductShot(gUrl) ? 'primary' : 'alternate',
-          existingProductUrls, productsWithPrimary, counters);
-        productsWithAnyImage.add(productId);
-      }
-    } else {
-      productsWithAnyImage.add(productId);
+      await upsertImages(productId, imageUrls, counters);
     }
+    productsWithImageAfter.add(productId);
+
+    await sleep(DELAY_MS);
   }
 
-  // Phase 2: Collection sibling sharing for products still missing images
-  // Multiforma shares colors with Linea — use Linea images as fallback
+  // Sibling collection sharing for products still missing images
   const SIBLING_COLLECTIONS = {
-    'Multiforma': 'Linea',   // Same colors, different format
+    'Multiforma': 'Linea',
   };
 
   for (const [targetColl, sourceColl] of Object.entries(SIBLING_COLLECTIONS)) {
-    const targetProducts = products.filter(p => p.collection === targetColl && !productsWithAnyImage.has(p.id));
+    const targetProducts = products.filter(p => p.collection === targetColl && !productsWithImageAfter.has(p.id));
     if (!targetProducts.length) continue;
 
     const sourceProducts = products.filter(p => p.collection === sourceColl);
-    console.log(`  Sibling sharing: ${targetColl} (${targetProducts.length} missing) ← ${sourceColl} (${sourceProducts.length} source)`);
+    console.log(`\n  Sibling sharing: ${targetColl} (${targetProducts.length} missing) ← ${sourceColl} (${sourceProducts.length} source)`);
 
     for (const tp of targetProducts) {
-      // Find source product with matching color name
       const sp = sourceProducts.find(s => normalizeForMatch(s.name) === normalizeForMatch(tp.name));
       if (!sp) continue;
 
-      // Get source images
       const { rows: srcImages } = await pool.query(
-        `SELECT url, asset_type FROM media_assets WHERE product_id = $1 ORDER BY sort_order`,
+        `SELECT url, asset_type, sort_order FROM media_assets WHERE product_id = $1 ORDER BY sort_order`,
         [sp.id]
       );
       if (!srcImages.length) continue;
@@ -444,29 +427,26 @@ async function main() {
       if (VERBOSE) console.log(`    ${tp.name} ← ${sp.name} (${srcImages.length} images)`);
 
       if (!DRY_RUN) {
-        for (const img of srcImages) {
-          await insertImage(tp.id, img.url, img.asset_type, existingProductUrls, productsWithPrimary, counters);
-        }
+        await upsertImages(tp.id, srcImages.map(i => i.url), counters);
       }
-      productsWithAnyImage.add(tp.id);
+      productsWithImageAfter.add(tp.id);
     }
   }
 
   // Report
   console.log(`\n=== Results ===`);
   console.log(`  WP products: ${wpProducts.length}`);
+  console.log(`  Pages scraped: ${scraped}`);
   console.log(`  Matched to DB: ${matched} (${collectionMatches} collection-level)`);
   console.log(`  No match: ${noMatch}`);
-  console.log(`  Skipped (no image): ${skipped}`);
-  console.log(`  New images added: ${counters.newImages}`);
-  console.log(`  New primaries: ${counters.newPrimaries}`);
-  console.log(`  Products with primary (before): ${primaries.length}`);
-  console.log(`  Products with primary (after): ${productsWithPrimary.size}`);
+  console.log(`  Skipped (no gallery images): ${skippedNoImages}`);
+  console.log(`  Images deleted (old): ${counters.deleted}`);
+  console.log(`  Images inserted (new): ${counters.inserted}`);
+  console.log(`  New primaries: ${counters.primaries}`);
+  console.log(`  Products with images (before): ${productsWithImageBefore.size}`);
+  console.log(`  Products with images (after): ${productsWithImageAfter.size}`);
 
-  // Products that would still have no images after this
-  const stillMissing = products.filter(p => !productsWithAnyImage.has(p.id));
-  console.log(`\n  Products with any image (before): ${existingImages.length > 0 ? new Set(existingImages.map(i => i.product_id)).size : 0}`);
-  console.log(`  Products with any image (after): ${productsWithAnyImage.size}`);
+  const stillMissing = products.filter(p => !productsWithImageAfter.has(p.id));
   console.log(`  Still missing images: ${stillMissing.length}`);
 
   if (stillMissing.length > 0) {
@@ -477,7 +457,7 @@ async function main() {
   }
 
   if (VERBOSE && matchLog.length > 0) {
-    console.log(`\n  --- Match log (sample) ---`);
+    console.log(`\n  --- Match log ---`);
     const byColl = matchLog.filter(m => m.method === 'collection');
     const byOther = matchLog.filter(m => m.method !== 'collection');
     if (byColl.length) {
