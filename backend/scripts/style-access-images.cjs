@@ -3,20 +3,26 @@
  * style-access-images.cjs
  *
  * Scrapes product gallery images from Style Access product pages
- * and matches them to existing products in the DB.
+ * and matches them to existing products/SKUs in the DB.
  *
  * Phase 1: Fetch product list from WP REST API (slug, title, SKU)
  * Phase 2: Scrape each product page for gallery images (et_pb_gallery_image)
- * Phase 3: Match to DB products and upsert images in slider order
+ * Phase 3: Match to DB products, resolve specific SKU, and upsert images
  *
- * Matching strategy (in priority order):
+ * Product matching strategy (in priority order):
  *  1. SKU code from WP excerpt → skus.vendor_sku
  *  2. Exact normalized name match
  *  3. Expanded abbreviation match
  *  4. Fuzzy: substring, reversed word order, collection+color
  *  5. Collection-level match (WP title = collection name)
  *
- * Images stored at product level (sku_id = NULL):
+ * SKU matching (after product match):
+ *  A. Single-SKU shortcut — if only 1 active SKU, use it
+ *  B. Extract variant descriptor from WP title (strip product/collection name)
+ *  C. Score by size match + descriptor word overlap
+ *  D. Fallback to first (default) SKU
+ *
+ * Images stored at SKU level (sku_id set):
  *  - First gallery image → asset_type: 'primary', sort_order: 0
  *  - Subsequent images → asset_type: 'alternate', sort_order: 1, 2, ...
  */
@@ -86,15 +92,128 @@ function expandAbbrevs(s) {
   return n.replace(/\s+/g, ' ').trim();
 }
 
-function extractSkuFromExcerpt(excerpt) {
-  if (!excerpt) return null;
+function extractSkuCandidates(excerpt) {
+  if (!excerpt) return [];
   const text = excerpt.replace(/<[^>]+>/g, '').trim();
-  const m = text.match(/\b(CT[A-Z0-9]{4,}|CE[A-Z0-9]{4,}|LG[A-Z0-9]{4,})\b/i);
-  return m ? m[1].toUpperCase() : null;
+  // Match any alphanumeric token that looks like a vendor SKU code
+  // (2+ letters followed by 3+ more alphanumeric chars, e.g. JOLWHTU, CEDRS060017, UTC0324)
+  const matches = [...text.matchAll(/\b([A-Z]{2,}[A-Z0-9]{3,})\b/gi)];
+  return matches.map(m => m[1].toUpperCase());
 }
 
 function getTitle(wpProduct) {
   return decodeHtmlEntities(wpProduct.title?.rendered || '');
+}
+
+// ── SKU-level matching ──
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractVariantPart(wpTitle, product) {
+  let remainder = wpTitle;
+  // Strip collection name first (longer match), then product name
+  if (product.collection) {
+    const collRe = new RegExp(escapeRegex(product.collection), 'i');
+    remainder = remainder.replace(collRe, '');
+  }
+  const nameRe = new RegExp(escapeRegex(product.name), 'i');
+  remainder = remainder.replace(nameRe, '');
+  return remainder.replace(/^[\s\-\u2013\u2014:,]+/, '').replace(/[\s\-\u2013\u2014:,]+$/, '').trim();
+}
+
+function normalizeDimension(s) {
+  return (s || '').toLowerCase()
+    .replace(/\u00d7/g, 'x')  // ×
+    .replace(/[\u2033\u2032"'\u2034\u2035]/g, '')
+    .replace(/\s+/g, '');
+}
+
+function extractSize(s) {
+  const norm = normalizeDimension(s);
+  const m = norm.match(/(\d+\.?\d*)\s*x\s*(\d+\.?\d*)/);
+  return m ? `${m[1]}x${m[2]}` : null;
+}
+
+function extractDescriptors(s) {
+  const norm = (s || '').toLowerCase()
+    .replace(/\u00d7/g, 'x')
+    .replace(/[\u2033\u2032"'\u2034\u2035]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+  // Remove size patterns to get just descriptor words
+  const withoutSize = norm.replace(/\d+\.?\d*\s*x\s*\d+\.?\d*/g, '').trim();
+  return withoutSize.split(/\s+/).filter(w => w.length > 1);
+}
+
+const DESCRIPTOR_SYNONYMS = {
+  'glossy': 'gloss', 'gloss': 'gloss',
+  'matte': 'matte', 'mat': 'matte',
+  'satin': 'satin',
+  'bullnose': 'bullnose', 'bn': 'bullnose',
+  'polished': 'polished', 'honed': 'honed',
+};
+
+function canonicalDescriptor(word) {
+  return DESCRIPTOR_SYNONYMS[word] || word;
+}
+
+function findMatchingSku(productId, wpTitle, product, productSkusMap) {
+  const skuList = productSkusMap.get(productId);
+  if (!skuList || skuList.length === 0) return null;
+
+  // Step A: Single-SKU shortcut
+  if (skuList.length === 1) return skuList[0];
+
+  // Step B: Extract variant part from WP title
+  const variantPart = extractVariantPart(wpTitle, product);
+  if (!variantPart) return skuList[0]; // No variant info -> default to first
+
+  // Step C: Score each SKU
+  const wpSize = extractSize(variantPart);
+  const wpDescriptors = extractDescriptors(variantPart).map(canonicalDescriptor);
+
+  let bestSku = null;
+  let bestScore = -1;
+
+  for (const sku of skuList) {
+    let score = 0;
+    const vn = sku.variant_name || '';
+
+    // Size matching (strong signal)
+    const skuSize = extractSize(vn);
+    if (wpSize && skuSize) {
+      if (wpSize === skuSize) {
+        score += 100;
+      } else {
+        score -= 50; // Size mismatch is a strong negative
+      }
+    }
+
+    // Descriptor word overlap
+    const skuDescriptors = extractDescriptors(vn).map(canonicalDescriptor);
+    for (const wd of wpDescriptors) {
+      if (skuDescriptors.includes(wd)) score += 20;
+    }
+    for (const sd of skuDescriptors) {
+      if (wpDescriptors.includes(sd)) score += 20;
+    }
+
+    // Penalize accessory/trim/jolly SKUs so main tiles are preferred
+    if (sku.variant_type === 'accessory' || /\b(jolly|trim|bullnose)\b/i.test(vn)) {
+      score -= 50;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestSku = sku;
+    }
+  }
+
+  // Step D: Fallback if no confident match
+  if (bestScore <= 0) return skuList[0];
+  return bestSku;
 }
 
 // ── Phase 1: Fetch product list from WP REST API ──
@@ -159,31 +278,35 @@ async function scrapeGalleryImages(slug) {
 
 // ── Phase 3: Match & upsert ──
 
-async function upsertImages(productId, imageUrls, counters) {
+async function upsertImages(productId, skuId, imageUrls, counters) {
   if (!imageUrls.length) return;
 
-  // Delete existing Style Access media_assets for this product
+  // Delete existing Style Access media_assets for this SKU
   const { rowCount } = await pool.query(
-    `DELETE FROM media_assets WHERE product_id = $1 AND url LIKE '%style-access.com%'`,
-    [productId]
+    `DELETE FROM media_assets WHERE sku_id = $1 AND url LIKE '%style-access.com%'`,
+    [skuId]
   );
   if (rowCount > 0) counters.deleted += rowCount;
 
   for (let i = 0; i < imageUrls.length; i++) {
     const assetType = i === 0 ? 'primary' : 'alternate';
     await pool.query(`
-      INSERT INTO media_assets (product_id, url, asset_type, sort_order)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO media_assets (product_id, sku_id, url, asset_type, sort_order)
+      VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT DO NOTHING
-    `, [productId, imageUrls[i], assetType, i]);
+    `, [productId, skuId, imageUrls[i], assetType, i]);
     counters.inserted++;
     if (i === 0) counters.primaries++;
   }
 }
 
-async function upsertImagesForProducts(productIds, imageUrls, counters) {
-  for (const pid of productIds) {
-    await upsertImages(pid, imageUrls, counters);
+async function upsertImagesForCollection(collProducts, imageUrls, counters, productSkusMap) {
+  for (const p of collProducts) {
+    const skuList = productSkusMap.get(p.id);
+    const firstSku = skuList && skuList.length > 0 ? skuList[0] : null;
+    if (firstSku) {
+      await upsertImages(p.id, firstSku.id, imageUrls, counters);
+    }
   }
 }
 
@@ -202,10 +325,11 @@ async function main() {
   `, [vendorId]);
 
   const { rows: skus } = await pool.query(`
-    SELECT s.id, s.product_id, s.vendor_sku, s.variant_name
+    SELECT s.id, s.product_id, s.vendor_sku, s.variant_name, s.variant_type
     FROM skus s
     JOIN products p ON p.id = s.product_id
     WHERE p.vendor_id = $1 AND s.status = 'active'
+    ORDER BY s.product_id, s.created_at
   `, [vendorId]);
 
   // Build lookup maps
@@ -214,6 +338,17 @@ async function main() {
     const raw = s.vendor_sku.replace(/^SA-/, '');
     skuToProduct.set(raw.toUpperCase(), s.product_id);
   }
+
+  // Group SKUs by product (ordered by created_at from the query)
+  const productSkus = new Map();
+  for (const s of skus) {
+    if (!productSkus.has(s.product_id)) productSkus.set(s.product_id, []);
+    productSkus.get(s.product_id).push(s);
+  }
+
+  // Quick product lookup by ID
+  const productById = new Map();
+  for (const p of products) productById.set(p.id, p);
 
   const nameToProduct = new Map();
   for (const p of products) {
@@ -251,6 +386,19 @@ async function main() {
   console.log(`  DB: ${productsWithImageBefore.size} products have images`);
   console.log(`  DB: ${existingImages.length} existing image rows\n`);
 
+  // Clean up old product-level (sku_id IS NULL) Style Access images from previous runs
+  if (!DRY_RUN) {
+    const { rowCount: cleanedUp } = await pool.query(`
+      DELETE FROM media_assets
+      WHERE sku_id IS NULL
+        AND url LIKE '%style-access.com%'
+        AND product_id IN (SELECT id FROM products WHERE vendor_id = $1)
+    `, [vendorId]);
+    if (cleanedUp > 0) {
+      console.log(`  Cleaned up ${cleanedUp} old product-level images (migrating to SKU-level)\n`);
+    }
+  }
+
   // Phase 1: Fetch WP products
   console.log('Phase 1: Fetching product list from WP API...');
   const wpProducts = await fetchAllWpProducts();
@@ -258,9 +406,15 @@ async function main() {
 
   const counters = { inserted: 0, deleted: 0, primaries: 0 };
   let matched = 0, scraped = 0, skippedNoImages = 0, noMatch = 0, collectionMatches = 0;
+  let singleSkuCount = 0, multiSkuCount = 0;
   const unmatchedTitles = [];
   const matchLog = [];
   const productsWithImageAfter = new Set(productsWithImageBefore);
+
+  // Track which SKUs have been assigned images in this run, with match confidence
+  // Higher-priority matches won't be overwritten by lower-priority ones
+  const assignedSkus = new Map(); // skuId -> { method, priority }
+  const METHOD_PRIORITY = { 'sku': 4, 'exact-name': 3, 'expanded-name': 2, 'fuzzy': 1, 'collection': 1 };
 
   // Phase 2 & 3: Scrape each product page and match
   console.log('Phase 2-3: Scraping product pages and matching...\n');
@@ -290,10 +444,18 @@ async function main() {
 
     // ── Matching strategies ──
 
-    // Strategy 1: SKU from excerpt
-    const sku = extractSkuFromExcerpt(excerpt);
-    let productId = sku ? skuToProduct.get(sku) : null;
-    let matchMethod = productId ? 'sku' : null;
+    // Strategy 1: SKU from excerpt — try all candidates against the DB map
+    const skuCandidates = extractSkuCandidates(excerpt);
+    let productId = null;
+    let matchMethod = null;
+    for (const candidate of skuCandidates) {
+      const pid = skuToProduct.get(candidate);
+      if (pid) {
+        productId = pid;
+        matchMethod = 'sku';
+        break;
+      }
+    }
 
     // Strategy 2: Exact name match
     if (!productId) {
@@ -323,17 +485,17 @@ async function main() {
         const normName = normalizeForMatch(p.name);
         const expName = expandAbbrevs(p.name);
 
-        if (normTitle.includes(normName) && normName.length > 3) {
+        if (normTitle.includes(normName) && normName.length > 5) {
           const score = normName.length * 10;
           if (score > bestScore) { bestMatch = p; bestScore = score; }
         }
 
-        if (expTitle.includes(expName) && expName.length > 3) {
+        if (expTitle.includes(expName) && expName.length > 5) {
           const score = expName.length * 10;
           if (score > bestScore) { bestMatch = p; bestScore = score; }
         }
 
-        if (expName.includes(expTitle) && expTitle.length > 3) {
+        if (expName.includes(expTitle) && expTitle.length > 5) {
           const score = expTitle.length * 10;
           if (score > bestScore) { bestMatch = p; bestScore = score; }
         }
@@ -371,10 +533,10 @@ async function main() {
       const collProducts = collectionToProducts.get(normTitle);
       if (collProducts && collProducts.length > 0) {
         collectionMatches++;
-        if (VERBOSE) console.log(`  COLLECTION MATCH: "${title}" → ${collProducts.length} products`);
+        if (VERBOSE) console.log(`  COLLECTION MATCH: "${title}" -> ${collProducts.length} products`);
 
         if (!DRY_RUN) {
-          await upsertImagesForProducts(collProducts.map(p => p.id), imageUrls, counters);
+          await upsertImagesForCollection(collProducts, imageUrls, counters, productSkus);
         }
         for (const p of collProducts) productsWithImageAfter.add(p.id);
         matched++;
@@ -391,13 +553,48 @@ async function main() {
       continue;
     }
 
-    matched++;
-    if (VERBOSE) matchLog.push({ title, method: matchMethod, productId });
+    // Resolve specific SKU for this product
+    const matchedProduct = productById.get(productId);
+    const matchedSku = matchedProduct
+      ? findMatchingSku(productId, title, matchedProduct, productSkus)
+      : null;
 
-    if (!DRY_RUN) {
-      await upsertImages(productId, imageUrls, counters);
+    if (!matchedSku) {
+      if (VERBOSE) console.log(`    WARNING: No active SKU for product ${productId} — skipping images`);
+      noMatch++;
+      await sleep(DELAY_MS);
+      continue;
     }
-    productsWithImageAfter.add(productId);
+
+    // Track single-SKU vs multi-SKU matches
+    const skuList = productSkus.get(productId) || [];
+    if (skuList.length === 1) {
+      singleSkuCount++;
+    } else {
+      multiSkuCount++;
+    }
+
+    matched++;
+    if (VERBOSE) {
+      matchLog.push({
+        title, method: matchMethod, productId,
+        skuId: matchedSku.id, skuVariant: matchedSku.variant_name
+      });
+      console.log(`    -> SKU: ${matchedSku.variant_name || '(default)'} [${matchMethod}]`);
+    }
+
+    // Only upsert if no higher-confidence match already assigned this SKU
+    const newPriority = METHOD_PRIORITY[matchMethod] || 0;
+    const existingAssignment = assignedSkus.get(matchedSku.id);
+    if (existingAssignment && existingAssignment.priority >= newPriority) {
+      if (VERBOSE) console.log(`    SKIP: SKU ${matchedSku.variant_name} already has ${existingAssignment.method} match (higher priority)`);
+    } else {
+      if (!DRY_RUN) {
+        await upsertImages(productId, matchedSku.id, imageUrls, counters);
+      }
+      assignedSkus.set(matchedSku.id, { method: matchMethod, priority: newPriority });
+      productsWithImageAfter.add(productId);
+    }
 
     await sleep(DELAY_MS);
   }
@@ -412,7 +609,7 @@ async function main() {
     if (!targetProducts.length) continue;
 
     const sourceProducts = products.filter(p => p.collection === sourceColl);
-    console.log(`\n  Sibling sharing: ${targetColl} (${targetProducts.length} missing) ← ${sourceColl} (${sourceProducts.length} source)`);
+    console.log(`\n  Sibling sharing: ${targetColl} (${targetProducts.length} missing) <- ${sourceColl} (${sourceProducts.length} source)`);
 
     for (const tp of targetProducts) {
       const sp = sourceProducts.find(s => normalizeForMatch(s.name) === normalizeForMatch(tp.name));
@@ -424,10 +621,14 @@ async function main() {
       );
       if (!srcImages.length) continue;
 
-      if (VERBOSE) console.log(`    ${tp.name} ← ${sp.name} (${srcImages.length} images)`);
+      if (VERBOSE) console.log(`    ${tp.name} <- ${sp.name} (${srcImages.length} images)`);
 
       if (!DRY_RUN) {
-        await upsertImages(tp.id, srcImages.map(i => i.url), counters);
+        const tpSkuList = productSkus.get(tp.id);
+        const tpSku = tpSkuList && tpSkuList.length > 0 ? tpSkuList[0] : null;
+        if (tpSku) {
+          await upsertImages(tp.id, tpSku.id, srcImages.map(i => i.url), counters);
+        }
       }
       productsWithImageAfter.add(tp.id);
     }
@@ -438,6 +639,7 @@ async function main() {
   console.log(`  WP products: ${wpProducts.length}`);
   console.log(`  Pages scraped: ${scraped}`);
   console.log(`  Matched to DB: ${matched} (${collectionMatches} collection-level)`);
+  console.log(`  SKU resolution: ${singleSkuCount} single-SKU, ${multiSkuCount} multi-SKU`);
   console.log(`  No match: ${noMatch}`);
   console.log(`  Skipped (no gallery images): ${skippedNoImages}`);
   console.log(`  Images deleted (old): ${counters.deleted}`);
@@ -462,13 +664,23 @@ async function main() {
     const byOther = matchLog.filter(m => m.method !== 'collection');
     if (byColl.length) {
       console.log(`  Collection-level matches:`);
-      for (const m of byColl) console.log(`    "${m.title}" → ${m.count} products`);
+      for (const m of byColl) console.log(`    "${m.title}" -> ${m.count} products`);
     }
     const byMethod = {};
     for (const m of byOther) {
       byMethod[m.method] = (byMethod[m.method] || 0) + 1;
     }
     console.log(`  Match method breakdown:`, byMethod);
+
+    // Show SKU-level match details for multi-SKU products
+    const multiSkuMatches = byOther.filter(m => m.skuVariant);
+    if (multiSkuMatches.length > 0) {
+      console.log(`\n  SKU-level matches (sample):`);
+      for (const m of multiSkuMatches.slice(0, 30)) {
+        console.log(`    "${m.title}" -> SKU: ${m.skuVariant}`);
+      }
+      if (multiSkuMatches.length > 30) console.log(`    ... and ${multiSkuMatches.length - 30} more`);
+    }
   }
 
   if (unmatchedTitles.length > 0) {
