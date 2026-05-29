@@ -35,7 +35,11 @@ const pool = new Pool({
 const DRY_RUN = process.argv.includes('--dry-run');
 const VENDOR_CODE = 'PC';
 const API_URL = 'https://www.pentzcommercial.com/product-api/export';
-const API_KEY = 'r6@Tl!f7ApXMW#aN';
+const API_KEY = process.env.PENTZ_API_KEY;
+if (!API_KEY) {
+  console.error('PENTZ_API_KEY must be set');
+  process.exit(1);
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // API fetch

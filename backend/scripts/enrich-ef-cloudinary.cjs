@@ -35,8 +35,12 @@ const pool = new Pool({
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
-const CLOUDINARY_API_KEY = '128665362467729';
-const CLOUDINARY_API_SECRET = 'EjRP-E_Z8ZwGaby_kI3yzfVCLks';
+const CLOUDINARY_API_KEY = process.env.EF_CLOUDINARY_API_KEY;
+const CLOUDINARY_API_SECRET = process.env.EF_CLOUDINARY_API_SECRET;
+if (!CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
+  console.error('EF_CLOUDINARY_API_KEY and EF_CLOUDINARY_API_SECRET must be set');
+  process.exit(1);
+}
 const CLOUDINARY_CLOUD = 'engineeredfloors';
 const SEARCH_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/resources/search`;
 const AUTH = 'Basic ' + Buffer.from(`${CLOUDINARY_API_KEY}:${CLOUDINARY_API_SECRET}`).toString('base64');
