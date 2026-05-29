@@ -20,6 +20,29 @@ backend/check-*
 backend/simulate-*
 backend/m[0-9]*.cjs
 backend/_paradigm-*
+backend/debug-*
+backend/test-*
+backend/run-*.cjs
+backend/verify-*
+backend/inspect-*
+backend/investigate*
+backend/match-*
+backend/wipe-*
+backend/remove-*
+backend/attach-*
+backend/broad-*
+backend/cleanup-*
+backend/dam-*
+backend/final-*
+backend/find-*
+backend/group-*
+backend/img-*
+backend/split-*
+backend/systemic*
+backend/backfill-*
+backend/elysium-*
+backend/import-az-*
+backend/import-msi-*
 
 # Temp audit HTML pages
 frontend/ely-*.html
