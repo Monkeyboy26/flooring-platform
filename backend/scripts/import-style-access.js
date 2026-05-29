@@ -69,6 +69,29 @@ function getBaseColor(desc) {
     .trim();
 }
 
+// ==================== FINISH EXTRACTION ====================
+// Extract the variant descriptor (surface pattern + finish qualifier) from description.
+// These are the tokens that getBaseColor() strips out.
+function extractFinish(desc) {
+  const tokens = [];
+  // Surface patterns (order matches typical naming)
+  for (const p of ['Flat', 'Dixie', 'Charleston', 'Swing']) {
+    if (new RegExp('\\b' + p + '\\b', 'i').test(desc)) tokens.push(p);
+  }
+  // Decorative types
+  if (/\bFlower\s+Deco\b/i.test(desc)) tokens.push('Flower Deco');
+  else if (/\bDeco\b/i.test(desc)) tokens.push('Deco');
+  // Layout
+  for (const l of ['Brick Joint', 'Cross Hatch']) {
+    if (new RegExp('\\b' + l + '\\b', 'i').test(desc)) tokens.push(l);
+  }
+  // Finish qualifiers (last, as they modify the pattern)
+  for (const q of ['Gloss', 'Satin', 'Matte']) {
+    if (new RegExp('\\b' + q + '\\b', 'i').test(desc)) tokens.push(q);
+  }
+  return tokens.length ? tokens.join(' ') : null;
+}
+
 // ==================== PRICE LIST PARSING ====================
 const KNOWN_MATERIALS = [
   'Through-Body Porcelain Pressed', 'Through-Body Porcelain', 'Through-Body Glass',
@@ -441,7 +464,10 @@ async function main() {
 
       // Attributes
       await upsertAttribute(sku.id, 'material', row.material);
-      await upsertAttribute(sku.id, 'color', row.description);
+      await upsertAttribute(sku.id, 'color', group.baseColor);
+      const finish = extractFinish(row.description);
+      if (finish) await upsertAttribute(sku.id, 'finish', finish);
+      if (row.size) await upsertAttribute(sku.id, 'size', row.size);
       if (row.size) await upsertAttribute(sku.id, 'width', row.size);
 
       // Image from WooCommerce API
