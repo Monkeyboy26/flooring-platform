@@ -13,6 +13,7 @@ export default function createCartRoutes(ctx) {
         SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection,
           s.sell_by, s.variant_type, s.vendor_sku, s.variant_name, c.slug as category_slug,
           pr.cut_price, pr.roll_price, pr.roll_min_sqft,
+          COALESCE(ma_sku.url, ma_prod.url) as primary_image,
           COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
           CASE
             WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
@@ -27,6 +28,8 @@ export default function createCartRoutes(ctx) {
         LEFT JOIN pricing pr ON pr.sku_id = ci.sku_id
         LEFT JOIN vendors v ON v.id = p.vendor_id
         LEFT JOIN inventory_snapshots inv ON inv.sku_id = ci.sku_id AND inv.warehouse = 'default'
+        LEFT JOIN media_assets ma_sku ON ma_sku.sku_id = ci.sku_id AND ma_sku.asset_type = 'primary'
+        LEFT JOIN media_assets ma_prod ON ma_prod.product_id = ci.product_id AND ma_prod.asset_type = 'primary' AND ma_sku.id IS NULL
         WHERE ci.session_id = $1
         ORDER BY ci.created_at
       `, [session_id]);
@@ -112,7 +115,7 @@ export default function createCartRoutes(ctx) {
         RETURNING *
       `, [session_id, product_id || null, sku_id || null, sqft_needed || null, num_boxes, include_overage || false, validatedUnitPrice, validatedSubtotal, is_sample || false, sell_by || null, price_tier || null]);
 
-      // Return with product info
+      // Return with product info + image
       const item = result.rows[0];
       if (item.product_id) {
         const prod = await pool.query('SELECT name, collection FROM products WHERE id = $1', [item.product_id]);
@@ -120,6 +123,10 @@ export default function createCartRoutes(ctx) {
           item.product_name = prod.rows[0].name;
           item.collection = prod.rows[0].collection;
         }
+      }
+      if (item.sku_id) {
+        const img = await pool.query("SELECT url FROM media_assets WHERE (sku_id = $1 OR product_id = $2) AND asset_type = 'primary' ORDER BY sku_id = $1 DESC NULLS LAST LIMIT 1", [item.sku_id, item.product_id]);
+        if (img.rows.length) item.primary_image = img.rows[0].url;
       }
       res.json({ item });
     } catch (err) {
@@ -189,6 +196,10 @@ export default function createCartRoutes(ctx) {
           item.product_name = prod.rows[0].name;
           item.collection = prod.rows[0].collection;
         }
+      }
+      if (item.sku_id) {
+        const img = await pool.query("SELECT url FROM media_assets WHERE (sku_id = $1 OR product_id = $2) AND asset_type = 'primary' ORDER BY sku_id = $1 DESC NULLS LAST LIMIT 1", [item.sku_id, item.product_id]);
+        if (img.rows.length) item.primary_image = img.rows[0].url;
       }
       res.json({ item });
     } catch (err) {
