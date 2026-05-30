@@ -122,6 +122,20 @@
       return price;
     }
 
+    // ==================== Image Aspect Ratio Detection ====================
+    // Switches non-square product images from cover to contain so they aren't cropped
+    function handleProductImgLoad(e) {
+      const { naturalWidth: w, naturalHeight: h } = e.target;
+      if (w && h) {
+        const r = w / h;
+        if (r > 1.4 || r < 0.71) {
+          e.target.style.objectFit = 'contain';
+          const card = e.target.closest('.sku-card');
+          if (card) card.classList.add('sku-card--contain');
+        }
+      }
+    }
+
     // ==================== Image Optimization Helper ====================
     function optimizeImg(url, width) {
       if (!url || typeof url !== 'string') return url;
@@ -2420,7 +2434,7 @@
                     const idx = suggestItemIdx++;
                     return (
                       <div key={col.name} className={'search-suggest-item' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'collection', data: col })}>
-                        {col.image ? <img className="search-suggest-collection-img" src={optimizeImg(col.image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} /> : <span className="search-suggest-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>}
+                        {col.image ? <img className="search-suggest-collection-img" onLoad={handleProductImgLoad} src={optimizeImg(col.image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} /> : <span className="search-suggest-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>}
                         <div className="search-suggest-collection-text">
                           <div className="search-suggest-collection-name">{highlightMatch(col.name, searchInput)}</div>
                         </div>
@@ -2437,7 +2451,7 @@
                     const idx = suggestItemIdx++;
                     return (
                       <div key={sku.sku_id} className={'search-suggestion' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'product', data: sku })}>
-                        <div className="search-suggestion-img">{sku.primary_image ? <img src={optimizeImg(sku.primary_image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} /> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, color: 'var(--stone-300)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>}</div>
+                        <div className="search-suggestion-img">{sku.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} /> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, color: 'var(--stone-300)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>}</div>
                         <div className="search-suggestion-text">
                           <div className="search-suggestion-name">{highlightMatch(fullProductName(sku), searchInput)}</div>
                           {(sku.brand_name || sku.vendor_name) && <div className="search-suggestion-vendor">{sku.brand_name || sku.vendor_name}</div>}
@@ -2600,7 +2614,7 @@
                   {cart.map(item => (
                     <div key={item.id} className="cart-drawer-item">
                       <div className="cart-drawer-item-img">
-                        {item.primary_image && <img src={optimizeImg(item.primary_image, 100)} alt="" decoding="async" loading="lazy" width={40} height={40} />}
+                        {item.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt="" decoding="async" loading="lazy" width={40} height={40} />}
                       </div>
                       <div className="cart-drawer-item-info">
                         <div className="cart-drawer-item-name">
@@ -2737,7 +2751,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
                   </button>
                 )}
-                {currentImg.url && <img src={optimizeImg(currentImg.url, 800)} {...optimizeSrcSet(currentImg.url, [400, 600, 800])} sizes="(max-width: 768px) 90vw, 400px" alt={activeSku.product_name} decoding="async" width={400} height={400} />}
+                {currentImg.url && <img onLoad={handleProductImgLoad} src={optimizeImg(currentImg.url, 800)} {...optimizeSrcSet(currentImg.url, [400, 600, 800])} sizes="(max-width: 768px) 90vw, 400px" alt={activeSku.product_name} decoding="async" width={400} height={400} />}
                 {media.length > 1 && (
                   <button className="quick-view-gallery-arrow right" disabled={imgIndex >= media.length - 1} onClick={() => setImgIndex(i => i + 1)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -2765,7 +2779,7 @@
                       onMouseLeave={() => !sib._isCurrent && handleVariantLeave()}
                       onClick={() => !sib._isCurrent && handleVariantClick(sib)}
                     >
-                      {sib.primary_image && <img src={optimizeImg(sib.primary_image, 120)} alt={sib.variant_name} decoding="async" width={64} height={64} />}
+                      {sib.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sib.primary_image, 120)} alt={sib.variant_name} decoding="async" width={64} height={64} />}
                     </div>
                   ))}
                 </div>
@@ -3014,7 +3028,7 @@
                   <div className="search-suggest-label">Collections</div>
                   {suggestData.collections.map(col => (
                     <div key={col.name} className="search-suggest-item" onClick={() => { addRecentSearch(col.name); onSearch(col.name); onClose(); }}>
-                      {col.image ? <img className="search-suggest-collection-img" src={optimizeImg(col.image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} /> : <span className="search-suggest-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>}
+                      {col.image ? <img className="search-suggest-collection-img" onLoad={handleProductImgLoad} src={optimizeImg(col.image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} /> : <span className="search-suggest-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>}
                       <div className="search-suggest-collection-text">
                         <div className="search-suggest-collection-name">{highlightMatch(col.name, query)}</div>
                       </div>
@@ -3029,7 +3043,7 @@
                   {suggestData.products.map(sku => (
                     <div key={sku.sku_id} className="mobile-search-result" onClick={() => { addRecentSearch(sku.product_name || sku.collection); onSkuClick(sku.sku_id, sku.product_name); onClose(); }}>
                       <div className="mobile-search-result-img">
-                        {sku.primary_image && <img src={optimizeImg(sku.primary_image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} />}
+                        {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} />}
                       </div>
                       <div>
                         <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{highlightMatch(fullProductName(sku), query)}</div>
@@ -3103,7 +3117,7 @@
           <div className="category-carousel-track" ref={trackRef}>
             {categories.map(cat => (
               <div key={cat.slug} className="category-tile" onClick={() => onCategorySelect(cat.slug)}>
-                {cat.image_url && <img src={optimizeImg(cat.image_url, 400)} alt={cat.name} loading="lazy" decoding="async" />}
+                {cat.image_url && <img onLoad={handleProductImgLoad} src={optimizeImg(cat.image_url, 400)} alt={cat.name} loading="lazy" decoding="async" />}
                 <div className="category-tile-overlay">
                   <span className="category-tile-name">{cat.name}</span>
                   <span className="category-tile-count">{cat.product_count} products</span>
@@ -3203,7 +3217,7 @@
                 <div className="homepage-cat-grid">
                   {topCats.map(cat => (
                     <div key={cat.slug} className="homepage-cat-tile" onClick={() => onCategorySelect(cat.slug)}>
-                      {cat.image_url && <img src={optimizeImg(cat.image_url, 400)} {...optimizeSrcSet(cat.image_url, [200, 400, 600])} sizes="(max-width: 640px) 50vw, 33vw" alt={cat.name} loading="lazy" decoding="async" />}
+                      {cat.image_url && <img onLoad={handleProductImgLoad} src={optimizeImg(cat.image_url, 400)} {...optimizeSrcSet(cat.image_url, [200, 400, 600])} sizes="(max-width: 640px) 50vw, 33vw" alt={cat.name} loading="lazy" decoding="async" />}
                       <div className="homepage-cat-tile-overlay">
                         <span className="homepage-cat-tile-name">{cat.name}</span>
                         <span className="homepage-cat-tile-cta">Shop Now &rarr;</span>
@@ -3238,7 +3252,7 @@
               <div className="looks-grid">
                 {looks.map(look => (
                   <div key={look.slug} className="look-card" onClick={() => navigate('/shop?collection=' + look.slug)}>
-                    <img src={optimizeImg(look.image, 400)} {...optimizeSrcSet(look.image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, 25vw" alt={look.name} loading="lazy" decoding="async" />
+                    <img onLoad={handleProductImgLoad} src={optimizeImg(look.image, 400)} {...optimizeSrcSet(look.image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, 25vw" alt={look.name} loading="lazy" decoding="async" />
                     <div className="look-card-overlay">
                       <span className="look-card-name">{look.name}</span>
                       <span className="look-card-cta">Explore &rarr;</span>
@@ -3256,7 +3270,7 @@
               <div className="inspo-gallery">
                 {inspoImages.map((img, i) => (
                   <div key={i} className={'inspo-gallery-item' + (img.tall ? ' tall' : '')} onClick={() => navigate('/shop?room=' + img.label.toLowerCase().replace(/\s+/g, '-'))}>
-                    <img src={optimizeImg(img.src, 400)} {...optimizeSrcSet(img.src, [200, 400, 600])} sizes="(max-width: 640px) 50vw, 25vw" alt={img.label} loading="lazy" decoding="async" />
+                    <img onLoad={handleProductImgLoad} src={optimizeImg(img.src, 400)} {...optimizeSrcSet(img.src, [200, 400, 600])} sizes="(max-width: 640px) 50vw, 25vw" alt={img.label} loading="lazy" decoding="async" />
                     <div className="inspo-gallery-overlay">
                       <span className="inspo-gallery-label">{img.label}</span>
                     </div>
@@ -3471,7 +3485,7 @@
                 {landingChildren.map(child => (
                   <div key={child.slug} className="category-tile" onClick={() => onCategorySelect(child.slug)}>
                     {child.image_url
-                      ? <img src={optimizeImg(child.image_url, 400)} alt={child.name} loading="lazy" decoding="async" />
+                      ? <img onLoad={handleProductImgLoad} src={optimizeImg(child.image_url, 400)} alt={child.name} loading="lazy" decoding="async" />
                       : <div style={{ width: '100%', height: '100%', background: 'var(--stone-200)' }} />
                     }
                     <div className="category-tile-overlay">
@@ -4019,7 +4033,7 @@
       const price = sku.trade_price || (onSale ? sku.sale_price : basePrice);
       const discountPct = onSale && parseFloat(basePrice) > 0 ? Math.round((1 - parseFloat(sku.sale_price) / parseFloat(basePrice)) * 100) : 0;
       return (
-        <div className={'sku-card' + (sku.vendor_code === 'ADEX' ? ' sku-card--contain' : '')} onClick={onClick} data-sku={sku.vendor_sku || sku.internal_sku}>
+        <div className="sku-card" onClick={onClick} data-sku={sku.vendor_sku || sku.internal_sku}>
           <button className={'wishlist-heart' + (isWished ? ' active' : '')}
             onClick={(e) => { e.stopPropagation(); onToggleWishlist(); }}>
             <svg viewBox="0 0 24 24" fill={isWished ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -4027,8 +4041,8 @@
             </svg>
           </button>
           <div className="sku-card-image">
-            {sku.primary_image && <img src={optimizeImg(sku.primary_image, 400)} {...optimizeSrcSet(sku.primary_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt={sku.product_name} loading={isAboveFold ? 'eager' : 'lazy'} fetchPriority={isAboveFold ? 'high' : 'auto'} decoding={isAboveFold ? 'sync' : 'async'} width="300" height="300" />}
-            {sku.alternate_image && <img className="sku-card-alt-img" src={optimizeImg(sku.alternate_image, 400)} {...optimizeSrcSet(sku.alternate_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt="" loading="lazy" decoding="async" width="300" height="300" />}
+            {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 400)} {...optimizeSrcSet(sku.primary_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt={sku.product_name} loading={isAboveFold ? 'eager' : 'lazy'} fetchPriority={isAboveFold ? 'high' : 'auto'} decoding={isAboveFold ? 'sync' : 'async'} width="300" height="300" />}
+            {sku.alternate_image && <img className="sku-card-alt-img" onLoad={handleProductImgLoad} src={optimizeImg(sku.alternate_image, 400)} {...optimizeSrcSet(sku.alternate_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt="" loading="lazy" decoding="async" width="300" height="300" />}
             {onSale && <span className="sale-badge">SALE</span>}
             {onQuickView && <button className="quick-view-btn" onClick={(e) => { e.stopPropagation(); onQuickView(); }}>Quick View</button>}
           </div>
@@ -4485,7 +4499,7 @@
                 {recentlyViewed.slice(0, 6).map(rv => (
                   <div key={rv.sku_id} className="sibling-card" onClick={() => onSkuClick(rv.sku_id, rv.product_name)}>
                     <div className="sibling-card-image">
-                      {rv.primary_image && <img src={optimizeImg(rv.primary_image, 400)} alt={rv.product_name} loading="lazy" />}
+                      {rv.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(rv.primary_image, 400)} alt={rv.product_name} loading="lazy" />}
                     </div>
                     <div className="sibling-card-name">{fullProductName(rv)}</div>
                     {skuListPrice(rv) && <div className="sibling-card-price">${displayPrice(rv, skuListPrice(rv)).toFixed(2)}{priceSuffix(rv)}</div>}
@@ -4547,7 +4561,7 @@
 
       return (
         <>
-          <div className={'sku-detail' + (sku.vendor_code === 'ADEX' ? ' sku-detail--contain' : '')} data-sku={sku.vendor_sku || sku.internal_sku} style={loading ? { opacity: 0.6, pointerEvents: 'none', transition: 'opacity 0.15s ease' } : { opacity: 1, transition: 'opacity 0.15s ease' }}>
+          <div className="sku-detail" data-sku={sku.vendor_sku || sku.internal_sku} style={loading ? { opacity: 0.6, pointerEvents: 'none', transition: 'opacity 0.15s ease' } : { opacity: 1, transition: 'opacity 0.15s ease' }}>
             <div className="breadcrumbs">
               <a href="#" onClick={e => { e.preventDefault(); goBack(); }}>Shop</a>
               <span>/</span>
@@ -4558,13 +4572,13 @@
             <div className="sku-detail-main">
             <div className="sku-detail-gallery">
               <div className="sku-detail-image">
-                {mainImage && <img src={optimizeImg(mainImage.url, 800)} {...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200])} sizes="(max-width: 768px) 100vw, 50vw" alt={sku.product_name} fetchPriority="high" decoding="async" />}
+                {mainImage && <img onLoad={handleProductImgLoad} src={optimizeImg(mainImage.url, 800)} {...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200])} sizes="(max-width: 768px) 100vw, 50vw" alt={sku.product_name} fetchPriority="high" decoding="async" />}
               </div>
               {images.length > 1 && (
                 <div className="gallery-thumbs">
                   {images.map((img, i) => (
                     <div key={img.id} className={'gallery-thumb' + (i === selectedImage ? ' active' : '')} onClick={() => setSelectedImage(i)}>
-                      <img src={optimizeImg(img.url, 120)} alt="" loading="lazy" decoding="async" width="80" height="80" onError={e => { e.target.style.display = 'none'; }} />
+                      <img onLoad={handleProductImgLoad} src={optimizeImg(img.url, 120)} alt="" loading="lazy" decoding="async" width="80" height="80" onError={e => { e.target.style.display = 'none'; }} />
                     </div>
                   ))}
                 </div>
@@ -4834,7 +4848,7 @@
                               {colorSwatches.map(c => (
                                 <div key={c.color} className="color-swatch-wrap" onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
                                   <div className={'color-swatch' + (c.is_current ? ' active' : '')}>
-                                    {c.primary_image ? <img src={optimizeImg(c.primary_image, 120)} alt={c.color} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.625rem', fontWeight: 600, color: 'var(--stone-500)', textAlign: 'center', lineHeight: 1.2, padding: '4px' }}>{c.color}</div>}
+                                    {c.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(c.primary_image, 120)} alt={c.color} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.625rem', fontWeight: 600, color: 'var(--stone-500)', textAlign: 'center', lineHeight: 1.2, padding: '4px' }}>{c.color}</div>}
                                   </div>
                                   <div className="color-swatch-tooltip">{c.color}</div>
                                 </div>
@@ -4907,7 +4921,7 @@
                                     {groups[cat].map(s => (
                                       <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
                                         <div className="sibling-card-image">
-                                          {(s.primary_image || s.shape_image) && <img src={optimizeImg(s.primary_image || s.shape_image, 120)} alt={displayName(s)} loading="lazy" decoding="async" />}
+                                          {(s.primary_image || s.shape_image) && <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image || s.shape_image, 120)} alt={displayName(s)} loading="lazy" decoding="async" />}
                                         </div>
                                         <div className="sibling-card-name">{displayName(s)}</div>
                                         {skuListPrice(s) && <div className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</div>}
@@ -5357,7 +5371,7 @@
                               return (
                               <div key={c.sku_id} className={'color-swatch-wrap' + (!compatible ? ' disabled' : '')} onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
                                 <div className={'color-swatch' + (c.is_current ? ' active' : '')}>
-                                  {c.primary_image ? <img src={optimizeImg(c.primary_image, 120)} alt={label} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)' }} />}
+                                  {c.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(c.primary_image, 120)} alt={label} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)' }} />}
                                 </div>
                                 <div className="color-swatch-tooltip">{label}{!compatible ? ' (limited options)' : ''}</div>
                               </div>
@@ -5589,7 +5603,7 @@
                                 return (
                                   <div key={val} className={'color-swatch-wrap' + (isDisabled ? ' disabled' : '')} onClick={() => { if (!isActive && best) onSkuClick(best.sku_id); }}>
                                     <div className={'color-swatch' + (isActive ? ' active' : '') + (isDisabled ? ' disabled' : '')}>
-                                      {img ? <img src={optimizeImg(img, 120)} alt={displayVal(val)} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--stone-500)', textAlign: 'center', padding: '0.25rem' }}>{displayVal(val)}</div>}
+                                      {img ? <img onLoad={handleProductImgLoad} src={optimizeImg(img, 120)} alt={displayVal(val)} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--stone-500)', textAlign: 'center', padding: '0.25rem' }}>{displayVal(val)}</div>}
                                     </div>
                                     <div className="color-swatch-tooltip">{displayVal(val)}</div>
                                   </div>
@@ -5664,7 +5678,7 @@
                       <div key={acc.sku_id} className="accessory-card-sf">
                         {acc.primary_image && (
                           <div className="accessory-card-sf-image">
-                            <img src={optimizeImg(acc.primary_image, 80)} alt={accLabel} width="48" height="48" loading="lazy" decoding="async" />
+                            <img onLoad={handleProductImgLoad} src={optimizeImg(acc.primary_image, 80)} alt={accLabel} width="48" height="48" loading="lazy" decoding="async" />
                           </div>
                         )}
                         <div className="accessory-card-sf-header">
@@ -6123,7 +6137,7 @@
                         {items.map(s => (
                           <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
                             <div className="sibling-card-image">
-                              {s.primary_image && <img src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
+                              {s.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
                             </div>
                             <div className="sibling-card-name">{s.product_name}</div>
                             {skuListPrice(s) && <div className="sibling-card-price">from ${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</div>}
@@ -6144,7 +6158,7 @@
                   {mainSiblings.map(s => (
                     <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
                       <div className="sibling-card-image">
-                        {s.primary_image && <img src={optimizeImg(s.primary_image, 400)} alt={formatVariantName(s.variant_name)} loading="lazy" decoding="async" />}
+                        {s.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 400)} alt={formatVariantName(s.variant_name)} loading="lazy" decoding="async" />}
                       </div>
                       <div className="sibling-card-name">{formatCarpetValue(s.variant_name) || 'Variant'}</div>
                       {s.attributes && s.attributes.length > 0 && (() => {
@@ -6176,7 +6190,7 @@
                     {collectionSiblings.map(s => (
                       <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
                         <div className="sibling-card-image">
-                          {s.primary_image && <img src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
+                          {s.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
                         </div>
                         <div className="sibling-card-name">{fullProductName(s)}</div>
                         {skuListPrice(s) && <div className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</div>}
@@ -6194,7 +6208,7 @@
                   {recentlyViewed.filter(r => r.sku_id !== skuId).slice(0, 8).map(s => (
                     <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
                       <div className="sibling-card-image">
-                        {s.primary_image && <img src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
+                        {s.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
                       </div>
                       <div className="sibling-card-name">{fullProductName(s)}</div>
                       {skuListPrice(s) && <div className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</div>}
@@ -7722,7 +7736,7 @@
                               {(sr.items || []).map(item => (
                                 <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
                                   {item.primary_image && (
-                                    <img src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 40, height: 40, objectFit: 'cover', border: '1px solid var(--stone-200)' }} loading="lazy" />
+                                    <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 40, height: 40, objectFit: 'cover', border: '1px solid var(--stone-200)' }} loading="lazy" />
                                   )}
                                   <div style={{ flex: 1 }}>
                                     <div style={{ fontWeight: 500 }}>{item.product_name}</div>
@@ -7755,7 +7769,7 @@
                                       const alreadyAdded = (sr.items || []).some(i => i.product_id === sku.product_id);
                                       return (
                                         <div key={sku.sku_id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
-                                          {sku.primary_image && <img src={optimizeImg(sku.primary_image, 100)} alt="" style={{ width: 32, height: 32, objectFit: 'cover' }} loading="lazy" />}
+                                          {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 100)} alt="" style={{ width: 32, height: 32, objectFit: 'cover' }} loading="lazy" />}
                                           <div style={{ flex: 1 }}>
                                             <div style={{ fontWeight: 500 }}>{sku.product_name || sku.collection}</div>
                                             {sku.variant_name && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{sku.variant_name}</div>}
@@ -7845,7 +7859,7 @@
                             {visitDetail.items.map(item => (
                               <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
                                 {item.primary_image && (
-                                  <img src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 48, height: 48, objectFit: 'cover', border: '1px solid var(--stone-200)' }} loading="lazy" />
+                                  <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 48, height: 48, objectFit: 'cover', border: '1px solid var(--stone-200)' }} loading="lazy" />
                                 )}
                                 <div style={{ flex: 1 }}>
                                   <div style={{ fontWeight: 500 }}>{item.product_name}</div>
@@ -8007,7 +8021,7 @@
                     {recentlyViewed.slice(0, 6).map(rv => (
                       <div key={rv.sku_id} className="sibling-card" onClick={() => onSkuClick(rv.sku_id, rv.product_name)}>
                         <div className="sibling-card-image">
-                          {rv.primary_image && <img src={optimizeImg(rv.primary_image, 400)} alt={rv.product_name} loading="lazy" />}
+                          {rv.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(rv.primary_image, 400)} alt={rv.product_name} loading="lazy" />}
                         </div>
                         <div className="sibling-card-name">{fullProductName(rv)}</div>
                         {skuListPrice(rv) && <div className="sibling-card-price">${displayPrice(rv, skuListPrice(rv)).toFixed(2)}{priceSuffix(rv)}</div>}
@@ -8437,7 +8451,7 @@
                                       {(visitDetail.items || []).map((item, i) => (
                                         <tr key={i} style={{ borderBottom: '1px solid #e7e5e4' }}>
                                           <td style={{ padding: '0.5rem' }}>
-                                            {item.primary_image && <img src={optimizeImg(item.primary_image, 100)} alt="" style={{ width: 40, height: 40, objectFit: 'cover', border: '1px solid var(--stone-200)' }} loading="lazy" />}
+                                            {item.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt="" style={{ width: 40, height: 40, objectFit: 'cover', border: '1px solid var(--stone-200)' }} loading="lazy" />}
                                           </td>
                                           <td style={{ padding: '0.5rem' }}>
                                             <div style={{ fontWeight: 500 }}>{item.product_name}</div>
@@ -8543,7 +8557,7 @@
                         <div className="trade-fav-grid">
                           {col.items.map(item => (
                             <div key={item.id} className="trade-fav-item">
-                              {item.primary_image_url ? <img src={optimizeImg(item.primary_image_url, 400)} alt={item.product_name} loading="lazy" decoding="async" /> : <div style={{ height: 140, background: 'var(--stone-100)' }}></div>}
+                              {item.primary_image_url ? <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image_url, 400)} alt={item.product_name} loading="lazy" decoding="async" /> : <div style={{ height: 140, background: 'var(--stone-100)' }}></div>}
                               <div className="name">{item.product_name}</div>
                               <button className="btn" style={{ marginTop: '0.5rem', fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
                                 onClick={() => addToCart({ product_id: item.product_id, sku_id: item.sku_id, sqft_needed: 1, num_boxes: 1, unit_price: parseFloat(item.retail_price || item.price || 0), subtotal: parseFloat(item.retail_price || item.price || 0).toFixed(2) })}>Add to Cart</button>
@@ -8686,7 +8700,7 @@
               {collections.map(c => (
                 <div key={c.slug} className="collection-card" onClick={() => onCollectionClick(c.name)}>
                   <div className="collection-card-image">
-                    {c.image && <img src={optimizeImg(c.image, 400)} alt={c.name} loading="lazy" decoding="async" />}
+                    {c.image && <img onLoad={handleProductImgLoad} src={optimizeImg(c.image, 400)} alt={c.name} loading="lazy" decoding="async" />}
                   </div>
                   <div className="collection-card-info">
                     <div className="collection-card-name">{c.name}</div>
@@ -8916,7 +8930,7 @@
                     <div className="quiz-results-grid">
                       {results.slice(0, 8).map(sku => (
                         <div key={sku.sku_id} className="quiz-result-card" onClick={() => { onClose(); onSkuClick(sku.sku_id, sku.product_name); }}>
-                          {sku.primary_image && <img src={optimizeImg(sku.primary_image, 400)} alt={sku.product_name} loading="lazy" decoding="async" />}
+                          {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 400)} alt={sku.product_name} loading="lazy" decoding="async" />}
                           <div className="quiz-result-card-info">
                             <div className="quiz-result-card-name">{sku.product_name}</div>
                             <div className="quiz-result-card-price">{skuListPrice(sku) ? '$' + displayPrice(sku, skuListPrice(sku)).toFixed(2) + priceSuffix(sku) : ''}</div>
@@ -10011,7 +10025,7 @@
               <div key={item.id || idx} className="sku-card" style={{ cursor: item.sku_id ? 'pointer' : 'default' }}
                 onClick={() => item.sku_id && onSkuClick(item.sku_id, item.product_name)}>
                 <div className="sku-card-image">
-                  {item.primary_image && <img src={optimizeImg(item.primary_image, 400)} alt={item.product_name} loading="lazy" decoding="async" />}
+                  {item.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 400)} alt={item.product_name} loading="lazy" decoding="async" />}
                 </div>
                 <div className="sku-card-name">{fullProductName(item)}</div>
                 <div className="sku-card-price">
