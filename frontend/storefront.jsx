@@ -64,6 +64,19 @@
     function carpetSqftPrice(sqydPrice) {
       return (parseFloat(sqydPrice) / 9).toFixed(2);
     }
+    function formatSizeDim(val) {
+      if (!val || typeof val !== 'string') return val;
+      if (/^PATTERN$/i.test(val)) return 'Pattern';
+      const isFeet = /FT$/i.test(val);
+      const isEZ = /EZ$/i.test(val);
+      const cleaned = val.replace(/\s*(EZ|FT)\s*$/gi, '').trim();
+      const m = cleaned.match(/^(\d+(?:\.\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?(?:\/\d+)?)(.*)$/);
+      if (!m) return formatCarpetValue(val);
+      let d1 = m[1].replace(/\.00$/, ''), d2 = m[2].replace(/\.00$/, '');
+      const suffix = (m[3] || '').trim();
+      const unit = isFeet ? '\u2032' : '\u2033';
+      return d1 + unit + ' \u00d7 ' + d2 + unit + (suffix ? ' ' + suffix : '') + (isEZ ? ' Mosaic' : '');
+    }
     function formatCarpetValue(val) {
       if (!val || typeof val !== 'string') return val;
       // Fiber format: "PILE 100 NYLON" → "100% Nylon"
@@ -5010,7 +5023,7 @@
                       if (!sz || sizeMap.has(sz)) return;
                       // For this size, prefer same finish as current; fall back to any
                       const target = comboMap.get(sz + '|' + curFinishVal) || s.sku_id;
-                      sizeMap.set(sz, { label: sz, sku_id: target, is_current: sz === curSz, sort: extractSort(sz) });
+                      sizeMap.set(sz, { label: formatSizeDim(sz), sku_id: target, is_current: sz === curSz, sort: extractSort(sz) });
                     });
                     if (sizeMap.size > 1) {
                       collectionSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
@@ -5052,16 +5065,18 @@
                 let sibSizeItems = [];
                 if (mainSiblings.length > 0 && !showSizePills) {
                   const _getWidth = (attrs, vn) => { const wa = (attrs || []).find(a => a.slug === 'width'); if (wa) return parseFloat(wa.value); const m = (vn || '').match(/\b(\d+\.?\d*)\s*["″]/); return m ? parseFloat(m[1]) : null; };
+                  const _getSize = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
                   const _extractColor = (attrs, vn) => { const idx = (vn || '').lastIndexOf(','); if (idx > 0) return vn.substring(idx + 1).trim(); const ca = (attrs || []).find(a => a.slug === 'color'); if (ca) return ca.value; return null; };
                   const curW = _getWidth(sku.attributes, sku.variant_name);
                   const curC = _extractColor(sku.attributes, sku.variant_name);
-                  const dimItems = [{ sku_id: sku.sku_id, w: curW, c: curC, img: media && media[0] ? media[0].url : null, is_current: true }];
-                  mainSiblings.forEach(s => { dimItems.push({ sku_id: s.sku_id, w: _getWidth(s.attributes, s.variant_name), c: _extractColor(s.attributes, s.variant_name), img: s.primary_image || s.sku_image || null, is_current: false }); });
+                  const curSz = _getSize(sku.attributes);
+                  const dimItems = [{ sku_id: sku.sku_id, w: curW, sz: curSz, c: curC, img: media && media[0] ? media[0].url : null, is_current: true }];
+                  mainSiblings.forEach(s => { dimItems.push({ sku_id: s.sku_id, w: _getWidth(s.attributes, s.variant_name), sz: _getSize(s.attributes), c: _extractColor(s.attributes, s.variant_name), img: s.primary_image || s.sku_image || null, is_current: false }); });
                   const uniqueWidths = new Set(dimItems.filter(d => d.w).map(d => d.w));
                   if (uniqueWidths.size > 1 && curW) {
                     const sizeMap = new Map();
                     dimItems.forEach(d => { if (!d.w) return; const ex = sizeMap.get(d.w); if (!ex || d.is_current || (!ex.is_current && d.c === curC && !ex._cm)) { sizeMap.set(d.w, { ...d, _cm: d.c === curC }); } });
-                    sibSizeItems = [...sizeMap.values()].map(d => ({ label: d.w + '"', sku_id: d.sku_id, is_current: d.w === curW, sort: d.w, primary_image: d.img })).sort((a, b) => a.sort - b.sort);
+                    sibSizeItems = [...sizeMap.values()].map(d => ({ label: d.sz ? formatSizeDim(d.sz) : d.w + '\u2033', sku_id: d.sku_id, is_current: d.w === curW, sort: d.w, primary_image: d.img })).sort((a, b) => a.sort - b.sort);
                     if (colorItems.length > 0) {
                       const availableAtWidth = new Set(dimItems.filter(d => d.w === curW && d.c).map(d => normColor(d.c)));
                       colorItems = colorItems.filter(c => c.is_current || availableAtWidth.has(normColor(c.product_name)));
@@ -5080,18 +5095,13 @@
                 const showSibSizes = sibSizeItems.length > 0;
 
                 // If same-product siblings have 0-1 colors, use collection siblings as color options
-                // Skip if size pills are shown (sizes are separate products, not colors)
-                if (colorItems.length <= 1 && collectionSiblings.length > 0 && !showSizePills) {
-                  const siblingNameSet = new Set(collectionSiblings.map(s => s.product_name));
-                  // Only treat as roman variants if a sibling shares the same base name (e.g., "Coastwood" → "Coastwood II")
-                  const curBase = (sku.product_name || '').replace(ROMAN_REGEX, '').trim();
-                  const hasRomanSibling = [...siblingNameSet].some(n => hasRomanSuffix(n) && n.replace(ROMAN_REGEX, '').trim() === curBase);
-                  const sharesNameWithCurrent = siblingNameSet.has(sku.product_name);
-                  const treatAsColorVariants = hasRomanSibling || sharesNameWithCurrent || siblingNameSet.size <= 6;
-                  if (treatAsColorVariants) {
+                if (colorItems.length <= 1 && collectionSiblings.length > 0) {
+                  // Exclude accessory/trim siblings from color variant display
+                  const nonAccSiblings = collectionSiblings.filter(s => s.variant_type !== 'accessory');
+                  if (nonAccSiblings.length > 0) {
                     colorItems = [
                       { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: (media && media[0]) ? media[0].url : null, is_current: true },
-                      ...collectionSiblings
+                      ...nonAccSiblings
                     ].sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''));
                   }
                 }
@@ -5518,8 +5528,9 @@
                       // Clean size display: strip format qualifier when format pill is active
                       const displayVal = (val) => {
                         if (slug === 'size' && hasFormatPill) {
-                          return formatCarpetValue(val.replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, '').trim() || val);
+                          return formatSizeDim(val.replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, '').trim() || val);
                         }
+                        if (slug === 'size') return formatSizeDim(val);
                         return formatCarpetValue(val);
                       };
                       return (

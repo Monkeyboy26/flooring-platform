@@ -1,6 +1,7 @@
-(() => {
-  const { useState, useEffect, useRef, useCallback, useMemo } = React;
-  const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:3001" : `${window.location.protocol}//${window.location.hostname}:3001`;
+var StorefrontApp = (() => {
+  // frontend/storefront.jsx
+  var { useState, useEffect, useRef, useCallback, useMemo } = React;
+  var API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:3001" : `${window.location.protocol}//${window.location.hostname}:3001`;
   function getSessionId() {
     let id = localStorage.getItem("cart_session_id");
     if (!id) {
@@ -15,7 +16,7 @@
   function generateSlug(text) {
     return (text || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   }
-  const SITE_URL = "https://www.romaflooringdesigns.com";
+  var SITE_URL = "https://www.romaflooringdesigns.com";
   function updateSEO({ title, description, url, image }) {
     document.title = title || "Shop | Roma Flooring Designs";
     const setMeta = (selector, value) => {
@@ -63,6 +64,19 @@
   }
   function carpetSqftPrice(sqydPrice) {
     return (parseFloat(sqydPrice) / 9).toFixed(2);
+  }
+  function formatSizeDim(val) {
+    if (!val || typeof val !== "string") return val;
+    if (/^PATTERN$/i.test(val)) return "Pattern";
+    const isFeet = /FT$/i.test(val);
+    const isEZ = /EZ$/i.test(val);
+    const cleaned = val.replace(/\s*(EZ|FT)\s*$/gi, "").trim();
+    const m = cleaned.match(/^(\d+(?:\.\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?(?:\/\d+)?)(.*)$/);
+    if (!m) return formatCarpetValue(val);
+    let d1 = m[1].replace(/\.00$/, ""), d2 = m[2].replace(/\.00$/, "");
+    const suffix = (m[3] || "").trim();
+    const unit = isFeet ? "\u2032" : "\u2033";
+    return d1 + unit + " \xD7 " + d2 + unit + (suffix ? " " + suffix : "") + (isEZ ? " Mosaic" : "");
   }
   function formatCarpetValue(val) {
     if (!val || typeof val !== "string") return val;
@@ -163,8 +177,8 @@
     const srcSet = sizes.map((w) => `${optimizeImg(url, w)} ${w}w`).join(", ");
     return { srcSet };
   }
-  const RECENT_SEARCHES_KEY = "roma_recent_searches";
-  const MAX_RECENT_SEARCHES = 6;
+  var RECENT_SEARCHES_KEY = "roma_recent_searches";
+  var MAX_RECENT_SEARCHES = 6;
   function getRecentSearches() {
     try {
       return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || "[]");
@@ -195,7 +209,7 @@
       return text;
     }
   }
-  const STYLE_COLOR_MAP = {
+  var STYLE_COLOR_MAP = {
     // --- Blonde (light warm wood tones) ---
     "Akadia": "Blonde",
     "Austell Grove": "Blonde",
@@ -538,7 +552,7 @@
     "Select": null,
     "Uplifted": null
   };
-  const NON_COLOR_VALUES = /* @__PURE__ */ new Set([
+  var NON_COLOR_VALUES = /* @__PURE__ */ new Set([
     "wall",
     "gloss wall",
     "gloss",
@@ -568,7 +582,7 @@
     "up",
     "uplifted"
   ]);
-  const COLOR_FAMILIES = {
+  var COLOR_FAMILIES = {
     "White": { hex: "#f5f5f0", keywords: ["white", "ivory", "cream", "snow", "pearl", "alabaster", "frost", "arctic", "bright white", "blanc", "bianco", "bianca", "blanco", "calacatta", "carrara", "chalk", "dolomite", "thassos", "perla", "perle", "opal"] },
     "Gray": { hex: "#9e9e9e", keywords: ["gray", "grey", "charcoal", "silver", "slate", "ash", "smoke", "graphite", "pewter", "cement", "concrete", "fog", "grigio", "gris", "cenere", "steel", "platinum", "basalt", "mist", "dove", "bardiglio", "greige", "lead", "cloud", "anthracite", "antracita", "argento", "nickel", "pebble", "marengo", "flint", "shale"] },
     "Beige": { hex: "#d4c5a9", keywords: ["beige", "tan", "sand", "taupe", "khaki", "linen", "wheat", "bone", "champagne", "natural", "almond", "buff", "crema", "avorio", "fawn", "biscuit", "dune", "ecru", "oyster", "vanilla", "nude", "bamboo", "lino", "marfil", "sabbia", "creme", "clay", "putty", "latte", "fossil", "travertine", "parchment"] },
@@ -609,8 +623,8 @@
       return formatted.trim();
     }).join(" \u2014 ");
   }
-  const ROMAN_VAL = { "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10 };
-  const ROMAN_REGEX = /\b(I{1,3}|IV|V(?:I{1,3})?|IX|X)\b(?=\s+\d|\s*$)/;
+  var ROMAN_VAL = { "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10 };
+  var ROMAN_REGEX = /\b(I{1,3}|IV|V(?:I{1,3})?|IX|X)\b(?=\s+\d|\s*$)/;
   function hasRomanSuffix(name) {
     if (!name) return false;
     const m = name.match(ROMAN_REGEX);
@@ -627,7 +641,7 @@
     if (!m) return name;
     return name.substring(m.index).trim();
   }
-  const _CATEGORY_SUFFIX_MAP = {
+  var _CATEGORY_SUFFIX_MAP = {
     "engineered hardwood": "Engineered Hardwood",
     "solid hardwood": "Solid Hardwood",
     "hardwood": "Hardwood",
@@ -907,7 +921,7 @@
     }
     return React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "2px" } }, stars);
   }
-  let stripeInstance = null;
+  var stripeInstance = null;
   (async () => {
     if (typeof Stripe === "undefined") return;
     try {
@@ -919,7 +933,7 @@
       console.warn("Failed to load Stripe key:", e);
     }
   })();
-  let _placesPromise = null;
+  var _placesPromise = null;
   function loadGooglePlaces(apiKey) {
     if (_placesPromise) return _placesPromise;
     if (window.google && window.google.maps && window.google.maps.places) {
@@ -939,7 +953,7 @@
     });
     return _placesPromise;
   }
-  class ErrorBoundary extends React.Component {
+  var ErrorBoundary = class extends React.Component {
     constructor(props) {
       super(props);
       this.state = { hasError: false, errorMsg: "" };
@@ -972,7 +986,7 @@
       }
       return this.props.children;
     }
-  }
+  };
   function useRevealOnScroll(options = {}) {
     const ref = useRef(null);
     const [isVisible, setIsVisible] = useState(false);
@@ -3863,7 +3877,7 @@
             const sz = extractDims(s.product_name);
             if (!sz || sizeMap.has(sz)) return;
             const target = comboMap.get(sz + "|" + curFinishVal) || s.sku_id;
-            sizeMap.set(sz, { label: sz, sku_id: target, is_current: sz === curSz, sort: extractSort(sz) });
+            sizeMap.set(sz, { label: formatSizeDim(sz), sku_id: target, is_current: sz === curSz, sort: extractSort(sz) });
           });
           if (sizeMap.size > 1) {
             collectionSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
@@ -3912,6 +3926,10 @@
           const m = (vn || "").match(/\b(\d+\.?\d*)\s*["″]/);
           return m ? parseFloat(m[1]) : null;
         };
+        const _getSize = (attrs) => {
+          const sa = (attrs || []).find((a) => a.slug === "size");
+          return sa ? sa.value : null;
+        };
         const _extractColor = (attrs, vn) => {
           const idx = (vn || "").lastIndexOf(",");
           if (idx > 0) return vn.substring(idx + 1).trim();
@@ -3921,9 +3939,10 @@
         };
         const curW = _getWidth(sku.attributes, sku.variant_name);
         const curC = _extractColor(sku.attributes, sku.variant_name);
-        const dimItems = [{ sku_id: sku.sku_id, w: curW, c: curC, img: media && media[0] ? media[0].url : null, is_current: true }];
+        const curSz = _getSize(sku.attributes);
+        const dimItems = [{ sku_id: sku.sku_id, w: curW, sz: curSz, c: curC, img: media && media[0] ? media[0].url : null, is_current: true }];
         mainSiblings.forEach((s) => {
-          dimItems.push({ sku_id: s.sku_id, w: _getWidth(s.attributes, s.variant_name), c: _extractColor(s.attributes, s.variant_name), img: s.primary_image || s.sku_image || null, is_current: false });
+          dimItems.push({ sku_id: s.sku_id, w: _getWidth(s.attributes, s.variant_name), sz: _getSize(s.attributes), c: _extractColor(s.attributes, s.variant_name), img: s.primary_image || s.sku_image || null, is_current: false });
         });
         const uniqueWidths = new Set(dimItems.filter((d) => d.w).map((d) => d.w));
         if (uniqueWidths.size > 1 && curW) {
@@ -3935,7 +3954,7 @@
               sizeMap.set(d.w, { ...d, _cm: d.c === curC });
             }
           });
-          sibSizeItems = [...sizeMap.values()].map((d) => ({ label: d.w + '"', sku_id: d.sku_id, is_current: d.w === curW, sort: d.w, primary_image: d.img })).sort((a, b) => a.sort - b.sort);
+          sibSizeItems = [...sizeMap.values()].map((d) => ({ label: d.sz ? formatSizeDim(d.sz) : d.w + "\u2033", sku_id: d.sku_id, is_current: d.w === curW, sort: d.w, primary_image: d.img })).sort((a, b) => a.sort - b.sort);
           if (colorItems.length > 0) {
             const availableAtWidth = new Set(dimItems.filter((d) => d.w === curW && d.c).map((d) => normColor(d.c)));
             colorItems = colorItems.filter((c) => c.is_current || availableAtWidth.has(normColor(c.product_name)));
@@ -3965,16 +3984,12 @@
         }
       }
       const showSibSizes = sibSizeItems.length > 0;
-      if (colorItems.length <= 1 && collectionSiblings.length > 0 && !showSizePills) {
-        const siblingNameSet = new Set(collectionSiblings.map((s) => s.product_name));
-        const curBase = (sku.product_name || "").replace(ROMAN_REGEX, "").trim();
-        const hasRomanSibling = [...siblingNameSet].some((n) => hasRomanSuffix(n) && n.replace(ROMAN_REGEX, "").trim() === curBase);
-        const sharesNameWithCurrent = siblingNameSet.has(sku.product_name);
-        const treatAsColorVariants = hasRomanSibling || sharesNameWithCurrent || siblingNameSet.size <= 6;
-        if (treatAsColorVariants) {
+      if (colorItems.length <= 1 && collectionSiblings.length > 0) {
+        const nonAccSiblings = collectionSiblings.filter((s) => s.variant_type !== "accessory");
+        if (nonAccSiblings.length > 0) {
           colorItems = [
             { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: media && media[0] ? media[0].url : null, is_current: true },
-            ...collectionSiblings
+            ...nonAccSiblings
           ].sort((a, b) => (a.product_name || "").localeCompare(b.product_name || ""));
         }
       }
@@ -4288,8 +4303,9 @@
         };
         const displayVal = (val) => {
           if (slug === "size" && hasFormatPill) {
-            return formatCarpetValue(val.replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, "").trim() || val);
+            return formatSizeDim(val.replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, "").trim() || val);
           }
+          if (slug === "size") return formatSizeDim(val);
           return formatCarpetValue(val);
         };
         return /* @__PURE__ */ React.createElement("div", { key: slug, className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, slug === "finish" && attrMap["countertop_finish"] ? "Cabinet Color" : slug === "countertop_finish" ? "Countertop" : attrMap[slug].name, /* @__PURE__ */ React.createElement("span", null, displayVal(currentVal || ""))), useImageSwatches ? /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, allValues.map((val) => {
