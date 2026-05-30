@@ -87,7 +87,7 @@ const VALID_ASSET_TYPES = ['primary', 'alternate', 'lifestyle', 'spec_pdf', 'swa
  * `cleaned` contains sanitized values; `warnings` lists issues that were auto-fixed.
  * Throws on critical errors (missing required fields).
  */
-export function validateProduct({ vendor_id, name, collection, category_id, description_short, description_long }) {
+export function validateProduct({ vendor_id, name, collection, category_id, brand_id, description_short, description_long }) {
   const warnings = [];
 
   if (!vendor_id) throw new Error('validateProduct: vendor_id is required');
@@ -109,7 +109,7 @@ export function validateProduct({ vendor_id, name, collection, category_id, desc
   return {
     valid: true,
     warnings,
-    cleaned: { vendor_id, name: cleanName, collection: cleanCollection, category_id: category_id || null, description_short: description_short || null, description_long: description_long || null }
+    cleaned: { vendor_id, name: cleanName, collection: cleanCollection, category_id: category_id || null, brand_id: brand_id || null, description_short: description_short || null, description_long: description_long || null }
   };
 }
 
@@ -256,34 +256,36 @@ export async function upsertProduct(pool, rawData, opts = {}) {
     logValidationWarnings(pool, opts.jobId, cleaned.name, warnings).catch(() => {});
   }
 
-  const { vendor_id, name, collection, category_id, description_short, description_long } = cleaned;
+  const { vendor_id, name, collection, category_id, brand_id, description_short, description_long } = cleaned;
   const slug = slugify((collection || '') + ' ' + name) || null;
   let result;
   try {
     result = await pool.query(`
-      INSERT INTO products (vendor_id, name, collection, category_id, status, description_short, description_long, slug)
-      VALUES ($1, $2, $3, $4, 'draft', $5, $6, $7)
+      INSERT INTO products (vendor_id, name, collection, category_id, brand_id, status, description_short, description_long, slug)
+      VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8)
       ON CONFLICT ON CONSTRAINT products_vendor_collection_name_unique DO UPDATE SET
         category_id = COALESCE(EXCLUDED.category_id, products.category_id),
+        brand_id = COALESCE(EXCLUDED.brand_id, products.brand_id),
         description_short = COALESCE(EXCLUDED.description_short, products.description_short),
         description_long = COALESCE(EXCLUDED.description_long, products.description_long),
         slug = COALESCE(products.slug, EXCLUDED.slug),
         updated_at = CURRENT_TIMESTAMP
       RETURNING id, (xmax = 0) AS is_new
-    `, [vendor_id, name, collection || '', category_id || null, description_short || null, description_long || null, slug]);
+    `, [vendor_id, name, collection || '', category_id || null, brand_id || null, description_short || null, description_long || null, slug]);
   } catch (err) {
     // Slug collision — retry without slug (will be assigned by backfill script)
     if (err.code === '23505' && err.constraint === 'products_slug_unique') {
       result = await pool.query(`
-        INSERT INTO products (vendor_id, name, collection, category_id, status, description_short, description_long)
-        VALUES ($1, $2, $3, $4, 'draft', $5, $6)
+        INSERT INTO products (vendor_id, name, collection, category_id, brand_id, status, description_short, description_long)
+        VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7)
         ON CONFLICT ON CONSTRAINT products_vendor_collection_name_unique DO UPDATE SET
           category_id = COALESCE(EXCLUDED.category_id, products.category_id),
+          brand_id = COALESCE(EXCLUDED.brand_id, products.brand_id),
           description_short = COALESCE(EXCLUDED.description_short, products.description_short),
           description_long = COALESCE(EXCLUDED.description_long, products.description_long),
           updated_at = CURRENT_TIMESTAMP
         RETURNING id, (xmax = 0) AS is_new
-      `, [vendor_id, name, collection || '', category_id || null, description_short || null, description_long || null]);
+      `, [vendor_id, name, collection || '', category_id || null, brand_id || null, description_short || null, description_long || null]);
     } else {
       throw err;
     }
@@ -292,6 +294,25 @@ export async function upsertProduct(pool, rawData, opts = {}) {
   const productId = result.rows[0].id;
   pool.query('SELECT refresh_search_vectors($1)', [productId]).catch(() => {});
   return result.rows[0];
+}
+
+/**
+ * Resolve a brand_id from a brand code or name.
+ * Uses an in-memory cache to avoid repeated DB lookups.
+ * Returns UUID or null if not found.
+ */
+const _brandCache = new Map();
+export async function resolveBrandId(pool, codeOrName) {
+  if (!codeOrName) return null;
+  const key = codeOrName.trim().toUpperCase();
+  if (_brandCache.has(key)) return _brandCache.get(key);
+  const result = await pool.query(
+    `SELECT id FROM brands WHERE UPPER(code) = $1 OR UPPER(name) = $1 LIMIT 1`,
+    [key]
+  );
+  const id = result.rows.length ? result.rows[0].id : null;
+  _brandCache.set(key, id);
+  return id;
 }
 
 /**

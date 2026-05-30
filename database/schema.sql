@@ -12,6 +12,28 @@ CREATE TABLE vendors (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ==================== Brands ====================
+
+CREATE TABLE brands (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    code TEXT UNIQUE NOT NULL,
+    logo_url TEXT,
+    website TEXT,
+    description TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_brands_code ON brands(code);
+
+CREATE TABLE vendor_brands (
+    vendor_id UUID NOT NULL REFERENCES vendors(id),
+    brand_id UUID NOT NULL REFERENCES brands(id),
+    is_primary BOOLEAN DEFAULT false,
+    PRIMARY KEY (vendor_id, brand_id)
+);
+
 CREATE TABLE categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     parent_id UUID REFERENCES categories(id),
@@ -38,10 +60,12 @@ CREATE TABLE products (
     description_short TEXT,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    brand_id UUID REFERENCES brands(id),
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX products_slug_unique ON products (slug) WHERE slug IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id);
 
 CREATE TABLE skus (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -1475,6 +1499,9 @@ BEGIN
     setweight(to_tsvector('english', unaccent(coalesce(p.name, ''))), 'A') ||
     setweight(to_tsvector('english', unaccent(coalesce(p.collection, ''))), 'A') ||
     setweight(to_tsvector('english', unaccent(coalesce(v.name, ''))), 'B') ||
+    -- Brand name at weight B (falls back to vendor name if no brand)
+    setweight(to_tsvector('english', unaccent(coalesce(
+      (SELECT br.name FROM brands br WHERE br.id = p.brand_id), ''))), 'B') ||
     setweight(to_tsvector('english', unaccent(coalesce(
       (SELECT c.name FROM categories c WHERE c.id = p.category_id), ''))), 'B') ||
     -- Variant names (e.g. "French Oak Natural") at weight B
@@ -1556,6 +1583,9 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS search_vocabulary AS
     UNION
     -- Vendor names (split into words)
     SELECT UNNEST(string_to_array(LOWER(name), ' ')) as term FROM vendors
+    UNION
+    -- Brand names (split into words)
+    SELECT UNNEST(string_to_array(LOWER(name), ' ')) as term FROM brands WHERE is_active = true
     UNION
     -- Variant names (split into words)
     SELECT UNNEST(string_to_array(LOWER(variant_name), ' ')) as term FROM skus WHERE status = 'active' AND variant_name IS NOT NULL AND variant_name != ''
@@ -1729,7 +1759,7 @@ ALTER TABLE skus ADD CONSTRAINT skus_status_check
 
 ALTER TABLE skus DROP CONSTRAINT IF EXISTS skus_sell_by_check;
 ALTER TABLE skus ADD CONSTRAINT skus_sell_by_check
-  CHECK (sell_by IN ('box', 'unit', 'roll'));
+  CHECK (sell_by IN ('box', 'unit', 'roll', 'sqft'));
 
 ALTER TABLE skus DROP CONSTRAINT IF EXISTS skus_variant_type_check;
 ALTER TABLE skus ADD CONSTRAINT skus_variant_type_check
@@ -1816,7 +1846,7 @@ $$ LANGUAGE plpgsql;
 -- Trigger on products: refresh when name, collection, category, or description changes
 DROP TRIGGER IF EXISTS trg_products_search_vector ON products;
 CREATE TRIGGER trg_products_search_vector
-  AFTER UPDATE OF name, collection, category_id, description_short ON products
+  AFTER UPDATE OF name, collection, category_id, description_short, brand_id ON products
   FOR EACH ROW EXECUTE FUNCTION trigger_refresh_search_vector();
 
 -- Trigger on skus: refresh when variant_name or status changes
@@ -1884,6 +1914,8 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS sku_quality_scores AS
     p.collection,
     v.name AS vendor_name,
     v.code AS vendor_code,
+    COALESCE(br.name, v.name) AS brand_name,
+    br.code AS brand_code,
     c.slug AS category_slug,
     c.name AS category_name,
     -- Individual scores (0 or 1)
@@ -1940,6 +1972,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS sku_quality_scores AS
   FROM skus s
   JOIN products p ON p.id = s.product_id
   JOIN vendors v ON v.id = p.vendor_id
+  LEFT JOIN brands br ON br.id = p.brand_id
   LEFT JOIN categories c ON c.id = p.category_id
   LEFT JOIN pricing pr ON pr.sku_id = s.id
   LEFT JOIN packaging pk ON pk.sku_id = s.id

@@ -3643,7 +3643,7 @@
             /* Info */
             React.createElement('div', { className: 'rc-qv-info' },
               loading ? React.createElement('div', { className: 'loading' }, 'Loading...') : product ? React.createElement(React.Fragment, null,
-                React.createElement('div', { className: 'rc-qv-vendor' }, product.vendor_name),
+                React.createElement('div', { className: 'rc-qv-vendor' }, product.brand_name || product.vendor_name),
                 React.createElement('div', { className: 'rc-qv-title' }, product.name),
                 React.createElement('div', { className: 'rc-qv-meta' },
                   [product.collection, product.category_name].filter(Boolean).join(' \u2022 '),
@@ -3950,7 +3950,7 @@
             p.primary_image ?
               React.createElement('img', { src: optimizeImg(p.primary_image, 500), alt: '', loading: 'lazy' }) :
               React.createElement('div', { className: 'rc-no-img' }, 'No Image'),
-            React.createElement('span', { className: 'rc-vendor-badge' }, p.vendor_name),
+            React.createElement('span', { className: 'rc-vendor-badge' }, p.brand_name || p.vendor_name),
             React.createElement('span', { className: 'rc-stock-dot ' + (p.stock_status || 'unknown'), title: (p.stock_status || 'unknown').replace('_', ' ') })
           ),
           React.createElement('div', { className: 'rc-card-body' },
@@ -4088,7 +4088,7 @@
                       React.createElement('tr', null,
                         React.createElement('th', { style: { width: '56px' } }),
                         React.createElement('th', { onClick: () => handleSort('name') }, 'Product', React.createElement('span', { className: 'rc-sort-arrow' }, sortArrow('name'))),
-                        React.createElement('th', null, 'Vendor'),
+                        React.createElement('th', null, 'Brand'),
                         React.createElement('th', { onClick: () => handleSort('price') }, 'Retail', React.createElement('span', { className: 'rc-sort-arrow' }, sortArrow('price'))),
                         showCost && React.createElement('th', null, 'Cost'),
                         showCost && React.createElement('th', { onClick: () => handleSort('margin') }, 'Margin', React.createElement('span', { className: 'rc-sort-arrow' }, sortArrow('margin'))),
@@ -4109,7 +4109,7 @@
                             React.createElement('div', { className: 'rc-table-name' }, p.name),
                             p.collection && React.createElement('div', { className: 'rc-table-coll' }, p.collection)
                           ),
-                          React.createElement('td', { style: { color: 'var(--stone-500)' } }, p.vendor_name),
+                          React.createElement('td', { style: { color: 'var(--stone-500)' } }, p.brand_name || p.vendor_name),
                           React.createElement('td', { style: { fontWeight: 500 } }, p.price ? '$' + parseFloat(p.price).toFixed(2) : '\u2014', p.price && React.createElement('span', { style: { fontSize: '0.7rem', color: 'var(--stone-500)', marginLeft: '0.15rem' } }, unitLabel(p.sell_by))),
                           showCost && React.createElement('td', { style: { color: 'var(--stone-500)' } }, p.cost ? '$' + parseFloat(p.cost).toFixed(2) : '\u2014'),
                           showCost && React.createElement('td', null,

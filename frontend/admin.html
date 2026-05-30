@@ -1456,6 +1456,7 @@
         { key: 'customers', label: 'Customers', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', roles: ['admin', 'manager'] },
         { key: 'vendors', label: 'Vendors', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', roles: ['admin', 'manager'] },
+        { key: 'brands', label: 'Brands', icon: 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z', roles: ['admin', 'manager'] },
         { key: 'categories', label: 'Categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z', roles: ['admin', 'manager'] },
         { key: 'pipelines', label: 'Pipelines', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9', roles: ['admin', 'manager'] },
         { key: 'trade', label: 'Trade', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'manager', 'sales_rep'] },
@@ -1475,6 +1476,7 @@
                           view === 'purchase-orders' || view === 'purchase-order-detail' ? 'purchase-orders' :
                           view.split('-')[0] === 'product' ? 'products' :
                           view.split('-')[0] === 'vendor' ? 'vendors' :
+                          view.split('-')[0] === 'brand' ? 'brands' :
                           view.split('-')[0] === 'category' ? 'categories' :
                           view.split('-')[0] === 'customer' ? 'customers' :
                           view.split('-')[0] === 'order' ? 'orders' :
@@ -1539,6 +1541,9 @@
             {view === 'vendors' && <VendorsListView navigate={navigate} />}
             {view === 'vendor-create' && <VendorFormView navigate={navigate} />}
             {view === 'vendor-edit' && <VendorFormView navigate={navigate} editId={editId} />}
+            {view === 'brands' && <BrandsListView navigate={navigate} />}
+            {view === 'brand-create' && <BrandFormView navigate={navigate} />}
+            {view === 'brand-edit' && <BrandFormView navigate={navigate} editId={editId} />}
             {view === 'categories' && <CategoriesListView navigate={navigate} />}
             {view === 'category-create' && <CategoryFormView navigate={navigate} />}
             {view === 'category-edit' && <CategoryFormView navigate={navigate} editId={editId} />}
@@ -2226,6 +2231,7 @@
               <tr>
                 <th style={{ width: '40px' }}><input type="checkbox" checked={allSelected} onChange={toggleAll} /></th>
                 <SortHeader col="vendor">Vendor</SortHeader>
+                <th>Brand</th>
                 <SortHeader col="name">Name</SortHeader>
                 <SortHeader col="category">Category</SortHeader>
                 <SortHeader col="price">Price</SortHeader>
@@ -2251,6 +2257,7 @@
                 <tr key={p.id}>
                   <td><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} /></td>
                   <td>{p.vendor_name || '—'}</td>
+                  <td style={{ fontSize: '0.8125rem' }}>{p.brand_name || '—'}</td>
                   <td style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                     {p.primary_image ? (
                       <img src={optimizeImg(p.primary_image, 100)} alt="" style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px', flexShrink: 0 }} loading="lazy" />
@@ -2279,7 +2286,7 @@
                 );
               })}
               {products.length === 0 && (
-                <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No products found</td></tr>
+                <tr><td colSpan="10" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No products found</td></tr>
               )}
             </tbody>
           </table>
@@ -2329,10 +2336,11 @@
 
     // ========== ProductFormView ==========
     function ProductFormView({ navigate, editId }) {
-      const [form, setForm] = useState({ name: '', collection: '', vendor_id: '', category_id: '', status: 'draft', description_short: '', description_long: '' });
+      const [form, setForm] = useState({ name: '', collection: '', vendor_id: '', brand_id: '', category_id: '', status: 'draft', description_short: '', description_long: '' });
       const [skus, setSkus] = useState([]);
       const [media, setMedia] = useState([]);
       const [vendors, setVendors] = useState([]);
+      const [brands, setBrands] = useState([]);
       const [categories, setCategories] = useState([]);
       const [loading, setLoading] = useState(!!editId);
       const [saving, setSaving] = useState(false);
@@ -2343,6 +2351,7 @@
 
       useEffect(() => {
         adminFetch('/api/admin/vendors').then(d => setVendors(d.vendors || [])).catch(() => {});
+        adminFetch('/api/admin/brands').then(d => setBrands(d.brands || [])).catch(() => {});
         adminFetch('/api/admin/categories').then(d => setCategories(d.flat || [])).catch(() => {});
         adminFetch('/api/admin/tags').then(d => { setAllTags(d.tags || []); setTagGrouped(d.grouped || {}); }).catch(() => {});
 
@@ -2354,6 +2363,7 @@
                 name: p.name || '',
                 collection: p.collection || '',
                 vendor_id: p.vendor_id || '',
+                brand_id: p.brand_id || '',
                 category_id: p.category_id || '',
                 status: p.status || 'draft',
                 description_short: p.description_short || '',
@@ -2508,6 +2518,13 @@
                 <select value={form.vendor_id} onChange={e => updateForm('vendor_id', e.target.value)}>
                   <option value="">Select vendor...</option>
                   {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Brand</label>
+                <select value={form.brand_id} onChange={e => updateForm('brand_id', e.target.value)}>
+                  <option value="">Select brand...</option>
+                  {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
               <div className="form-group">
@@ -3450,6 +3467,156 @@
               <div className="form-group full">
                 <label>Email</label>
                 <input type="email" value={form.email} onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))} placeholder="orders@vendor.com" />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== BrandsListView ==========
+    function BrandsListView({ navigate }) {
+      const [brands, setBrands] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      const load = () => {
+        setLoading(true);
+        adminFetch('/api/admin/brands')
+          .then(data => { setBrands(data.brands || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      useEffect(load, []);
+
+      const toggleActive = (id) => {
+        adminFetch('/api/admin/brands/' + id + '/toggle', { method: 'PATCH' })
+          .then(data => {
+            if (data.brand) {
+              setBrands(prev => prev.map(b => b.id === id ? { ...b, is_active: data.brand.is_active } : b));
+            }
+          })
+          .catch(() => {});
+      };
+
+      if (loading) return <div className="loading">Loading brands...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Brands</h1>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="btn btn-primary" onClick={() => navigate('brand-create')}>+ Add Brand</button>
+            </div>
+          </div>
+          <div className="table-scroll-wrapper">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Code</th>
+                <th>Website</th>
+                <th>Products</th>
+                <th>Active</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {brands.map(b => (
+                <tr key={b.id}>
+                  <td style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {b.logo_url && <img src={b.logo_url} alt="" style={{ width: '24px', height: '24px', objectFit: 'contain', borderRadius: '4px' }} />}
+                    {b.name}
+                  </td>
+                  <td><code style={{ fontSize: '0.8125rem', background: 'var(--stone-100)', padding: '0.15rem 0.4rem' }}>{b.code}</code></td>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{b.website || '—'}</td>
+                  <td>{b.product_count}</td>
+                  <td>
+                    <div className={'toggle' + (b.is_active ? ' on' : '')} onClick={() => toggleActive(b.id)} />
+                  </td>
+                  <td className="actions">
+                    <button className="btn btn-secondary btn-sm" onClick={() => navigate('brand-edit', b.id)}>Edit</button>
+                  </td>
+                </tr>
+              ))}
+              {brands.length === 0 && (
+                <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No brands found</td></tr>
+              )}
+            </tbody>
+          </table>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== BrandFormView ==========
+    function BrandFormView({ navigate, editId }) {
+      const [form, setForm] = useState({ name: '', code: '', website: '', logo_url: '', description: '' });
+      const [loading, setLoading] = useState(!!editId);
+      const [saving, setSaving] = useState(false);
+
+      useEffect(() => {
+        if (editId) {
+          adminFetch('/api/admin/brands')
+            .then(data => {
+              const b = (data.brands || []).find(b => b.id === editId);
+              if (b) setForm({ name: b.name || '', code: b.code || '', website: b.website || '', logo_url: b.logo_url || '', description: b.description || '' });
+              setLoading(false);
+            })
+            .catch(() => setLoading(false));
+        }
+      }, [editId]);
+
+      const handleSave = async () => {
+        if (!form.name.trim() || !form.code.trim()) { alert('Name and code are required'); return; }
+        setSaving(true);
+        try {
+          if (editId) {
+            await adminFetch('/api/admin/brands/' + editId, { method: 'PUT', body: JSON.stringify(form) });
+          } else {
+            await adminFetch('/api/admin/brands', { method: 'POST', body: JSON.stringify(form) });
+          }
+          navigate('brands');
+        } catch (err) {
+          alert('Save failed: ' + err.message);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      if (loading) return <div className="loading">Loading brand...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>{editId ? 'Edit Brand' : 'New Brand'}</h1>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="btn btn-secondary" onClick={() => navigate('brands')}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Brand'}
+              </button>
+            </div>
+          </div>
+          <div className="form-card">
+            <h3>Brand Details</h3>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Brand Name *</label>
+                <input value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g. Shaw Floors" />
+              </div>
+              <div className="form-group">
+                <label>Code *</label>
+                <input value={form.code} onChange={e => setForm(prev => ({ ...prev, code: e.target.value }))} placeholder="e.g. SHAW" />
+              </div>
+              <div className="form-group full">
+                <label>Website</label>
+                <input value={form.website} onChange={e => setForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
+              </div>
+              <div className="form-group full">
+                <label>Logo URL</label>
+                <input value={form.logo_url} onChange={e => setForm(prev => ({ ...prev, logo_url: e.target.value }))} placeholder="https://..." />
+              </div>
+              <div className="form-group full">
+                <label>Description</label>
+                <textarea value={form.description} onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))} rows="3" placeholder="Brief brand description..." />
               </div>
             </div>
           </div>

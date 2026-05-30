@@ -7,7 +7,8 @@ INSERT INTO vendors (id, name, code, website) VALUES
 ('550e8400-e29b-41d4-a716-446655440005', 'Marazzi', 'MZ', 'https://www.marazziusa.com'),
 ('550e8400-e29b-41d4-a716-446655440006', 'Elysium Tile', 'ELY', 'http://elysiumtile.com'),
 ('550e8400-e29b-41d4-a716-446655440007', 'Arizona Tile', 'AZT', 'https://www.arizonatile.com'),
-('550e8400-e29b-41d4-a716-446655440008', 'Tri-West', 'TW', 'https://www.triwestltd.com')
+('550e8400-e29b-41d4-a716-446655440008', 'Tri-West', 'TW', 'https://www.triwestltd.com'),
+('550e8400-e29b-41d4-a716-446655440009', 'Roca USA', 'ROCA', 'https://rocatileusa.com')
 ON CONFLICT DO NOTHING;
 
 -- Categories: 8 parents + 27 children (full MSI catalog)
@@ -947,5 +948,98 @@ INSERT INTO vendor_sources (vendor_id, source_type, name, base_url, config, scra
 ('550e8400-e29b-41d4-a716-446655440008', 'website', 'Citywide LVT', 'https://www.citywidelvt.com', '{}', 'triwest-citywide', '0 4 1 * *', true),
 ('550e8400-e29b-41d4-a716-446655440008', 'website', 'AHF Contract', 'https://www.ahfcontract.com', '{}', 'triwest-ahf', '0 4 1 * *', true),
 ('550e8400-e29b-41d4-a716-446655440008', 'website', 'Flexco', 'https://www.flexcofloors.com', '{}', 'triwest-flexco', '0 4 1 * *', true),
-('550e8400-e29b-41d4-a716-446655440008', 'website', 'Opulux', 'https://www.opuluxfloors.com', '{}', 'triwest-opulux', '0 4 1 * *', true)
+('550e8400-e29b-41d4-a716-446655440008', 'website', 'Opulux', 'https://www.opuluxfloors.com', '{}', 'triwest-opulux', '0 4 1 * *', true),
+-- Roca USA — image & description enrichment from rocatileusa.com
+('550e8400-e29b-41d4-a716-446655440009', 'website', 'Roca USA', 'https://rocatileusa.com', '{}', 'roca', '0 4 1 * *', true)
 ON CONFLICT DO NOTHING;
+
+-- ==================== Brands ====================
+
+-- Single-brand vendors (brand code matches vendor code)
+INSERT INTO brands (id, name, code, website) VALUES
+('c00e0000-0000-0000-0000-000000000001', 'MSI Surfaces', 'MSI', 'https://www.msisurfaces.com'),
+('c00e0000-0000-0000-0000-000000000002', 'Bedrosians', 'BEDRO', 'https://www.bedrosians.com'),
+('c00e0000-0000-0000-0000-000000000006', 'Elysium Tile', 'ELY', 'http://elysiumtile.com'),
+('c00e0000-0000-0000-0000-000000000007', 'Arizona Tile', 'AZT', 'https://www.arizonatile.com'),
+('c00e0000-0000-0000-0000-000000000009', 'Roca USA', 'ROCA', 'https://rocatileusa.com'),
+-- Daltile family (3 brands, one ordering portal)
+('c00e0000-0000-0000-0000-000000000003', 'Daltile', 'DAL', 'https://www.daltile.com'),
+('c00e0000-0000-0000-0000-000000000004', 'American Olean', 'AO', 'https://www.americanolean.com'),
+('c00e0000-0000-0000-0000-000000000005', 'Marazzi', 'MZ', 'https://www.marazziusa.com'),
+-- Tri-West sub-brands
+('c00e0000-0000-0000-0000-000000000010', 'Provenza', 'PRO', 'https://www.provenzafloors.com'),
+('c00e0000-0000-0000-0000-000000000011', 'Quick-Step', 'UNL', 'https://www.us.quick-step.com'),
+('c00e0000-0000-0000-0000-000000000012', 'California Classics', 'CAL', 'https://www.californiaclassicsfloors.com'),
+('c00e0000-0000-0000-0000-000000000013', 'Shaw', 'SHA', NULL),
+('c00e0000-0000-0000-0000-000000000014', 'Armstrong', 'ARM', 'https://www.armstrongflooring.com'),
+('c00e0000-0000-0000-0000-000000000015', 'Stanton', 'STX', NULL),
+('c00e0000-0000-0000-0000-000000000016', 'Paradigm', 'PAF', 'https://www.paradigmflooring.net'),
+('c00e0000-0000-0000-0000-000000000017', 'Mirage', 'MIR', 'https://www.miragefloors.com'),
+('c00e0000-0000-0000-0000-000000000018', 'Metroflor', 'MET', 'https://www.metroflor.com'),
+('c00e0000-0000-0000-0000-000000000019', 'Kraus', 'KRA', NULL),
+('c00e0000-0000-0000-0000-000000000020', 'Congoleum', 'CON', NULL),
+('c00e0000-0000-0000-0000-000000000021', 'Bruce', 'BRK', NULL),
+('c00e0000-0000-0000-0000-000000000022', 'Hartco', 'HFD', 'https://www.hartco.com'),
+('c00e0000-0000-0000-0000-000000000023', 'Flexco', 'FXO', 'https://www.flexcofloors.com'),
+('c00e0000-0000-0000-0000-000000000024', 'Sika', 'SIK', NULL),
+('c00e0000-0000-0000-0000-000000000025', 'TEC', 'TEC', NULL),
+('c00e0000-0000-0000-0000-000000000026', 'Babool', 'BBL', NULL),
+('c00e0000-0000-0000-0000-000000000027', 'Bravada', 'BRA', 'https://www.bravadahardwood.com'),
+('c00e0000-0000-0000-0000-000000000028', 'True Touch', 'TTF', 'https://www.truetouchfloors.com'),
+('c00e0000-0000-0000-0000-000000000029', 'Grand Pacific', 'MPG', 'https://www.grandpacifichardwood.com'),
+('c00e0000-0000-0000-0000-000000000030', 'Forester', 'FOS', NULL),
+('c00e0000-0000-0000-0000-000000000031', 'Hardwoods Specialty', 'HDS', NULL),
+('c00e0000-0000-0000-0000-000000000032', 'JM Cork', 'JMC', NULL),
+('c00e0000-0000-0000-0000-000000000033', 'RC Global', 'RCG', NULL),
+('c00e0000-0000-0000-0000-000000000034', 'Summit', 'SUM', NULL)
+ON CONFLICT (code) DO NOTHING;
+
+-- Vendor-Brand junction: which vendors carry which brands
+INSERT INTO vendor_brands (vendor_id, brand_id, is_primary) VALUES
+-- Single-brand vendors (each vendor IS the brand)
+('550e8400-e29b-41d4-a716-446655440001', 'c00e0000-0000-0000-0000-000000000001', true),   -- MSI → MSI
+('550e8400-e29b-41d4-a716-446655440002', 'c00e0000-0000-0000-0000-000000000002', true),   -- Bedrosians → Bedrosians
+('550e8400-e29b-41d4-a716-446655440006', 'c00e0000-0000-0000-0000-000000000006', true),   -- Elysium → Elysium
+('550e8400-e29b-41d4-a716-446655440007', 'c00e0000-0000-0000-0000-000000000007', true),   -- AZT → AZT
+('550e8400-e29b-41d4-a716-446655440009', 'c00e0000-0000-0000-0000-000000000009', true),   -- Roca → Roca
+-- Daltile family (each vendor record maps to its brand)
+('550e8400-e29b-41d4-a716-446655440003', 'c00e0000-0000-0000-0000-000000000003', true),   -- Daltile → Daltile
+('550e8400-e29b-41d4-a716-446655440004', 'c00e0000-0000-0000-0000-000000000004', true),   -- AO → AO
+('550e8400-e29b-41d4-a716-446655440005', 'c00e0000-0000-0000-0000-000000000005', true),   -- Marazzi → Marazzi
+-- Tri-West carries all sub-brands
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000010', false),  -- TW → Provenza
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000011', false),  -- TW → Quick-Step
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000012', false),  -- TW → California Classics
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000013', false),  -- TW → Shaw
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000014', false),  -- TW → Armstrong
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000015', false),  -- TW → Stanton
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000016', false),  -- TW → Paradigm
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000017', false),  -- TW → Mirage
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000018', false),  -- TW → Metroflor
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000019', false),  -- TW → Kraus
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000020', false),  -- TW → Congoleum
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000021', false),  -- TW → Bruce
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000022', false),  -- TW → Hartco
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000023', false),  -- TW → Flexco
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000024', false),  -- TW → Sika
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000025', false),  -- TW → TEC
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000026', false),  -- TW → Babool
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000027', false),  -- TW → Bravada
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000028', false),  -- TW → True Touch
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000029', false),  -- TW → Grand Pacific
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000030', false),  -- TW → Forester
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000031', false),  -- TW → Hardwoods Specialty
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000032', false),  -- TW → JM Cork
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000033', false),  -- TW → RC Global
+('550e8400-e29b-41d4-a716-446655440008', 'c00e0000-0000-0000-0000-000000000034', false)   -- TW → Summit
+ON CONFLICT DO NOTHING;
+
+-- Backfill: set brand_id on seed products based on vendor code → brand code match
+UPDATE products SET brand_id = 'c00e0000-0000-0000-0000-000000000001' WHERE vendor_id = '550e8400-e29b-41d4-a716-446655440001' AND brand_id IS NULL;
+UPDATE products SET brand_id = 'c00e0000-0000-0000-0000-000000000002' WHERE vendor_id = '550e8400-e29b-41d4-a716-446655440002' AND brand_id IS NULL;
+UPDATE products SET brand_id = 'c00e0000-0000-0000-0000-000000000003' WHERE vendor_id = '550e8400-e29b-41d4-a716-446655440003' AND brand_id IS NULL;
+UPDATE products SET brand_id = 'c00e0000-0000-0000-0000-000000000004' WHERE vendor_id = '550e8400-e29b-41d4-a716-446655440004' AND brand_id IS NULL;
+UPDATE products SET brand_id = 'c00e0000-0000-0000-0000-000000000005' WHERE vendor_id = '550e8400-e29b-41d4-a716-446655440005' AND brand_id IS NULL;
+UPDATE products SET brand_id = 'c00e0000-0000-0000-0000-000000000006' WHERE vendor_id = '550e8400-e29b-41d4-a716-446655440006' AND brand_id IS NULL;
+UPDATE products SET brand_id = 'c00e0000-0000-0000-0000-000000000007' WHERE vendor_id = '550e8400-e29b-41d4-a716-446655440007' AND brand_id IS NULL;
+UPDATE products SET brand_id = 'c00e0000-0000-0000-0000-000000000009' WHERE vendor_id = '550e8400-e29b-41d4-a716-446655440009' AND brand_id IS NULL;
