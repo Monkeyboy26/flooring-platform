@@ -2095,11 +2095,15 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       WHERE sa.parent_sku_id = $1 AND s.status = 'active'
         AND (
           -- Accessory color must match parent color (or either has no color attr)
+          -- Supports Bright/Matte prefix stripping (Roca Maiolica: parent "Bright Aqua" matches accessory "Aqua")
           EXISTS (
             SELECT 1 FROM sku_attributes pa
             JOIN attributes a ON a.id = pa.attribute_id AND a.slug = 'color'
             JOIN sku_attributes aa ON aa.attribute_id = pa.attribute_id AND aa.sku_id = s.id
-            WHERE pa.sku_id = $1 AND pa.value = aa.value
+            WHERE pa.sku_id = $1 AND (
+              pa.value = aa.value
+              OR REGEXP_REPLACE(LOWER(pa.value), '^(bright|matte)\\s+', '') = REGEXP_REPLACE(LOWER(aa.value), '^(bright|matte)\\s+', '')
+            )
           )
           OR NOT EXISTS (
             SELECT 1 FROM sku_attributes aa
@@ -14035,7 +14039,10 @@ app.get('/api/rep/skus/:skuId', repAuth, async (req, res) => {
             SELECT 1 FROM sku_attributes pa
             JOIN attributes a ON a.id = pa.attribute_id AND a.slug = 'color'
             JOIN sku_attributes aa ON aa.attribute_id = pa.attribute_id AND aa.sku_id = s.id
-            WHERE pa.sku_id = $1 AND pa.value = aa.value
+            WHERE pa.sku_id = $1 AND (
+              pa.value = aa.value
+              OR REGEXP_REPLACE(LOWER(pa.value), '^(bright|matte)\\s+', '') = REGEXP_REPLACE(LOWER(aa.value), '^(bright|matte)\\s+', '')
+            )
           )
           OR NOT EXISTS (
             SELECT 1 FROM sku_attributes aa

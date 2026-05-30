@@ -50,10 +50,19 @@ const TYPE_KEYWORDS = [
   [/weld(?:ing)?\s*rod/i, 'Welding Rod'],
   [/trim\s*strip/i, 'Trim Strip'],
   [/3[-\s]?in[-\s]?1\s*mold/i, '3-in-1 Molding'],
+  [/left\s*cove/i, 'Left Cove'],
+  [/right\s*cove/i, 'Right Cove'],
+  [/cove(?:\s*[-–]\s*flat\s*top)/i, 'Cove Base'],
+  [/v[-\s]?cap/i, 'V-Cap'],
+  [/radius\s*(?:bullnos[ei])?/i, 'Radius Bullnose'],
+  [/mud\s*cap/i, 'Mud Cap'],
+  [/surface\s*cap/i, 'Surface Cap'],
+  [/contour/i, 'Contour Trim'],
   [/bullnos[ei]/i, 'Bullnose'],
-  [/pencil\s*liner/i, 'Pencil Liner'],
+  [/pencil(?:\s*liner)?/i, 'Pencil Liner'],
   [/chair\s*rail/i, 'Chair Rail'],
-  [/cove\s*base/i, 'Cove Base'],
+  [/flat\s*top/i, 'Cove Base'],
+  [/cove\s*(?:base|quarry)/i, 'Cove Base'],
   [/jolly\s*trim/i, 'Jolly Trim'],
   [/schluter/i, 'Edge Trim'],
   [/adhesive/i, 'Adhesive'],
@@ -326,8 +335,12 @@ function matchAccessories(mainSkus, accSkus) {
       const mainColor = extractMainColor(m.variant_name);
       if (!mainColor) continue;
 
-      // Exact match
-      if (accColor === mainColor) {
+      // Strip "Bright"/"Matte" prefixes for comparison (Roca Maiolica pattern)
+      const mainColorBare = mainColor.replace(/^(?:bright|matte)\s+/i, '');
+      const accColorBare = accColor.replace(/^(?:bright|matte)\s+/i, '');
+
+      // Exact match (with or without prefix)
+      if (accColor === mainColor || accColorBare === mainColorBare) {
         result.get(m.id).add(acc.id);
         colorNameMatched.add(acc.id);
         continue;
@@ -342,7 +355,10 @@ function matchAccessories(mainSkus, accSkus) {
           cleanSeg = cleanSeg.replace(re, '').trim();
         }
         cleanSeg = normColor(cleanSeg);
-        if (cleanSeg && (cleanSeg === mainColor || cleanSeg.startsWith(mainColor) || mainColor.startsWith(cleanSeg))) {
+        const cleanSegBare = cleanSeg.replace(/^(?:bright|matte)\s+/i, '');
+        if (cleanSeg && (cleanSeg === mainColor || cleanSegBare === mainColorBare ||
+            cleanSeg.startsWith(mainColor) || mainColor.startsWith(cleanSeg) ||
+            cleanSegBare.startsWith(mainColorBare) || mainColorBare.startsWith(cleanSegBare))) {
           result.get(m.id).add(acc.id);
           colorNameMatched.add(acc.id);
           break;
