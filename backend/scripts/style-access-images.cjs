@@ -92,6 +92,43 @@ function expandAbbrevs(s) {
   return n.replace(/\s+/g, ' ').trim();
 }
 
+// --- Finish extraction (from import-style-access.js, kept in sync) ---
+
+function extractFinish(desc) {
+  const tokens = [];
+  for (const p of ['Flat', 'Dixie', 'Charleston', 'Swing']) {
+    if (new RegExp('\\b' + p + '\\b', 'i').test(desc)) tokens.push(p);
+  }
+  if (/\bFlower\s+Deco\b/i.test(desc)) tokens.push('Flower Deco');
+  else if (/\bDeco\b/i.test(desc)) tokens.push('Deco');
+  for (const l of ['Brick Joint', 'Cross Hatch']) {
+    if (new RegExp('\\b' + l + '\\b', 'i').test(desc)) tokens.push(l);
+  }
+  for (const q of ['Gloss', 'Satin', 'Matte']) {
+    if (new RegExp('\\b' + q + '\\b', 'i').test(desc)) tokens.push(q);
+  }
+  return tokens.length ? tokens.join(' ') : null;
+}
+
+function extractFinishFromTitle(title) {
+  const standard = extractFinish(title);
+  if (standard) return standard;
+  const tokens = [];
+  if (/\bGlossy\b/i.test(title)) tokens.push('Gloss');
+  if (/\bHoned\s+Matte\b/i.test(title)) return 'Honed Matte';
+  if (/\bPolished\b/i.test(title)) tokens.push('Polished');
+  if (/\bHoned\b/i.test(title)) tokens.push('Honed');
+  if (/\bUndulated\b/i.test(title)) tokens.push('Undulated');
+  if (/\bAntislip\b/i.test(title)) tokens.push('Antislip');
+  return tokens.length ? tokens.join(' ') : null;
+}
+
+// Strip HTML tags and decode entities to plain text for description_long
+function stripHtml(html) {
+  if (!html) return '';
+  return decodeHtmlEntities(html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')).trim();
+}
+
 function extractSkuCandidates(excerpt) {
   if (!excerpt) return [];
   const text = excerpt.replace(/<[^>]+>/g, '').trim();
@@ -326,8 +363,15 @@ async function main() {
   if (!vendor.length) { console.error('Vendor not found'); process.exit(1); }
   const vendorId = vendor[0].id;
 
+  // Look up finish attribute ID for backfilling
+  const { rows: finishAttrRows } = await pool.query(
+    `SELECT id FROM attributes WHERE slug = 'finish'`
+  );
+  const finishAttrId = finishAttrRows[0]?.id;
+  if (!finishAttrId) console.log('  WARNING: No "finish" attribute found — skipping finish backfill');
+
   const { rows: products } = await pool.query(`
-    SELECT p.id, p.name, p.collection, p.display_name
+    SELECT p.id, p.name, p.collection, p.display_name, p.description_long
     FROM products p
     WHERE p.vendor_id = $1 AND p.is_active = true
   `, [vendorId]);
@@ -339,6 +383,18 @@ async function main() {
     WHERE p.vendor_id = $1 AND s.status = 'active'
     ORDER BY s.product_id, s.created_at
   `, [vendorId]);
+
+  // Load existing finish attributes to avoid redundant writes
+  const existingFinishes = new Set();
+  if (finishAttrId) {
+    const { rows: finishRows } = await pool.query(`
+      SELECT sa.sku_id FROM sku_attributes sa
+      JOIN skus s ON s.id = sa.sku_id
+      JOIN products p ON p.id = s.product_id
+      WHERE p.vendor_id = $1 AND sa.attribute_id = $2
+    `, [vendorId, finishAttrId]);
+    for (const r of finishRows) existingFinishes.add(r.sku_id);
+  }
 
   // Build lookup maps
   const skuToProduct = new Map();
@@ -417,6 +473,7 @@ async function main() {
   const counters = { inserted: 0, deleted: 0, primaries: 0 };
   let matched = 0, scraped = 0, skippedNoImages = 0, noMatch = 0, collectionMatches = 0;
   let singleSkuCount = 0, multiSkuCount = 0;
+  let descriptionsAdded = 0, finishesAdded = 0;
   const unmatchedTitles = [];
   const matchLog = [];
   const productsWithImageAfter = new Set(productsWithImageBefore);
@@ -549,6 +606,21 @@ async function main() {
 
         if (!DRY_RUN) {
           await upsertImagesForCollection(collProducts, imageUrls, counters, productSkus);
+
+          // Backfill description_long for all products in this collection
+          const wpDesc = stripHtml(wp.content?.rendered);
+          if (wpDesc && wpDesc.length > 10) {
+            for (const cp of collProducts) {
+              if (!cp.description_long) {
+                await pool.query(
+                  `UPDATE products SET description_long = $1 WHERE id = $2 AND (description_long IS NULL OR description_long = '')`,
+                  [wpDesc, cp.id]
+                );
+                cp.description_long = wpDesc;
+                descriptionsAdded++;
+              }
+            }
+          }
         }
         for (const p of collProducts) productsWithImageAfter.add(p.id);
         matched++;
@@ -611,6 +683,34 @@ async function main() {
       productsWithImageAfter.add(productId);
     }
 
+    // 3a. Backfill description_long from WP content.rendered
+    if (!DRY_RUN && matchedProduct && !matchedProduct.description_long) {
+      const wpDesc = stripHtml(wp.content?.rendered);
+      if (wpDesc && wpDesc.length > 10) {
+        await pool.query(
+          `UPDATE products SET description_long = $1 WHERE id = $2 AND (description_long IS NULL OR description_long = '')`,
+          [wpDesc, matchedProduct.id]
+        );
+        matchedProduct.description_long = wpDesc;
+        descriptionsAdded++;
+        if (VERBOSE) console.log(`    DESC: set description_long (${wpDesc.length} chars)`);
+      }
+    }
+
+    // 3b. Backfill finish attribute from WP title / variant_name
+    if (!DRY_RUN && finishAttrId && !existingFinishes.has(matchedSku.id)) {
+      const finish = extractFinishFromTitle(title) || extractFinishFromTitle(matchedSku.variant_name || '');
+      if (finish) {
+        await pool.query(`
+          INSERT INTO sku_attributes (sku_id, attribute_id, value) VALUES ($1, $2, $3)
+          ON CONFLICT (sku_id, attribute_id) DO NOTHING
+        `, [matchedSku.id, finishAttrId, finish]);
+        existingFinishes.add(matchedSku.id);
+        finishesAdded++;
+        if (VERBOSE) console.log(`    FINISH: "${finish}" (from WP title)`);
+      }
+    }
+
     await sleep(DELAY_MS);
   }
 
@@ -660,6 +760,8 @@ async function main() {
   console.log(`  Images deleted (old): ${counters.deleted}`);
   console.log(`  Images inserted (new): ${counters.inserted}`);
   console.log(`  New primaries: ${counters.primaries}`);
+  console.log(`  Descriptions added: ${descriptionsAdded}`);
+  console.log(`  Finishes added: ${finishesAdded}`);
   console.log(`  Products with images (before): ${productsWithImageBefore.size}`);
   console.log(`  Products with images (after): ${productsWithImageAfter.size}`);
 
