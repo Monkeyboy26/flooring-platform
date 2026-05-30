@@ -2214,6 +2214,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         `, [sku.collection, sku.category_id, skuId, sku.vendor_id]);
         collectionSiblings = collResult.rows;
       } else {
+        const curSizeAttr = (sku.attributes || []).find(a => a.slug === 'size');
+        const curSizeVal = curSizeAttr ? curSizeAttr.value : '';
         const collResult = await pool.query(`
           SELECT DISTINCT ON (p.id)
             s.id as sku_id, s.variant_name, s.variant_type, s.sell_by, p.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection,
@@ -2235,9 +2237,13 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
               ($4 = true AND p.name ~* '(mosaic|hexagon|bullnose)')
               OR ($4 = false AND p.name !~* '(mosaic|hexagon|bullnose)')
             )
-          ORDER BY p.id, (COALESCE(s.variant_type, '') IN ('accessory')) ASC, (s.variant_name = $5) DESC, s.created_at
+          ORDER BY p.id,
+            (COALESCE(s.variant_type, '') IN ('accessory')) ASC,
+            (EXISTS (SELECT 1 FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'size' AND sa.value = $7)) DESC,
+            (s.variant_name = $5) DESC,
+            s.created_at
           LIMIT 120
-        `, [sku.collection, sku.product_id, sku.category_id, isMosaicProduct, sku.variant_name, sku.vendor_id]);
+        `, [sku.collection, sku.product_id, sku.category_id, isMosaicProduct, sku.variant_name, sku.vendor_id, curSizeVal]);
         collectionSiblings = collResult.rows;
       }
     }

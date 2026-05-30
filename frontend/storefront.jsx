@@ -710,6 +710,13 @@
             }
           }
         }
+        // Format pure dimension variants with inch marks (e.g. "24X48" → "24″ × 48″", "24X48 (A)" → "24″ × 48″ (A)")
+        if (variant) {
+          const dimMatch = variant.match(/^(\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?(?:\s*(?:PAVER|EZ|FT))?)(\s*\(.*\))?$/i);
+          if (dimMatch) {
+            variant = formatSizeDim(dimMatch[1].trim()) + (dimMatch[2] || '');
+          }
+        }
       }
       // When variant_name only carries the color, supplement with size/thickness
       // so the title distinguishes between variants (e.g. "Alpine Ivory 2CM" or "Alpine Ivory 108×42")
@@ -5094,6 +5101,30 @@
                 }
                 const showSibSizes = sibSizeItems.length > 0;
 
+                // Size pills from size attribute (tile vendors like Roca: Arena 12X24, Arena 24X48)
+                let attrSizeItems = [];
+                if (!showSizePills && sibSizeItems.length === 0 && mainSiblings.length > 0) {
+                  const _getSizeAttr = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
+                  const curSizeVal = _getSizeAttr(sku.attributes);
+                  const dimRe = /(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)/;
+                  if (curSizeVal && dimRe.test(curSizeVal)) {
+                    const sizeMap = new Map();
+                    sizeMap.set(curSizeVal, { label: formatSizeDim(curSizeVal), sku_id: sku.sku_id, is_current: true, sort: parseFloat(curSizeVal.match(dimRe)[1]) });
+                    mainSiblings.forEach(s => {
+                      if (s.variant_type === 'accessory') return;
+                      const sv = _getSizeAttr(s.attributes);
+                      if (!sv || sizeMap.has(sv)) return;
+                      const dm = sv.match(dimRe);
+                      if (!dm) return;
+                      sizeMap.set(sv, { label: formatSizeDim(sv), sku_id: s.sku_id, is_current: false, sort: parseFloat(dm[1]) });
+                    });
+                    if (sizeMap.size >= 2) {
+                      attrSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
+                    }
+                  }
+                }
+                const showAttrSizes = attrSizeItems.length > 0;
+
                 // If same-product siblings have 0-1 colors, use collection siblings as color options
                 if (colorItems.length <= 1 && collectionSiblings.length > 0) {
                   // Exclude accessory/trim siblings from color variant display
@@ -5304,7 +5335,7 @@
                   });
                   return sizeOk && finishOk;
                 };
-                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes) return null;
+                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes) return null;
                 return (
                   <div className="variant-selectors">
                     {showColors && (
@@ -5365,6 +5396,18 @@
                         <div className="variant-selector-label">Size<span>{sibSizeItems.find(s => s.is_current)?.label || ''}</span></div>
                         <div className="attr-pills">
                           {sibSizeItems.map(s => (
+                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {showAttrSizes && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Size<span>{attrSizeItems.find(s => s.is_current)?.label || ''}</span></div>
+                        <div className="attr-pills">
+                          {attrSizeItems.map(s => (
                             <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
                               {s.label}
                             </button>

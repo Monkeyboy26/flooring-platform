@@ -1,7 +1,6 @@
-var StorefrontApp = (() => {
-  // frontend/storefront.jsx
-  var { useState, useEffect, useRef, useCallback, useMemo } = React;
-  var API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:3001" : `${window.location.protocol}//${window.location.hostname}:3001`;
+(() => {
+  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+  const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:3001" : `${window.location.protocol}//${window.location.hostname}:3001`;
   function getSessionId() {
     let id = localStorage.getItem("cart_session_id");
     if (!id) {
@@ -16,7 +15,7 @@ var StorefrontApp = (() => {
   function generateSlug(text) {
     return (text || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   }
-  var SITE_URL = "https://www.romaflooringdesigns.com";
+  const SITE_URL = "https://www.romaflooringdesigns.com";
   function updateSEO({ title, description, url, image }) {
     document.title = title || "Shop | Roma Flooring Designs";
     const setMeta = (selector, value) => {
@@ -177,8 +176,8 @@ var StorefrontApp = (() => {
     const srcSet = sizes.map((w) => `${optimizeImg(url, w)} ${w}w`).join(", ");
     return { srcSet };
   }
-  var RECENT_SEARCHES_KEY = "roma_recent_searches";
-  var MAX_RECENT_SEARCHES = 6;
+  const RECENT_SEARCHES_KEY = "roma_recent_searches";
+  const MAX_RECENT_SEARCHES = 6;
   function getRecentSearches() {
     try {
       return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || "[]");
@@ -209,7 +208,7 @@ var StorefrontApp = (() => {
       return text;
     }
   }
-  var STYLE_COLOR_MAP = {
+  const STYLE_COLOR_MAP = {
     // --- Blonde (light warm wood tones) ---
     "Akadia": "Blonde",
     "Austell Grove": "Blonde",
@@ -552,7 +551,7 @@ var StorefrontApp = (() => {
     "Select": null,
     "Uplifted": null
   };
-  var NON_COLOR_VALUES = /* @__PURE__ */ new Set([
+  const NON_COLOR_VALUES = /* @__PURE__ */ new Set([
     "wall",
     "gloss wall",
     "gloss",
@@ -582,7 +581,7 @@ var StorefrontApp = (() => {
     "up",
     "uplifted"
   ]);
-  var COLOR_FAMILIES = {
+  const COLOR_FAMILIES = {
     "White": { hex: "#f5f5f0", keywords: ["white", "ivory", "cream", "snow", "pearl", "alabaster", "frost", "arctic", "bright white", "blanc", "bianco", "bianca", "blanco", "calacatta", "carrara", "chalk", "dolomite", "thassos", "perla", "perle", "opal"] },
     "Gray": { hex: "#9e9e9e", keywords: ["gray", "grey", "charcoal", "silver", "slate", "ash", "smoke", "graphite", "pewter", "cement", "concrete", "fog", "grigio", "gris", "cenere", "steel", "platinum", "basalt", "mist", "dove", "bardiglio", "greige", "lead", "cloud", "anthracite", "antracita", "argento", "nickel", "pebble", "marengo", "flint", "shale"] },
     "Beige": { hex: "#d4c5a9", keywords: ["beige", "tan", "sand", "taupe", "khaki", "linen", "wheat", "bone", "champagne", "natural", "almond", "buff", "crema", "avorio", "fawn", "biscuit", "dune", "ecru", "oyster", "vanilla", "nude", "bamboo", "lino", "marfil", "sabbia", "creme", "clay", "putty", "latte", "fossil", "travertine", "parchment"] },
@@ -623,8 +622,8 @@ var StorefrontApp = (() => {
       return formatted.trim();
     }).join(" \u2014 ");
   }
-  var ROMAN_VAL = { "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10 };
-  var ROMAN_REGEX = /\b(I{1,3}|IV|V(?:I{1,3})?|IX|X)\b(?=\s+\d|\s*$)/;
+  const ROMAN_VAL = { "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10 };
+  const ROMAN_REGEX = /\b(I{1,3}|IV|V(?:I{1,3})?|IX|X)\b(?=\s+\d|\s*$)/;
   function hasRomanSuffix(name) {
     if (!name) return false;
     const m = name.match(ROMAN_REGEX);
@@ -641,7 +640,7 @@ var StorefrontApp = (() => {
     if (!m) return name;
     return name.substring(m.index).trim();
   }
-  var _CATEGORY_SUFFIX_MAP = {
+  const _CATEGORY_SUFFIX_MAP = {
     "engineered hardwood": "Engineered Hardwood",
     "solid hardwood": "Solid Hardwood",
     "hardwood": "Hardwood",
@@ -802,6 +801,12 @@ var StorefrontApp = (() => {
           }
         }
       }
+      if (variant) {
+        const dimMatch = variant.match(/^(\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?(?:\s*(?:PAVER|EZ|FT))?)(\s*\(.*\))?$/i);
+        if (dimMatch) {
+          variant = formatSizeDim(dimMatch[1].trim()) + (dimMatch[2] || "");
+        }
+      }
     }
     if (sku.attributes) {
       const colorAttr = (sku.attributes || []).find((a) => a.slug === "color");
@@ -921,7 +926,7 @@ var StorefrontApp = (() => {
     }
     return React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "2px" } }, stars);
   }
-  var stripeInstance = null;
+  let stripeInstance = null;
   (async () => {
     if (typeof Stripe === "undefined") return;
     try {
@@ -933,7 +938,7 @@ var StorefrontApp = (() => {
       console.warn("Failed to load Stripe key:", e);
     }
   })();
-  var _placesPromise = null;
+  let _placesPromise = null;
   function loadGooglePlaces(apiKey) {
     if (_placesPromise) return _placesPromise;
     if (window.google && window.google.maps && window.google.maps.places) {
@@ -953,7 +958,7 @@ var StorefrontApp = (() => {
     });
     return _placesPromise;
   }
-  var ErrorBoundary = class extends React.Component {
+  class ErrorBoundary extends React.Component {
     constructor(props) {
       super(props);
       this.state = { hasError: false, errorMsg: "" };
@@ -986,7 +991,7 @@ var StorefrontApp = (() => {
       }
       return this.props.children;
     }
-  };
+  }
   function useRevealOnScroll(options = {}) {
     const ref = useRef(null);
     const [isVisible, setIsVisible] = useState(false);
@@ -3984,6 +3989,31 @@ var StorefrontApp = (() => {
         }
       }
       const showSibSizes = sibSizeItems.length > 0;
+      let attrSizeItems = [];
+      if (!showSizePills && sibSizeItems.length === 0 && mainSiblings.length > 0) {
+        const _getSizeAttr = (attrs) => {
+          const sa = (attrs || []).find((a) => a.slug === "size");
+          return sa ? sa.value : null;
+        };
+        const curSizeVal = _getSizeAttr(sku.attributes);
+        const dimRe = /(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)/;
+        if (curSizeVal && dimRe.test(curSizeVal)) {
+          const sizeMap = /* @__PURE__ */ new Map();
+          sizeMap.set(curSizeVal, { label: formatSizeDim(curSizeVal), sku_id: sku.sku_id, is_current: true, sort: parseFloat(curSizeVal.match(dimRe)[1]) });
+          mainSiblings.forEach((s) => {
+            if (s.variant_type === "accessory") return;
+            const sv = _getSizeAttr(s.attributes);
+            if (!sv || sizeMap.has(sv)) return;
+            const dm = sv.match(dimRe);
+            if (!dm) return;
+            sizeMap.set(sv, { label: formatSizeDim(sv), sku_id: s.sku_id, is_current: false, sort: parseFloat(dm[1]) });
+          });
+          if (sizeMap.size >= 2) {
+            attrSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
+          }
+        }
+      }
+      const showAttrSizes = attrSizeItems.length > 0;
       if (colorItems.length <= 1 && collectionSiblings.length > 0) {
         const nonAccSiblings = collectionSiblings.filter((s) => s.variant_type !== "accessory");
         if (nonAccSiblings.length > 0) {
@@ -4166,7 +4196,7 @@ var StorefrontApp = (() => {
         });
         return sizeOk && finishOk;
       };
-      if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes) return null;
+      if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes) return null;
       return /* @__PURE__ */ React.createElement("div", { className: "variant-selectors" }, showColors && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, colorLabel), isRomanVariants ? /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, [...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map((c) => /* @__PURE__ */ React.createElement("button", { key: c.sku_id, className: "attr-pill" + (c.is_current ? " active" : ""), onClick: () => {
         if (!c.is_current) onSkuClick(c.sku_id);
       } }, romanPillLabel(c.product_name)))) : /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, colorItems.map((c) => {
@@ -4180,6 +4210,8 @@ var StorefrontApp = (() => {
       } }, s.label)))), showFinishPills && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Finish", /* @__PURE__ */ React.createElement("span", null, collectionFinishItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, collectionFinishItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), onClick: () => {
         if (!s.is_current) onSkuClick(s.sku_id);
       } }, s.label)))), showSibSizes && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, sibSizeItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, sibSizeItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), onClick: () => {
+        if (!s.is_current) onSkuClick(s.sku_id);
+      } }, s.label)))), showAttrSizes && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, attrSizeItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, attrSizeItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), onClick: () => {
         if (!s.is_current) onSkuClick(s.sku_id);
       } }, s.label)))), showRomanStylePills && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Style", /* @__PURE__ */ React.createElement("span", null, romanPillLabel(sku.product_name))), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, [...romanStyleItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map((c) => /* @__PURE__ */ React.createElement("button", { key: c.sku_id, className: "attr-pill" + (c.is_current ? " active" : ""), onClick: () => {
         if (!c.is_current) onSkuClick(c.sku_id);
