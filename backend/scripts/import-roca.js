@@ -450,7 +450,7 @@ async function run() {
         const internalSku = 'ROCA-' + rec.sku;
         const size = cleanSize(rec.sizeLabel);
         const variantName = `${productName} ${size}`.trim();
-        const sellBy = rec.uom === 'PC' ? 'unit' : 'sqft';
+        const sellBy = rec.uom === 'PC' ? 'unit' : 'box';
 
         const skuRes = await client.query(`
           INSERT INTO skus (id, product_id, vendor_sku, internal_sku, variant_name, sell_by, status)

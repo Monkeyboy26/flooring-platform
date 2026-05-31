@@ -308,6 +308,14 @@ function extractProductEntries(html) {
     if (!seen.has(imgPath)) {
       seen.add(imgPath);
       results.push({ url: BASE_URL + imgPath, color: colorName, skuCodes, size });
+    } else {
+      // Same image used for multiple sizes — merge SKU codes into existing entry
+      const existing = results.find(r => r.url === BASE_URL + imgPath);
+      if (existing) {
+        for (const code of skuCodes) {
+          if (!existing.skuCodes.includes(code)) existing.skuCodes.push(code);
+        }
+      }
     }
   }
 
