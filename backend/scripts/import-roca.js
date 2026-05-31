@@ -182,7 +182,12 @@ function extractColor(desc, collectionName) {
   // Remove common prefixes
   text = text.replace(/^SUITE\s+/i, '');
   text = text.replace(/^LM\s+/i, '');
-  // CC / BG / MG prefix removal (for Color Collection, CC Mosaics, etc.)
+  // For CC Mosaics/Porcelain, expand BG/MG finish prefix to full name
+  if (isMosaicCollection) {
+    text = text.replace(/^MG\s+/i, 'Matte ');
+    text = text.replace(/^BG\s+/i, 'Bright ');
+  }
+  // CC / BG / MG prefix removal (for Color Collection, etc.)
   if (/^(CC|BG|MG)\s+/i.test(text) &&
     !collectionName.toUpperCase().startsWith('CC ')) {
     text = text.replace(/^(CC|BG|MG)\s+/i, '');
@@ -208,24 +213,41 @@ function extractColor(desc, collectionName) {
   }
   text = text.trim();
 
-  // For mosaic collections, extract shape words BEFORE stripping sizes
-  // (sizes strip everything after them, losing "MOSAIC", "MOS" etc.)
+  // For mosaic collections, extract specific shape/pattern BEFORE stripping sizes
+  // (size stripping removes everything after the first NxN, losing shape words)
   let mosaicShape = '';
   if (isMosaicCollection) {
-    // Check if description contains mosaic indicator (after size, or in trailing text)
-    // Covers: "12X12 MOSAIC", "12X12 BRICK MOSAIC", "12X12 OCT MOSAIC", "2X4 BEV. BRICK", etc.
-    const afterSize = text.match(/\d+[xX×]\d+\s+(.+)$/i);
-    if (afterSize) {
-      const tail = afterSize[1].toUpperCase().trim();
-      if (/\b(MOS|MOSAIC|MT|BRICK|HERRING)\b/i.test(tail)) {
-        mosaicShape = 'Mosaic';
-      }
+    const u = text.toUpperCase();
+    let m;
+    // Multi-word patterns (most specific first)
+    if (/\bDIAMOND\s+HERRING/i.test(u)) mosaicShape = 'Diamond Herringbone';
+    else if (/\bFLOWER\s+HEX/i.test(u)) mosaicShape = 'Flower Hexagon';
+    else if (/\bBASKET\s+WEAVE/i.test(u)) mosaicShape = 'Basket Weave';
+    else if (/\b3D\s+PICKET/i.test(u)) mosaicShape = '3D Picket';
+    // Sized patterns: piece size (single-digit NxN) + shape
+    else if ((m = u.match(/\b([1-6])[xX]([1-6])\s+BEV\.?\s*BRICK/))) mosaicShape = `${m[1]}x${m[2]} Beveled Brick`;
+    else if ((m = u.match(/\b([1-6])[xX]([1-6])\s+T-?BRICK/))) mosaicShape = `${m[1]}x${m[2]} T-Brick`;
+    else if ((m = u.match(/\b([1-6])[xX]([1-6])\s+BRICK/))) mosaicShape = `${m[1]}x${m[2]} Brick`;
+    else if ((m = u.match(/\b([1-6])[xX]([1-6])\s+SQUARES?/))) mosaicShape = `${m[1]}x${m[2]} Squares`;
+    else if ((m = u.match(/\b([1-6])[xX]([1-6])\s+HEX(?:AGON)?/))) mosaicShape = `${m[1]}x${m[2]} Hexagon`;
+    else if ((m = u.match(/(?:MOS\.?\s*)?HEX(?:AGON)?\s+([1-6])[xX]([1-6])/))) mosaicShape = `${m[1]}x${m[2]} Hexagon`;
+    else if ((m = u.match(/\bHEX\s+MOSAIC\s+([1-6])[xX]([1-6])/))) mosaicShape = `${m[1]}x${m[2]} Hexagon`;
+    // Single-word shape patterns
+    else if (/\bPINWHEEL/i.test(u)) mosaicShape = 'Pinwheel';
+    else if (/\bLANTERN/i.test(u)) mosaicShape = 'Lantern';
+    else if (/\bHERRING(?:BONE|\.)/i.test(u)) mosaicShape = 'Herringbone';
+    else if (/\bOCT(?:AGON)?\b/i.test(u)) mosaicShape = 'Octagon';
+    // Shapes already preserved in text after stripping (no extraction needed)
+    // PENNY ROUND, STACKED, PICKET, OVAL, FEATHER, DOTS — handled by existing logic
+
+    // Generic "Mosaic" fallback only if no specific shape detected
+    if (!mosaicShape) {
+      const afterSize = text.match(/\d+[xX×]\d+\s+(.+)$/i);
+      if (afterSize && /\b(MOS|MOSAIC)\b/i.test(afterSize[1])) mosaicShape = 'Mosaic';
+      else if (/\b(MOSAIC|MOS)\s*$/i.test(text)) mosaicShape = 'Mosaic';
     }
-    // Also check for MOSAIC/MOS at end without a size (e.g., "BG 2" WHITE DOTS MOSAIC")
-    if (!mosaicShape && /\b(MOSAIC|MOS)\s*$/i.test(text)) {
-      mosaicShape = 'Mosaic';
-    }
-    // Expand "PENNY" to "Penny Round" in text (before size stripping preserves it)
+
+    // Expand standalone PENNY to PENNY ROUND
     text = text.replace(/\bPENNY\b(?!\s+ROUND)/i, 'PENNY ROUND');
   }
 
@@ -260,7 +282,7 @@ function extractColor(desc, collectionName) {
 
   // For mosaic collections: append shape if the result is just a color (no shape word present)
   if (isMosaicCollection && mosaicShape && text) {
-    const hasShape = /\b(PENNY|STACKED|PICKET|OVAL|FEATHER|HEXAGON|HEX|BRICK|HERRING|BASKET|3D|DOTS?)\b/i.test(text);
+    const hasShape = /\b(PENNY|ROUND|STACKED|PICKET|OVAL|FEATHER|HEXAGON|HEX|BRICK|HERRING|BASKET|3D|DOTS?|OCTAGON|OCT|LANTERN|PINWHEEL|DIAMOND|SQUARES?|FLOWER|BEVELED)\b/i.test(text);
     if (!hasShape) {
       text = text + ' ' + mosaicShape;
     }
@@ -380,7 +402,7 @@ async function run() {
           INSERT INTO skus (id, product_id, vendor_sku, internal_sku, variant_name, sell_by, status)
           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'active')
           ON CONFLICT ON CONSTRAINT skus_internal_sku_key
-          DO UPDATE SET variant_name = EXCLUDED.variant_name, sell_by = EXCLUDED.sell_by, status = 'active'
+          DO UPDATE SET product_id = EXCLUDED.product_id, variant_name = EXCLUDED.variant_name, sell_by = EXCLUDED.sell_by, status = 'active'
           RETURNING id
         `, [productId, rec.sku, internalSku, variantName, sellBy]);
         const skuId = skuRes.rows[0].id;
@@ -439,7 +461,7 @@ async function run() {
           INSERT INTO skus (id, product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type, status)
           VALUES (gen_random_uuid(), $1, $2, $3, $4, 'unit', 'accessory', 'active')
           ON CONFLICT ON CONSTRAINT skus_internal_sku_key
-          DO UPDATE SET variant_name = EXCLUDED.variant_name, sell_by = 'unit',
+          DO UPDATE SET product_id = EXCLUDED.product_id, variant_name = EXCLUDED.variant_name, sell_by = 'unit',
                        variant_type = 'accessory', status = 'active'
           RETURNING id
         `, [productId, rec.sku, internalSku, variantName]);
