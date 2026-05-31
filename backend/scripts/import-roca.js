@@ -36,6 +36,7 @@ const CAT = {
   pavers:     '650e8400-e29b-41d4-a716-446655440062',
   woodLook:   '650e8400-e29b-41d4-a716-446655440015',
   wallTile:   '650e8400-e29b-41d4-a716-446655440050',
+  bathAccessories: '03ab6adf-d7b2-463b-a1a4-9efa0e7cdc05',
 };
 
 // ─── Attribute IDs ───
@@ -52,17 +53,18 @@ const MARKUP = 2.0;
 function getCategoryId(material, collectionName) {
   const m = material.toUpperCase();
   const c = collectionName.toUpperCase();
-  if (c.includes('SLAB') || c === 'XL SLABS') return CAT.porcelainSlab;
+  if (c === 'SLABS' || c === 'XL SLABS') return CAT.porcelainSlab;
   if (c === 'PAVERS') return CAT.pavers;
+  if (c === 'BATH FIXTURES') return CAT.bathAccessories;
   if (c.includes('ROCKART') || c.includes('METALS')) return CAT.mosaic;
   if (c.startsWith('CC MOSAICS') || c.startsWith('CC PORCELAIN')) return CAT.mosaic;
   if (m.includes('NATURAL STONE') || m.includes('GLASS MOSAIC')) return CAT.mosaic;
   if (m.includes('ALUMINUM')) return CAT.mosaic;
   if (c === 'PINE' || c === 'NORTHWOOD' || c === 'WESTON') return CAT.woodLook;
   if (m.includes('PORCELAIN')) return CAT.porcelain;
-  if (m.includes('CERAMIC')) return CAT.ceramic;
-  if (m.includes('STONEWARE')) return CAT.porcelain;
   if (m.includes('QUARRY')) return CAT.ceramic;
+  if (m.includes('CERAMIC')) return CAT.wallTile;
+  if (m.includes('STONEWARE')) return CAT.porcelain;
   return CAT.porcelain; // default
 }
 
