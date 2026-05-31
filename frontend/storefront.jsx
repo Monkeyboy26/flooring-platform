@@ -70,7 +70,7 @@
       const isFeet = /FT$/i.test(val);
       const isEZ = /EZ$/i.test(val);
       const cleaned = val.replace(/\s*(EZ|FT)\s*$/gi, '').trim();
-      const m = cleaned.match(/^(\d+(?:\.\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?(?:\/\d+)?)(.*)$/);
+      const m = cleaned.match(/^(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)(.*)$/);
       if (!m) return formatCarpetValue(val);
       let d1 = m[1].replace(/\.00$/, ''), d2 = m[2].replace(/\.00$/, '');
       const suffix = (m[3] || '').trim();
@@ -524,11 +524,13 @@
       if (!name) return '';
       // If it looks like a clean name already (has uppercase or spaces), return as-is
       if (/[A-Z]/.test(name) && name.includes(' ')) return name;
-      // Split on " / " separator if present (e.g., "calacatta-umber-split / 7-3-16-x-19-5-8-mesh-sheet")
-      const parts = name.split(/\s*\/\s*/);
+      // Protect fraction slashes (e.g. "4-1/2") from the "/" split below
+      const parts = name.replace(/(\d)\/(\d)/g, '$1\u2044$2').split(/\s*\/\s*/);
       return parts.map(part => {
+        // Restore fraction slashes
+        let formatted = part.replace(/(\d)\u2044(\d)/g, '$1/$2');
         // Replace hyphens with spaces
-        let formatted = part.replace(/-/g, ' ');
+        formatted = formatted.replace(/-/g, ' ');
         // Restore fraction patterns: "7 3 16" → "7-3/16" (number space number space number)
         formatted = formatted.replace(/(\d+)\s(\d+)\s(\d+)/g, '$1-$2/$3');
         // Restore dimension "x" lowercase
@@ -726,7 +728,7 @@
         }
         // Format pure dimension variants with inch marks (e.g. "24X48" → "24″ × 48″", "24X48 (A)" → "24″ × 48″ (A)")
         if (variant) {
-          const dimMatch = variant.match(/^(\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?(?:\s*(?:PAVER|EZ|FT))?)(\s*\(.*\))?$/i);
+          const dimMatch = variant.match(/^(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?(?:\s*(?:PAVER|EZ|FT))?)(\s*\(.*\))?$/i);
           if (dimMatch) {
             variant = formatSizeDim(dimMatch[1].trim()) + (dimMatch[2] || '');
           }
@@ -816,7 +818,7 @@
       let orderedName = name;
       let orderedVariant = variant;
       if (variant) {
-        const sizeMatch = name.match(/^(.*?\s)?(\d+(?:\.\d+)?(?:\/\d+)?\s*[xX×]\s*\d.*)$/);
+        const sizeMatch = name.match(/^(.*?\s)?(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d.*)$/);
         if (sizeMatch && sizeMatch[2]) {
           const prefix = (sizeMatch[1] || '').trimEnd();
           orderedName = (prefix ? prefix + ' ' : '') + variant + ' ' + sizeMatch[2];
@@ -5015,7 +5017,7 @@
                 let collectionSizeItems = [];
                 if (collectionSiblings.length > 0) {
                   const extractDims = (name) => {
-                    const m = (name || '').match(/(\d+(?:\.\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?(?:\/\d+)?)/);
+                    const m = (name || '').match(/(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/);
                     if (m) return m[0];
                     const s = (name || '').match(/\b(\d+\.?\d*)\s*["″]/);
                     return s ? s[0] : null;
@@ -5056,7 +5058,7 @@
                 // Finish pills from collection siblings
                 let collectionFinishItems = [];
                 if (collectionSiblings.length > 0) {
-                  const extractDims2 = (name) => { const m = (name || '').match(/(\d+(?:\.\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?(?:\/\d+)?)/); return m ? m[0] : null; };
+                  const extractDims2 = (name) => { const m = (name || '').match(/(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/); return m ? m[0] : null; };
                   const extractFinish2 = (name) => { const m = (name || '').match(/,\s*(.+?)(?:\s*\(|$)/); return m ? m[1].trim() : null; };
                   const curSz2 = extractDims2(sku.product_name);
                   const curFn = extractFinish2(sku.product_name);
@@ -5120,7 +5122,7 @@
                 if (!showSizePills && sibSizeItems.length === 0 && mainSiblings.length > 0) {
                   const _getSizeAttr = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
                   const curSizeVal = _getSizeAttr(sku.attributes);
-                  const dimRe = /(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)/;
+                  const dimRe = /(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/;
                   if (curSizeVal && dimRe.test(curSizeVal)) {
                     const sizeMap = new Map();
                     sizeMap.set(curSizeVal, { label: formatSizeDim(curSizeVal), sku_id: sku.sku_id, is_current: true, sort: parseFloat(curSizeVal.match(dimRe)[1]) });

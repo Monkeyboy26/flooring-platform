@@ -70,7 +70,7 @@
     const isFeet = /FT$/i.test(val);
     const isEZ = /EZ$/i.test(val);
     const cleaned = val.replace(/\s*(EZ|FT)\s*$/gi, "").trim();
-    const m = cleaned.match(/^(\d+(?:\.\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?(?:\/\d+)?)(.*)$/);
+    const m = cleaned.match(/^(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)(.*)$/);
     if (!m) return formatCarpetValue(val);
     let d1 = m[1].replace(/\.00$/, ""), d2 = m[2].replace(/\.00$/, "");
     const suffix = (m[3] || "").trim();
@@ -623,9 +623,10 @@
   function formatVariantName(name) {
     if (!name) return "";
     if (/[A-Z]/.test(name) && name.includes(" ")) return name;
-    const parts = name.split(/\s*\/\s*/);
+    const parts = name.replace(/(\d)\/(\d)/g, "$1\u2044$2").split(/\s*\/\s*/);
     return parts.map((part) => {
-      let formatted = part.replace(/-/g, " ");
+      let formatted = part.replace(/(\d)\u2044(\d)/g, "$1/$2");
+      formatted = formatted.replace(/-/g, " ");
       formatted = formatted.replace(/(\d+)\s(\d+)\s(\d+)/g, "$1-$2/$3");
       formatted = formatted.replace(/\bX\b/g, "x");
       formatted = formatted.replace(/\b\w/g, (c) => c.toUpperCase());
@@ -813,7 +814,7 @@
         }
       }
       if (variant) {
-        const dimMatch = variant.match(/^(\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?(?:\s*(?:PAVER|EZ|FT))?)(\s*\(.*\))?$/i);
+        const dimMatch = variant.match(/^(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?(?:\s*(?:PAVER|EZ|FT))?)(\s*\(.*\))?$/i);
         if (dimMatch) {
           variant = formatSizeDim(dimMatch[1].trim()) + (dimMatch[2] || "");
         }
@@ -880,7 +881,7 @@
     let orderedName = name;
     let orderedVariant = variant;
     if (variant) {
-      const sizeMatch = name.match(/^(.*?\s)?(\d+(?:\.\d+)?(?:\/\d+)?\s*[xX×]\s*\d.*)$/);
+      const sizeMatch = name.match(/^(.*?\s)?(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d.*)$/);
       if (sizeMatch && sizeMatch[2]) {
         const prefix = (sizeMatch[1] || "").trimEnd();
         orderedName = (prefix ? prefix + " " : "") + variant + " " + sizeMatch[2];
@@ -3865,7 +3866,7 @@
       let collectionSizeItems = [];
       if (collectionSiblings.length > 0) {
         const extractDims = (name) => {
-          const m = (name || "").match(/(\d+(?:\.\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?(?:\/\d+)?)/);
+          const m = (name || "").match(/(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/);
           if (m) return m[0];
           const s = (name || "").match(/\b(\d+\.?\d*)\s*["″]/);
           return s ? s[0] : null;
@@ -3904,7 +3905,7 @@
       let collectionFinishItems = [];
       if (collectionSiblings.length > 0) {
         const extractDims2 = (name) => {
-          const m = (name || "").match(/(\d+(?:\.\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?(?:\/\d+)?)/);
+          const m = (name || "").match(/(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/);
           return m ? m[0] : null;
         };
         const extractFinish2 = (name) => {
@@ -4007,7 +4008,7 @@
           return sa ? sa.value : null;
         };
         const curSizeVal = _getSizeAttr(sku.attributes);
-        const dimRe = /(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)/;
+        const dimRe = /(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/;
         if (curSizeVal && dimRe.test(curSizeVal)) {
           const sizeMap = /* @__PURE__ */ new Map();
           sizeMap.set(curSizeVal, { label: formatSizeDim(curSizeVal), sku_id: sku.sku_id, is_current: true, sort: parseFloat(curSizeVal.match(dimRe)[1]) });
