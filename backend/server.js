@@ -1524,14 +1524,14 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     // NOTE: PostgreSQL does not allow SELECT aliases inside expressions (CASE, LOWER, similarity, etc.)
     // in ORDER BY. Use actual table.column references for expressions; bare aliases work for simple sorts.
     let orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, COALESCE(p.display_name, p.name) ASC, s.variant_name ASC';
-    if (sort === 'discount') orderBy = 'CASE WHEN pr.sale_price IS NOT NULL AND pr.retail_price > 0 THEN (pr.retail_price - pr.sale_price) / pr.retail_price ELSE 0 END DESC, COALESCE(p.display_name, p.name) ASC';
-    else if (sort === 'price_asc') orderBy = 'pr.retail_price ASC NULLS LAST, COALESCE(p.display_name, p.name) ASC';
-    else if (sort === 'price_desc') orderBy = 'pr.retail_price DESC NULLS LAST, COALESCE(p.display_name, p.name) ASC';
-    else if (sort === 'newest') orderBy = 's.created_at DESC';
-    else if (sort === 'name_asc') orderBy = 'COALESCE(p.display_name, p.name) ASC, s.variant_name ASC';
-    else if (sort === 'name_desc') orderBy = 'COALESCE(p.display_name, p.name) DESC, s.variant_name DESC';
+    if (sort === 'discount') orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, CASE WHEN pr.sale_price IS NOT NULL AND pr.retail_price > 0 THEN (pr.retail_price - pr.sale_price) / pr.retail_price ELSE 0 END DESC, COALESCE(p.display_name, p.name) ASC';
+    else if (sort === 'price_asc') orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, pr.retail_price ASC NULLS LAST, COALESCE(p.display_name, p.name) ASC';
+    else if (sort === 'price_desc') orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, pr.retail_price DESC NULLS LAST, COALESCE(p.display_name, p.name) ASC';
+    else if (sort === 'newest') orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, s.created_at DESC';
+    else if (sort === 'name_asc') orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, COALESCE(p.display_name, p.name) ASC, s.variant_name ASC';
+    else if (sort === 'name_desc') orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, COALESCE(p.display_name, p.name) DESC, s.variant_name DESC';
     else if (searchParamIdx && !sort) {
-      orderBy = `(
+      orderBy = `CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, (
         COALESCE(ts_rank(p.search_vector, to_tsquery('english', unaccent($${searchTsQueryIdx}))), 0) * 2
         + greatest(similarity(COALESCE(p.display_name, p.name), $${searchParamIdx}), similarity(p.collection, $${searchParamIdx}))
         + COALESCE(pp.popularity_score, 0) * 0.1
