@@ -49,10 +49,15 @@ const ATTR = {
 
 const MARKUP = 2.0;
 
-// ─── Category mapping from material string ───
-function getCategoryId(material, collectionName) {
+// ─── Category mapping from material string + SKU type ───
+function getCategoryId(material, collectionName, skuType) {
   const m = material.toUpperCase();
   const c = collectionName.toUpperCase();
+  const t = (skuType || '').toUpperCase();
+  // SKU-level type overrides: mosaic items in non-mosaic collections
+  if (t === 'MOSAIC') return CAT.mosaic;
+  // SKU-level type overrides: ceramic wall items
+  if (t === 'CERAMIC WALL' || t === 'PORCELAIN WALL' || t === 'WALL') return CAT.wallTile;
   if (c === 'SLABS' || c === 'XL SLABS') return CAT.porcelain;
   if (c === 'PAVERS') return CAT.pavers;
   if (c === 'BATH FIXTURES') return CAT.bathAccessories;
@@ -61,6 +66,7 @@ function getCategoryId(material, collectionName) {
   if (m.includes('NATURAL STONE') || m.includes('GLASS MOSAIC')) return CAT.mosaic;
   if (m.includes('ALUMINUM')) return CAT.mosaic;
   if (c === 'PINE' || c === 'NORTHWOOD' || c === 'WESTON') return CAT.woodLook;
+  if (m.includes('CERAMIC WALL')) return CAT.wallTile;
   if (m.includes('PORCELAIN')) return CAT.porcelain;
   if (m.includes('QUARRY')) return CAT.ceramic;
   if (m.includes('CERAMIC')) return CAT.wallTile;
@@ -376,7 +382,17 @@ async function run() {
 
   for (const rec of allRecords) {
     const normCol = normalizeCollectionName(rec.collection);
-    const color = extractColor(rec.desc, rec.collection);
+    let color = extractColor(rec.desc, rec.collection);
+    // Detect mosaic items by type label OR description keyword
+    const isMosaicCol = /^CC\s+(MOSAICS?|PORCELAIN)/i.test(rec.collection) ||
+      /ROCKART|METALS/i.test(rec.collection) ||
+      /NATURAL STONE|GLASS MOSAIC/i.test(rec.material);
+    const isMosaicItem = rec.type.toUpperCase() === 'MOSAIC' || /\bMOSAIC\b/i.test(rec.desc);
+    if (!isMosaicCol && isMosaicItem && !/\bMosaic\b/i.test(color)) {
+      color = color + ' Mosaic';
+    }
+    // Use effective type for category: override to MOSAIC if description indicates it
+    const effectiveType = (!isMosaicCol && isMosaicItem) ? 'MOSAIC' : rec.type;
     const key = `${normCol}|${titleCase(color)}`;
 
     if (!productMap.has(key)) {
@@ -384,7 +400,7 @@ async function run() {
         collection: titleCase(normCol),
         material: rec.material,
         color: titleCase(color),
-        categoryId: getCategoryId(rec.material, rec.collection),
+        categoryId: getCategoryId(rec.material, rec.collection, effectiveType),
         skus: [],
       });
     }
