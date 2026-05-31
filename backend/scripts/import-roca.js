@@ -307,7 +307,16 @@ function extractColor(desc, collectionName) {
   text = text.replace(/\bGr\b/gi, 'Gray');
   text = text.replace(/\bBlk\b/gi, 'Black');
   text = text.replace(/\bBw\b/gi, 'Black & White');
+  text = text.replace(/\bBl\b/gi, 'Blanco');
+  text = text.replace(/\bAr\b/gi, 'Arena');
   text = text.replace(/\s+/g, ' ').trim();
+
+  // Expand standalone finish codes to readable names
+  const finishCodes = {
+    'po': 'Polished', 'up': 'Unpolished', 'mt': 'Matte',
+    'abs': 'Abrasive', 'mg': 'Matte'
+  };
+  if (finishCodes[text.toLowerCase()]) text = finishCodes[text.toLowerCase()];
 
   // For mosaic collections: append shape if the result is just a color (no shape word present)
   if (isMosaicCollection && mosaicShape && text) {
