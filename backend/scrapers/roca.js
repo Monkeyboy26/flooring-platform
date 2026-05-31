@@ -77,6 +77,16 @@ const FORMAT_WORDS = [
   'bright', 'crackled', 'rev', 'beveled', 'ac', 'br',
 ].sort((a, b) => b.length - a.length); // longest first for correct stripping
 
+// Shape/finish words to PRESERVE for mosaic collections (CC Mosaics, CC Porcelain)
+// so that "Bright White Picket" and "Matte White Penny Round" don't both reduce to "white"
+const MOSAIC_KEEP_WORDS = new Set([
+  'penny round', 'basket weave', 'basketweave', 'fish scale', 'flat top',
+  'arrow', 'flower', 'hexagon', 'square', 'triangle', 'octagon', 'arabesque',
+  'picket', 'stacked', 'herringbone', 'chevron', 'diamond', 'lantern', 'fan',
+  'brick', 'subway',
+  'bright', 'matte', 'glossy', 'crackled',
+]);
+
 // ── Normalization helpers ──
 
 function normalizeForMatch(str) {
@@ -169,11 +179,12 @@ function findBestSku(productId, entry, skusByProduct, needsImageFn) {
  * E.g., "Hexagon Acero" → "acero", "Bg Black Penny Round" → "black",
  *       "Astoria Fd Grey" → "astoria grey"
  */
-function extractBaseColor(productName) {
+function extractBaseColor(productName, { keepMosaicWords = false } = {}) {
   let name = productName.toLowerCase();
 
-  // Remove format words
+  // Remove format words (skip shape/finish words for mosaic collections)
   for (const fw of FORMAT_WORDS) {
+    if (keepMosaicWords && MOSAIC_KEEP_WORDS.has(fw)) continue;
     const escaped = fw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
     name = name.replace(new RegExp('\\b' + escaped + '\\b', 'g'), ' ');
   }
@@ -195,11 +206,11 @@ function extractBaseColor(productName) {
  * Uses word-level comparison: all words of the shorter set must appear in the longer set.
  * Normalizes grey↔gray spelling.
  */
-function colorsMatch(webColor, dbBaseColor) {
+function colorsMatch(webColor, dbBaseColor, { keepMosaicWords = false } = {}) {
   if (!webColor || !dbBaseColor) return false;
 
   // Strip format/finish words from web label too (e.g., "Biscuit Bright" → "biscuit")
-  const cleanWeb = extractBaseColor(webColor);
+  const cleanWeb = extractBaseColor(webColor, { keepMosaicWords });
   const cleanDb = dbBaseColor; // already stripped by caller
 
   const normWeb = normalizeForMatch(normalizeSpelling(cleanWeb));
@@ -584,6 +595,7 @@ async function run() {
     let collectionMatched = 0;
 
     // ── Pass 1: SKU code match (exact + prefix, unrestricted by collection) ──
+    const pass1UsedEntries = new Set(); // entries consumed by SKU code match — skip in Pass 2/3
     for (const entry of entries) {
       for (const skuCode of entry.skuCodes) {
         const upper = skuCode.toUpperCase();
@@ -593,18 +605,22 @@ async function run() {
           await saveSkuImages(pool, sku.product_id, sku.sku_id, [entry.url], { maxImages: 1 });
           newlyMatchedSkuIds.add(sku.sku_id);
           collectionMatched++;
+          pass1UsedEntries.add(entry);
         } else if (!sku) {
           // Prefix match: save to ALL non-accessory SKUs sharing this prefix
           const prefixSkus = skuPrefixMap.get(upper);
           if (prefixSkus) {
+            let prefixMatched = false;
             for (const pSku of prefixSkus) {
               if (pSku.variant_type === 'accessory') continue;
               if (needsImage(pSku.sku_id)) {
                 await saveSkuImages(pool, pSku.product_id, pSku.sku_id, [entry.url], { maxImages: 1 });
                 newlyMatchedSkuIds.add(pSku.sku_id);
                 collectionMatched++;
+                prefixMatched = true;
               }
             }
+            if (prefixMatched) pass1UsedEntries.add(entry);
           }
         }
       }
@@ -612,9 +628,13 @@ async function run() {
 
     // ── Pass 2: Base color extraction with best-match scoring ──
     // Collect all candidate matches, score by Jaccard word overlap, assign best per product
+    // Skip entries already consumed by Pass 1 (SKU code match) to prevent cross-contamination
+    // For mosaic collections, preserve shape/finish words to prevent "white picket" matching "white penny round"
+    const isMosaicCollection = /^cc\s+(mosaics?|porcelain)/i.test(collectionName);
     const pass2Candidates = new Map(); // product_id → [{entry, score}]
 
     for (const entry of entries) {
+      if (pass1UsedEntries.has(entry)) continue; // already matched by SKU code
       // Strip collection/sub-collection prefix from the website label
       let webColor = entry.color;
       if (webColor.toUpperCase().startsWith(prefixToStrip.toUpperCase() + ' ')) {
@@ -639,8 +659,8 @@ async function run() {
             dbName = dbName.substring(subPrefix.length).trim();
           }
         }
-        const baseColor = extractBaseColor(dbName);
-        if (colorsMatch(webColor, baseColor)) {
+        const baseColor = extractBaseColor(dbName, { keepMosaicWords: isMosaicCollection });
+        if (colorsMatch(webColor, baseColor, { keepMosaicWords: isMosaicCollection })) {
           // Score by Jaccard similarity between web label (+ image filename) and full product name.
           const labelWords = normalizeSpelling(webColor.toLowerCase()).split(/[^a-z]+/).filter(w => w.length >= 2);
           const imgFile = entry.url.split('/').pop().replace(/\.(jpeg|jpg|png|webp|gif)/gi, '').toLowerCase();
@@ -657,32 +677,45 @@ async function run() {
       }
     }
 
-    // Assign best-scoring match per product → resolve to best SKU
+    // Assign best match per product with 1:1 entry constraint (each entry used at most once)
+    // This prevents one website image from being assigned to multiple products
+    const allPass2 = [];
     for (const [pid, candidates] of pass2Candidates) {
-      candidates.sort((a, b) => b.score - a.score);
-      const bestEntry = candidates[0].entry;
-      const bestSku = findBestSku(pid, bestEntry, skusByProduct, needsImage);
+      for (const c of candidates) {
+        allPass2.push({ pid, entry: c.entry, score: c.score });
+      }
+    }
+    allPass2.sort((a, b) => b.score - a.score);
+
+    const pass2UsedEntries = new Set();
+    const pass2AssignedProducts = new Set();
+    for (const { pid, entry, score } of allPass2) {
+      if (pass2UsedEntries.has(entry) || pass2AssignedProducts.has(pid)) continue;
+      const bestSku = findBestSku(pid, entry, skusByProduct, needsImage);
       if (bestSku) {
-        await saveSkuImages(pool, pid, bestSku.sku_id, [bestEntry.url], { maxImages: 1 });
+        await saveSkuImages(pool, pid, bestSku.sku_id, [entry.url], { maxImages: 1 });
         newlyMatchedSkuIds.add(bestSku.sku_id);
       } else {
-        // Fallback to product-level if no SKU resolved
-        await saveProductImages(pool, pid, [bestEntry.url], { maxImages: 1 });
+        await saveProductImages(pool, pid, [entry.url], { maxImages: 1 });
       }
+      pass2UsedEntries.add(entry);
+      pass2AssignedProducts.add(pid);
       collectionMatched++;
     }
 
     // ── Pass 3: Fuzzy name match (remaining unmatched products) ──
+    // Skip entries already consumed by Pass 1 or Pass 2
+    // Collect all candidates, then do 1:1 assignment (same as Pass 2)
+    const pass3Candidates = [];
     for (const prod of collectionProducts) {
       const prodSkus = skusByProduct.get(prod.product_id) || [];
       const hasSkuNeedingImage = prodSkus.some(s => s.variant_type !== 'accessory' && needsImage(s.sku_id));
       if (!hasSkuNeedingImage) continue;
 
       const normProd = normalizeForMatch(prod.product_name);
-      let bestEntry = null;
-      let bestScore = 0;
 
       for (const entry of entries) {
+        if (pass1UsedEntries.has(entry) || pass2UsedEntries.has(entry)) continue;
         const normFull = normalizeForMatch(entry.color);
 
         // Strip collection prefix
@@ -703,22 +736,28 @@ async function run() {
           if (ratio >= 0.7) score = 0.6;
         }
 
-        if (score > bestScore) {
-          bestScore = score;
-          bestEntry = entry;
+        if (score >= 0.6) {
+          pass3Candidates.push({ pid: prod.product_id, entry, score });
         }
       }
+    }
 
-      if (bestEntry && bestScore >= 0.6) {
-        const bestSku = findBestSku(prod.product_id, bestEntry, skusByProduct, needsImage);
-        if (bestSku) {
-          await saveSkuImages(pool, prod.product_id, bestSku.sku_id, [bestEntry.url], { maxImages: 1 });
-          newlyMatchedSkuIds.add(bestSku.sku_id);
-        } else {
-          await saveProductImages(pool, prod.product_id, [bestEntry.url], { maxImages: 1 });
-        }
-        collectionMatched++;
+    // 1:1 assignment: each entry and product used at most once
+    pass3Candidates.sort((a, b) => b.score - a.score);
+    const pass3UsedEntries = new Set();
+    const pass3AssignedProducts = new Set();
+    for (const { pid, entry, score } of pass3Candidates) {
+      if (pass3UsedEntries.has(entry) || pass3AssignedProducts.has(pid)) continue;
+      const bestSku = findBestSku(pid, entry, skusByProduct, needsImage);
+      if (bestSku) {
+        await saveSkuImages(pool, pid, bestSku.sku_id, [entry.url], { maxImages: 1 });
+        newlyMatchedSkuIds.add(bestSku.sku_id);
+      } else {
+        await saveProductImages(pool, pid, [entry.url], { maxImages: 1 });
       }
+      pass3UsedEntries.add(entry);
+      pass3AssignedProducts.add(pid);
+      collectionMatched++;
     }
 
     // ── PDFs (tech sheets, sell sheets) ──
