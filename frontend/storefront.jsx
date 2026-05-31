@@ -5351,15 +5351,17 @@
                 const colorLabel = attrMap['countertop_finish'] ? 'Cabinet Color' : isRomanVariants ? 'Style' : 'Color';
                 const showAttrs = attrSlugs.length > 0;
                 // Check if the currently selected size/finish is available for a color swatch
+                // In vanity context, finish = cabinet color, so switching colors inherently changes finish
+                const _finishIsColor = !!attrMap['countertop_finish'];
                 const isColorCompatible = (c) => {
                   if (c.is_current) return true;
                   const curSize = currentAttrs['size'];
-                  const curFinish = currentAttrs['finish'];
-                  if (!curSize && !curFinish) return true;
+                  // Quick exit: nothing selected to conflict with
+                  if (!curSize && attrSlugs.every(s => !currentAttrs[s])) return true;
                   // Collection siblings have available_sizes/available_finishes from API
                   if (c.available_sizes || c.available_finishes) {
                     const sizeOk = !curSize || !c.available_sizes || c.available_sizes.some(s => normalizeSize(s) === normalizeSize(curSize));
-                    const finishOk = !curFinish || !c.available_finishes || c.available_finishes.includes(curFinish);
+                    const finishOk = _finishIsColor || !currentAttrs['finish'] || !c.available_finishes || c.available_finishes.includes(currentAttrs['finish']);
                     return sizeOk && finishOk;
                   }
                   // Same-product color items: check effectiveSiblings
@@ -5369,17 +5371,23 @@
                     return ca && normColor(ca.value) === normColor(targetColor);
                   });
                   if (sameColorSibs.length === 0) return true;
+                  // Check size compatibility
                   const sizeOk = !curSize || sameColorSibs.some(s => {
                     const sa = (s.attributes || []).find(a => a.slug === 'size');
                     return sa && normalizeSize(sa.value) === normalizeSize(curSize);
                   });
-                  const targetFinishVal = sameColorSibs.length > 0 ? (sameColorSibs[0].attributes || []).find(a => a.slug === 'finish')?.value : null;
-                  const colorIsFinish = targetFinishVal && normColor(targetFinishVal) === normColor(targetColor);
-                  const finishOk = colorIsFinish || !curFinish || sameColorSibs.some(s => {
-                    const fa = (s.attributes || []).find(a => a.slug === 'finish');
-                    return fa && fa.value === curFinish;
+                  if (!sizeOk) return false;
+                  // Check all selectable attributes (finish, shape, countertop, etc.)
+                  return attrSlugs.every(attrSlug => {
+                    const curVal = currentAttrs[attrSlug];
+                    if (!curVal) return true;
+                    // Skip finish check in vanity context — finish = cabinet color, changes with color
+                    if (attrSlug === 'finish' && _finishIsColor) return true;
+                    return sameColorSibs.some(s => {
+                      const a = (s.attributes || []).find(a => a.slug === attrSlug);
+                      return a && a.value === curVal;
+                    });
                   });
-                  return sizeOk && finishOk;
                 };
                 if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes) return null;
                 return (
@@ -5564,13 +5572,18 @@
                         });
                       })() : rawValues).sort(sizeSort);
                       const currentVal = currentAttrs[slug];
-                      // Compute which values are compatible with current selections of OTHER attributes
+                      // Compute which values are compatible with current color, size, AND other selectable attributes
                       const compatibleValues = new Set(allValues.filter(val => {
-                        // Check same-product siblings first
                         const inProduct = effectiveSiblings.some(s => {
                           const sa = (s.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
                           if (val === 'No Countertop' && slug === 'countertop_finish') { if (sa[slug]) return false; }
                           else if (sa[slug] !== val) return false;
+                          // Must match current color (if any) — color is managed by dedicated section
+                          // Exception: finish pills in vanity context switch cabinet color, which inherently changes color
+                          if (currentAttrs['color'] && sa['color'] && normColor(sa['color']) !== normColor(currentAttrs['color']) && !(slug === 'finish' && _finishIsColor)) return false;
+                          // Must match current size (if any) — size is managed by dedicated section
+                          if (currentAttrs['size'] && sa['size'] && normalizeSize(sa['size']) !== normalizeSize(currentAttrs['size'])) return false;
+                          // Must match all other selectable attributes
                           return attrSlugs.every(otherSlug => {
                             if (otherSlug === slug) return true;
                             return !currentAttrs[otherSlug] || !sa[otherSlug] || sa[otherSlug] === currentAttrs[otherSlug];
@@ -5579,6 +5592,15 @@
                         return inProduct;
                       }));
                       if (allValues.length <= 1 && !currentVal) return null;
+                      const _scoreSibling = (sa) => {
+                        let score = 0;
+                        // Heavily weight color/size matches (managed by dedicated sections, not in attrSlugs)
+                        if (currentAttrs['color'] && sa['color'] && normColor(sa['color']) === normColor(currentAttrs['color'])) score += 10;
+                        if (currentAttrs['size'] && sa['size'] && normalizeSize(sa['size']) === normalizeSize(currentAttrs['size'])) score += 10;
+                        // Score other selectable attribute matches
+                        attrSlugs.forEach(k => { if (k !== slug && sa[k] === currentAttrs[k]) score++; });
+                        return score;
+                      };
                       const findBest = (val) => {
                         // Only consider siblings that match the target attribute value
                         const matching = effectiveSiblings.filter(s => {
@@ -5589,12 +5611,9 @@
                         });
                         if (matching.length === 0) return null;
                         if (matching.length === 1) return matching[0];
-                        // Score by other selectable attributes to find best match
                         const scored = matching.map(s => {
                           const sa = (s.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
-                          let score = 0;
-                          attrSlugs.forEach(k => { if (k !== slug && sa[k] === currentAttrs[k]) score++; });
-                          return { ...s, score };
+                          return { ...s, score: _scoreSibling(sa) };
                         });
                         return scored.sort((a, b) => b.score - a.score || (a.sku_id < b.sku_id ? -1 : 1))[0];
                       };
@@ -5609,9 +5628,7 @@
                         if (matching.length === 0) return null;
                         const scored = matching.map(s => {
                           const sa = (s.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
-                          let score = 0;
-                          attrSlugs.forEach(k => { if (k !== slug && sa[k] === currentAttrs[k]) score++; });
-                          return { ...s, score };
+                          return { ...s, score: _scoreSibling(sa) };
                         });
                         return scored.sort((a, b) => b.score - a.score || (a.sku_id < b.sku_id ? -1 : 1))[0];
                       };

@@ -4199,15 +4199,15 @@
       const showRomanStylePills = romanStyleItems.length >= 2;
       const colorLabel = attrMap["countertop_finish"] ? "Cabinet Color" : isRomanVariants ? "Style" : "Color";
       const showAttrs = attrSlugs.length > 0;
+      const _finishIsColor = !!attrMap["countertop_finish"];
       const isColorCompatible = (c) => {
         if (c.is_current) return true;
         const curSize = currentAttrs["size"];
-        const curFinish = currentAttrs["finish"];
-        if (!curSize && !curFinish) return true;
+        if (!curSize && attrSlugs.every((s) => !currentAttrs[s])) return true;
         if (c.available_sizes || c.available_finishes) {
           const sizeOk2 = !curSize || !c.available_sizes || c.available_sizes.some((s) => normalizeSize(s) === normalizeSize(curSize));
-          const finishOk2 = !curFinish || !c.available_finishes || c.available_finishes.includes(curFinish);
-          return sizeOk2 && finishOk2;
+          const finishOk = _finishIsColor || !currentAttrs["finish"] || !c.available_finishes || c.available_finishes.includes(currentAttrs["finish"]);
+          return sizeOk2 && finishOk;
         }
         const targetColor = c.color || c.product_name;
         const sameColorSibs = effectiveSiblings.filter((s) => {
@@ -4219,13 +4219,16 @@
           const sa = (s.attributes || []).find((a) => a.slug === "size");
           return sa && normalizeSize(sa.value) === normalizeSize(curSize);
         });
-        const targetFinishVal = sameColorSibs.length > 0 ? (sameColorSibs[0].attributes || []).find((a) => a.slug === "finish")?.value : null;
-        const colorIsFinish = targetFinishVal && normColor(targetFinishVal) === normColor(targetColor);
-        const finishOk = colorIsFinish || !curFinish || sameColorSibs.some((s) => {
-          const fa = (s.attributes || []).find((a) => a.slug === "finish");
-          return fa && fa.value === curFinish;
+        if (!sizeOk) return false;
+        return attrSlugs.every((attrSlug) => {
+          const curVal = currentAttrs[attrSlug];
+          if (!curVal) return true;
+          if (attrSlug === "finish" && _finishIsColor) return true;
+          return sameColorSibs.some((s) => {
+            const a = (s.attributes || []).find((a2) => a2.slug === attrSlug);
+            return a && a.value === curVal;
+          });
         });
-        return sizeOk && finishOk;
       };
       if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes) return null;
       return /* @__PURE__ */ React.createElement("div", { className: "variant-selectors" }, showColors && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, colorLabel), isRomanVariants ? /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, [...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map((c) => /* @__PURE__ */ React.createElement("button", { key: c.sku_id, className: "attr-pill" + (c.is_current ? " active" : ""), onClick: () => {
@@ -4319,6 +4322,8 @@
             if (val === "No Countertop" && slug === "countertop_finish") {
               if (sa[slug]) return false;
             } else if (sa[slug] !== val) return false;
+            if (currentAttrs["color"] && sa["color"] && normColor(sa["color"]) !== normColor(currentAttrs["color"]) && !(slug === "finish" && _finishIsColor)) return false;
+            if (currentAttrs["size"] && sa["size"] && normalizeSize(sa["size"]) !== normalizeSize(currentAttrs["size"])) return false;
             return attrSlugs.every((otherSlug) => {
               if (otherSlug === slug) return true;
               return !currentAttrs[otherSlug] || !sa[otherSlug] || sa[otherSlug] === currentAttrs[otherSlug];
@@ -4327,6 +4332,15 @@
           return inProduct;
         }));
         if (allValues.length <= 1 && !currentVal) return null;
+        const _scoreSibling = (sa) => {
+          let score = 0;
+          if (currentAttrs["color"] && sa["color"] && normColor(sa["color"]) === normColor(currentAttrs["color"])) score += 10;
+          if (currentAttrs["size"] && sa["size"] && normalizeSize(sa["size"]) === normalizeSize(currentAttrs["size"])) score += 10;
+          attrSlugs.forEach((k) => {
+            if (k !== slug && sa[k] === currentAttrs[k]) score++;
+          });
+          return score;
+        };
         const findBest = (val) => {
           const matching = effectiveSiblings.filter((s) => {
             if (s.sku_id === sku.sku_id) return false;
@@ -4344,11 +4358,7 @@
               m[a.slug] = a.value;
               return m;
             }, {});
-            let score = 0;
-            attrSlugs.forEach((k) => {
-              if (k !== slug && sa[k] === currentAttrs[k]) score++;
-            });
-            return { ...s, score };
+            return { ...s, score: _scoreSibling(sa) };
           });
           return scored.sort((a, b) => b.score - a.score || (a.sku_id < b.sku_id ? -1 : 1))[0];
         };
@@ -4368,11 +4378,7 @@
               m[a.slug] = a.value;
               return m;
             }, {});
-            let score = 0;
-            attrSlugs.forEach((k) => {
-              if (k !== slug && sa[k] === currentAttrs[k]) score++;
-            });
-            return { ...s, score };
+            return { ...s, score: _scoreSibling(sa) };
           });
           return scored.sort((a, b) => b.score - a.score || (a.sku_id < b.sku_id ? -1 : 1))[0];
         };
