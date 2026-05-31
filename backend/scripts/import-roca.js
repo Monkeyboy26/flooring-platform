@@ -53,7 +53,7 @@ const MARKUP = 2.0;
 function getCategoryId(material, collectionName) {
   const m = material.toUpperCase();
   const c = collectionName.toUpperCase();
-  if (c === 'SLABS' || c === 'XL SLABS') return CAT.porcelainSlab;
+  if (c === 'SLABS' || c === 'XL SLABS') return CAT.porcelain;
   if (c === 'PAVERS') return CAT.pavers;
   if (c === 'BATH FIXTURES') return CAT.bathAccessories;
   if (c.includes('ROCKART') || c.includes('METALS')) return CAT.mosaic;
