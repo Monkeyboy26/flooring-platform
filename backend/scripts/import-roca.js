@@ -182,8 +182,8 @@ function extractColor(desc, collectionName) {
   // Remove common prefixes
   text = text.replace(/^SUITE\s+/i, '');
   text = text.replace(/^LM\s+/i, '');
-  // For CC Mosaics/Porcelain, expand BG/MG finish prefix to full name
-  if (isMosaicCollection) {
+  // For CC collections, expand BG/MG finish prefix to full name
+  if (collectionName.toUpperCase().startsWith('CC ')) {
     text = text.replace(/^MG\s+/i, 'Matte ');
     text = text.replace(/^BG\s+/i, 'Bright ');
   }
@@ -256,6 +256,8 @@ function extractColor(desc, collectionName) {
   text = text.replace(/\s+\d+[\""\']*\s*[xX×]\s*\d+[\""\']*[R]?(\s.*$|$)/i, '');
   // Fractional sizes: 4 1/4X4 1/4
   text = text.replace(/\s+\d+\s+\d+\/\d+\s*[xX]\s*\d+\s+\d+\/\d+.*$/i, '');
+  // Fraction x integer sizes: 3/4X10, 7/8X6
+  text = text.replace(/\s+\d+\/\d+\s*[xX]\s*\d+.*$/i, '');
   // NxN at start (XL SLABS: "48X110 R SERENA...")
   text = text.replace(/^\d+[xX]\d+\s+R?\s*/i, '');
   // Standalone size like "20X20" at end
@@ -264,7 +266,7 @@ function extractColor(desc, collectionName) {
   // Remove trailing finish/surface/trim codes
   const codes = ['R', 'PO', 'UP', 'MT', 'MC', 'ST', 'ABS', 'BG', 'MG',
     'SBN', 'BN', 'CRN', 'MOS', 'MOSAIC', 'HEXAGON', 'OCT',
-    'BRIGHT', 'MATTE', 'PENCIL', 'W/'];
+    'BRIGHT', 'MATTE', 'PENCIL', 'PEN', 'W/'];
   for (let pass = 0; pass < 3; pass++) {
     for (const code of codes) {
       const re = new RegExp(`\\s+${code.replace('/', '\\/')}(\\s+\\S+)?$`, 'i');
@@ -278,6 +280,33 @@ function extractColor(desc, collectionName) {
   text = text.replace(/\s+W\/\s+\S+$/i, '');
 
   // Remove leading/trailing whitespace + normalize
+  text = text.replace(/\s+/g, ' ').trim();
+
+  // Expand abbreviated color names to full names
+  // Dotted abbreviations (most specific first)
+  text = text.replace(/\bS\.\s*white\b/gi, 'Snow White');
+  text = text.replace(/\bT\.\s*gray\b/gi, 'Tender Gray');
+  text = text.replace(/\bVel\.\s*/gi, 'Velvet ');
+  text = text.replace(/\bAt\.\s*/gi, 'Atoll ');
+  text = text.replace(/\bP\.\s+/gi, 'Peacock ');
+  text = text.replace(/\bBru\.\s*/gi, 'Brushed ');
+  // Compound abbreviations (before single-word to avoid partial replacement)
+  text = text.replace(/\bClst\s*&\s*/gi, 'Celestial & ');
+  text = text.replace(/\bMrbl\s*&\s*/gi, 'Marble & ');
+  text = text.replace(/\bGr\s*&\s*w\b/gi, 'Gray & White');
+  text = text.replace(/\bWh\s*&\s*bl\b/gi, 'White & Black');
+  text = text.replace(/\bB\s*&\s*w\b/gi, 'Black & White');
+  text = text.replace(/\bWh\s*\/\s*blk\b/gi, 'White & Black');
+  // Single-word abbreviations
+  text = text.replace(/\bClst\b/gi, 'Celestial');
+  text = text.replace(/\bCelest\b/gi, 'Celestial');
+  text = text.replace(/\bMrbl\b/gi, 'Marble');
+  text = text.replace(/\bRnd\b/gi, 'Round');
+  text = text.replace(/\bSn\b/gi, 'Snow');
+  text = text.replace(/\bWh\b/gi, 'White');
+  text = text.replace(/\bGr\b/gi, 'Gray');
+  text = text.replace(/\bBlk\b/gi, 'Black');
+  text = text.replace(/\bBw\b/gi, 'Black & White');
   text = text.replace(/\s+/g, ' ').trim();
 
   // For mosaic collections: append shape if the result is just a color (no shape word present)
