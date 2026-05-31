@@ -175,6 +175,7 @@ function titleCase(str) {
 // ─── Extract color from description ───
 function extractColor(desc, collectionName) {
   let text = desc.trim();
+  const isMosaicCollection = /^CC\s+(MOSAICS?|PORCELAIN)/i.test(collectionName);
 
   // Remove common prefixes
   text = text.replace(/^SUITE\s+/i, '');
@@ -185,15 +186,46 @@ function extractColor(desc, collectionName) {
     text = text.replace(/^(CC|BG|MG)\s+/i, '');
   }
 
-  // Remove collection name prefix
+  // Remove collection name prefix (also handle abbreviated forms like "CC PORCE" for "CC PORCELAIN")
   const colClean = collectionName.replace(/[^A-Za-z0-9\s]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
   const textUpper = text.toUpperCase();
   if (textUpper.startsWith(colClean + ' ')) {
     text = text.substring(colClean.length + 1);
   } else if (textUpper === colClean) {
     text = ''; // description IS just the collection name
+  } else if (colClean.length >= 6) {
+    // Try abbreviated prefix match: if desc starts with first 6+ chars of collection name
+    // e.g., "CC PORCE TENDER GRAY..." matches "CC PORCELAIN" (shares "CC PORCE")
+    for (let len = colClean.length; len >= 6; len--) {
+      const prefix = colClean.substring(0, len);
+      if (textUpper.startsWith(prefix + ' ')) {
+        text = text.substring(prefix.length + 1);
+        break;
+      }
+    }
   }
   text = text.trim();
+
+  // For mosaic collections, extract shape words BEFORE stripping sizes
+  // (sizes strip everything after them, losing "MOSAIC", "MOS" etc.)
+  let mosaicShape = '';
+  if (isMosaicCollection) {
+    // Check if description contains mosaic indicator (after size, or in trailing text)
+    // Covers: "12X12 MOSAIC", "12X12 BRICK MOSAIC", "12X12 OCT MOSAIC", "2X4 BEV. BRICK", etc.
+    const afterSize = text.match(/\d+[xX×]\d+\s+(.+)$/i);
+    if (afterSize) {
+      const tail = afterSize[1].toUpperCase().trim();
+      if (/\b(MOS|MOSAIC|MT|BRICK|HERRING)\b/i.test(tail)) {
+        mosaicShape = 'Mosaic';
+      }
+    }
+    // Also check for MOSAIC/MOS at end without a size (e.g., "BG 2" WHITE DOTS MOSAIC")
+    if (!mosaicShape && /\b(MOSAIC|MOS)\s*$/i.test(text)) {
+      mosaicShape = 'Mosaic';
+    }
+    // Expand "PENNY" to "Penny Round" in text (before size stripping preserves it)
+    text = text.replace(/\bPENNY\b(?!\s+ROUND)/i, 'PENNY ROUND');
+  }
 
   // Remove size dimensions
   // Standard NxN patterns with quotes: 12"x24", 12X24, 8X48R
@@ -223,6 +255,14 @@ function extractColor(desc, collectionName) {
 
   // Remove leading/trailing whitespace + normalize
   text = text.replace(/\s+/g, ' ').trim();
+
+  // For mosaic collections: append shape if the result is just a color (no shape word present)
+  if (isMosaicCollection && mosaicShape && text) {
+    const hasShape = /\b(PENNY|STACKED|PICKET|OVAL|FEATHER|HEXAGON|HEX|BRICK|HERRING|BASKET|3D|DOTS?)\b/i.test(text);
+    if (!hasShape) {
+      text = text + ' ' + mosaicShape;
+    }
+  }
 
   return text || desc.replace(/\s+\d+.*$/, '').trim() || desc;
 }

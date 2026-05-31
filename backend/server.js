@@ -1720,7 +1720,10 @@ app.get('/api/storefront/skus/compare', async (req, res) => {
         pr.retail_price, pr.price_basis,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
-        (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
+        COALESCE(
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+        ) as primary_image
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
@@ -1975,11 +1978,13 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         COALESCE(
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'lifestyle' ORDER BY ma.sort_order LIMIT 1),
-          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('alternate','swatch') ORDER BY CASE ma.asset_type WHEN 'alternate' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('alternate','swatch') ORDER BY CASE ma.asset_type WHEN 'alternate' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
         ) as primary_image,
         COALESCE(
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'lifestyle' ORDER BY ma.sort_order LIMIT 1)
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'lifestyle' ORDER BY ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
         ) as sku_image,
         (SELECT ma.url FROM media_assets ma
          JOIN skus s_top ON s_top.id = ma.sku_id AND ma.asset_type = 'primary'
@@ -2032,9 +2037,13 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
           COALESCE(
             (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('alternate','swatch') ORDER BY CASE ma.asset_type WHEN 'alternate' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('alternate','swatch') ORDER BY CASE ma.asset_type WHEN 'alternate' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1),
+            (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
           ) as primary_image,
-          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as sku_image,
+          COALESCE(
+            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+            (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
+          ) as sku_image,
           NULL as countertop_image,
           CASE
             WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
@@ -2080,7 +2089,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         COALESCE(NULLIF(s.accessory_label, ''), p_acc.name) as accessory_label,
         pr.retail_price, pr.price_basis,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
-        (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image,
+        COALESCE(
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+        ) as primary_image,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -2143,7 +2155,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             COALESCE(p.display_name, p.name) as product_name, p.id as accessory_product_id,
             pr.retail_price, pr.price_basis, pk.sqft_per_box,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
-            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image,
+            COALESCE(
+              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1),
+              (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+            ) as primary_image,
             CASE
               WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
               WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -2199,7 +2214,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             COALESCE(
               (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
-              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'lifestyle' ORDER BY ma.sort_order LIMIT 1)
+              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'lifestyle' ORDER BY ma.sort_order LIMIT 1),
+              (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
             ) as primary_image,
             (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY ma.sort_order LIMIT 1) as shape_image,
             (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) as color,
@@ -2225,7 +2241,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             s.id as sku_id, s.variant_name, s.variant_type, s.sell_by, p.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection,
             pr.retail_price, pr.price_basis, pk.sqft_per_box,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
-            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image,
+            COALESCE(
+              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1),
+              (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+            ) as primary_image,
             (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) as color,
             (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) as finish,
             (SELECT ARRAY_AGG(DISTINCT sa2.value) FROM skus s2 JOIN sku_attributes sa2 ON sa2.sku_id = s2.id JOIN attributes a2 ON a2.id = sa2.attribute_id WHERE s2.product_id = p.id AND a2.slug = 'size' AND s2.status = 'active' AND s2.is_sample = false) as available_sizes,
@@ -2312,7 +2331,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           c.name as category_name, c.slug as category_slug,
           pr.retail_price, pr.price_basis, pk.sqft_per_box,
           CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
-          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
+          COALESCE(
+            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1),
+            (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+          ) as primary_image
         FROM sku_attributes sa
         JOIN skus s ON s.id = sa.sku_id AND s.status = 'active' AND s.is_sample = false
         JOIN products p ON p.id = s.product_id AND p.status = 'active'

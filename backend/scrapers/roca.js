@@ -5,6 +5,10 @@
  * rocatileusa.com to capture product images, descriptions, and lifestyle
  * images from collection pages.
  *
+ * SKU-level gap-filler: for any SKU not already covered by the portal
+ * scrape (roca-portal-scrape.mjs), get per-SKU primary images from
+ * the website collection pages. Also scrapes PDFs (tech sheets, sell sheets).
+ *
  * Multi-pass matching strategy:
  *   Pass 1 — SKU code match (most reliable, handles CC Mosaics etc.)
  *   Pass 2 — Base color extraction + one-to-many (handles Block, Forge, etc.)
@@ -26,7 +30,7 @@
  * Usage: docker compose exec api node scrapers/roca.js
  */
 import pg from 'pg';
-import { delay, saveProductImages, upsertMediaAsset } from './base.js';
+import { delay, saveProductImages, saveSkuImages, upsertMediaAsset } from './base.js';
 
 const pool = new pg.Pool({
   host: process.env.DB_HOST || 'localhost',
@@ -90,6 +94,73 @@ function normalizeSpelling(str) {
  */
 function deslugify(slug) {
   return slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/**
+ * Extract a size string (e.g., "12x24") from <p> tag text on collection pages.
+ * Handles formats: 12"x24", 12x24, 12 x 24, 8"x8", 12"x24" R
+ */
+function extractSizeFromText(text) {
+  if (!text) return null;
+  const m = text.match(/(\d+)\s*["″]?\s*[xX×]\s*(\d+)\s*["″]?/);
+  if (m) return `${m[1]}x${m[2]}`;
+  return null;
+}
+
+/**
+ * Given a product and a collection page entry, find the best-matching SKU
+ * within that product's SKUs.
+ *
+ * Priority:
+ * 1. If only one non-accessory SKU → return it
+ * 2. Match entry size against SKU variant_name sizes
+ * 3. Match entry color words against SKU variant_name
+ * 4. Fall back to first candidate needing an image
+ */
+function findBestSku(productId, entry, skusByProduct, needsImageFn) {
+  const skus = skusByProduct.get(productId);
+  if (!skus || skus.length === 0) return null;
+
+  // Filter to non-accessory SKUs
+  const candidates = skus.filter(s => s.variant_type !== 'accessory');
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  // Try matching by size
+  const entrySize = entry.size || extractSizeFromText(entry.color);
+  if (entrySize) {
+    const normEntrySize = entrySize.replace(/\s/g, '').toLowerCase();
+    for (const sku of candidates) {
+      if (!sku.variant_name) continue;
+      const normVariant = sku.variant_name.replace(/\s/g, '').toLowerCase();
+      if (normVariant.includes(normEntrySize)) {
+        if (needsImageFn(sku.sku_id)) return sku;
+      }
+    }
+  }
+
+  // Try matching entry color words against variant_name
+  if (entry.color) {
+    const colorWords = entry.color.toLowerCase().split(/[^a-z]+/).filter(w => w.length >= 3);
+    if (colorWords.length > 0) {
+      let bestSku = null;
+      let bestOverlap = 0;
+      for (const sku of candidates) {
+        if (!sku.variant_name) continue;
+        const variantWords = sku.variant_name.toLowerCase().split(/[^a-z]+/).filter(w => w.length >= 3);
+        const overlap = colorWords.filter(w => variantWords.includes(w)).length;
+        if (overlap > bestOverlap && needsImageFn(sku.sku_id)) {
+          bestOverlap = overlap;
+          bestSku = sku;
+        }
+      }
+      if (bestSku) return bestSku;
+    }
+  }
+
+  // Fall back to first candidate needing an image
+  const needingImage = candidates.find(s => needsImageFn(s.sku_id));
+  return needingImage || candidates[0];
 }
 
 /**
@@ -179,7 +250,7 @@ async function getCollectionSlugs() {
   return [...slugs];
 }
 
-// ── Extract product entries (image + name + SKU codes) from a collection page ──
+// ── Extract product entries (image + name + SKU codes + size) from a collection page ──
 
 function extractProductEntries(html) {
   const results = [];
@@ -197,14 +268,27 @@ function extractProductEntries(html) {
     const imgLower = imgPath.toLowerCase();
     if (JUNK_PATTERNS.some(junk => imgLower.includes(junk))) continue;
 
-    // Extract SKU codes from the <p> content
+    // Extract SKU codes and size from the <p> content
     const skuCodes = [];
+    let size = null;
     if (detailsHtml) {
       const text = detailsHtml.replace(/<[^>]+>/g, ' ');
+      size = extractSizeFromText(text);
       const tokens = text.split(/[\s,;]+/).filter(Boolean);
       for (const token of tokens) {
-        // SKU pattern: 2+ uppercase letters followed by alphanumeric/hyphens, 6+ chars total
-        if (/^[A-Z]{2,}[\w-]+$/.test(token) && token.length >= 6) {
+        // SKU code pattern: starts with uppercase letter, second char is uppercase or digit,
+        // then word chars/hyphens, 6+ chars total. Filters regular English words (lowercase 2nd char).
+        // Matches: U081BV-12MT, UFCC126-12MT, GRNE0BO161, U259CCI-12, FWM6A57021
+        // Rejects: Bright, Mosaic, Beveled, Wall (lowercase 2nd char)
+        if (/^[A-Z][A-Z0-9][\w-]*$/.test(token) && token.length >= 6) {
+          skuCodes.push(token);
+        }
+        // Short SKU prefix pattern: letter(s) + digits, 3-5 chars (e.g., "U081", "R90")
+        else if (/^[A-Z]\d{2,4}$/i.test(token) && token.length >= 3 && token.length <= 5) {
+          skuCodes.push(token);
+        }
+        // Alphanumeric codes with hyphens that look like vendor SKUs (e.g., "081-A106")
+        else if (/^\d{2,4}-[A-Z]\d+$/i.test(token)) {
           skuCodes.push(token);
         }
       }
@@ -212,11 +296,27 @@ function extractProductEntries(html) {
 
     if (!seen.has(imgPath)) {
       seen.add(imgPath);
-      results.push({ url: BASE_URL + imgPath, color: colorName, skuCodes });
+      results.push({ url: BASE_URL + imgPath, color: colorName, skuCodes, size });
     }
   }
 
   return results;
+}
+
+// ── Extract PDF links from collection page ──
+
+function extractPdfLinks(html) {
+  const pdfs = [];
+  const seen = new Set();
+  const regex = /<a\s+[^>]*href="(\/uploads\/[^"]+\.pdf)"[^>]*>([^<]*)<\/a>/gi;
+  let m;
+  while ((m = regex.exec(html)) !== null) {
+    const path = m[1];
+    if (seen.has(path)) continue;
+    seen.add(path);
+    pdfs.push({ url: BASE_URL + path, label: m[2].trim() });
+  }
+  return pdfs;
 }
 
 // ── Extract collection description ──
@@ -306,7 +406,7 @@ function resolveCollection(slug, allByCollection) {
   const deslugLower = deslug.toLowerCase();
   for (const [, prods] of allByCollection) {
     const matching = prods.filter(p => {
-      const nameLower = p.name.toLowerCase();
+      const nameLower = p.product_name.toLowerCase();
       return nameLower.startsWith(deslugLower + ' ') || nameLower === deslugLower;
     });
     if (matching.length > 0) {
@@ -324,51 +424,70 @@ async function run() {
   if (!vendorRes.rows.length) { console.error('ROCA vendor not found'); return; }
   const vendorId = vendorRes.rows[0].id;
 
-  // Get all products with SKU info
-  const dbProducts = await pool.query(`
-    SELECT p.id as product_id, p.name, p.collection, p.description_short,
-           array_agg(DISTINCT s.vendor_sku) FILTER (WHERE s.vendor_sku IS NOT NULL) as vendor_skus
-    FROM products p
-    JOIN skus s ON s.product_id = p.id
+  // Load all SKUs with product info
+  const dbSkus = await pool.query(`
+    SELECT s.id as sku_id, s.product_id, s.vendor_sku, s.variant_name, s.variant_type,
+           p.name as product_name, p.collection, p.description_short
+    FROM skus s JOIN products p ON p.id = s.product_id
     WHERE p.vendor_id = $1
-    GROUP BY p.id, p.name, p.collection, p.description_short
-    ORDER BY p.collection, p.name
+    ORDER BY p.collection, p.name, s.variant_name
   `, [vendorId]);
 
-  // Check which already have images (both product-level AND SKU-level)
-  const existingImages = await pool.query(`
-    SELECT DISTINCT p.id as product_id
-    FROM products p
-    WHERE p.vendor_id = $1 AND EXISTS (
-      SELECT 1 FROM media_assets ma
-      WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
-    )
+  // Which SKUs already have primary images (from portal)?
+  const existingSkuImages = await pool.query(`
+    SELECT DISTINCT sku_id FROM media_assets
+    WHERE sku_id IS NOT NULL AND asset_type = 'primary'
+    AND product_id IN (SELECT id FROM products WHERE vendor_id = $1)
   `, [vendorId]);
-  const alreadyHasImage = new Set(existingImages.rows.map(r => r.product_id));
+  const skusWithImages = new Set(existingSkuImages.rows.map(r => r.sku_id));
 
-  // Build vendor_sku → product lookup for Pass 1
-  const skuToProduct = new Map();
-  for (const prod of dbProducts.rows) {
-    if (prod.vendor_skus) {
-      for (const sku of prod.vendor_skus) {
-        skuToProduct.set(sku.toUpperCase(), prod);
+  // Which products already have PDFs?
+  const existingPdfs = await pool.query(`
+    SELECT DISTINCT product_id FROM media_assets
+    WHERE asset_type = 'spec_pdf'
+    AND product_id IN (SELECT id FROM products WHERE vendor_id = $1)
+  `, [vendorId]);
+  const productsWithPdfs = new Set(existingPdfs.rows.map(r => r.product_id));
+
+  // Build lookups
+  const vendorSkuToSku = new Map(); // vendor_sku (uppercase) → SKU record
+  const skusByProduct = new Map();  // product_id → SkuRecord[]
+  const productSet = new Set();     // unique product_ids
+  const skuPrefixMap = new Map();   // prefix (part before first "-", uppercase) → SkuRecord[]
+
+  for (const sku of dbSkus.rows) {
+    if (sku.vendor_sku) {
+      vendorSkuToSku.set(sku.vendor_sku.toUpperCase(), sku);
+      // Build prefix map: "U081-28" → prefix "U081", "081-A106" → prefix "081"
+      const prefix = sku.vendor_sku.split('-')[0].toUpperCase();
+      if (prefix.length >= 3 && prefix.length <= 5) {
+        if (!skuPrefixMap.has(prefix)) skuPrefixMap.set(prefix, []);
+        skuPrefixMap.get(prefix).push(sku);
       }
     }
+    if (!skusByProduct.has(sku.product_id)) skusByProduct.set(sku.product_id, []);
+    skusByProduct.get(sku.product_id).push(sku);
+    productSet.add(sku.product_id);
   }
 
-  // Group ALL products by normalized collection name
+  // Group ALL products by normalized collection name (deduplicated by product_id)
   const allByCollection = new Map();
-  for (const prod of dbProducts.rows) {
-    const normCol = normalizeForMatch(prod.collection);
+  const seenProducts = new Set();
+  for (const sku of dbSkus.rows) {
+    if (seenProducts.has(sku.product_id)) continue;
+    seenProducts.add(sku.product_id);
+    const normCol = normalizeForMatch(sku.collection);
     if (!allByCollection.has(normCol)) allByCollection.set(normCol, []);
-    allByCollection.get(normCol).push(prod);
+    allByCollection.get(normCol).push(sku);
   }
 
-  const totalProducts = dbProducts.rowCount;
-  const initialWithImages = alreadyHasImage.size;
-  console.log(`Total Roca products: ${totalProducts}`);
-  console.log(`Already have images: ${initialWithImages}`);
-  console.log(`Need images: ${totalProducts - initialWithImages}\n`);
+  const totalSkus = dbSkus.rowCount;
+  const totalProducts = productSet.size;
+  const initialSkusWithImages = skusWithImages.size;
+  console.log(`Total Roca SKUs: ${totalSkus} (across ${totalProducts} products)`);
+  console.log(`SKUs already have primary images: ${initialSkusWithImages}`);
+  console.log(`SKUs need images: ${totalSkus - initialSkusWithImages}`);
+  console.log(`Products already have PDFs: ${productsWithPdfs.size}\n`);
 
   // Step 1: Discover collection slugs
   console.log('=== Step 1: Discovering collection URLs ===');
@@ -379,11 +498,12 @@ async function run() {
   console.log('=== Step 2: Scraping collection pages ===');
   let totalMatched = 0;
   let totalDescriptions = 0;
-  let totalLifestyle = 0;
-  const newlyMatchedIds = new Set();
+  // Lifestyle scraping disabled — collection page images mix product shots from other variants
+  let totalPdfs = 0;
+  const newlyMatchedSkuIds = new Set();
   const unmatchedSlugs = [];
 
-  const needsImage = (pid) => !alreadyHasImage.has(pid) && !newlyMatchedIds.has(pid);
+  const needsImage = (skuId) => !skusWithImages.has(skuId) && !newlyMatchedSkuIds.has(skuId);
 
   for (const slug of slugs) {
     const url = `${BASE_URL}/collections/${slug}`;
@@ -396,22 +516,37 @@ async function run() {
     // ── Resolve slug → DB collection ──
     const resolved = resolveCollection(slug, allByCollection);
 
-    // ── If no collection match, try SKU-only matching ──
+    // ── If no collection match, try SKU-only matching (full + prefix) ──
     if (!resolved) {
       if (entries.length > 0) {
         let skuMatches = 0;
         for (const entry of entries) {
           for (const skuCode of entry.skuCodes) {
-            const prod = skuToProduct.get(skuCode.toUpperCase());
-            if (prod && needsImage(prod.product_id)) {
-              await saveProductImages(pool, prod.product_id, [entry.url], { maxImages: 1 });
-              newlyMatchedIds.add(prod.product_id);
+            const upper = skuCode.toUpperCase();
+            // Try exact vendor_sku match first
+            const sku = vendorSkuToSku.get(upper);
+            if (sku && needsImage(sku.sku_id)) {
+              await saveSkuImages(pool, sku.product_id, sku.sku_id, [entry.url], { maxImages: 1 });
+              newlyMatchedSkuIds.add(sku.sku_id);
               skuMatches++;
+            } else if (!sku) {
+              // Try prefix match: short code like "U081" → all SKUs with that prefix
+              const prefixSkus = skuPrefixMap.get(upper);
+              if (prefixSkus) {
+                for (const pSku of prefixSkus) {
+                  if (pSku.variant_type === 'accessory') continue;
+                  if (needsImage(pSku.sku_id)) {
+                    await saveSkuImages(pool, pSku.product_id, pSku.sku_id, [entry.url], { maxImages: 1 });
+                    newlyMatchedSkuIds.add(pSku.sku_id);
+                    skuMatches++;
+                  }
+                }
+              }
             }
           }
         }
         if (skuMatches > 0) {
-          console.log(`  [SKU-only] ${slug}: ${skuMatches} products matched`);
+          console.log(`  [SKU-only] ${slug}: ${skuMatches} SKUs matched`);
           totalMatched += skuMatches;
         } else {
           unmatchedSlugs.push(slug);
@@ -448,14 +583,29 @@ async function run() {
 
     let collectionMatched = 0;
 
-    // ── Pass 1: SKU code match (unrestricted by collection) ──
+    // ── Pass 1: SKU code match (exact + prefix, unrestricted by collection) ──
     for (const entry of entries) {
       for (const skuCode of entry.skuCodes) {
-        const prod = skuToProduct.get(skuCode.toUpperCase());
-        if (prod && needsImage(prod.product_id)) {
-          await saveProductImages(pool, prod.product_id, [entry.url], { maxImages: 1 });
-          newlyMatchedIds.add(prod.product_id);
+        const upper = skuCode.toUpperCase();
+        // Try exact vendor_sku match
+        const sku = vendorSkuToSku.get(upper);
+        if (sku && needsImage(sku.sku_id)) {
+          await saveSkuImages(pool, sku.product_id, sku.sku_id, [entry.url], { maxImages: 1 });
+          newlyMatchedSkuIds.add(sku.sku_id);
           collectionMatched++;
+        } else if (!sku) {
+          // Prefix match: save to ALL non-accessory SKUs sharing this prefix
+          const prefixSkus = skuPrefixMap.get(upper);
+          if (prefixSkus) {
+            for (const pSku of prefixSkus) {
+              if (pSku.variant_type === 'accessory') continue;
+              if (needsImage(pSku.sku_id)) {
+                await saveSkuImages(pool, pSku.product_id, pSku.sku_id, [entry.url], { maxImages: 1 });
+                newlyMatchedSkuIds.add(pSku.sku_id);
+                collectionMatched++;
+              }
+            }
+          }
         }
       }
     }
@@ -474,10 +624,13 @@ async function run() {
       if (!webColor) continue;
 
       for (const prod of collectionProducts) {
-        if (!needsImage(prod.product_id)) continue;
+        // Check if any SKU in this product needs an image
+        const prodSkus = skusByProduct.get(prod.product_id) || [];
+        const hasSkuNeedingImage = prodSkus.some(s => s.variant_type !== 'accessory' && needsImage(s.sku_id));
+        if (!hasSkuNeedingImage) continue;
 
         // For sub-collections, strip the sub-prefix from DB name too
-        let dbName = prod.name;
+        let dbName = prod.product_name;
         if (subPrefix) {
           const spLower = subPrefix.toLowerCase();
           if (dbName.toLowerCase().startsWith(spLower + ' ')) {
@@ -489,8 +642,6 @@ async function run() {
         const baseColor = extractBaseColor(dbName);
         if (colorsMatch(webColor, baseColor)) {
           // Score by Jaccard similarity between web label (+ image filename) and full product name.
-          // Image filename often contains shape info (e.g. CARRARA-PENNY-ROUND-12X12.jpeg)
-          // that distinguishes same-label entries on the page.
           const labelWords = normalizeSpelling(webColor.toLowerCase()).split(/[^a-z]+/).filter(w => w.length >= 2);
           const imgFile = entry.url.split('/').pop().replace(/\.(jpeg|jpg|png|webp|gif)/gi, '').toLowerCase();
           const imgWords = imgFile.split(/[^a-z]+/).filter(w => w.length >= 3);
@@ -506,19 +657,28 @@ async function run() {
       }
     }
 
-    // Assign best-scoring match per product
+    // Assign best-scoring match per product → resolve to best SKU
     for (const [pid, candidates] of pass2Candidates) {
       candidates.sort((a, b) => b.score - a.score);
-      await saveProductImages(pool, pid, [candidates[0].entry.url], { maxImages: 1 });
-      newlyMatchedIds.add(pid);
+      const bestEntry = candidates[0].entry;
+      const bestSku = findBestSku(pid, bestEntry, skusByProduct, needsImage);
+      if (bestSku) {
+        await saveSkuImages(pool, pid, bestSku.sku_id, [bestEntry.url], { maxImages: 1 });
+        newlyMatchedSkuIds.add(bestSku.sku_id);
+      } else {
+        // Fallback to product-level if no SKU resolved
+        await saveProductImages(pool, pid, [bestEntry.url], { maxImages: 1 });
+      }
       collectionMatched++;
     }
 
     // ── Pass 3: Fuzzy name match (remaining unmatched products) ──
     for (const prod of collectionProducts) {
-      if (!needsImage(prod.product_id)) continue;
+      const prodSkus = skusByProduct.get(prod.product_id) || [];
+      const hasSkuNeedingImage = prodSkus.some(s => s.variant_type !== 'accessory' && needsImage(s.sku_id));
+      if (!hasSkuNeedingImage) continue;
 
-      const normProd = normalizeForMatch(prod.name);
+      const normProd = normalizeForMatch(prod.product_name);
       let bestEntry = null;
       let bestScore = 0;
 
@@ -536,8 +696,6 @@ async function run() {
         if (normColor === normProd || normFull === normProd) {
           score = 1.0;
         } else if (normProd.length >= 3 && (normColor.includes(normProd) || normProd.includes(normColor))) {
-          // Require substring to be at least 70% of the longer string to avoid
-          // false positives like "gris" matching "dolcegris"
           const ratio = Math.min(normColor.length, normProd.length) / Math.max(normColor.length, normProd.length);
           if (ratio >= 0.7) score = 0.7;
         } else if (normProd.length >= 3 && (normFull.includes(normProd) || normProd.includes(normFull))) {
@@ -552,33 +710,40 @@ async function run() {
       }
 
       if (bestEntry && bestScore >= 0.6) {
-        await saveProductImages(pool, prod.product_id, [bestEntry.url], { maxImages: 1 });
-        newlyMatchedIds.add(prod.product_id);
+        const bestSku = findBestSku(prod.product_id, bestEntry, skusByProduct, needsImage);
+        if (bestSku) {
+          await saveSkuImages(pool, prod.product_id, bestSku.sku_id, [bestEntry.url], { maxImages: 1 });
+          newlyMatchedSkuIds.add(bestSku.sku_id);
+        } else {
+          await saveProductImages(pool, prod.product_id, [bestEntry.url], { maxImages: 1 });
+        }
         collectionMatched++;
       }
     }
 
-    // ── Lifestyle images ──
-    const productImagePaths = new Set(entries.map(e => e.url.replace(BASE_URL, '')));
-    const lifestyleUrls = extractLifestyleImages(html, productImagePaths);
-    if (lifestyleUrls.length > 0) {
-      const targetProd = collectionProducts[0];
-      for (let i = 0; i < lifestyleUrls.length; i++) {
-        await upsertMediaAsset(pool, {
-          product_id: targetProd.product_id,
-          sku_id: null,
-          asset_type: 'lifestyle',
-          url: lifestyleUrls[i],
-          original_url: lifestyleUrls[i],
-          sort_order: 10 + i,
-        });
-        totalLifestyle++;
+    // ── PDFs (tech sheets, sell sheets) ──
+    const pdfLinks = extractPdfLinks(html);
+    if (pdfLinks.length > 0 && collectionProducts.length > 0) {
+      for (const prod of collectionProducts) {
+        if (productsWithPdfs.has(prod.product_id)) continue;
+        for (let i = 0; i < pdfLinks.length; i++) {
+          await upsertMediaAsset(pool, {
+            product_id: prod.product_id,
+            sku_id: null,
+            asset_type: 'spec_pdf',
+            url: pdfLinks[i].url,
+            original_url: pdfLinks[i].url,
+            sort_order: i,
+          });
+        }
+        productsWithPdfs.add(prod.product_id);
+        totalPdfs++;
       }
     }
 
     if (collectionMatched > 0) {
       const label = subPrefix ? `${collectionName} → ${subPrefix}` : collectionName;
-      console.log(`  ${label}: ${collectionMatched}/${collectionProducts.length} products matched (${entries.length} entries on page)`);
+      console.log(`  ${label}: ${collectionMatched} SKUs matched (${entries.length} entries on page)`);
       totalMatched += collectionMatched;
     }
 
@@ -586,20 +751,30 @@ async function run() {
   }
 
   // ── Results ──
-  const stillMissing = dbProducts.rows.filter(p => !alreadyHasImage.has(p.product_id) && !newlyMatchedIds.has(p.product_id));
+  const allSkuIds = dbSkus.rows.filter(s => s.variant_type !== 'accessory').map(s => s.sku_id);
+  const stillMissing = dbSkus.rows.filter(s =>
+    s.variant_type !== 'accessory' &&
+    !skusWithImages.has(s.sku_id) &&
+    !newlyMatchedSkuIds.has(s.sku_id)
+  );
   const missingByCollection = new Map();
-  for (const p of stillMissing) {
-    if (!missingByCollection.has(p.collection)) missingByCollection.set(p.collection, []);
-    missingByCollection.get(p.collection).push(p.name);
+  for (const s of stillMissing) {
+    if (!missingByCollection.has(s.collection)) missingByCollection.set(s.collection, []);
+    missingByCollection.get(s.collection).push(`${s.product_name} [${s.variant_name || s.vendor_sku}]`);
   }
 
+  const totalCoveredNow = initialSkusWithImages + newlyMatchedSkuIds.size;
+  const nonAccessoryCount = allSkuIds.length;
+
   console.log(`\n=== Scrape Complete ===`);
-  console.log(`Products already had images: ${initialWithImages}`);
-  console.log(`Products newly matched: ${totalMatched}`);
+  console.log(`SKUs already had images (portal): ${initialSkusWithImages}`);
+  console.log(`SKUs newly matched (website): ${newlyMatchedSkuIds.size}`);
+  console.log(`Total image matches this run: ${totalMatched}`);
   console.log(`Products with descriptions added: ${totalDescriptions}`);
-  console.log(`Lifestyle images saved: ${totalLifestyle}`);
-  console.log(`Products still missing images: ${stillMissing.length}`);
-  console.log(`Total with images now: ${initialWithImages + newlyMatchedIds.size}/${totalProducts} (${Math.round((initialWithImages + newlyMatchedIds.size) / totalProducts * 100)}%)`);
+  // Lifestyle scraping disabled
+  console.log(`Products with PDFs saved: ${totalPdfs}`);
+  console.log(`SKUs still missing images: ${stillMissing.length}`);
+  console.log(`Total SKUs with images now: ${totalCoveredNow}/${nonAccessoryCount} (${Math.round(totalCoveredNow / nonAccessoryCount * 100)}%)`);
 
   if (unmatchedSlugs.length > 0) {
     console.log(`\nUnmatched website slugs (${unmatchedSlugs.length}): ${unmatchedSlugs.join(', ')}`);
@@ -611,7 +786,7 @@ async function run() {
       if (names.length <= 5) {
         console.log(`  ${col}: ${names.join(', ')}`);
       } else {
-        console.log(`  ${col}: ${names.length} products (${names.slice(0, 3).join(', ')}...)`);
+        console.log(`  ${col}: ${names.length} SKUs (${names.slice(0, 3).join(', ')}...)`);
       }
     }
   }
