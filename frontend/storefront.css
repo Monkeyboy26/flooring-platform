@@ -628,6 +628,11 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .variant-selectors .color-swatch-wrap.disabled { cursor: pointer; }
 .variant-selectors .color-swatch-wrap.disabled .color-swatch { opacity: 0.3; border: 2.5px dashed var(--stone-400); filter: grayscale(100%); transform: scale(0.88); }
 .variant-selectors .color-swatch-wrap.disabled:hover .color-swatch { border-color: var(--stone-600); opacity: 0.7; filter: grayscale(0%); transform: scale(1); }
+.attr-pill.limited { border-style: dashed; opacity: 0.55; cursor: pointer; }
+.attr-pill.limited:hover { border-color: var(--stone-600); opacity: 0.8; }
+.variant-selectors .color-swatch-wrap.limited { cursor: pointer; }
+.variant-selectors .color-swatch-wrap.limited .color-swatch { opacity: 0.45; border: 2px dashed var(--stone-400); }
+.variant-selectors .color-swatch-wrap.limited:hover .color-swatch { border-color: var(--stone-600); opacity: 0.8; }
 .attr-select { width: 100%; padding: 0.6rem 1rem; border: 1.5px solid var(--stone-300); background: white; font-size: 0.875rem; font-family: var(--font-body); color: var(--stone-800); cursor: pointer; appearance: auto; }
 .attr-select:hover { border-color: var(--stone-600); }
 .attr-select:focus { outline: none; border-color: var(--stone-900); }
@@ -720,6 +725,8 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .variant-grid .sibling-card { width: auto; flex-shrink: initial; }
 .variant-grid .sibling-card-image { width: 100%; height: 0; padding-bottom: 100%; position: relative; }
 .variant-grid .sibling-card-image img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.show-more-btn { display: block; width: 100%; margin-top: 0.75rem; padding: 0.5rem 1rem; background: none; border: 1.5px dashed var(--stone-300); color: var(--stone-600); font-size: 0.8125rem; font-family: var(--font-body); cursor: pointer; transition: all 0.15s; }
+.show-more-btn:hover { border-color: var(--stone-500); color: var(--stone-800); }
 
 /* Breadcrumbs */
 .breadcrumbs { display: flex; gap: 0.5rem; font-size: 0.8125rem; color: var(--stone-600); margin-bottom: 1.5rem; flex-wrap: wrap; }

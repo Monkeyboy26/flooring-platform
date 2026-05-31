@@ -64,6 +64,16 @@
   function carpetSqftPrice(sqydPrice) {
     return (parseFloat(sqydPrice) / 9).toFixed(2);
   }
+  function normalizeSize(val) {
+    if (!val || typeof val !== "string") return "";
+    return val.replace(/\s*[xX×]\s*/g, "x").replace(/\s+/g, " ").replace(/\.00/g, "").trim();
+  }
+  function getVariantImage(sibling, options = {}) {
+    if (!sibling) return null;
+    if (options.preferCountertop && sibling.countertop_image) return sibling.countertop_image;
+    if (options.preferSku && sibling.sku_image) return sibling.sku_image;
+    return sibling.primary_image || sibling.sku_image || sibling.shape_image || null;
+  }
   function formatSizeDim(val) {
     if (!val || typeof val !== "string") return val;
     if (/^PATTERN$/i.test(val)) return "Pattern";
@@ -3253,6 +3263,7 @@
     const [productTags, setProductTags] = useState([]);
     const [countertopImage, setCountertopImage] = useState(null);
     const [selectedImage, setSelectedImage] = useState(0);
+    const [expandedAdexCats, setExpandedAdexCats] = useState(/* @__PURE__ */ new Set());
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState(null);
     const [addingToCart, setAddingToCart] = useState(false);
@@ -3747,10 +3758,7 @@
         mainSiblings.forEach((s) => {
           if (seenIds.has(s.sku_id)) return;
           seenIds.add(s.sku_id);
-          const ca = (s.attributes || []).find((a) => a.slug === "color");
-          const fa = (s.attributes || []).find((a) => a.slug === "finish");
-          const sa = (s.attributes || []).find((a) => a.slug === "size");
-          allCollection.push({ ...s, product_name: sku.product_name, color: ca ? ca.value : "", finish: fa ? fa.value : "", size: sa ? sa.value : "", primary_image: s.sku_image || null });
+          allCollection.push({ ...s, product_name: sku.product_name, color: s.color || ((s.attributes || []).find((a) => a.slug === "color") || {}).value || "", finish: s.finish || ((s.attributes || []).find((a) => a.slug === "finish") || {}).value || "", size: s.size || ((s.attributes || []).find((a) => a.slug === "size") || {}).value || "", primary_image: s.sku_image || null });
         });
         collectionSiblings.forEach((s) => {
           if (seenIds.has(s.sku_id)) return;
@@ -3819,7 +3827,14 @@
             });
             const CATEGORY_ORDER = ["Field Tiles", "Beveled Tiles", "Decorative Accessories", "Decorative Accents", "Finishing Edges", "Bullnoses", "Glazed Edges", "Moldings & Trim", "Finishing Touches", "Other Pieces"];
             const orderedGroups = CATEGORY_ORDER.filter((cat) => groups[cat] && groups[cat].length > 0);
-            return /* @__PURE__ */ React.createElement("div", { style: { marginTop: "1.5rem" } }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label", style: { marginBottom: "0.75rem" } }, curColor, curFinish ? " " + curFinish : "", " \u2014 ", sku.collection, " Collection", /* @__PURE__ */ React.createElement("span", null, matchingVariants.length, " pieces")), orderedGroups.map((cat) => /* @__PURE__ */ React.createElement("div", { key: cat, style: { marginBottom: "1.25rem" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--stone-500)", marginBottom: "0.5rem" } }, cat), /* @__PURE__ */ React.createElement("div", { className: "variant-grid" }, groups[cat].map((s) => /* @__PURE__ */ React.createElement("div", { key: s.sku_id, className: "sibling-card", onClick: () => onSkuClick(s.sku_id) }, /* @__PURE__ */ React.createElement("div", { className: "sibling-card-image" }, (s.primary_image || s.shape_image) && /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(s.primary_image || s.shape_image, 120), alt: displayName(s), loading: "lazy", decoding: "async" })), /* @__PURE__ */ React.createElement("div", { className: "sibling-card-name" }, displayName(s)), skuListPrice(s) && /* @__PURE__ */ React.createElement("div", { className: "sibling-card-price" }, "$", displayPrice(s, skuListPrice(s)).toFixed(2), priceSuffix(s))))))));
+            return /* @__PURE__ */ React.createElement("div", { style: { marginTop: "1.5rem" } }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label", style: { marginBottom: "0.75rem" } }, curColor, curFinish ? " " + curFinish : "", " \u2014 ", sku.collection, " Collection", /* @__PURE__ */ React.createElement("span", null, matchingVariants.length, " pieces")), orderedGroups.map((cat) => {
+              const MAX_VISIBLE = 12;
+              const items = groups[cat];
+              const isExpanded = expandedAdexCats.has(cat);
+              const visibleItems = isExpanded ? items : items.slice(0, MAX_VISIBLE);
+              const hasMore = items.length > MAX_VISIBLE;
+              return /* @__PURE__ */ React.createElement("div", { key: cat, style: { marginBottom: "1.25rem" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--stone-500)", marginBottom: "0.5rem" } }, cat), /* @__PURE__ */ React.createElement("div", { className: "variant-grid" }, visibleItems.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.sku_id, className: "sibling-card", onClick: () => onSkuClick(s.sku_id) }, /* @__PURE__ */ React.createElement("div", { className: "sibling-card-image" }, getVariantImage(s) && /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(getVariantImage(s), 120), alt: displayName(s), loading: "lazy", decoding: "async" })), /* @__PURE__ */ React.createElement("div", { className: "sibling-card-name" }, displayName(s)), skuListPrice(s) && /* @__PURE__ */ React.createElement("div", { className: "sibling-card-price" }, "$", displayPrice(s, skuListPrice(s)).toFixed(2), priceSuffix(s))))), hasMore && !isExpanded && /* @__PURE__ */ React.createElement("button", { className: "show-more-btn", onClick: () => setExpandedAdexCats((prev) => /* @__PURE__ */ new Set([...prev, cat])) }, "Show all ", items.length, " pieces"));
+            }));
           })());
         }
       }
@@ -3855,7 +3870,7 @@
             byColor.set(color, {
               sku_id: s.sku_id,
               product_name: color,
-              primary_image: s.primary_image || s.sku_image || null,
+              primary_image: getVariantImage(s),
               is_current: false,
               _sizeMatched: !!matchesCurrentSize
             });
@@ -3892,9 +3907,11 @@
           const sizeMap = /* @__PURE__ */ new Map();
           allItems.forEach((s) => {
             const sz = extractDims(s.product_name);
-            if (!sz || sizeMap.has(sz)) return;
+            if (!sz) return;
+            const nk = normalizeSize(sz);
+            if (sizeMap.has(nk)) return;
             const target = comboMap.get(sz + "|" + curFinishVal) || s.sku_id;
-            sizeMap.set(sz, { label: formatSizeDim(sz), sku_id: target, is_current: sz === curSz, sort: extractSort(sz) });
+            sizeMap.set(nk, { label: formatSizeDim(sz), sku_id: target, is_current: normalizeSize(sz) === normalizeSize(curSz), sort: extractSort(sz) });
           });
           if (sizeMap.size > 1) {
             collectionSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
@@ -3959,7 +3976,7 @@
         const curSz = _getSize(sku.attributes);
         const dimItems = [{ sku_id: sku.sku_id, w: curW, sz: curSz, c: curC, img: media && media[0] ? media[0].url : null, is_current: true }];
         mainSiblings.forEach((s) => {
-          dimItems.push({ sku_id: s.sku_id, w: _getWidth(s.attributes, s.variant_name), sz: _getSize(s.attributes), c: _extractColor(s.attributes, s.variant_name), img: s.primary_image || s.sku_image || null, is_current: false });
+          dimItems.push({ sku_id: s.sku_id, w: _getWidth(s.attributes, s.variant_name), sz: _getSize(s.attributes), c: _extractColor(s.attributes, s.variant_name), img: getVariantImage(s), is_current: false });
         });
         const uniqueWidths = new Set(dimItems.filter((d) => d.w).map((d) => d.w));
         if (uniqueWidths.size > 1 && curW) {
@@ -4011,14 +4028,16 @@
         const dimRe = /(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/;
         if (curSizeVal && dimRe.test(curSizeVal)) {
           const sizeMap = /* @__PURE__ */ new Map();
-          sizeMap.set(curSizeVal, { label: formatSizeDim(curSizeVal), sku_id: sku.sku_id, is_current: true, sort: parseFloat(curSizeVal.match(dimRe)[1]) });
+          sizeMap.set(normalizeSize(curSizeVal), { label: formatSizeDim(curSizeVal), sku_id: sku.sku_id, is_current: true, sort: parseFloat(curSizeVal.match(dimRe)[1]) });
           mainSiblings.forEach((s) => {
             if (s.variant_type === "accessory") return;
             const sv = _getSizeAttr(s.attributes);
-            if (!sv || sizeMap.has(sv)) return;
+            if (!sv) return;
+            const nk = normalizeSize(sv);
+            if (sizeMap.has(nk)) return;
             const dm = sv.match(dimRe);
             if (!dm) return;
-            sizeMap.set(sv, { label: formatSizeDim(sv), sku_id: s.sku_id, is_current: false, sort: parseFloat(dm[1]) });
+            sizeMap.set(nk, { label: formatSizeDim(sv), sku_id: s.sku_id, is_current: normalizeSize(sv) === normalizeSize(curSizeVal), sort: parseFloat(dm[1]) });
           });
           if (sizeMap.size >= 2) {
             attrSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
@@ -4186,7 +4205,7 @@
         const curFinish = currentAttrs["finish"];
         if (!curSize && !curFinish) return true;
         if (c.available_sizes || c.available_finishes) {
-          const sizeOk2 = !curSize || !c.available_sizes || c.available_sizes.includes(curSize);
+          const sizeOk2 = !curSize || !c.available_sizes || c.available_sizes.some((s) => normalizeSize(s) === normalizeSize(curSize));
           const finishOk2 = !curFinish || !c.available_finishes || c.available_finishes.includes(curFinish);
           return sizeOk2 && finishOk2;
         }
@@ -4198,7 +4217,7 @@
         if (sameColorSibs.length === 0) return true;
         const sizeOk = !curSize || sameColorSibs.some((s) => {
           const sa = (s.attributes || []).find((a) => a.slug === "size");
-          return sa && sa.value === curSize;
+          return sa && normalizeSize(sa.value) === normalizeSize(curSize);
         });
         const targetFinishVal = sameColorSibs.length > 0 ? (sameColorSibs[0].attributes || []).find((a) => a.slug === "finish")?.value : null;
         const colorIsFinish = targetFinishVal && normColor(targetFinishVal) === normColor(targetColor);
@@ -4214,9 +4233,9 @@
       } }, romanPillLabel(c.product_name)))) : /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, colorItems.map((c) => {
         const label = c.color || c.variant_name || c.product_name;
         const compatible = isColorCompatible(c);
-        return /* @__PURE__ */ React.createElement("div", { key: c.sku_id, className: "color-swatch-wrap" + (!compatible ? " disabled" : ""), onClick: () => {
+        return /* @__PURE__ */ React.createElement("div", { key: c.sku_id, className: "color-swatch-wrap" + (!compatible ? " limited" : ""), onClick: () => {
           if (!c.is_current) onSkuClick(c.sku_id);
-        } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (c.is_current ? " active" : "") }, c.primary_image ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(c.primary_image, 120), alt: label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)" } })), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, label, !compatible ? " (limited options)" : ""));
+        } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (c.is_current ? " active" : "") + (!compatible ? " limited" : "") }, c.primary_image ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(c.primary_image, 120), alt: label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)" } })), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, label, !compatible ? " (other options may change)" : ""));
       }))), showSizePills && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, collectionSizeItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, collectionSizeItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), onClick: () => {
         if (!s.is_current) onSkuClick(s.sku_id);
       } }, s.label)))), showFinishPills && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Finish", /* @__PURE__ */ React.createElement("span", null, collectionFinishItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, collectionFinishItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), onClick: () => {
@@ -4273,7 +4292,7 @@
             if (curBase && sibSize && curBase === sibSize) score += 2;
             return { ...s, score };
           });
-          return scored.sort((a, b) => b.score - a.score)[0];
+          return scored.sort((a, b) => b.score - a.score || (a.sku_id < b.sku_id ? -1 : 1))[0];
         };
         const best = findFormatMatch();
         const isDisabled = !isActive && !best;
@@ -4331,7 +4350,31 @@
             });
             return { ...s, score };
           });
-          return scored.sort((a, b) => b.score - a.score)[0];
+          return scored.sort((a, b) => b.score - a.score || (a.sku_id < b.sku_id ? -1 : 1))[0];
+        };
+        const findAny = (val) => {
+          const matching = effectiveSiblings.filter((s) => {
+            if (s.sku_id === sku.sku_id) return false;
+            const sa = (s.attributes || []).reduce((m, a) => {
+              m[a.slug] = a.value;
+              return m;
+            }, {});
+            if (val === "No Countertop" && slug === "countertop_finish") return !sa[slug];
+            return sa[slug] === val;
+          });
+          if (matching.length === 0) return null;
+          const scored = matching.map((s) => {
+            const sa = (s.attributes || []).reduce((m, a) => {
+              m[a.slug] = a.value;
+              return m;
+            }, {});
+            let score = 0;
+            attrSlugs.forEach((k) => {
+              if (k !== slug && sa[k] === currentAttrs[k]) score++;
+            });
+            return { ...s, score };
+          });
+          return scored.sort((a, b) => b.score - a.score || (a.sku_id < b.sku_id ? -1 : 1))[0];
         };
         const IMAGE_SWATCH_ATTRS = /* @__PURE__ */ new Set(["countertop_finish", "pattern"]);
         const useImageSwatches = IMAGE_SWATCH_ATTRS.has(slug) || slug === "finish" && attrMap["countertop_finish"];
@@ -4342,8 +4385,7 @@
           }
           const match = findBest(val);
           if (!match) return null;
-          if (slug === "countertop_finish") return match.countertop_image || match.primary_image;
-          return match.primary_image;
+          return getVariantImage(match, { preferCountertop: slug === "countertop_finish" });
         };
         const displayVal = (val) => {
           if (slug === "size" && hasFormatPill) {
@@ -4357,15 +4399,21 @@
           const isDisabled = !compatibleValues.has(val);
           const img = getSwatchImage(val);
           const best = findBest(val);
-          return /* @__PURE__ */ React.createElement("div", { key: val, className: "color-swatch-wrap" + (isDisabled ? " disabled" : ""), onClick: () => {
-            if (!isActive && best) onSkuClick(best.sku_id);
-          } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (isActive ? " active" : "") + (isDisabled ? " disabled" : "") }, img ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(img, 120), alt: displayVal(val), loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", color: "var(--stone-500)", textAlign: "center", padding: "0.25rem" } }, displayVal(val))), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, displayVal(val)));
+          return /* @__PURE__ */ React.createElement("div", { key: val, className: "color-swatch-wrap" + (isDisabled ? " limited" : ""), onClick: () => {
+            if (!isActive) {
+              const target = best || findAny(val);
+              if (target) onSkuClick(target.sku_id);
+            }
+          } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (isActive ? " active" : "") + (isDisabled ? " limited" : "") }, img ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(img, 120), alt: displayVal(val), loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", color: "var(--stone-500)", textAlign: "center", padding: "0.25rem" } }, displayVal(val))), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, displayVal(val), isDisabled ? " (other options may change)" : ""));
         })) : /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, allValues.map((val) => {
           const isActive = val === currentVal;
           const isDisabled = !compatibleValues.has(val);
           const best = findBest(val);
-          return /* @__PURE__ */ React.createElement("button", { key: val, className: "attr-pill" + (isActive ? " active" : "") + (isDisabled ? " disabled" : ""), onClick: () => {
-            if (!isActive && best) onSkuClick(best.sku_id);
+          return /* @__PURE__ */ React.createElement("button", { key: val, className: "attr-pill" + (isActive ? " active" : "") + (isDisabled ? " limited" : ""), title: isDisabled ? "Other options may change" : "", onClick: () => {
+            if (!isActive) {
+              const target = best || findAny(val);
+              if (target) onSkuClick(target.sku_id);
+            }
           } }, displayVal(val));
         })));
       }));

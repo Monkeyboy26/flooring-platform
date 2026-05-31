@@ -1997,7 +1997,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
           WHEN inv.qty_on_hand > 0 THEN 'low_stock'
           ELSE 'out_of_stock'
-        END as stock_status
+        END as stock_status,
+        (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) as color,
+        (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'size' LIMIT 1) as size,
+        (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) as finish
       FROM skus s
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -2050,7 +2053,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             WHEN inv.qty_on_hand > 10 THEN 'in_stock'
             WHEN inv.qty_on_hand > 0 THEN 'low_stock'
             ELSE 'out_of_stock'
-          END as stock_status
+          END as stock_status,
+          (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) as color,
+          (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'size' LIMIT 1) as size,
+          (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) as finish
         FROM skus s
         LEFT JOIN pricing pr ON pr.sku_id = s.id
         LEFT JOIN packaging pk ON pk.sku_id = s.id
