@@ -5319,7 +5319,7 @@
                   if (!byColor) return false;
                   return Object.values(byColor).some(vals => vals.size > 1);
                 };
-                const attrSlugs = Object.keys(attrMap).filter(slug => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === 'countertop_finish') && !NON_SELECTABLE.has(slug) && (slug === 'countertop_finish' || (localAttrCounts[slug].size > 1 ? variesWithinColor(slug) : true)))
+                const attrSlugs = Object.keys(attrMap).filter(slug => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === 'countertop_finish') && !NON_SELECTABLE.has(slug) && !(slug === 'finish' && showFinishPills) && (slug === 'countertop_finish' || (localAttrCounts[slug].size > 1 ? variesWithinColor(slug) : true)))
                   .sort((a, b) => a === 'finish' ? -1 : b === 'finish' ? 1 : 0);
                 const sizeSort = (a, b) => { const na = parseFloat(a), nb = parseFloat(b); if (!isNaN(na) && !isNaN(nb)) return na - nb; return a.localeCompare(b); };
                 const showColors = colorItems.length >= 2;
