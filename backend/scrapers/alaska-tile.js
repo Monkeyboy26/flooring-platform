@@ -30,17 +30,17 @@ const BASE_URL = 'https://alaskatileusa.com';
 // Direct URL mapping: website slug → DB product name(s)
 // Product pages discovered from the website
 const PRODUCT_PAGES = [
-  { slug: 'calacatti-gold-polish',           dbNames: ['Calacatta Gold'] },
+  { slug: 'calacatta-gold-polish',           dbNames: ['Calacatta Gold'] },
   { slug: 'botghini-matte',                  dbNames: ['Calacatta Gold'] },  // Website uses odd slug for Calacatta Matte
   { slug: 'statuario-ligth',                 dbNames: ['Della Statuario Light'] },
-  { slug: 'lims-white',                      dbNames: ['Lims Stone White'] },
-  { slug: 'sandstone-gold',                  dbNames: ['Sandstone'] },
-  { slug: 'blue-gold-onix',                  dbNames: ['Blue Gold Onyx'] },
+  { slug: 'lims-white',                      dbNames: ['Lims White'] },
+  { slug: 'sandstone-gold',                  dbNames: ['Sandstone Gold'] },
+  { slug: 'blue-gold-onix',                  dbNames: ['Blue Gold Onix'] },
   { slug: 'damore-blanco-grey',              dbNames: ['Damore Blanco Grey'] },
-  { slug: 'sky-gold-onix',                   dbNames: ['Sky Gold Onyx'] },
+  { slug: 'sky-gold-onix',                   dbNames: ['Sky Gold Onix'] },
   { slug: 'pacific-onyx-crema',              dbNames: ['Pacific Onyx Crema'] },
-  { slug: 'matte-mosaic-hexagon',            dbNames: ['Calacatta Gold Hex Mosaic'] },
-  { slug: 'della-statuario-mosaic-hexagon',  dbNames: ['Della Statuario Light Hex Mosaic'] },
+  { slug: 'matte-mosaic-hexagon',            dbNames: ['Calacatta Mosaic Hex'] },
+  { slug: 'della-statuario-mosaic-hexagon',  dbNames: ['Della Statuario Mosaic Hex'] },
 ];
 
 function normalizeName(name) {
@@ -61,63 +61,81 @@ async function scrollToLoadAll(page) {
   await delay(1500);
 }
 
-// Extract all product images from a detail page
+// Extract product images (right-side gallery) and lifestyle images (left-side carousel)
+// from an Elementor product detail page.
+//
+// Layout: two-column section
+//   Left column  → elementor-widget-image-carousel (swiper) → lifestyle/room scenes
+//   Right column → elementor-widget-image-gallery            → product close-ups (primary)
 async function extractDetailImages(page, url) {
   try {
     const resp = await page.goto(url, { waitUntil: 'networkidle2', timeout: 25000 });
     if (!resp || resp.status() >= 400) {
       console.log(`    HTTP ${resp ? resp.status() : 'no response'} for ${url}`);
-      return [];
+      return { product: [], lifestyle: [] };
     }
     await delay(2000);
     await scrollToLoadAll(page);
 
-    const images = await page.evaluate(() => {
-      const imgs = [];
+    const result = await page.evaluate(() => {
+      const product = [];
+      const lifestyle = [];
       const seen = new Set();
 
-      // Collect ALL images on page that are product-related
-      const allImgs = document.querySelectorAll('img');
-      for (const img of allImgs) {
-        // Try multiple sources: src, data-src, data-lazy-src
-        const src = img.src || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
-        if (!src || seen.has(src)) continue;
-        if (!src.includes('/wp-content/uploads/')) continue;
-        if (src.includes('placeholder') || src.includes('logo') || src.includes('icon') ||
-            src.includes('banner') || src.includes('specification') || src.includes('favicon')) continue;
-
-        seen.add(src);
-        imgs.push({ src, alt: img.alt || '' });
+      function addUrl(url, list) {
+        if (!url || seen.has(url)) return;
+        if (!url.includes('/wp-content/uploads/')) return;
+        if (/placeholder|logo|icon|banner|specification|favicon/i.test(url)) return;
+        seen.add(url);
+        list.push(url);
       }
 
-      // Check for WooCommerce gallery data attributes (full-size originals)
-      const galleryImgWraps = document.querySelectorAll('.woocommerce-product-gallery__image, [data-thumb]');
-      for (const wrap of galleryImgWraps) {
-        // data-thumb gives the thumbnail, the a[href] gives the full-size
-        const link = wrap.querySelector('a');
-        if (link && link.href && link.href.includes('/wp-content/uploads/') && !seen.has(link.href)) {
-          seen.add(link.href);
-          imgs.push({ src: link.href, alt: '' });
+      // Find the two-column product section: one column has an image-carousel,
+      // the other has image-gallery widgets.
+      const sections = document.querySelectorAll('[data-element_type="section"]');
+      for (const section of sections) {
+        const columns = section.querySelectorAll(':scope > .elementor-container > .elementor-column');
+        if (columns.length < 2) continue;
+
+        let carouselCol = null;
+        let galleryCol = null;
+        for (const col of columns) {
+          if (col.querySelector('.elementor-widget-image-carousel')) carouselCol = col;
+          if (col.querySelector('.elementor-widget-image-gallery')) galleryCol = col;
         }
-      }
+        if (!carouselCol || !galleryCol) continue;
 
-      // Also check for Elementor lightbox data
-      const lightboxLinks = document.querySelectorAll('a[data-elementor-open-lightbox]');
-      for (const a of lightboxLinks) {
-        const href = a.href || '';
-        if (href && href.includes('/wp-content/uploads/') && !seen.has(href)) {
-          seen.add(href);
-          imgs.push({ src: href, alt: '' });
+        // RIGHT SIDE — product images from image-gallery widgets
+        // Prefer full-size URLs from <a> hrefs over thumbnail <img> srcs
+        const galleryLinks = galleryCol.querySelectorAll('.elementor-widget-image-gallery a');
+        for (const a of galleryLinks) {
+          addUrl(a.href, product);
         }
+        // Fallback: if no links, grab img srcs
+        if (product.length === 0) {
+          const galleryImgs = galleryCol.querySelectorAll('.elementor-widget-image-gallery img');
+          for (const img of galleryImgs) {
+            addUrl(img.src || img.getAttribute('data-src') || '', product);
+          }
+        }
+
+        // LEFT SIDE — lifestyle images from image-carousel (swiper)
+        // Skip duplicate slides added by swiper for looping
+        const carouselImgs = carouselCol.querySelectorAll('.swiper-slide:not(.swiper-slide-duplicate) img');
+        for (const img of carouselImgs) {
+          addUrl(img.src || img.getAttribute('data-src') || '', lifestyle);
+        }
+
+        break; // Only process the first matching section
       }
 
-      return imgs;
+      return { product, lifestyle };
     });
 
-    return images;
+    return result;
   } catch (err) {
     console.log(`    Error loading ${url}: ${err.message}`);
-    return [];
+    return { product: [], lifestyle: [] };
   }
 }
 
@@ -183,58 +201,66 @@ async function run() {
         continue;
       }
 
-      // Extract images from detail page
-      const detailImages = await extractDetailImages(page, url);
+      // Extract images from detail page (separated by type)
+      const { product: productImages, lifestyle: lifestyleImages } = await extractDetailImages(page, url);
 
-      if (detailImages.length === 0) {
+      if (productImages.length === 0 && lifestyleImages.length === 0) {
         console.log(`    [NO IMAGES] No images found`);
         continue;
       }
 
-      // Deduplicate and prefer high-quality versions
-      const allImageUrls = [];
-      const seenUrls = new Set();
-
-      for (const img of detailImages) {
-        let url = img.src;
-        // Try to get original by removing -WIDTHxHEIGHT suffix
-        const hqMatch = url.match(/^(.+\/wp-content\/uploads\/.+?)-\d+x\d+(\.[a-zA-Z]+)$/);
-        if (hqMatch) {
-          const origUrl = `${hqMatch[1]}${hqMatch[2]}`;
-          if (!seenUrls.has(origUrl)) {
-            seenUrls.add(origUrl);
-            allImageUrls.push(origUrl);
-          }
+      // Strip WP thumbnail suffixes (-WIDTHxHEIGHT) to get full-size originals
+      function toFullSize(urls) {
+        const out = [];
+        const seen = new Set();
+        for (const u of urls) {
+          const hqMatch = u.match(/^(.+\/wp-content\/uploads\/.+?)-\d+x\d+(\.[a-zA-Z]+)$/);
+          const full = hqMatch ? `${hqMatch[1]}${hqMatch[2]}` : u;
+          if (!seen.has(full)) { seen.add(full); out.push(full); }
         }
-        if (!seenUrls.has(url)) {
-          seenUrls.add(url);
-          allImageUrls.push(url);
-        }
+        return out;
       }
+
+      const productUrls = toFullSize(productImages);
+      const lifestyleUrls = toFullSize(lifestyleImages);
 
       // Mark matched product IDs
       const productIds = new Set(allMatched.map(r => r.product_id));
       for (const pid of productIds) matchedProducts.add(pid);
 
       // Save images to all matched SKUs
-      const toSave = allImageUrls.slice(0, 6);
+      // Product images → primary (first) + alternate (rest)
+      // Lifestyle images → lifestyle
+      let sortOrder = 0;
       for (const row of allMatched) {
-        for (let i = 0; i < toSave.length; i++) {
-          const assetType = i === 0 ? 'primary' : (i <= 2 ? 'alternate' : 'lifestyle');
+        sortOrder = 0;
+        for (let i = 0; i < productUrls.length; i++) {
+          const assetType = i === 0 ? 'primary' : 'alternate';
           await upsertMediaAsset(pool, {
             product_id: row.product_id,
             sku_id: row.sku_id,
             asset_type: assetType,
-            url: toSave[i],
-            original_url: toSave[i],
-            sort_order: i,
+            url: productUrls[i],
+            original_url: productUrls[i],
+            sort_order: sortOrder++,
+          });
+          imagesSaved++;
+        }
+        for (let i = 0; i < lifestyleUrls.length; i++) {
+          await upsertMediaAsset(pool, {
+            product_id: row.product_id,
+            sku_id: row.sku_id,
+            asset_type: 'lifestyle',
+            url: lifestyleUrls[i],
+            original_url: lifestyleUrls[i],
+            sort_order: sortOrder++,
           });
           imagesSaved++;
         }
       }
 
       productsMatched += productIds.size;
-      console.log(`    [SAVED] ${dbNames.join(', ')} — ${toSave.length} image(s) for ${allMatched.length} SKU(s)`);
+      console.log(`    [SAVED] ${dbNames.join(', ')} — ${productUrls.length} product + ${lifestyleUrls.length} lifestyle image(s) for ${allMatched.length} SKU(s)`);
 
       await delay(800);
     }

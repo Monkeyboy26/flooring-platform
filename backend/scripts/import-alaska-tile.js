@@ -41,17 +41,17 @@ const GENERAL_TILES = [
   // Calacatta Gold 24x48
   ['Calacatta Gold', 'Polish',  '24"x48"', 'PM126602QA1-P', 2.69, 3.29, 16, 2, 30, 'sqft', 'per_sqft'],
   ['Calacatta Gold', 'Matte',   '24"x48"', 'PM126602QA1-M', 2.59, 3.19, 16, 2, 30, 'sqft', 'per_sqft'],
-  // Calacatta Gold Hex Mosaic
-  ['Calacatta Gold Hex Mosaic', 'Polish', '3.5" Hexagon', 'PM126602QA1-HEX', 8.50, 9.80, null, null, null, 'unit', 'per_unit'],
+  // Calacatta Mosaic Hex
+  ['Calacatta Mosaic Hex', 'Polish', '3.5" Hexagon', 'PM126602QA1-HEX', 8.50, 9.80, null, null, null, 'unit', 'per_unit'],
   // Della Statuario Light 24x48
   ['Della Statuario Light', 'Polish', '24"x48"', 'DELLA-SL-P', 1.99, 2.49, 16, 2, 34, 'sqft', 'per_sqft'],
   ['Della Statuario Light', 'Matte',  '24"x48"', 'DELLA-SL-M', 1.99, 2.49, 16, 2, 34, 'sqft', 'per_sqft'],
-  // Della Statuario Light Hex Mosaic
-  ['Della Statuario Light Hex Mosaic', 'Polish', '3.5" Hexagon', 'DELLA-SL-HEX', 8.50, 9.80, null, null, null, 'unit', 'per_unit'],
-  // Lims Stone White
-  ['Lims Stone White', 'Matte', '24"x48"', 'LIMS-SW-M', 2.99, 3.29, 16, 2, 30, 'sqft', 'per_sqft'],
-  // Sandstone
-  ['Sandstone', 'Matte', '24"x48"', 'SANDSTONE-M', 2.99, 3.29, 16, 2, 30, 'sqft', 'per_sqft'],
+  // Della Statuario Mosaic Hex
+  ['Della Statuario Mosaic Hex', 'Polish', '3.5" Hexagon', 'DELLA-SL-HEX', 8.50, 9.80, null, null, null, 'unit', 'per_unit'],
+  // Lims White
+  ['Lims White', 'Matte', '24"x48"', 'LIMS-SW-M', 2.99, 3.29, 16, 2, 30, 'sqft', 'per_sqft'],
+  // Sandstone Gold
+  ['Sandstone Gold', 'Matte', '24"x48"', 'SANDSTONE-M', 2.99, 3.29, 16, 2, 30, 'sqft', 'per_sqft'],
   // Calacatta Gold 12x24
   ['Calacatta Gold', 'Polish', '12"x24"', 'CALCGOLD-12x24-P', 2.29, 2.69, 16, 8, 40, 'sqft', 'per_sqft'],
   ['Calacatta Gold', 'Matte',  '12"x24"', 'CALCGOLD-12x24-M', 2.29, 2.69, 16, 8, 40, 'sqft', 'per_sqft'],
@@ -59,10 +59,10 @@ const GENERAL_TILES = [
   ['Damore Blanco Grey', 'Polish', '24"x48"', 'DAMORE-BG-P', 2.49, 2.79, 16, 2, 34, 'sqft', 'per_sqft'],
   // Pacific Onyx Crema
   ['Pacific Onyx Crema', 'Polish', '24"x48"', 'PONYX-C-P', 2.49, 2.79, 16, 2, 34, 'sqft', 'per_sqft'],
-  // Blue Gold Onyx
-  ['Blue Gold Onyx', 'Polish', '24"x48"', 'BGONYX-P', 3.99, 4.49, 16, 2, 34, 'sqft', 'per_sqft'],
-  // Sky Gold Onyx
-  ['Sky Gold Onyx', 'Polish', '24"x48"', 'SGONYX-P', 3.99, 4.49, 16, 2, 34, 'sqft', 'per_sqft'],
+  // Blue Gold Onix
+  ['Blue Gold Onix', 'Polish', '24"x48"', 'BGONYX-P', 3.99, 4.49, 16, 2, 34, 'sqft', 'per_sqft'],
+  // Sky Gold Onix
+  ['Sky Gold Onix', 'Polish', '24"x48"', 'SGONYX-P', 3.99, 4.49, 16, 2, 34, 'sqft', 'per_sqft'],
 ];
 
 // ==================== 2024 COLLECTIONS — LIMITED STOCK ====================
@@ -256,7 +256,7 @@ async function main() {
 
     const prod = await upsertProduct(vendorId, {
       name: productName,
-      collection: 'General',
+      collection: '',
       category_id: catId,
       description_short: `${productName} Porcelain Tile`,
     });
@@ -286,7 +286,6 @@ async function main() {
       await setAttr(sku.id, 'material', 'Porcelain');
       await setAttr(sku.id, 'finish', finish);
       await setAttr(sku.id, 'size', size);
-      await setAttr(sku.id, 'collection', 'General');
     }
     console.log(`  ${prod.is_new ? '+' : '~'} ${productName} (${tiles.length} SKU${tiles.length > 1 ? 's' : ''})`);
   }
