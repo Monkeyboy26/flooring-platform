@@ -20,33 +20,37 @@ const DEFAULT_CONFIG = {
 const MAX_GALLERY_IMAGES = 8;
 
 /**
- * Re-parameterize a Widen CDN URL to a standard 765×765 square crop.
- * Replaces any existing w= and h= params; appends sizing if none present.
+ * Re-parameterize a Widen CDN URL to fit within 765px wide without cropping.
+ * Strips height, crop, and keep params so the CDN returns the natural aspect ratio.
  * Non-Widen URLs are returned unchanged.
  */
 function reParamWidenUrl(url) {
   if (!url.includes('.widen.net')) return url;
-  const hasW = /[?&]w=\d+/.test(url);
-  const hasH = /[?&]h=\d+/.test(url);
-  if (hasW || hasH) {
-    let u = url
-      .replace(/([?&])w=\d+/, '$1w=765')
-      .replace(/([?&])h=\d+/, '$1h=765');
-    // Replace position=c (pad/center) with keep=c&crop=yes for tighter crops
-    u = u.replace(/([?&])position=c/, '$1keep=c&crop=yes');
-    return u;
+  let u = url;
+  // Set width to 765, remove height/crop/keep so image keeps natural aspect ratio
+  if (/[?&]w=\d+/.test(u)) {
+    u = u.replace(/([?&])w=\d+/, '$1w=765');
+  } else {
+    u += (u.includes('?') ? '&' : '?') + 'w=765';
   }
-  const sep = url.includes('?') ? '&' : '?';
-  return `${url}${sep}w=765&h=765&keep=c&crop=yes&quality=80`;
+  u = u.replace(/[?&]h=\d+/g, '');
+  u = u.replace(/[?&]crop=yes/g, '');
+  u = u.replace(/[?&]keep=[a-z]+/gi, '');
+  u = u.replace(/[?&]position=[a-z]+/gi, '');
+  // Ensure quality param
+  if (!/[?&]quality=/.test(u)) u += '&quality=80';
+  // Clean up dangling ampersands
+  u = u.replace(/[&]+/g, '&').replace(/\?&/, '?').replace(/&$/, '');
+  return u;
 }
 
 /**
- * Normalize Widen CDN URLs: re-parameterize wide banners to 765×765 square crops
- * instead of rejecting them. Still rejects known placeholder filenames.
+ * Normalize Widen CDN URLs: re-parameterize to 765px wide without cropping.
+ * Still rejects known placeholder filenames.
  */
 function normalizeWidenUrls(urls) {
   return urls
-    .filter(url => !/generic-photo-coming-soon/i.test(url))
+    .filter(url => !/coming-soon/i.test(url))
     .map(url => reParamWidenUrl(url));
 }
 
@@ -69,6 +73,26 @@ async function filterWidenPlaceholders(urls) {
   return checks
     .filter(r => r.status === 'fulfilled' && r.value.ok)
     .map(r => r.value.url);
+}
+
+/**
+ * Detect field-tile dimension patterns in Widen CDN image URLs.
+ * Returns true if the filename contains standard tile/slab dimensions
+ * (12x12, 18x18, etc.) or detail-shot markers (-DT-) that indicate
+ * a non-mosaic product shot — these should NOT be used for mosaic SKUs.
+ */
+const FIELD_TILE_IMAGE_RE = /[-_](12x12|18x18|24x24|12x24|16x16|6x24|6x12|4x12|3x6)[-_.]/i;
+const DETAIL_SHOT_RE = /[-_]DT[-_.]/i;
+const MOSAIC_IMAGE_INDICATOR_RE = /mosaic|mesh|hex|herringbone|chevron|basket|penny|fan|flower|brick|bubble|scallop|picket|rhomboid|stanza|pinwheel|octagon|arabesque|lantern/i;
+function isFieldTileUrl(url) {
+  const filename = url.split('/').pop().split('?')[0];
+  if (DETAIL_SHOT_RE.test(filename)) return true;
+  if (FIELD_TILE_IMAGE_RE.test(filename)) {
+    // Not a field tile if the filename also contains mosaic indicators
+    if (MOSAIC_IMAGE_INDICATOR_RE.test(filename)) return false;
+    return true;
+  }
+  return false;
 }
 
 // AZ Tile category slug → PIM category slug
@@ -199,6 +223,29 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 
 const ACCESSORY_KEYWORDS = /\b(trim|molding|moulding|reducer|stair\s*nose|transition|threshold|t-molding|quarter\s*round|underlayment|adhesive|grout|sealer|caulk|bullnose|cove\s*base|pencil\s*liner)\b/i;
 
+// Name-based format patterns — catch products whose AZ tags don't include format categories
+// but whose collection name clearly indicates the format (e.g., "Basalt Hex" → mosaic)
+const MOSAIC_NAME_PATTERN = /\b(hex|chevron|herringbone|basketweave|penny|geometric|labyrinth|fishing\s*net|combhex|arabesque|thin\s*brick)\b/i;
+const STACKED_NAME_PATTERN = /\b(ledger|splitface|split\s*face)\b/i;
+
+// WooCommerce product pages that list colors by format rather than by series.
+// Colors on these pages usually also have their own WC product page, creating duplicates.
+// Skip creating products from these pages when the color exists elsewhere.
+const FORMAT_PAGE_TITLES = new Set(['Modella', 'Split']);
+
+// Extract named shape/pattern from a mosaic size attribute for use in product naming.
+// "Herringbone 1x2 Mesh" → "Herringbone", "Hex2x2 Mesh" → "Hex", "2x2 Mosaic" → ""
+// Longer patterns listed first so they match before shorter prefixes.
+const MOSAIC_SHAPE_RE = /\b(penny\s*round|mini\s*herringbone|large\s*chevron|small\s*chevron|small\s*hex|long\s*hex|basketweave\s*dogbone|basketweave|herringbone|chevron|hexagon|hex|bubble|fan|flower|scallop|oval|rhomboid|ellipse|bamboo|bevel|trapezoid|feather|ribbon|lotus|brick|picket|pinwheel|stanza|octagon|arch|wavy|linear|straight)\b/i;
+function extractMosaicShape(sizeAttr) {
+  if (!sizeAttr) return '';
+  const m = sizeAttr.match(MOSAIC_SHAPE_RE);
+  if (!m) return '';
+  // Title-case the matched shape
+  return m[1].replace(/\s+/g, ' ').split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
 // Size classification patterns — handles both raw (12x24) and WC-slugified (12-x-24) formats
 // Field tile: both dimensions ≥12, or specific large sizes (8x48, 6x36, etc.)
 const FIELD_SIZE = /(\d{2,})-?x-?(\d{2,})|8-?x-?48|8-?x-?36|6-?x-?36|6-?x-?24/;
@@ -207,7 +254,7 @@ const MOSAIC_KW = /mosaic|mesh|hex|penny|basketweave|herringbone|stack|sheet/i;
 
 // Categories sold per piece/sheet (not per sqft in boxes)
 const UNIT_CATEGORIES = new Set([
-  'mosaic-tile',
+  'mosaic-tile', 'stacked-stone',
   'granite-countertops', 'marble-countertops', 'quartz-countertops',
   'quartzite-countertops', 'porcelain-slabs',
 ]);
@@ -220,7 +267,7 @@ const SLAB_CATEGORIES = new Set([
 const FORMAT_CATS = new Set(['mosaic-tile', 'stacked-stone', 'pavers']);
 // Categories that don't use box packaging (slabs, sheets)
 const NO_BOX_CATEGORIES = new Set([
-  'mosaic-tile', 'granite-countertops', 'marble-countertops',
+  'mosaic-tile', 'stacked-stone', 'granite-countertops', 'marble-countertops',
   'quartz-countertops', 'quartzite-countertops', 'porcelain-slabs',
 ]);
 
@@ -255,6 +302,8 @@ function classifyVariation(sizeAttr, originalFormatSlug, originalSlabSlug) {
   }
   // Remaining MOSAIC_KW matches (mesh, stack) — only for non-stacked products
   if (MOSAIC_KW.test(size)) return 'mosaic';
+  // Paver-sized variants (e.g., "24x24 Paver", "Paver 12x24")
+  if (/paver/i.test(size)) return 'paver';
   // Slab-category product with tile-format variant
   if (originalSlabSlug && FIELD_SIZE.test(size)) return 'tile';
   return 'default';
@@ -286,6 +335,7 @@ export async function run(pool, job, source) {
     imagesSet: 0, skipped: 0, errors: 0,
     inventoryUpdated: 0, pricingUpdated: 0,
     priceListHits: 0, priceListMisses: 0,
+    deactivated: 0,
   };
 
   // Load price list data (all 4 Excel files)
@@ -684,6 +734,20 @@ export async function run(pool, job, source) {
           }
         }
 
+        // ── Name-based format override ──
+        // Products tagged only with generic material categories (natural-stone-tile,
+        // porcelain-and-ceramic) but whose collection name clearly indicates a specific
+        // format (mosaic, stacked stone) get reclassified here.
+        if (!FORMAT_CATS.has(pimCatSlug) && !SLAB_CATEGORIES.has(pimCatSlug)) {
+          if (MOSAIC_NAME_PATTERN.test(apiProduct.title)) {
+            const mosaicId = categoryLookup.get('mosaic-tile');
+            if (mosaicId) { categoryId = mosaicId; pimCatSlug = 'mosaic-tile'; }
+          } else if (STACKED_NAME_PATTERN.test(apiProduct.title)) {
+            const stackedId = categoryLookup.get('stacked-stone');
+            if (stackedId) { categoryId = stackedId; pimCatSlug = 'stacked-stone'; }
+          }
+        }
+
         // ── Determine collection + name ──
         // Collection = product title from API (e.g., "3D")
         // For variable products, group by color — each color becomes its own product
@@ -739,15 +803,54 @@ export async function run(pool, job, source) {
                 const stackedId = categoryLookup.get('stacked-stone');
                 if (stackedId) { effectiveCatId = stackedId; effectiveCatSlug = 'stacked-stone'; }
                 if (needsSuffix) effectiveCollection += ' Stacked Stone';
+              } else if (fmt === 'paver') {
+                const paverId = categoryLookup.get('pavers');
+                if (paverId) { effectiveCatId = paverId; effectiveCatSlug = 'pavers'; }
+                if (needsSuffix) effectiveCollection += ' Pavers';
               } else if (fmt === 'tile' && tileCatId) {
                 effectiveCatId = tileCatId;
                 effectiveCatSlug = tileCatSlug;
                 if (needsSuffix) effectiveCollection += ' Tile';
               }
 
+            // ── Mosaic shape sub-grouping ──
+            // For mosaics, group variants by shape/pattern so each shape gets its
+            // own product with the shape in the name (e.g., "Bardiglio Herringbone").
+            const shapeSubGroups = [];
+            if (effectiveCatSlug === 'mosaic-tile') {
+              const shapeMap = new Map();
+              for (const entry of fmtVariations) {
+                const shape = extractMosaicShape(entry.v.attributes?.attribute_pa_size);
+                if (!shapeMap.has(shape)) shapeMap.set(shape, []);
+                shapeMap.get(shape).push(entry);
+              }
+              for (const [shape, vars] of shapeMap) {
+                shapeSubGroups.push([shape ? `${productName} ${shape}` : productName, vars, shape]);
+              }
+            } else {
+              shapeSubGroups.push([productName, fmtVariations, '']);
+            }
+
+            for (const [effectiveName, subVariations, mosaicShape] of shapeSubGroups) {
+
+            // ── Skip format-page duplicates ──
+            // Format pages (Modella, Split) list colors that usually have their own
+            // WC product page. If this color already exists under a different collection,
+            // skip to avoid creating a duplicate product.
+            if (FORMAT_PAGE_TITLES.has(collectionName)) {
+              const existsElsewhere = await pool.query(
+                `SELECT 1 FROM products WHERE vendor_id = $1 AND name = $2
+                 AND collection NOT LIKE $3 AND is_active = true LIMIT 1`,
+                [vendor_id, effectiveName, collectionName + '%']
+              );
+              if (existsElsewhere.rows.length > 0) {
+                continue;
+              }
+            }
+
             const product = await upsertProduct(pool, {
               vendor_id,
-              name: productName,
+              name: effectiveName,
               collection: effectiveCollection,
               category_id: effectiveCatId,
               description_short: apiProduct.description ? apiProduct.description.slice(0, 255) : null,
@@ -759,23 +862,29 @@ export async function run(pool, job, source) {
             touchedProductIds.push(product.id);
 
             // ── Product-level primary image ──
-            // Per-variation gallery first image, fallback to variation.image
-            let productPrimaryUrl = null;
-            for (const { v: cv } of fmtVariations) {
+            // Collect ALL candidate images from all subVariation galleries + variation.image,
+            // then run preferProductShot to select the best product shot.
+            const isMosaicCtx = effectiveCatSlug === 'mosaic-tile';
+            let productPrimaryCandidates = [];
+            for (const { v: cv } of subVariations) {
               const varGal = galleryData.byVariationId[cv.variation_id] || [];
-              if (varGal.length > 0) { productPrimaryUrl = reParamWidenUrl(varGal[0]); break; }
-            }
-            if (!productPrimaryUrl) {
-              for (const { v: cv } of fmtVariations) {
-                const cvImg = cv.image?.url || cv.image?.src || null;
-                if (cvImg) { productPrimaryUrl = reParamWidenUrl(cvImg); break; }
+              for (const url of varGal) {
+                productPrimaryCandidates.push(reParamWidenUrl(url));
               }
+              const cvImg = cv.image?.url || cv.image?.src || null;
+              if (cvImg) productPrimaryCandidates.push(reParamWidenUrl(cvImg));
             }
-
-            // Reject known placeholder filenames
-            if (productPrimaryUrl && /generic-photo-coming-soon/i.test(productPrimaryUrl)) {
-              productPrimaryUrl = null;
+            // Deduplicate and filter placeholders
+            productPrimaryCandidates = [...new Set(productPrimaryCandidates)]
+              .filter(u => !/coming-soon/i.test(u));
+            // For mosaics, prefer non-field-tile images; keep field-tile as last resort
+            if (isMosaicCtx) {
+              const mosaicOnly = productPrimaryCandidates.filter(u => !isFieldTileUrl(u));
+              if (mosaicOnly.length > 0) productPrimaryCandidates = mosaicOnly;
             }
+            // Sort to prefer product shots over lifestyle images
+            productPrimaryCandidates = preferProductShot(productPrimaryCandidates, effectiveName);
+            const productPrimaryUrl = productPrimaryCandidates.length > 0 ? productPrimaryCandidates[0] : null;
 
             if (productPrimaryUrl) {
               await upsertMediaAsset(pool, {
@@ -789,10 +898,25 @@ export async function run(pool, job, source) {
               stats.imagesSet++;
             }
 
-            for (const { vi, v } of fmtVariations) {
+            for (const { vi, v } of subVariations) {
               // Variant name: size + finish (color is now in product name)
-              const sizePart = v.attributes?.attribute_pa_size ? deslugify(v.attributes.attribute_pa_size) : '';
+              let sizePart = v.attributes?.attribute_pa_size ? deslugify(v.attributes.attribute_pa_size) : '';
               const finishPart = v.attributes?.attribute_pa_finishes ? deslugify(v.attributes.attribute_pa_finishes) : '';
+
+              // Strip mosaic shape from sizePart — it's already in the product name
+              if (mosaicShape && sizePart) {
+                sizePart = sizePart.replace(new RegExp(`\\b${mosaicShape}\\b`, 'i'), '').replace(/\s{2,}/g, ' ').trim();
+              }
+              // Strip finish from sizePart when it appears as a leading/trailing word group
+              // e.g. "Multi Finish Modella" + finish "Multi Finish" → "Modella"
+              if (finishPart && sizePart) {
+                const esc = finishPart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                sizePart = sizePart
+                  .replace(new RegExp(`^${esc}\\b\\s*`, 'i'), '')
+                  .replace(new RegExp(`\\s*\\b${esc}$`, 'i'), '')
+                  .trim();
+              }
+
               const variantName = buildVariantName(sizePart, finishPart);
 
               const accessory = isAccessory(apiProduct.title, apiProduct.description);
@@ -887,12 +1011,25 @@ export async function run(pool, job, source) {
               const sortBase = (vi + 1) * 100;
 
               const varGallery = galleryData.byVariationId[v.variation_id] || [];
-              const allVarImages = await filterWidenPlaceholders(filterImageUrls(normalizeWidenUrls(varGallery)));
+              let allVarImages = await filterWidenPlaceholders(filterImageUrls(normalizeWidenUrls(varGallery)));
+
+              // For mosaic SKUs, prefer non-field-tile images; keep field-tile as last resort
+              if (isMosaicCtx) {
+                const mosaicOnly = allVarImages.filter(u => !isFieldTileUrl(u));
+                if (mosaicOnly.length > 0) allVarImages = mosaicOnly;
+              }
 
               // If gallery is empty, fall back to variation.image (skip placeholders)
-              if (allVarImages.length === 0 && varImage && !/generic-photo-coming-soon/i.test(varImage)) {
+              if (allVarImages.length === 0 && varImage && !/coming-soon/i.test(varImage)) {
                 allVarImages.push(reParamWidenUrl(varImage));
               }
+
+              // Sort product shots before lifestyle images so primary is a clean product shot
+              allVarImages = preferProductShot(allVarImages, effectiveName, {
+                productName: effectiveName,
+                size: v.attributes?.attribute_pa_size || '',
+                finish: v.attributes?.attribute_pa_finishes || '',
+              });
 
               for (let gi = 0; gi < allVarImages.length && gi < MAX_GALLERY_IMAGES; gi++) {
                 const imgUrl = allVarImages[gi];
@@ -911,6 +1048,7 @@ export async function run(pool, job, source) {
                 stats.imagesSet++;
               }
             } // end for variations
+            } // end for shapeSubGroups
             } // end for formatGroups
           } // end for colorGroups
         } else {
@@ -958,7 +1096,7 @@ export async function run(pool, job, source) {
           if (gaugeEntries.length > 1) {
             for (const entry of gaugeEntries) {
               const gauge = entry.normalizedGauge; // e.g. "2CM", "3CM"
-              const entrySellBy = (entry.unit === 'EA' || entry.unit === 'SHT') ? 'unit' : 'box';
+              const entrySellBy = (entry.unit === 'EA' || entry.unit === 'SHT' || UNIT_CATEGORIES.has(pimCatSlug)) ? 'unit' : 'box';
 
               const sku = await upsertSku(pool, {
                 product_id: product.id,
@@ -1128,6 +1266,36 @@ export async function run(pool, job, source) {
         [touchedProductIds]
       );
       await appendLog(pool, job.id, `Activated ${activateResult.rowCount} products (${touchedProductIds.length} total touched)`);
+
+      // ── Phase 4b: Deactivate products no longer in catalog ──
+      // Safety guard: only deactivate when ≥50% of existing active products were touched
+      // (prevents mass-deactivation from partial API failures)
+      const activeResult = await pool.query(
+        `SELECT id FROM products WHERE vendor_id = $1 AND status = 'active'`,
+        [vendor_id]
+      );
+      const touchedSet = new Set(touchedProductIds);
+      const orphanIds = activeResult.rows.filter(r => !touchedSet.has(r.id)).map(r => r.id);
+      const ratio = activeResult.rows.length > 0 ? touchedProductIds.length / activeResult.rows.length : 0;
+
+      if (orphanIds.length > 0 && ratio >= 0.5) {
+        const deactivateResult = await pool.query(
+          `UPDATE products SET status = 'inactive', updated_at = CURRENT_TIMESTAMP
+           WHERE id = ANY($1)
+           RETURNING id`,
+          [orphanIds]
+        );
+        stats.deactivated = deactivateResult.rowCount;
+        await appendLog(pool, job.id,
+          `Deactivated ${deactivateResult.rowCount} products not found in latest catalog ` +
+          `(coverage: ${(ratio * 100).toFixed(0)}%, ${orphanIds.length} orphans out of ${activeResult.rows.length} active)`
+        );
+      } else if (orphanIds.length > 0) {
+        await appendLog(pool, job.id,
+          `Skipping deactivation: only ${touchedProductIds.length}/${activeResult.rows.length} ` +
+          `(${(ratio * 100).toFixed(0)}%) active products touched. Likely a partial scrape.`
+        );
+      }
     }
 
     // Promote first alternate to primary for any AZT SKUs with images but no primary
@@ -1189,7 +1357,8 @@ export async function run(pool, job, source) {
     await appendLog(pool, job.id,
       `Scrape complete. Found: ${stats.found}, Created: ${stats.created}, ` +
       `Updated: ${stats.updated}, SKUs: ${stats.skusCreated}, ` +
-      `Images: ${stats.imagesSet}, Skipped: ${stats.skipped}, Errors: ${stats.errors}, ` +
+      `Images: ${stats.imagesSet}, Deactivated: ${stats.deactivated}, ` +
+      `Skipped: ${stats.skipped}, Errors: ${stats.errors}, ` +
       `PriceList hits: ${stats.priceListHits}, misses: ${stats.priceListMisses}`,
       {
         products_found: stats.found,
