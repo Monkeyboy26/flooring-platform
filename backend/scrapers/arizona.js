@@ -1268,8 +1268,10 @@ export async function run(pool, job, source) {
       await appendLog(pool, job.id, `Activated ${activateResult.rowCount} products (${touchedProductIds.length} total touched)`);
 
       // ── Phase 4b: Deactivate products no longer in catalog ──
-      // Safety guard: only deactivate when ≥50% of existing active products were touched
-      // (prevents mass-deactivation from partial API failures)
+      // Safety guards (ALL must pass):
+      //   1. ≥50% of existing active products were touched (prevents partial-catalog issues)
+      //   2. ≥80% of detail pages were successfully fetched (prevents fetch-failure cascades)
+      const fetchRatio = allProducts.length > 0 ? fetchedCount / allProducts.length : 0;
       const activeResult = await pool.query(
         `SELECT id FROM products WHERE vendor_id = $1 AND status = 'active'`,
         [vendor_id]
@@ -1278,7 +1280,7 @@ export async function run(pool, job, source) {
       const orphanIds = activeResult.rows.filter(r => !touchedSet.has(r.id)).map(r => r.id);
       const ratio = activeResult.rows.length > 0 ? touchedProductIds.length / activeResult.rows.length : 0;
 
-      if (orphanIds.length > 0 && ratio >= 0.5) {
+      if (orphanIds.length > 0 && ratio >= 0.5 && fetchRatio >= 0.8) {
         const deactivateResult = await pool.query(
           `UPDATE products SET status = 'inactive', updated_at = CURRENT_TIMESTAMP
            WHERE id = ANY($1)
@@ -1288,12 +1290,15 @@ export async function run(pool, job, source) {
         stats.deactivated = deactivateResult.rowCount;
         await appendLog(pool, job.id,
           `Deactivated ${deactivateResult.rowCount} products not found in latest catalog ` +
-          `(coverage: ${(ratio * 100).toFixed(0)}%, ${orphanIds.length} orphans out of ${activeResult.rows.length} active)`
+          `(coverage: ${(ratio * 100).toFixed(0)}%, fetch: ${(fetchRatio * 100).toFixed(0)}%, ` +
+          `${orphanIds.length} orphans out of ${activeResult.rows.length} active)`
         );
       } else if (orphanIds.length > 0) {
+        const reasons = [];
+        if (ratio < 0.5) reasons.push(`coverage ${(ratio * 100).toFixed(0)}% < 50%`);
+        if (fetchRatio < 0.8) reasons.push(`detail fetch ${(fetchRatio * 100).toFixed(0)}% < 80% (${fetchedCount}/${allProducts.length})`);
         await appendLog(pool, job.id,
-          `Skipping deactivation: only ${touchedProductIds.length}/${activeResult.rows.length} ` +
-          `(${(ratio * 100).toFixed(0)}%) active products touched. Likely a partial scrape.`
+          `Skipping deactivation of ${orphanIds.length} orphans: ${reasons.join(', ')}`
         );
       }
     }
