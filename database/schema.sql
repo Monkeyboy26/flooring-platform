@@ -61,7 +61,9 @@ CREATE TABLE products (
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     brand_id UUID REFERENCES brands(id),
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    format_group VARCHAR(100),
+    format_label VARCHAR(50)
 );
 
 CREATE UNIQUE INDEX products_slug_unique ON products (slug) WHERE slug IS NOT NULL;

@@ -3266,6 +3266,8 @@
     const [collectionSiblings, setCollectionSiblings] = useState([]);
     const [collectionAttributes, setCollectionAttributes] = useState({});
     const [groupedProducts, setGroupedProducts] = useState([]);
+    const [formatSiblings, setFormatSiblings] = useState([]);
+    const [formatLabel, setFormatLabel] = useState(null);
     const [productTags, setProductTags] = useState([]);
     const [countertopImage, setCountertopImage] = useState(null);
     const [selectedImage, setSelectedImage] = useState(0);
@@ -3325,6 +3327,8 @@
         setCollectionSiblings(data.collection_siblings || []);
         setCollectionAttributes(data.collection_attributes || {});
         setGroupedProducts(data.grouped_products || []);
+        setFormatSiblings(data.format_siblings || []);
+        setFormatLabel(data.format_label || null);
         setCountertopImage(data.countertop_image || null);
         setProductTags(data.tags || []);
         setLoading(false);
@@ -4350,8 +4354,15 @@
       }
       const showThickness = thicknessItems.length > 0;
       const showSlabSize = slabSizeItems.length > 0;
-      if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showShapePills && !showSibSizes && !showAttrSizes && !showThickness && !showSlabSize) return null;
-      return /* @__PURE__ */ React.createElement("div", { className: "variant-selectors" }, showColors && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, colorLabel), isRomanVariants ? /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, [...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map((c) => /* @__PURE__ */ React.createElement("button", { key: c.sku_id, className: "attr-pill" + (c.is_current ? " active" : ""), "aria-pressed": c.is_current ? "true" : "false", onClick: () => {
+      const hasStylePill = formatSiblings.length > 0 && formatLabel;
+      const stylePillItems = hasStylePill ? [
+        { label: formatLabel, sku_id: sku.sku_id, is_current: true },
+        ...formatSiblings.map((fs) => ({ label: fs.format_label, sku_id: fs.sku_id, is_current: false }))
+      ] : [];
+      if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showShapePills && !showSibSizes && !showAttrSizes && !showThickness && !showSlabSize && !hasStylePill) return null;
+      return /* @__PURE__ */ React.createElement("div", { className: "variant-selectors" }, hasStylePill && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Style", /* @__PURE__ */ React.createElement("span", null, formatLabel)), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, stylePillItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), "aria-pressed": s.is_current ? "true" : "false", onClick: () => {
+        if (!s.is_current) onSkuClick(s.sku_id);
+      } }, s.label)))), showColors && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, colorLabel), isRomanVariants ? /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, [...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map((c) => /* @__PURE__ */ React.createElement("button", { key: c.sku_id, className: "attr-pill" + (c.is_current ? " active" : ""), "aria-pressed": c.is_current ? "true" : "false", onClick: () => {
         if (!c.is_current) onSkuClick(c.sku_id);
       } }, romanPillLabel(c.product_name)))) : /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, colorItems.map((c) => {
         const label = c.color || c.variant_name || c.product_name;

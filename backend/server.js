@@ -1831,7 +1831,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       SELECT
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.variant_type,
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, p.vendor_id, p.brand_id, p.description_long, p.description_short,
-        p.slug as product_slug,
+        p.slug as product_slug, p.format_group, p.format_label,
         v.name as vendor_name, v.code as vendor_code,
         COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
@@ -2304,6 +2304,28 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       }
     }
 
+    // Format siblings (cross-product format variants, e.g. Plank vs Herringbone)
+    let formatSiblings = [];
+    if (sku.format_group) {
+      const fmtResult = await pool.query(`
+        SELECT DISTINCT ON (p.id)
+          s.id as sku_id, p.id as product_id, p.format_label,
+          COALESCE(p.display_name, p.name) as product_name,
+          s.variant_name, pr.retail_price,
+          COALESCE(
+            (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1),
+            (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+          ) as primary_image
+        FROM products p
+        JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+          AND COALESCE(s.variant_type,'') != 'accessory'
+        LEFT JOIN pricing pr ON pr.sku_id = s.id
+        WHERE p.format_group = $1 AND p.id != $2 AND p.status = 'active'
+        ORDER BY p.id, s.created_at
+      `, [sku.format_group, sku.product_id]);
+      formatSiblings = fmtResult.rows;
+    }
+
     // Grouped products (e.g. matching cabinets, mirrors for vanities via group_number + color)
     let groupedProducts = [];
     const groupAttr = sku.attributes.find(a => a.slug === 'group_number');
@@ -2407,7 +2429,9 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       cross_product_accessories: crossProductAccessories,
       collection_siblings: collectionSiblings,
       collection_attributes: collectionAttributes,
-      grouped_products: groupedProducts
+      grouped_products: groupedProducts,
+      format_siblings: formatSiblings,
+      format_label: sku.format_label || null
     });
   } catch (err) {
     console.error('Storefront SKU detail error:', err);
