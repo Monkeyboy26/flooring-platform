@@ -144,14 +144,20 @@ async function main() {
     }
     console.log(`  Unique companion codes: ${codeMap.size}`);
 
+    // Get Shaw vendor ID (needed for scoping product lookups)
+    const { rows: [shawVendor] } = await client.query(`
+      SELECT id FROM vendors WHERE name ILIKE '%shaw%' LIMIT 1
+    `);
+    const shawVendorId = shawVendor?.id;
+
     // Step 2: Look up target product IDs
     console.log('\nPhase 2: Resolving target products...');
     const productNames = [...new Set(
       PREFIX_MAP.filter(([, cfg]) => cfg.productName).map(([, cfg]) => cfg.productName)
     )];
     const { rows: productRows } = await client.query(`
-      SELECT id, name FROM products WHERE name = ANY($1)
-    `, [productNames]);
+      SELECT id, name FROM products WHERE name = ANY($1) AND vendor_id = $2
+    `, [productNames, shawVendorId]);
 
     const productIdMap = {};
     for (const r of productRows) {
@@ -165,18 +171,13 @@ async function main() {
       SELECT p.id, p.name, p.vendor_id FROM products p
       JOIN skus s ON s.product_id = p.id
       WHERE s.vendor_sku ~ '^(SQ7CT|SQ4CT|BT7CT|BT3HU)'
+        AND p.vendor_id = $1
       GROUP BY p.id, p.name, p.vendor_id
-    `);
+    `, [shawVendorId]);
     const sampleProductMap = {};
     for (const r of sampleProducts) {
       sampleProductMap[r.name.toUpperCase()] = r.id;
     }
-
-    // Get Shaw vendor ID
-    const { rows: [shawVendor] } = await client.query(`
-      SELECT id FROM vendors WHERE name ILIKE '%shaw%' LIMIT 1
-    `);
-    const shawVendorId = shawVendor?.id;
 
     // Get category ID for Installation & Sundries
     const { rows: [sundCat] } = await client.query(`
@@ -235,7 +236,7 @@ async function main() {
         const codeLower = code.toLowerCase();
         // Look for product named after the code
         const { rows: existing } = await client.query(
-          `SELECT p.id FROM products p WHERE upper(p.name) = $1`, [code]
+          `SELECT p.id FROM products p WHERE upper(p.name) = $1 AND p.vendor_id = $2`, [code, shawVendorId]
         );
         if (existing.length > 0) {
           productId = existing[0].id;

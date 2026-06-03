@@ -570,6 +570,8 @@ async function main() {
     `, [Array.from(allCompanionVskus)]);
 
     // Also look up by product name (Shaw EDI accessory products are named after their EDI code)
+    // Scope to same vendor(s) that own the companion_skus attribute to prevent cross-vendor name collisions
+    const companionVendorIds = [...new Set(companionResult.rows.map(r => r.vendor_id))];
     const companionNameResult = await pool.query(`
       SELECT s.id, s.vendor_sku, s.variant_name, p.name as product_name,
         s.variant_type, s.sell_by, upper(p.name) as match_key
@@ -577,7 +579,8 @@ async function main() {
       JOIN products p ON p.id = s.product_id AND p.status = 'active'
       WHERE upper(p.name) = ANY($1) AND s.status = 'active'
         AND s.vendor_sku != ALL($1)
-    `, [Array.from(allCompanionVskus)]);
+        AND p.vendor_id = ANY($2)
+    `, [Array.from(allCompanionVskus), companionVendorIds]);
 
     const companionMap = {};
     for (const r of companionSkuResult.rows) {

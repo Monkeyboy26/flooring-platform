@@ -90,6 +90,13 @@ const SKIP_PRODUCTS = [
   try {
     await client.query('BEGIN');
 
+    // Get Metroflor vendor ID for scoping
+    const { rows: [metroVendor] } = await client.query(
+      `SELECT v.id FROM vendors v JOIN products p ON p.vendor_id = v.id WHERE p.display_name ILIKE 'Metroflor%' LIMIT 1`
+    );
+    const metroVendorId = metroVendor?.id;
+    if (!metroVendorId) throw new Error('Metroflor vendor not found');
+
     // ---------------------------------------------------------------
     // 1. Resolve parent product IDs
     // ---------------------------------------------------------------
@@ -97,8 +104,8 @@ const SKIP_PRODUCTS = [
 
     const resolve = async (key, displayName) => {
       const { rows } = await client.query(
-        `SELECT id FROM products WHERE display_name = $1 AND status = 'active' LIMIT 1`,
-        [displayName]
+        `SELECT id FROM products WHERE display_name = $1 AND vendor_id = $2 AND status = 'active' LIMIT 1`,
+        [displayName, metroVendorId]
       );
       if (!rows.length) throw new Error(`Parent not found: ${displayName}`);
       parents[key] = rows[0].id;
@@ -135,8 +142,8 @@ const SKIP_PRODUCTS = [
 
     for (const [productName, config] of Object.entries(ACCESSORY_MAP)) {
       const { rows: accProducts } = await client.query(
-        `SELECT pr.id FROM products pr WHERE pr.name = $1 AND pr.status = 'discontinued'`,
-        [productName]
+        `SELECT pr.id FROM products pr WHERE pr.name = $1 AND pr.vendor_id = $2 AND pr.status = 'discontinued'`,
+        [productName, metroVendorId]
       );
       if (!accProducts.length) {
         console.log(`  SKIP (not found): ${productName}`);

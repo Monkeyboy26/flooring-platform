@@ -75,7 +75,9 @@ async function main() {
       SELECT s.id, s.variant_name, s.product_id, p.name as product_name
       FROM skus s
       JOIN products p ON p.id = s.product_id
+      JOIN vendors v ON v.id = p.vendor_id
       WHERE p.name = ANY($1)
+        AND v.name = 'Tri-West'
         AND s.status = 'active'
         AND (s.variant_type IS NULL OR s.variant_type != 'accessory')
     `, [parentNames]);
