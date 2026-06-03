@@ -45,6 +45,7 @@ const ATTR = {
   size:     'd50e8400-e29b-41d4-a716-446655440004',
   material: 'd50e8400-e29b-41d4-a716-446655440002',
   finish:   'd50e8400-e29b-41d4-a716-446655440003',
+  shape:    '6af46612-5e54-4019-9972-13a3f0b4cb63',
 };
 
 const MARKUP = 2.0;
@@ -54,15 +55,16 @@ function getCategoryId(material, collectionName, skuType) {
   const m = material.toUpperCase();
   const c = collectionName.toUpperCase();
   const t = (skuType || '').toUpperCase();
+  // Collection-level overrides first (these are definitive)
+  if (c.startsWith('CC MOSAICS') || c.startsWith('CC PORCELAIN')) return CAT.mosaic;
+  if (c.includes('ROCKART') || c.includes('METALS')) return CAT.mosaic;
+  if (c === 'SLABS' || c === 'XL SLABS') return CAT.porcelain;
+  if (c === 'PAVERS') return CAT.pavers;
+  if (c === 'BATH FIXTURES') return CAT.bathAccessories;
   // SKU-level type overrides: mosaic items in non-mosaic collections
   if (t === 'MOSAIC') return CAT.mosaic;
   // SKU-level type overrides: ceramic wall items
   if (t === 'CERAMIC WALL' || t === 'PORCELAIN WALL' || t === 'WALL') return CAT.wallTile;
-  if (c === 'SLABS' || c === 'XL SLABS') return CAT.porcelain;
-  if (c === 'PAVERS') return CAT.pavers;
-  if (c === 'BATH FIXTURES') return CAT.bathAccessories;
-  if (c.includes('ROCKART') || c.includes('METALS')) return CAT.mosaic;
-  if (c.startsWith('CC MOSAICS') || c.startsWith('CC PORCELAIN')) return CAT.mosaic;
   if (m.includes('NATURAL STONE') || m.includes('GLASS MOSAIC')) return CAT.mosaic;
   if (m.includes('ALUMINUM')) return CAT.mosaic;
   if (c === 'PINE' || c === 'NORTHWOOD' || c === 'WESTON') return CAT.woodLook;
@@ -257,22 +259,39 @@ function extractColor(desc, collectionName) {
     text = text.replace(/\bPENNY\b(?!\s+ROUND)/i, 'PENNY ROUND');
   }
 
-  // Remove size dimensions
-  // Standard NxN patterns with quotes: 12"x24", 12X24, 8X48R
-  text = text.replace(/\s+\d+[\""\']*\s*[xX×]\s*\d+[\""\']*[R]?(\s.*$|$)/i, '');
+  // Normalize Unicode curly quotes to ASCII (XLSX sometimes uses U+201C/U+201D)
+  text = text.replace(/[\u201c\u201d]/g, '"').replace(/[\u2018\u2019]/g, "'");
+
+  // Remove size dimensions (order matters — specific patterns before general ones)
+  // Quoted size in middle of text: "CRACKLED 3"X12" AQUA" → "CRACKLED AQUA"
+  // (for descriptions where color appears after a quoted size)
+  text = text.replace(/\s+\d+["']\s*[xX×]\s*\d+["']\s+/i, ' ');
+  // Fractional size at start: "8 1/2X8 1/2 ...", "2 1/2X6 ..."
+  text = text.replace(/^\d+\s+\d+\/\d+\s*[xX]\s*\d+(\s+\d+\/\d+)?\s*/i, '');
+  // NxN at start (XL SLABS: "48X110 R SERENA...", "12"x24"")
+  text = text.replace(/^\d+(?:\.\d+)?["']*\s*[xX×]\s*\d+(?:\.\d+)?["']*\s*R?\s*/i, '');
+  // "2. 5x5" (XLSX decimal split with space) — must be before general NxN
+  text = text.replace(/\s+\d+\.\s+\d+[xX]\d+.*$/i, '');
   // Fractional sizes: 4 1/4X4 1/4
   text = text.replace(/\s+\d+\s+\d+\/\d+\s*[xX]\s*\d+\s+\d+\/\d+.*$/i, '');
-  // Fraction x integer sizes: 3/4X10, 7/8X6
-  text = text.replace(/\s+\d+\/\d+\s*[xX]\s*\d+.*$/i, '');
-  // NxN at start (XL SLABS: "48X110 R SERENA...")
-  text = text.replace(/^\d+[xX]\d+\s+R?\s*/i, '');
+  // XLSX typo: "4 1X4X4 1/4" (missing slash in fraction)
+  text = text.replace(/\s+\d+\s+\d+[xX]\d+[xX]\d+\s+\d+\/\d+.*$/i, '');
+  // Standard NxN patterns with quotes/decimals: 12"x24", 12X24, 8X48R, 2.5x5, 10.5x64r
+  text = text.replace(/\s+\d+(?:\.\d+)?["']*\s*[xX×]\s*\d+(?:\.\d+)?["']*[R]?(\s.*$|$)/i, '');
+  // Fraction x integer sizes: 3/4X10, 7/8X6 (also handles "4 1/4X10" mixed number)
+  text = text.replace(/\s+(\d+\s+)?\d+\/\d+\s*[xX]\s*\d+.*$/i, '');
+  // Size glued to word: "GRAY4X12" → strip "4X12"
+  text = text.replace(/(?<=[A-Za-z])\d+(?:\.\d+)?[xX]\d+(?:\.\d+)?$/i, '');
   // Standalone size like "20X20" at end
-  text = text.replace(/\s+\d+[xX]\d+$/i, '');
+  text = text.replace(/\s+\d+(?:\.\d+)?[xX]\d+(?:\.\d+)?[r]?$/i, '');
+
+  // Strip trailing fractional size patterns: "2X3/4 OC", "2 X3/4 OUTCORNER"
+  text = text.replace(/\s+\d+\s*[xX]\d+\/\d+(\s+\S+)*$/i, '');
 
   // Remove trailing finish/surface/trim codes
   const codes = ['R', 'PO', 'UP', 'MT', 'MC', 'ST', 'ABS', 'BG', 'MG',
-    'SBN', 'BN', 'CRN', 'MOS', 'MOSAIC', 'HEXAGON', 'OCT',
-    'BRIGHT', 'MATTE', 'PENCIL', 'PEN', 'W/'];
+    'SBN', 'BN', 'MOS', 'MOSAIC', 'HEXAGON', 'OCT',
+    'BRIGHT', 'MATTE', 'PENCIL', 'PEN', 'OC', 'W/'];
   for (let pass = 0; pass < 3; pass++) {
     for (const code of codes) {
       const re = new RegExp(`\\s+${code.replace('/', '\\/')}(\\s+\\S+)?$`, 'i');
@@ -333,6 +352,100 @@ function extractColor(desc, collectionName) {
   }
 
   return text || desc.replace(/\s+\d+.*$/, '').trim() || desc;
+}
+
+// ─── Extract finish/surface code from raw description ───
+// Returns a human-readable finish label, or '' if none found.
+// Used to distinguish SKUs that share the same product name + size.
+function extractFinish(desc) {
+  const u = desc.toUpperCase();
+  // Check for surface finish codes (order: most specific first)
+  const finishMap = [
+    [/\bPO\b/, 'Polished'], [/\bUP\b/, 'Unpolished'],
+    [/\bMT\b/, 'Matte'], [/\bMC\b/, 'Matte Calibrated'],
+    [/\bST\b/, 'Structured'], [/\bABS\b/, 'Abrasive'],
+    [/\bBRIGHT\b/, 'Bright'], [/\bMATTE\b/, 'Matte'],
+  ];
+  for (const [re, label] of finishMap) {
+    if (re.test(u)) return label;
+  }
+  // BG/MG prefix (Bright Glossy / Matte Glossy) — only at start of description
+  if (/^BG\s/i.test(desc.trim())) return 'Bright';
+  if (/^MG\s/i.test(desc.trim())) return 'Matte';
+  return '';
+}
+
+// ─── Parse mosaic product name into color + shape ───
+// CC Mosaics names: "[Finish] [Color] [Shape]" e.g. "Bright White Penny Round"
+// CC Porcelain names: "[Color] [Shape]" e.g. "Taupe Stacked"
+function parseMosaicName(productName) {
+  let text = productName.trim();
+  let finish = '';
+
+  // 1. Extract finish prefix
+  if (/^Bright\s+/i.test(text)) {
+    finish = 'Bright';
+    text = text.replace(/^Bright\s+/i, '');
+  } else if (/^Matte\s+/i.test(text)) {
+    finish = 'Matte';
+    text = text.replace(/^Matte\s+/i, '');
+  }
+  // Finish suffix (e.g., "Stacked White Glossy")
+  const suffixMatch = text.match(/\s+(Glossy)$/i);
+  if (suffixMatch) {
+    if (!finish) finish = suffixMatch[1];
+    text = text.substring(0, suffixMatch.index);
+  }
+
+  // 2. Match shape from end (most specific patterns first)
+  let shape = '';
+  const shapePatterns = [
+    /\b(\d+[xX]\d+\s+Beveled\s+Brick)$/i,
+    /\b(\d+[xX]\d+\s+T-?Brick)$/i,
+    /\b(\d+[xX]\d+\s+Brick)$/i,
+    /\b(\d+[xX]\d+\s+Hexagon)$/i,
+    /\b(\d+[xX]\d+\s+Squares?)$/i,
+    /\b(Diamond\s+Herringbone)$/i,
+    /\b(Flower\s+Hexagon)$/i,
+    /\b(Basket\s+Weave)$/i,
+    /\b(3[dD]\s+Picket)$/i,
+    /\b(Penny\s+Round)$/i,
+    /\b(Herringbone)$/i,
+    /\b(Octagon)$/i,
+    /\b(Picket)$/i,
+    /\b(Stacked)$/i,
+    /\b(Oval)$/i,
+    /\b(Lantern)$/i,
+    /\b(Feather)$/i,
+    /\b(Pinwheel)$/i,
+    /\b(Mosaic)$/i,
+    /\b(Dots)$/i,
+    /\b(Brick)$/i,
+  ];
+
+  for (const pat of shapePatterns) {
+    const m = text.match(pat);
+    if (m) {
+      shape = m[1];
+      text = text.substring(0, m.index).trim();
+      break;
+    }
+  }
+
+  // Handle "Stacked" at the start when no shape matched from end
+  if (!shape && /^Stacked\s+/i.test(text)) {
+    shape = 'Stacked';
+    text = text.replace(/^Stacked\s*/i, '');
+  }
+
+  // 3. Move leading size prefix from color to shape (e.g., '2"' from '2" White' after extracting 'Dots')
+  const sizePrefix = text.match(/^(\d+"?)\s+/);
+  if (sizePrefix && shape) {
+    shape = sizePrefix[1] + ' ' + shape;
+    text = text.substring(sizePrefix[0].length);
+  }
+
+  return { finish, color: text.trim(), shape };
 }
 
 // ─── Detect if a SKU is a trim/accessory ───
@@ -445,11 +558,46 @@ async function run() {
       const fieldSkus = prod.skus.filter(s => !isTrim(s));
       const trimSkus = prod.skus.filter(s => isTrim(s));
 
+      // Detect which sizes have multiple field SKUs (need finish to disambiguate)
+      const sizeGroups = new Map(); // size → [rec, ...]
+      for (const rec of fieldSkus) {
+        const size = cleanSize(rec.sizeLabel);
+        if (!sizeGroups.has(size)) sizeGroups.set(size, []);
+        sizeGroups.get(size).push(rec);
+      }
+
+      // Pre-compute finishes per size group to detect when finish alone doesn't disambiguate
+      const sizeFinishes = new Map(); // size → [finish, finish, ...]
+      for (const [size, group] of sizeGroups) {
+        if (group.length > 1) {
+          const finishes = group.map(r => extractFinish(r.desc));
+          sizeFinishes.set(size, finishes);
+        }
+      }
+
       // Insert field tile SKUs
       for (const rec of fieldSkus) {
         const internalSku = 'ROCA-' + rec.sku;
         const size = cleanSize(rec.sizeLabel);
-        const variantName = `${productName} ${size}`.trim();
+        let variantName = `${productName} ${size}`.trim();
+        // Append finish when multiple SKUs share the same size within this product
+        const group = sizeGroups.get(size);
+        if (group.length > 1) {
+          const idx = group.indexOf(rec);
+          const finish = extractFinish(rec.desc);
+          const nameHasFinish = finish && productName.toLowerCase().includes(finish.toLowerCase());
+          // Check if finishes are unique across the group
+          const groupFinishes = sizeFinishes.get(size);
+          const finishesUnique = new Set(groupFinishes).size === groupFinishes.length && groupFinishes.every(f => f);
+
+          if (finish && !nameHasFinish && finishesUnique) {
+            variantName = `${productName} ${finish} ${size}`.trim();
+          } else {
+            // Fallback: append A/B/C based on position within the size group
+            const letter = String.fromCharCode(65 + idx); // A, B, C...
+            variantName = `${productName} ${letter} ${size}`.trim();
+          }
+        }
         const sellBy = rec.uom === 'PC' ? 'unit' : 'box';
 
         const skuRes = await client.query(`
@@ -490,9 +638,31 @@ async function run() {
         }
 
         // Attributes
-        if (prod.color) {
-          await upsertAttr(client, skuId, ATTR.color, prod.color);
+        const isMosaicProduct = /^Cc\s+(Mosaics?|Porcelain)$/i.test(prod.collection);
+        if (isMosaicProduct && prod.color) {
+          // Parse mosaic product name into separate color + shape
+          const parsed = parseMosaicName(prod.color);
+          await upsertAttr(client, skuId, ATTR.color, parsed.color || 'Multicolor');
           totalAttrs++;
+          if (parsed.shape) {
+            await upsertAttr(client, skuId, ATTR.shape, parsed.shape);
+            totalAttrs++;
+          }
+          if (parsed.finish) {
+            await upsertAttr(client, skuId, ATTR.finish, parsed.finish);
+            totalAttrs++;
+          }
+        } else {
+          if (prod.color) {
+            await upsertAttr(client, skuId, ATTR.color, prod.color);
+            totalAttrs++;
+          }
+          // Finish attribute (Polished, Unpolished, Matte, Bright, etc.)
+          const skuFinish = extractFinish(rec.desc);
+          if (skuFinish) {
+            await upsertAttr(client, skuId, ATTR.finish, skuFinish);
+            totalAttrs++;
+          }
         }
         if (size) {
           await upsertAttr(client, skuId, ATTR.size, size);

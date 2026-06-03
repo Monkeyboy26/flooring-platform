@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Roma Flooring Designs - Vendor &amp; Brand Checklist</title>
+<style>
+  @page {
+    size: letter;
+    margin: 0.5in 0.6in;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', -apple-system, Arial, sans-serif;
+    font-size: 9.5pt;
+    color: #1a1a1a;
+    line-height: 1.35;
+    padding: 0.5in 0.6in;
+  }
+  h1 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 18pt;
+    font-weight: 700;
+    color: #2c2c2c;
+    margin-bottom: 2pt;
+    letter-spacing: -0.3px;
+  }
+  .subtitle {
+    font-size: 9pt;
+    color: #777;
+    margin-bottom: 14pt;
+    border-bottom: 1.5pt solid #d4a574;
+    padding-bottom: 6pt;
+  }
+  .summary-bar {
+    display: flex;
+    gap: 24pt;
+    margin-bottom: 12pt;
+    padding: 6pt 10pt;
+    background: #f8f6f3;
+    border-radius: 4pt;
+    font-size: 8.5pt;
+  }
+  .summary-bar .stat { display: flex; flex-direction: column; }
+  .summary-bar .stat-val { font-size: 13pt; font-weight: 700; color: #2c2c2c; }
+  .summary-bar .stat-lbl { color: #888; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .section { margin-bottom: 10pt; }
+  .section-title {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #2c2c2c;
+    padding: 3pt 0;
+    border-bottom: 1pt solid #e0d5c8;
+    margin-bottom: 3pt;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .section-title .vendor-stats {
+    font-weight: 400;
+    font-size: 8pt;
+    color: #999;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2pt;
+  }
+  th {
+    text-align: left;
+    font-size: 7pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #999;
+    padding: 2pt 4pt;
+    border-bottom: 0.5pt solid #e8e8e8;
+  }
+  th.num { text-align: right; }
+  td {
+    padding: 3pt 4pt;
+    vertical-align: top;
+    border-bottom: 0.5pt solid #f0f0f0;
+  }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: none; }
+
+  .checkbox {
+    display: inline-block;
+    width: 10pt;
+    height: 10pt;
+    border: 1pt solid #bbb;
+    border-radius: 2pt;
+    margin-right: 4pt;
+    vertical-align: middle;
+    position: relative;
+    top: -0.5pt;
+  }
+  .brand-name { font-weight: 600; }
+  .categories {
+    font-size: 7.5pt;
+    color: #888;
+    max-width: 220pt;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 6pt;
+    height: 6pt;
+    border-radius: 50%;
+    margin-right: 3pt;
+    vertical-align: middle;
+  }
+  .status-active { background: #4caf50; }
+  .status-partial { background: #ff9800; }
+  .status-inactive { background: #ccc; }
+
+  .legend {
+    display: flex;
+    gap: 14pt;
+    font-size: 7.5pt;
+    color: #888;
+    margin-bottom: 10pt;
+  }
+  .legend-item { display: flex; align-items: center; gap: 3pt; }
+
+  .notes-section {
+    margin-top: 14pt;
+    border-top: 1pt solid #e0d5c8;
+    padding-top: 8pt;
+  }
+  .notes-title {
+    font-size: 9pt;
+    font-weight: 700;
+    margin-bottom: 6pt;
+    color: #2c2c2c;
+  }
+  .notes-lines {
+    border-bottom: 0.5pt solid #ddd;
+    height: 18pt;
+    margin-bottom: 0;
+  }
+
+  .footer {
+    margin-top: 10pt;
+    padding-top: 6pt;
+    border-top: 0.5pt solid #e8e8e8;
+    font-size: 7pt;
+    color: #bbb;
+    text-align: center;
+  }
+
+  .page-break { page-break-before: always; }
+
+  @media print {
+    body { padding: 0; }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Vendor &amp; Brand Checklist</h1>
+<div class="subtitle">Roma Flooring Designs &mdash; Generated May 31, 2026</div>
+
+<div class="summary-bar">
+  <div class="stat">
+    <span class="stat-val">35</span>
+    <span class="stat-lbl">Vendors</span>
+  </div>
+  <div class="stat">
+    <span class="stat-val">55,023</span>
+    <span class="stat-lbl">Active SKUs</span>
+  </div>
+  <div class="stat">
+    <span class="stat-val">12,900</span>
+    <span class="stat-lbl">Active Products</span>
+  </div>
+  <div class="stat">
+    <span class="stat-val">7,577</span>
+    <span class="stat-lbl">Accessories</span>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><span class="status-dot status-active"></span> Active (products live in storefront)</div>
+  <div class="legend-item"><span class="status-dot status-partial"></span> Partial (some products inactive)</div>
+  <div class="legend-item"><span class="status-dot status-inactive"></span> Inactive (0 active SKUs)</div>
+</div>
+
+<!-- ADEX USA -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>ADEX USA</span>
+    <span class="vendor-stats">139 products &bull; 1,342 active SKUs &bull; 1,981 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">ADEX USA</td>
+      <td class="num">139</td><td class="num">1,342</td><td class="num">91</td><td class="num">1,981</td>
+      <td class="categories">Ceramic Tile, Mosaic Tile, Porcelain Tile</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Alaska Tile -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-partial"></span>Alaska Tile</span>
+    <span class="vendor-stats">10 active / 65 total &bull; 14 active SKUs &bull; 55 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Alaska Tile</td>
+      <td class="num">10</td><td class="num">14</td><td class="num">0</td><td class="num">55</td>
+      <td class="categories">Backsplash & Wall, Mosaic, Porcelain</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Arizona Tile -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Arizona Tile</span>
+    <span class="vendor-stats">939 products &bull; 1,947 active SKUs &bull; 8,444 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Arizona Tile</td>
+      <td class="num">939</td><td class="num">1,947</td><td class="num">1</td><td class="num">8,444</td>
+      <td class="categories">Ceramic, Granite, Marble, Mosaic, Natural Stone, Porcelain, Quartz, Quartzite, Stacked Stone</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Bedrosians Tile -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-partial"></span>Bedrosians Tile</span>
+    <span class="vendor-stats">620 active / 2,454 total &bull; 1,590 active SKUs &bull; 8,613 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Bedrosians</td>
+      <td class="num">620</td><td class="num">1,590</td><td class="num">60</td><td class="num">8,613</td>
+      <td class="categories">Ceramic, Engineered Hardwood, LVP, Marble, Mosaic, Natural Stone, Porcelain, Quartz</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Bellezza Ceramica -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Bellezza Ceramica</span>
+    <span class="vendor-stats">96 products &bull; 322 active SKUs &bull; 479 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Bellezza Ceramica</td>
+      <td class="num">96</td><td class="num">322</td><td class="num">45</td><td class="num">479</td>
+      <td class="categories">Backsplash & Wall, Installation, Mosaic, Porcelain, Transitions, Wood Look</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Big D Supply -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-partial"></span>Big D Supply</span>
+    <span class="vendor-stats">18 active / 3,305 total &bull; 223 active SKUs &bull; 7,843 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Big D Supply</td>
+      <td class="num">18</td><td class="num">223</td><td class="num">0</td><td class="num">7,843</td>
+      <td class="categories">Adhesives, Engineered Hardwood, Installation, Luxury Vinyl, Solid Hardwood, Underlayment</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Bosphorus Imports -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Bosphorus Imports</span>
+    <span class="vendor-stats">291 products &bull; 1,231 active SKUs &bull; 4,289 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Bosphorus Imports</td>
+      <td class="num">291</td><td class="num">1,231</td><td class="num">671</td><td class="num">4,289</td>
+      <td class="categories">Fluted Tile, Mosaic, Pavers, Porcelain</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Caesarstone -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-inactive"></span>Caesarstone</span>
+    <span class="vendor-stats">0 active / 100 total &bull; 0 active SKUs &bull; 493 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Caesarstone</td>
+      <td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">493</td>
+      <td class="categories">Porcelain Slabs, Quartz Countertops</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Daltile -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-partial"></span>Daltile</span>
+    <span class="vendor-stats">1,387 active / 4,700 total &bull; 5,364 active SKUs &bull; 10,057 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Daltile</td>
+      <td class="num">1,387</td><td class="num">5,364</td><td class="num">2</td><td class="num">9,689</td>
+      <td class="categories">Ceramic, Granite, LVP, LVT, Marble, Mosaic, Natural Stone, Porcelain, Quartz, Wood Look</td>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">American Olean</td>
+      <td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">238</td>
+      <td class="categories">Ceramic, Mosaic, Natural Stone, Porcelain, Transitions</td>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Marazzi</td>
+      <td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">130</td>
+      <td class="categories">Ceramic, Mosaic, Porcelain, Transitions, Wood Look</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Elite Stone -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-inactive"></span>Elite Stone</span>
+    <span class="vendor-stats">0 active / 135 total &bull; 0 active SKUs &bull; 361 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Elite Stone</td>
+      <td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">361</td>
+      <td class="categories">Backsplash & Wall, Kitchen Sinks, Porcelain Slabs, Quartz</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Elysium Tile -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-partial"></span>Elysium Tile</span>
+    <span class="vendor-stats">522 active / 1,200 total &bull; 1,514 active SKUs &bull; 13,013 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Elysium Tile</td>
+      <td class="num">522</td><td class="num">1,514</td><td class="num">282</td><td class="num">13,013</td>
+      <td class="categories">Ceramic, LVP, Mosaic, Natural Stone, Pavers, Porcelain, Transitions, Wood Look</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Emser Tile -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-partial"></span>Emser Tile</span>
+    <span class="vendor-stats">589 active / 1,317 total &bull; 2,080 active SKUs &bull; 11,201 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Emser Tile</td>
+      <td class="num">589</td><td class="num">2,080</td><td class="num">242</td><td class="num">11,201</td>
+      <td class="categories">Adhesives, Ceramic, Installation, LVP, Mosaic, Natural Stone, Porcelain, Underlayment</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Engineered Floors -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Engineered Floors</span>
+    <span class="vendor-stats">297 products &bull; 4,190 active SKUs &bull; 9,808 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Engineered Floors</td>
+      <td class="num">297</td><td class="num">4,190</td><td class="num">1,176</td><td class="num">9,808</td>
+      <td class="categories">Carpet, Carpet Tile, Installation, Luxury Vinyl, Transitions</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Eternity Flooring -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-partial"></span>Eternity Flooring</span>
+    <span class="vendor-stats">80 active / 177 total &bull; 80 active SKUs &bull; 149 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Eternity Flooring</td>
+      <td class="num">80</td><td class="num">80</td><td class="num">0</td><td class="num">149</td>
+      <td class="categories">Adhesives, Backsplash & Wall, Installation, LVP, Laminate, Underlayment</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Fujiwa Tile -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Fujiwa Tile</span>
+    <span class="vendor-stats">56 products &bull; 223 active SKUs &bull; 442 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Fujiwa Tile</td>
+      <td class="num">56</td><td class="num">223</td><td class="num">0</td><td class="num">442</td>
+      <td class="categories">Mosaic, Pool Tile</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Gaia Flooring -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Gaia Flooring</span>
+    <span class="vendor-stats">8 products &bull; 53 active SKUs &bull; 258 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Gaia Flooring</td>
+      <td class="num">8</td><td class="num">53</td><td class="num">0</td><td class="num">258</td>
+      <td class="categories">Engineered Hardwood, LVP, Laminate</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Goton Tiles -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Goton Tiles</span>
+    <span class="vendor-stats">59 products &bull; 978 active SKUs &bull; 1,598 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Goton Tiles</td>
+      <td class="num">59</td><td class="num">978</td><td class="num">252</td><td class="num">1,598</td>
+      <td class="categories">Mosaic, Porcelain</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Hardware Resources -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-partial"></span>Hardware Resources</span>
+    <span class="vendor-stats">3,561 active / 6,104 total &bull; 8,194 active SKUs &bull; 33,705 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Hardware Resources</td>
+      <td class="num">3,561</td><td class="num">8,194</td><td class="num">0</td><td class="num">33,705</td>
+      <td class="categories">Bath Hardware, Carved Wood, Decorative Hardware, Functional Hardware, Organizers, Sinks, Vanity</td>
+    </tr>
+  </table>
+</div>
+
+<!-- James Martin Vanities -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>James Martin Vanities</span>
+    <span class="vendor-stats">524 products &bull; 3,842 active SKUs &bull; 46,164 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">James Martin Vanities</td>
+      <td class="num">524</td><td class="num">3,842</td><td class="num">718</td><td class="num">46,164</td>
+      <td class="categories">Bath Accessories, Mirrors, Storage, Vanities, Vanity Tops</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Johnson Hardwood -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Johnson Hardwood</span>
+    <span class="vendor-stats">158 products &bull; 158 active SKUs &bull; 547 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Johnson Hardwood</td>
+      <td class="num">158</td><td class="num">158</td><td class="num">0</td><td class="num">547</td>
+      <td class="categories">Engineered Hardwood, LVP, Laminate</td>
+    </tr>
+  </table>
+</div>
+
+<div class="page-break"></div>
+
+<!-- Mannington -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Mannington</span>
+    <span class="vendor-stats">85 products &bull; 1,816 active SKUs &bull; 1,902 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Mannington</td>
+      <td class="num">85</td><td class="num">1,816</td><td class="num">1,441</td><td class="num">1,902</td>
+      <td class="categories">Engineered Hardwood, Laminate, Luxury Vinyl</td>
+    </tr>
+  </table>
+</div>
+
+<!-- MegaClic -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>MegaClic (AJ Trading)</span>
+    <span class="vendor-stats">91 products &bull; 91 active SKUs &bull; 91 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">MegaClic (AJ Trading)</td>
+      <td class="num">91</td><td class="num">91</td><td class="num">0</td><td class="num">91</td>
+      <td class="categories">Engineered Hardwood, Installation, LVP, Laminate</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Melange Boutique Tile -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Melange Boutique Tile</span>
+    <span class="vendor-stats">93 products &bull; 366 active SKUs &bull; 991 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Melange Boutique Tile</td>
+      <td class="num">93</td><td class="num">366</td><td class="num">60</td><td class="num">991</td>
+      <td class="categories">Ceramic, Porcelain</td>
+    </tr>
+  </table>
+</div>
+
+<!-- MSI Surfaces -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>MSI Surfaces</span>
+    <span class="vendor-stats">1,663 products &bull; 2,090 active SKUs &bull; 5,556 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">MSI Surfaces</td>
+      <td class="num">1,663</td><td class="num">2,090</td><td class="num">56</td><td class="num">5,556</td>
+      <td class="categories">Adhesives, Engineered Hardwood, LVP, Mosaic, Natural Stone, Porcelain, Stacked Stone, Waterproof Wood</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Ottimo Ceramics -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Ottimo Ceramics</span>
+    <span class="vendor-stats">194 products &bull; 696 active SKUs &bull; 1,345 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Ottimo Ceramics</td>
+      <td class="num">194</td><td class="num">696</td><td class="num">0</td><td class="num">1,345</td>
+      <td class="categories">Ceramic, Mosaic, Pavers, Porcelain</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Raphael Stone Collection -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-inactive"></span>Raphael Stone Collection</span>
+    <span class="vendor-stats">0 active / 205 total &bull; 0 active SKUs &bull; 385 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Raphael Stone Collection</td>
+      <td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">385</td>
+      <td class="categories">Marble, Pavers, Porcelain, Quartz, Quartzite</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Roca USA -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Roca USA</span>
+    <span class="vendor-stats">711 products &bull; 1,458 active SKUs &bull; 1,305 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Roca USA</td>
+      <td class="num">541</td><td class="num">1,223</td><td class="num">267</td><td class="num">1,155</td>
+      <td class="categories">Backsplash & Wall, Bath Accessories, Ceramic, Mosaic, Pavers, Porcelain, Wood Look</td>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name"><em>(unbranded)</em></td>
+      <td class="num">170</td><td class="num">235</td><td class="num">50</td><td class="num">150</td>
+      <td class="categories">Backsplash & Wall, Bath Accessories, Ceramic, Mosaic, Pavers, Porcelain, Wood Look</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Shaw Floors -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-inactive"></span>Shaw Floors</span>
+    <span class="vendor-stats">0 active / 750 total &bull; 0 active SKUs &bull; 11,763 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Shaw Floors</td>
+      <td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">11,763</td>
+      <td class="categories">Adhesives, Carpet, Carpet Tile, Engineered Hardwood, Luxury Vinyl, Transitions, Underlayment</td>
+    </tr>
+  </table>
+</div>
+
+<!-- SLCC Flooring -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-inactive"></span>SLCC Flooring</span>
+    <span class="vendor-stats">0 active / 257 total &bull; 0 active SKUs &bull; 674 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">SLCC Flooring</td>
+      <td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">674</td>
+      <td class="categories">Engineered Hardwood, LVP, Laminate, Luxury Vinyl, Solid Hardwood</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Style Access -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-partial"></span>Style Access (Lungarno / CommodiTile)</span>
+    <span class="vendor-stats">119 active / 212 total &bull; 218 active SKUs &bull; 484 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Style Access</td>
+      <td class="num">119</td><td class="num">218</td><td class="num">39</td><td class="num">484</td>
+      <td class="categories">Ceramic, Installation, Mosaic, Porcelain</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Tri-West -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Tri-West</span>
+    <span class="vendor-stats">127 active / 197 total &bull; 3,740 active SKUs &bull; 4,197 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Armstrong</td>
+      <td class="num">22</td><td class="num">317</td><td class="num">0</td><td class="num">421</td>
+      <td class="categories">Adhesives, Engineered Hardwood, LVP, LVT, Laminate, Luxury Vinyl, Sheet Vinyl, Transitions</td>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Bravada</td>
+      <td class="num">6</td><td class="num">71</td><td class="num">0</td><td class="num">126</td>
+      <td class="categories">Engineered Hardwood, Stair Treads & Nosing</td>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">California Classics</td>
+      <td class="num">5</td><td class="num">76</td><td class="num">0</td><td class="num">233</td>
+      <td class="categories">Engineered Hardwood</td>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Grand Pacific</td>
+      <td class="num">1</td><td class="num">39</td><td class="num">0</td><td class="num">77</td>
+      <td class="categories">Engineered Hardwood</td>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Hartco</td>
+      <td class="num">8</td><td class="num">204</td><td class="num">145</td><td class="num">216</td>
+      <td class="categories">Engineered Hardwood, Laminate</td>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Metroflor</td>
+      <td class="num">26</td><td class="num">754</td><td class="num">509</td><td class="num">488</td>
+      <td class="categories">LVP, LVT, Luxury Vinyl, Transitions</td>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Paradigm</td>
+      <td class="num">13</td><td class="num">1,146</td><td class="num">1,028</td><td class="num">782</td>
+      <td class="categories">Installation, LVP, Luxury Vinyl, Stair Treads, Transitions</td>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Provenza</td>
+      <td class="num">22</td><td class="num">848</td><td class="num">657</td><td class="num">1,392</td>
+      <td class="categories">Engineered Hardwood, LVP, Laminate</td>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Quick-Step</td>
+      <td class="num">11</td><td class="num">64</td><td class="num">0</td><td class="num">286</td>
+      <td class="categories">Laminate</td>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">RC Global</td>
+      <td class="num">5</td><td class="num">166</td><td class="num">138</td><td class="num">106</td>
+      <td class="categories">LVP, Luxury Vinyl, Stair Treads</td>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Tri-West</td>
+      <td class="num">8</td><td class="num">55</td><td class="num">0</td><td class="num">70</td>
+      <td class="categories">Carpet Tile, Hardwood, Luxury Vinyl</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Unicorn Tile Corp -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-partial"></span>Unicorn Tile Corp</span>
+    <span class="vendor-stats">37 active / 60 total &bull; 119 active SKUs &bull; 337 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Unicorn Tile Corp</td>
+      <td class="num">37</td><td class="num">119</td><td class="num">0</td><td class="num">337</td>
+      <td class="categories">Ceramic, Mosaic, Porcelain</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Vellichor Floors -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-active"></span>Vellichor Floors</span>
+    <span class="vendor-stats">41 products &bull; 41 active SKUs &bull; 186 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Vellichor Floors</td>
+      <td class="num">41</td><td class="num">41</td><td class="num">0</td><td class="num">186</td>
+      <td class="categories">Engineered Hardwood, LVP</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Western Pacific Tile -->
+<div class="section">
+  <div class="section-title">
+    <span><span class="status-dot status-inactive"></span>Western Pacific Tile</span>
+    <span class="vendor-stats">0 active / 192 total &bull; 0 active SKUs &bull; 457 images</span>
+  </div>
+  <table>
+    <tr>
+      <th></th><th>Brand</th><th class="num">Products</th><th class="num">Active SKUs</th><th class="num">Accessories</th><th class="num">Images</th><th>Categories</th>
+    </tr>
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td class="brand-name">Western Pacific Tile</td>
+      <td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">457</td>
+      <td class="categories">Backsplash & Wall, Mosaic, Porcelain</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Notes Section -->
+<div class="notes-section">
+  <div class="notes-title">Notes</div>
+  <div class="notes-lines"></div>
+  <div class="notes-lines"></div>
+  <div class="notes-lines"></div>
+  <div class="notes-lines"></div>
+  <div class="notes-lines"></div>
+  <div class="notes-lines"></div>
+  <div class="notes-lines"></div>
+  <div class="notes-lines"></div>
+</div>
+
+<div class="footer">
+  Roma Flooring Designs &mdash; Vendor &amp; Brand Checklist &mdash; Generated May 31, 2026
+</div>
+
+</body>
+</html>

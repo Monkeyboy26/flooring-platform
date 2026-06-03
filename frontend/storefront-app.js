@@ -4303,7 +4303,52 @@
           });
         });
       };
-      if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showShapePills && !showSibSizes && !showAttrSizes) return null;
+      let thicknessItems = [];
+      let slabSizeItems = [];
+      if (mainSiblings.length > 0) {
+        const curThkAttr = (sku.attributes || []).find((a) => a.slug === "thickness");
+        const curThk = curThkAttr ? curThkAttr.value : null;
+        if (curThk) {
+          const thkMap = new Map();
+          const curSlabMatch = (sku.variant_name || "").match(/^(.*?)\s+\d+cm$/i);
+          const curSlab = curSlabMatch ? curSlabMatch[1].trim() : null;
+          thkMap.set(curThk, { label: curThk, sku_id: sku.sku_id, is_current: true });
+          mainSiblings.forEach((s) => {
+            const ta = (s.attributes || []).find((a) => a.slug === "thickness");
+            if (!ta) return;
+            const sibSlabMatch = (s.variant_name || "").match(/^(.*?)\s+\d+cm$/i);
+            const sibSlab = sibSlabMatch ? sibSlabMatch[1].trim() : null;
+            if (curSlab && sibSlab && sibSlab !== curSlab) return;
+            if (!thkMap.has(ta.value)) {
+              thkMap.set(ta.value, { label: ta.value, sku_id: s.sku_id, is_current: false });
+            }
+          });
+          if (thkMap.size > 1) {
+            thicknessItems = [...thkMap.values()].sort((a, b) => parseFloat(a.label) - parseFloat(b.label));
+          }
+          if (curSlab) {
+            const slabMap = new Map();
+            slabMap.set(curSlab, { label: curSlab, sku_id: sku.sku_id, is_current: true });
+            mainSiblings.forEach((s) => {
+              const ta = (s.attributes || []).find((a) => a.slug === "thickness");
+              const sibThk = ta ? ta.value : null;
+              const sibSlabMatch = (s.variant_name || "").match(/^(.*?)\s+\d+cm$/i);
+              const sibSlab = sibSlabMatch ? sibSlabMatch[1].trim() : null;
+              if (!sibSlab) return;
+              if (sibThk && sibThk !== curThk) return;
+              if (!slabMap.has(sibSlab)) {
+                slabMap.set(sibSlab, { label: sibSlab, sku_id: s.sku_id, is_current: false });
+              }
+            });
+            if (slabMap.size > 1) {
+              slabSizeItems = [...slabMap.values()].sort((a, b) => a.label.localeCompare(b.label));
+            }
+          }
+        }
+      }
+      const showThickness = thicknessItems.length > 0;
+      const showSlabSize = slabSizeItems.length > 0;
+      if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showShapePills && !showSibSizes && !showAttrSizes && !showThickness && !showSlabSize) return null;
       return /* @__PURE__ */ React.createElement("div", { className: "variant-selectors" }, showColors && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, colorLabel), isRomanVariants ? /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, [...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map((c) => /* @__PURE__ */ React.createElement("button", { key: c.sku_id, className: "attr-pill" + (c.is_current ? " active" : ""), "aria-pressed": c.is_current ? "true" : "false", onClick: () => {
         if (!c.is_current) onSkuClick(c.sku_id);
       } }, romanPillLabel(c.product_name)))) : /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, colorItems.map((c) => {
@@ -4317,6 +4362,10 @@
       } }, s.label)))), showFinishPills && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Finish", /* @__PURE__ */ React.createElement("span", null, collectionFinishItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, collectionFinishItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), "aria-pressed": s.is_current ? "true" : "false", onClick: () => {
         if (!s.is_current) onSkuClick(s.sku_id);
       } }, s.label)))), showShapePills && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Shape", /* @__PURE__ */ React.createElement("span", null, collectionShapeItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, collectionShapeItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), "aria-pressed": s.is_current ? "true" : "false", onClick: () => {
+        if (!s.is_current) onSkuClick(s.sku_id);
+      } }, s.label)))), showThickness && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Thickness", /* @__PURE__ */ React.createElement("span", null, thicknessItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, thicknessItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), "aria-pressed": s.is_current ? "true" : "false", onClick: () => {
+        if (!s.is_current) onSkuClick(s.sku_id);
+      } }, s.label)))), showSlabSize && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Slab Size", /* @__PURE__ */ React.createElement("span", null, slabSizeItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, slabSizeItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), "aria-pressed": s.is_current ? "true" : "false", onClick: () => {
         if (!s.is_current) onSkuClick(s.sku_id);
       } }, s.label)))), showSibSizes && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, sibSizeItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, sibSizeItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), "aria-pressed": s.is_current ? "true" : "false", onClick: () => {
         if (!s.is_current) onSkuClick(s.sku_id);

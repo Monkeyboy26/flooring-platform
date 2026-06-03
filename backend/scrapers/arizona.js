@@ -393,7 +393,7 @@ export async function run(pool, job, source) {
   try {
     const catResp = await fetch(`${BASE_URL}/api/wp/v2/product_cat?per_page=100`, {
       headers: { 'User-Agent': USER_AGENT },
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(60000)
     });
     if (catResp.ok) {
       const cats = await catResp.json();
@@ -416,7 +416,7 @@ export async function run(pool, job, source) {
     try {
       const resp = await fetch(
         `${BASE_URL}/api/wp/v2/product?per_page=${config.perPage}&page=${page}`,
-        { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(30000) }
+        { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(60000) }
       );
 
       if (!resp.ok) {
@@ -457,7 +457,38 @@ export async function run(pool, job, source) {
       await delay(config.delayMs);
     } catch (err) {
       await appendLog(pool, job.id, `REST API page ${page} error: ${err.message}`);
-      await addJobError(pool, job.id, `REST API page ${page}: ${err.message}`);
+      // Retry once after a longer delay
+      await delay(5000);
+      try {
+        const retryResp = await fetch(
+          `${BASE_URL}/api/wp/v2/product?per_page=${config.perPage}&page=${page}`,
+          { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(90000) }
+        );
+        if (retryResp.ok) {
+          const products = await retryResp.json();
+          if (products.length) {
+            for (const p of products) {
+              const classListRaw = p.class_list || {};
+              const classList = Array.isArray(classListRaw) ? classListRaw : Object.values(classListRaw);
+              allProducts.push({
+                wpId: p.id, slug: p.slug,
+                title: stripTags(p.title?.rendered || ''),
+                link: p.link, categoryIds: p.product_cat || [],
+                isInStock: classList.some(c => c.includes('instock')),
+                isVariable: classList.some(c => c.includes('variable')),
+                description: p.yoast_head_json?.description || null,
+              });
+            }
+            const totalPages = parseInt(retryResp.headers.get('X-WP-TotalPages') || '5', 10);
+            hasMore = page < totalPages;
+            page++;
+            await appendLog(pool, job.id, `REST API page ${page - 1} retry succeeded`);
+            await delay(config.delayMs);
+            continue;
+          }
+        }
+      } catch { /* retry also failed */ }
+      await addJobError(pool, job.id, `REST API page ${page}: ${err.message} (retry also failed)`);
       hasMore = false;
     }
   }
@@ -469,41 +500,63 @@ export async function run(pool, job, source) {
 
   // ── Phase 2: Fetch detail pages ──
 
-  const batchSize = isInventoryMode ? 5 : 3;
-  await appendLog(pool, job.id, `Phase 2: Fetching detail pages (batch size ${batchSize})...`);
+  const detailDelayMs = Math.max(config.delayMs, 2000); // min 2s between requests to avoid throttling
+  await appendLog(pool, job.id, `Phase 2: Fetching detail pages (sequential, ${detailDelayMs}ms delay)...`);
 
   // Cache parsed detail data per product
   const detailCache = new Map(); // wpId → parsedDetail | null
-  let fetchIdx = 0;
 
-  for (let batchStart = 0; batchStart < allProducts.length; batchStart += batchSize) {
-    const batch = allProducts.slice(batchStart, batchStart + batchSize);
-
-    const batchPromises = batch.map(async (apiProduct) => {
-      try {
-        const detailResp = await fetch(apiProduct.link, {
-          headers: { 'User-Agent': USER_AGENT },
-          signal: AbortSignal.timeout(30000)
-        });
-        if (!detailResp.ok) {
-          detailCache.set(apiProduct.wpId, null);
-          return;
-        }
-        const html = await detailResp.text();
-        detailCache.set(apiProduct.wpId, parseDetailPage(html));
-      } catch {
-        detailCache.set(apiProduct.wpId, null);
-      }
+  async function fetchDetailPage(apiProduct) {
+    const resp = await fetch(apiProduct.link, {
+      headers: { 'User-Agent': USER_AGENT },
+      signal: AbortSignal.timeout(45000)
     });
+    if (!resp.ok) return null;
+    const html = await resp.text();
+    return parseDetailPage(html);
+  }
 
-    await Promise.all(batchPromises);
-    fetchIdx += batch.length;
-
-    if (fetchIdx % 50 < batchSize || fetchIdx === allProducts.length) {
-      await appendLog(pool, job.id, `Fetch progress: ${fetchIdx}/${allProducts.length} pages`);
+  let consecutiveFailures = 0;
+  for (let i = 0; i < allProducts.length; i++) {
+    if (job.abortController?.signal?.aborted) {
+      await appendLog(pool, job.id, `Phase 2 aborted at ${i}/${allProducts.length}`);
+      break;
+    }
+    const apiProduct = allProducts[i];
+    try {
+      const result = await fetchDetailPage(apiProduct);
+      detailCache.set(apiProduct.wpId, result);
+      if (result) { consecutiveFailures = 0; } else { consecutiveFailures++; }
+    } catch {
+      detailCache.set(apiProduct.wpId, null);
+      consecutiveFailures++;
     }
 
-    await delay(isInventoryMode ? Math.floor(config.delayMs * 0.7) : config.delayMs);
+    if ((i + 1) % 10 === 0 || i === allProducts.length - 1) {
+      const ok = [...detailCache.values()].filter(v => v != null).length;
+      await appendLog(pool, job.id, `Fetch progress: ${i + 1}/${allProducts.length} (${ok} OK)`);
+    }
+
+    // If 10 consecutive failures, server is likely blocking us — abort early
+    if (consecutiveFailures >= 10) {
+      await appendLog(pool, job.id, `Aborting Phase 2: ${consecutiveFailures} consecutive failures — server likely rate-limiting`);
+      break;
+    }
+
+    await delay(detailDelayMs);
+  }
+
+  // Retry failed pages once (server may have been temporarily throttling)
+  const failedProducts = allProducts.filter(p => detailCache.get(p.wpId) == null);
+  if (failedProducts.length > 0 && failedProducts.length < allProducts.length) {
+    await appendLog(pool, job.id, `Retrying ${failedProducts.length} failed detail pages...`);
+    for (const apiProduct of failedProducts) {
+      try {
+        const result = await fetchDetailPage(apiProduct);
+        if (result) detailCache.set(apiProduct.wpId, result);
+      } catch { /* still failed */ }
+      await delay(detailDelayMs);
+    }
   }
 
   const fetchedCount = [...detailCache.values()].filter(v => v != null).length;
@@ -776,6 +829,22 @@ export async function run(pool, job, source) {
             // If no color, fall back to the API title
             const productName = colorSlug ? deslugify(colorSlug) : apiProduct.title;
 
+            // Build best product-shot lookup from all sibling variations in this color group.
+            // When a variant only has a lifestyle image, we can substitute a product shot from a sibling.
+            let colorBestProductShot = null;
+            for (const { v: sv } of variations) {
+              const svImg = sv.image?.url || sv.image?.src || null;
+              if (!svImg || /coming-soon/i.test(svImg)) continue;
+              const svUrl = reParamWidenUrl(svImg);
+              if (!isLifestyleUrl(svUrl, productName)) {
+                // Found a product shot — prefer swatches over generic product images
+                if (!colorBestProductShot || /swatch/i.test(svUrl)) {
+                  colorBestProductShot = svUrl;
+                  if (/swatch/i.test(svUrl)) break; // swatch is ideal, stop looking
+                }
+              }
+            }
+
             // Sub-group variations by format for variant-level category splitting
             const formatGroups = new Map();
             for (const entry of variations) {
@@ -884,6 +953,12 @@ export async function run(pool, job, source) {
             }
             // Sort to prefer product shots over lifestyle images
             productPrimaryCandidates = preferProductShot(productPrimaryCandidates, effectiveName);
+            // Sibling propagation: if best candidate is lifestyle, use color group's product shot
+            if (colorBestProductShot && productPrimaryCandidates.length > 0 && isLifestyleUrl(productPrimaryCandidates[0], effectiveName)) {
+              productPrimaryCandidates.unshift(colorBestProductShot);
+            } else if (colorBestProductShot && productPrimaryCandidates.length === 0) {
+              productPrimaryCandidates.push(colorBestProductShot);
+            }
             const productPrimaryUrl = productPrimaryCandidates.length > 0 ? productPrimaryCandidates[0] : null;
 
             if (productPrimaryUrl) {
@@ -1030,6 +1105,14 @@ export async function run(pool, job, source) {
                 size: v.attributes?.attribute_pa_size || '',
                 finish: v.attributes?.attribute_pa_finishes || '',
               });
+
+              // Sibling propagation: if primary is a lifestyle image but a sibling variant
+              // in the same color group has a product shot, use that instead
+              if (colorBestProductShot && allVarImages.length > 0 && isLifestyleUrl(allVarImages[0], effectiveName)) {
+                allVarImages.unshift(colorBestProductShot);
+              } else if (colorBestProductShot && allVarImages.length === 0) {
+                allVarImages.push(colorBestProductShot);
+              }
 
               for (let gi = 0; gi < allVarImages.length && gi < MAX_GALLERY_IMAGES; gi++) {
                 const imgUrl = allVarImages[gi];
@@ -1247,7 +1330,7 @@ export async function run(pool, job, source) {
       }
 
       idx++;
-      if (idx % 25 < batchSize || idx === allProducts.length) {
+      if (idx % 25 === 0 || idx === allProducts.length) {
         await appendLog(pool, job.id, `Upsert progress: ${idx}/${allProducts.length}`, {
           products_found: stats.found,
           products_created: stats.created,

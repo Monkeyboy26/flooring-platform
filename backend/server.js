@@ -2253,6 +2253,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             ) as primary_image,
             (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) as color,
             (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) as finish,
+            (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'shape' LIMIT 1) as shape,
             (SELECT ARRAY_AGG(DISTINCT sa2.value) FROM skus s2 JOIN sku_attributes sa2 ON sa2.sku_id = s2.id JOIN attributes a2 ON a2.id = sa2.attribute_id WHERE s2.product_id = p.id AND a2.slug = 'size' AND s2.status = 'active' AND s2.is_sample = false) as available_sizes,
             (SELECT ARRAY_AGG(DISTINCT sa2.value) FROM skus s2 JOIN sku_attributes sa2 ON sa2.sku_id = s2.id JOIN attributes a2 ON a2.id = sa2.attribute_id WHERE s2.product_id = p.id AND a2.slug = 'finish' AND s2.status = 'active' AND s2.is_sample = false) as available_finishes
           FROM products p

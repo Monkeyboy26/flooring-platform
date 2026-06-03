@@ -93,6 +93,17 @@ function normalizeForMatch(str) {
   return str.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+/**
+ * Extract base SKU code by stripping format/finish suffixes.
+ * UFCC100-12MT → UFCC100, UFCC100-12MS → UFCC100, UFCC108SAMG → UFCC108
+ */
+function extractBaseCode(vendorSku) {
+  const upper = vendorSku.toUpperCase();
+  if (upper.includes('-')) return upper.split('-')[0];
+  // Strip Roca non-hyphenated suffixes: SAMG, SABG, SPBG, STBG, SFBG, SAGBG, etc.
+  return upper.replace(/S[A-Z]*[BM]G$/, '');
+}
+
 /** Normalize grey↔gray spelling for consistent color matching */
 function normalizeSpelling(str) {
   return str.replace(/grey/gi, 'gray');
@@ -489,6 +500,15 @@ async function run() {
     productSet.add(sku.product_id);
   }
 
+  // Base code map: strips suffixes so UFCC100-12MT and UFCC100-12MS share key "UFCC100"
+  const baseCodeMap = new Map(); // base code → SKU records[]
+  for (const sku of dbSkus.rows) {
+    if (!sku.vendor_sku) continue;
+    const base = extractBaseCode(sku.vendor_sku);
+    if (!baseCodeMap.has(base)) baseCodeMap.set(base, []);
+    baseCodeMap.get(base).push(sku);
+  }
+
   // Group ALL products by normalized collection name (deduplicated by product_id)
   const allByCollection = new Map();
   const seenProducts = new Set();
@@ -560,6 +580,20 @@ async function run() {
                     skuMatches++;
                   }
                 }
+              } else {
+                // Base code fallback: UFCC100-12MS → base "UFCC100" matches UFCC100-12MT
+                const base = extractBaseCode(upper);
+                const baseSkus = baseCodeMap.get(base);
+                if (baseSkus) {
+                  for (const bSku of baseSkus) {
+                    if (bSku.variant_type === 'accessory') continue;
+                    if (needsImage(bSku.sku_id)) {
+                      await saveSkuImages(pool, bSku.product_id, bSku.sku_id, [entry.url], { maxImages: 1 });
+                      newlyMatchedSkuIds.add(bSku.sku_id);
+                      skuMatches++;
+                    }
+                  }
+                }
               }
             }
           }
@@ -629,6 +663,23 @@ async function run() {
               }
             }
             if (prefixMatched) pass1UsedEntries.add(entry);
+          } else {
+            // Base code fallback: UFCC100-12MS → base "UFCC100" matches UFCC100-12MT
+            const base = extractBaseCode(upper);
+            const baseSkus = baseCodeMap.get(base);
+            if (baseSkus) {
+              let baseMatched = false;
+              for (const bSku of baseSkus) {
+                if (bSku.variant_type === 'accessory') continue;
+                if (needsImage(bSku.sku_id)) {
+                  await saveSkuImages(pool, bSku.product_id, bSku.sku_id, [entry.url], { maxImages: 1 });
+                  newlyMatchedSkuIds.add(bSku.sku_id);
+                  collectionMatched++;
+                  baseMatched = true;
+                }
+              }
+              if (baseMatched) pass1UsedEntries.add(entry);
+            }
           }
         }
       }
@@ -795,6 +846,30 @@ async function run() {
     }
 
     await delay(800);
+  }
+
+  // ── Propagate images within products ──
+  // Copy images from image-bearing SKUs to imageless siblings in same product
+  let propagatedCount = 0;
+  for (const [productId, skus] of skusByProduct) {
+    const nonAcc = skus.filter(s => s.variant_type !== 'accessory');
+    const withImg = nonAcc.find(s => skusWithImages.has(s.sku_id) || newlyMatchedSkuIds.has(s.sku_id));
+    if (!withImg) continue;
+    const needing = nonAcc.filter(s => needsImage(s.sku_id));
+    if (!needing.length) continue;
+    const imgRes = await pool.query(
+      `SELECT url FROM media_assets WHERE sku_id = $1 AND asset_type = 'primary' LIMIT 1`,
+      [withImg.sku_id]
+    );
+    if (!imgRes.rows.length) continue;
+    for (const sib of needing) {
+      await saveSkuImages(pool, productId, sib.sku_id, [imgRes.rows[0].url], { maxImages: 1 });
+      newlyMatchedSkuIds.add(sib.sku_id);
+      propagatedCount++;
+    }
+  }
+  if (propagatedCount > 0) {
+    console.log(`\nPropagated images to ${propagatedCount} sibling SKUs within same products`);
   }
 
   // ── Results ──
