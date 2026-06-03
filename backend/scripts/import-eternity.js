@@ -504,7 +504,7 @@ function normalizeSku(sku) {
 }
 
 async function fetchImages() {
-  const imageMap = new Map();
+  const imageMap = new Map(); // key: normalizedSku → { primary, scenes[] }
   const handles = [...new Set(COLLECTIONS.map(c => c.shopifyHandle))];
 
   console.log('Fetching product images from eternityflooring.com...');
@@ -519,15 +519,50 @@ async function fetchImages() {
       const imgById = new Map();
       for (const img of product.images || []) imgById.set(img.id, img.src);
 
-      let matched = 0;
+      // Collect non-variant images (scene/secondary photos)
+      const nonVariantImages = (product.images || [])
+        .filter(img => !img.variant_ids || img.variant_ids.length === 0)
+        .map(img => img.src);
+
+      // Match scene images to variants by color name in filename
+      // Sort variants by title length DESC so longer names match first
+      const sortedVariants = [...(product.variants || [])]
+        .filter(v => v.title)
+        .sort((a, b) => b.title.length - a.title.length);
+
+      const normalizeForMatch = s =>
+        s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+
+      const colorToScenes = new Map();
+      for (const sceneUrl of nonVariantImages) {
+        const filename = sceneUrl.substring(sceneUrl.lastIndexOf('/') + 1).split('?')[0];
+        const normFile = normalizeForMatch(filename);
+        for (const variant of sortedVariants) {
+          const normColor = normalizeForMatch(variant.title);
+          if (normColor.length >= 3 && normFile.includes(normColor)) {
+            if (!colorToScenes.has(normColor)) colorToScenes.set(normColor, []);
+            colorToScenes.get(normColor).push(sceneUrl);
+            break; // assign to most specific match only
+          }
+        }
+      }
+
+      let matched = 0, scenes = 0;
       for (const variant of product.variants || []) {
         if (!variant.sku) continue;
         const key = normalizeSku(variant.sku);
-        const imageUrl = variant.image_id ? imgById.get(variant.image_id) : null;
-        if (imageUrl) { imageMap.set(key, imageUrl); matched++; }
+        const primaryUrl = variant.image_id ? imgById.get(variant.image_id) : null;
+        const normColor = normalizeForMatch(variant.title || '');
+        const sceneUrls = colorToScenes.get(normColor) || [];
+
+        if (primaryUrl || sceneUrls.length) {
+          imageMap.set(key, { primary: primaryUrl || null, scenes: sceneUrls });
+          if (primaryUrl) matched++;
+          scenes += sceneUrls.length;
+        }
       }
 
-      console.log(`  ${handle}: ${matched}/${product.variants?.length || 0} images`);
+      console.log(`  ${handle}: ${matched} primary + ${scenes} scene images`);
     } catch (err) {
       console.warn(`  [WARN] ${handle}: ${err.message}`);
     }
@@ -601,18 +636,23 @@ async function upsertAttribute(skuId, slug, value) {
   `, [skuId, attrRes.rows[0].id, value]);
 }
 
-async function upsertMediaAsset(productId, skuId, url) {
+async function upsertMediaAsset(productId, skuId, url, assetType = 'primary', sortOrder = 0) {
   if (!url) return;
+  const httpsUrl = url.startsWith('http://') ? url.replace('http://', 'https://') : url;
   if (skuId) {
     await pool.query(`
       INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
-      VALUES ($1, $2, 'primary', $3, $3, 0) ON CONFLICT DO NOTHING
-    `, [productId, skuId, url]);
+      VALUES ($1, $2, $3, $4, $4, $5)
+      ON CONFLICT (product_id, sku_id, asset_type, sort_order) WHERE sku_id IS NOT NULL
+      DO UPDATE SET url = EXCLUDED.url, original_url = EXCLUDED.original_url
+    `, [productId, skuId, assetType, httpsUrl, sortOrder]);
   } else {
     await pool.query(`
       INSERT INTO media_assets (product_id, asset_type, url, original_url, sort_order)
-      VALUES ($1, 'primary', $2, $2, 0) ON CONFLICT DO NOTHING
-    `, [productId, url]);
+      VALUES ($1, $2, $3, $3, $4)
+      ON CONFLICT (product_id, asset_type, sort_order) WHERE sku_id IS NULL
+      DO UPDATE SET url = EXCLUDED.url, original_url = EXCLUDED.original_url
+    `, [productId, assetType, httpsUrl, sortOrder]);
   }
 }
 
@@ -632,7 +672,7 @@ async function main() {
   let productsCreated = 0, productsUpdated = 0;
   let skusCreated = 0, skusUpdated = 0;
   let accessoriesCreated = 0;
-  let imagesLinked = 0;
+  let imagesLinked = 0, scenesLinked = 0;
 
   // 3. Import flooring collections
   for (const col of COLLECTIONS) {
@@ -671,16 +711,22 @@ async function main() {
       if (col.wearLayer) await upsertAttribute(sku.id, 'wear_layer', col.wearLayer);
       await upsertAttribute(sku.id, 'installation', 'Float / Click-lock');
 
-      // Image
+      // Images
       const normalKey = normalizeSku(item.sku);
-      const imageUrl = imageMap.get(normalKey);
-      if (imageUrl) {
-        await upsertMediaAsset(prod.id, sku.id, imageUrl);
+      const imageData = imageMap.get(normalKey);
+      if (imageData?.primary) {
+        await upsertMediaAsset(prod.id, sku.id, imageData.primary);
+        await upsertMediaAsset(prod.id, null, imageData.primary);
         imagesLinked++;
       }
-
-      // Product-level image
-      if (imageUrl) await upsertMediaAsset(prod.id, null, imageUrl);
+      // Scene/secondary images
+      if (imageData?.scenes?.length) {
+        for (let i = 0; i < imageData.scenes.length; i++) {
+          await upsertMediaAsset(prod.id, sku.id, imageData.scenes[i], 'alternate', i + 1);
+          await upsertMediaAsset(prod.id, null, imageData.scenes[i], 'alternate', i + 1);
+          scenesLinked++;
+        }
+      }
 
       // Molding accessories (same product_id, variant_type='accessory')
       for (const mold of col.moldings) {
@@ -739,7 +785,8 @@ async function main() {
   console.log(`Flooring SKUs updated: ${skusUpdated}`);
   console.log(`Accessory SKUs created: ${accessoriesCreated}`);
   console.log(`Sundry products created: ${sundriesCreated}`);
-  console.log(`Images linked: ${imagesLinked}`);
+  console.log(`Primary images linked: ${imagesLinked}`);
+  console.log(`Scene images linked: ${scenesLinked}`);
   console.log(`Total SKUs: ${skusCreated + skusUpdated + accessoriesCreated + sundriesCreated}`);
 
   await pool.end();
