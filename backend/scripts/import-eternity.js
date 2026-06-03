@@ -34,51 +34,67 @@ const CAT = {
 // ==================== MOLDING DEFINITIONS ====================
 
 const HYBRID_MOLDINGS = [
-  { suffix: 'TMOLD',      name: 'T-Mold / Reducer / End Molding 94"', cost: 25.99 },
-  { suffix: 'SQ-FLUSH-SN', name: 'Square Flush Stairnose 94"',       cost: 54.99 },
+  { suffix: 'TMOLD',       name: 'T-Mold 94"',                 cost: 25.99 },
+  { suffix: 'REDUCER',     name: 'Reducer 94"',                 cost: 25.99 },
+  { suffix: 'END-CAP',     name: 'End Cap 94"',                 cost: 25.99 },
+  { suffix: 'SQ-FLUSH-SN', name: 'Square Flush Stairnose 94"', cost: 54.99 },
 ];
 
 const RC_STANDARD_MOLDINGS = [
-  { suffix: 'TMOLD',      name: 'T-Mold / Reducer / End Molding 94"', cost: 28.99 },
-  { suffix: 'QTR-ROUND',  name: 'Quarter Round 94"',                  cost: 18.99 },
-  { suffix: 'OVERLAP-SN', name: 'Overlap Stairnose 94"',              cost: 38.99 },
-  { suffix: 'FLUSH-SN',   name: 'Flush Stairnose 94"',                cost: 51.99 },
+  { suffix: 'TMOLD',       name: 'T-Mold 94"',              cost: 28.99 },
+  { suffix: 'REDUCER',     name: 'Reducer 94"',              cost: 28.99 },
+  { suffix: 'END-CAP',     name: 'End Cap 94"',              cost: 28.99 },
+  { suffix: 'QTR-ROUND',   name: 'Quarter Round 94"',        cost: 18.99 },
+  { suffix: 'OVERLAP-SN',  name: 'Overlap Stairnose 94"',    cost: 38.99 },
+  { suffix: 'FLUSH-SN',    name: 'Flush Stairnose 94"',      cost: 51.99 },
 ];
 
 const RC_SIGNATURE_MOLDINGS = [
-  { suffix: 'TMOLD',      name: 'T-Mold / Reducer / End Molding 94"', cost: 28.99 },
-  { suffix: 'QTR-ROUND',  name: 'Quarter Round 94"',                  cost: 18.99 },
-  { suffix: 'SQ-FLUSH-SN', name: 'Square Flush Stairnose 94"',       cost: 58.99 },
+  { suffix: 'TMOLD',       name: 'T-Mold 94"',                  cost: 28.99 },
+  { suffix: 'REDUCER',     name: 'Reducer 94"',                  cost: 28.99 },
+  { suffix: 'END-CAP',     name: 'End Cap 94"',                  cost: 28.99 },
+  { suffix: 'QTR-ROUND',   name: 'Quarter Round 94"',            cost: 18.99 },
+  { suffix: 'SQ-FLUSH-SN', name: 'Square Flush Stairnose 94"',  cost: 58.99 },
 ];
 
 const LAM_STANDARD_MOLDINGS = [
-  { suffix: 'TMOLD',      name: 'T-Mold / Reducer / End Molding 94"', cost: 18.99 },
-  { suffix: 'SQ-FLUSH-SN', name: 'Square Flush Stairnose 94"',       cost: 48.99 },
+  { suffix: 'TMOLD',       name: 'T-Mold 94"',                  cost: 18.99 },
+  { suffix: 'REDUCER',     name: 'Reducer 94"',                  cost: 18.99 },
+  { suffix: 'END-CAP',     name: 'End Cap 94"',                  cost: 18.99 },
+  { suffix: 'SQ-FLUSH-SN', name: 'Square Flush Stairnose 94"',  cost: 48.99 },
 ];
 
 const LAM_SEQUOIA_MOLDINGS = [
-  { suffix: 'TMOLD',      name: 'T-Mold / Reducer / End Molding 94"', cost: 18.99 },
-  { suffix: 'SQ-FLUSH-SN', name: 'Square Flush Stairnose 94"',       cost: 48.99 },
-  { suffix: 'CUSTOM-SN',  name: 'Custom Square Flush Stairnose 70"',  cost: 89.00 },
+  { suffix: 'TMOLD',       name: 'T-Mold 94"',                          cost: 18.99 },
+  { suffix: 'REDUCER',     name: 'Reducer 94"',                          cost: 18.99 },
+  { suffix: 'END-CAP',     name: 'End Cap 94"',                          cost: 18.99 },
+  { suffix: 'SQ-FLUSH-SN', name: 'Square Flush Stairnose 94"',          cost: 48.99 },
+  { suffix: 'CUSTOM-SN',   name: 'Custom Square Flush Stairnose 70"',   cost: 89.00 },
 ];
 
 const LAM_HYPERION_MOLDINGS = [
-  { suffix: 'TMOLD',      name: 'T-Mold / Reducer / End Molding 94"', cost: 18.99 },
-  { suffix: 'SQ-FLUSH-SN', name: 'Square Flush Stairnose 94"',       cost: 48.99 },
-  { suffix: 'CUSTOM-SN',  name: 'Custom Square Flush Stairnose 89"',  cost: 109.00 },
+  { suffix: 'TMOLD',       name: 'T-Mold 94"',                          cost: 18.99 },
+  { suffix: 'REDUCER',     name: 'Reducer 94"',                          cost: 18.99 },
+  { suffix: 'END-CAP',     name: 'End Cap 94"',                          cost: 18.99 },
+  { suffix: 'SQ-FLUSH-SN', name: 'Square Flush Stairnose 94"',          cost: 48.99 },
+  { suffix: 'CUSTOM-SN',   name: 'Custom Square Flush Stairnose 89"',   cost: 109.00 },
 ];
 
 const WPC_INGRAIND_MOLDINGS = [
-  { suffix: 'TMOLD',      name: 'T-Mold / Reducer / End Molding 94"', cost: 28.99 },
-  { suffix: 'FLUSH-SN',   name: 'Flush Stairnose 94"',                cost: 51.99 },
-  { suffix: 'SQ-FLUSH-SN', name: 'Square Flush Stairnose 94"',       cost: 58.99 },
+  { suffix: 'TMOLD',       name: 'T-Mold 94"',                  cost: 28.99 },
+  { suffix: 'REDUCER',     name: 'Reducer 94"',                  cost: 28.99 },
+  { suffix: 'END-CAP',     name: 'End Cap 94"',                  cost: 28.99 },
+  { suffix: 'FLUSH-SN',    name: 'Flush Stairnose 94"',          cost: 51.99 },
+  { suffix: 'SQ-FLUSH-SN', name: 'Square Flush Stairnose 94"',  cost: 58.99 },
 ];
 
 const WPC_STANDARD_MOLDINGS = [
-  { suffix: 'TMOLD',      name: 'T-Mold / Reducer / End Molding 94"', cost: 28.99 },
-  { suffix: 'QTR-ROUND',  name: 'Quarter Round 94"',                  cost: 18.99 },
-  { suffix: 'OVERLAP-SN', name: 'Overlap Stairnose 94"',              cost: 38.99 },
-  { suffix: 'FLUSH-SN',   name: 'Flush Stairnose 94"',                cost: 51.99 },
+  { suffix: 'TMOLD',       name: 'T-Mold 94"',              cost: 28.99 },
+  { suffix: 'REDUCER',     name: 'Reducer 94"',              cost: 28.99 },
+  { suffix: 'END-CAP',     name: 'End Cap 94"',              cost: 28.99 },
+  { suffix: 'QTR-ROUND',   name: 'Quarter Round 94"',        cost: 18.99 },
+  { suffix: 'OVERLAP-SN',  name: 'Overlap Stairnose 94"',    cost: 38.99 },
+  { suffix: 'FLUSH-SN',    name: 'Flush Stairnose 94"',      cost: 51.99 },
 ];
 
 const WORKSHOP_MOLDINGS = [
@@ -453,14 +469,14 @@ const COLLECTIONS = [
     wearLayer: null, padAttached: false, moldings: WORKSHOP_MOLDINGS,
     shopifyHandle: 'wall-decor-panels-workshop-collection',
     skus: [
-      { sku: 'WS-40101', color: 'Pepper Oak on Pepper Oak' },
-      { sku: 'WS-40102', color: 'Pepper Oak on Black' },
-      { sku: 'WS-40103', color: 'Pepper Oak on White' },
-      { sku: 'WS-40104', color: 'Castle Oak on Black' },
-      { sku: 'WS-40105', color: 'White on White (Paintable)' },
-      { sku: 'WS-40106', color: 'Matte Black on Matte Black' },
-      { sku: 'WS-40107', color: 'Matte Black on Bronze' },
-      { sku: 'WS-40108', color: 'Castle Oak on Bronze' },
+      { sku: 'WS-40101', color: 'Pepper Oak on Pepper Oak', shopifySku: 'pepperoakpepperoak' },
+      { sku: 'WS-40102', color: 'Pepper Oak on Black',      shopifySku: 'pepperoakblack' },
+      { sku: 'WS-40103', color: 'Pepper Oak on White',      shopifySku: 'pepperoakwhite' },
+      { sku: 'WS-40104', color: 'Castle Oak on Black',      shopifySku: 'castleoakblack' },
+      { sku: 'WS-40105', color: 'White on White (Paintable)', shopifySku: 'whitewhite' },
+      { sku: 'WS-40106', color: 'Matte Black on Matte Black', shopifySku: 'blackblack' },
+      { sku: 'WS-40107', color: 'Matte Black on Bronze',    shopifySku: 'blackmetallicbronze' },
+      { sku: 'WS-40108', color: 'Castle Oak on Bronze',     shopifySku: 'castleoakmetallicbronze' },
     ],
   },
 ];
@@ -711,9 +727,10 @@ async function main() {
       if (col.wearLayer) await upsertAttribute(sku.id, 'wear_layer', col.wearLayer);
       await upsertAttribute(sku.id, 'installation', 'Float / Click-lock');
 
-      // Images
+      // Images (try vendor SKU first, then Shopify SKU alias if available)
       const normalKey = normalizeSku(item.sku);
-      const imageData = imageMap.get(normalKey);
+      const imageData = imageMap.get(normalKey)
+        || (item.shopifySku ? imageMap.get(normalizeSku(item.shopifySku)) : null);
       if (imageData?.primary) {
         await upsertMediaAsset(prod.id, sku.id, imageData.primary);
         await upsertMediaAsset(prod.id, null, imageData.primary);

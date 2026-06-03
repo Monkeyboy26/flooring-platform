@@ -41,6 +41,8 @@ const DRY_RUN = process.argv.includes('--dry-run');
  */
 const SUFFIX_LABEL_MAP = {
   'TMOLD':       'T-Mold',
+  'REDUCER':     'Reducer',
+  'END-CAP':     'End Cap',
   'SQ-FLUSH-SN': 'Square Flush Stairnose',
   'QTR-ROUND':   'Quarter Round',
   'OVERLAP-SN':  'Overlap Stairnose',
