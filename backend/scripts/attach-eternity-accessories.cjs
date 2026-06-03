@@ -187,13 +187,25 @@ async function main() {
       }
     }
 
-    // Link: each accessory → each main SKU within the same product
-    // (Eternity has 1 main SKU per product, but handle N just in case)
-    for (const main of mainSkus) {
+    // Link accessories to their parent main SKU
+    if (mainSkus.length === 1) {
+      // Single main SKU: link all accessories to it
+      const main = mainSkus[0];
       let sortOrder = 0;
       for (const acc of accSkus) {
         linkBatch.push([main.id, acc.id, sortOrder++]);
         totalLinks++;
+      }
+    } else {
+      // Grouped product (multiple main SKUs): match by vendor_sku prefix
+      for (const main of mainSkus) {
+        const prefix = (main.vendor_sku || '') + '-';
+        const matched = accSkus.filter(a => (a.vendor_sku || '').startsWith(prefix));
+        let sortOrder = 0;
+        for (const acc of matched) {
+          linkBatch.push([main.id, acc.id, sortOrder++]);
+          totalLinks++;
+        }
       }
     }
 

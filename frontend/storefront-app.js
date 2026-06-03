@@ -106,6 +106,7 @@
       }
       return "/ea";
     }
+    if (sku && sku.sell_by === "box") return "/box";
     if (isSoldPerSqyd(sku)) return "/sqyd";
     return "/sqft";
   }
@@ -3467,7 +3468,8 @@
     }, [includeOverage]);
     const numBoxes = parseInt(boxesInput) || 0;
     const actualSqft = numBoxes * sqftPerBox;
-    const subtotal = actualSqft * effectivePrice;
+    const isBoxPerUnit = sku && sku.sell_by === "box" && (sku.price_basis === "per_unit" || sku.price_basis === "per_box");
+    const subtotal = isBoxPerUnit ? numBoxes * effectivePrice : actualSqft * effectivePrice;
     const isPerUnit = sku && isSoldPerUnit(sku);
     const isSoldPerSqft = sku && sku.sell_by === "sqft";
     const hasBoxCalc = !isPerUnit && !isSoldPerSqft && sqftPerBox > 0;

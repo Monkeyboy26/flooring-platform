@@ -466,7 +466,7 @@ const COLLECTIONS = [
   {
     name: 'Workshop', series: 'Wall Panels', category: CAT.wallPanel,
     thickness: '20mm', width: '11.81"', length: '109.06"', sqftPerBox: 17.89, cost: 7.99,
-    wearLayer: null, padAttached: false, moldings: WORKSHOP_MOLDINGS,
+    wearLayer: null, padAttached: false, sellBy: 'box', grouped: true, moldings: WORKSHOP_MOLDINGS,
     shopifyHandle: 'wall-decor-panels-workshop-collection',
     skus: [
       { sku: 'WS-40101', color: 'Pepper Oak on Pepper Oak', shopifySku: 'pepperoakpepperoak' },
@@ -692,29 +692,47 @@ async function main() {
 
   // 3. Import flooring collections
   for (const col of COLLECTIONS) {
-    for (const item of col.skus) {
-      // Create product (one per color)
-      const prod = await upsertProduct(vendorId, {
-        name: item.color,
-        collection: col.name,
+    // Grouped collections: one product for all colors (e.g. Workshop wall panels)
+    let groupedProd = null;
+    if (col.grouped) {
+      groupedProd = await upsertProduct(vendorId, {
+        name: col.name,
+        collection: col.series || col.name,
         categoryId: col.category,
-        descriptionShort: `${col.name} - ${item.color}`,
+        descriptionShort: `${col.series || col.name} - ${col.name}`,
       });
-      if (prod.is_new) productsCreated++; else productsUpdated++;
+      if (groupedProd.is_new) productsCreated++; else productsUpdated++;
+    }
+
+    for (const item of col.skus) {
+      // Ungrouped: one product per color; Grouped: single shared product
+      let prod;
+      if (col.grouped) {
+        prod = groupedProd;
+      } else {
+        prod = await upsertProduct(vendorId, {
+          name: item.color,
+          collection: col.name,
+          categoryId: col.category,
+          descriptionShort: `${col.name} - ${item.color}`,
+        });
+        if (prod.is_new) productsCreated++; else productsUpdated++;
+      }
 
       // Create main flooring SKU
       const sku = await upsertSku(prod.id, {
         vendorSku: item.sku,
         internalSku: `ET-${item.sku}`,
         variantName: item.color,
-        sellBy: 'sqft',
+        sellBy: col.sellBy || 'sqft',
         variantType: null,
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
       // Pricing
+      const priceBasis = col.sellBy === 'box' ? 'per_unit' : 'per_sqft';
       const retail = parseFloat((col.cost * MARKUP).toFixed(2));
-      await upsertPricing(sku.id, { cost: col.cost, retailPrice: retail, priceBasis: 'per_sqft' });
+      await upsertPricing(sku.id, { cost: col.cost, retailPrice: retail, priceBasis });
 
       // Packaging
       await upsertPackaging(sku.id, col.sqftPerBox);
@@ -722,7 +740,12 @@ async function main() {
       // Attributes
       await upsertAttribute(sku.id, 'color', item.color);
       await upsertAttribute(sku.id, 'thickness', col.thickness);
-      await upsertAttribute(sku.id, 'width', col.width);
+      if (col.sellBy === 'box') {
+        // Wall panels: show combined dimensions instead of width alone
+        await upsertAttribute(sku.id, 'size', `${col.width} × ${col.length}`);
+      } else {
+        await upsertAttribute(sku.id, 'width', col.width);
+      }
       await upsertAttribute(sku.id, 'collection', col.name);
       if (col.wearLayer) await upsertAttribute(sku.id, 'wear_layer', col.wearLayer);
       await upsertAttribute(sku.id, 'installation', 'Float / Click-lock');
