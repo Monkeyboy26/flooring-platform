@@ -141,68 +141,120 @@ async function loadAllPages(page, categoryUrl) {
   return allCards;
 }
 
-// Visit a product detail page and extract all gallery images
+// Extract the filename portion from a Magento cached image URL for dedup.
+// e.g. /media/catalog/product/cache/HASH/c/a/calacatta.jpg → c/a/calacatta.jpg
+function imageFilename(url) {
+  const m = url.match(/\/media\/catalog\/product(?:\/cache\/[^/]+)?\/(.+)/);
+  return m ? m[1] : url;
+}
+
+// Visit a product detail page and extract images from the Owl Carousel slider
 async function extractDetailImages(page, productUrl) {
   try {
     await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 20000 });
     await delay(1500);
 
-    // Extract images from the Magento gallery
     const images = await page.evaluate(() => {
       const imgs = [];
       const seen = new Set();
 
-      // Fotorama gallery (common Magento gallery)
-      const fotoItems = document.querySelectorAll('.fotorama__stage__frame img, .gallery-placeholder img, [data-gallery-role="gallery"] img');
-      for (const img of fotoItems) {
-        const src = img.src || img.getAttribute('data-src') || '';
-        if (src && !seen.has(src) && src.includes('/media/') && !src.includes('placeholder')) {
-          seen.add(src);
-          imgs.push({ src, alt: img.alt || '' });
+      const addUrl = (src) => {
+        if (!src || seen.has(src)) return;
+        if (!src.includes('/media/catalog/product')) return;
+        if (src.includes('placeholder')) return;
+        seen.add(src);
+        imgs.push(src);
+      };
+
+      // 1. Owl Carousel real slides only (skip .cloned items added by loop:true)
+      //    Cloned slides appear before/after the real slides in the DOM and
+      //    would corrupt our ordering if included.
+      const realSlides = document.querySelectorAll('#owl-carousel-gallery .owl-item:not(.cloned)');
+      for (const slide of realSlides) {
+        const a = slide.querySelector('a.lb, a.imgzoom, a[href*="/media/catalog/product"]');
+        if (a) { addUrl(a.href); continue; }
+        const img = slide.querySelector('img');
+        if (img) addUrl(img.src || img.getAttribute('data-src') || '');
+      }
+
+      // 2. Thumbnail strip fallback — no cloning, preserves correct order
+      if (imgs.length === 0) {
+        const thumbItems = document.querySelectorAll('#horizontal-thumbnail .owl-item:not(.cloned) img');
+        for (const img of thumbItems) {
+          addUrl(img.src || img.getAttribute('data-src') || '');
         }
       }
 
-      // Also check for gallery data in JSON config
-      const galleryScripts = document.querySelectorAll('[data-gallery-images], script[type="text/x-magento-init"]');
-      for (const el of galleryScripts) {
-        try {
-          let data;
-          if (el.hasAttribute('data-gallery-images')) {
-            data = JSON.parse(el.getAttribute('data-gallery-images'));
-          } else {
-            data = JSON.parse(el.textContent);
-          }
-          const jsonStr = JSON.stringify(data);
-          // Extract image URLs from JSON
-          const urlMatches = jsonStr.match(/https?:\/\/[^"]+\/media\/catalog\/product[^"]+/g);
-          if (urlMatches) {
-            for (const url of urlMatches) {
-              // Prefer full-size images (no cache resize path, or largest cache)
-              if (!seen.has(url) && !url.includes('placeholder')) {
-                seen.add(url);
-                imgs.push({ src: url, alt: '' });
-              }
-            }
-          }
-        } catch {}
-      }
-
-      // Fallback: look for any large product images
+      // 3. Last resort: any product images on the page
       if (imgs.length === 0) {
-        const allImgs = document.querySelectorAll('img');
+        const allImgs = document.querySelectorAll('.product.media img, .gallery-placeholder img');
         for (const img of allImgs) {
-          const src = img.src || '';
-          if (src && src.includes('/media/catalog/product') && !seen.has(src) && !src.includes('placeholder')) {
-            seen.add(src);
-            imgs.push({ src, alt: img.alt || '' });
-          }
+          addUrl(img.src || '');
         }
       }
 
       return imgs;
     });
 
-    return images;
+    // Deduplicate by filename across different cache hashes, keeping the first (largest) version
+    const seenFiles = new Set();
+    const deduped = [];
+    for (const url of images) {
+      const fname = imageFilename(url);
+      if (!seenFiles.has(fname)) {
+        seenFiles.add(fname);
+        deduped.push(url);
+      }
+    }
+
+    // Filter out images with thick black letterbox borders (common on ES lifestyle photos).
+    // A letterboxed image has wide black bars (5%+ of image size) on at least two sides
+    // with non-black content in the center.  We sample at 5% inset from each edge
+    // to confirm the border is substantial, not just a thin dark rim on a slab photo.
+    const clean = [];
+    for (const url of deduped) {
+      const letterboxed = await page.evaluate(async (src) => {
+        return new Promise(resolve => {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const c = document.createElement('canvas');
+              c.width = img.naturalWidth;
+              c.height = img.naturalHeight;
+              const ctx = c.getContext('2d');
+              ctx.drawImage(img, 0, 0);
+              const w = c.width;
+              const h = c.height;
+              if (w < 100 || h < 100) { resolve(false); return; }
+              const px = (x, y) => ctx.getImageData(x, y, 1, 1).data;
+              const isBlack = d => d[0] < 8 && d[1] < 8 && d[2] < 8;
+              // Sample at 5% inset — well inside a real letterbox bar
+              const mx = Math.floor(w * 0.05);
+              const my = Math.floor(h * 0.05);
+              const corners = [
+                px(mx, my), px(w - mx, my),
+                px(mx, h - my), px(w - mx, h - my),
+              ];
+              if (!corners.every(isBlack)) { resolve(false); return; }
+              // Center must NOT be black (else it's a dark product photo, not a border)
+              const center = px(Math.floor(w / 2), Math.floor(h / 2));
+              if (isBlack(center)) { resolve(false); return; }
+              resolve(true);
+            } catch { resolve(false); }
+          };
+          img.onerror = () => resolve(false);
+          img.src = src;
+        });
+      }, url);
+
+      if (letterboxed) {
+        console.log(`    [SKIP-BORDER] ${url.split('/').pop()}`);
+      } else {
+        clean.push(url);
+      }
+    }
+
+    return clean;
   } catch (err) {
     console.log(`    Error loading ${productUrl}: ${err.message}`);
     return [];
@@ -312,34 +364,14 @@ async function run() {
 
         console.log(`  [MATCH] ${card.name} → ${matched.length} SKU(s)`);
 
-        // Get images from detail page
-        const detailImages = await extractDetailImages(page, card.href);
+        // Get images from the Owl Carousel slider on the detail page
+        const allImageUrls = await extractDetailImages(page, card.href);
 
-        // Also include the thumbnail as fallback
-        const allImageUrls = [];
-        const seenUrls = new Set();
-
-        for (const img of detailImages) {
-          // Get the highest quality version: strip cache resize path
-          let url = img.src;
-          // Try to get original by removing /cache/HASH/ from URL
-          const origMatch = url.match(/(.*\/media\/catalog\/product)\/cache\/[^/]+\/(.*)/);
-          if (origMatch) {
-            const origUrl = `${origMatch[1]}/${origMatch[2]}`;
-            if (!seenUrls.has(origUrl)) {
-              seenUrls.add(origUrl);
-              allImageUrls.push(origUrl);
-            }
-          }
-          if (!seenUrls.has(url)) {
-            seenUrls.add(url);
-            allImageUrls.push(url);
-          }
-        }
-
-        // Add thumbnail as fallback
-        if (card.thumbnail && !seenUrls.has(card.thumbnail)) {
-          allImageUrls.push(card.thumbnail);
+        // Add category-page thumbnail as fallback
+        if (card.thumbnail && !allImageUrls.includes(card.thumbnail)) {
+          const thumbFile = imageFilename(card.thumbnail);
+          const alreadyHave = allImageUrls.some(u => imageFilename(u) === thumbFile);
+          if (!alreadyHave) allImageUrls.push(card.thumbnail);
         }
 
         if (allImageUrls.length === 0) {
