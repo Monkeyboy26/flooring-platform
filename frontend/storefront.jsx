@@ -64,6 +64,21 @@
     function carpetSqftPrice(sqydPrice) {
       return (parseFloat(sqydPrice) / 9).toFixed(2);
     }
+    // Parse fractional inch strings like "1-1/4\"", "9/16\"", "3/8\"" into decimal floats
+    function parseFractionalInches(str) {
+      if (!str || typeof str !== 'string') return NaN;
+      const s = str.replace(/["″\s]/g, '').trim();
+      // Whole + fraction: "1-1/4" → 1.25
+      const wf = s.match(/^(\d+)[-\s](\d+)\/(\d+)$/);
+      if (wf) return parseInt(wf[1]) + parseInt(wf[2]) / parseInt(wf[3]);
+      // Pure fraction: "9/16" → 0.5625
+      const f = s.match(/^(\d+)\/(\d+)$/);
+      if (f) return parseInt(f[1]) / parseInt(f[2]);
+      // Decimal or whole: "4", "1.5"
+      const n = parseFloat(s);
+      return isNaN(n) ? NaN : n;
+    }
+
     function normalizeSize(val) {
       if (!val || typeof val !== 'string') return '';
       return val
@@ -635,6 +650,15 @@
       const col = sku.collection || '';
       let name = formatCarpetValue(rawName);
 
+      // Accessories: show "Collection Color — Accessory Type" (e.g., "Prime 3 — End Cap, 8'")
+      if (sku.variant_type === 'accessory') {
+        let baseName = name;
+        // Strip category suffix from display_name (e.g., "Prime 3 Engineered Hardwood" → "Prime 3")
+        baseName = stripTypeSuffix(baseName, sku.category_name);
+        const label = sku.accessory_label || sku.variant_name || '';
+        return label ? baseName + ' — ' + label : baseName;
+      }
+
       // Strip leading size prefix from product name (e.g. "12x24r Marble Onice Supreme Marfil" → "Marble Onice Supreme Marfil")
       name = name.replace(/^\d+\s*[xX×]\s*\d+\w?\s+/, '');
       // Strip trailing category suffix so we can re-append it at the very end,
@@ -796,6 +820,16 @@
                 variant = (colorVal ? colorVal + ' ' : '') + sizePart;
               }
             }
+          }
+        }
+      }
+      // Include overall_length in title for hardware products
+      if (sku.attributes) {
+        const olAttr = (sku.attributes || []).find(a => a.slug === 'overall_length');
+        if (olAttr && olAttr.value) {
+          const olVal = olAttr.value.trim();
+          if (!name.toLowerCase().includes(olVal.toLowerCase()) && !/\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*["″]/.test(name)) {
+            name = name + ' ' + olVal;
           }
         }
       }
@@ -5040,19 +5074,20 @@
 
                 // Size pills from collection siblings (vanities where sizes are separate products)
                 // Computed BEFORE the merge so we can skip merging sizes into colorItems
+                const _isDecorativeHW = (sku.vendor_code || '').toUpperCase() === 'ROM440';
                 let collectionSizeItems = [];
                 if (collectionSiblings.length > 0) {
                   const extractDims = (name) => {
                     const m = (name || '').match(/(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/);
                     if (m) return m[0];
-                    const s = (name || '').match(/\b(\d+\.?\d*)\s*["″]/);
+                    const s = (name || '').match(/\b(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*["″]/);
                     return s ? s[0] : null;
                   };
                   const extractFinish = (name) => {
                     const m = (name || '').match(/,\s*(.+?)(?:\s*\(|$)/);
                     return m ? m[1].trim() : null;
                   };
-                  const extractSort = (sz) => { const m = (sz || '').match(/(\d+)/); return m ? parseFloat(m[1]) : 0; };
+                  const extractSort = (sz) => { const n = parseFractionalInches(sz); if (!isNaN(n)) return n; const m = (sz || '').match(/(\d+)/); return m ? parseFloat(m[1]) : 0; };
 
                   // Build a lookup of all size+finish combos → sku_id
                   const curSz = extractDims(sku.product_name);
@@ -5110,24 +5145,63 @@
                     }
                   }
                 }
-                const showFinishPills = collectionFinishItems.length > 0;
+                // Augment collectionFinishItems with collection-wide finishes not yet present
+                if (collectionAttributes.finish && (collectionAttributes.finish.values || []).length >= 2 && collectionSiblings.length > 0) {
+                  const existingFinishes = new Set(collectionFinishItems.map(f => f.label));
+                  const curSize = currentAttrs['size'] || '';
+                  const curFinish2 = currentAttrs['finish'] || '';
+                  if (curFinish2 && !existingFinishes.has(curFinish2)) {
+                    collectionFinishItems.push({ label: curFinish2, sku_id: sku.sku_id, is_current: true });
+                    existingFinishes.add(curFinish2);
+                  }
+                  (collectionAttributes.finish.values || []).forEach(fn => {
+                    if (existingFinishes.has(fn)) return;
+                    // Check same-product siblings first (e.g. Tasman has 24x48 Tech Polished)
+                    const sameProductMatch = mainSiblings.find(s => {
+                      const fAttr = (s.attributes || []).find(a => a.slug === 'finish');
+                      return fAttr && fAttr.value === fn;
+                    });
+                    if (sameProductMatch) {
+                      collectionFinishItems.push({ label: fn, sku_id: sameProductMatch.sku_id, is_current: false });
+                      return;
+                    }
+                    // Fall back to collection siblings (cross-product)
+                    let targetSkuId = null;
+                    for (const cs of collectionSiblings) {
+                      if (!cs.sku_map) continue;
+                      for (const [key, sid] of Object.entries(cs.sku_map)) {
+                        const parts = key.split('|');
+                        if (parts[1] !== fn) continue;
+                        if (curSize && normalizeSize(parts[0]) === normalizeSize(curSize)) { targetSkuId = sid; break; }
+                        if (!targetSkuId) targetSkuId = sid;
+                      }
+                      if (targetSkuId) break;
+                    }
+                    if (targetSkuId) {
+                      collectionFinishItems.push({ label: fn, sku_id: targetSkuId, is_current: false, is_cross_product: true });
+                    }
+                  });
+                }
+                const showFinishPills = collectionFinishItems.length > 0 && !_isDecorativeHW;
 
                 // Width-based size + color from same-product siblings (mirrors, bath accessories)
                 let sibSizeItems = [];
                 if (mainSiblings.length > 0 && !showSizePills) {
-                  const _getWidth = (attrs, vn) => { const wa = (attrs || []).find(a => a.slug === 'width'); if (wa) return parseFloat(wa.value); const m = (vn || '').match(/\b(\d+\.?\d*)\s*["″]/); return m ? parseFloat(m[1]) : null; };
+                  const _getWidthRaw = (attrs) => { const ol = (attrs || []).find(a => a.slug === 'overall_length'); if (ol) return ol.value; const wa = (attrs || []).find(a => a.slug === 'width'); return wa ? wa.value : null; };
+                  const _getWidthNum = (attrs, vn) => { const raw = _getWidthRaw(attrs); if (raw) return parseFractionalInches(raw); const m = (vn || '').match(/\b(\d+(?:[-\s]\d+\/\d+)?\.?\d*)\s*["″]/); return m ? parseFractionalInches(m[1]) : null; };
                   const _getSize = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
                   const _extractColor = (attrs, vn) => { const idx = (vn || '').lastIndexOf(','); if (idx > 0) return vn.substring(idx + 1).trim(); const ca = (attrs || []).find(a => a.slug === 'color'); if (ca) return ca.value; return null; };
-                  const curW = _getWidth(sku.attributes, sku.variant_name);
+                  const curW = _getWidthNum(sku.attributes, sku.variant_name);
+                  const curWRaw = _getWidthRaw(sku.attributes);
                   const curC = _extractColor(sku.attributes, sku.variant_name);
                   const curSz = _getSize(sku.attributes);
-                  const dimItems = [{ sku_id: sku.sku_id, w: curW, sz: curSz, c: curC, img: media && media[0] ? media[0].url : null, is_current: true }];
-                  mainSiblings.forEach(s => { dimItems.push({ sku_id: s.sku_id, w: _getWidth(s.attributes, s.variant_name), sz: _getSize(s.attributes), c: _extractColor(s.attributes, s.variant_name), img: getVariantImage(s), is_current: false }); });
-                  const uniqueWidths = new Set(dimItems.filter(d => d.w).map(d => d.w));
-                  if (uniqueWidths.size > 1 && curW) {
+                  const dimItems = [{ sku_id: sku.sku_id, w: curW, wRaw: curWRaw, sz: curSz, c: curC, img: media && media[0] ? media[0].url : null, is_current: true }];
+                  mainSiblings.forEach(s => { dimItems.push({ sku_id: s.sku_id, w: _getWidthNum(s.attributes, s.variant_name), wRaw: _getWidthRaw(s.attributes), sz: _getSize(s.attributes), c: _extractColor(s.attributes, s.variant_name), img: getVariantImage(s), is_current: false }); });
+                  const uniqueWidths = new Set(dimItems.filter(d => d.w != null && !isNaN(d.w)).map(d => d.w));
+                  if (uniqueWidths.size > 1 && curW != null) {
                     const sizeMap = new Map();
-                    dimItems.forEach(d => { if (!d.w) return; const ex = sizeMap.get(d.w); if (!ex || d.is_current || (!ex.is_current && d.c === curC && !ex._cm)) { sizeMap.set(d.w, { ...d, _cm: d.c === curC }); } });
-                    sibSizeItems = [...sizeMap.values()].map(d => ({ label: d.sz ? formatSizeDim(d.sz) : d.w + '\u2033', sku_id: d.sku_id, is_current: d.w === curW, sort: d.w, primary_image: d.img })).sort((a, b) => a.sort - b.sort);
+                    dimItems.forEach(d => { if (d.w == null || isNaN(d.w)) return; const ex = sizeMap.get(d.w); if (!ex || d.is_current || (!ex.is_current && d.c === curC && !ex._cm)) { sizeMap.set(d.w, { ...d, _cm: d.c === curC }); } });
+                    sibSizeItems = [...sizeMap.values()].map(d => ({ label: d.sz ? formatSizeDim(d.sz) : (d.wRaw || d.w + '\u2033'), sku_id: d.sku_id, is_current: d.w === curW, sort: d.w, primary_image: d.img })).sort((a, b) => a.sort - b.sort);
                     if (colorItems.length > 0) {
                       const availableAtWidth = new Set(dimItems.filter(d => d.w === curW && d.c).map(d => normColor(d.c)));
                       colorItems = colorItems.filter(c => c.is_current || availableAtWidth.has(normColor(c.product_name)));
@@ -5153,7 +5227,7 @@
                   const dimRe = /(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/;
                   if (curSizeVal && dimRe.test(curSizeVal)) {
                     const sizeMap = new Map();
-                    sizeMap.set(normalizeSize(curSizeVal), { label: formatSizeDim(curSizeVal), sku_id: sku.sku_id, is_current: true, sort: parseFloat(curSizeVal.match(dimRe)[1]) });
+                    sizeMap.set(normalizeSize(curSizeVal), { label: formatSizeDim(curSizeVal), sku_id: sku.sku_id, is_current: true, sort: parseFractionalInches(curSizeVal.match(dimRe)[1]) });
                     mainSiblings.forEach(s => {
                       if (s.variant_type === 'accessory') return;
                       const sv = _getSizeAttr(s.attributes);
@@ -5162,7 +5236,50 @@
                       if (sizeMap.has(nk)) return;
                       const dm = sv.match(dimRe);
                       if (!dm) return;
-                      sizeMap.set(nk, { label: formatSizeDim(sv), sku_id: s.sku_id, is_current: normalizeSize(sv) === normalizeSize(curSizeVal), sort: parseFloat(dm[1]) });
+                      sizeMap.set(nk, { label: formatSizeDim(sv), sku_id: s.sku_id, is_current: normalizeSize(sv) === normalizeSize(curSizeVal), sort: parseFractionalInches(dm[1]) });
+                    });
+                    if (sizeMap.size >= 2) {
+                      attrSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
+                    }
+                  }
+                }
+                // Augment with collection-wide sizes when current product has fewer size options
+                if (attrSizeItems.length === 0 && !showSizePills && sibSizeItems.length === 0 && collectionAttributes.size && (collectionAttributes.size.values || []).length >= 2) {
+                  const _csa = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
+                  const curSz = _csa(sku.attributes);
+                  const _dimRe = /(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/;
+                  if (curSz && _dimRe.test(curSz)) {
+                    const sizeMap = new Map();
+                    sizeMap.set(normalizeSize(curSz), { label: formatSizeDim(curSz), sku_id: sku.sku_id, is_current: true, sort: parseFractionalInches(curSz.match(_dimRe)[1]) });
+                    mainSiblings.forEach(s => {
+                      if (s.variant_type === 'accessory') return;
+                      const sv = _csa(s.attributes);
+                      if (!sv) return;
+                      const nk = normalizeSize(sv);
+                      if (sizeMap.has(nk)) return;
+                      const dm = sv.match(_dimRe);
+                      if (!dm) return;
+                      sizeMap.set(nk, { label: formatSizeDim(sv), sku_id: s.sku_id, is_current: false, sort: parseFractionalInches(dm[1]) });
+                    });
+                    const curFinish = currentAttrs['finish'] || '';
+                    (collectionAttributes.size.values || []).forEach(sv => {
+                      const nk = normalizeSize(sv);
+                      if (sizeMap.has(nk)) return;
+                      const dm = sv.match(_dimRe);
+                      if (!dm) return;
+                      let targetSkuId = null;
+                      for (const cs of collectionSiblings) {
+                        if (!cs.sku_map) continue;
+                        for (const [key, sid] of Object.entries(cs.sku_map)) {
+                          const parts = key.split('|');
+                          if (normalizeSize(parts[0]) === nk) {
+                            if (curFinish && parts[1] === curFinish) { targetSkuId = sid; break; }
+                            if (!targetSkuId) targetSkuId = sid;
+                          }
+                        }
+                        if (targetSkuId) break;
+                      }
+                      if (targetSkuId) sizeMap.set(nk, { label: formatSizeDim(sv), sku_id: targetSkuId, is_current: false, is_cross_product: true, sort: parseFractionalInches(dm[1]) });
                     });
                     if (sizeMap.size >= 2) {
                       attrSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
@@ -5198,7 +5315,7 @@
                   attrMap['countertop_finish'].values.add('No Countertop');
                   if (!currentAttrs['countertop_finish']) currentAttrs['countertop_finish'] = 'No Countertop';
                 }
-                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory', 'upc', 'msrp', 'weight', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number', 'width', 'size', 'height', 'depth', 'hardware_finish', 'num_drawers', 'num_doors', 'num_shelves', 'num_sinks', 'soft_close', 'sink_material', 'sink_type', 'vanity_type', 'bowl_shape', 'style', 'origin', 'countertop_material', 'construction', 'sub_line', 'collection', 'brand', 'surface_texture', 'wear_layer', 'ac_rating', 'edge_treatment', 'plank_width', 'plank_length', 'composition', 'install_method', 'features', 'technology', 'product_line', 'color_family', 'breaking_strength', 'thickness', 'mohs_hardness', 'color_generic', 'pattern']);
+                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory', 'upc', 'msrp', 'weight', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number', 'width', 'size', 'height', 'depth', 'hardware_finish', 'num_drawers', 'num_doors', 'num_shelves', 'num_sinks', 'soft_close', 'sink_material', 'sink_type', 'vanity_type', 'bowl_shape', 'style', 'origin', 'countertop_material', 'construction', 'sub_line', 'collection', 'brand', 'surface_texture', 'wear_layer', 'ac_rating', 'edge_treatment', 'plank_width', 'plank_length', 'composition', 'install_method', 'features', 'technology', 'product_line', 'color_family', 'breaking_strength', 'thickness', 'mohs_hardness', 'color_generic', 'pattern', 'projection', 'clearance', 'overall_length', 'diameter', 'center_to_center']);
 
                 // --- Sub-Line format selector (ADURA Max/Rigid/Flex/APEX) ---
                 const curSubLineAttr = (sku.attributes || []).find(a => a.slug === 'sub_line');
@@ -5252,6 +5369,20 @@
                   });
                 }
 
+                // Augment attrMap with collection-wide attribute values for consistent pills across colors
+                const collectionAugmentedSlugs = new Set();
+                if (collectionSiblings.length > 0 && Object.keys(collectionAttributes).length > 0) {
+                  Object.entries(collectionAttributes).forEach(([slug, ca]) => {
+                    if (!ca || !ca.values || ca.values.length < 2) return;
+                    if (NON_SELECTABLE.has(slug) || slug === 'color') return;
+                    if (!attrMap[slug]) attrMap[slug] = { name: ca.name, values: new Set() };
+                    if (currentAttrs[slug]) attrMap[slug].values.add(currentAttrs[slug]);
+                    const localCount = attrMap[slug].values.size;
+                    ca.values.forEach(v => attrMap[slug].values.add(v));
+                    if (attrMap[slug].values.size > localCount) collectionAugmentedSlugs.add(slug);
+                  });
+                }
+
                 // --- Extract format qualifiers (Paver, Mosaic, Trim, etc.) from size values ---
                 const FORMAT_QUALIFIERS = [
                   { pattern: /\bPaver\b/i, label: 'Paver' },
@@ -5298,6 +5429,12 @@
                     localAttrCounts['countertop_finish'].add('No Countertop');
                   }
                 });
+                // Add collection-augmented values to localAttrCounts so pills appear
+                collectionAugmentedSlugs.forEach(slug => {
+                  if (!localAttrCounts[slug]) localAttrCounts[slug] = new Set();
+                  const ca = collectionAttributes[slug];
+                  if (ca && ca.values) ca.values.forEach(v => localAttrCounts[slug].add(v));
+                });
                 // Check if attribute varies WITHIN a color (not just across colors)
                 const colorAttrValues = {};
                 effectiveSiblings.forEach(s => {
@@ -5319,9 +5456,9 @@
                   if (!byColor) return false;
                   return Object.values(byColor).some(vals => vals.size > 1);
                 };
-                const attrSlugs = Object.keys(attrMap).filter(slug => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === 'countertop_finish') && !NON_SELECTABLE.has(slug) && !(slug === 'finish' && showFinishPills) && (slug === 'countertop_finish' || (localAttrCounts[slug].size > 1 ? variesWithinColor(slug) : true)))
+                const attrSlugs = _isDecorativeHW ? [] : Object.keys(attrMap).filter(slug => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === 'countertop_finish') && !NON_SELECTABLE.has(slug) && !(slug === 'finish' && showFinishPills) && (slug === 'countertop_finish' || collectionAugmentedSlugs.has(slug) || (localAttrCounts[slug].size > 1 ? variesWithinColor(slug) : true)))
                   .sort((a, b) => a === 'finish' ? -1 : b === 'finish' ? 1 : 0);
-                const sizeSort = (a, b) => { const na = parseFloat(a), nb = parseFloat(b); if (!isNaN(na) && !isNaN(nb)) return na - nb; return a.localeCompare(b); };
+                const sizeSort = (a, b) => { const na = parseFractionalInches(a), nb = parseFractionalInches(b); if (!isNaN(na) && !isNaN(nb)) return na - nb; return a.localeCompare(b); };
                 const showColors = colorItems.length >= 2;
                 const isRomanVariants = showColors && colorItems.some(c => hasRomanSuffix(c.product_name));
 
@@ -5438,7 +5575,7 @@
                         <div className="variant-selector-label">Finish<span>{collectionFinishItems.find(s => s.is_current)?.label || ''}</span></div>
                         <div className="attr-pills">
                           {collectionFinishItems.map(s => (
-                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '') + (s.is_cross_product ? ' limited' : '')} title={s.is_cross_product ? 'Available in other colors' : ''} onClick={() => { if (!s.is_current && s.sku_id) onSkuClick(s.sku_id); }}>
                               {s.label}
                             </button>
                           ))}
@@ -5462,7 +5599,7 @@
                         <div className="variant-selector-label">Size<span>{attrSizeItems.find(s => s.is_current)?.label || ''}</span></div>
                         <div className="attr-pills">
                           {attrSizeItems.map(s => (
-                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '') + (s.is_cross_product ? ' limited' : '')} title={s.is_cross_product ? 'Available in other colors' : ''} onClick={() => { if (!s.is_current && s.sku_id) onSkuClick(s.sku_id); }}>
                               {s.label}
                             </button>
                           ))}
@@ -5632,6 +5769,22 @@
                         });
                         return scored.sort((a, b) => b.score - a.score || (a.sku_id < b.sku_id ? -1 : 1))[0];
                       };
+                      // Cross-product fallback: find a SKU in another collection color with this attribute value
+                      const findCrossProduct = (val) => {
+                        if (!collectionSiblings.length) return null;
+                        let bestMatch = null;
+                        for (const cs of collectionSiblings) {
+                          if (!cs.sku_map) continue;
+                          for (const [key, sid] of Object.entries(cs.sku_map)) {
+                            const [szVal, fnVal] = key.split('|');
+                            const attrMatch = slug === 'finish' ? fnVal === val : false;
+                            if (!attrMatch) continue;
+                            if (currentAttrs['size'] && normalizeSize(szVal) === normalizeSize(currentAttrs['size'])) return { sku_id: sid };
+                            if (!bestMatch) bestMatch = { sku_id: sid };
+                          }
+                        }
+                        return bestMatch;
+                      };
                       // Image swatches for visually-distinct attributes where each variant looks different
                       const IMAGE_SWATCH_ATTRS = new Set(['countertop_finish', 'pattern']);
                       // finish gets image swatches only for vanity tops (where it means cabinet color)
@@ -5666,11 +5819,11 @@
                                 const img = getSwatchImage(val);
                                 const best = findBest(val);
                                 return (
-                                  <div key={val} className={'color-swatch-wrap' + (isDisabled ? ' limited' : '')} onClick={() => { if (!isActive) { const target = best || findAny(val); if (target) onSkuClick(target.sku_id); } }}>
+                                  <div key={val} className={'color-swatch-wrap' + (isDisabled ? ' limited' : '')} onClick={() => { if (!isActive) { const target = best || findAny(val) || findCrossProduct(val); if (target) onSkuClick(target.sku_id); } }}>
                                     <div className={'color-swatch' + (isActive ? ' active' : '') + (isDisabled ? ' limited' : '')}>
                                       {img ? <img onLoad={handleProductImgLoad} src={optimizeImg(img, 120)} alt={displayVal(val)} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--stone-500)', textAlign: 'center', padding: '0.25rem' }}>{displayVal(val)}</div>}
                                     </div>
-                                    <div className="color-swatch-tooltip">{displayVal(val)}{isDisabled ? ' (other options may change)' : ''}</div>
+                                    <div className="color-swatch-tooltip">{displayVal(val)}{isDisabled ? (findCrossProduct(val) ? ' (available in other colors)' : ' (other options may change)') : ''}</div>
                                   </div>
                                 );
                               })}
@@ -5682,7 +5835,7 @@
                                 const isDisabled = !compatibleValues.has(val);
                                 const best = findBest(val);
                                 return (
-                                  <button key={val} className={'attr-pill' + (isActive ? ' active' : '') + (isDisabled ? ' limited' : '')} title={isDisabled ? 'Other options may change' : ''} onClick={() => { if (!isActive) { const target = best || findAny(val); if (target) onSkuClick(target.sku_id); } }}>
+                                  <button key={val} className={'attr-pill' + (isActive ? ' active' : '') + (isDisabled ? ' limited' : '')} title={isDisabled ? (findCrossProduct(val) ? 'Available in other colors' : 'Other options may change') : ''} onClick={() => { if (!isActive) { const target = best || findAny(val) || findCrossProduct(val); if (target) onSkuClick(target.sku_id); } }}>
                                     {displayVal(val)}
                                   </button>
                                 );

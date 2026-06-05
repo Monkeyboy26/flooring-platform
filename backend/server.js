@@ -150,7 +150,7 @@ app.get('/api/img', imgLimiter, async (req, res) => {
         if (url.startsWith('/uploads/') || url.startsWith('/assets/')) {
           const localPath = path.join(process.cwd(), url.split('?')[0]);
           if (!fs.existsSync(localPath)) return null;
-          inputBuffer = fs.readFileSync(localPath);
+          inputBuffer = await fs.promises.readFile(localPath);
         } else {
           if (isPrivateUrl(url)) return null;
           const controller = new AbortController();
@@ -171,7 +171,7 @@ app.get('/api/img', imgLimiter, async (req, res) => {
         const resizeOpts = { width: w, fit: 'inside', withoutEnlargement: true };
         if (h) resizeOpts.height = h;
         let pipeline = sharp(inputBuffer).resize(resizeOpts);
-        if (fmt === 'avif') pipeline = pipeline.avif({ quality: q, effort: 7 });
+        if (fmt === 'avif') pipeline = pipeline.avif({ quality: q, effort: 4 });
         else if (fmt === 'webp') pipeline = pipeline.webp({ quality: q, smartSubsample: true });
         else if (fmt === 'jpeg') pipeline = pipeline.jpeg({ quality: q, mozjpeg: true, progressive: true });
         else pipeline = pipeline.png({ quality: q });
@@ -1523,15 +1523,17 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     // Sort — relevance-first when searching (unless user explicitly chose a sort)
     // NOTE: PostgreSQL does not allow SELECT aliases inside expressions (CASE, LOWER, similarity, etc.)
     // in ORDER BY. Use actual table.column references for expressions; bare aliases work for simple sorts.
-    let orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, COALESCE(p.display_name, p.name) ASC, s.variant_name ASC';
-    if (sort === 'discount') orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, CASE WHEN pr.sale_price IS NOT NULL AND pr.retail_price > 0 THEN (pr.retail_price - pr.sale_price) / pr.retail_price ELSE 0 END DESC, COALESCE(p.display_name, p.name) ASC';
-    else if (sort === 'price_asc') orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, pr.retail_price ASC NULLS LAST, COALESCE(p.display_name, p.name) ASC';
-    else if (sort === 'price_desc') orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, pr.retail_price DESC NULLS LAST, COALESCE(p.display_name, p.name) ASC';
-    else if (sort === 'newest') orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, s.created_at DESC';
-    else if (sort === 'name_asc') orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, COALESCE(p.display_name, p.name) ASC, s.variant_name ASC';
-    else if (sort === 'name_desc') orderBy = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, COALESCE(p.display_name, p.name) DESC, s.variant_name DESC';
+    const imgFirst = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END';
+    const rankBoost = 'p.sort_priority DESC';
+    let orderBy = `${imgFirst}, ${rankBoost}, COALESCE(p.display_name, p.name) ASC, s.variant_name ASC`;
+    if (sort === 'discount') orderBy = `${imgFirst}, ${rankBoost}, CASE WHEN pr.sale_price IS NOT NULL AND pr.retail_price > 0 THEN (pr.retail_price - pr.sale_price) / pr.retail_price ELSE 0 END DESC, COALESCE(p.display_name, p.name) ASC`;
+    else if (sort === 'price_asc') orderBy = `${imgFirst}, ${rankBoost}, pr.retail_price ASC NULLS LAST, COALESCE(p.display_name, p.name) ASC`;
+    else if (sort === 'price_desc') orderBy = `${imgFirst}, ${rankBoost}, pr.retail_price DESC NULLS LAST, COALESCE(p.display_name, p.name) ASC`;
+    else if (sort === 'newest') orderBy = `${imgFirst}, ${rankBoost}, s.created_at DESC`;
+    else if (sort === 'name_asc') orderBy = `${imgFirst}, ${rankBoost}, COALESCE(p.display_name, p.name) ASC, s.variant_name ASC`;
+    else if (sort === 'name_desc') orderBy = `${imgFirst}, ${rankBoost}, COALESCE(p.display_name, p.name) DESC, s.variant_name DESC`;
     else if (searchParamIdx && !sort) {
-      orderBy = `CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END, (
+      orderBy = `${imgFirst}, ${rankBoost}, (
         COALESCE(ts_rank(p.search_vector, to_tsquery('english', unaccent($${searchTsQueryIdx}))), 0) * 2
         + greatest(similarity(COALESCE(p.display_name, p.name), $${searchParamIdx}), similarity(p.collection, $${searchParamIdx}))
         + COALESCE(pp.popularity_score, 0) * 0.1
@@ -2275,6 +2277,33 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           LIMIT 120
         `, [sku.collection, sku.product_id, sku.category_id, isMosaicProduct, sku.variant_name, sku.vendor_id, curSizeVal]);
         collectionSiblings = collResult.rows;
+
+        // Build sku_map for each collection sibling product: { "size|finish" → sku_id }
+        // Enables cross-product pill navigation when current color lacks a size/finish combo
+        if (collectionSiblings.length > 0) {
+          const collProductIds = [...new Set(collectionSiblings.map(s => s.product_id))];
+          const skuMapResult = await pool.query(`
+            SELECT s.product_id,
+                   (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+                    WHERE sa.sku_id = s.id AND a.slug = 'size') as size_val,
+                   (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+                    WHERE sa.sku_id = s.id AND a.slug = 'finish') as finish_val,
+                   s.id as sku_id
+            FROM skus s
+            WHERE s.product_id = ANY($1)
+              AND s.status = 'active' AND s.is_sample = false
+              AND COALESCE(s.variant_type, '') != 'accessory'
+          `, [collProductIds]);
+          const productSkuMaps = {};
+          for (const row of skuMapResult.rows) {
+            if (!productSkuMaps[row.product_id]) productSkuMaps[row.product_id] = {};
+            productSkuMaps[row.product_id][(row.size_val || '') + '|' + (row.finish_val || '')] = row.sku_id;
+          }
+          collectionSiblings = collectionSiblings.map(s => ({
+            ...s,
+            sku_map: productSkuMaps[s.product_id] || {}
+          }));
+        }
       }
     }
 
