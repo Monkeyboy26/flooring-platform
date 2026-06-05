@@ -5094,10 +5094,12 @@
                   const curFinishVal = extractFinish(sku.product_name);
                   const allItems = [{ product_name: sku.product_name, sku_id: sku.sku_id, primary_image: media && media[0] ? media[0].url : null }, ...collectionSiblings];
                   const comboMap = new Map(); // "size|finish" → sku_id
+                  const imgMap = new Map(); // sku_id → primary_image
                   allItems.forEach(s => {
                     const sz = extractDims(s.product_name);
                     const fn = extractFinish(s.product_name);
                     if (sz && fn) comboMap.set(sz + '|' + fn, s.sku_id);
+                    if (s.primary_image) imgMap.set(s.sku_id, s.primary_image);
                   });
 
                   if (curSz) {
@@ -5109,7 +5111,7 @@
                       if (sizeMap.has(nk)) return;
                       // For this size, prefer same finish as current; fall back to any
                       const target = comboMap.get(sz + '|' + curFinishVal) || s.sku_id;
-                      sizeMap.set(nk, { label: formatSizeDim(sz), sku_id: target, is_current: normalizeSize(sz) === normalizeSize(curSz), sort: extractSort(sz) });
+                      sizeMap.set(nk, { label: formatSizeDim(sz), sku_id: target, is_current: normalizeSize(sz) === normalizeSize(curSz), sort: extractSort(sz), primary_image: imgMap.get(target) || s.primary_image || null });
                     });
                     if (sizeMap.size > 1) {
                       collectionSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
@@ -5182,7 +5184,8 @@
                     }
                   });
                 }
-                const showFinishPills = collectionFinishItems.length > 0 && !_isDecorativeHW;
+                const _hasCountertopFinish = (sku.attributes || []).some(a => a.slug === 'countertop_finish') || allSiblings.some(s => (s.attributes || []).some(a => a.slug === 'countertop_finish'));
+                const showFinishPills = collectionFinishItems.length > 0 && !_isDecorativeHW && !_hasCountertopFinish;
 
                 // Width-based size + color from same-product siblings (mirrors, bath accessories)
                 let sibSizeItems = [];
@@ -5456,7 +5459,8 @@
                   if (!byColor) return false;
                   return Object.values(byColor).some(vals => vals.size > 1);
                 };
-                const attrSlugs = _isDecorativeHW ? [] : Object.keys(attrMap).filter(slug => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === 'countertop_finish') && !NON_SELECTABLE.has(slug) && !(slug === 'finish' && showFinishPills) && (slug === 'countertop_finish' || collectionAugmentedSlugs.has(slug) || (localAttrCounts[slug].size > 1 ? variesWithinColor(slug) : true)))
+                const _finishIsColor = !!attrMap['countertop_finish'];
+                const attrSlugs = _isDecorativeHW ? [] : Object.keys(attrMap).filter(slug => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === 'countertop_finish') && !NON_SELECTABLE.has(slug) && !(slug === 'finish' && (showFinishPills || _finishIsColor)) && (slug === 'countertop_finish' || collectionAugmentedSlugs.has(slug) || (localAttrCounts[slug].size > 1 ? variesWithinColor(slug) : true)))
                   .sort((a, b) => a === 'finish' ? -1 : b === 'finish' ? 1 : 0);
                 const sizeSort = (a, b) => { const na = parseFractionalInches(a), nb = parseFractionalInches(b); if (!isNaN(na) && !isNaN(nb)) return na - nb; return a.localeCompare(b); };
                 const showColors = colorItems.length >= 2;
@@ -5488,8 +5492,6 @@
                 const colorLabel = attrMap['countertop_finish'] ? 'Cabinet Color' : isRomanVariants ? 'Style' : 'Color';
                 const showAttrs = attrSlugs.length > 0;
                 // Check if the currently selected size/finish is available for a color swatch
-                // In vanity context, finish = cabinet color, so switching colors inherently changes finish
-                const _finishIsColor = !!attrMap['countertop_finish'];
                 const isColorCompatible = (c) => {
                   if (c.is_current) return true;
                   const curSize = currentAttrs['size'];
@@ -5561,11 +5563,18 @@
                     {showSizePills && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{collectionSizeItems.find(s => s.is_current)?.label || ''}</span></div>
-                        <div className="attr-pills">
+                        <div className="color-swatches">
                           {collectionSizeItems.map(s => (
-                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
-                              {s.label}
-                            </button>
+                            <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                              <div className={'color-swatch' + (s.is_current ? ' active' : '')}>
+                                {s.primary_image ? (
+                                  <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 120)} alt={s.label} loading="lazy" decoding="async" width="64" height="64" />
+                                ) : (
+                                  <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 600, color: 'var(--stone-500)' }}>{s.label}</div>
+                                )}
+                              </div>
+                              <div className="color-swatch-tooltip">{s.label}</div>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -5585,11 +5594,18 @@
                     {showSibSizes && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{sibSizeItems.find(s => s.is_current)?.label || ''}</span></div>
-                        <div className="attr-pills">
+                        <div className="color-swatches">
                           {sibSizeItems.map(s => (
-                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
-                              {s.label}
-                            </button>
+                            <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                              <div className={'color-swatch' + (s.is_current ? ' active' : '')}>
+                                {s.primary_image ? (
+                                  <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 120)} alt={s.label} loading="lazy" decoding="async" width="64" height="64" />
+                                ) : (
+                                  <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 600, color: 'var(--stone-500)' }}>{s.label}</div>
+                                )}
+                              </div>
+                              <div className="color-swatch-tooltip">{s.label}</div>
+                            </div>
                           ))}
                         </div>
                       </div>
