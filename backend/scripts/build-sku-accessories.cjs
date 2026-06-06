@@ -303,7 +303,7 @@ function matchAccessories(mainSkus, accSkus) {
   const msiColorMatched = new Set();
   for (const m of mainSkus) {
     const msku = (m.vendor_sku || '').toUpperCase();
-    const mainMatch = msku.match(/^(?:P-)?(?:VTR|VTW|QUTR|QUPO)(?:XL)?(?:HD)?([A-Z]+)/);
+    const mainMatch = msku.match(/^(?:P-)?(?:VTR|VTG|VTW|QUTR|QUPO)(?:XL)?(?:HD)?([A-Z]+)/);
     if (!mainMatch || !mainMatch[1] || mainMatch[1].length < 3) continue;
     const mainColorCode = mainMatch[1];
     for (const acc of accSkus) {
