@@ -203,11 +203,11 @@ const DIRECT_PRIMARY_OVERRIDES = {
     },
   },
   'Sixty 60 Silktech': {
-    // No Nero base tile or bullnose exists on onetile.it or melangetile.com.
-    // Use the emilgroup.it Nero Assoluto base silk close-up (right color, no form).
+    // No Nero base tile or bullnose exists on onetile.it; emilgroup.it discontinued Nero Assoluto (403).
+    // Use the melangetile Nero lux close-up — correct color, glossy finish, 864x285.
     'Nero': {
-      'bullnose lux': 'https://www.emilgroup.it/emil/prodotti/immaginiarticoli_emil/Sixty_Nero%20Assoluto_30x60_9%2C5_Silk.jpg',
-      'bullnose matt': 'https://www.emilgroup.it/emil/prodotti/immaginiarticoli_emil/Sixty_Nero%20Assoluto_30x60_9%2C5_Silk.jpg',
+      'bullnose lux': 'https://www.melangetile.com/assets/images/sixty/thumnails/nero-minibrick-lux.jpg',
+      'bullnose matt': 'https://www.melangetile.com/assets/images/sixty/thumnails/nero-minibrick-lux.jpg',
     },
   },
   'Decoro': {
@@ -265,6 +265,51 @@ const EMILGROUP_MAP = {
     'https://www.emilgroup.it/collezioni/brand/emilceramica/tele-di-marmo-selection/',
     'https://www.emilgroup.it/collezioni/piastrelle/emilceramica-tele-di-marmo-selection/',
   ],
+  'Unique Bourgogne':        [
+    'https://www.emilgroup.it/collezioni/brand/provenza/unique-bourgogne/',
+    'https://www.emilgroup.it/collezioni/piastrelle/provenza-unique-bourgogne/',
+  ],
+};
+
+/** supergres.com — Moonlit collection (Supergres is an Emilgroup brand but
+ *  uses its own domain, not emilgroup.it). */
+const SUPERGRES_MAP = {
+  'Moonlit':                 [
+    'https://www.supergres.com/en/collections/moonlit/',
+  ],
+};
+
+/** emilamerica.com — Shellstone collection (Ergon brand, US site has product
+ *  images that the .it site does not). */
+const EMILAMERICA_MAP = {
+  'Shellstone':              [
+    'https://www.emilamerica.com/collections/brand/ergon/shellstone/',
+  ],
+};
+
+/** energieker.it — Sunstone collection (independent Italian manufacturer).
+ *  Individual color pages have per-color product close-ups. */
+const ENERGIEKER_MAP = {
+  'Sunstone':                [
+    'https://www.energieker.it/en/collections/sunstone/',
+    'https://www.energieker.it/en/colors/sunstone-alof/',
+    'https://www.energieker.it/en/colors/sunstone-baugi/',
+    'https://www.energieker.it/en/colors/sunstone-freya/',
+    'https://www.energieker.it/en/colors/sunstone-groa/',
+    'https://www.energieker.it/en/colors/sunstone-loki/',
+    'https://www.energieker.it/en/colors/sunstone-norne/',
+  ],
+};
+
+/** lafabbrica.it — Kauri and Ca'Foscari collections (La Fabbrica AVA).
+ *  Wood-effect porcelain with per-color product shots. */
+const LAFABBRICA_MAP = {
+  'Kauri':                   [
+    'https://www.lafabbrica.it/en/collections/kauri/',
+  ],
+  "Ca'Foscari":              [
+    'https://www.lafabbrica.it/en/collections/ca-foscari/',
+  ],
 };
 
 // ── Finish synonyms for multilingual scoring ───────────────────────────
@@ -299,6 +344,7 @@ const FINISH_SYNONYMS = {
   'decoro':      ['decoro', 'decor', 'decorato'],
   'cobblestone': ['cobblestone', 'cobble'],
   'puerstone':   ['puerstone', 'purestone'],
+  'tech':        ['tech'],
 };
 
 
@@ -588,9 +634,10 @@ async function scrollToLoadAll(page) {
   await delay(1500);
 }
 
-/** Extract images from manufacturer catalog pages (emilgroup).
+/** Extract images from manufacturer catalog pages (emilgroup, supergres,
+ *  energieker, lafabbrica, emilamerica, etc.).
  *  Aggressively extracts images including lazy-loaded ones
- *  via data-src, srcset, noscript, and CSS background URLs.
+ *  via data-src, srcset, noscript, CSS backgrounds, and page source parsing.
  *  Returns up to 50 images per page (many finishes = many images). */
 async function extractManufacturerImages(page, url, siteWideImages) {
   try {
@@ -641,52 +688,72 @@ async function extractManufacturerImages(page, url, siteWideImages) {
     }
 
     // Extract product image URLs from page source.
-    // emilgroup uses _next/image wrappers and various patterns.
-    // Always run source extraction (not just when < 5 images) to find
-    // per-color per-finish product close-ups that lazy loading misses.
+    // Deep source extraction handles Next.js _next/image wrappers, relative paths,
+    // and site-specific product image patterns across all manufacturer domains.
     {
       const pageSource = await page.content();
-      const baseUrl = 'https://www.emilgroup.it';
+      let siteOrigin;
+      try { siteOrigin = new URL(url).origin; } catch { siteOrigin = ''; }
       const allMatches = [];
 
-      // 1. Direct emilgroup URLs in HTML source
-      const srcMatches = pageSource.match(/https?:\/\/www\.emilgroup\.it\/[^"'\s>]+\.(?:jpg|jpeg|png|webp)(?:\?[^"'\s>]*)?/gi) || [];
-      allMatches.push(...srcMatches);
-
-      // 2. Relative paths in data attributes and img src
-      const relMatches = pageSource.match(/(?:src|data-src|data-lazy|content)=["'](\/emil\/[^"']+\.(?:jpg|jpeg|png|webp)[^"']*)/gi) || [];
-      for (const m of relMatches) {
-        const path = m.replace(/^(?:src|data-src|data-lazy|content)=["']/i, '');
-        allMatches.push(path.startsWith('/') ? baseUrl + path : path);
+      // 1. Direct absolute image URLs from this site in HTML source
+      if (siteOrigin) {
+        const domainEscaped = siteOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const absRegex = new RegExp(domainEscaped + '/[^"\'\\s>]+\\.(?:jpg|jpeg|png|webp)(?:\\?[^"\'\\s>]*)?', 'gi');
+        const srcMatches = pageSource.match(absRegex) || [];
+        allMatches.push(...srcMatches);
       }
 
-      // 3. Extract inner URLs from _next/image?url=... wrappers in page source.
-      //    emilgroup.it uses Next.js image optimization, so product images appear as:
-      //    /_next/image?url=%2Femil%2Fprodotti%2Fimmaginiarticoli_emil%2F...jpg&w=640&q=75
-      //    or with full domain: _next/image?url=https%3A%2F%2Fwww.emilgroup.it%2F...
+      // 2. Relative image paths in data attributes and img src
+      const relMatches = pageSource.match(/(?:src|data-src|data-lazy|content)=["'](\/[^"']+\.(?:jpg|jpeg|png|webp)[^"']*)/gi) || [];
+      for (const m of relMatches) {
+        const path = m.replace(/^(?:src|data-src|data-lazy|content)=["']/i, '');
+        if (path.startsWith('/')) allMatches.push(siteOrigin + path);
+      }
+
+      // 3. Extract inner URLs from _next/image?url=... wrappers (Next.js sites)
       const nextImageMatches = pageSource.match(/_next\/image[^"']*\?url=([^&"']+)/gi) || [];
       for (const match of nextImageMatches) {
         const m = match.match(/url=([^&"']+)/i);
         if (!m) continue;
         let decoded = decodeURIComponent(m[1]);
-        // Handle double-encoding: %2Femil → /emil
         if (decoded.includes('%2F') || decoded.includes('%20')) {
           decoded = decodeURIComponent(decoded);
         }
-        if (decoded.startsWith('/')) decoded = baseUrl + decoded;
+        if (decoded.startsWith('/')) decoded = siteOrigin + decoded;
         if (/\.(jpg|jpeg|png|webp)/i.test(decoded)) {
           allMatches.push(decoded);
         }
       }
 
-      // Filter to only product images (exclude icons, logos, banners, certs)
-      const productMatches = allMatches.filter(u =>
-        (u.includes('/prodotti/') || u.includes('PANNELLO') || u.includes('MOSAICO') ||
-         u.includes('_60x') || u.includes('_30x') || u.includes('_120x') ||
-         u.includes('immaginiarticoli') || u.includes('immaginicollezioni')) &&
-        !u.includes('logo') && !u.includes('icon') && !u.includes('banner') &&
-        !u.includes('certificazioni') && !u.includes('loghi_') && !u.includes('/awards/')
-      );
+      // 4. WordPress/CDN image URLs (lafabbrica, energieker use static CDN domains)
+      const cdnMatches = pageSource.match(/https?:\/\/[a-z0-9.-]+\.(?:devhoop|cloudfront|amazonaws|wp)\.com\/[^"'\s>]+\.(?:jpg|jpeg|png|webp)(?:\?[^"'\s>]*)?/gi) || [];
+      allMatches.push(...cdnMatches);
+      // Also catch wp-content image paths on same domain
+      const wpMatches = pageSource.match(/(?:src|data-src|srcset)=["'](https?:\/\/[^"'\s]+\/wp-content\/[^"'\s]+\.(?:jpg|jpeg|png|webp))/gi) || [];
+      for (const m of wpMatches) {
+        const u = m.replace(/^(?:src|data-src|srcset)=["']/i, '').split(/\s/)[0];
+        if (u) allMatches.push(u);
+      }
+
+      // Filter to product images — site-specific patterns
+      const isEmilgroup = siteOrigin.includes('emilgroup') || siteOrigin.includes('emilamerica') || siteOrigin.includes('supergres');
+      const productMatches = allMatches.filter(u => {
+        const lower = u.toLowerCase();
+        // Universal excludes
+        if (/\b(logo|icon|sprite|favicon|avatar|certificaz|loghi_|\/awards\/|\/loghi\/)\b/i.test(lower)) return false;
+        if (isEmilgroup) {
+          // Emilgroup/Emilamerica/Supergres: filter to product-specific paths
+          return lower.includes('/prodotti/') || lower.includes('pannello') ||
+                 lower.includes('mosaico') || lower.includes('immaginiarticoli') ||
+                 lower.includes('immaginicollezioni') || lower.includes('/products/') ||
+                 /_(60|30|120)x\d/i.test(lower);
+        }
+        // Non-emilgroup sites: keep all sufficiently large-pathed images that aren't nav/chrome
+        // Exclude common non-product paths
+        if (/\/(themes|assets\/css|assets\/js|plugins)\//i.test(lower)) return false;
+        return true;
+      });
       if (productMatches.length > 0) {
         console.log(`      (source extraction found ${productMatches.length} product image URLs)`);
         urls = [...new Set([...urls, ...productMatches])];
@@ -927,6 +994,12 @@ function classifyImage(image) {
   // Italian room scene terms: Part(e) Bagno (bathroom), Part(e) Living, amb_ (ambiente = room scene)
   if (/\bpart[e]?\s*(bagno|living|cucina|camera|soggiorno)\b/i.test(fnLower)) return 'roomscene';
   if (/\bamb[_\s]/i.test(fnLower)) return 'roomscene';
+  // English room types, museo (museum scene), and standalone room/scene indicators
+  if (/\b(dining|bathroom|bedroom|kitchen|museo|living|piscina|terrazza|esterno)\b/i.test(fnLower)) return 'roomscene';
+  if (/\bOut[-_]/i.test(fnLower)) return 'roomscene';
+  // URL path indicators: /ambience/, /ambienti/, immaginicollezioni (emilgroup room scenes)
+  if (/\/(ambience|ambienti)\//i.test(urlLower)) return 'roomscene';
+  if (/immaginicollezioni/i.test(urlLower)) return 'roomscene';
   // Sequential numbered variants without a size (e.g., kauriFiordland2.jpg, kauriFiordland3.jpg)
   // Exclude "product-shot1" and "ps1" patterns (product shots, not room scenes)
   if (/[a-z]\d\.(jpg|jpeg|png|webp|gif)$/i.test(fnLower) && !/\d+x\d+/.test(fnLower) &&
@@ -1210,7 +1283,7 @@ function getCollectionFilterTokens(collectionName) {
   // Primary: collection name words (normalized)
   const words = collectionName.toLowerCase().split(/[\s'-]+/).filter(w => w.length >= 3);
   tokens.push(...words);
-  // Special cases where emilgroup uses different naming
+  // Special cases where manufacturers use different naming
   const aliases = {
     'Sixty 60 Silktech': ['sixty', 'silktech'],
     'Stonetalk': ['stonetalk', 'stone_talk', 'stone-talk'],
@@ -1218,8 +1291,13 @@ function getCollectionFilterTokens(collectionName) {
     'Tele di Marmo': ['tele', 'marmo'],
     'Real Stone Travertino': ['realstone', 'travertino'],
     'Concrete Soul Infinity': ['concrete', 'infinity'],
-    'Unique Bourgogne': ['bourgogne', 'unique'],
+    'Unique Bourgogne': ['bourgogne', 'unique', 'bourg'],
     'Unique Infinity': ['unique', 'infinity'],
+    'Moonlit': ['moonlit', 'supergres'],
+    'Shellstone': ['shellstone', 'ergon'],
+    'Sunstone': ['sunstone', 'energieker'],
+    'Kauri': ['kauri', 'fabbrica'],
+    "Ca'Foscari": ['foscari', 'cafoscari', 'ca-foscari'],
   };
   if (aliases[collectionName]) tokens.push(...aliases[collectionName]);
   return [...new Set(tokens)];
@@ -1279,7 +1357,7 @@ function filterCollectionImages(imageUrls, collectionName, colorNames) {
 }
 
 /**
- * Scrape finish-specific images from onetile.us/it and emilgroup.it.
+ * Scrape finish-specific images from manufacturer catalog sites.
  * Returns Map<collectionName, [{url, source}]> — all images per collection.
  */
 async function scrapeManufacturerCatalogs(page, collectionProducts) {
@@ -1289,6 +1367,10 @@ async function scrapeManufacturerCatalogs(page, collectionProducts) {
   const allMaps = [
     { map: ONETILE_MAP, label: 'onetile' },
     { map: EMILGROUP_MAP, label: 'emilgroup' },
+    { map: SUPERGRES_MAP, label: 'supergres' },
+    { map: EMILAMERICA_MAP, label: 'emilamerica' },
+    { map: ENERGIEKER_MAP, label: 'energieker' },
+    { map: LAFABBRICA_MAP, label: 'lafabbrica' },
   ];
 
   for (const { map, label } of allMaps) {
@@ -1875,13 +1957,25 @@ async function run() {
               return false;
             });
             if (otherColorBetter) continue;
-            // Classify manufacturer images (detect room scenes in filenames)
+            // Classify manufacturer images (detect room scenes in filenames + URL path)
             // Decode %20 etc. so regex word boundaries work on URL-encoded filenames
             const mfrFnLower = decodeURIComponent(getFilename(imgUrl)).toLowerCase();
+            const mfrUrlLower = imgUrl.toLowerCase();
             let mfrClassification = 'closeup';
             if (/\bpart[e]?\s*(bagno|living|cucina)\b/i.test(mfrFnLower) ||
                 /\bamb[_\s]/i.test(mfrFnLower) || /room.?scene/i.test(mfrFnLower) ||
-                /\bRS\s*\d*/i.test(mfrFnLower)) {
+                /\bRS\s*\d*/i.test(mfrFnLower) ||
+                // English room types (energieker uses "Dining-room", "Bathroom", etc.)
+                /\b(dining|bathroom|bedroom|kitchen|museo)\b/i.test(mfrFnLower) ||
+                // Standalone room/scene indicators in manufacturer filenames:
+                // "Living" = living room, "Out" = outdoor, "Piscina" = pool,
+                // "Terrazza"/"Esterno" = terrace/exterior
+                /\b(living|piscina|terrazza|esterno)\b/i.test(mfrFnLower) ||
+                /\bOut[-_]/i.test(mfrFnLower) ||
+                // URL path: supergres uses /ambience/, emilgroup uses /ambienti/
+                /\/(ambience|ambienti)\//i.test(mfrUrlLower) ||
+                // emilgroup collection gallery images (immaginicollezioni = room scenes)
+                /immaginicollezioni/i.test(mfrUrlLower)) {
               mfrClassification = 'roomscene';
             }
             candidates.push({
@@ -1929,6 +2023,7 @@ async function run() {
           const STRONG_SURFACES = new Set([
             'polished', 'timbro', 'struttura', 'martellata', 'rullata',
             'minimal', 'bocciardato', 'wax', 'crosscut', 'veincut',
+            'tech',
           ]);
           const rankBySurface = (arr) => {
             if (skuFC.surfaces.length === 0) return arr;
@@ -2011,6 +2106,18 @@ async function run() {
               const cleanCloseups = clean.filter(c => c.classification === 'closeup');
               const cleanNonCloseups = clean.filter(c => c.classification !== 'closeup');
               rankedCandidates = [...cleanCloseups, ...textOverlay, ...cleanNonCloseups];
+            }
+          }
+
+          // ── Room scene deprioritization ──
+          // Room scenes (lifestyle shots) should never be primary when a close-up exists.
+          // Move all room scenes after all close-ups, regardless of score.
+          {
+            const closeups = rankedCandidates.filter(c => c.classification === 'closeup');
+            const roomscenes = rankedCandidates.filter(c => c.classification === 'roomscene');
+            const other = rankedCandidates.filter(c => c.classification !== 'closeup' && c.classification !== 'roomscene');
+            if (closeups.length > 0 && roomscenes.length > 0) {
+              rankedCandidates = [...closeups, ...roomscenes, ...other];
             }
           }
 
@@ -2218,17 +2325,10 @@ async function run() {
             assignedFilenames.add(fn);
           }
 
-          // ── LIFESTYLE: Collection banner or generic room scene ──
-          if (assignedUrls.length < MAX_IMAGES_PER_SKU && banners.length > 0) {
-            const banner = banners[0];
-            const fn = getFilename(banner.url).toLowerCase();
-            if (!assignedFilenames.has(fn)) {
-              const url = unwrapImageUrl(banner.url);
-              if (!assignedUrls.includes(url)) {
-                assignedUrls.push(url);
-              }
-            }
-          }
+          // ── LIFESTYLE: Skip generic banners/icons ──
+          // Collection banners (sunstone-thumb.jpg, sixty-main-cat.jpg, etc.) add no
+          // value as alternates or lifestyle images. Color-matched room scenes are
+          // already handled through the normal alternate scoring flow above.
 
           // Upsert assigned images
           for (let i = 0; i < assignedUrls.length; i++) {

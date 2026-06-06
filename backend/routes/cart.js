@@ -11,7 +11,7 @@ export default function createCartRoutes(ctx) {
 
       const result = await pool.query(`
         SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection,
-          s.sell_by, s.variant_type, s.vendor_sku, s.variant_name, c.slug as category_slug,
+          s.sell_by, s.variant_type, s.vendor_sku, s.variant_name, s.accessory_label, c.name as category_name, c.slug as category_slug,
           pr.cut_price, pr.roll_price, pr.roll_min_sqft,
           COALESCE(ma_sku.url, ma_prod.url) as primary_image,
           COALESCE(v.has_public_inventory, false) as vendor_has_inventory,

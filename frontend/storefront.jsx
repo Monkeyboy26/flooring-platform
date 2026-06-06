@@ -665,6 +665,11 @@
       // after variant/size info (avoids "Acqua Ceramic Tile 24x24" → want "Acqua 24x24 Ceramic Tile")
       name = stripTypeSuffix(name, sku.category_name);
 
+      // Append format label (e.g. "4x8", "Hex", "Rombo") for format-grouped products
+      if (sku.format_label) {
+        name = name + ' ' + sku.format_label;
+      }
+
       // Vendors that use collection as a browsing taxonomy (not a product-line prefix)
       // e.g. Bellezza's "Marble Look", "Concrete & Industrial" are grouping concepts, not product names
       const TAXONOMY_COLLECTION_VENDORS = new Set(['BELLEZZA']);
@@ -4140,6 +4145,8 @@
       const [collectionSiblings, setCollectionSiblings] = useState([]);
       const [collectionAttributes, setCollectionAttributes] = useState({});
       const [groupedProducts, setGroupedProducts] = useState([]);
+      const [formatSiblings, setFormatSiblings] = useState([]);
+      const [formatLabel, setFormatLabel] = useState(null);
       const [productTags, setProductTags] = useState([]);
       const [countertopImage, setCountertopImage] = useState(null);
       const [selectedImage, setSelectedImage] = useState(0);
@@ -4207,6 +4214,8 @@
             setCollectionSiblings(data.collection_siblings || []);
             setCollectionAttributes(data.collection_attributes || {});
             setGroupedProducts(data.grouped_products || []);
+            setFormatSiblings(data.format_siblings || []);
+            setFormatLabel(data.format_label || null);
             setCountertopImage(data.countertop_image || null);
             setProductTags(data.tags || []);
             setLoading(false);
@@ -5528,9 +5537,23 @@
                     });
                   });
                 };
-                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes) return null;
+                const showFormatSiblings = formatSiblings.length > 0 && formatLabel;
+                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings) return null;
                 return (
                   <div className="variant-selectors">
+                    {showFormatSiblings && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Style<span>{formatLabel}</span></div>
+                        <div className="attr-pills">
+                          <button className="attr-pill active">{formatLabel}</button>
+                          {formatSiblings.map(fs => (
+                            <button key={fs.sku_id} className="attr-pill" onClick={() => onSkuClick(fs.sku_id)}>
+                              {fs.format_label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {showColors && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">{colorLabel}</div>
@@ -5560,7 +5583,7 @@
                         )}
                       </div>
                     )}
-                    {showSizePills && (
+                    {showSizePills && !attrSlugs.includes('shape') && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{collectionSizeItems.find(s => s.is_current)?.label || ''}</span></div>
                         <div className="color-swatches">
@@ -5591,7 +5614,7 @@
                         </div>
                       </div>
                     )}
-                    {showSibSizes && (
+                    {showSibSizes && !attrSlugs.includes('shape') && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{sibSizeItems.find(s => s.is_current)?.label || ''}</span></div>
                         <div className="color-swatches">
@@ -5610,7 +5633,7 @@
                         </div>
                       </div>
                     )}
-                    {showAttrSizes && (
+                    {showAttrSizes && !attrSlugs.includes('shape') && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{attrSizeItems.find(s => s.is_current)?.label || ''}</span></div>
                         <div className="attr-pills">

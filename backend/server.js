@@ -1541,9 +1541,32 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       ) DESC, COALESCE(p.display_name, p.name) ASC`;
     }
 
+    // Deduplicate: one card per product (skip for wishlist/specific-SKU queries)
+    const deduplicateByProduct = !req.query.sku_ids;
+    let outerOrderBy;
+    if (deduplicateByProduct) {
+      const oImg = 'CASE WHEN primary_image IS NOT NULL THEN 0 ELSE 1 END';
+      const oRank = 'sort_priority DESC';
+      outerOrderBy = `${oImg}, ${oRank}, product_name ASC, variant_name ASC`;
+      if (sort === 'discount') outerOrderBy = `${oImg}, ${oRank}, discount_pct DESC, product_name ASC`;
+      else if (sort === 'price_asc') outerOrderBy = `${oImg}, ${oRank}, retail_price ASC NULLS LAST, product_name ASC`;
+      else if (sort === 'price_desc') outerOrderBy = `${oImg}, ${oRank}, retail_price DESC NULLS LAST, product_name ASC`;
+      else if (sort === 'newest') outerOrderBy = `${oImg}, ${oRank}, created_at DESC`;
+      else if (sort === 'name_asc') outerOrderBy = `${oImg}, ${oRank}, product_name ASC, variant_name ASC`;
+      else if (sort === 'name_desc') outerOrderBy = `${oImg}, ${oRank}, product_name DESC, variant_name DESC`;
+      else if (searchParamIdx && !sort) {
+        outerOrderBy = `${oImg}, ${oRank}, (
+          COALESCE(ts_rank(search_vector, to_tsquery('english', unaccent($${searchTsQueryIdx}))), 0) * 2
+          + greatest(similarity(product_name, $${searchParamIdx}), similarity(collection, $${searchParamIdx}))
+          + popularity_score * 0.1
+          + CASE WHEN LOWER(product_name) = LOWER($${searchParamIdx}) OR LOWER(collection) = LOWER($${searchParamIdx}) THEN 5.0 ELSE 0.0 END
+        ) DESC, product_name ASC`;
+      }
+    }
+
     // Count query
     const countSQL = `
-      SELECT COUNT(DISTINCT s.id) as total
+      SELECT COUNT(DISTINCT ${deduplicateByProduct ? 'p.id' : 's.id'}) as total
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
@@ -1554,7 +1577,8 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     `;
 
     // Main query — CTEs pre-compute images & variant counts (avoids correlated subqueries)
-    const mainSQL = `
+    // When deduplicating (default), wraps with DISTINCT ON (p.id) for one card per product
+    const browseCtes = `
       WITH sku_images AS (
         SELECT DISTINCT ON (sku_id) sku_id, url
         FROM media_assets
@@ -1590,11 +1614,12 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         FROM skus
         WHERE status = 'active' AND is_sample = false AND COALESCE(variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
         GROUP BY product_id
-      )
-      SELECT
+      )`;
+
+    const browseSelectCols = `
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short, p.search_vector,
-        p.slug as product_slug,
+        p.slug as product_slug, p.format_label, p.format_group,
         v.name as vendor_name, v.code as vendor_code,
         COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
@@ -1611,7 +1636,9 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
           ELSE 'out_of_stock'
         END as stock_status,
         COALESCE(vc.variant_count, 0) as variant_count,
-        COALESCE(pp.popularity_score, 0) as popularity_score
+        COALESCE(pp.popularity_score, 0) as popularity_score`;
+
+    const browseFrom = `
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
@@ -1626,11 +1653,31 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       LEFT JOIN product_images pi ON pi.product_id = p.id
       LEFT JOIN product_alt_images pai ON pai.product_id = p.id
       LEFT JOIN variant_counts vc ON vc.product_id = p.id
-      LEFT JOIN product_popularity pp ON pp.product_id = p.id
-      WHERE ${whereSQL}
-      ORDER BY ${orderBy}
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `;
+      LEFT JOIN product_popularity pp ON pp.product_id = p.id`;
+
+    let mainSQL;
+    if (deduplicateByProduct) {
+      mainSQL = `${browseCtes}
+        SELECT * FROM (
+          SELECT DISTINCT ON (p.id) ${browseSelectCols},
+            p.sort_priority,
+            CASE WHEN pr.sale_price IS NOT NULL AND pr.retail_price > 0 THEN (pr.retail_price - pr.sale_price) / pr.retail_price ELSE 0 END as discount_pct
+          ${browseFrom}
+          WHERE ${whereSQL}
+          ORDER BY p.id,
+            CASE WHEN COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END,
+            s.created_at
+        ) browse_deduped
+        ORDER BY ${outerOrderBy}
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    } else {
+      mainSQL = `${browseCtes}
+        SELECT ${browseSelectCols}
+        ${browseFrom}
+        WHERE ${whereSQL}
+        ORDER BY ${orderBy}
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    }
 
     params.push(limit, offset);
 
@@ -1696,7 +1743,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       } catch (e) { /* search_vocabulary may not exist */ }
     }
 
-    const response = { skus: skus.map(({ search_vector, popularity_score, ...rest }) => rest), total };
+    const response = { skus: skus.map(({ search_vector, popularity_score, sort_priority, discount_pct, ...rest }) => rest), total };
     if (didYouMean) response.didYouMean = didYouMean;
     res.json(response);
   } catch (err) {
@@ -2350,8 +2397,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           AND COALESCE(s.variant_type,'') != 'accessory'
         LEFT JOIN pricing pr ON pr.sku_id = s.id
         WHERE p.format_group = $1 AND p.id != $2 AND p.status = 'active'
-        ORDER BY p.id, s.created_at
-      `, [sku.format_group, sku.product_id]);
+        ORDER BY p.id, (s.variant_name = $3)::int DESC, s.created_at
+      `, [sku.format_group, sku.product_id, sku.variant_name]);
       formatSiblings = fmtResult.rows;
     }
 

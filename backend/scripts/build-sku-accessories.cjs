@@ -34,6 +34,7 @@ const TYPE_KEYWORDS = [
   [/stair\s*nos[ei]/i, 'Stairnose'],
   [/stair\s*tread/i, 'Stair Tread'],
   [/step\s*nos[ei]/i, 'Stairnose'],
+  [/overlap\s*nosing/i, 'Overlap Stairnose'],
   [/nosing/i, 'Stairnose'],
   [/t[-\s]?mold(?:ing)?/i, 'T-Mold'],
   [/multi[-\s]?purpose\s*(?:reducer)?/i, 'Multi-Purpose'],

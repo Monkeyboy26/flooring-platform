@@ -203,6 +203,13 @@ const COLLECTIONS = [
       ['MCGL-8516', 'Russo',         `${IMG}/2024/07/MCGL-8516-Russo-1-scaled.jpg`,            `${IMG}/2024/07/MCGL-8516-Russo-1080x810.jpg`],
       ['MCGL-8517', 'Santa Fe',      `${IMG}/2024/07/MCGL-8517-Santa-Fe-1-scaled.jpg`,         `${IMG}/2024/07/MCGL-8517-Santa-Fe-RS-1080x810.jpg`],
       ['MCGL-8518', 'Ivy Point',     `${IMG}/2024/07/MCGL-8518-Ivy-Point-1-scaled.jpg`,        `${IMG}/2024/07/MCGL-8518-Ivy-Point-RS-1080x796.jpg`],
+      ['MCGL-8525', 'Monaco',        `${IMG}/2024/07/MCGL-8525-Monaco-1-scaled.jpg`,           `${IMG}/2024/07/MCGL-8525-Monaco-RS-1080x810.jpg`],
+      ['MCGL-8527', 'Delano',        `${IMG}/2024/07/MCGL-8527-Delano-1-scaled.jpg`,           `${IMG}/2024/07/MCGL-8527-Delano-RS-1.jpg`],
+      ['MCGL-8528', 'Carnelian',     `${IMG}/2024/10/MCGL-8528-Carnelian-1.jpg`,               null],
+      ['MCGL-8529', 'Park City',     `${IMG}/2024/10/MCGL-8529-Park-City_P.jpg`,               null],
+      ['MCGL-8530', 'Utopia',        `${IMG}/2024/10/MCGL-8530-Utopia_P.jpg`,                  null],
+      ['MCGL-8531', 'Saturn',        `${IMG}/2024/10/MCGL-8531-Saturn-1.jpg`,                  null],
+      ['MCGL-8532', 'Liberty',       `${IMG}/2024/10/MCGL-8532-Liberty_P.jpg`,                 null],
     ]]],
   ],
 
@@ -216,12 +223,11 @@ const COLLECTIONS = [
     ]]],
   ],
 
-  // Athens 180x1220mm — SKU 8524 doesn't exist
+  // Athens 180x1220mm — SKU 8524 doesn't exist; 8525 Monaco moved to 228x1535
   ['Athens Collection 180x1220', 'lvp', 'spc',
     { material: 'SPC', thickness: '7mm', width: '180mm', finish: 'Embossed', wear_layer: '20mil', installation: 'Click-lock' },
     [[28.37, 12, 45, 1.99, [
       ['MCGL-8523', 'Russet Olive', `${IMG}/2024/07/MCGL-8523-Russet-Olive-1-scaled.jpg`, `${IMG}/2024/07/MCGL-8523-Russet-Olive-RS-1080x810.jpg`],
-      ['MCGL-8525', 'Monaco',       `${IMG}/2024/07/MCGL-8525-Monaco-1-scaled.jpg`,       `${IMG}/2024/07/MCGL-8525-Monaco-RS-1080x810.jpg`],
       ['MCGL-8526', 'Messina',      `${IMG}/2024/07/MCGL-8526-Messina-1-scaled.jpg`,      `${IMG}/2024/07/MCGL-8526-Messina-RS-1-1080x810.jpg`],
     ]]],
   ],

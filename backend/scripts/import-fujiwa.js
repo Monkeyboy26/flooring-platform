@@ -329,7 +329,7 @@ async function main() {
       const isSingleVariant = family.variants.length === 1;
       const variantName = isSingleVariant ? tileSize : tileSize;
 
-      const sellBy = family.sellByUnit ? 'unit' : 'sqft';
+      const sellBy = 'unit';
       const priceBasis = family.sellByUnit ? 'per_unit' : 'per_sqft';
 
       const sku = await upsertSku(product.id, {

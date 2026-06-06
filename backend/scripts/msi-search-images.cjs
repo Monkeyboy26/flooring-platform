@@ -1,259 +1,614 @@
 #!/usr/bin/env node
 /**
- * MSI Search-Based Image Finder — Uses MSI's site search to find product images.
- * Visits search results pages with Puppeteer to get correct product images.
+ * MSI Search-Based Per-SKU Image Scraper
+ *
+ * Finds missing MSI SKU images by:
+ *   1. Searching msisurfaces.com/site-search/?key={vendor_sku} (SSR, no Puppeteer)
+ *   2. Following search results to product detail pages
+ *   3. Extracting per-SKU CDN images (matched by vendor_sku in filename)
+ *   4. Falling back to product-level primary when no per-SKU match exists
+ *   5. Verifying every URL with HEAD before saving
+ *
+ * All images are saved at SKU level (sku_id IS NOT NULL) for accurate
+ * per-variant display in the storefront.
+ *
+ * CDN patterns discovered (2026-06):
+ *   Mosaic:     mosaics/{slug}.jpg                                   (one product = one SKU)
+ *   Porcelain:  colornames/{color}-{collection}.jpg                  (product level)
+ *               colornames/skus/{color}-{collection}-suk-{sku}.jpg   (per-SKU!)
+ *   LVP:        lvt/detail/{collection}-{color}-vinyl-flooring.jpg
+ *   Nat. Stone: colornames/{slug}-marble.jpg (or -granite, -quartzite)
+ *   Stacked:    hardscaping/detail/{slug}.jpg
+ *
+ * Usage:
+ *   node backend/scripts/msi-search-images.cjs --dry-run
+ *   node backend/scripts/msi-search-images.cjs
+ *   node backend/scripts/msi-search-images.cjs --category "Mosaic Tile"
+ *   node backend/scripts/msi-search-images.cjs --verbose
  */
+
 const { Pool } = require('pg');
-const puppeteer = require('puppeteer');
+const https = require('https');
+const http = require('http');
+
+const DRY_RUN = process.argv.includes('--dry-run');
+const VERBOSE = process.argv.includes('--verbose');
+const catIdx = process.argv.indexOf('--category');
+const CATEGORY_FILTER = catIdx !== -1 ? process.argv[catIdx + 1] : null;
 
 const pool = new Pool({
-  host: 'localhost', database: 'flooring_pim', user: 'postgres', password: 'postgres'
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  database: process.env.DB_NAME || 'flooring_pim',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
 });
+
+const CDN = 'https://cdn.msisurfaces.com/images';
+const MSI_BASE = 'https://www.msisurfaces.com';
+const DELAY_MS = 1500;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HTTP helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fetchPage(url, maxRedirects = 3) {
+  return new Promise((resolve, reject) => {
+    const mod = url.startsWith('https') ? https : http;
+    const req = mod.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      timeout: 20000,
+    }, res => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && maxRedirects > 0) {
+        const redir = res.headers.location.startsWith('/')
+          ? `${MSI_BASE}${res.headers.location}`
+          : res.headers.location;
+        res.resume();
+        fetchPage(redir, maxRedirects - 1).then(resolve, reject);
+        return;
+      }
+      if (res.statusCode !== 200) { res.resume(); resolve(null); return; }
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+  });
+}
+
+function headUrl(url) {
+  return new Promise(resolve => {
+    let resolved = false;
+    const done = val => { if (!resolved) { resolved = true; resolve(val); } };
+    const req = https.request(url, { method: 'HEAD', timeout: 10000 }, res => {
+      res.resume();
+      done(res.statusCode === 200 ? url : null);
+    });
+    req.on('error', () => done(null));
+    req.on('timeout', () => { req.destroy(); done(null); });
+    req.end();
+  });
+}
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-function extractSeriesName(displayName) {
-  return displayName
-    .replace(/\s+\d{4}\s*/g, ' ')
-    .replace(/\s+(Matte|Polished|Glossy|Honed|Lappato|Satin)\s*.*$/i, '')
-    .replace(/\s+(Bullnose|Mosaic|3d)\s*.*$/i, '')
-    .replace(/\s+(R11|R10|R9)\s*$/i, '')
-    .replace(/x\d+mm\s*$/i, '')
-    .replace(/x\.\d+.*$/i, '')
-    .replace(/Realex.*$/i, '')
-    .replace(/Crown Molding/i, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+// ─────────────────────────────────────────────────────────────────────────────
+// Image extraction from SSR HTML
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Junk path segments — never use these as product images */
+const JUNK = [
+  'svg/', 'miscellaneous/', 'banner', 'trends/', 'roomvo',
+  'ss-countertops', 'ss-backsplash', 'ss-flooring', 'ss-hardscape', 'ss-sinks',
+  'faucet', 'vanity', 'underlayment', 'adhesive', 'primer',
+  'everlife-info', 'multi-use-adhesive', 'concrete-floor',
+  'ps_faucets', 'ps_vanity', 'collections/small',
+];
+
+function isJunk(path) {
+  const lower = path.toLowerCase();
+  return JUNK.some(j => lower.includes(j));
 }
 
-(async () => {
-  const { rows: [v] } = await pool.query("SELECT id FROM vendors WHERE code = 'MSI'");
-  const vid = v.id;
+/**
+ * Extract product-level and per-SKU image URLs from an MSI product page HTML.
+ *
+ * Per-SKU images use the pattern: colornames/skus/{slug}-suk-{VENDOR_SKU}.jpg
+ * The vendor_sku in the filename is lowercase, no dashes except those in the
+ * original SKU code.
+ */
+function extractImagesFromPage(html) {
+  const productImages = []; // sorted best-first
+  const skuImages = new Map(); // VENDOR_SKU_UPPER → url
+  if (!html) return { productImages, skuImages };
 
-  const { rows: missing } = await pool.query(`
-    SELECT p.id, p.display_name, c.name as category
-    FROM products p LEFT JOIN categories c ON p.category_id = c.id
-    WHERE p.vendor_id = $1 AND p.status = 'active' AND p.is_active = true
-      AND NOT EXISTS (SELECT 1 FROM media_assets ma WHERE ma.product_id = p.id)
-    ORDER BY c.name, p.display_name
-  `, [vid]);
-  console.log(`Missing: ${missing.length} products\n`);
+  const regex = /cdn\.msisurfaces\.com\/images\/([^"'\s>]+\.(?:jpg|png|webp))/gi;
+  const seen = new Set();
+  let m;
 
-  // Group by series to avoid searching the same thing multiple times
-  const seriesGroups = new Map();
-  for (const m of missing) {
-    const series = extractSeriesName(m.display_name);
-    if (!seriesGroups.has(series)) seriesGroups.set(series, []);
-    seriesGroups.get(series).push(m);
+  while ((m = regex.exec(html)) !== null) {
+    const path = m[1];
+    const fullUrl = `${CDN}/${path}`;
+    if (seen.has(fullUrl) || isJunk(path)) continue;
+    seen.add(fullUrl);
+
+    const lower = path.toLowerCase();
+    // Skip thumbnail duplicates — we prefer full-res
+    if (lower.includes('/thumbnails/')) continue;
+    // Skip room-scene thumbnails
+    if (lower.includes('/roomscenes/thumb/')) continue;
+    // Skip video poster images
+    if (lower.includes('/videos/') || lower.includes('/lvt-videos/')) continue;
+
+    // Per-SKU detection: "-suk-{vendor_sku}.jpg"
+    const sukMatch = lower.match(/-suk-([a-z0-9._-]+?)\.(?:jpg|png|webp)$/);
+    if (sukMatch) {
+      const skuCode = sukMatch[1].toUpperCase();
+      if (!skuImages.has(skuCode)) skuImages.set(skuCode, fullUrl);
+      continue;
+    }
+
+    productImages.push(fullUrl);
   }
-  console.log(`Unique search terms: ${seriesGroups.size}\n`);
 
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
-  });
+  // Sort product images by quality (best first)
+  productImages.sort((a, b) => scoreImage(b) - scoreImage(a));
 
-  const page = await browser.newPage();
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-  await page.setViewport({ width: 1280, height: 800 });
+  return { productImages, skuImages };
+}
 
-  let matched = 0;
-  const needsImage = new Set(missing.map(m => m.id));
+/** Score an image URL for primary image suitability. Higher = better. */
+function scoreImage(url) {
+  const l = url.toLowerCase();
+  // Root-level product shot (e.g., mosaics/slug.jpg, colornames/slug.jpg)
+  if (l.match(/\/(mosaics|colornames|porcelainceramic)\/[^/]+\.jpg$/)) return 100;
+  if (l.includes('/detail/') && !l.includes('detail-two')) return 95;
+  if (l.includes('/iso/')) return 80;
+  if (l.includes('/front/')) return 75;
+  if (l.includes('/edge/')) return 60;
+  if (l.includes('/detail-two/')) return 55;
+  if (l.includes('/variations/')) return 50;
+  if (l.includes('/roomscenes/medium/')) return 20;
+  if (l.includes('/trims/')) return 10;
+  return 40;
+}
 
-  for (const [series, products] of seriesGroups) {
-    if (products.every(p => !needsImage.has(p.id))) continue;
-    if (!series || series.length < 3) continue;
+/**
+ * Extract the first product page URL from MSI search results HTML.
+ * MSI search uses SSR and returns product links in href attributes.
+ */
+function extractProductPageUrl(html) {
+  if (!html) return null;
+  // Product page links follow patterns like /marble/collection/product/
+  // or /porcelain-collection/color/ or /luxury-vinyl-xxx/collection/color/
+  const regex = /href="(\/(?:marble|porcelain[^"]*|luxury-vinyl[^"]*|hardscap[^"]*|natural-stone[^"]*|backsplash[^"]*|engineered-hardwood[^"]*|lvp[^"]*|lvt[^"]*|flooring[^"]*|stacked-stone[^"]*|mosaic[^"]*|slate[^"]*|granite[^"]*|quartzite[^"]*|sandstone[^"]*|travertine[^"]*)\/)"/gi;
+  let m;
+  while ((m = regex.exec(html)) !== null) {
+    const href = m[1];
+    // Skip category-only pages (too few path segments)
+    const segments = href.split('/').filter(Boolean);
+    if (segments.length >= 2) return `${MSI_BASE}${href}`;
+  }
+  return null;
+}
 
-    const searchQuery = encodeURIComponent(series);
-    const searchUrl = `https://www.msisurfaces.com/site-search?q=${searchQuery}`;
+/**
+ * Extract search-result thumbnail URLs from MSI search HTML.
+ * These are in the HTML as <img src="...cdn.../thumbnails/slug.jpg">
+ */
+function extractSearchThumbnails(html) {
+  if (!html) return [];
+  const regex = /cdn\.msisurfaces\.com\/images\/((?:mosaics|colornames|lvt|hardscaping|porcelainceramic)\/thumbnails\/[^"'\s>]+\.(?:jpg|png|webp))/gi;
+  const urls = [];
+  const seen = new Set();
+  let m;
+  while ((m = regex.exec(html)) !== null) {
+    const full = `${CDN}/${m[1]}`;
+    if (!seen.has(full)) { seen.add(full); urls.push(full); }
+  }
+  return urls;
+}
 
-    try {
-      console.log(`Searching: "${series}"...`);
-      await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 20000 });
-      await delay(3000); // Wait for JS-rendered search results
+/**
+ * Given a thumbnail URL, derive the full-res URL by removing /thumbnails/.
+ * e.g., mosaics/thumbnails/slug.jpg → mosaics/slug.jpg
+ */
+function deriveFullRes(thumbnailUrl) {
+  return thumbnailUrl.replace('/thumbnails/', '/');
+}
 
-      // Extract all product result images and links
-      const results = await page.evaluate(() => {
-        const items = [];
+// ─────────────────────────────────────────────────────────────────────────────
+// SKU matching logic
+// ─────────────────────────────────────────────────────────────────────────────
 
-        // Try various search result selectors
-        const selectors = [
-          '.search-result', '.product-card', '.product-tile',
-          '.search-item', '[class*="result"]', '.tile',
-          '.card', 'article'
-        ];
+/**
+ * Try to find a per-SKU image for a given vendor_sku.
+ *
+ * Matching strategies (in order):
+ *   1. Exact match in skuImages map (from -suk- pattern)
+ *   2. Normalized match (strip dashes/dots from both sides)
+ *   3. Partial containment match
+ */
+function findSkuImage(vendorSku, skuImages) {
+  if (!vendorSku || skuImages.size === 0) return null;
 
-        for (const sel of selectors) {
-          const els = document.querySelectorAll(sel);
-          for (const el of els) {
-            const img = el.querySelector('img');
-            const link = el.querySelector('a');
-            const title = el.querySelector('h2, h3, h4, .title, .name, [class*="title"], [class*="name"]');
+  const upper = vendorSku.toUpperCase();
+  const normalized = upper.replace(/[-_.]/g, '');
 
-            if (img && (img.src || img.getAttribute('data-src'))) {
-              const imgUrl = img.src || img.getAttribute('data-src');
-              if (imgUrl && imgUrl.includes('msisurfaces.com') && !imgUrl.includes('svg') && !imgUrl.includes('logo')) {
-                items.push({
-                  image: imgUrl,
-                  link: link ? link.href : '',
-                  title: title ? title.textContent.trim() : (img.alt || ''),
-                });
-              }
-            }
-          }
-        }
+  // Exact match
+  if (skuImages.has(upper)) return skuImages.get(upper);
 
-        // Also try looking for any CDN images on the page
-        if (items.length === 0) {
-          const allImgs = document.querySelectorAll('img[src*="cdn.msisurfaces.com"]');
-          for (const img of allImgs) {
-            if (!img.src.includes('svg') && !img.src.includes('logo') && !img.src.includes('icon')) {
-              items.push({
-                image: img.src,
-                link: '',
-                title: img.alt || '',
-              });
-            }
-          }
-        }
+  // Normalized match
+  for (const [key, url] of skuImages) {
+    if (key.replace(/[-_.]/g, '') === normalized) return url;
+  }
 
-        return items;
+  // Partial match — vendor_sku might have a suffix like -R11 that the CDN includes
+  for (const [key, url] of skuImages) {
+    const keyNorm = key.replace(/[-_.]/g, '');
+    if (keyNorm.includes(normalized) || normalized.includes(keyNorm)) return url;
+  }
+
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function main() {
+  console.log(`\nMSI Search-Based Per-SKU Image Scraper${DRY_RUN ? ' (DRY RUN)' : ''}`);
+  if (CATEGORY_FILTER) console.log(`Category filter: "${CATEGORY_FILTER}"`);
+  console.log('='.repeat(65) + '\n');
+
+  const client = await pool.connect();
+
+  try {
+    // 1. Get MSI vendor
+    const { rows: [vendor] } = await client.query("SELECT id FROM vendors WHERE code = 'MSI'");
+    if (!vendor) { console.log('ERROR: MSI vendor not found'); return; }
+
+    // 2. Get all MSI SKUs missing primary images
+    const { rows: missingSkus } = await client.query(`
+      SELECT s.id as sku_id, s.product_id, s.vendor_sku, s.variant_name, s.variant_type,
+             p.name as product_name, p.display_name, p.collection,
+             c.name as category
+      FROM skus s
+      JOIN products p ON s.product_id = p.id
+      JOIN categories c ON p.category_id = c.id
+      WHERE p.vendor_id = $1
+        AND p.status IN ('active', 'draft') AND s.status = 'active'
+        AND NOT EXISTS (
+          SELECT 1 FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary'
+        )
+        ${CATEGORY_FILTER ? "AND c.name = $2" : ""}
+      ORDER BY c.name, p.name, s.vendor_sku
+    `, CATEGORY_FILTER ? [vendor.id, CATEGORY_FILTER] : [vendor.id]);
+
+    console.log(`Found ${missingSkus.length} SKUs missing primary images\n`);
+    if (missingSkus.length === 0) { console.log('Nothing to do.'); return; }
+
+    // 3. Group SKUs by product
+    const productMap = new Map();
+    for (const sku of missingSkus) {
+      if (!productMap.has(sku.product_id)) {
+        productMap.set(sku.product_id, {
+          product_id: sku.product_id,
+          name: sku.product_name,
+          display_name: sku.display_name,
+          collection: sku.collection,
+          category: sku.category,
+          skus: [],
+        });
+      }
+      productMap.get(sku.product_id).skus.push({
+        sku_id: sku.sku_id,
+        vendor_sku: sku.vendor_sku,
+        variant_name: sku.variant_name,
+        variant_type: sku.variant_type,
       });
+    }
 
-      if (results.length > 0) {
-        console.log(`  Found ${results.length} results`);
+    console.log(`Across ${productMap.size} products\n`);
 
-        // Find best matching result for each product in this group
-        for (const p of products) {
-          if (!needsImage.has(p.id)) continue;
+    // 4. Process each product
+    const inserts = [];
+    const stats = {
+      products_searched: 0,
+      pages_fetched: 0,
+      sku_per_sku: 0,
+      sku_product_level: 0,
+      sku_thumbnail: 0,
+      sku_not_found: 0,
+      head_ok: 0,
+      head_fail: 0,
+    };
+    const categoryStats = {};
 
-          // Try to find a result matching the product name
-          const pName = p.display_name.toLowerCase();
-          const words = pName.replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length >= 3);
+    for (const [productId, product] of productMap) {
+      const { name, collection, category, skus } = product;
+      if (!categoryStats[category]) {
+        categoryStats[category] = { total: 0, perSku: 0, fallback: 0, miss: 0 };
+      }
+      categoryStats[category].total += skus.length;
+      stats.products_searched++;
 
-          let bestResult = null;
-          let bestScore = 0;
+      // Use the first main SKU's vendor_sku as search term
+      const mainSkus = skus.filter(s => s.variant_type !== 'accessory');
+      const searchSku = (mainSkus[0] || skus[0]).vendor_sku;
 
-          for (const r of results) {
-            const titleLower = (r.title + ' ' + r.link + ' ' + r.image).toLowerCase();
-            let score = 0;
-            for (const w of words) {
-              if (titleLower.includes(w)) score++;
-            }
-            if (score > bestScore) {
-              bestScore = score;
-              bestResult = r;
-            }
-          }
+      if (VERBOSE) console.log(`\n─── ${name} [${category}] (${skus.length} SKUs) ───`);
 
-          // Require at least the series name to match
-          const seriesWord = series.split(' ')[0].toLowerCase();
-          if (bestResult && bestScore >= 1 && (bestResult.title + bestResult.link + bestResult.image).toLowerCase().includes(seriesWord)) {
-            try {
-              await pool.query(`
-                INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
-                VALUES ($1, NULL, 'primary', $2, $2, 0)
-                ON CONFLICT (product_id, asset_type, sort_order) WHERE sku_id IS NULL
-                DO UPDATE SET url = EXCLUDED.url, original_url = EXCLUDED.original_url
-              `, [p.id, bestResult.image]);
-              matched++;
-              needsImage.delete(p.id);
-              console.log(`  ✓ ${p.display_name} → ${bestResult.image}`);
-            } catch {}
-          }
+      // ── Step A: Search MSI by vendor_sku ──
+      let searchHtml = null;
+      let productPageUrl = null;
+      let searchThumbnails = [];
+
+      try {
+        searchHtml = await fetchPage(`${MSI_BASE}/site-search/?key=${encodeURIComponent(searchSku)}`);
+        if (searchHtml) {
+          productPageUrl = extractProductPageUrl(searchHtml);
+          searchThumbnails = extractSearchThumbnails(searchHtml);
+          if (VERBOSE) console.log(`  Search by SKU: page=${productPageUrl ? 'yes' : 'no'}, thumbs=${searchThumbnails.length}`);
         }
-      } else {
-        console.log(`  No results found`);
+      } catch (err) {
+        if (VERBOSE) console.log(`  Search error: ${err.message}`);
+      }
+      await delay(DELAY_MS);
 
-        // Try visiting the product page directly as fallback
-        // Construct URL from series name
-        const slug = series.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-        const directUrls = [
-          `https://www.msisurfaces.com/porcelain-tile/${slug}/`,
-          `https://www.msisurfaces.com/natural-stone-tile/${slug}/`,
-          `https://www.msisurfaces.com/mosaic-tile/${slug}/`,
-          `https://www.msisurfaces.com/ceramic-tile/${slug}/`,
-        ];
+      // If SKU search found nothing, retry with product name
+      if (!productPageUrl && searchThumbnails.length === 0) {
+        try {
+          searchHtml = await fetchPage(`${MSI_BASE}/site-search/?key=${encodeURIComponent(name)}`);
+          if (searchHtml) {
+            productPageUrl = extractProductPageUrl(searchHtml);
+            searchThumbnails = extractSearchThumbnails(searchHtml);
+            if (VERBOSE) console.log(`  Search by name: page=${productPageUrl ? 'yes' : 'no'}, thumbs=${searchThumbnails.length}`);
+          }
+        } catch (err) {
+          if (VERBOSE) console.log(`  Name search error: ${err.message}`);
+        }
+        await delay(DELAY_MS);
+      }
 
-        for (const url of directUrls) {
-          try {
-            const resp = await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
-            if (!resp || resp.status() !== 200) continue;
-            await delay(2000);
+      // ── Step B: Fetch product page for gallery + per-SKU images ──
+      let pageProductImages = [];
+      let pageSkuImages = new Map();
 
-            const images = await page.evaluate(() => {
-              const imgs = [];
-              const ogImg = document.querySelector('meta[property="og:image"]');
-              if (ogImg && ogImg.content && !ogImg.content.includes('default') && !ogImg.content.includes('logo')) {
-                imgs.push(ogImg.content);
-              }
-              // JSON-LD
-              for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
-                try {
-                  const d = JSON.parse(s.textContent);
-                  if (d.image) {
-                    const ia = Array.isArray(d.image) ? d.image : [d.image];
-                    ia.forEach(u => { if (typeof u === 'string') imgs.push(u); });
-                  }
-                } catch {}
-              }
-              // CDN images
-              document.querySelectorAll('img[src*="cdn.msisurfaces.com"]').forEach(img => {
-                if (!img.src.includes('svg') && !img.src.includes('logo') && !img.src.includes('icon')) {
-                  imgs.push(img.src);
-                }
-              });
-              return [...new Set(imgs)].filter(u => u.endsWith('.jpg') || u.endsWith('.png') || u.endsWith('.webp'));
+      if (productPageUrl) {
+        try {
+          const pageHtml = await fetchPage(productPageUrl);
+          if (pageHtml) {
+            const extracted = extractImagesFromPage(pageHtml);
+            pageProductImages = extracted.productImages;
+            pageSkuImages = extracted.skuImages;
+            stats.pages_fetched++;
+            if (VERBOSE) {
+              console.log(`  Page: ${pageProductImages.length} product imgs, ${pageSkuImages.size} per-SKU`);
+              if (pageSkuImages.size > 0) console.log(`    Per-SKU keys: ${[...pageSkuImages.keys()].join(', ')}`);
+            }
+          }
+        } catch (err) {
+          if (VERBOSE) console.log(`  Page error: ${err.message}`);
+        }
+        await delay(DELAY_MS);
+      }
+
+      // Best product-level image (sorted by score already)
+      const bestProductImg = pageProductImages[0] || null;
+
+      // Full-res versions derived from search thumbnails
+      const derivedFullRes = searchThumbnails.map(deriveFullRes);
+
+      // ── Step C: Assign image to each SKU ──
+      for (const sku of skus) {
+        let imageUrl = null;
+        let source = null;
+
+        // Priority 1: Per-SKU image from product page (-suk- pattern)
+        const perSkuMatch = findSkuImage(sku.vendor_sku, pageSkuImages);
+        if (perSkuMatch) {
+          imageUrl = perSkuMatch;
+          source = 'per-sku';
+        }
+
+        // Priority 2: Best product-level image from product page
+        if (!imageUrl && bestProductImg) {
+          imageUrl = bestProductImg;
+          source = 'product-page';
+        }
+
+        // Priority 3: Full-res derived from search thumbnail
+        if (!imageUrl && derivedFullRes.length > 0) {
+          imageUrl = derivedFullRes[0];
+          source = 'derived-thumb';
+        }
+
+        // Priority 4: Raw search thumbnail
+        if (!imageUrl && searchThumbnails.length > 0) {
+          imageUrl = searchThumbnails[0];
+          source = 'raw-thumb';
+        }
+
+        if (!imageUrl) {
+          stats.sku_not_found++;
+          categoryStats[category].miss++;
+          if (VERBOSE) console.log(`  ✗ ${sku.vendor_sku} — no image found`);
+          continue;
+        }
+
+        // Verify URL with HEAD
+        const verified = await headUrl(imageUrl);
+        if (!verified) {
+          stats.head_fail++;
+          // Try thumbnail fallback if full-res failed
+          if (source === 'derived-thumb' && searchThumbnails.length > 0) {
+            const thumbOk = await headUrl(searchThumbnails[0]);
+            if (thumbOk) {
+              imageUrl = searchThumbnails[0];
+              source = 'raw-thumb';
+              stats.head_ok++;
+            } else {
+              stats.sku_not_found++;
+              categoryStats[category].miss++;
+              if (VERBOSE) console.log(`  ✗ ${sku.vendor_sku} — HEAD failed: ${imageUrl}`);
+              continue;
+            }
+          } else {
+            stats.sku_not_found++;
+            categoryStats[category].miss++;
+            if (VERBOSE) console.log(`  ✗ ${sku.vendor_sku} — HEAD failed: ${imageUrl}`);
+            continue;
+          }
+        } else {
+          stats.head_ok++;
+        }
+
+        // Queue the primary image insert
+        inserts.push({
+          skuId: sku.sku_id,
+          productId: product.product_id,
+          url: imageUrl,
+          assetType: 'primary',
+          sortOrder: 0,
+        });
+
+        if (source === 'per-sku') {
+          stats.sku_per_sku++;
+          categoryStats[category].perSku++;
+        } else if (source === 'product-page') {
+          stats.sku_product_level++;
+          categoryStats[category].fallback++;
+        } else {
+          stats.sku_thumbnail++;
+          categoryStats[category].fallback++;
+        }
+
+        if (VERBOSE) {
+          const short = imageUrl.replace('https://cdn.msisurfaces.com/images/', '');
+          console.log(`  ✓ ${sku.vendor_sku} ← ${source}: ${short}`);
+        }
+      }
+
+      // ── Step D: Add alternate images (iso, edge, detail-two) for matched SKUs ──
+      if (pageProductImages.length > 1) {
+        const altCandidates = pageProductImages.slice(1).filter(url => {
+          const l = url.toLowerCase();
+          return !l.includes('/roomscenes/') && !l.includes('/trims/');
+        }).slice(0, 3); // max 3 alternates
+
+        for (const sku of skus) {
+          const hasPrimary = inserts.some(i => i.skuId === sku.sku_id && i.assetType === 'primary');
+          if (!hasPrimary) continue;
+          const primaryUrl = inserts.find(i => i.skuId === sku.sku_id && i.assetType === 'primary')?.url;
+
+          let sortIdx = 0;
+          for (const altUrl of altCandidates) {
+            if (altUrl === primaryUrl) continue;
+            sortIdx++;
+            inserts.push({
+              skuId: sku.sku_id,
+              productId: product.product_id,
+              url: altUrl,
+              assetType: 'alternate',
+              sortOrder: sortIdx,
             });
-
-            if (images.length > 0) {
-              for (const p of products) {
-                if (!needsImage.has(p.id)) continue;
-                try {
-                  await pool.query(`
-                    INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
-                    VALUES ($1, NULL, 'primary', $2, $2, 0)
-                    ON CONFLICT (product_id, asset_type, sort_order) WHERE sku_id IS NULL
-                    DO UPDATE SET url = EXCLUDED.url, original_url = EXCLUDED.original_url
-                  `, [p.id, images[0]]);
-                  matched++;
-                  needsImage.delete(p.id);
-                  console.log(`  ✓ ${p.display_name} → ${images[0]} (direct)`);
-                } catch {}
-              }
-              break;
-            }
-          } catch {}
+          }
         }
       }
-
-      await delay(2000); // Rate limiting
-    } catch (err) {
-      console.log(`  Error: ${err.message}`);
     }
-  }
 
-  await browser.close();
+    // ── Summary ──
+    const primaryInserts = inserts.filter(i => i.assetType === 'primary');
+    const altInserts = inserts.filter(i => i.assetType !== 'primary');
 
-  console.log(`\nSearch phase: ${matched} matched\n`);
+    console.log(`\n${'='.repeat(65)}`);
+    console.log(`SUMMARY${DRY_RUN ? ' (DRY RUN)' : ''}:`);
+    console.log(`  Products searched:          ${stats.products_searched}`);
+    console.log(`  Product pages fetched:      ${stats.pages_fetched}`);
+    console.log(`  SKUs matched (per-SKU):     ${stats.sku_per_sku}`);
+    console.log(`  SKUs matched (product img): ${stats.sku_product_level}`);
+    console.log(`  SKUs matched (thumbnail):   ${stats.sku_thumbnail}`);
+    console.log(`  SKUs not found:             ${stats.sku_not_found}`);
+    console.log(`  HEAD verified:              ${stats.head_ok}`);
+    console.log(`  HEAD failed:                ${stats.head_fail}`);
+    console.log(`  Primary inserts:            ${primaryInserts.length}`);
+    console.log(`  Alternate inserts:          ${altInserts.length}`);
 
-  // Final coverage
-  const { rows: [stats] } = await pool.query(`
-    SELECT COUNT(*) as total,
-      COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM media_assets ma WHERE ma.product_id = p.id)) as with_images
-    FROM products p WHERE p.vendor_id = $1 AND p.status = 'active' AND p.is_active = true
-  `, [vid]);
-  console.log(`Coverage: ${stats.with_images}/${stats.total} (${(100 * stats.with_images / stats.total).toFixed(1)}%)`);
+    console.log(`\nPer-category:`);
+    for (const [cat, cs] of Object.entries(categoryStats).sort((a, b) => b[1].total - a[1].total)) {
+      const found = cs.perSku + cs.fallback;
+      const pct = cs.total > 0 ? (100 * found / cs.total).toFixed(1) : '0.0';
+      console.log(`  ${cat.padEnd(24)} ${String(cs.total).padStart(3)} SKUs → ${String(found).padStart(3)} found (${pct.padStart(5)}%) [per-sku:${cs.perSku} fallback:${cs.fallback} miss:${cs.miss}]`);
+    }
 
-  if (needsImage.size > 0) {
-    console.log(`\nStill missing (${needsImage.size}):`);
-    for (const m of missing) {
-      if (needsImage.has(m.id)) {
-        console.log(`  [${m.category}] ${m.display_name}`);
+    if (primaryInserts.length === 0) {
+      console.log('\nNo new images to insert.');
+      return;
+    }
+
+    console.log(`\nSample inserts (first 25):`);
+    for (const ins of primaryInserts.slice(0, 25)) {
+      const short = ins.url.replace('https://cdn.msisurfaces.com/images/', '');
+      console.log(`  ${ins.skuId.slice(0, 8)}… → ${short}`);
+    }
+
+    if (DRY_RUN) {
+      console.log(`\nDry run — no changes made.`);
+      return;
+    }
+
+    // ── Insert ──
+    console.log(`\nInserting ${inserts.length} media_assets...`);
+    await client.query('BEGIN');
+
+    let inserted = 0, errors = 0;
+    for (const ins of inserts) {
+      try {
+        await client.query(`
+          INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
+          VALUES ($1, $2, $3, $4, $4, $5)
+          ON CONFLICT (product_id, sku_id, asset_type, sort_order) WHERE sku_id IS NOT NULL
+          DO UPDATE SET url = EXCLUDED.url, original_url = EXCLUDED.original_url
+        `, [ins.productId, ins.skuId, ins.assetType, ins.url, ins.sortOrder]);
+        inserted++;
+      } catch (err) {
+        errors++;
+        if (VERBOSE) console.log(`  Insert error: ${err.message}`);
       }
     }
-  }
 
-  await pool.end();
-})();
+    await client.query('COMMIT');
+    console.log(`Inserted ${inserted} (${errors} errors).`);
+
+    // ── Final coverage ──
+    const { rows: [final] } = await client.query(`
+      SELECT
+        COUNT(DISTINCT s.id) as total,
+        COUNT(DISTINCT s.id) FILTER (WHERE EXISTS (
+          SELECT 1 FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary'
+        )) as covered
+      FROM skus s
+      JOIN products p ON s.product_id = p.id
+      WHERE p.vendor_id = $1 AND p.status IN ('active', 'draft') AND s.status = 'active'
+    `, [vendor.id]);
+
+    console.log(`\nFinal MSI SKU coverage: ${final.covered}/${final.total} (${(100 * final.covered / final.total).toFixed(1)}%)`);
+
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    console.error('\nFATAL:', err);
+    process.exit(1);
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
+main().catch(err => { console.error(err); process.exit(1); });

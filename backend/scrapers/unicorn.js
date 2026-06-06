@@ -8,7 +8,8 @@
  *    Matched by colorLabel from alt text on the product page.
  *
  *  - Slider images (left column, room scenes) → SECONDARY lifestyle images
- *    Dispersed round-robin across all color SKUs of the same product.
+ *    Color-matched sliders assigned to specific SKUs; generic (unmatched)
+ *    sliders saved at product level so the API supplements all SKUs equally.
  *
  * Prerequisites: Run build-unicorn-product-map.cjs first to scrape images.
  *
@@ -19,7 +20,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
-import { filterImageUrls, saveSkuImages } from './base.js';
+import { filterImageUrls, saveSkuImages, upsertMediaAsset } from './base.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MAP_PATH = path.join(__dirname, '..', 'data', 'unicorn-product-map.json');
@@ -102,6 +103,8 @@ function cleanColor(raw) {
 
 function extractSize(variantName) {
   if (!variantName) return '';
+  // Sheet dimensions (e.g. "12-3/4x11 sheet") are not tile sizes — skip
+  if (/\bsheet\b/i.test(variantName)) return '';
   const m = variantName.match(/(\d+x\d+)/i);
   return m ? m[1] : '';
 }
@@ -514,16 +517,38 @@ async function run() {
       }
     }
 
+    // ── Fallback: share images from same-color same-shape same-finish siblings ──
+    // e.g. 3" Hex Black can share images from 2" Hex Black (same look, different piece size)
+    for (const sku of skusToProcess) {
+      if (skuPrimaryMap.has(sku.sku_id)) continue;
+      const skuShape = extractShape(sku.variant_name || sku.color || '');
+      const skuColorNorm = norm(cleanColor(sku.color));
+      const skuFinish = extractFinish(sku.variant_name || '');
+      if (!skuColorNorm) continue;
+      for (const sib of mainSkus) {
+        if (sib.sku_id === sku.sku_id) continue;
+        if (!skuPrimaryMap.has(sib.sku_id)) continue;
+        const sibShape = extractShape(sib.variant_name || sib.color || '');
+        const sibColorNorm = norm(cleanColor(sib.color));
+        const sibFinish = extractFinish(sib.variant_name || '');
+        if (sibColorNorm === skuColorNorm && sibShape === skuShape && sibFinish === skuFinish) {
+          skuPrimaryMap.set(sku.sku_id, skuPrimaryMap.get(sib.sku_id));
+          console.log(`    ${sku.vendor_sku} (${sku.color}) → shared from ${sib.vendor_sku}`);
+          break;
+        }
+      }
+    }
+
     // ── Phase 2: Assign slider/lifestyle images to SKUs by color ──
     // Many slider images have color/finish/shape in their filenames
     // (e.g. "Melanie-3x12-Scene-Black.jpg", "Silom-Scene-Leaf-Glossy.jpg").
     // Score each slider image against each SKU; matched images go to the
-    // best-matching SKU. Unmatched (generic) images get distributed round-robin.
+    // best-matching SKU. Unmatched (generic) images are saved at product level
+    // so the storefront API supplements all SKUs equally via Tier 2 fallback.
     const skuSliderMap = new Map(); // sku_id → [urls]
+    let productLevelLifestyle = []; // generic sliders saved at product level
 
     if (lifestyleShots.length && skusToProcess.length) {
-      const genericSlider = []; // images that don't match any SKU
-
       for (const img of lifestyleShots) {
         // Score this slider image against all SKUs
         let bestSkuId = null;
@@ -546,17 +571,7 @@ async function run() {
           if (!skuSliderMap.has(bestSkuId)) skuSliderMap.set(bestSkuId, []);
           skuSliderMap.get(bestSkuId).push(img.fullUrl);
         } else {
-          genericSlider.push(img.fullUrl);
-        }
-      }
-
-      // Round-robin distribute generic (unmatched) slider images
-      if (genericSlider.length) {
-        for (let i = 0; i < genericSlider.length; i++) {
-          const skuIdx = i % skusToProcess.length;
-          const skuId = skusToProcess[skuIdx].sku_id;
-          if (!skuSliderMap.has(skuId)) skuSliderMap.set(skuId, []);
-          skuSliderMap.get(skuId).push(genericSlider[i]);
+          productLevelLifestyle.push(img.fullUrl);
         }
       }
     }
@@ -591,6 +606,30 @@ async function run() {
         totalSaved += saved;
         skusWithImages++;
         console.log(`    ${sku.vendor_sku} (${sku.color}) → ${saved} images (${primary.length} grid + ${secondary.length} slider)`);
+      }
+    }
+
+    // ── Save generic (unmatched) slider images at product level ──
+    // These have no color info in their filenames, so rather than randomly
+    // assigning them to specific SKUs, save at product level (sku_id = NULL).
+    // The storefront API supplements SKUs that have ≤1 image with these.
+    if (productLevelLifestyle.length) {
+      const cleaned = filterImageUrls(productLevelLifestyle, { maxImages: 8 });
+      let savedPL = 0;
+      for (let i = 0; i < cleaned.length; i++) {
+        await upsertMediaAsset(pool, {
+          product_id: dbProd.product_id,
+          sku_id: null,
+          asset_type: 'lifestyle',
+          url: cleaned[i],
+          original_url: cleaned[i],
+          sort_order: i,
+        });
+        savedPL++;
+      }
+      if (savedPL) {
+        totalSaved += savedPL;
+        console.log(`    [product-level] ${savedPL} generic lifestyle images`);
       }
     }
   }

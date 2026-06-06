@@ -25,8 +25,6 @@ import {
   upsertPackaging,
   appendLog,
   addJobError,
-  saveProductImages,
-  fuzzyMatch,
 } from './base.js';
 
 // ── Ecwid API config ────────────────────────────────────────────────
@@ -194,6 +192,91 @@ function determineSellBy(productName, categoryName) {
   if (lower.includes('mosaic')) return 'unit';
   if (lower.includes('bullnose') || lower.includes('quarter round') || lower.includes('trim')) return 'unit';
   return 'box';
+}
+
+/**
+ * Collect all image URLs from an Ecwid product in page-slider order.
+ * Returns an array of URLs: [first_slide, ..., last_slide].
+ */
+function collectImageUrls(fullProduct) {
+  const urls = [];
+
+  // Main image (first slide in Ecwid)
+  if (fullProduct.originalImageUrl) {
+    urls.push(fullProduct.originalImageUrl);
+  } else if (fullProduct.imageUrl) {
+    urls.push(fullProduct.imageUrl);
+  }
+
+  // Gallery images (subsequent slides)
+  if (fullProduct.galleryImages) {
+    for (const gi of fullProduct.galleryImages) {
+      const url = gi.originalImageUrl || gi.imageUrl || gi.url;
+      if (url && !urls.includes(url)) urls.push(url);
+    }
+  }
+
+  // Fallback: use media array if no images found above
+  if (!urls.length && fullProduct.media?.images) {
+    for (const mi of fullProduct.media.images) {
+      const url = mi.imageOriginalUrl || mi.image1500pxUrl || mi.image800pxUrl;
+      if (url && !urls.includes(url)) urls.push(url);
+    }
+  }
+
+  return urls;
+}
+
+// Collections where the FIRST image in the Ecwid slider is the product photo
+// and the last image is documentation (laying sketch, spec sheet, etc.).
+// For all other collections the LAST image is the product photo.
+const FIRST_IS_PRIMARY_COLLECTIONS = new Set([
+  'Materia Prima',
+  'Craft',
+]);
+
+/**
+ * Check if a collection uses first-is-primary image ordering.
+ * Matches against collection name or Ecwid sub-category name.
+ */
+function useFirstAsPrimary(collectionName) {
+  if (!collectionName) return false;
+  const normalized = collectionName.trim();
+  for (const name of FIRST_IS_PRIMARY_COLLECTIONS) {
+    if (normalized === name || normalized.startsWith(name + ' ')) return true;
+  }
+  return false;
+}
+
+/**
+ * Save WPT images with collection-aware primary selection.
+ *
+ * Most collections: last image in Ecwid slider = product photo (primary).
+ * Materia Prima & Craft: first image = product photo, last = documentation.
+ */
+async function saveWptImages(pool, productId, skuId, imageUrls, collectionName) {
+  if (!imageUrls.length) return 0;
+
+  const maxImages = 6;
+  const toSave = imageUrls.slice(0, maxImages);
+  const firstIsPrimary = useFirstAsPrimary(collectionName);
+  const primaryIdx = firstIsPrimary ? 0 : toSave.length - 1;
+  let saved = 0;
+
+  for (let i = 0; i < toSave.length; i++) {
+    const isPrimary = i === primaryIdx;
+    await upsertMediaAsset(pool, {
+      product_id: productId,
+      sku_id: skuId,
+      asset_type: isPrimary ? 'primary' : 'alternate',
+      url: toSave[i],
+      original_url: toSave[i],
+      sort_order: isPrimary ? 0 : (i < primaryIdx ? i + 1 : i),
+    });
+    saved++;
+  }
+
+  return saved;
 }
 
 /**
@@ -399,35 +482,10 @@ export async function run(pool, opts = {}) {
           if (productAttrs.edge) await upsertSkuAttribute(pool, skuId, 'edge', productAttrs.edge);
           if (productAttrs.look) await upsertSkuAttribute(pool, skuId, 'style', productAttrs.look);
 
-          // ── Save images ──
-          const imageUrls = [];
-
-          // Primary image (original high-res)
-          if (fullProduct.originalImageUrl) {
-            imageUrls.push(fullProduct.originalImageUrl);
-          } else if (fullProduct.imageUrl) {
-            imageUrls.push(fullProduct.imageUrl);
-          }
-
-          // Gallery images
-          if (fullProduct.galleryImages) {
-            for (const gi of fullProduct.galleryImages) {
-              const url = gi.originalImageUrl || gi.imageUrl || gi.url;
-              if (url && !imageUrls.includes(url)) imageUrls.push(url);
-            }
-          }
-
-          // Alternative: use media array if available
-          if (!imageUrls.length && fullProduct.media?.images) {
-            for (const mi of fullProduct.media.images) {
-              const url = mi.imageOriginalUrl || mi.image1500pxUrl || mi.image800pxUrl;
-              if (url && !imageUrls.includes(url)) imageUrls.push(url);
-            }
-          }
-
+          // ── Save images (primary selection depends on collection) ──
+          const imageUrls = collectImageUrls(fullProduct);
           if (imageUrls.length) {
-            const saved = await saveProductImages(pool, productId, imageUrls, { maxImages: 6 });
-            stats.imagesSaved += saved;
+            stats.imagesSaved += await saveWptImages(pool, productId, skuId, imageUrls, collectionName);
           }
 
           await log(`  ✓ ${productName} → SKU ${internalSku} (${imageUrls.length} images)`);
@@ -513,17 +571,10 @@ export async function run(pool, opts = {}) {
           if (productAttrs.finish) await upsertSkuAttribute(pool, skuResult.id, 'finish', productAttrs.finish);
           if (productAttrs.material) await upsertSkuAttribute(pool, skuResult.id, 'material', productAttrs.material);
 
-          // Images
-          const imageUrls = [];
-          if (fullProduct.originalImageUrl) imageUrls.push(fullProduct.originalImageUrl);
-          if (fullProduct.galleryImages) {
-            for (const gi of fullProduct.galleryImages) {
-              const url = gi.originalImageUrl || gi.imageUrl;
-              if (url && !imageUrls.includes(url)) imageUrls.push(url);
-            }
-          }
+          // Images (primary selection depends on collection)
+          const imageUrls = collectImageUrls(fullProduct);
           if (imageUrls.length) {
-            stats.imagesSaved += await saveProductImages(pool, productResult.id, imageUrls, { maxImages: 6 });
+            stats.imagesSaved += await saveWptImages(pool, productResult.id, skuResult.id, imageUrls, topCatName);
           }
 
           await log(`  ✓ ${productName} → ${internalSku}`);

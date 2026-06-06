@@ -40,6 +40,7 @@ const DEFAULT_CONFIG = {
   perPage: 180,
   delayMs: 1500,
   scrapeDetails: true,
+  detailOffset: 0,
 };
 
 // Max gallery images per SKU (primary + lifestyle + 6 alternate)
@@ -66,13 +67,23 @@ const CATEGORY_MAP = {
   'vinyl': 'lvp-plank',
   'lvt': 'lvp-plank',
   'lvp': 'lvp-plank',
+  'tile': 'lvp-plank',
   'hardwood': 'engineered-hardwood',
   'engineered hdf wood': 'engineered-hardwood',
+  'hickory': 'engineered-hardwood',
   'quartzite': 'natural-stone',
   'soapstone': 'natural-stone',
   'onyx': 'natural-stone',
   'sandstone': 'natural-stone',
   'basalt': 'natural-stone',
+  'pebble rock': 'natural-stone',
+  'ledger': 'natural-stone',
+  'corner': 'natural-stone',
+  'brick': 'natural-stone',
+  'mineral surface': 'quartz-countertops',
+  'quartz': 'quartz-countertops',
+  'quarry': 'ceramic-tile',
+  'cement': 'porcelain-tile',
 };
 
 /**
@@ -275,6 +286,7 @@ export async function run(pool, job, source) {
 
       for (const [productCode, raw] of allProducts) {
         detailIdx++;
+        if (detailIdx <= config.detailOffset) continue;
         const entry = skuMap.get(productCode);
         if (!entry) continue;
 
