@@ -234,19 +234,6 @@ export async function run(pool, job, source) {
         // ── Images (direct Cloudinary CDN URLs — no downloading) ──
         const imageUrls = mapped.imageUrls; // already deduplicated, max MAX_GALLERY_IMAGES
 
-        // Product-level primary: use first image from non-accessory SKUs only
-        // (accessories shouldn't override the main product image)
-        if (imageUrls.length > 0 && !mapped.variantType) {
-          await upsertMediaAsset(pool, {
-            product_id: product.id,
-            sku_id: null,
-            asset_type: 'primary',
-            url: imageUrls[0],
-            original_url: imageUrls[0],
-            sort_order: 0,
-          });
-        }
-
         // SKU-level images
         for (let gi = 0; gi < imageUrls.length && gi < MAX_GALLERY_IMAGES; gi++) {
           const imgUrl = imageUrls[gi];
@@ -280,22 +267,29 @@ export async function run(pool, job, source) {
 
     // ── Phase 3: Scrape detail pages for packaging, properties, gallery ──
     if (config.scrapeDetails) {
-      await appendLog(pool, job.id, `Scraping detail pages for packaging + properties...`);
-      browser = await launchBrowser();
-      let detailIdx = 0;
-
+      // Build lightweight detail queue and release raw product data to free memory
+      const detailQueue = [];
       for (const [productCode, raw] of allProducts) {
-        detailIdx++;
-        if (detailIdx <= config.detailOffset) continue;
-        const entry = skuMap.get(productCode);
-        if (!entry) continue;
-
-        // Build detail URL
         let detailPath = raw.ProductUrl || raw.Url || raw.ProductDetailUrl;
         if (!detailPath && raw.ProductCode) {
           detailPath = `/en/product/detail/?itemNo=${encodeURIComponent(raw.ProductCode)}`;
         }
-        if (!detailPath) continue;
+        if (detailPath) {
+          detailQueue.push({ productCode, detailPath });
+        }
+      }
+      allProducts.clear();
+      if (global.gc) global.gc();
+
+      await appendLog(pool, job.id, `Scraping detail pages for packaging + properties...`);
+      browser = await launchBrowser();
+      let detailIdx = 0;
+
+      for (const { productCode, detailPath } of detailQueue) {
+        detailIdx++;
+        if (detailIdx <= config.detailOffset) continue;
+        const entry = skuMap.get(productCode);
+        if (!entry) continue;
 
         try {
           const detailData = await scrapeDetailPage(browser, baseUrl, detailPath);
@@ -961,6 +955,9 @@ function mapListingProduct(raw) {
 
   // Collection: GroupVariantsBy groups all variants; ProductSeries is the series name
   const collection = raw.GroupVariantsBy || raw.ProductSeries || raw.Series || null;
+  if (collection && !accessoryType && !productName.toLowerCase().startsWith(collection.toLowerCase())) {
+    productName = `${collection} ${productName}`;
+  }
 
   // Variant name: for accessories use the type label + size, otherwise size + finish + shape
   let variantName;
