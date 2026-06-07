@@ -108,6 +108,9 @@ const CATEGORY_MAP = {
   'threshold': 'installation-sundries', 'transition': 'installation-sundries',
 };
 
+// Name patterns that indicate a mosaic product regardless of EDI material classification
+const MOSAIC_NAME_PATTERN = /mosaic|hexagon|herringbone|basketweave|chevron|arabesque|pinwheel|octagon|penny\s*round|picket|pencil|dotty|lynx|fretwork|interlocking|peel.*stick/i;
+
 const MAC_CATEGORY_MAP = {
   PORTILR: 'tile', PORTILC: 'tile', CERTILR: 'tile', CERTILC: 'tile',
   STNTILR: 'natural-stone', STNTILC: 'natural-stone',
@@ -757,7 +760,13 @@ async function phase2_edi832(pool, vendorId, source, log) {
   const skuIndex = new Map(); // internal_sku → { sku_id, product_id, vendor_sku, collection, product_name, category, color, sell_by }
 
   for (const group of productGroups) {
-    const categoryId = resolveCatId(group.category);
+    let categoryId = resolveCatId(group.category);
+
+    // Override: mosaic products miscategorized by material (EDI GEN/MAC says "Natural Stone" or "Porcelain")
+    const _resolvedSlug = CATEGORY_MAP[(group.category || '').toLowerCase().trim()] || group.category;
+    if (/^(natural-stone|porcelain-tile|ceramic-tile|tile)$/.test(_resolvedSlug) && MOSAIC_NAME_PATTERN.test(group.baseName)) {
+      categoryId = catCache['mosaic-tile'] || categoryId;
+    }
 
     const productRow = await upsertProduct(pool, {
       vendor_id: vendorId,

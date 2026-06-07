@@ -162,6 +162,9 @@ const CATEGORY_MAP = {
   'wall base':              'wall-base',
 };
 
+// Name patterns that indicate a mosaic product regardless of EDI material classification
+const MOSAIC_NAME_PATTERN = /mosaic|hexagon|herringbone|basketweave|chevron|arabesque|pinwheel|octagon|penny\s*round|picket|pencil|dotty|lynx|fretwork|interlocking|peel.*stick/i;
+
 // MSI material class codes → category slugs (must match actual DB category slugs)
 // Codes observed in actual EDI files: VINTIL, VIN, INS, BLE, STO, STOMIS, STOMOS,
 // CER, CERFLO, WOO, RUG, INSSEA (short 3-6 char codes)
@@ -912,7 +915,13 @@ export async function run(pool, job, source) {
   let pricingUpserted = 0, packagingUpserted = 0, attrsUpserted = 0;
 
   for (const group of productGroups) {
-    const categoryId = resolveCatId(group.category);
+    let categoryId = resolveCatId(group.category);
+
+    // Override: mosaic products miscategorized by material (EDI GEN/MAC says "Natural Stone" or "Porcelain")
+    const _resolvedSlug = CATEGORY_MAP[(group.category || '').toLowerCase().trim()] || group.category;
+    if (/^(natural-stone|porcelain-tile|ceramic-tile|tile)$/.test(_resolvedSlug) && MOSAIC_NAME_PATTERN.test(group.baseName)) {
+      categoryId = catCache['mosaic-tile'] || categoryId;
+    }
 
     const productRow = await upsertProduct(pool, {
       vendor_id: vendorId,
