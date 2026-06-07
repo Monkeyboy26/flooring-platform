@@ -25,6 +25,7 @@
  *   node backend/scripts/msi-search-images.cjs
  *   node backend/scripts/msi-search-images.cjs --category "Mosaic Tile"
  *   node backend/scripts/msi-search-images.cjs --verbose
+ *   node backend/scripts/msi-search-images.cjs --replace-generic     # replace /colornames/ images with product-specific ones
  */
 
 const { Pool } = require('pg');
@@ -33,6 +34,7 @@ const http = require('http');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const VERBOSE = process.argv.includes('--verbose');
+const REPLACE_GENERIC = process.argv.includes('--replace-generic');
 const catIdx = process.argv.indexOf('--category');
 const CATEGORY_FILTER = catIdx !== -1 ? process.argv[catIdx + 1] : null;
 
@@ -263,8 +265,9 @@ function findSkuImage(vendorSku, skuImages) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log(`\nMSI Search-Based Per-SKU Image Scraper${DRY_RUN ? ' (DRY RUN)' : ''}`);
+  console.log(`\nMSI Search-Based Per-SKU Image Scraper${DRY_RUN ? ' (DRY RUN)' : ''}${REPLACE_GENERIC ? ' [REPLACE GENERIC]' : ''}`);
   if (CATEGORY_FILTER) console.log(`Category filter: "${CATEGORY_FILTER}"`);
+  if (REPLACE_GENERIC) console.log(`Mode: replacing generic /colornames/ images with product-specific ones`);
   console.log('='.repeat(65) + '\n');
 
   const client = await pool.connect();
@@ -274,7 +277,16 @@ async function main() {
     const { rows: [vendor] } = await client.query("SELECT id FROM vendors WHERE code = 'MSI'");
     if (!vendor) { console.log('ERROR: MSI vendor not found'); return; }
 
-    // 2. Get all MSI SKUs missing primary images
+    // 2. Get target MSI SKUs (missing images OR generic /colornames/ images)
+    const imageCondition = REPLACE_GENERIC
+      ? `AND EXISTS (
+          SELECT 1 FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary'
+            AND ma.url LIKE '%/colornames/%' AND ma.url NOT LIKE '%/colornames/skus/%'
+        )`
+      : `AND NOT EXISTS (
+          SELECT 1 FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary'
+        )`;
+
     const { rows: missingSkus } = await client.query(`
       SELECT s.id as sku_id, s.product_id, s.vendor_sku, s.variant_name, s.variant_type,
              p.name as product_name, p.display_name, p.collection,
@@ -284,14 +296,13 @@ async function main() {
       JOIN categories c ON p.category_id = c.id
       WHERE p.vendor_id = $1
         AND p.status IN ('active', 'draft') AND s.status = 'active'
-        AND NOT EXISTS (
-          SELECT 1 FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary'
-        )
+        ${imageCondition}
         ${CATEGORY_FILTER ? "AND c.name = $2" : ""}
       ORDER BY c.name, p.name, s.vendor_sku
     `, CATEGORY_FILTER ? [vendor.id, CATEGORY_FILTER] : [vendor.id]);
 
-    console.log(`Found ${missingSkus.length} SKUs missing primary images\n`);
+    const modeLabel = REPLACE_GENERIC ? 'SKUs with generic /colornames/ images' : 'SKUs missing primary images';
+    console.log(`Found ${missingSkus.length} ${modeLabel}\n`);
     if (missingSkus.length === 0) { console.log('Nothing to do.'); return; }
 
     // 3. Group SKUs by product
@@ -398,6 +409,17 @@ async function main() {
           if (VERBOSE) console.log(`  Page error: ${err.message}`);
         }
         await delay(DELAY_MS);
+      }
+
+      // In replace-generic mode, exclude generic /colornames/ images from candidates
+      // so we only use product-specific images (mosaics/, lvt/detail/, etc.)
+      if (REPLACE_GENERIC) {
+        const isGeneric = url => {
+          const l = url.toLowerCase();
+          return l.includes('/colornames/') && !l.includes('/colornames/skus/');
+        };
+        pageProductImages = pageProductImages.filter(url => !isGeneric(url));
+        searchThumbnails = searchThumbnails.filter(url => !isGeneric(url));
       }
 
       // Best product-level image (sorted by score already)
