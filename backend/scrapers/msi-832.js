@@ -1033,6 +1033,20 @@ export async function run(pool, job, source) {
         await upsertSkuAttribute(pool, skuId, 'width', `${widthMea.value}${widthMea.unit_of_measure || ''}`);
         attrsUpserted++;
       }
+
+      // Sheet size derivation for mosaic products
+      if (categoryId === catCache['mosaic-tile'] && item.sqft_per_box && item.pieces_per_box > 0) {
+        const sqftPerSheet = item.sqft_per_box / item.pieces_per_box;
+        let sheetSize = null;
+        if (sqftPerSheet >= 0.80 && sqftPerSheet <= 1.10) sheetSize = '12x12';
+        else if (sqftPerSheet > 1.15 && sqftPerSheet <= 1.35) sheetSize = '12x15';
+        else if (sqftPerSheet >= 1.90 && sqftPerSheet <= 2.10) sheetSize = '12x24';
+        else if (sqftPerSheet >= 2.15 && sqftPerSheet <= 2.30) sheetSize = '18x18';
+        if (sheetSize) {
+          await upsertSkuAttribute(pool, skuId, 'sheet_size', sheetSize);
+          attrsUpserted++;
+        }
+      }
     }
   }
 
