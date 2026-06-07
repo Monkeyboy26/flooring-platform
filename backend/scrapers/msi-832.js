@@ -165,6 +165,16 @@ const CATEGORY_MAP = {
 // Name patterns that indicate a mosaic product regardless of EDI material classification
 const MOSAIC_NAME_PATTERN = /mosaic|hexagon|herringbone|basketweave|chevron|arabesque|pinwheel|octagon|penny\s*round|picket|pencil|dotty|lynx|fretwork|interlocking|peel.*stick/i;
 
+// Clean up EDI product names: strip packaging info, encoding artifacts, extra whitespace
+function cleanProductName(name) {
+  return name
+    .replace(/\uFFFD/g, '')                             // remove replacement chars (�)
+    .replace(/\(\s*[\d.]+\s*Sf\s*Per\s*Box\s*\)/gi, '') // strip "( 23.77 Sf Per Box )"
+    .replace(/\s*-\s*$/, '')                             // strip trailing " -"
+    .replace(/\s{2,}/g, ' ')                             // collapse multiple spaces
+    .trim();
+}
+
 // MSI material class codes → category slugs (must match actual DB category slugs)
 // Codes observed in actual EDI files: VINTIL, VIN, INS, BLE, STO, STOMIS, STOMOS,
 // CER, CERFLO, WOO, RUG, INSSEA (short 3-6 char codes)
@@ -737,6 +747,7 @@ function groupIntoProducts(items) {
       || /accessory|sundries|trim|molding|bullnose|quarter\s*round|grout|caulk|setting\s*material|mortar|adhesive|sealant|membrane|pencil\s*liner|chair\s*rail|v-cap|mud\s*cap|jolly|schluter|threshold|transition|stair\s*nose|reducer|t-mold/i.test(item.product_name || '');
 
     let baseName = item.product_name || item.vendor_sku || 'Unknown';
+    baseName = cleanProductName(baseName);
     if (item.color && !isAccessory) {
       const colorWords = item.color.split(/\s+/);
       for (const word of colorWords) {
