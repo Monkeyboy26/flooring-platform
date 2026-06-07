@@ -2697,8 +2697,22 @@ app.get('/api/storefront/facets', async (req, res) => {
       };
     });
 
+    // Helper: re-index $N placeholders after removing disjunctive fragments
+    const reindexWhere = (fragments, allParams) => {
+      const joined = fragments.join(' AND ');
+      const used = new Set();
+      joined.replace(/\$(\d+)/g, (_, n) => { used.add(parseInt(n)); });
+      if (used.size === 0) return { where: joined, params: [] };
+      const sorted = [...used].sort((a, b) => a - b);
+      const map = {};
+      sorted.forEach((old, i) => { map[old] = i + 1; });
+      const reindexed = joined.replace(/\$(\d+)/g, (_, n) => `$${map[parseInt(n)]}`);
+      return { where: reindexed, params: sorted.map(i => allParams[i - 1]) };
+    };
+
     // Brand counts (disjunctive: skip brand filter from WHERE)
     const brandWhereFragments = [...baseWhere.filter(w => !w.startsWith('COALESCE(br.name')), ...attrWhereFragments.map(f => f.clause)];
+    const brandReindexed = reindexWhere(brandWhereFragments, attrWhereParams);
     const brandSQL = `
       SELECT COALESCE(br.name, v.name) as name, COUNT(DISTINCT s.id) as count
       FROM skus s
@@ -2707,13 +2721,14 @@ app.get('/api/storefront/facets', async (req, res) => {
       LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
-      WHERE ${brandWhereFragments.join(' AND ')}
+      WHERE ${brandReindexed.where}
       GROUP BY COALESCE(br.name, v.name)
       ORDER BY count DESC
     `;
 
     // Price range (applied to full filter set minus price filters)
     const priceWhereFragments = [...baseWhere.filter(w => !w.includes('pr.retail_price')), ...attrWhereFragments.map(f => f.clause)];
+    const priceReindexed = reindexWhere(priceWhereFragments, attrWhereParams);
     const priceSQL = `
       SELECT MIN(pr.retail_price::numeric) as min_price, MAX(pr.retail_price::numeric) as max_price
       FROM skus s
@@ -2722,11 +2737,12 @@ app.get('/api/storefront/facets', async (req, res) => {
       LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
-      WHERE pr.retail_price IS NOT NULL AND pr.retail_price::numeric > 0 AND ${priceWhereFragments.join(' AND ')}
+      WHERE pr.retail_price IS NOT NULL AND pr.retail_price::numeric > 0 AND ${priceReindexed.where}
     `;
 
     // Tag facets (disjunctive: skip tag filter from WHERE)
     const tagWhereFragments = [...baseWhere.filter(w => !w.includes('product_tags')), ...attrWhereFragments.map(f => f.clause)];
+    const tagReindexed = reindexWhere(tagWhereFragments, attrWhereParams);
     const tagFacetSQL = `
       SELECT td.slug, td.name, td.category, COUNT(DISTINCT p.id) as count
       FROM product_tags pt
@@ -2737,7 +2753,7 @@ app.get('/api/storefront/facets', async (req, res) => {
       LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
-      WHERE ${tagWhereFragments.join(' AND ')}
+      WHERE ${tagReindexed.where}
       GROUP BY td.id, td.slug, td.name, td.category
       HAVING COUNT(DISTINCT p.id) > 0
       ORDER BY td.category, td.display_order
@@ -2745,9 +2761,9 @@ app.get('/api/storefront/facets', async (req, res) => {
 
     const [facetResults, brandResult, priceResult, tagFacetResult] = await Promise.all([
       Promise.all(facetPromises),
-      pool.query(brandSQL, attrWhereParams),
-      pool.query(priceSQL, attrWhereParams),
-      pool.query(tagFacetSQL, attrWhereParams)
+      pool.query(brandSQL, brandReindexed.params),
+      pool.query(priceSQL, priceReindexed.params),
+      pool.query(tagFacetSQL, tagReindexed.params)
     ]);
 
     const facets = facetResults.filter(f => f.values.length > 0);
