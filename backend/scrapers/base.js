@@ -257,7 +257,10 @@ export async function upsertProduct(pool, rawData, opts = {}) {
   }
 
   const { vendor_id, name, collection, category_id, brand_id, description_short, description_long } = cleaned;
-  const slug = slugify((collection || '') + ' ' + name) || null;
+  const slugBase = (collection && !name.toLowerCase().startsWith(collection.toLowerCase()))
+    ? (collection + ' ' + name)
+    : name;
+  const slug = slugify(slugBase) || null;
   let result;
   try {
     result = await pool.query(`
@@ -818,6 +821,15 @@ export function preferProductShot(urls, colorHint, variantHints) {
     const prodNameLow = variantHints?.productName?.toLowerCase() || '';
     for (const kw of LIFESTYLE_KEYWORDS) {
       if (filename.includes(kw) && !prodNameLow.includes(kw)) { score -= 20; break; }
+    }
+
+    // Penalize accessory-type images
+    const ACCESSORY_KEYWORDS = [
+      'stair-tread', 'stair-nose', 'flush-stair', 't-mold', 'quarter-round',
+      'reducer', 'end-cap', 'bullnose', 'riser-tread', 'trim-piece',
+    ];
+    for (const kw of ACCESSORY_KEYWORDS) {
+      if (filename.includes(kw)) { score -= 25; break; }
     }
 
     // Color-aware boost: if URL filename contains the color name, it's likely

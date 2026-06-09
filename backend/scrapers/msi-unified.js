@@ -49,6 +49,8 @@ const SKIP_IMAGES    = process.argv.includes('--skip-images');
 const SKIP_PUPPETEER = process.argv.includes('--skip-puppeteer');
 const DRY_RUN        = process.argv.includes('--dry-run');
 const VERBOSE        = process.argv.includes('--verbose');
+const TEST_SKUS_ARG  = process.argv.find(a => a.startsWith('--test-skus='));
+const TEST_SKUS      = TEST_SKUS_ARG ? TEST_SKUS_ARG.split('=')[1].split(',').map(s => s.trim().toUpperCase()) : null;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Constants
@@ -112,15 +114,6 @@ const CATEGORY_MAP = {
 const MOSAIC_NAME_PATTERN = /mosaic|hexagon|herringbone|basketweave|chevron|arabesque|pinwheel|octagon|penny\s*round|picket|pencil|dotty|lynx|fretwork|interlocking|peel.*stick/i;
 
 // Clean up EDI product names: strip packaging info, encoding artifacts, extra whitespace
-function cleanProductName(name) {
-  return name
-    .replace(/\uFFFD/g, '')                             // remove replacement chars (�)
-    .replace(/\(\s*[\d.]+\s*Sf\s*Per\s*Box\s*\)/gi, '') // strip "( 23.77 Sf Per Box )"
-    .replace(/\s*-\s*$/, '')                             // strip trailing " -"
-    .replace(/\s{2,}/g, ' ')                             // collapse multiple spaces
-    .trim();
-}
-
 const MAC_CATEGORY_MAP = {
   PORTILR: 'tile', PORTILC: 'tile', CERTILR: 'tile', CERTILC: 'tile',
   STNTILR: 'natural-stone', STNTILC: 'natural-stone',
@@ -807,11 +800,17 @@ async function phase2_edi832(pool, vendorId, source, log) {
       const skuId = skuRow.id;
       if (skuRow.is_new) skusCreated++; else skusUpdated++;
 
+      // Compute size from measurements for Phase 3 size-aware probing
+      const _widthMea = item.measurements.find(m => m.qualifier === 'WD');
+      const _lengthMea = item.measurements.find(m => m.qualifier === 'LN');
+      const _skuSize = (_widthMea && _lengthMea) ? `${_widthMea.value}x${_lengthMea.value}` : null;
+
       // Store in index for Phase 3
       skuIndex.set(internalSku, {
         sku_id: skuId, product_id: productId, vendor_sku: vendorSku,
         collection: group.collection, product_name: group.baseName,
         category: group.category, color: item.color, sell_by: sellBy,
+        size: _skuSize, variant_type: variantType,
       });
 
       // Pricing
@@ -929,19 +928,29 @@ async function buildSkuIndexFromDb(pool, vendorId, log) {
     WHERE p.vendor_id = $1 AND s.status = 'active'
   `, [vendorId]);
 
+  // Bulk-fetch color and size attributes for all MSI SKUs
+  const attrRows = await pool.query(`
+    SELECT sa.sku_id, a.slug, sa.value
+    FROM sku_attributes sa
+    JOIN attributes a ON a.id = sa.attribute_id
+    WHERE a.slug IN ('color', 'size')
+      AND sa.sku_id = ANY($1::uuid[])
+  `, [rows.map(r => r.sku_id)]);
+
+  const attrMap = new Map(); // sku_id → { color, size }
+  for (const ar of attrRows.rows) {
+    if (!attrMap.has(ar.sku_id)) attrMap.set(ar.sku_id, {});
+    attrMap.get(ar.sku_id)[ar.slug] = ar.value;
+  }
+
   const skuIndex = new Map();
   for (const r of rows) {
-    // Get color from sku_attributes if available
-    const colorRes = await pool.query(
-      `SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
-       WHERE sa.sku_id = $1 AND a.slug = 'color' LIMIT 1`, [r.sku_id]
-    );
-    const color = colorRes.rows[0]?.value || null;
-
+    const attrs = attrMap.get(r.sku_id) || {};
     skuIndex.set(r.internal_sku, {
       sku_id: r.sku_id, product_id: r.product_id, vendor_sku: r.vendor_sku,
       collection: r.collection, product_name: r.product_name,
-      category: r.category, color, sell_by: r.sell_by,
+      category: r.category, color: attrs.color || null, sell_by: r.sell_by,
+      size: attrs.size || null, variant_type: r.variant_type || null,
     });
   }
   log(`  Loaded ${skuIndex.size} SKUs from DB`);
@@ -1000,13 +1009,78 @@ function slugify(text) {
     .replace(/^-|-$/g, '');
 }
 
+// Normalize common MSI product name misspellings to match CDN paths
+const CDN_SPELLING_MAP = [
+  [/\bcalcatta\b/g, 'calacatta'],   // DB: "calcatta" → CDN: "calacatta"
+  [/\bcalacata\b/g, 'calacatta'],
+  [/\bcalcata\b/g, 'calacatta'],
+  [/\bcararra\b/g, 'carrara'],
+  [/\bcarara\b/g, 'carrara'],
+];
+
+function cdnSlugify(text) {
+  let s = slugify(text);
+  for (const [pattern, replacement] of CDN_SPELLING_MAP) {
+    s = s.replace(pattern, replacement);
+  }
+  return s;
+}
+
+// ─── CDN hit validation ──────────────────────────────────────────────────────
+// Reject CDN hits that are too generic for the product.
+// Example: "Calacatta Cressa Herringbone Mosaic" should NOT get calacatta-marble.jpg
+// because the URL doesn't contain any word that distinguishes this product from siblings.
+
+const CDN_GENERIC_WORDS = new Set([
+  'porcelain','ceramic','marble','granite','travertine','quartzite','slate',
+  'sandstone','limestone','onyx','tile','tiles','plank','planks','flooring',
+  'wood','vinyl','luxury','collection','series','waterproof','hybrid',
+  'rigid','core','look','matte','polished','honed','glossy','tumbled',
+  'mosaic','backsplash','wall','floor','natural','stone','slab','countertop',
+  'paver','pavers','stacked','ledger','panel','engineered','hardwood',
+  'detail','iso','lvt','colornames','images','cdn','msisurfaces','com',
+  'porcelainceramic','mosaics','hardscaping','jpg','png','two',
+]);
+
+function validateCdnHit(url, entry) {
+  if (!url) return false;
+  const { product_name, collection } = entry;
+  if (!product_name) return true; // can't validate without name
+
+  const urlLower = decodeURIComponent(url).toLowerCase();
+
+  // Size cross-check: if product name has a size (e.g. "12x24") and URL has a different size, reject.
+  // This prevents "Girona Perla 48x48" from getting "girona-perla-12x24.jpg".
+  const nameSize = product_name.match(/(\d+)\s*[xX×]\s*(\d+)/);
+  if (nameSize) {
+    const urlSizes = [...urlLower.matchAll(/(\d+)x(\d+)/g)];
+    if (urlSizes.length > 0) {
+      const prodSize = `${nameSize[1]}x${nameSize[2]}`;
+      const urlHasMatchingSize = urlSizes.some(m => `${m[1]}x${m[2]}` === prodSize);
+      if (!urlHasMatchingSize) return false;
+    }
+  }
+
+  // Extract distinguishing words from product name that aren't in the collection or generic
+  const collWords = new Set((collection || '').toLowerCase().split(/\s+/).filter(w => w.length >= 3));
+  const nameWords = product_name.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '').split(/\s+/)
+    .filter(w => w.length >= 3 && !CDN_GENERIC_WORDS.has(w) && !collWords.has(w));
+
+  // If no distinguishing words (product name is just collection + generic), accept any hit
+  if (nameWords.length === 0) return true;
+
+  // Check URL contains at least one distinguishing keyword
+  return nameWords.some(kw => urlLower.includes(kw));
+}
+
 // ─── CDN URL Builders ────────────────────────────────────────────────────────
 
 function buildLvpUrls(collection, variantName, productName) {
   const urls = [];
-  const collSlug = slugify(collection);
+  const collSlug = cdnSlugify(collection);
   const colorSlug = slugify(variantName);
-  const nameSlug = slugify(productName);
+  const nameSlug = cdnSlugify(productName);
   if (!colorSlug) return urls;
 
   if (collSlug) {
@@ -1035,16 +1109,28 @@ function buildLvpUrls(collection, variantName, productName) {
   return [...new Set(urls)];
 }
 
-function buildPorcelainUrls(collection, variantName, productName, vendorSku) {
+function buildPorcelainUrls(collection, variantName, productName, vendorSku, size) {
   const urls = [];
-  const collSlug = slugify(collection);
+  const collSlug = cdnSlugify(collection);
   const colorSlug = slugify(variantName);
-  const nameSlug = slugify(productName);
+  const nameSlug = cdnSlugify(productName);
   if (!collSlug && !nameSlug) return urls;
 
   const collWords = (collection || '').split(/\s+/);
   const baseCollSlug = collWords.length > 1 ? slugify(collWords[0]) : null;
   const uniqueCollSlugs = [...new Set([collSlug, baseCollSlug].filter(Boolean))];
+
+  // Size-specific candidates (prepended so they're tried first)
+  if (size && collSlug && colorSlug) {
+    const sizeSlug = size.toLowerCase().replace(/[^0-9x]/g, '');
+    if (sizeSlug) {
+      for (const coll of uniqueCollSlugs) {
+        urls.push(`${CDN}/porcelainceramic/${colorSlug}-${coll}-porcelain-${sizeSlug}-polished.jpg`);
+        urls.push(`${CDN}/porcelainceramic/${colorSlug}-${coll}-${sizeSlug}-polished.jpg`);
+        urls.push(`${CDN}/porcelainceramic/iso/${colorSlug}-${coll}-${sizeSlug}-porcelain-iso.jpg`);
+      }
+    }
+  }
 
   // Decode vendor_sku color code
   const colorCode = decodePorcelainColor(vendorSku, collection);
@@ -1077,19 +1163,114 @@ function buildPorcelainUrls(collection, variantName, productName, vendorSku) {
   }
 
   if (nameSlug) {
+    // Name-based size-specific (e.g. "eden-calacatta-porcelain-24x48-polished.jpg")
+    if (size) {
+      const sizeSlug = size.toLowerCase().replace(/[^0-9x]/g, '');
+      if (sizeSlug) {
+        urls.push(`${CDN}/porcelainceramic/${nameSlug}-porcelain-${sizeSlug}-polished.jpg`);
+        urls.push(`${CDN}/porcelainceramic/${nameSlug}-porcelain-${sizeSlug}.jpg`);
+        urls.push(`${CDN}/porcelainceramic/${nameSlug}-${sizeSlug}-polished.jpg`);
+        urls.push(`${CDN}/porcelainceramic/${nameSlug}-${sizeSlug}-matte.jpg`);
+        urls.push(`${CDN}/porcelainceramic/${nameSlug}-porcelain-${sizeSlug}-matte.jpg`);
+      }
+    }
     urls.push(`${CDN}/porcelainceramic/iso/${nameSlug}-porcelain-iso.jpg`);
     urls.push(`${CDN}/porcelainceramic/${nameSlug}-porcelain.jpg`);
     urls.push(`${CDN}/colornames/${nameSlug}.jpg`);
+
+    // Reverse word order — MSI CDN often uses {color}-{collection} instead of {collection}-{color}
+    // e.g. "Adella Calacatta" → nameSlug is "adella-calacatta" but CDN has "calacatta-adella-porcelain.jpg"
+    const nameParts = nameSlug.split('-');
+    if (nameParts.length >= 2) {
+      const reversed = [...nameParts].reverse().join('-');
+      if (reversed !== nameSlug) {
+        urls.push(`${CDN}/porcelainceramic/${reversed}-porcelain.jpg`);
+        urls.push(`${CDN}/porcelainceramic/iso/${reversed}-porcelain-iso.jpg`);
+        urls.push(`${CDN}/colornames/${reversed}.jpg`);
+        if (size) {
+          const sizeSlug = size.toLowerCase().replace(/[^0-9x]/g, '');
+          if (sizeSlug) {
+            urls.push(`${CDN}/porcelainceramic/${reversed}-porcelain-${sizeSlug}-polished.jpg`);
+            urls.push(`${CDN}/porcelainceramic/${reversed}-${sizeSlug}-polished.jpg`);
+          }
+        }
+      }
+    }
   }
 
+  return [...new Set(urls)];
+}
+
+function buildMosaicUrls(productName, collection, variantName, vendorSku, size) {
+  const urls = [];
+  const nameSlug = cdnSlugify(productName);
+  const collSlug = cdnSlugify(collection);
+  const colorSlug = slugify(variantName);
+
+  // Extract size from productName if not provided (e.g. "12x24" from "Adella Viso Gris 12x24")
+  let sizeSlug = null;
+  if (size) {
+    sizeSlug = size.toLowerCase().replace(/[^0-9x.]/g, '');
+  } else if (productName) {
+    const sizeMatch = productName.match(/(\d+)\s*[xX×]\s*(\d+)/);
+    if (sizeMatch) sizeSlug = `${sizeMatch[1]}x${sizeMatch[2]}`;
+  }
+
+  const finishes = ['polished', 'honed', 'tumbled', 'matte', 'glossy', 'satin'];
+  const shapes = ['subway', 'hexagon', 'herringbone', 'arabesque', 'basketweave', 'chevron', 'penny-round', 'picket'];
+
+  if (nameSlug) {
+    urls.push(`${CDN}/mosaics/${nameSlug}.jpg`);
+    urls.push(`${CDN}/mosaics/thumbnails/${nameSlug}.jpg`);
+    for (const f of finishes) {
+      urls.push(`${CDN}/mosaics/${nameSlug}-${f}.jpg`);
+      urls.push(`${CDN}/mosaics/thumbnails/${nameSlug}-${f}.jpg`);
+    }
+    // Size+finish combos (e.g. adella-viso-calacatta-12x24-satin)
+    if (sizeSlug) {
+      urls.push(`${CDN}/mosaics/${nameSlug}-${sizeSlug}.jpg`);
+      urls.push(`${CDN}/mosaics/thumbnails/${nameSlug}-${sizeSlug}.jpg`);
+      for (const f of finishes) {
+        urls.push(`${CDN}/mosaics/${nameSlug}-${sizeSlug}-${f}.jpg`);
+        urls.push(`${CDN}/mosaics/thumbnails/${nameSlug}-${sizeSlug}-${f}.jpg`);
+      }
+    }
+    // mm-size patterns (e.g. pasadena-2x2x6mm)
+    if (productName) {
+      const mmMatch = productName.match(/(\d+)\s*[xX×]\s*(\d+)\s*[xX×]\s*(\d+)\s*mm/i);
+      if (mmMatch) {
+        const mmSlug = `${mmMatch[1]}x${mmMatch[2]}x${mmMatch[3]}mm`;
+        urls.push(`${CDN}/mosaics/${nameSlug}-${mmSlug}.jpg`);
+        urls.push(`${CDN}/mosaics/thumbnails/${nameSlug}-${mmSlug}.jpg`);
+      }
+    }
+    urls.push(`${CDN}/mosaics/detail-two/${nameSlug}-detail-two.jpg`);
+  }
+  // Color+finish+shape combos (e.g. almond-glossy-subway)
+  if (colorSlug) {
+    for (const f of finishes) {
+      for (const s of shapes) {
+        urls.push(`${CDN}/mosaics/${colorSlug}-${f}-${s}.jpg`);
+      }
+    }
+  }
+  // Collection-color combos
+  if (collSlug && colorSlug) {
+    urls.push(`${CDN}/mosaics/${collSlug}-${colorSlug}.jpg`);
+    urls.push(`${CDN}/mosaics/${colorSlug}-${collSlug}.jpg`);
+  }
+  // colornames fallback
+  if (nameSlug) urls.push(`${CDN}/colornames/${nameSlug}.jpg`);
+  if (collSlug && colorSlug) urls.push(`${CDN}/colornames/${collSlug}-${colorSlug}.jpg`);
   return [...new Set(urls)];
 }
 
 const PORCELAIN_COLOR_MAP = {
   'AMB': ['amber'], 'ASH': ['ash'], 'BIA': ['bianco'],
   'BLA': ['blanca', 'blanco'], 'CAF': ['cafe'], 'CAM': ['camo'],
-  'CAR': ['carbone'], 'CHA': ['charcoal'], 'CON': ['concrete'],
-  'CRE': ['cremita', 'cream', 'crema'], 'GLA': ['glacier'],
+  'CAL': ['calacatta'], 'CAR': ['carbone'], 'CHA': ['charcoal'],
+  'CON': ['concrete'], 'CRE': ['cremita', 'cream', 'crema'],
+  'GLA': ['glacier'], 'GOL': ['gold'],
   'GRA': ['graphite'], 'GRE': ['greige', 'grey'],
   'GRI': ['gris', 'grigia', 'grigio'], 'ICE': ['ice'], 'IVO': ['ivory'],
   'MID': ['midnight'], 'MOK': ['moka'], 'NER': ['nero'], 'ORO': ['oro'],
@@ -1097,6 +1278,8 @@ const PORCELAIN_COLOR_MAP = {
   'TAU': ['taupe'], 'WAL': ['walnut'], 'WEN': ['wenge'], 'RED': ['red'],
   'RUS': ['rustique'], 'CRO': ['criollo'], 'FOR': ['forest'],
   'MAR': ['marble'], 'OAK': ['oak'], 'SAB': ['sable'], 'SIE': ['sienna'],
+  'BRI': ['brick'], 'COB': ['cobble'], 'FOG': ['fog'], 'PUT': ['putty'],
+  'VIS': ['viso'], 'REG': ['regal'],
 };
 
 function decodePorcelainColor(vendorSku, collection) {
@@ -1200,8 +1383,8 @@ function decodeStackedStoneVendorSku(vendorSku) {
 
 function buildNaturalStoneUrls(productName, collection, category) {
   const urls = [];
-  const nameSlug = slugify(productName);
-  const collSlug = slugify(collection);
+  const nameSlug = cdnSlugify(productName);
+  const collSlug = cdnSlugify(collection);
   const materialSuffixes = [];
   if (category) {
     const cat = category.toLowerCase();
@@ -1247,7 +1430,7 @@ function buildHardscapingUrls(productName, collection, variantName) {
 // ─── CDN URL selector by category ────────────────────────────────────────────
 
 function buildCdnUrlsForSku(entry) {
-  const { vendor_sku, collection, product_name, category, color } = entry;
+  const { vendor_sku, collection, product_name, category, color, size } = entry;
   const variantName = color || product_name;
   const catLower = (category || '').toLowerCase();
 
@@ -1260,8 +1443,15 @@ function buildCdnUrlsForSku(entry) {
       ...buildLvpUrls(collection, variantName, product_name),
     ];
   }
+  if (/mosaic|glass.tile/i.test(catLower)) {
+    // Try mosaic URLs first, then porcelain as fallback (many mosaics share the base tile image)
+    return [
+      ...buildMosaicUrls(product_name, collection, variantName, vendor_sku, size),
+      ...buildPorcelainUrls(collection, variantName, product_name, vendor_sku, size),
+    ];
+  }
   if (/porcelain|ceramic|tile/i.test(catLower) && !/mosaic|stacked|glass/i.test(catLower)) {
-    return buildPorcelainUrls(collection, variantName, product_name, vendor_sku);
+    return buildPorcelainUrls(collection, variantName, product_name, vendor_sku, size);
   }
   if (/stacked.stone|ledger/i.test(catLower)) {
     return buildStackedStoneUrls(product_name, collection, vendor_sku);
@@ -1278,7 +1468,7 @@ function buildCdnUrlsForSku(entry) {
   // Fallback: try all patterns
   return [
     ...buildLvpUrls(collection, variantName, product_name),
-    ...buildPorcelainUrls(collection, variantName, product_name, vendor_sku),
+    ...buildPorcelainUrls(collection, variantName, product_name, vendor_sku, size),
     ...buildNaturalStoneUrls(product_name, collection, category),
   ];
 }
@@ -1296,7 +1486,7 @@ async function phase3_tier1_cdnProbe(pool, skuIndex, log) {
     if (processed % 500 === 0) log(`    Progress: ${processed}/${total} (${matched} matched)`);
 
     // Skip accessories — they inherit from parent in Phase 5
-    if (/^VTT|^TT/i.test(entry.vendor_sku) && entry.sell_by === 'unit') {
+    if (entry.variant_type === 'accessory') {
       skipped++;
       continue;
     }
@@ -1304,7 +1494,21 @@ async function phase3_tier1_cdnProbe(pool, skuIndex, log) {
     const candidates = buildCdnUrlsForSku(entry);
     if (candidates.length === 0) { noUrl++; continue; }
 
-    const hit = await probeFirst(candidates, 15);
+    let hit = await probeFirst(candidates, 15);
+    // Promote thumbnail to full-size if available
+    if (hit && /\/thumbnails\//i.test(hit)) {
+      const fullSize = hit.replace('/thumbnails/', '/');
+      const fullSizeHit = await headUrl(fullSize);
+      if (fullSizeHit) hit = fullSizeHit;
+    }
+    // Validate the hit is specific enough for this product (not a generic collection image)
+    if (hit && !validateCdnHit(hit, entry)) {
+      hit = null;
+    }
+    // For mosaics, reject hits from porcelain patterns (wrong product type)
+    if (hit && /mosaic|glass.tile/i.test((entry.category || '').toLowerCase())) {
+      if (/\/porcelainceramic\//i.test(hit) && !/mosaic/i.test(hit)) hit = null;
+    }
     if (hit) {
       await saveSkuImages(pool, entry.product_id, entry.sku_id, [hit], { maxImages: 1 });
       entry._hasImage = true;
@@ -1319,8 +1523,9 @@ async function phase3_tier1_cdnProbe(pool, skuIndex, log) {
 // ─── Tier 2: Puppeteer Enrichment ────────────────────────────────────────────
 
 const MSI_CATEGORIES = [
-  // Porcelain / ceramic
+  // Porcelain / ceramic — main page shows ~48; pietra sub-page lists another set
   '/porcelain-tile/',
+  '/porcelain-tile/pietra/',
   // Natural stone
   '/marble-tile/', '/travertine-tile/', '/granite-tile/',
   '/quartzite-tile/', '/slate-tile/', '/limestone-tile/', '/sandstone-tile/',
@@ -1330,19 +1535,32 @@ const MSI_CATEGORIES = [
   '/luxury-vinyl-flooring/xxl-cyrus/', '/luxury-vinyl-flooring/prescott/',
   '/luxury-vinyl-flooring/everlife-prescott/', '/luxury-vinyl-flooring/bracken-hill/',
   '/luxury-vinyl-flooring/everlife/',
+  '/luxury-vinyl-flooring/katavia/',
+  '/luxury-vinyl-flooring/smithcliffs/',
+  '/luxury-vinyl-flooring/fauna/',
+  '/luxury-vinyl-flooring/dryback/',
+  '/luxury-vinyl-flooring/',               // catch-all
   '/waterproof-hybrid-rigid-core/',
   // Hardwood
   '/w-luxury-genuine-hardwood/',
   '/waterproof-wood-flooring/woodhills/',
+  '/waterproof-wood-flooring/mccarran/',
+  '/waterproof-wood-flooring/ladson/',
+  '/waterproof-wood-flooring/',             // catch-all
   // Backsplash & Mosaics
   '/backsplash-tile/subway-tile/', '/backsplash-tile/glass-tile/',
   '/backsplash-tile/natural-stone-backsplash/',
   '/mosaics/collections-mosaics/',
   '/mosaics/peel-and-stick/',
+  '/mosaics/marble-mosaics/',
+  '/mosaics/glass-mosaic/',
+  '/mosaics/',                              // catch-all
   // Stacked stone & hardscape
   '/hardscape/rockmount-stacked-stone/',
   '/hardscape/arterra-porcelain-pavers/',
   '/hardscape/natural-stone-coping/',
+  // Acoustic panels, installation
+  '/acoustic-panels/',
 ];
 
 async function phase3_tier2_puppeteer(pool, skuIndex, log) {
@@ -1358,12 +1576,22 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
     const visitedUrls = new Set();
 
     for (const categoryPath of MSI_CATEGORIES) {
+      // In test mode, stop early once all test SKUs have images
+      if (TEST_SKUS) {
+        const allDone = [...skuIndex.values()].every(e => e._hasImage);
+        if (allDone) { log(`    All test SKUs have images — stopping early`); break; }
+      }
       const categoryUrl = baseUrl + categoryPath;
       log(`    Category: ${categoryPath}`);
 
       let productUrls;
       try {
         productUrls = await collectProductUrls(browser, categoryUrl);
+        // Retry once if 0 products found (transient Puppeteer/network issue)
+        if (productUrls.length === 0) {
+          await delay(5000);
+          productUrls = await collectProductUrls(browser, categoryUrl);
+        }
         log(`      Found ${productUrls.length} products`);
       } catch (err) {
         log(`      ERROR: ${err.message}`);
@@ -1380,12 +1608,21 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
           const data = await scrapeProductPage(browser, url);
           if (!data || !data.name) continue;
 
-          // Match scraped SKU codes to our index
+          // Match scraped SKU codes to our index (multi-strategy)
           const matchedSkus = [];
           for (const entry of (data.skus || [])) {
             if (!/\d/.test(entry.code)) continue;
             const cleanCode = entry.code.replace(/\s+/g, '-').toUpperCase();
-            const match = skuIndex.get('MSI-' + cleanCode);
+
+            let match = skuIndex.get('MSI-' + cleanCode);                        // Direct
+            if (!match && cleanCode.startsWith('P-'))
+              match = skuIndex.get('MSI-' + cleanCode.slice(2));                  // Strip P-
+            if (!match) match = skuIndex.get('MSI-P-' + cleanCode);              // Add P-
+            if (!match) {
+              const alt = cleanCode.replace(/\./g, '-');
+              if (alt !== cleanCode) match = skuIndex.get('MSI-' + alt);         // Dot→hyphen
+            }
+
             if (match) {
               matchedSkus.push({ ...match, code: entry.code, scraped: entry });
             }
@@ -1409,25 +1646,42 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
           }
 
           // Save per-SKU images (from page scrape)
+          // Strategy: when a SKU has a per-variant sizeImage from .size-spec,
+          // use it as PRIMARY. Then add page-level images as alternates —
+          // these show the product family (gallery shots, room scenes) and are
+          // still useful context even if they depict a different size variant.
+          // SKUs without sizeImage get only page-level images.
           for (const match of matchedSkus) {
             if (match._hasImage) continue;
 
-            // Prefer per-size image if available
-            const perSizeImg = match.scraped?.sizeImage;
+            // Prefer per-size image if available (promote thumbnails to full-size)
+            let perSizeImg = match.scraped?.sizeImage;
+            if (perSizeImg && /\/thumbnails\//i.test(perSizeImg)) {
+              perSizeImg = perSizeImg.replace('/thumbnails/', '/');
+            }
+
             let imageUrls = [];
-            if (perSizeImg) imageUrls.push(perSizeImg);
-            if (data.images && data.images.length > 0) {
-              imageUrls.push(...data.images.map(img => img.url));
+            if (perSizeImg) {
+              // Per-variant image is authoritative — lock it as primary
+              const pageImgs = (data.images || []).map(i => i.url).filter(u => u !== perSizeImg);
+              const sortedAlts = preferProductShot(pageImgs, match.color);
+              const filteredAlts = filterImageUrls(sortedAlts, { maxImages: 3 });
+              imageUrls = [perSizeImg, ...filteredAlts];
+            } else {
+              // No per-variant image — use page-level images with full ranking
+              const raw = (data.images || []).map(i => i.url);
+              if (raw.length > 0) {
+                imageUrls = filterImageUrls(preferProductShot(raw, match.color), { maxImages: 4 });
+              }
             }
 
             if (imageUrls.length > 0) {
-              const sorted = preferProductShot(imageUrls, match.color);
-              const filtered = filterImageUrls(sorted, { maxImages: 4 });
-              if (filtered.length > 0) {
-                await saveSkuImages(pool, match.product_id, match.sku_id, filtered, { maxImages: 4 });
-                match._hasImage = true;
-                totalImages += filtered.length;
-              }
+              await saveSkuImages(pool, match.product_id, match.sku_id, imageUrls, { maxImages: 4 });
+              const internalSku = 'MSI-' + match.code.replace(/\s+/g, '-').toUpperCase();
+              const original = skuIndex.get(internalSku);
+              if (original) original._hasImage = true;
+              match._hasImage = true;
+              totalImages += Math.min(imageUrls.length, 4);
             }
           }
 
@@ -1625,7 +1879,31 @@ async function scrapeProductPage(browser, url) {
         result.skus.push({ code, size, finish: '', sizeImage });
       });
 
-      // Strategy 2: ID# lines in text (fallback for old pages)
+      // Strategy 2: .size-spec containers with ID# labels (primary for most MSI pages)
+      document.querySelectorAll('.size-spec').forEach(spec => {
+        const idLabel = [...spec.querySelectorAll('.specs-label')].find(el => /ID#:/i.test(el.textContent));
+        if (!idLabel) return;
+        const idMatch = idLabel.textContent.match(/ID#:\s*([A-Z0-9][\w-]{4,})/i);
+        if (!idMatch) return;
+        const code = idMatch[1].trim();
+        if (code.length < 5 || seen.has(code)) return;
+        seen.add(code);
+
+        let size = '', finish = '';
+        const sizeMatch = spec.textContent.match(/(\d+)\s*[xX×]\s*(\d+)/);
+        if (sizeMatch) size = sizeMatch[1] + 'x' + sizeMatch[2];
+        const finishMatch = spec.textContent.match(/Finish:\s*([^\n]+)/i);
+        if (finishMatch) finish = finishMatch[1].trim();
+
+        // Extract per-variant image from the same container
+        let sizeImage = '';
+        const img = spec.querySelector('img[src*="cdn.msisurfaces.com"]');
+        if (img && img.src && !/\.svg/i.test(img.src)) sizeImage = img.src;
+
+        result.skus.push({ code, size, finish, sizeImage });
+      });
+
+      // Strategy 3: ID# lines in text (fallback for pages without .size-spec)
       const lines = (document.body.innerText || '').split('\n').map(l => l.trim()).filter(Boolean);
       for (let i = 0; i < lines.length; i++) {
         const idMatch = lines[i].match(/^ID#:\s*([A-Z0-9][\w-]{4,})/i);
@@ -1683,13 +1961,23 @@ async function scrapeProductPage(browser, url) {
         }
       }
 
-      // Images — prioritize product shots, room scenes, then thumbnails
+      // Images — prioritize product shots, room scenes
       const seenUrls = new Set();
       const productImages = [];
       const roomScenes = [];
-      const otherImages = [];
 
-      function categorizeImage(src) {
+      // Build name keywords to filter out images of other products/colors
+      const GENERIC_WORDS = new Set(['porcelain','ceramic','marble','granite','travertine',
+        'quartzite','slate','sandstone','limestone','onyx','tile','tiles','plank','planks',
+        'flooring','wood','vinyl','luxury','collection','series','waterproof','hybrid',
+        'rigid','core','look','matte','polished','honed','mosaic','backsplash','wall',
+        'floor','natural','stone','slab','countertop','countertops','paver','pavers',
+        'stacked','ledger','panel','prefab','vanity','top','tops','engineered','hardwood']);
+      const nameKeywords = (result.name || '').toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '').split(/\s+/)
+        .filter(w => w.length >= 3 && !GENERIC_WORDS.has(w));
+
+      function categorizeImage(src, trusted) {
         if (!src) return;
         try {
           const u = new URL(src, window.location.origin);
@@ -1698,34 +1986,49 @@ async function scrapeProductPage(browser, url) {
           if (href.indexOf('cdn.msisurfaces.com') === -1 && href.indexOf('/files/') === -1) return;
           if (/\.(svg|gif|ico)(\?|$)/i.test(href)) return;
           if (/icon|logo|badge|placeholder|miscellaneous|roomvo|wetcutting|flyers/i.test(href)) return;
+          // Reject accessory product images even from trusted gallery sources
+          const urlLower = decodeURIComponent(href).toLowerCase();
+          if (/stair[-_.]?tread|stair[-_.]?nose|flush[-_.]?stair|t[-_.]?mold|quarter[-_.]?round|reducer|end[-_.]?cap|bullnose|riser/i.test(urlLower)) {
+            return;
+          }
+          // Name-keyword filter: reject images that don't match product name (skip for trusted sources)
+          if (!trusted && nameKeywords.length > 0) {
+            if (!nameKeywords.some(kw => urlLower.includes(kw))) return;
+          }
           seenUrls.add(href);
           if (/roomscene/i.test(href)) {
             roomScenes.push(href);
-          } else if (/thumbnails/i.test(href)) {
-            otherImages.push(href);
           } else {
             productImages.push(href);
           }
         } catch { }
       }
 
-      // og:image first
+      // og:image first (trusted)
       const ogImage = document.querySelector('meta[property="og:image"]');
-      if (ogImage) categorizeImage(ogImage.getAttribute('content'));
-      // MagicZoom gallery images (main product photos)
+      if (ogImage) categorizeImage(ogImage.getAttribute('content'), true);
+      // MagicZoom gallery images (main product photos — trusted)
       document.querySelectorAll('.mz-figure img, .MagicZoom img').forEach(img => {
-        categorizeImage(img.src);
-        categorizeImage(img.getAttribute('data-src'));
-        categorizeImage(img.getAttribute('data-zoom-image'));
+        categorizeImage(img.src, true);
+        categorizeImage(img.getAttribute('data-src'), true);
+        categorizeImage(img.getAttribute('data-zoom-image'), true);
       });
-      // All CDN images
+      // All CDN images (NOT trusted — may include "Similar Styles" etc.)
+      // Skip images inside .size-spec containers — those are per-variant images
+      // already captured in result.skus[].sizeImage and must not bleed into data.images
       document.querySelectorAll('img[src*="cdn.msisurfaces.com"]').forEach(img => {
-        categorizeImage(img.src);
-        categorizeImage(img.getAttribute('data-src'));
+        if (img.closest('.size-spec')) return;
+        categorizeImage(img.src, false);
+        categorizeImage(img.getAttribute('data-src'), false);
       });
 
-      // Build final image list: product shots first, then room scenes, then thumbnails
-      const allImgs = [...productImages, ...roomScenes, ...otherImages].slice(0, 8);
+      // Promote thumbnails to full-size URLs before returning
+      function promoteThumbnail(url) {
+        if (/\/thumbnails\//i.test(url)) return url.replace('/thumbnails/', '/');
+        return url;
+      }
+      const allImgs = [...productImages, ...roomScenes]
+        .map(promoteThumbnail).slice(0, 8);
       result.images = allImgs.map((url, i) => ({
         url,
         type: i === 0 ? 'primary' : (url.includes('roomscene') ? 'lifestyle' : 'alternate'),
@@ -1746,6 +2049,14 @@ async function scrapeProductPage(browser, url) {
   } finally {
     await page.close();
   }
+}
+
+// ─── Size normalization for sibling matching ─────────────────────────────────
+
+function normalizeSizeForMatch(raw) {
+  if (!raw) return null;
+  return raw.replace(/\s*(IN|CM|MM)\s*$/i, '').replace(/\s*[xX\u00d7]\s*/g, 'x')
+    .trim().toLowerCase() || null;
 }
 
 // ─── Phase 3 Orchestrator ────────────────────────────────────────────────────
@@ -1785,10 +2096,21 @@ async function phase3_images(pool, skuIndex, log) {
     const withoutImage = entries.filter(e => !e._hasImage);
     if (withImage.length === 0 || withoutImage.length === 0) continue;
 
-    // Build color → imageUrl map from DB
+    // Build color+size → imageUrl map from DB
     for (const entry of withoutImage) {
-      // Find a sibling with same color
-      const sibling = withImage.find(e => e.color && entry.color && e.color === entry.color);
+      const entrySize = normalizeSizeForMatch(entry.size);
+
+      // Pass 1: Exact match (same color + same size) — most reliable
+      let sibling = withImage.find(e => {
+        if (!e.color || !entry.color || e.color !== entry.color) return false;
+        return normalizeSizeForMatch(e.size) === entrySize;
+      });
+
+      // Pass 2: Same color, any size (same visual product, different plank/tile size)
+      if (!sibling) {
+        sibling = withImage.find(e => e.color && entry.color && e.color === entry.color);
+      }
+
       if (!sibling) continue;
 
       // Get sibling's image URL from DB
@@ -2169,6 +2491,18 @@ async function main() {
       return;
     }
 
+    // Filter to specific SKUs if --test-skus provided
+    if (TEST_SKUS) {
+      const testSet = new Set(TEST_SKUS);
+      const original = skuIndex.size;
+      for (const [key, entry] of skuIndex) {
+        const rawSku = entry.vendor_sku || key.replace(/^MSI-/, '');
+        if (!testSet.has(rawSku.toUpperCase())) skuIndex.delete(key);
+      }
+      log(`--test-skus: filtered ${original} → ${skuIndex.size} SKUs`);
+      if (skuIndex.size === 0) { log('No matching SKUs found.'); return; }
+    }
+
     // ── Phase 3: Images ──
     if (!SKIP_IMAGES) {
       await phase3_images(pool, skuIndex, log);
@@ -2177,10 +2511,18 @@ async function main() {
     }
 
     // ── Phase 4: Product Map ──
-    await phase4_productMap(pool, vendorId, log);
+    if (!TEST_SKUS) {
+      await phase4_productMap(pool, vendorId, log);
+    } else {
+      log('Phase 4: SKIPPED (--test-skus mode)');
+    }
 
     // ── Phase 5: Accessory Attachment ──
-    await phase5_attachAccessories(pool, vendorId, log);
+    if (!TEST_SKUS) {
+      await phase5_attachAccessories(pool, vendorId, log);
+    } else {
+      log('Phase 5: SKIPPED (--test-skus mode)');
+    }
 
     // ── Final stats ──
     const { rows: [stats] } = await pool.query(`
