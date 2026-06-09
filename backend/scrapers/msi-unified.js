@@ -33,7 +33,7 @@ import {
   upsertProduct, upsertSku, upsertSkuAttribute,
   upsertPackaging, upsertPricing,
   upsertMediaAsset, saveSkuImages,
-  preferProductShot, isLifestyleUrl, filterImageUrls,
+  preferProductShot, isLifestyleUrl, filterImageUrls, filterImagesByVariant,
   appendLog, addJobError,
 } from './base.js';
 
@@ -1647,10 +1647,12 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
 
           // Save per-SKU images (from page scrape)
           // Strategy: when a SKU has a per-variant sizeImage from .size-spec,
-          // use it as PRIMARY. Then add page-level images as alternates —
-          // these show the product family (gallery shots, room scenes) and are
-          // still useful context even if they depict a different size variant.
-          // SKUs without sizeImage get only page-level images.
+          // use it as PRIMARY. Page-level alternates are filtered by variant color
+          // so we don't attach wrong-color images to a SKU.
+          // Collect all colors on this page for exclusion filtering
+          const allColors = matchedSkus
+            .map(m => m.color).filter(Boolean);
+
           for (const match of matchedSkus) {
             if (match._hasImage) continue;
 
@@ -1660,18 +1662,27 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
               perSizeImg = perSizeImg.replace('/thumbnails/', '/');
             }
 
+            // Filter page-level images by variant color
+            const pageImgUrls = (data.images || []).map(i => i.url)
+              .filter(u => u !== perSizeImg);
+            const otherColors = allColors.filter(c => c !== match.color);
+            const { matched: variantImgs, shared: sharedImgs } = filterImagesByVariant(
+              pageImgUrls, match.color,
+              { otherColors, productName: match.product_name }
+            );
+            // Variant-matched images first, then shared/generic (skip other-color)
+            const relevantAlts = [...variantImgs, ...sharedImgs];
+
             let imageUrls = [];
             if (perSizeImg) {
               // Per-variant image is authoritative — lock it as primary
-              const pageImgs = (data.images || []).map(i => i.url).filter(u => u !== perSizeImg);
-              const sortedAlts = preferProductShot(pageImgs, match.color);
+              const sortedAlts = preferProductShot(relevantAlts, match.color);
               const filteredAlts = filterImageUrls(sortedAlts, { maxImages: 3 });
               imageUrls = [perSizeImg, ...filteredAlts];
             } else {
-              // No per-variant image — use page-level images with full ranking
-              const raw = (data.images || []).map(i => i.url);
-              if (raw.length > 0) {
-                imageUrls = filterImageUrls(preferProductShot(raw, match.color), { maxImages: 4 });
+              // No per-variant image — use variant-filtered images with full ranking
+              if (relevantAlts.length > 0) {
+                imageUrls = filterImageUrls(preferProductShot(relevantAlts, match.color), { maxImages: 4 });
               }
             }
 
