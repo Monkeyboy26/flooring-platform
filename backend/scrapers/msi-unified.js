@@ -47,6 +47,7 @@ const __dirname = path.dirname(__filename);
 const SKIP_EDI       = process.argv.includes('--skip-edi');
 const SKIP_IMAGES    = process.argv.includes('--skip-images');
 const SKIP_PUPPETEER = process.argv.includes('--skip-puppeteer');
+const TIER2_ONLY     = process.argv.includes('--tier2-only');
 const DRY_RUN        = process.argv.includes('--dry-run');
 const VERBOSE        = process.argv.includes('--verbose');
 const TEST_SKUS_ARG  = process.argv.find(a => a.startsWith('--test-skus='));
@@ -311,15 +312,79 @@ function cleanProductName(raw) {
   if (!raw) return null;
   let name = raw
     .replace(/\s*\([^)]*sq(?:ft|yd)[^)]*\)/gi, '')
-    .replace(/\s+\d+\.?\d*[xX]\d+\.?\d*/g, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
+  // Strip garbage placeholders
+  if (/^x{4,}|discontinued/i.test(name)) return null;
+  // Fix repeated words (e.g., "Miracle Miracle Wipes")
+  name = name.replace(/\b(\w{4,})\s+\1\b/gi, '$1');
+  // Title case
   name = name.replace(/\b\w+/g, w =>
-    w.length <= 3 && /^(i{1,3}|ii|iv|v|vi|vii|viii|ix|x|spc|lvp|lvt|wpc)$/i.test(w)
+    w.length <= 3 && /^(i{1,3}|ii|iv|v|vi|vii|viii|ix|x|spc|lvp|lvt|wpc|3d|mm)$/i.test(w)
       ? w.toUpperCase()
       : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
   );
+  // Fix "Mc." abbreviations → "McCarran"
+  name = name.replace(/\bMc\.\s*/g, 'Mc');
+  // Fix missing space before dimension (e.g., "Blanca8x47" → "Blanca 8x47")
+  name = name.replace(/([a-z])(\d+x\d+)/gi, '$1 $2');
+  // Remove verbose suffixes like "Rectified Tiles Matte" (redundant with variant)
+  name = name.replace(/\s+Rectified\s+Tiles?\s+\w+$/i, '');
   return name || null;
+}
+
+// EDI color families — these should NOT be used as variant_name
+const EDI_COLOR_FAMILIES = new Set([
+  'BROWN', 'BLONDE', 'GRAY-LIGHT', 'GRAY-DARK', 'WHITE-COOL', 'WHITE-WARM',
+  'BEIGE', 'MULTICOLOR', 'BLACK', 'GOLD', 'CREAM', 'RED', 'BLUE', 'GREEN',
+  'YELLOW', 'PURE WHITE', 'ADHESIVE',
+]);
+
+function buildVariantName(item, isAccessory) {
+  // Accessories: use trim description
+  if (isAccessory) {
+    return item._trimDescription || item._accessoryLabel || item.product_name || null;
+  }
+
+  // Build size string from WD × LN measurements
+  const widthMea = item.measurements.find(m => m.qualifier === 'WD');
+  const lengthMea = item.measurements.find(m => m.qualifier === 'LN');
+  let sizePart = null;
+  if (widthMea && lengthMea) {
+    const w = widthMea.value, l = lengthMea.value;
+    // Format cleanly: drop ".0" decimals, keep real decimals like 10.5
+    const fw = (w % 1 === 0) ? String(w) : String(w);
+    const fl = (l % 1 === 0) ? String(l) : String(l);
+    sizePart = `${fw}x${fl}`;
+  }
+
+  // Get finish from EDI descriptors
+  const finishPid = item.descriptions.find(d => d.characteristic_label === 'finish');
+  let finishPart = finishPid ? finishPid.description : null;
+  if (finishPart) {
+    // Title case the finish
+    finishPart = finishPart.replace(/\b\w+/g, w =>
+      w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+    );
+  }
+
+  // Get pattern from EDI
+  const patternPid = item.descriptions.find(d => d.characteristic_label === 'pattern');
+  let patternPart = patternPid ? patternPid.description : null;
+
+  // Build the variant name
+  if (sizePart && finishPart) return `${sizePart} ${finishPart}`;
+  if (sizePart) return sizePart;
+  if (patternPart && finishPart) return `${patternPart} ${finishPart}`;
+  if (finishPart) return finishPart;
+
+  // Fallback: use color ONLY if it's not a generic EDI color family
+  if (item.color && !EDI_COLOR_FAMILIES.has(item.color.toUpperCase())) {
+    return item.color;
+  }
+
+  // Last resort: use product_name
+  return item.product_name || null;
 }
 
 function finalizeItem(item) {
@@ -356,33 +421,41 @@ function finalizeItem(item) {
     }
   }
 
-  // MEA SU → sqft_per_box
+  // MEA SU → per-piece surface area (NOT per-box)
+  let sqftPerPiece = null;
   const surfMea = item.measurements.find(m => m.qualifier === 'SU');
   if (surfMea && surfMea.value) {
     const suUom = (surfMea.unit_of_measure || '').toUpperCase();
     if (suUom === 'SF' || suUom === 'FT2') {
-      item.sqft_per_box = surfMea.value;
+      sqftPerPiece = surfMea.value;
       if (!item.sell_by) item.sell_by = 'box';
     } else if (suUom === 'SY') {
-      item.sqft_per_box = surfMea.value * 9;
+      sqftPerPiece = surfMea.value * 9;
       if (!item.sell_by) item.sell_by = 'box';
     } else if (suUom === 'EA') {
       if (!item.sell_by) item.sell_by = 'unit';
     }
   }
 
-  // Packaging (PO4)
+  // Packaging (PO4) — size_per_pack is the authoritative per-box sqft
   if (item.packaging) {
     const uom = (item.packaging.unit_of_measure || '').toUpperCase();
-    if (!item.sqft_per_box) {
-      if (uom === 'SF' || uom === 'FT2') { item.sqft_per_box = item.packaging.size_per_pack; if (!item.sell_by) item.sell_by = 'box'; }
-      else if (uom === 'SY') { item.sqft_per_box = item.packaging.size_per_pack * 9; if (!item.sell_by) item.sell_by = 'box'; }
-      else if (uom === 'EA' || uom === 'PC') { if (!item.sell_by) item.sell_by = 'unit'; }
-      else if (uom === 'LF') { if (!item.sell_by) item.sell_by = 'unit'; }
-      else if (item.packaging.size_per_pack) { item.sqft_per_box = item.packaging.size_per_pack; if (!item.sell_by) item.sell_by = 'box'; }
-    }
+    if (uom === 'SF' || uom === 'FT2') { item.sqft_per_box = item.packaging.size_per_pack; if (!item.sell_by) item.sell_by = 'box'; }
+    else if (uom === 'SY') { item.sqft_per_box = item.packaging.size_per_pack * 9; if (!item.sell_by) item.sell_by = 'box'; }
+    else if (uom === 'EA' || uom === 'PC') { if (!item.sell_by) item.sell_by = 'unit'; }
+    else if (uom === 'LF') { if (!item.sell_by) item.sell_by = 'unit'; }
+    else if (item.packaging.size_per_pack) { item.sqft_per_box = item.packaging.size_per_pack; if (!item.sell_by) item.sell_by = 'box'; }
     item.pieces_per_box = item.packaging.pieces_per_pack || null;
     item.weight_per_box_lbs = item.packaging.gross_weight || null;
+  }
+
+  // Compute sqft_per_box from per-piece area × pieces when PO4 didn't provide it
+  if (!item.sqft_per_box && sqftPerPiece) {
+    if (item.pieces_per_box && item.pieces_per_box > 1) {
+      item.sqft_per_box = Math.round(sqftPerPiece * item.pieces_per_box * 10000) / 10000;
+    } else {
+      item.sqft_per_box = sqftPerPiece;
+    }
   }
 
   // Pricing
@@ -755,6 +828,18 @@ async function phase2_edi832(pool, vendorId, source, log) {
 
   // Group and import
   const productGroups = groupIntoProducts(allItems);
+
+  // Disambiguate duplicate product names across collections
+  const nameCount = new Map();
+  for (const g of productGroups) {
+    nameCount.set(g.baseName, (nameCount.get(g.baseName) || 0) + 1);
+  }
+  for (const g of productGroups) {
+    if (nameCount.get(g.baseName) > 1 && g.collection) {
+      g.baseName = `${g.collection} - ${g.baseName}`;
+    }
+  }
+
   log(`  Grouped into ${productGroups.length} products`);
 
   let productsCreated = 0, productsUpdated = 0, skusCreated = 0, skusUpdated = 0;
@@ -788,9 +873,7 @@ async function phase2_edi832(pool, vendorId, source, log) {
       const sellBy = item.sell_by || 'box';
       const isItemAccessory = item._isAccessory || group.isAccessory;
       const variantType = isItemAccessory ? 'accessory' : null;
-      const variantName = item._isAccessory
-        ? (item._trimDescription || item.color || item.product_name || null)
-        : (item.color || item.product_name || null);
+      const variantName = buildVariantName(item, isItemAccessory);
 
       const skuRow = await upsertSku(pool, {
         product_id: productId, vendor_sku: vendorSku,
@@ -943,6 +1026,15 @@ async function buildSkuIndexFromDb(pool, vendorId, log) {
     attrMap.get(ar.sku_id)[ar.slug] = ar.value;
   }
 
+  // Check which SKUs already have primary images in the DB
+  const imageRows = await pool.query(`
+    SELECT DISTINCT ma.sku_id FROM media_assets ma
+    JOIN skus s ON ma.sku_id = s.id
+    JOIN products p ON s.product_id = p.id
+    WHERE p.vendor_id = $1 AND ma.asset_type = 'primary' AND ma.sku_id IS NOT NULL
+  `, [vendorId]);
+  const skusWithImages = new Set(imageRows.rows.map(r => r.sku_id));
+
   const skuIndex = new Map();
   for (const r of rows) {
     const attrs = attrMap.get(r.sku_id) || {};
@@ -951,6 +1043,7 @@ async function buildSkuIndexFromDb(pool, vendorId, log) {
       collection: r.collection, product_name: r.product_name,
       category: r.category, color: attrs.color || null, sell_by: r.sell_by,
       size: attrs.size || null, variant_type: r.variant_type || null,
+      _hasImage: skusWithImages.has(r.sku_id),
     });
   }
   log(`  Loaded ${skuIndex.size} SKUs from DB`);
@@ -1649,12 +1742,28 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
           // Strategy: when a SKU has a per-variant sizeImage from .size-spec,
           // use it as PRIMARY. Page-level alternates are filtered by variant color
           // so we don't attach wrong-color images to a SKU.
-          // Collect all colors on this page for exclusion filtering
-          const allColors = matchedSkus
-            .map(m => m.color).filter(Boolean);
+          //
+          // IMPORTANT: Use product-specific color names (derived from product_name
+          // minus collection prefix) instead of EDI color families (e.g. "Brown").
+          // CDN URLs contain specific names like "amber-balboa-ceramic.jpg", not
+          // generic families like "brown-balboa-ceramic.jpg".
+          const extractSpecificColor = (m) => {
+            if (m.collection && m.product_name) {
+              const stripped = m.product_name
+                .replace(new RegExp('^' + m.collection.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[-–—]?\\s*', 'i'), '')
+                .trim();
+              if (stripped && stripped.toLowerCase() !== m.collection.toLowerCase()) return stripped;
+            }
+            return m.color || '';
+          };
+          const allSpecificColors = matchedSkus
+            .map(m => extractSpecificColor(m)).filter(Boolean);
 
           for (const match of matchedSkus) {
             if (match._hasImage) continue;
+            // Skip installation accessories (adhesives, primers, underlayment, etc.)
+            // — their vendor_sku starts with 'X' and they should not inherit page-level flooring images
+            if (/^X/i.test(match.vendor_sku)) continue;
 
             // Prefer per-size image if available (promote thumbnails to full-size)
             let perSizeImg = match.scraped?.sizeImage;
@@ -1662,12 +1771,13 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
               perSizeImg = perSizeImg.replace('/thumbnails/', '/');
             }
 
-            // Filter page-level images by variant color
+            // Filter page-level images by variant color using product-specific names
+            const specificColor = extractSpecificColor(match);
             const pageImgUrls = (data.images || []).map(i => i.url)
               .filter(u => u !== perSizeImg);
-            const otherColors = allColors.filter(c => c !== match.color);
+            const otherColors = allSpecificColors.filter(c => c !== specificColor);
             const { matched: variantImgs, shared: sharedImgs } = filterImagesByVariant(
-              pageImgUrls, match.color,
+              pageImgUrls, specificColor,
               { otherColors, productName: match.product_name }
             );
             // Variant-matched images first, then shared/generic (skip other-color)
@@ -1687,12 +1797,16 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
             }
 
             if (imageUrls.length > 0) {
-              await saveSkuImages(pool, match.product_id, match.sku_id, imageUrls, { maxImages: 4 });
-              const internalSku = 'MSI-' + match.code.replace(/\s+/g, '-').toUpperCase();
-              const original = skuIndex.get(internalSku);
-              if (original) original._hasImage = true;
-              match._hasImage = true;
-              totalImages += Math.min(imageUrls.length, 4);
+              // HEAD-validate page-sourced URLs to avoid saving 404s
+              const validated = (await probeBatch(imageUrls, 5)).filter(Boolean);
+              if (validated.length > 0) {
+                await saveSkuImages(pool, match.product_id, match.sku_id, validated, { maxImages: 4 });
+                const internalSku = 'MSI-' + match.code.replace(/\s+/g, '-').toUpperCase();
+                const original = skuIndex.get(internalSku);
+                if (original) original._hasImage = true;
+                match._hasImage = true;
+                totalImages += Math.min(validated.length, 4);
+              }
             }
           }
 
@@ -1703,6 +1817,23 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
             }
             if (match.scraped.size) await upsertSkuAttribute(pool, match.sku_id, 'size', match.scraped.size);
             if (match.scraped.finish) await upsertSkuAttribute(pool, match.sku_id, 'finish', match.scraped.finish);
+          }
+
+          // Save room-scene images as product-level lifestyle assets
+          if (data.roomScenes && data.roomScenes.length > 0 && matchedSkus.length > 0) {
+            const productId = matchedSkus[0].product_id;
+            const validated = (await probeBatch(data.roomScenes, 5)).filter(Boolean);
+            for (let i = 0; i < validated.length; i++) {
+              await upsertMediaAsset(pool, {
+                product_id: productId,
+                sku_id: null,
+                asset_type: 'lifestyle',
+                url: validated[i],
+                original_url: validated[i],
+                sort_order: 10 + i,
+              });
+            }
+            if (validated.length > 0) totalImages += validated.length;
           }
 
           totalEnriched++;
@@ -2045,6 +2176,10 @@ async function scrapeProductPage(browser, url) {
         type: i === 0 ? 'primary' : (url.includes('roomscene') ? 'lifestyle' : 'alternate'),
       }));
 
+      // Return room scenes separately (up to 4) for dedicated lifestyle saving
+      const uniqueRoomScenes = [...new Set(roomScenes.map(promoteThumbnail))];
+      result.roomScenes = uniqueRoomScenes.slice(0, 4);
+
       // Collection from breadcrumb
       for (const bc of document.querySelectorAll('.breadcrumb a, nav[aria-label*="bread"] a')) {
         const text = bc.textContent.trim();
@@ -2075,7 +2210,11 @@ function normalizeSizeForMatch(raw) {
 async function phase3_images(pool, skuIndex, log) {
   log('Phase 3: Per-SKU images...');
 
-  const cdnMatched = await phase3_tier1_cdnProbe(pool, skuIndex, log);
+  if (!TIER2_ONLY) {
+    await phase3_tier1_cdnProbe(pool, skuIndex, log);
+  } else {
+    log('  Tier 1: SKIPPED (--tier2-only)');
+  }
 
   if (!SKIP_PUPPETEER) {
     // Count SKUs still missing images
