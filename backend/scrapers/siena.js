@@ -58,7 +58,7 @@ const PRICE_LIST = {
   'Bubble': {
     desc: 'Glossy Ceramic Wall tile', origin: 'Italy', material: 'ceramic', usage: 'wall',
     items: [
-      { colors: ['Acqua', 'Grigio', 'Nero', 'Rosa'], size: '4x10', pcs: 44, sf: 11.84, lbs: 31.00, bxPl: 64, price: 12.95, unit: 'sf' },
+      { colors: ['Black', 'Coffee', 'Red', 'White'], size: '4x10', pcs: 44, sf: 11.84, lbs: 31.00, bxPl: 64, price: 12.95, unit: 'sf' },
       { colors: ['Mix Deco'], size: '4x10', pcs: 44, sf: 11.84, lbs: 31.00, bxPl: 64, price: 14.95, unit: 'sf' },
     ],
   },
@@ -737,8 +737,7 @@ const CAPTION_TO_COLOR = {
     'STRAW': 'Biondo',
   },
   'Bubble': {
-    'Black': 'Nero', 'Red': 'Rosa',
-    'Coffee': 'Grigio', 'White': 'Acqua',
+    // Plain tiles now match PRICE_LIST directly (Black, Coffee, Red, White)
     // All deco variants → Mix Deco (deco→deco)
     'Black Decor': 'Mix Deco', 'Red Decor': 'Mix Deco',
     'Coffee Decor': 'Mix Deco', 'White Decor': 'Mix Deco',
@@ -1478,6 +1477,12 @@ async function run() {
       const savedProducts = new Set();
       const captionMap = CAPTION_TO_COLOR[collectionName] || {};
 
+      // ── Pass 1: Collect all image URLs per color ──
+      // This prevents many-to-one mappings (e.g., 10 deco captions → Mix Deco)
+      // from overwriting each other. Instead we batch them and save once per color.
+      const colorImages = new Map(); // color → [imgUrl, ...]
+      const finishRe = /\s+(Polished|Natural|Matte|Brillo)\s*$/i;
+
       for (const swatch of result.swatches) {
         if (!swatch.label || !swatch.label.trim()) continue; // skip empty captions
 
@@ -1490,9 +1495,14 @@ async function run() {
           continue;
         }
 
+        // Skip filterImageUrls() — it strips ALL -NxN suffixes, destroying tile-size
+        // identifiers like -12x24. The page.evaluate fullSize() already handled
+        // WP thumbnail stripping correctly (only strips when both dims >= 100).
+        const imgUrl = swatch.src;
+        if (!imgUrl || !imgUrl.startsWith('http')) continue;
+
         // Build list of colors to save: primary match + finish siblings
         // e.g., "Grey Polished" → also save to "Grey Matte", "Grey Natural"
-        const finishRe = /\s+(Polished|Natural|Matte|Brillo)\s*$/i;
         const baseColor = matchedColor.replace(finishRe, '').trim().toLowerCase();
         const colorsToSave = [matchedColor];
         for (const c of uniqueColors) {
@@ -1501,25 +1511,27 @@ async function run() {
           if (cBase === baseColor) colorsToSave.push(c);
         }
 
-        // Skip filterImageUrls() — it strips ALL -NxN suffixes, destroying tile-size
-        // identifiers like -12x24. The page.evaluate fullSize() already handled
-        // WP thumbnail stripping correctly (only strips when both dims >= 100).
-        const imgUrl = swatch.src;
-        if (!imgUrl || !imgUrl.startsWith('http')) continue;
-
         for (const color of colorsToSave) {
-          const key = `${collectionName}:${color}`;
-          const entry = productIndex.get(key);
-          if (!entry) continue;
-
-          for (const [, skuId] of entry.skuIds) {
-            const saved = await saveSkuImages(pool, entry.productId, skuId, [imgUrl], { maxImages: 4, productName: `${collectionName} ${color}` });
-            imagesSaved += saved;
-          }
-          savedProducts.add(entry.productId);
+          if (!colorImages.has(color)) colorImages.set(color, []);
+          const imgs = colorImages.get(color);
+          if (!imgs.includes(imgUrl)) imgs.push(imgUrl);
         }
-        const siblingNote = colorsToSave.length > 1 ? ` (+${colorsToSave.length - 1} finish siblings)` : '';
-        console.log(`    [SKU] ${matchedColor}${siblingNote}: 1 image → ${colorsToSave.length} products`);
+      }
+
+      // ── Pass 2: Save batched images per color ──
+      for (const [color, imgUrls] of colorImages) {
+        const key = `${collectionName}:${color}`;
+        const entry = productIndex.get(key);
+        if (!entry) continue;
+
+        for (const [, skuId] of entry.skuIds) {
+          const saved = await saveSkuImages(pool, entry.productId, skuId, imgUrls, { maxImages: 4, productName: `${collectionName} ${color}` });
+          imagesSaved += saved;
+        }
+        savedProducts.add(entry.productId);
+
+        const siblingNote = colorImages.has(color) && colorImages.get(color) === imgUrls ? '' : '';
+        console.log(`    [SKU] ${color}: ${imgUrls.length} image(s) → 1 product`);
       }
 
       // Lifestyle images are not labeled per color on the Siena website,
