@@ -18,7 +18,7 @@ import {
   launchBrowser, delay,
   upsertProduct, upsertSku, upsertPricing, upsertPackaging,
   upsertMediaAsset, upsertSkuAttribute,
-  filterImageUrls, isLifestyleUrl, saveProductImages, saveSkuImages,
+  isLifestyleUrl, saveProductImages, saveSkuImages,
 } from './base.js';
 
 const pool = new pg.Pool({
@@ -655,7 +655,7 @@ const COLLECTION_SLUG_MAP = {
   'Colorgloss': 'colorgloss',
   'Corina': 'corina',
   'Country': 'country',
-  'Crosswood': 'crosswood',
+  'Crosswood': 'cross-wood',
   'Daino': 'daino',
   'De Brick': 'de-brick',
   'Devon': 'devon',
@@ -691,7 +691,7 @@ const COLLECTION_SLUG_MAP = {
   'Opal': 'opal',
   'Orchestra': 'orchestra',
   'Orlando': 'orlando',
-  'Oxford 948': 'oxford-948',
+  'Oxford 948': 'oxford',
   'Paddington': 'paddington',
   'Patchwork': 'patchwork',
   'Peak': 'peak',
@@ -725,35 +725,87 @@ const COLLECTION_SLUG_MAP = {
 // For collections where the website uses different color names
 // ──────────────────────────────────────────────
 
-// Only confident mappings — direct translations, obvious color equivalences.
-// Removed all guesses where image color would not match the assigned SKU color.
-// Better to have no image than a wrong-color image.
+// Explicit caption→color mappings for collections where website labels differ
+// from PRICE_LIST color names. Only confident mappings — better no image than wrong.
+// IMPORTANT: Do NOT map decorative captions (Deco/Fibre/Inlay/Bend/Grid) to
+// plain-tile colors. Only map deco→deco or plain→plain.
 const CAPTION_TO_COLOR = {
+  'Bohemian': {
+    'Sand Natural': 'Arena',
+  },
+  'Borneo': {
+    'STRAW': 'Biondo',
+  },
   'Bubble': {
-    'Black': 'Nero', 'Black Decor': 'Nero',
+    'Black': 'Nero', 'Red': 'Rosa',
+    'Coffee': 'Grigio', 'White': 'Acqua',
+    // All deco variants → Mix Deco (deco→deco)
+    'Black Decor': 'Mix Deco', 'Red Decor': 'Mix Deco',
+    'Coffee Decor': 'Mix Deco', 'White Decor': 'Mix Deco',
     'Gold Decor': 'Mix Deco', 'Platinum Decor': 'Mix Deco',
     'CofFee Time Decor': 'Mix Deco', 'Tea Decor': 'Mix Deco',
     'Mr Decor': 'Mix Deco', 'Mrs Decor': 'Mix Deco',
   },
   'Camber': {
-    'MOONLIGHT': 'White',
+    'MOONLIGHT': 'White', 'TAUPE': 'Sage',
   },
   'Canet': {
     'BEIGE': 'Marfil',
+    'JET GRIS': 'Gris',
   },
   'Canvas': {
-    'Argento': 'Cenere', 'Corda': 'Terra', 'Tobacco': 'Terra',
+    'Argento': 'Cenere', 'Avio': 'Cenere', 'Perla': 'Cenere',
+    'Corda': 'Terra', 'Tobacco': 'Terra',
   },
   'Carpet': {
-    'CARPET SAND 24×40': 'Arena', 'CARPET SAND 10×30': 'Arena',
+    'CARPET SAND 24\u00d740': 'Arena', 'CARPET SAND 10\u00d730': 'Arena',
+  },
+  'Carrara': {
+    'CARRARA (Flat)': 'Blanco Brillo',
+    'CARRARA (Ondas)': 'Blanco',
   },
   'Cento Per Cento': {
     'GREY': 'Fumo', 'DARK GREY': 'Notte', 'DARK BROWN': 'Pepe', 'YELLOW': 'Zucca',
     'CACAO  GREY': 'Fumo', 'CACAO DARK GREY': 'Notte',
     'CACAO  DARK BROWN': 'Pepe', 'CACAO  YELLOW': 'Zucca',
+    // Alternate spacing (website sometimes has single space)
+    'CACAO GREY': 'Fumo', 'CACAO DARK BROWN': 'Pepe', 'CACAO YELLOW': 'Zucca',
+  },
+  'Circe': {
+    'CREMA MARFIL': 'Perla Pulido',
+    'CREMA MARFIL RELIEVE': 'Perla Natural',
+  },
+  'Color Collection': {
+    'WHITE GLOSSY 6 X 18': 'White Ice', 'WHITE GLOSSY 4 1/4 X 16': 'White Ice',
+    'WHITE GLOSSY 4 1/4 X 10': 'White Ice', 'WHITE GLOSSY 3 X 6': 'White Ice',
+    'WHITE GLOSSY  4 1/4 X 4 1/4 , 3 X 3, 6 X 6': 'White Ice',
+  },
+  'Crosswood': {
+    'BONE': 'Birch', 'BUFF': 'Mist', 'CINDER': 'Argent',
+  },
+  'Country': {
+    'ANTHRACITE': 'Dark Grey',
+    'ASH BLUE': 'Azure',
+    'BLANCO': 'White',
+    'GRAPHITE': 'Grafito',
+    'GREY PEARL': 'Grey',
+    'GRIS CLARO': 'Grey',
+    'IVORY': 'Almond',
+    'MIST GREEN': 'Green',
+    'TOBACCO': 'Natural',
   },
   'Daino': {
     'CREMA ONDAS': 'Crema Brillo',
+    'MARFIL ONDAS': 'Crema Natural',
+  },
+  'De Brick': {
+    'CAMBRIDGE WHITE': 'White Glossy', 'LUTON WHITE': 'White Matte',
+    'LUTON ASH': 'Black Matte',
+    'YORKSHIRE LIGHT': 'White Glossy',
+  },
+  'Devon': {
+    // Inlay = decorative pattern → map to Decor variants
+    'INLAY GREY': 'Grey Decor', 'INLAY TAUPE': 'Taupe Decor',
   },
   'Dimsey': {
     'Antrahite': 'Gris', 'Antrachite 3D': 'Gris', 'Grey': 'Gris', 'Grey 3D': 'Gris',
@@ -772,13 +824,25 @@ const CAPTION_TO_COLOR = {
     'ANTRACITE': 'Ferro', 'WHITE': 'Avorio',
   },
   'Flagstone': {
-    'Canyon': 'Sand', 'Filita': 'Grey',
+    'Borgona': 'Cream', 'Canyon': 'Sand', 'Filita': 'Grey',
+  },
+  'Garda': {
+    'BORDOLINO': 'Bianco', 'TORBOLE': 'Bianco',
+    'LAZISE': 'Grafito',
+    'RIVA': 'Gris',
+  },
+  'Geoblanco': {
+    'DANTE': 'Blanco Brillo', 'SWING': 'Blanco Brillo',
   },
   'Formworks': {
     'ANTRACITE': 'Ferro', 'GREY': 'Cenere',
   },
+  'Industrial': {
+    'SILVER': 'Grey',
+  },
   'Ledgestone': {
     'CANADA GRIS': 'British Gris',
+    'BRITISH  BEIGE': 'British Bone', 'BRITISH BEIGE': 'British Bone',
   },
   'Levante': {
     '(Corfu) GRIS (Nplus/Matte)': 'Gris Natural',
@@ -787,8 +851,10 @@ const CAPTION_TO_COLOR = {
     'FENIX BLANCO (Nplus)': 'Deco Blanco',
   },
   'Lux': {
+    'ANTY SKY': 'Crema Polished', 'CLASSIC CORAL': 'Crema Polished',
     'BIANCO STONE': 'White Polished', 'BLONZE BIANCO': 'White Polished',
-    'CALCUTTA WHITE': 'White Polished', 'PROTLAND BIANCO GREY': 'Grey Polished',
+    'CALCUTTA WHITE': 'White Polished',
+    'GLAIER BAY': 'Grey Polished', 'PROTLAND BIANCO GREY': 'Grey Polished',
   },
   'Madison': {
     'BEIGE': 'Bone', 'GRIS': 'Grey',
@@ -799,12 +865,20 @@ const CAPTION_TO_COLOR = {
     'WAVE GLOSSY 3X12': 'Ondas Brillo',
   },
   'Marmo': {
+    'AGAVE 12X24 (Pol)': 'Gris Brillo',
     'CALCATTA BIANCO 32X32 (Pol)': 'Blanco Brillo',
+    'CREMA MARFIL 12X24 (Pol)': 'Blanco Brillo', 'CREMA MARFIL 24X24 (Pol)': 'Blanco Brillo',
+    'CAVELANO 12X24 (Mat/Pol)': 'Gris Natural', 'CAVELANO 24X24 (Mat/Pol)': 'Gris Natural',
     'CARRARA 24X48 (Pol)': 'Blanco Brillo', 'CARRARA 12X24 (Pol)': 'Blanco Brillo',
     'CARRARA 32X32 (Pol)': 'Blanco Brillo',
     'CALCATTA GOLD 12X24 (Mat/Pol)': 'Blanco Natural', 'CALCATTA GOLD 24X24 (Mat/Pol)': 'Blanco Natural',
-    'ICE ROCK 24×48 (Mat/ Pol)': 'Gris Brillo', 'ICE ROCK 12X24 (Mat/Pol)': 'Gris Brillo',
-    'MARMO ICE ROCK 32×32 (Pol)': 'Gris Brillo', 'ice rock 24×24 (Mat/ Pol)': 'Gris Brillo',
+    'ICE ROCK 24\u00d748 (Mat/ Pol)': 'Gris Brillo', 'ICE ROCK 12X24 (Mat/Pol)': 'Gris Brillo',
+    'MARMO ICE ROCK 32\u00d732 (Pol)': 'Gris Brillo', 'ice rock 24\u00d724 (Mat/ Pol)': 'Gris Brillo',
+    'CALCATTA PIETRA 12X24 (Mat/Pol)': 'Blanco Natural',
+    'CALCATTA PIETRA 24X24 (Mat/Pol)': 'Blanco Natural',
+  },
+  'Marquina': {
+    'Nero Glossy/ Matte': 'Black Polished',
   },
   'Mash-Up': {
     'Diamond': 'Graphite', 'Dot': 'Graphite', 'Flower': 'Graphite',
@@ -813,34 +887,44 @@ const CAPTION_TO_COLOR = {
   'Nativa': {
     'DARK': 'Grafito', 'LIGHT': 'Perla', 'MEDIUM': 'Cenere',
   },
+  'Materica': {
+    'Taupe': 'Cenere',  // website mislabeled: caption says Taupe but filename is Grigio
+  },
   'Nolan': {
-    'BIANCO': 'Bone',
+    'BIANCO': 'Bone', 'MIELE': 'Perla', 'NATURAL': 'Perla',
   },
   'Opal': {
     'IVORY': 'Beige Natural',
   },
   'Orlando': {
-    'CREAM': 'Bone',
+    'CREAM': 'Bone', 'WHITE': 'Bone',
+  },
+  'Oxford 948': {
+    'Oxford Perla': 'Grey', 'Oxford Wengue': 'Taupe',
   },
   'Paddington': {
-    'Putty Matte/ Glossy': 'Bone', 'Putty Matte/ Glossy Deco': 'Bone',
+    'Putty Matte/ Glossy': 'Bone', 'White Matte/ Glossy': 'Bone',
   },
   'Patchwork': {
-    'BLACK': 'Color', 'WHITE': 'Color', 'BLACK DECO 1': 'Color', 'WHITE DECO 1': 'Color',
-    '3D BLACK DECO 1': 'Color', '3D WHITE DECO 1': 'Color',
-    'BLACK DECO 2': 'Color', 'WHITE DECO 2': 'Color', '3D WHITE DECO 2': 'Color',
+    'BLACK': 'Color', 'WHITE': 'Color',
   },
   'Peak': {
+    'DARK': 'Sand', 'MEDIUM': 'Sand', 'TROPICAL': 'Sand',
     'GRIS': 'Grey',
+    'WHITE': 'Bone',
+  },
+  'Picket': {
+    'Carrara Glossy': 'White',
   },
   'Pierre': {
-    'BIANCO PAONAZZETO': 'Bone',
+    'BIANCO PAONAZZETO': 'Bone', 'BELLE BLANC': 'Bone',
   },
   'Pietra': {
     'PRIMA BLANCO (MATTE/POLISHED)': 'Bone',
+    'MONTEGA (MATTE)': 'Grey',
   },
   'Powder': {
-    'Argent': 'Grey', 'Tortora': 'Sand',
+    'Argent': 'Grey', 'Concrete': 'Grey', 'Tortora': 'Sand',
   },
   'Pulpis': {
     'Dark Grey': 'Gris Natural', 'Grey': 'Gris Natural',
@@ -852,6 +936,7 @@ const CAPTION_TO_COLOR = {
   },
   'Romani': {
     'CREMA (Matte/ Polished)': 'Bone',
+    'NOCE (Matte/Polished)': 'Sand',
   },
   'Sabina': {
     'GRIS': 'Grey', 'BEIGE': 'Bone',
@@ -871,18 +956,39 @@ const CAPTION_TO_COLOR = {
   'Terrazo': {
     'BIANCO': 'White', 'GRIS': 'Grey',
   },
+  'Timeless': {
+    'ECRU': 'Beige', 'HONEY': 'Beige',
+  },
   'Torp': {
     'GRIS': 'Grey',
+    'MOKA': 'Cream',
+  },
+  'Toulouse': {
+    'TAUPE': 'Sand',
   },
   'Victorian': {
     'AVORIO': 'White', 'BIANCO': 'White', 'PERLA': 'White',
+    'TORTORA': 'Silver', 'NERO': 'Silver',
+    'DECO BLUE PERLA': 'Deco Color', 'DECO TORTORA AVORIO': 'Deco Color',
+  },
+  'Viena': {
+    'GRIS CLARO': 'Grey', 'IVORY': 'Beige',
+    'GREY PEARL': 'Grey', 'GRAPHITE': 'Grey', 'ANTRACITE': 'Grey',
+    'TOBACCO': 'Sand',
   },
   'Vinyle': {
     'Antracita': 'Grey', 'Gris': 'Grey', 'Moka': 'Brown',
-    'COLD MIX': 'Grey', 'WARM MIX': 'Brown',
+    'Beige': 'Natural', 'Blanco': 'Natural', 'Crema': 'Natural',
   },
   'Vulcani': {
-    'Avorio': 'Sand',
+    'Avorio': 'Sand', 'Bianco': 'Sand', 'Grigio': 'Grey',
+    'Multicolor': 'Sand',
+  },
+  'Wales': {
+    'White': 'Beige',
+  },
+  'Zafiro': {
+    'HELENA': 'Beige Natural',  // captions swapped with filenames on website
   },
 };
 
@@ -981,7 +1087,7 @@ async function scrollToLoadAll(page) {
  */
 async function extractCollectionImages(page, url) {
   try {
-    const resp = await page.goto(url, { waitUntil: 'networkidle2', timeout: 35000 });
+    const resp = await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 });
     if (!resp || resp.status() >= 400) {
       console.log(`    HTTP ${resp?.status()} for ${url}`);
       return { swatches: [], lifestyleImages: [], description: null };
@@ -1002,13 +1108,16 @@ async function extractCollectionImages(page, url) {
         return src.split('?')[0].replace(/-\d+x\d+(\.\w+)$/, '$1');
       }
 
-      // ── 1. Gallery items: labeled swatch images ──
+      // ── 1a. Gallery items: labeled swatch images ──
       const swatches = [];
       document.querySelectorAll('.gallery .gallery-item').forEach(item => {
         const img = item.querySelector('img');
         const caption = item.querySelector('.gallery-caption');
         if (!img) return;
-        const src = img.currentSrc || img.src || img.dataset?.src || '';
+        // Prefer <a> href (full-size original) over <img> src (WP thumbnail)
+        const link = img.closest('a');
+        const src = (link?.href && link.href.startsWith('http') ? link.href : '') ||
+                    img.currentSrc || img.src || img.dataset?.src || '';
         if (!src || !src.startsWith('http')) return;
         const norm = normalize(src);
         if (seen.has(norm)) return;
@@ -1019,6 +1128,26 @@ async function extractCollectionImages(page, url) {
         });
       });
 
+      // ── 1b. WP-caption containers: labeled images in .wp-caption divs ──
+      document.querySelectorAll('.wp-caption').forEach(container => {
+        if (container.closest('.gallery')) return; // already handled above
+        const img = container.querySelector('img');
+        const caption = container.querySelector('.wp-caption-text');
+        if (!img) return;
+        // Prefer <a> href (full-size original) over <img> src (WP thumbnail)
+        const link = img.closest('a');
+        const src = (link?.href && link.href.startsWith('http') ? link.href : '') ||
+                    img.currentSrc || img.src || img.dataset?.src || '';
+        if (!src || !src.startsWith('http')) return;
+        const norm = normalize(src);
+        if (seen.has(norm)) return;
+        seen.add(norm);
+        const label = caption?.textContent?.trim() || '';
+        if (label) {
+          swatches.push({ src: fullSize(src), label });
+        }
+      });
+
       // ── 2. Non-gallery images: lifestyle / room-scene ──
       const lifestyleImages = [];
       const contentArea = document.querySelector('.post-content') ||
@@ -1026,7 +1155,7 @@ async function extractCollectionImages(page, url) {
                           document.querySelector('.fusion-fullwidth') ||
                           document.body;
       contentArea.querySelectorAll('img').forEach(img => {
-        if (img.closest('.gallery')) return; // skip gallery images
+        if (img.closest('.gallery') || img.closest('.wp-caption')) return;
         const src = img.currentSrc || img.src || img.dataset?.src || '';
         if (!src || !src.startsWith('http')) return;
         if (src.includes('logo') || src.includes('icon') || src.includes('placeholder')) return;
@@ -1057,39 +1186,78 @@ async function extractCollectionImages(page, url) {
 }
 
 /**
- * Match a scraped image label to a color name (fuzzy, case-insensitive).
+ * Match a scraped image label to a color name (conservative, case-insensitive).
  * Returns the matched color name or null.
+ *
+ * Strategy: prefer explicit CAPTION_TO_COLOR (handled by caller), then:
+ * 1. Exact match (full label)
+ * 1b. Exact match after stripping size/finish suffixes (e.g., "AGAVE 12X24 (Pol)" → "AGAVE")
+ * 2. Decorative labels (deco/fibre/inlay/etc.) → only match deco colors, else skip
+ * 3. Color name starts with label (e.g., "Grey" → "Grey Polished")
+ * 4. Label starts with color (e.g., "Black Matte/ Glossy" → "Black")
  */
 function matchLabelToColor(label, colors) {
   if (!label || !colors.length) return null;
-  const labelLower = label.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+  const clean = label.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+  if (clean.length < 2) return null;
 
-  // Exact match
-  for (const color of colors) {
-    if (labelLower === color.toLowerCase()) return color;
+  // Normalize color names consistently (collapse whitespace)
+  const norm = c => c.toLowerCase().replace(/\s+/g, ' ').trim();
+
+  // 1. Exact match
+  for (const c of colors) {
+    if (clean === norm(c)) return c;
   }
 
-  // Containment: label contains color name or vice versa
-  for (const color of colors) {
-    const colorLower = color.toLowerCase();
-    if (labelLower.includes(colorLower) || colorLower.includes(labelLower)) return color;
-  }
-
-  // First word match (e.g., label "GRAFITO" matches color "Grafito Natural")
-  const labelFirst = labelLower.split(/\s+/)[0];
-  if (labelFirst.length >= 3) {
-    for (const color of colors) {
-      const colorFirst = color.toLowerCase().split(/\s+/)[0];
-      if (labelFirst === colorFirst) return color;
+  // 1b. Strip size info (e.g., "12X24", "24x48") and finish qualifiers, then retry exact match
+  //     Handles labels like "AGAVE 12X24 (Pol)" → "agave", "CREMA MARFIL 24X24 (Mat/Pol)" → "crema marfil"
+  const stripped = clean
+    .replace(/\s+\d+\s*x\s*\d+.*$/, '')               // strip "12x24 (Pol)" etc.
+    .replace(/\s+(?:pol|mat|matte|glossy|polished|natural)\b.*$/i, '')  // strip trailing finish
+    .trim();
+  if (stripped && stripped !== clean && stripped.length >= 3) {
+    for (const c of colors) {
+      if (stripped === norm(c)) return c;
     }
   }
 
-  // Filename-based: check if label slug matches any color slug
-  const labelSlug = labelLower.replace(/[^a-z0-9]/g, '');
-  for (const color of colors) {
-    const colorSlug = color.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (colorSlug.length >= 3 && (labelSlug.includes(colorSlug) || colorSlug.includes(labelSlug))) return color;
+  // Detect decorative labels — these should NOT match plain tile colors
+  const decoRe = /\b(deco|decor|decoro|fibre|fiber|inlay|3d|bend|grid|honey|bijou|relieve|sigma|ondas|rodia|mix)\b/;
+  if (decoRe.test(clean)) {
+    // Only match deco colors (those also containing a deco keyword)
+    for (const c of colors) {
+      const cl = norm(c);
+      if (decoRe.test(cl) && (clean.includes(cl) || cl.includes(clean))) return c;
+    }
+    return null;
   }
+
+  // 2. Color name starts with the label text (or stripped label)
+  //    e.g., label "Grey" matches "Grey Polished", "Grey Natural"
+  //    Pick the longest label match (most specific)
+  let best = null, bestLen = 0;
+  for (const label2 of [clean, stripped].filter(Boolean)) {
+    for (const c of colors) {
+      const cl = norm(c);
+      if (cl.startsWith(label2) && label2.length > bestLen) {
+        best = c; bestLen = label2.length;
+      }
+    }
+  }
+  if (best) return best;
+
+  // 3. Label starts with a color name (min 4 chars to avoid false positives)
+  //    e.g., label "Black Matte/ Glossy" matches "Black"
+  best = null; bestLen = 0;
+  for (const label2 of [clean, stripped].filter(Boolean)) {
+    for (const c of colors) {
+      const cl = norm(c);
+      if (cl.length >= 4 && label2.startsWith(cl) && cl.length > bestLen) {
+        best = c; bestLen = cl.length;
+      }
+    }
+  }
+  if (best) return best;
 
   return null;
 }
@@ -1311,31 +1479,47 @@ async function run() {
       const captionMap = CAPTION_TO_COLOR[collectionName] || {};
 
       for (const swatch of result.swatches) {
+        if (!swatch.label || !swatch.label.trim()) continue; // skip empty captions
+
         // 1. Explicit caption→color mapping (highest priority)
-        // 2. Fuzzy match by label
-        // 3. Fuzzy match by filename
+        // 2. Conservative fuzzy match by label only (no filename guessing)
         const matchedColor = captionMap[swatch.label] ||
-                             matchLabelToColor(swatch.label, uniqueColors) ||
-                             matchLabelToColor(swatch.src.split('/').pop().replace(/[-_.]/g, ' '), uniqueColors);
+                             matchLabelToColor(swatch.label, uniqueColors);
         if (!matchedColor) {
-          console.log(`    [UNMATCHED] caption="${swatch.label}"`);
+          console.log(`    [UNMATCHED] caption="${swatch.label}" | available: ${uniqueColors.join(', ')}`);
           continue;
         }
 
-        const key = `${collectionName}:${matchedColor}`;
-        const entry = productIndex.get(key);
-        if (!entry) continue;
-
-        // Save to every SKU of this product (e.g., same color in multiple sizes)
-        const filtered = filterImageUrls([swatch.src], { maxImages: 1 });
-        if (!filtered.length) continue;
-
-        for (const [, skuId] of entry.skuIds) {
-          const saved = await saveSkuImages(pool, entry.productId, skuId, filtered, { maxImages: 4, productName: `${collectionName} ${matchedColor}` });
-          imagesSaved += saved;
+        // Build list of colors to save: primary match + finish siblings
+        // e.g., "Grey Polished" → also save to "Grey Matte", "Grey Natural"
+        const finishRe = /\s+(Polished|Natural|Matte|Brillo)\s*$/i;
+        const baseColor = matchedColor.replace(finishRe, '').trim().toLowerCase();
+        const colorsToSave = [matchedColor];
+        for (const c of uniqueColors) {
+          if (c === matchedColor) continue;
+          const cBase = c.replace(finishRe, '').trim().toLowerCase();
+          if (cBase === baseColor) colorsToSave.push(c);
         }
-        savedProducts.add(entry.productId);
-        console.log(`    [SKU] ${matchedColor}: ${filtered.length} images → ${entry.skuIds.size} SKUs`);
+
+        // Skip filterImageUrls() — it strips ALL -NxN suffixes, destroying tile-size
+        // identifiers like -12x24. The page.evaluate fullSize() already handled
+        // WP thumbnail stripping correctly (only strips when both dims >= 100).
+        const imgUrl = swatch.src;
+        if (!imgUrl || !imgUrl.startsWith('http')) continue;
+
+        for (const color of colorsToSave) {
+          const key = `${collectionName}:${color}`;
+          const entry = productIndex.get(key);
+          if (!entry) continue;
+
+          for (const [, skuId] of entry.skuIds) {
+            const saved = await saveSkuImages(pool, entry.productId, skuId, [imgUrl], { maxImages: 4, productName: `${collectionName} ${color}` });
+            imagesSaved += saved;
+          }
+          savedProducts.add(entry.productId);
+        }
+        const siblingNote = colorsToSave.length > 1 ? ` (+${colorsToSave.length - 1} finish siblings)` : '';
+        console.log(`    [SKU] ${matchedColor}${siblingNote}: 1 image → ${colorsToSave.length} products`);
       }
 
       // Lifestyle images are not labeled per color on the Siena website,
@@ -1358,7 +1542,17 @@ async function run() {
     await browser.close();
   }
 
-  console.log(`\nPhase 2 complete: ${imagesSaved} images saved\n`);
+  console.log(`\nPhase 2 complete: ${imagesSaved} images saved`);
+
+  // Report image coverage
+  const coverageRes = await pool.query(`
+    SELECT COUNT(*) as total,
+           COUNT(CASE WHEN EXISTS (SELECT 1 FROM media_assets ma WHERE ma.sku_id = s.id) THEN 1 END) as with_img
+    FROM skus s JOIN products p ON p.id = s.product_id
+    WHERE p.vendor_id = $1 AND s.variant_type NOT IN ('accessory') AND s.status = 'active'
+  `, [vendorId]);
+  const { total, with_img } = coverageRes.rows[0];
+  console.log(`  Image coverage: ${with_img}/${total} field tile SKUs (${(100*with_img/total).toFixed(1)}%)\n`);
 
   // ── Step 5: Phase 3 — Activate products ──
   console.log('Phase 3: Activating products...\n');
