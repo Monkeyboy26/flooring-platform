@@ -771,11 +771,18 @@
             }
           }
         }
-        // Format pure dimension variants with inch marks (e.g. "24X48" → "24″ × 48″", "24X48 (A)" → "24″ × 48″ (A)")
+        // Format dimension variants with inch marks (e.g. "24X48" → "24″ × 48″", "24X48 (A)" → "24″ × 48″ (A)")
+        // Also handles dimension + modifier text (e.g. "7X75 Glossy" → "7″ × 75″ Glossy", "9X86 Brushed" → "9″ × 86″ Brushed")
         if (variant) {
           const dimMatch = variant.match(/^(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?(?:\s*(?:PAVER|EZ|FT))?)(\s*\(.*\))?$/i);
           if (dimMatch) {
             variant = formatSizeDim(dimMatch[1].trim()) + (dimMatch[2] || '');
+          } else {
+            // Dimension followed by non-dimension text: "7X75 Glossy" → "7″ × 75″ Glossy"
+            const dimPrefixMatch = variant.match(/^(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s+(.+)$/);
+            if (dimPrefixMatch) {
+              variant = formatSizeDim(dimPrefixMatch[1].trim()) + ', ' + dimPrefixMatch[2].trim();
+            }
           }
         }
       }
@@ -2727,7 +2734,7 @@
         setMedia(resolved);
         baseMediaRef.current = resolved;
         setImgIndex(0);
-        const colorSiblings = (data.same_product_siblings || []).filter(s => s.variant_type !== 'accessory' && s.primary_image)
+        const colorSiblings = (data.same_product_siblings || []).filter(s => s.variant_type !== 'accessory')
           .sort((a, b) => (a.variant_name || '').localeCompare(b.variant_name || ''));
         setSiblings(colorSiblings);
       };
@@ -2836,7 +2843,7 @@
                       onMouseLeave={() => !sib._isCurrent && handleVariantLeave()}
                       onClick={() => !sib._isCurrent && handleVariantClick(sib)}
                     >
-                      {sib.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sib.primary_image, 120)} alt={sib.variant_name} decoding="async" width={64} height={64} />}
+                      {sib.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(sib.primary_image, 120)} alt={sib.variant_name} decoding="async" width={64} height={64} /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.5rem', fontWeight: 600, color: 'var(--stone-500)', textAlign: 'center', lineHeight: 1.2, padding: '2px' }}>{formatVariantName(sib.variant_name)}</div>}
                     </div>
                   ))}
                 </div>
@@ -4396,9 +4403,10 @@
       // Slab with per-sqft pricing but no known dimensions — can't compute piece price
       const slabMissingSize = isPerUnit && sku && (sku.price_basis === 'sqft' || sku.price_basis === 'per_sqft') && !(parseFloat(sku.sqft_per_box) > 0);
       // Use "sheet" for individually-sold tiles (small coverage, no pieces_per_box)
-      const isSheetUnit = hasBoxCalc && sqftPerBox < 4 && !sku.pieces_per_box;
-      const boxLabel = isSheetUnit ? 'sheet' : 'box';
-      const boxLabelPlural = isSheetUnit ? 'sheets' : 'boxes';
+      const isSlabUnit = sku && sku.sell_by === 'unit' && sqftPerBox >= 4;
+      const isSheetUnit = !isSlabUnit && hasBoxCalc && sqftPerBox < 4 && !sku.pieces_per_box;
+      const boxLabel = isSlabUnit ? 'slab' : isSheetUnit ? 'sheet' : 'box';
+      const boxLabelPlural = isSlabUnit ? 'slabs' : isSheetUnit ? 'sheets' : 'boxes';
       const unitSubtotal = unitQty * effectivePrice;
       const sqftOnlySubtotal = (parseFloat(sqftInput) || 0) * effectivePrice;
       const sqftCalcRaw = parseFloat(sqftInput) || 0;
@@ -5557,47 +5565,30 @@
                     {showColors && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">{colorLabel}</div>
-                        {isRomanVariants ? (
-                          <div className="attr-pills">
-                            {[...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map(c => (
-                                <button key={c.sku_id} className={'attr-pill' + (c.is_current ? ' active' : '')} onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
-                                  {romanPillLabel(c.product_name)}
-                                </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="color-swatches">
-                            {colorItems.map(c => {
-                              const label = c.color || c.variant_name || c.product_name;
-                              const compatible = isColorCompatible(c);
-                              return (
-                              <div key={c.sku_id} className={'color-swatch-wrap' + (!compatible ? ' limited' : '')} onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
-                                <div className={'color-swatch' + (c.is_current ? ' active' : '') + (!compatible ? ' limited' : '')}>
-                                  {c.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(c.primary_image, 120)} alt={label} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)' }} />}
-                                </div>
-                                <div className="color-swatch-tooltip">{label}{!compatible ? ' (other options may change)' : ''}</div>
+                        <div className="color-swatches">
+                          {(isRomanVariants ? [...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)) : colorItems).map(c => {
+                            const label = isRomanVariants ? romanPillLabel(c.product_name) : (c.color || c.variant_name || c.product_name);
+                            const compatible = isColorCompatible(c);
+                            return (
+                            <div key={c.sku_id} className={'color-swatch-wrap' + (!compatible ? ' limited' : '')} onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
+                              <div className={'color-swatch' + (c.is_current ? ' active' : '') + (!compatible ? ' limited' : '')}>
+                                {c.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(c.primary_image, 120)} alt={label} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.625rem', fontWeight: 600, color: 'var(--stone-500)', textAlign: 'center', lineHeight: 1.2, padding: '4px' }}>{label}</div>}
                               </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                              <div className="color-swatch-tooltip">{label}{!compatible ? ' (other options may change)' : ''}</div>
+                            </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                     {showSizePills && !attrSlugs.includes('shape') && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{collectionSizeItems.find(s => s.is_current)?.label || ''}</span></div>
-                        <div className="color-swatches">
+                        <div className="attr-pills">
                           {collectionSizeItems.map(s => (
-                            <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
-                              <div className={'color-swatch' + (s.is_current ? ' active' : '')}>
-                                {s.primary_image ? (
-                                  <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 120)} alt={s.label} loading="lazy" decoding="async" width="64" height="64" />
-                                ) : (
-                                  <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 600, color: 'var(--stone-500)' }}>{s.label}</div>
-                                )}
-                              </div>
-                              <div className="color-swatch-tooltip">{s.label}</div>
-                            </div>
+                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                              {s.label}
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -5617,18 +5608,11 @@
                     {showSibSizes && !attrSlugs.includes('shape') && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{sibSizeItems.find(s => s.is_current)?.label || ''}</span></div>
-                        <div className="color-swatches">
+                        <div className="attr-pills">
                           {sibSizeItems.map(s => (
-                            <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
-                              <div className={'color-swatch' + (s.is_current ? ' active' : '')}>
-                                {s.primary_image ? (
-                                  <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 120)} alt={s.label} loading="lazy" decoding="async" width="64" height="64" />
-                                ) : (
-                                  <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 600, color: 'var(--stone-500)' }}>{s.label}</div>
-                                )}
-                              </div>
-                              <div className="color-swatch-tooltip">{s.label}</div>
-                            </div>
+                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                              {s.label}
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -5970,14 +5954,14 @@
                 </div>
               )}
 
-              {/* Packaging Info (box-based products) */}
+              {/* Packaging Info (box-based and slab products) */}
               {!isCarpetSku && sqftPerBox > 0 && (
                 <div className="packaging-info">
-                  <h4>Packaging Details</h4>
-                  <div>Coverage: {sqftPerBox} sqft/{boxLabel}</div>
-                  {sku.pieces_per_box && <div>Pieces: {sku.pieces_per_box}/{boxLabel}</div>}
-                  {sku.weight_per_box_lbs && <div>Weight: {parseFloat(sku.weight_per_box_lbs).toFixed(1)} lbs/{boxLabel}</div>}
-                  {sku.boxes_per_pallet && <div>Pallet: {sku.boxes_per_pallet} {boxLabelPlural} ({parseFloat(sku.sqft_per_pallet || 0).toFixed(0)} sqft)</div>}
+                  <h4>{isSlabUnit ? 'Slab Details' : 'Packaging Details'}</h4>
+                  <div>{isSlabUnit ? 'Slab Size' : 'Coverage'}: {sqftPerBox} sqft{isSlabUnit ? '' : `/${boxLabel}`}</div>
+                  {!isSlabUnit && sku.pieces_per_box && <div>Pieces: {sku.pieces_per_box}/{boxLabel}</div>}
+                  {sku.weight_per_box_lbs && <div>Weight: {parseFloat(sku.weight_per_box_lbs).toFixed(1)} lbs</div>}
+                  {!isSlabUnit && sku.boxes_per_pallet && <div>Pallet: {sku.boxes_per_pallet} {boxLabelPlural} ({parseFloat(sku.sqft_per_pallet || (sqftPerBox * sku.boxes_per_pallet) || 0).toFixed(0)} sqft)</div>}
                 </div>
               )}
 
