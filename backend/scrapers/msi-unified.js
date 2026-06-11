@@ -318,13 +318,36 @@ function cleanProductName(raw) {
   if (/^x{4,}|discontinued/i.test(name)) return null;
   // Fix repeated words (e.g., "Miracle Miracle Wipes")
   name = name.replace(/\b(\w{4,})\s+\1\b/gi, '$1');
+
+  // --- Strip raw EDI dimension/thickness specs ---
+  // Full spec suffix: "8.98x60-10mm-22mil"
+  name = name.replace(/\s+\d+\.?\d*x\d+\.?\d*-\d+mm-\d+mil$/i, '');
+  // Strip trailing thickness from dimension×thickness: "12x24x0.38" → "12x24", "3x12x8mm" → "3x12"
+  name = name.replace(/(\d+x\d+)x\d+\.?\d*(?:mm|cm|")?/gi, '$1');
+  // Dimension with inch marks: 6"X12"X0.38"(1cm)
+  name = name.replace(/\s+\d+"[xX]\d+"[xX]\d+\.?\d*"?(?:\([^)]*\))?/g, '');
+  // Thickness glued to preceding word: "Brownx0.47", "Copingx3cm", "Matx0.59"
+  name = name.replace(/([A-Za-z])x\d+\.?\d*(?:cm|mm|")?/g, '$1');
+  // Trailing truncated finish after thickness removal: " Hon", " Sandbl", " Pol & Br"
+  name = name.replace(/\s+(?:Hon|Sandbl|Pol\s*&\s*Br)$/i, '');
+  // Trailing " Tiles" (redundant descriptor)
+  name = name.replace(/\s+Tiles?$/i, '');
+
+  // --- Fix common EDI typos ---
+  name = name.replace(/Interlokcing/gi, 'Interlocking');
+  name = name.replace(/Pickett/gi, 'Picket');
+  name = name.replace(/Staineless/gi, 'Stainless');
+
+  // Normalize "Parc-" → "Parc - "
+  name = name.replace(/\bParc-(\w)/g, 'Parc - $1');
+
   // Title case
   name = name.replace(/\b\w+/g, w =>
     w.length <= 3 && /^(i{1,3}|ii|iv|v|vi|vii|viii|ix|x|spc|lvp|lvt|wpc|3d|mm)$/i.test(w)
       ? w.toUpperCase()
       : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
   );
-  // Fix "Mc." abbreviations → "McCarran"
+  // Fix "Mc." abbreviations → "Mc"
   name = name.replace(/\bMc\.\s*/g, 'Mc');
   // Fix missing space before dimension (e.g., "Blanca8x47" → "Blanca 8x47")
   name = name.replace(/([a-z])(\d+x\d+)/gi, '$1 $2');
@@ -361,6 +384,8 @@ function buildVariantName(item, isAccessory) {
   // Get finish from EDI descriptors
   const finishPid = item.descriptions.find(d => d.characteristic_label === 'finish');
   let finishPart = finishPid ? finishPid.description : null;
+  // Treat "Misc" / "Misc." as no finish
+  if (finishPart && /^misc\.?$/i.test(finishPart)) finishPart = null;
   if (finishPart) {
     // Title case the finish
     finishPart = finishPart.replace(/\b\w+/g, w =>
@@ -371,6 +396,8 @@ function buildVariantName(item, isAccessory) {
   // Get pattern from EDI
   const patternPid = item.descriptions.find(d => d.characteristic_label === 'pattern');
   let patternPart = patternPid ? patternPid.description : null;
+  // Treat raw "PATTERN" as no pattern (not a meaningful value)
+  if (patternPart && /^pattern$/i.test(patternPart)) patternPart = null;
 
   // Build the variant name
   if (sizePart && finishPart) return `${sizePart} ${finishPart}`;
