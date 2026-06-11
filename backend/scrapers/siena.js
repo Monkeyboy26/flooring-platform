@@ -735,6 +735,7 @@ const CAPTION_TO_COLOR = {
   },
   'Borneo': {
     'STRAW': 'Biondo',
+    'IVORY': 'Natural',
   },
   'Bubble': {
     // Plain tiles now match PRICE_LIST directly (Black, Coffee, Red, White)
@@ -862,9 +863,12 @@ const CAPTION_TO_COLOR = {
   },
   'Marmo': {
     'CALCATTA BIANCO 32X32 (Pol)': 'Blanco Brillo',
+    'CARRARA 24X48 (Pol)': 'Blanco Brillo', 'CARRARA 12X24 (Pol)': 'Blanco Brillo', 'CARRARA 32X32 (Pol)': 'Blanco Brillo',
     'CAVELANO 12X24 (Mat/Pol)': 'Gris Natural', 'CAVELANO 24X24 (Mat/Pol)': 'Gris Natural',
-    'CALCATTA GOLD 12X24 (Mat/Pol)': 'Blanco Natural',
+    'CALCATTA GOLD 12X24 (Mat/Pol)': 'Blanco Natural', 'CALCATTA GOLD 24X24 (Mat/Pol)': 'Blanco Natural',
     'ICE ROCK 12X24 (Mat/Pol)': 'Gris Brillo',
+    'ICE ROCK 24\u00d748 (Mat/ Pol)': 'Gris Brillo', 'MARMO ICE ROCK 32\u00d732 (Pol)': 'Gris Brillo',
+    'ice rock 24\u00d724 (Mat/ Pol)': 'Gris Brillo',
   },
   'Marquina': {
     'Nero Glossy/ Matte': 'Black Polished',
@@ -913,7 +917,7 @@ const CAPTION_TO_COLOR = {
     'MONTEGA (MATTE)': 'Grey',
   },
   'Powder': {
-    'Argent': 'Grey', 'Tortora': 'Sand',
+    'Argent': 'Grey', 'Tortora': 'Sand', 'Concrete': 'Bone',
   },
   'Pulpis': {
     'Grey': 'Gris Natural',
