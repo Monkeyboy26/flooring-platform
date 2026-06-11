@@ -242,7 +242,7 @@ const PRICE_LIST = {
   'Flagstone': {
     desc: 'Color body Porcelain tile', origin: 'Spain', material: 'porcelain', usage: 'floor',
     items: [
-      { colors: ['Cream', 'Grey', 'Sand'], size: '12x24', pcs: 7, sf: 13.56, lbs: 45.20, bxPl: 40, price: 4.49, unit: 'sf' },
+      { colors: ['Borgona', 'Canyon', 'Esla', 'Filita'], size: '12x24', pcs: 7, sf: 13.56, lbs: 45.20, bxPl: 40, price: 4.49, unit: 'sf' },
     ],
   },
   'Forest': {
@@ -324,7 +324,7 @@ const PRICE_LIST = {
   'Levante': {
     desc: 'White body Porcelain tile', origin: 'Spain', material: 'porcelain', usage: 'wall',
     items: [
-      { colors: ['Blanco Natural', 'Gris Natural'], size: '12x36', finish: 'Matte', pcs: 5, sf: 14.52, lbs: 45.10, bxPl: 63, price: 5.49, unit: 'sf' },
+      { colors: ['Gris', 'Iceberg', 'Marfil'], size: '12x36', finish: 'Matte', pcs: 5, sf: 14.52, lbs: 45.10, bxPl: 63, price: 5.49, unit: 'sf' },
       { colors: ['Deco Blanco'], size: '12x36', pcs: 5, sf: 14.52, lbs: 45.10, bxPl: 63, price: 7.99, unit: 'sf' },
       { type: 'bullnose', size: '3x36', pcs: 10, price: 7.49, unit: 'pc' },
     ],
@@ -417,7 +417,7 @@ const PRICE_LIST = {
   'Nolan': {
     desc: 'Porcelain tile', origin: 'Spain', material: 'porcelain', usage: 'floor',
     items: [
-      { colors: ['Bone', 'Grey', 'Perla'], size: '12x24', pcs: 7, sf: 13.56, lbs: 45.20, bxPl: 40, price: 4.99, unit: 'sf' },
+      { colors: ['Bianco', 'Grey', 'Miele', 'Natural'], size: '12x24', pcs: 7, sf: 13.56, lbs: 45.20, bxPl: 40, price: 4.99, unit: 'sf' },
       { type: 'bullnose', size: '3x12', pcs: 15, price: 4.99, unit: 'pc' },
     ],
   },
@@ -442,7 +442,7 @@ const PRICE_LIST = {
   'Orlando': {
     desc: 'Porcelain tile', origin: 'Spain', material: 'porcelain', usage: 'floor',
     items: [
-      { colors: ['Bone', 'Grey'], size: '18x18', pcs: 6, sf: 13.13, lbs: 41.89, bxPl: 48, price: 3.99, unit: 'sf' },
+      { colors: ['Cream', 'White'], size: '18x18', pcs: 6, sf: 13.13, lbs: 41.89, bxPl: 48, price: 3.99, unit: 'sf' },
       { type: 'bullnose', size: '3x18', pcs: 10, price: 4.99, unit: 'pc' },
     ],
   },
@@ -455,7 +455,7 @@ const PRICE_LIST = {
   'Paddington': {
     desc: 'Porcelain tile', origin: 'Spain', material: 'porcelain', usage: 'floor',
     items: [
-      { colors: ['Bone', 'Grey', 'Sand'], size: '12x24', pcs: 7, sf: 13.56, lbs: 45.20, bxPl: 40, price: 4.49, unit: 'sf' },
+      { colors: ['Black', 'Grey', 'Navy Blue', 'Putty', 'White'], size: '12x24', pcs: 7, sf: 13.56, lbs: 45.20, bxPl: 40, price: 4.49, unit: 'sf' },
       { type: 'bullnose', size: '3x12', pcs: 15, price: 4.99, unit: 'pc' },
     ],
   },
@@ -468,7 +468,7 @@ const PRICE_LIST = {
   'Peak': {
     desc: 'Porcelain tile', origin: 'Spain', material: 'porcelain', usage: 'floor',
     items: [
-      { colors: ['Bone', 'Grey', 'Sand'], size: '12x24', pcs: 7, sf: 13.56, lbs: 45.20, bxPl: 40, price: 4.49, unit: 'sf' },
+      { colors: ['Dark', 'Gris', 'Medium', 'Tropical', 'White'], size: '12x24', pcs: 7, sf: 13.56, lbs: 45.20, bxPl: 40, price: 4.49, unit: 'sf' },
       { type: 'bullnose', size: '3x12', pcs: 15, price: 4.99, unit: 'pc' },
     ],
   },
@@ -580,7 +580,7 @@ const PRICE_LIST = {
   'Torp': {
     desc: 'Woodlook Porcelain tile', origin: 'Spain', material: 'porcelain', usage: 'floor',
     items: [
-      { colors: ['Cream', 'Grey', 'Natural', 'White'], size: '8x48', pcs: 5, sf: 12.92, lbs: 45.20, bxPl: 36, price: 5.49, unit: 'sf' },
+      { colors: ['Grey', 'Moka', 'Natural', 'White'], size: '8x48', pcs: 5, sf: 12.92, lbs: 45.20, bxPl: 36, price: 5.49, unit: 'sf' },
     ],
   },
   'Toulouse': {
@@ -823,7 +823,7 @@ const CAPTION_TO_COLOR = {
     'ANTRACITE': 'Ferro', 'WHITE': 'Avorio',
   },
   'Flagstone': {
-    'Borgona': 'Cream', 'Canyon': 'Sand', 'Filita': 'Grey',
+    // Plain tiles now match PRICE_LIST directly (Borgona, Canyon, Esla, Filita)
   },
   'Garda': {
     'BORDOLINO': 'Bianco', 'TORBOLE': 'Bianco',
@@ -844,9 +844,9 @@ const CAPTION_TO_COLOR = {
     'BRITISH  BEIGE': 'British Bone', 'BRITISH BEIGE': 'British Bone',
   },
   'Levante': {
-    '(Corfu) GRIS (Nplus/Matte)': 'Gris Natural',
-    '(Corfu) MARFIL (Nplus/ Matte)': 'Blanco Natural',
-    'ICEBERG (Nplus/ Matte)': 'Blanco Natural',
+    '(Corfu) GRIS (Nplus/Matte)': 'Gris',
+    '(Corfu) MARFIL (Nplus/ Matte)': 'Marfil',
+    'ICEBERG (Nplus/ Matte)': 'Iceberg',
     'FENIX BLANCO (Nplus)': 'Deco Blanco',
   },
   'Lux': {
@@ -890,27 +890,27 @@ const CAPTION_TO_COLOR = {
     'Taupe': 'Cenere',  // website mislabeled: caption says Taupe but filename is Grigio
   },
   'Nolan': {
-    'BIANCO': 'Bone', 'MIELE': 'Perla', 'NATURAL': 'Perla',
+    // Plain tiles now match PRICE_LIST directly (Bianco, Grey, Miele, Natural)
   },
   'Opal': {
     'IVORY': 'Beige Natural',
   },
   'Orlando': {
-    'CREAM': 'Bone', 'WHITE': 'Bone',
+    // Plain tiles now match PRICE_LIST directly (Cream, White)
   },
   'Oxford 948': {
     'Oxford Perla': 'Grey', 'Oxford Wengue': 'Taupe',
   },
   'Paddington': {
-    'Putty Matte/ Glossy': 'Bone', 'White Matte/ Glossy': 'Bone',
+    'Black Matte/ Glossy': 'Black', 'Grey Matte/ Glossy': 'Grey',
+    'Navi Blue Matte/ Glossy': 'Navy Blue', 'Putty Matte/ Glossy': 'Putty',
+    'White Matte/ Glossy': 'White',
   },
   'Patchwork': {
     'BLACK': 'Color', 'WHITE': 'Color',
   },
   'Peak': {
-    'DARK': 'Sand', 'MEDIUM': 'Sand', 'TROPICAL': 'Sand',
-    'GRIS': 'Grey',
-    'WHITE': 'Bone',
+    // Plain tiles now match PRICE_LIST directly (Dark, Gris, Medium, Tropical, White)
   },
   'Picket': {
     'Carrara Glossy': 'White',
@@ -960,7 +960,7 @@ const CAPTION_TO_COLOR = {
   },
   'Torp': {
     'GRIS': 'Grey',
-    'MOKA': 'Cream',
+    // Moka now matches PRICE_LIST directly
   },
   'Toulouse': {
     'TAUPE': 'Sand',
@@ -1479,6 +1479,9 @@ async function run() {
       // from overwriting each other. Instead we batch them and save once per color.
       const colorImages = new Map(); // color → [imgUrl, ...]
       const finishRe = /\s+(Polished|Natural|Matte|Brillo)\s*$/i;
+      // Colors with explicit caption mappings should NOT receive sibling images —
+      // they have their own dedicated gallery image (e.g., Carrara Blanco vs Blanco Brillo)
+      const explicitlyMappedColors = new Set(Object.values(captionMap));
 
       for (const swatch of result.swatches) {
         if (!swatch.label || !swatch.label.trim()) continue; // skip empty captions
@@ -1500,12 +1503,14 @@ async function run() {
 
         // Build list of colors to save: primary match + finish siblings
         // e.g., "Grey Polished" → also save to "Grey Matte", "Grey Natural"
+        // Skip siblings that have their own explicit caption mapping — they'll
+        // get their own image and shouldn't be cross-contaminated.
         const baseColor = matchedColor.replace(finishRe, '').trim().toLowerCase();
         const colorsToSave = [matchedColor];
         for (const c of uniqueColors) {
           if (c === matchedColor) continue;
           const cBase = c.replace(finishRe, '').trim().toLowerCase();
-          if (cBase === baseColor) colorsToSave.push(c);
+          if (cBase === baseColor && !explicitlyMappedColors.has(c)) colorsToSave.push(c);
         }
 
         for (const color of colorsToSave) {
