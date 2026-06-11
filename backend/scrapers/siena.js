@@ -620,7 +620,7 @@ const PRICE_LIST = {
   'Wales': {
     desc: 'Porcelain tile', origin: 'Spain', material: 'porcelain', usage: 'floor',
     items: [
-      { colors: ['Beige', 'Grey'], size: '12x24', pcs: 7, sf: 13.56, lbs: 45.20, bxPl: 40, price: 4.49, unit: 'sf' },
+      { colors: ['Grey', 'White'], size: '12x24', pcs: 7, sf: 13.56, lbs: 45.20, bxPl: 40, price: 4.49, unit: 'sf' },
       { type: 'bullnose', size: '3x12', pcs: 15, price: 4.99, unit: 'pc' },
     ],
   },
@@ -753,8 +753,8 @@ const CAPTION_TO_COLOR = {
     'JET GRIS': 'Gris',
   },
   'Canvas': {
-    'Argento': 'Cenere', 'Avio': 'Cenere', 'Perla': 'Cenere',
-    'Corda': 'Terra', 'Tobacco': 'Terra',
+    'Perla': 'Cenere',
+    'Corda': 'Terra',
   },
   'Carpet': {
     'CARPET SAND 24\u00d740': 'Arena', 'CARPET SAND 10\u00d730': 'Arena',
@@ -799,8 +799,6 @@ const CAPTION_TO_COLOR = {
   },
   'De Brick': {
     'CAMBRIDGE WHITE': 'White Glossy', 'LUTON WHITE': 'White Matte',
-    'LUTON ASH': 'Black Matte',
-    'YORKSHIRE LIGHT': 'White Glossy',
   },
   'Devon': {
     // Inlay = decorative pattern → map to Decor variants
@@ -826,7 +824,7 @@ const CAPTION_TO_COLOR = {
     // Plain tiles now match PRICE_LIST directly (Borgona, Canyon, Esla, Filita)
   },
   'Garda': {
-    'BORDOLINO': 'Bianco', 'TORBOLE': 'Bianco',
+    'BORDOLINO': 'Bianco',
     'LAZISE': 'Grafito',
     'RIVA': 'Gris',
   },
@@ -850,10 +848,9 @@ const CAPTION_TO_COLOR = {
     'FENIX BLANCO (Nplus)': 'Deco Blanco',
   },
   'Lux': {
-    'ANTY SKY': 'Crema Polished', 'CLASSIC CORAL': 'Crema Polished',
-    'BIANCO STONE': 'White Polished', 'BLONZE BIANCO': 'White Polished',
-    'CALCUTTA WHITE': 'White Polished',
-    'GLAIER BAY': 'Grey Polished', 'PROTLAND BIANCO GREY': 'Grey Polished',
+    'ANTY SKY': 'Crema Polished',
+    'BIANCO STONE': 'White Polished',
+    'GLAIER BAY': 'Grey Polished',
   },
   'Madison': {
     'BEIGE': 'Bone', 'GRIS': 'Grey',
@@ -864,24 +861,17 @@ const CAPTION_TO_COLOR = {
     'WAVE GLOSSY 3X12': 'Ondas Brillo',
   },
   'Marmo': {
-    'AGAVE 12X24 (Pol)': 'Gris Brillo',
     'CALCATTA BIANCO 32X32 (Pol)': 'Blanco Brillo',
-    'CREMA MARFIL 12X24 (Pol)': 'Blanco Brillo', 'CREMA MARFIL 24X24 (Pol)': 'Blanco Brillo',
     'CAVELANO 12X24 (Mat/Pol)': 'Gris Natural', 'CAVELANO 24X24 (Mat/Pol)': 'Gris Natural',
-    'CARRARA 24X48 (Pol)': 'Blanco Brillo', 'CARRARA 12X24 (Pol)': 'Blanco Brillo',
-    'CARRARA 32X32 (Pol)': 'Blanco Brillo',
-    'CALCATTA GOLD 12X24 (Mat/Pol)': 'Blanco Natural', 'CALCATTA GOLD 24X24 (Mat/Pol)': 'Blanco Natural',
-    'ICE ROCK 24\u00d748 (Mat/ Pol)': 'Gris Brillo', 'ICE ROCK 12X24 (Mat/Pol)': 'Gris Brillo',
-    'MARMO ICE ROCK 32\u00d732 (Pol)': 'Gris Brillo', 'ice rock 24\u00d724 (Mat/ Pol)': 'Gris Brillo',
-    'CALCATTA PIETRA 12X24 (Mat/Pol)': 'Blanco Natural',
-    'CALCATTA PIETRA 24X24 (Mat/Pol)': 'Blanco Natural',
+    'CALCATTA GOLD 12X24 (Mat/Pol)': 'Blanco Natural',
+    'ICE ROCK 12X24 (Mat/Pol)': 'Gris Brillo',
   },
   'Marquina': {
     'Nero Glossy/ Matte': 'Black Polished',
   },
   'Mash-Up': {
     'Diamond': 'Graphite', 'Dot': 'Graphite', 'Flower': 'Graphite',
-    'Lined': 'Graphite', 'White': 'Graphite',
+    'Lined': 'Graphite',
   },
   'Nativa': {
     'DARK': 'Grafito', 'LIGHT': 'Perla', 'MEDIUM': 'Cenere',
@@ -907,7 +897,7 @@ const CAPTION_TO_COLOR = {
     'White Matte/ Glossy': 'White',
   },
   'Patchwork': {
-    'BLACK': 'Color', 'WHITE': 'Color',
+    // Individual tile images removed — Patchwork is a mixed-pattern product
   },
   'Peak': {
     // Plain tiles now match PRICE_LIST directly (Dark, Gris, Medium, Tropical, White)
@@ -923,15 +913,14 @@ const CAPTION_TO_COLOR = {
     'MONTEGA (MATTE)': 'Grey',
   },
   'Powder': {
-    'Argent': 'Grey', 'Concrete': 'Grey', 'Tortora': 'Sand',
+    'Argent': 'Grey', 'Tortora': 'Sand',
   },
   'Pulpis': {
-    'Dark Grey': 'Gris Natural', 'Grey': 'Gris Natural',
+    'Grey': 'Gris Natural',
   },
   'Rock': {
     'PETRA BEIGE': 'Bone', 'PETRA GRIS': 'Grey',
-    'TEIDE BEIGE': 'Bone', 'TEIDE SAND': 'Sand',
-    'VULCANO DARK': 'Grey',
+    'TEIDE SAND': 'Sand',
   },
   'Romani': {
     'CREMA (Matte/ Polished)': 'Bone',
@@ -944,10 +933,10 @@ const CAPTION_TO_COLOR = {
     'BEIGE': 'Bone', 'GREY': 'Grey',
   },
   'Selkis': {
-    'CHARCOAL': 'Grey', 'PERGAMON': 'Beige', 'STEEL': 'Grey',
+    'PERGAMON': 'Beige', 'STEEL': 'Grey',
   },
   'Stony': {
-    'BIANCO': 'Bone', 'GRAFITE': 'Grey', 'SABBIA': 'Bone',
+    'GRAFITE': 'Grey', 'SABBIA': 'Bone',
   },
   'Terra': {
     'RIVER ROCK': 'Grey', 'TRAVERTINE': 'Beige',
@@ -956,7 +945,7 @@ const CAPTION_TO_COLOR = {
     'BIANCO': 'White', 'GRIS': 'Grey',
   },
   'Timeless': {
-    'ECRU': 'Beige', 'HONEY': 'Beige',
+    'ECRU': 'Beige',
   },
   'Torp': {
     'GRIS': 'Grey',
@@ -969,19 +958,19 @@ const CAPTION_TO_COLOR = {
     // Plain tiles + decos now match PRICE_LIST directly
   },
   'Viena': {
-    'GRIS CLARO': 'Grey', 'IVORY': 'Beige',
-    'GREY PEARL': 'Grey', 'GRAPHITE': 'Grey', 'ANTRACITE': 'Grey',
+    'GRIS CLARO': 'Grey', 'GREY PEARL': 'Grey',
+    'IVORY': 'Beige',
     'TOBACCO': 'Sand',
   },
   'Vinyle': {
-    'Antracita': 'Grey', 'Gris': 'Grey', 'Moka': 'Brown',
-    'Beige': 'Natural', 'Blanco': 'Natural', 'Crema': 'Natural',
+    'Gris': 'Grey', 'Moka': 'Brown',
+    'Beige': 'Natural', 'Crema': 'Natural',
   },
   'Vulcani': {
     // Plain tiles now match PRICE_LIST directly (Avorio, Bianco, Grigio, Multicolor)
   },
   'Wales': {
-    'White': 'Beige',
+    // Plain tiles now match PRICE_LIST directly (Grey, White)
   },
   'Zafiro': {
     'HELENA': 'Beige Natural',  // captions swapped with filenames on website
