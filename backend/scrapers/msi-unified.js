@@ -1680,30 +1680,49 @@ async function phase3_tier1_cdnProbe(pool, skuIndex, log) {
 // ─── Tier 2: Puppeteer Enrichment ────────────────────────────────────────────
 
 const MSI_CATEGORIES = [
-  // Porcelain / ceramic — main page shows ~48; pietra sub-page lists another set
-  '/porcelain-tile/',
-  '/porcelain-tile/pietra/',
+  // Porcelain / ceramic
+  '/ceramic-porcelain-tile/',                    // was /porcelain-tile/
+  '/ceramic-porcelain-tile/pietra/',             // was /porcelain-tile/pietra/
   // Natural stone
   '/marble-tile/', '/travertine-tile/', '/granite-tile/',
   '/quartzite-tile/', '/slate-tile/', '/limestone-tile/', '/sandstone-tile/',
-  // LVP — sub-collection pages that actually list products
-  '/luxury-vinyl-flooring/cyrus/', '/luxury-vinyl-flooring/andover/',
-  '/luxury-vinyl-flooring/everlife-xl-cyrus/', '/luxury-vinyl-flooring/xl-cyrus/',
-  '/luxury-vinyl-flooring/xxl-cyrus/', '/luxury-vinyl-flooring/prescott/',
-  '/luxury-vinyl-flooring/everlife-prescott/', '/luxury-vinyl-flooring/bracken-hill/',
-  '/luxury-vinyl-flooring/everlife/',
-  '/luxury-vinyl-flooring/katavia/',
-  '/luxury-vinyl-flooring/smithcliffs/',
-  '/luxury-vinyl-flooring/fauna/',
-  '/luxury-vinyl-flooring/dryback/',
-  '/luxury-vinyl-flooring/',               // catch-all
-  '/waterproof-hybrid-rigid-core/',
+  // LVP — canonical paths (was /luxury-vinyl-flooring/)
+  '/luxury-vinyl-planks/cyrus/',
+  '/luxury-vinyl-planks/cyrus-2/',
+  '/luxury-vinyl-planks/xl-cyrus/',
+  '/luxury-vinyl-planks/prescott/',
+  '/luxury-vinyl-planks/xl-prescott/',
+  '/luxury-vinyl-planks/andover/',
+  '/luxury-vinyl-planks/ashton/',
+  '/luxury-vinyl-planks/ashton-2/',
+  '/luxury-vinyl-planks/xl-ashton/',
+  '/luxury-vinyl-planks/laurel/',
+  '/luxury-vinyl-planks/laurel-reserve/',
+  '/luxury-vinyl-planks/glenridge/',
+  '/luxury-vinyl-planks/katavia/',
+  '/luxury-vinyl-planks/wilmont/',
+  '/luxury-vinyl-planks/kallum/',
+  '/luxury-vinyl-planks/acclima/',
+  '/luxury-vinyl-planks/studio/',
+  '/luxury-vinyl-planks/xl-studio/',
+  '/luxury-vinyl-planks/nove/',
+  '/luxury-vinyl-planks/nove-plus/',
+  '/luxury-vinyl-planks/nove-reserve/',
+  '/luxury-vinyl-planks/wayne-parc/',
+  '/luxury-vinyl-planks/wayne-parc-reserve/',
+  '/luxury-vinyl-planks/trecento/',
+  '/luxury-vinyl-planks/xl-trecento/',
+  '/luxury-vinyl-planks/shorecliffs/',
+  '/luxury-vinyl-flooring/',                     // catch-all (still works)
+  // Waterproof hybrid rigid core
+  '/waterproof-hybrid-rigid-core/smithcliffs/',
+  '/waterproof-hybrid-rigid-core/shorecliffs/',
+  '/waterproof-hybrid-rigid-core/',              // keep catch-all
   // Hardwood
-  '/w-luxury-genuine-hardwood/',
   '/waterproof-wood-flooring/woodhills/',
   '/waterproof-wood-flooring/mccarran/',
   '/waterproof-wood-flooring/ladson/',
-  '/waterproof-wood-flooring/',             // catch-all
+  '/waterproof-wood-flooring/',
   // Backsplash & Mosaics
   '/backsplash-tile/subway-tile/', '/backsplash-tile/glass-tile/',
   '/backsplash-tile/natural-stone-backsplash/',
@@ -1711,12 +1730,12 @@ const MSI_CATEGORIES = [
   '/mosaics/peel-and-stick/',
   '/mosaics/marble-mosaics/',
   '/mosaics/glass-mosaic/',
-  '/mosaics/',                              // catch-all
+  '/mosaics/',
   // Stacked stone & hardscape
   '/hardscape/rockmount-stacked-stone/',
   '/hardscape/arterra-porcelain-pavers/',
   '/hardscape/natural-stone-coping/',
-  // Acoustic panels, installation
+  // Acoustic panels
   '/acoustic-panels/',
 ];
 
@@ -1748,6 +1767,21 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
         if (productUrls.length === 0) {
           await delay(5000);
           productUrls = await collectProductUrls(browser, categoryUrl);
+        }
+        // Try alternate URL path if still 0 products (MSI restructures paths)
+        if (productUrls.length === 0) {
+          let altPath = null;
+          if (categoryPath.includes('/luxury-vinyl-flooring/')) {
+            altPath = categoryPath.replace('/luxury-vinyl-flooring/', '/luxury-vinyl-planks/');
+          } else if (categoryPath.includes('/luxury-vinyl-planks/')) {
+            altPath = categoryPath.replace('/luxury-vinyl-planks/', '/luxury-vinyl-flooring/');
+          } else if (categoryPath.includes('/porcelain-tile/')) {
+            altPath = categoryPath.replace('/porcelain-tile/', '/ceramic-porcelain-tile/');
+          }
+          if (altPath) {
+            log(`      Trying alternate path: ${altPath}`);
+            productUrls = await collectProductUrls(browser, baseUrl + altPath);
+          }
         }
         log(`      Found ${productUrls.length} products`);
       } catch (err) {
