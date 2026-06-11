@@ -1750,6 +1750,8 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
   try {
     browser = await launchBrowser();
     const visitedUrls = new Set();
+    let pagesInSession = 0;
+    const BROWSER_RESTART_INTERVAL = 80; // restart browser every N product pages
 
     for (const categoryPath of MSI_CATEGORIES) {
       // In test mode, stop early once all test SKUs have images
@@ -1759,6 +1761,15 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
       }
       const categoryUrl = baseUrl + categoryPath;
       log(`    Category: ${categoryPath}`);
+
+      // Proactively restart browser to avoid protocolTimeout staleness
+      if (pagesInSession >= BROWSER_RESTART_INTERVAL) {
+        log(`      Recycling browser after ${pagesInSession} pages...`);
+        await browser.close().catch(() => {});
+        await delay(2000);
+        browser = await launchBrowser();
+        pagesInSession = 0;
+      }
 
       let productUrls;
       try {
@@ -1786,6 +1797,14 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
         log(`      Found ${productUrls.length} products`);
       } catch (err) {
         log(`      ERROR: ${err.message}`);
+        // Restart browser on protocolTimeout or target errors
+        if (/timed out|Target|Protocol/i.test(err.message)) {
+          log(`      Restarting browser due to session error...`);
+          await browser.close().catch(() => {});
+          await delay(3000);
+          browser = await launchBrowser();
+          pagesInSession = 0;
+        }
         continue;
       }
 
@@ -1951,8 +1970,17 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
           totalEnriched++;
         } catch (err) {
           if (VERBOSE) log(`      ERROR scraping ${url}: ${err.message}`);
+          // Restart browser on protocolTimeout or target errors mid-category
+          if (/timed out|Target|Protocol/i.test(err.message)) {
+            log(`      Restarting browser due to session error...`);
+            await browser.close().catch(() => {});
+            await delay(3000);
+            browser = await launchBrowser();
+            pagesInSession = 0;
+          }
         }
 
+        pagesInSession++;
         await delay(2500);
       }
     }
