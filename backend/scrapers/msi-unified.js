@@ -337,6 +337,7 @@ function cleanProductName(raw) {
   name = name.replace(/Interlokcing/gi, 'Interlocking');
   name = name.replace(/Pickett/gi, 'Picket');
   name = name.replace(/Staineless/gi, 'Stainless');
+  name = name.replace(/Valeeyview/gi, 'Valleyview');
 
   // Normalize "Parc-" → "Parc - "
   name = name.replace(/\bParc-(\w)/g, 'Parc - $1');
@@ -1800,9 +1801,23 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
 
             // Filter page-level images by variant color using product-specific names
             const specificColor = extractSpecificColor(match);
+            const otherColors = allSpecificColors.filter(c => c !== specificColor);
+
+            // Cross-color check: reject per-size image if its URL slug contains
+            // another product's color name but not this product's color
+            if (perSizeImg && otherColors.length > 0) {
+              const slug = perSizeImg.toLowerCase().split('/').pop().split('?')[0];
+              const selfSlug = specificColor.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const hasSelf = selfSlug.length >= 3 && slug.includes(selfSlug);
+              const hasOther = otherColors.some(c => {
+                const s = c.toLowerCase().replace(/[^a-z0-9]/g, '');
+                return s.length >= 3 && slug.includes(s);
+              });
+              if (hasOther && !hasSelf) perSizeImg = null;
+            }
+
             const pageImgUrls = (data.images || []).map(i => i.url)
               .filter(u => u !== perSizeImg);
-            const otherColors = allSpecificColors.filter(c => c !== specificColor);
             const { matched: variantImgs, shared: sharedImgs } = filterImagesByVariant(
               pageImgUrls, specificColor,
               { otherColors, productName: match.product_name }
@@ -2276,16 +2291,24 @@ async function phase3_images(pool, skuIndex, log) {
     // Build color+size → imageUrl map from DB
     for (const entry of withoutImage) {
       const entrySize = normalizeSizeForMatch(entry.size);
+      const entryIsAccessory = entry.variant_type === 'accessory';
 
-      // Pass 1: Exact match (same color + same size) — most reliable
+      // Pass 1: Exact match (same color + same size + same type) — most reliable
       let sibling = withImage.find(e => {
         if (!e.color || !entry.color || e.color !== entry.color) return false;
+        // Never inherit across accessory/field-tile boundary — images differ
+        // (bullnose photos vs swatch/plank photos)
+        if ((e.variant_type === 'accessory') !== entryIsAccessory) return false;
         return normalizeSizeForMatch(e.size) === entrySize;
       });
 
-      // Pass 2: Same color, any size (same visual product, different plank/tile size)
+      // Pass 2: Same color, any size, same type (same visual product, different plank/tile size)
       if (!sibling) {
-        sibling = withImage.find(e => e.color && entry.color && e.color === entry.color);
+        sibling = withImage.find(e => {
+          if (!e.color || !entry.color || e.color !== entry.color) return false;
+          if ((e.variant_type === 'accessory') !== entryIsAccessory) return false;
+          return true;
+        });
       }
 
       if (!sibling) continue;
@@ -2296,6 +2319,10 @@ async function phase3_images(pool, skuIndex, log) {
         [sibling.sku_id]
       );
       if (rows.length === 0) continue;
+
+      // Reject bullnose/accessory-coded images for field tile targets
+      const filename = (rows[0].url || '').split('/').pop().toUpperCase();
+      if (!entryIsAccessory && /BN[-.]|BN\d|BULLNOSE/i.test(filename)) continue;
 
       await saveSkuImages(pool, entry.product_id, entry.sku_id, [rows[0].url], { maxImages: 1 });
       entry._hasImage = true;
