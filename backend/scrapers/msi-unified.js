@@ -671,13 +671,20 @@ function groupIntoProducts(items) {
 
   for (const item of items) {
     if (!item.vendor_sku && !item.product_name) continue;
-    const collection = item.collection || '';
+    let collection = item.collection || '';
     const category = item.category || '';
     const isAccessory = /accessory|sundries|trim|molding|bullnose|quarter\s*round|grout|caulk|setting\s*material|mortar|adhesive|sealant|membrane|pencil\s*liner|chair\s*rail|v-cap|mud\s*cap|jolly|schluter|threshold|transition|stair\s*nose|reducer|t-mold/i.test(category)
       || /accessory|sundries|trim|molding|bullnose|quarter\s*round|grout|caulk|setting\s*material|mortar|adhesive|sealant|membrane|pencil\s*liner|chair\s*rail|v-cap|mud\s*cap|jolly|schluter|threshold|transition|stair\s*nose|reducer|t-mold/i.test(item.product_name || '');
 
     let baseName = item.product_name || item.vendor_sku || 'Unknown';
     baseName = cleanProductName(baseName);
+
+    // Infer collection from "Name - Color" pattern when EDI doesn't provide one
+    // Common for LVP products (Cyrus - Braly, Prescott - Fauna, etc.)
+    if (!collection && baseName && /\s-\s/.test(baseName)) {
+      collection = baseName.split(/\s-\s/)[0].trim();
+      item.collection = collection;
+    }
     if (item.color && !isAccessory) {
       const colorWords = item.color.split(/\s+/);
       for (const word of colorWords) {
