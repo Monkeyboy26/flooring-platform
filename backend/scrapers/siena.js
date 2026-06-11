@@ -65,7 +65,7 @@ const PRICE_LIST = {
   'Camber': {
     desc: 'Glossy Ceramic Wall tile', origin: 'Italy', material: 'ceramic', usage: 'wall',
     items: [
-      { colors: ['Black', 'Sage', 'White'], size: '7x7', pcs: 25, sf: 8.07, lbs: 22.00, bxPl: 80, price: 12.49, unit: 'sf' },
+      { colors: ['Black', 'Moonlight', 'Taupe'], size: '7x7', pcs: 25, sf: 8.07, lbs: 22.00, bxPl: 80, price: 12.49, unit: 'sf' },
     ],
   },
   'Canet': {
@@ -168,7 +168,7 @@ const PRICE_LIST = {
   'Crosswood': {
     desc: 'Woodlook Color body Porcelain tile', origin: 'Italy', material: 'porcelain', usage: 'floor',
     items: [
-      { colors: ['Argent', 'Birch', 'Dust', 'Mist'], size: '8x48', pcs: 4, sf: 10.33, lbs: 39.68, bxPl: 48, price: 6.49, unit: 'sf' },
+      { colors: ['Bone', 'Buff', 'Cinder', 'Dust'], size: '8x48', pcs: 4, sf: 10.33, lbs: 39.68, bxPl: 48, price: 6.49, unit: 'sf' },
       { type: 'bullnose', size: '4x48', pcs: 3, price: 8.99, unit: 'pc' },
     ],
   },
@@ -593,8 +593,8 @@ const PRICE_LIST = {
   'Victorian': {
     desc: 'Porcelain tile', origin: 'Spain', material: 'porcelain', usage: 'floor',
     items: [
-      { colors: ['Silver', 'White'], size: '10x10', pcs: 44, sf: 10.76, lbs: 35.27, bxPl: 60, price: 6.99, unit: 'sf' },
-      { colors: ['Deco Color', 'Deco Grey'], size: '10x10', pcs: 44, sf: 10.76, lbs: 35.27, bxPl: 60, price: 8.99, unit: 'sf' },
+      { colors: ['Avorio', 'Bianco', 'Blue', 'Nero', 'Perla', 'Porpora', 'Tortora'], size: '10x10', pcs: 44, sf: 10.76, lbs: 35.27, bxPl: 60, price: 6.99, unit: 'sf' },
+      { colors: ['Deco Blue Perla', 'Deco Tortora Avorio'], size: '10x10', pcs: 44, sf: 10.76, lbs: 35.27, bxPl: 60, price: 8.99, unit: 'sf' },
     ],
   },
   'Viena': {
@@ -613,7 +613,7 @@ const PRICE_LIST = {
   'Vulcani': {
     desc: 'Porcelain tile', origin: 'Spain', material: 'porcelain', usage: 'floor',
     items: [
-      { colors: ['Black', 'Grey', 'Sand'], size: '12x24', pcs: 7, sf: 13.56, lbs: 45.20, bxPl: 40, price: 4.99, unit: 'sf' },
+      { colors: ['Avorio', 'Bianco', 'Grigio', 'Multicolor'], size: '12x24', pcs: 7, sf: 13.56, lbs: 45.20, bxPl: 40, price: 4.99, unit: 'sf' },
       { type: 'bullnose', size: '3x12', pcs: 15, price: 4.99, unit: 'pc' },
     ],
   },
@@ -746,7 +746,7 @@ const CAPTION_TO_COLOR = {
     'Mr Decor': 'Mix Deco', 'Mrs Decor': 'Mix Deco',
   },
   'Camber': {
-    'MOONLIGHT': 'White', 'TAUPE': 'Sage',
+    // Plain tiles now match PRICE_LIST directly (Black, Moonlight, Taupe)
   },
   'Canet': {
     'BEIGE': 'Marfil',
@@ -780,7 +780,7 @@ const CAPTION_TO_COLOR = {
     'WHITE GLOSSY  4 1/4 X 4 1/4 , 3 X 3, 6 X 6': 'White Ice',
   },
   'Crosswood': {
-    'BONE': 'Birch', 'BUFF': 'Mist', 'CINDER': 'Argent',
+    // Plain tiles now match PRICE_LIST directly (Bone, Buff, Cinder, Dust)
   },
   'Country': {
     'ANTHRACITE': 'Dark Grey',
@@ -966,9 +966,7 @@ const CAPTION_TO_COLOR = {
     'TAUPE': 'Sand',
   },
   'Victorian': {
-    'AVORIO': 'White', 'BIANCO': 'White', 'PERLA': 'White',
-    'TORTORA': 'Silver', 'NERO': 'Silver',
-    'DECO BLUE PERLA': 'Deco Color', 'DECO TORTORA AVORIO': 'Deco Color',
+    // Plain tiles + decos now match PRICE_LIST directly
   },
   'Viena': {
     'GRIS CLARO': 'Grey', 'IVORY': 'Beige',
@@ -980,8 +978,7 @@ const CAPTION_TO_COLOR = {
     'Beige': 'Natural', 'Blanco': 'Natural', 'Crema': 'Natural',
   },
   'Vulcani': {
-    'Avorio': 'Sand', 'Bianco': 'Sand', 'Grigio': 'Grey',
-    'Multicolor': 'Sand',
+    // Plain tiles now match PRICE_LIST directly (Avorio, Bianco, Grigio, Multicolor)
   },
   'Wales': {
     'White': 'Beige',
