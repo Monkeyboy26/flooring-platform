@@ -105,14 +105,20 @@ const CATEGORY_MAP = {
   'sealant': 'installation-sundries', 'adhesive': 'installation-sundries',
   'mortar': 'installation-sundries', 'backer board': 'installation-sundries',
   'membrane': 'installation-sundries', 'accessory': 'installation-sundries',
-  'accessories': 'installation-sundries', 'trim': 'installation-sundries',
-  'molding': 'installation-sundries', 'bullnose': 'installation-sundries',
-  'quarter round': 'installation-sundries', 'underlayment': 'installation-sundries',
-  'threshold': 'installation-sundries', 'transition': 'installation-sundries',
+  'accessories': 'installation-sundries', 'underlayment': 'installation-sundries',
+  'trim': 'transitions-moldings', 'molding': 'transitions-moldings',
+  'bullnose': 'transitions-moldings', 'quarter round': 'transitions-moldings',
+  'threshold': 'transitions-moldings', 'transition': 'transitions-moldings',
 };
 
 // Name patterns that indicate a mosaic product regardless of EDI material classification
 const MOSAIC_NAME_PATTERN = /mosaic|hexagon|herringbone|basketweave|chevron|arabesque|pinwheel|octagon|penny\s*round|picket|pencil|dotty|lynx|fretwork|interlocking|peel.*stick/i;
+
+// Backsplash/subway product series — override 'mosaic' → 'backsplash-tile'
+const BACKSPLASH_NAME_PATTERN = /^(renzo|urbano|dymo|adella|marza)\b/i;
+
+// Paver/coping products — override to 'hardscaping'
+const PAVER_COPING_NAME_PATTERN = /\b(paver|pavers|coping|cobbles?\b)/i;
 
 // Clean up EDI product names: strip packaging info, encoding artifacts, extra whitespace
 const MAC_CATEGORY_MAP = {
@@ -128,7 +134,7 @@ const MAC_CATEGORY_MAP = {
   STKSTL: 'stacked-stone', STKSTC: 'stacked-stone', LDGPNL: 'stacked-stone',
   PAVTIL: 'outdoor', OUTDOR: 'outdoor', ARTTURF: 'outdoor',
   SETMTL: 'installation-sundries', GRTCAU: 'installation-sundries',
-  TRMACC: 'installation-sundries', VINMISR: 'installation-sundries',
+  TRMACC: 'transitions-moldings', VINMISR: 'installation-sundries',
 };
 
 // ─── EDI lookup tables ───────────────────────────────────────────────────────
@@ -883,6 +889,16 @@ async function phase2_edi832(pool, vendorId, source, log) {
     const _resolvedSlug = CATEGORY_MAP[(group.category || '').toLowerCase().trim()] || group.category;
     if (/^(natural-stone|porcelain-tile|ceramic-tile|tile)$/.test(_resolvedSlug) && MOSAIC_NAME_PATTERN.test(group.baseName)) {
       categoryId = catCache['mosaic-tile'] || categoryId;
+    }
+
+    // Override: backsplash/subway series miscategorized as mosaic (EDI says "Glass" or "Decorative")
+    if (_resolvedSlug === 'mosaic' && BACKSPLASH_NAME_PATTERN.test(group.baseName)) {
+      categoryId = catCache['backsplash-tile'] || categoryId;
+    }
+
+    // Override: paver/coping products miscategorized as stacked-stone or natural-stone
+    if (/^(stacked-stone|natural-stone)$/.test(_resolvedSlug) && PAVER_COPING_NAME_PATTERN.test(group.baseName)) {
+      categoryId = catCache['hardscaping'] || categoryId;
     }
 
     const productRow = await upsertProduct(pool, {
