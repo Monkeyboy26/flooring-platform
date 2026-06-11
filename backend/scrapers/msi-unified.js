@@ -520,6 +520,19 @@ function finalizeItem(item) {
     item.unit_of_measure = 'SF';
   }
 
+  // Manufactured stone veneer (LVEN*): EDI prices are per-crate, convert to per-sqft
+  // Flats = 100 sqft/crate, Corners (-COR) = 50 sqft/crate
+  if (item.vendor_sku && /^LVEN/i.test(item.vendor_sku) && item.cost > 100) {
+    const isCorner = /-COR$/i.test(item.vendor_sku);
+    const crateQty = isCorner ? 50 : 100;
+    if (item.cost) item.cost = parseFloat((item.cost / crateQty).toFixed(4));
+    if (item.retail_price) item.retail_price = parseFloat((item.retail_price / crateQty).toFixed(4));
+    if (item.map_price) item.map_price = parseFloat((item.map_price / crateQty).toFixed(4));
+    item.sqft_per_box = crateQty;
+    item.sell_by = 'box';
+    item.unit_of_measure = 'SF';
+  }
+
   if (!item.sell_by && item.unit_of_measure) {
     const puom = item.unit_of_measure.toUpperCase();
     if (puom === 'SF' || puom === 'SY') item.sell_by = 'box';
