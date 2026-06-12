@@ -351,7 +351,7 @@ app.get('/api/products/:id', optionalTradeAuth, async (req, res) => {
     if (!product.rows.length) return res.status(404).json({ error: 'Product not found' });
 
     const skusResult = await pool.query(`
-      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs,
+      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, COALESCE(pk.sqft_per_pallet, pk.sqft_per_box * pk.boxes_per_pallet) as sqft_per_pallet, pk.weight_per_pallet_lbs,
         pr.cost, pr.retail_price, pr.price_basis,
         inv.qty_on_hand, inv.qty_in_transit, inv.fresh_until,
         CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_on_hand, 0) * pk.sqft_per_box) END as qty_on_hand_sqft,
@@ -1889,7 +1889,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft,
         pr.sale_price, pr.sale_ends_at,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class,
-        pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs,
+        pk.boxes_per_pallet, COALESCE(pk.sqft_per_pallet, pk.sqft_per_box * pk.boxes_per_pallet) as sqft_per_pallet, pk.weight_per_pallet_lbs,
         pk.roll_width_ft, pk.roll_length_ft,
         inv.qty_on_hand, inv.qty_in_transit, inv.fresh_until,
         CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_on_hand, 0) * pk.sqft_per_box) END as qty_on_hand_sqft,
@@ -1955,7 +1955,9 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
 
     // SKU attributes
     const attrResult = await pool.query(`
-      SELECT a.name, a.slug, sa.value, a.display_order
+      SELECT a.name, a.slug,
+        CASE WHEN a.slug = 'finish' THEN INITCAP(sa.value) ELSE sa.value END as value,
+        a.display_order
       FROM sku_attributes sa
       JOIN attributes a ON a.id = sa.attribute_id
       WHERE sa.sku_id = $1
@@ -2064,7 +2066,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     if (sameSiblings.length > 0) {
       const sibIds = sameSiblings.map(s => s.sku_id);
       const sibAttrResult = await pool.query(`
-        SELECT sa.sku_id, a.name, a.slug, sa.value
+        SELECT sa.sku_id, a.name, a.slug,
+          CASE WHEN a.slug = 'finish' THEN INITCAP(sa.value) ELSE sa.value END as value
         FROM sku_attributes sa
         JOIN attributes a ON a.id = sa.attribute_id
         WHERE sa.sku_id = ANY($1)
@@ -2121,7 +2124,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       if (baseOnlyResult.rows.length > 0) {
         const baseIds = baseOnlyResult.rows.map(s => s.sku_id);
         const baseAttrResult = await pool.query(`
-          SELECT sa.sku_id, a.name, a.slug, sa.value
+          SELECT sa.sku_id, a.name, a.slug,
+            CASE WHEN a.slug = 'finish' THEN INITCAP(sa.value) ELSE sa.value END as value
           FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
           WHERE sa.sku_id = ANY($1) ORDER BY a.display_order
         `, [baseIds]);
@@ -2146,7 +2150,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         COALESCE(
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1),
-          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = $1 AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1)
         ) as primary_image,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
@@ -2212,7 +2217,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             COALESCE(
               (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1),
-              (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+              (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1),
+              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = $4 AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1)
             ) as primary_image,
             CASE
               WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
@@ -2232,7 +2238,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             AND s.vendor_sku = ANY($3::text[])
           ORDER BY s.product_id, s.created_at
           LIMIT 30
-        `, [vendorIdX, sku.product_id, companionVskus]);
+        `, [vendorIdX, sku.product_id, companionVskus, skuId]);
 
         if (cpaResult.rows.length > 0) {
           const ids = cpaResult.rows.map(r => r.sku_id);
@@ -2301,10 +2307,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
               (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
             ) as primary_image,
             (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) as color,
-            (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) as finish,
+            (SELECT INITCAP(sa.value) FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) as finish,
             (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'shape' LIMIT 1) as shape,
             (SELECT ARRAY_AGG(DISTINCT sa2.value) FROM skus s2 JOIN sku_attributes sa2 ON sa2.sku_id = s2.id JOIN attributes a2 ON a2.id = sa2.attribute_id WHERE s2.product_id = p.id AND a2.slug = 'size' AND s2.status = 'active' AND s2.is_sample = false) as available_sizes,
-            (SELECT ARRAY_AGG(DISTINCT sa2.value) FROM skus s2 JOIN sku_attributes sa2 ON sa2.sku_id = s2.id JOIN attributes a2 ON a2.id = sa2.attribute_id WHERE s2.product_id = p.id AND a2.slug = 'finish' AND s2.status = 'active' AND s2.is_sample = false) as available_finishes
+            (SELECT ARRAY_AGG(DISTINCT INITCAP(sa2.value)) FROM skus s2 JOIN sku_attributes sa2 ON sa2.sku_id = s2.id JOIN attributes a2 ON a2.id = sa2.attribute_id WHERE s2.product_id = p.id AND a2.slug = 'finish' AND s2.status = 'active' AND s2.is_sample = false) as available_finishes
           FROM products p
           JOIN skus s ON s.product_id = p.id AND s.is_sample = false AND s.status = 'active'
           LEFT JOIN pricing pr ON pr.sku_id = s.id
@@ -2333,7 +2339,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             SELECT s.product_id,
                    (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
                     WHERE sa.sku_id = s.id AND a.slug = 'size') as size_val,
-                   (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+                   (SELECT INITCAP(sa.value) FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
                     WHERE sa.sku_id = s.id AND a.slug = 'finish') as finish_val,
                    s.id as sku_id
             FROM skus s
@@ -2360,7 +2366,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     if (sku.collection) {
       const isMosaicProduct = /mosaic|hexagon|bullnose/i.test(sku.product_name);
       const caResult = await pool.query(`
-        SELECT a.slug, a.name, ARRAY_AGG(DISTINCT sa.value) as values
+        SELECT a.slug, a.name, ARRAY_AGG(DISTINCT CASE WHEN a.slug = 'finish' THEN INITCAP(sa.value) ELSE sa.value END) as values
         FROM products p
         JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
           AND COALESCE(s.variant_type, '') NOT IN ('accessory', 'mosaic')
@@ -5108,7 +5114,7 @@ app.get('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
     if (!product.rows.length) return res.status(404).json({ error: 'Product not found' });
 
     const skus = await pool.query(`
-      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs,
+      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, COALESCE(pk.sqft_per_pallet, pk.sqft_per_box * pk.boxes_per_pallet) as sqft_per_pallet, pk.weight_per_pallet_lbs,
         pr.cost, pr.retail_price, pr.price_basis
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -5342,7 +5348,7 @@ app.get('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', '
   try {
     const { productId } = req.params;
     const result = await pool.query(`
-      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft, pk.roll_length_ft,
+      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, COALESCE(pk.sqft_per_pallet, pk.sqft_per_box * pk.boxes_per_pallet) as sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft, pk.roll_length_ft,
         pr.cost, pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -5413,7 +5419,7 @@ app.post('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', 
 
     // Return full SKU with joins
     const full = await pool.query(`
-      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft, pk.roll_length_ft,
+      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, COALESCE(pk.sqft_per_pallet, pk.sqft_per_box * pk.boxes_per_pallet) as sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft, pk.roll_length_ft,
         pr.cost, pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -5485,7 +5491,7 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
     await client.query('COMMIT');
 
     const full = await pool.query(`
-      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, pk.sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft, pk.roll_length_ft,
+      SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, COALESCE(pk.sqft_per_pallet, pk.sqft_per_box * pk.boxes_per_pallet) as sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft, pk.roll_length_ft,
         pr.cost, pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -14167,7 +14173,11 @@ app.get('/api/rep/skus/:skuId', repAuth, async (req, res) => {
         s.id as sku_id, s.variant_name, s.vendor_sku, s.sell_by,
         s.accessory_label,
         pr.retail_price, pr.cost,
-        (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image,
+        COALESCE(
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = s.product_id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = $1 AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1)
+        ) as primary_image,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'

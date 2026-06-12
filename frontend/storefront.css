@@ -760,6 +760,7 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .accessory-card-sf-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.75rem; flex: 1; min-width: 0; flex-wrap: wrap; gap: 0.25rem; }
 .accessory-card-sf-name { font-weight: 500; font-size: 0.9375rem; }
 .accessory-card-sf-color { font-size: 0.8125rem; color: var(--stone-500); width: 100%; }
+.accessory-card-sf-sku { font-size: 0.6875rem; color: var(--stone-400); font-family: monospace; }
 .accessory-card-sf-price { font-size: 0.875rem; color: var(--stone-600); flex-shrink: 0; }
 .accessory-card-sf-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .accessory-card-sf-actions .unit-qty-stepper { flex-shrink: 0; }

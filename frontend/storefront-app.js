@@ -654,6 +654,38 @@
       return formatted.trim();
     }).join(" \u2014 ");
   }
+  const ACCESSORY_TYPE_PATTERNS = [
+    [/stair\s*nose/i, "Stairnose"],
+    [/t[\s-]*mold/i, "T-Mold"],
+    [/quarter\s*round/i, "Quarter Round"],
+    [/end\s*cap/i, "End Cap"],
+    [/cove\s*base/i, "Cove Base"],
+    [/surface\s*cap/i, "Surface Cap"],
+    [/surface\s*bullnose/i, "Surface Bullnose"],
+    [/bullnose/i, "Bullnose"],
+    [/chair\s*rail/i, "Chair Rail"],
+    [/pencil\s*liner/i, "Pencil Liner"],
+    [/rope\s*liner/i, "Rope Liner"],
+    [/crown\s*mold/i, "Crown Molding"],
+    [/v[\s-]*cap/i, "V-Cap"],
+    [/stair\s*tread/i, "Stair Tread"],
+    [/reducer/i, "Reducer"],
+    [/threshold/i, "Threshold"],
+    [/corner/i, "Corner"],
+    [/mosaic/i, "Mosaic"],
+    [/jolly/i, "Jolly"],
+    [/mud\s*cap/i, "Mud Cap"]
+  ];
+  const GENERIC_LABELS = new Set(["trim", "trim & accessories", "accessory", "accessories", "atc", ""]);
+  function getAccessoryDisplayLabel(acc) {
+    const label = (acc.accessory_label || "").trim();
+    if (label && !GENERIC_LABELS.has(label.toLowerCase())) return label;
+    const vn = acc.variant_name || "";
+    for (const [re, typeName] of ACCESSORY_TYPE_PATTERNS) {
+      if (re.test(vn)) return typeName;
+    }
+    return label || formatVariantName(vn) || "Accessory";
+  }
   const ROMAN_VAL = { "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10 };
   const ROMAN_REGEX = /\b(I{1,3}|IV|V(?:I{1,3})?|IX|X)\b(?=\s+\d|\s*$)/;
   function hasRomanSuffix(name) {
@@ -3995,21 +4027,24 @@
         }
       }
       if (collectionAttributes.finish && (collectionAttributes.finish.values || []).length >= 2 && collectionSiblings.length > 0) {
-        const existingFinishes = new Set(collectionFinishItems.map((f) => f.label));
+        const JUNK_FINISHES = new Set(["marble", "n/a", "misc", "glass", "rectified", "hf", "hufc", "hufcb"]);
+        const _toTitleCase = (s) => s.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+        const existingFinishes = new Set(collectionFinishItems.map((f) => f.label.toLowerCase()));
         const curSize = currentAttrs["size"] || "";
         const curFinish2 = currentAttrs["finish"] || "";
-        if (curFinish2 && !existingFinishes.has(curFinish2)) {
-          collectionFinishItems.push({ label: curFinish2, sku_id: sku.sku_id, is_current: true });
-          existingFinishes.add(curFinish2);
+        if (curFinish2 && !existingFinishes.has(curFinish2.toLowerCase())) {
+          collectionFinishItems.push({ label: _toTitleCase(curFinish2), sku_id: sku.sku_id, is_current: true });
+          existingFinishes.add(curFinish2.toLowerCase());
         }
-        (collectionAttributes.finish.values || []).forEach((fn) => {
-          if (existingFinishes.has(fn)) return;
+        (collectionAttributes.finish.values || []).filter((fn) => !JUNK_FINISHES.has(fn.toLowerCase())).forEach((fn) => {
+          if (existingFinishes.has(fn.toLowerCase())) return;
           const sameProductMatch = mainSiblings.find((s) => {
             const fAttr = (s.attributes || []).find((a) => a.slug === "finish");
-            return fAttr && fAttr.value === fn;
+            return fAttr && fAttr.value.toLowerCase() === fn.toLowerCase();
           });
           if (sameProductMatch) {
-            collectionFinishItems.push({ label: fn, sku_id: sameProductMatch.sku_id, is_current: false });
+            collectionFinishItems.push({ label: _toTitleCase(fn), sku_id: sameProductMatch.sku_id, is_current: false });
+            existingFinishes.add(fn.toLowerCase());
             return;
           }
           let targetSkuId = null;
@@ -4017,7 +4052,7 @@
             if (!cs.sku_map) continue;
             for (const [key, sid] of Object.entries(cs.sku_map)) {
               const parts = key.split("|");
-              if (parts[1] !== fn) continue;
+              if (parts[1].toLowerCase() !== fn.toLowerCase()) continue;
               if (curSize && normalizeSize(parts[0]) === normalizeSize(curSize)) {
                 targetSkuId = sid;
                 break;
@@ -4027,7 +4062,8 @@
             if (targetSkuId) break;
           }
           if (targetSkuId) {
-            collectionFinishItems.push({ label: fn, sku_id: targetSkuId, is_current: false, is_cross_product: true });
+            collectionFinishItems.push({ label: _toTitleCase(fn), sku_id: targetSkuId, is_current: false, is_cross_product: true });
+            existingFinishes.add(fn.toLowerCase());
           }
         });
       }
@@ -4202,7 +4238,7 @@
         attrMap["countertop_finish"].values.add("No Countertop");
         if (!currentAttrs["countertop_finish"]) currentAttrs["countertop_finish"] = "No Countertop";
       }
-      const NON_SELECTABLE = /* @__PURE__ */ new Set(["pei_rating", "shade_variation", "water_absorption", "dcof", "material", "country", "application", "edge", "look", "color", "color_code", "style_code", "price_list", "companion_skus", "species", "subcategory", "upc", "msrp", "weight", "top_ref_sku", "sink_ref_sku", "optional_accessories", "group_number", "width", "size", "height", "depth", "hardware_finish", "num_drawers", "num_doors", "num_shelves", "num_sinks", "soft_close", "sink_material", "sink_type", "vanity_type", "bowl_shape", "style", "origin", "countertop_material", "construction", "sub_line", "collection", "brand", "surface_texture", "wear_layer", "ac_rating", "edge_treatment", "plank_width", "plank_length", "composition", "install_method", "features", "technology", "product_line", "color_family", "breaking_strength", "thickness", "mohs_hardness", "color_generic", "pattern", "projection", "clearance", "overall_length", "diameter", "center_to_center"]);
+      const NON_SELECTABLE = /* @__PURE__ */ new Set(["pei_rating", "shade_variation", "water_absorption", "dcof", "material", "country", "application", "edge", "look", "color", "color_code", "style_code", "price_list", "companion_skus", "species", "subcategory", "upc", "msrp", "weight", "top_ref_sku", "sink_ref_sku", "optional_accessories", "group_number", "width", "size", "height", "depth", "hardware_finish", "num_drawers", "num_doors", "num_shelves", "num_sinks", "soft_close", "sink_material", "sink_type", "vanity_type", "bowl_shape", "style", "origin", "countertop_material", "construction", "sub_line", "collection", "brand", "surface_texture", "wear_layer", "ac_rating", "edge_treatment", "plank_width", "plank_length", "composition", "install_method", "features", "technology", "product_line", "color_family", "breaking_strength", "thickness", "mohs_hardness", "color_generic", "pattern", "projection", "clearance", "overall_length", "diameter", "center_to_center", "certification", "rectified", "sheet_size", "weight_per_sqyd", "material_class", "abrasion_resistance", "edge_type", "installation_method", "installation", "underlayer", "fiber_brand", "fiber", "frost_resistant", "mount_type", "shape", "bowl_configuration"]);
       const curSubLineAttr = (sku.attributes || []).find((a) => a.slug === "sub_line");
       const curSubLine = curSubLineAttr ? curSubLineAttr.value : "";
       const subLineMap = /* @__PURE__ */ new Map();
@@ -4593,10 +4629,10 @@
     })(), /* @__PURE__ */ React.createElement(StockBadge, { status: sku.stock_status, vendorHasInventory: sku.vendor_has_inventory }), sku.stock_status === "out_of_stock" && sku.vendor_has_inventory !== false && /* @__PURE__ */ React.createElement("div", { className: "stock-alert-box" }, alertSuccess || alertSubscribed ? /* @__PURE__ */ React.createElement("div", { className: "stock-alert-success" }, /* @__PURE__ */ React.createElement("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "#166534", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("path", { d: "M20 6L9 17l-5-5" })), "We'll notify you when this item is back in stock") : customer ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "Get notified when this item is back in stock"), /* @__PURE__ */ React.createElement("button", { className: "stock-alert-btn", onClick: handleStockAlertSubmit, disabled: alertLoading }, alertLoading ? "Subscribing..." : "Notify Me When Available")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "Get notified when this item is back in stock"), /* @__PURE__ */ React.createElement("div", { className: "stock-alert-form" }, /* @__PURE__ */ React.createElement("input", { type: "email", placeholder: "Enter your email", value: alertEmail, onChange: (e) => setAlertEmail(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "stock-alert-btn", onClick: handleStockAlertSubmit, disabled: alertLoading || !alertEmail }, alertLoading ? "Subscribing..." : "Notify Me")))), accessorySiblings.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "accessories-section-sf" }, /* @__PURE__ */ React.createElement("h3", null, "Matching Accessories"), /* @__PURE__ */ React.createElement("p", { className: "accessories-subtitle-sf" }, /^bath/i.test(sku.category_slug || "") || /vanitie|mirror|cabinet/i.test(sku.category_name || "") ? "Complete your bathroom with matching pieces" : "Complete your installation with coordinating trim and transitions"), accessorySiblings.map((acc) => {
       const accPrice = parseFloat(acc.sale_price || acc.retail_price) || 0;
       const accQty = accessoryQtys[acc.sku_id] || 1;
-      const accLabel = acc.accessory_label || formatVariantName(acc.variant_name) || "Accessory";
+      const accLabel = getAccessoryDisplayLabel(acc);
       const accColor = acc.variant_name ? formatVariantName(acc.variant_name) : null;
       const showColor = accColor && accColor !== accLabel;
-      return /* @__PURE__ */ React.createElement("div", { key: acc.sku_id, className: "accessory-card-sf" }, acc.primary_image && /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-image" }, /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(acc.primary_image, 80), alt: accLabel, width: "48", height: "48", loading: "lazy", decoding: "async" })), /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-header" }, /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-name" }, accLabel), showColor && /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-color" }, accColor), /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-price" }, "$", accPrice.toFixed(2), " ", acc.sell_by === "box" ? "/sqft" : "/ea")), /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-actions" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setAccessoryQtys((prev) => ({ ...prev, [acc.sku_id]: Math.max(1, (prev[acc.sku_id] || 1) - 1) })) }, "\u2212"), /* @__PURE__ */ React.createElement("input", { type: "number", min: "1", value: accQty, onChange: (e) => setAccessoryQtys((prev) => ({ ...prev, [acc.sku_id]: Math.max(1, parseInt(e.target.value) || 1) })) }), /* @__PURE__ */ React.createElement("button", { onClick: () => setAccessoryQtys((prev) => ({ ...prev, [acc.sku_id]: (prev[acc.sku_id] || 1) + 1 })) }, "+")), /* @__PURE__ */ React.createElement("button", { className: "btn", style: { padding: "0.6rem 1.5rem", fontSize: "0.8125rem" }, onClick: () => {
+      return /* @__PURE__ */ React.createElement("div", { key: acc.sku_id, className: "accessory-card-sf" }, acc.primary_image && /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-image" }, /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(acc.primary_image, 80), alt: accLabel, width: "48", height: "48", loading: "lazy", decoding: "async" })), /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-header" }, /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-name" }, accLabel), showColor && /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-color" }, accColor), acc.vendor_sku && /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-sku" }, acc.vendor_sku), /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-price" }, "$", accPrice.toFixed(2), " ", acc.sell_by === "box" ? "/sqft" : "/ea")), /* @__PURE__ */ React.createElement("div", { className: "accessory-card-sf-actions" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setAccessoryQtys((prev) => ({ ...prev, [acc.sku_id]: Math.max(1, (prev[acc.sku_id] || 1) - 1) })) }, "\u2212"), /* @__PURE__ */ React.createElement("input", { type: "number", min: "1", value: accQty, onChange: (e) => setAccessoryQtys((prev) => ({ ...prev, [acc.sku_id]: Math.max(1, parseInt(e.target.value) || 1) })) }), /* @__PURE__ */ React.createElement("button", { onClick: () => setAccessoryQtys((prev) => ({ ...prev, [acc.sku_id]: (prev[acc.sku_id] || 1) + 1 })) }, "+")), /* @__PURE__ */ React.createElement("button", { className: "btn", style: { padding: "0.6rem 1.5rem", fontSize: "0.8125rem" }, onClick: () => {
         addToCart({
           product_id: sku.product_id,
           sku_id: acc.sku_id,

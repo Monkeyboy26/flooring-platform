@@ -138,11 +138,8 @@ export async function run(pool, job, source) {
     }
   }
 
-  // Step 4: Fallback image matching for products without images
-  // Some products only exist in the PDF price book and don't match any Coveo SKU.
-  // Try to find images by matching series+color name or series name from Coveo data.
-  const nameMatched = await matchImagesByName(pool, vendorId, allResults, job);
-  stats.imagesSet += nameMatched;
+  // Step 4: Image matching disabled — images now sourced from DAM scraper only.
+  const nameMatched = 0;
 
   // Final summary
   await appendLog(pool, job.id,
@@ -579,56 +576,8 @@ async function processItem(pool, item, vendorId, brand, existingSkus, stats, cat
         `, [skuId, [resolvedSize, shape, resolvedFinish].filter(Boolean).join(', ')]);
       }
     } else {
-      // No exact SKU match — try prefix matching for non-trim products (images only)
-      const isTrim = productType && /trim/i.test(productType);
-      if (!isTrim && productImageUrl && !isPlaceholderUrl(productImageUrl) && !isGenericTrimImage(productImageUrl)) {
-        const prefix = extractColorCodePrefix(coveoSku);
-        const candidates = prefix ? prefixIndex.get(prefix) : null;
-        // Filter to non-accessory SKUs that don't already have a primary image.
-        // Without the imagedSkuIds check, a mosaic Coveo entry (e.g., AC11STK124MT)
-        // that doesn't exactly match our DB would overwrite a plank SKU's correct
-        // image (e.g., AC11PLK848MT) that was assigned via exact match.
-        // Also skip non-mosaic SKUs when the image is a mosaic pattern image.
-        const imgIsMosaic = isMosaicImage(productImageUrl);
-        const targets = candidates?.filter(c =>
-          c.variant_type !== 'accessory' &&
-          !imagedSkuIds.has(c.sku_id) &&
-          (!imgIsMosaic || isMosaicSku(c.vendor_sku))
-        );
-        if (targets && targets.length > 0) {
-          const cleanedUrl = cleanScene7Url(productImageUrl);
-          const cleanedRoom = roomSceneUrl && !isPlaceholderUrl(roomSceneUrl)
-            ? cleanScene7Url(roomSceneUrl) : null;
-
-          // Assign to non-accessory SKUs sharing this prefix that still need images
-          for (const target of targets) {
-            await upsertMediaAsset(pool, {
-              product_id: target.product_id,
-              sku_id: target.sku_id,
-              asset_type: 'primary',
-              url: cleanedUrl,
-              original_url: cleanedUrl,
-              sort_order: 0,
-            });
-            imagedSkuIds.add(target.sku_id);
-            stats.imagesSet++;
-
-            if (cleanedRoom) {
-              await upsertMediaAsset(pool, {
-                product_id: target.product_id,
-                sku_id: target.sku_id,
-                asset_type: 'lifestyle',
-                url: cleanedRoom,
-                original_url: cleanedRoom,
-                sort_order: 0,
-              });
-              stats.imagesSet++;
-            }
-          }
-          stats.prefixMatched++;
-          continue;
-        }
-      }
+      // No exact SKU match — images are now handled by the DAM scraper,
+      // so skip prefix-matching image assignment.
       stats.skipped++;
       continue;
     }
@@ -655,35 +604,8 @@ async function processItem(pool, item, vendorId, brand, existingSkus, stats, cat
       }
     }
 
-    // Upsert media assets (store Scene7 CDN URLs directly — no download)
-    // Skip placeholder images (e.g., "No-Series-Image-Available", "PLACEHOLDER")
-    // Strip Scene7 preset suffixes (e.g., ?$TRIMTHUMBNAIL$) for full-quality images
-    if (productImageUrl && !isPlaceholderUrl(productImageUrl)) {
-      const cleanedImg = cleanScene7Url(productImageUrl);
-      await upsertMediaAsset(pool, {
-        product_id: productId,
-        sku_id: skuId,
-        asset_type: 'primary',
-        url: cleanedImg,
-        original_url: cleanedImg,
-        sort_order: 0,
-      });
-      imagedSkuIds.add(skuId);
-      stats.imagesSet++;
-    }
-
-    if (roomSceneUrl && !isPlaceholderUrl(roomSceneUrl)) {
-      const cleanedRoom = cleanScene7Url(roomSceneUrl);
-      await upsertMediaAsset(pool, {
-        product_id: productId,
-        sku_id: skuId,
-        asset_type: 'lifestyle',
-        url: cleanedRoom,
-        original_url: cleanedRoom,
-        sort_order: 0,
-      });
-      stats.imagesSet++;
-    }
+    // Images are now sourced exclusively from the DAM (daltile-dam scraper).
+    // The Coveo catalog scraper no longer writes image data.
   }
 }
 
