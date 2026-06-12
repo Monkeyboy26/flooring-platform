@@ -354,11 +354,11 @@ async function enrichProduct(pool, productId, { description_short, description_l
   await pool.query(
     `UPDATE products SET
       description_short = CASE
-        WHEN $2 IS NOT NULL AND (products.description_short IS NULL OR length(products.description_short) < 40)
-        THEN $2 ELSE products.description_short END,
+        WHEN $2::text IS NOT NULL AND (products.description_short IS NULL OR length(products.description_short) < 40)
+        THEN $2::text ELSE products.description_short END,
       description_long = CASE
-        WHEN $3 IS NOT NULL AND (products.description_long IS NULL OR length(products.description_long) < 40)
-        THEN $3 ELSE products.description_long END,
+        WHEN $3::text IS NOT NULL AND (products.description_long IS NULL OR length(products.description_long) < 40)
+        THEN $3::text ELSE products.description_long END,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = $1`,
     [productId, description_short, description_long]
@@ -1142,13 +1142,25 @@ async function scrapeProductPage(browser, url, config) {
           }
         }
       }
-      // H1 heuristic — extract collection name from product name
+      // H1 heuristic — extract multi-word collection name from product name
+      // Walk words left-to-right, accumulating until a stop word (finish, size, or format descriptor)
       if (!result.collection && result.name) {
+        const COLL_STOP_FINISH = new Set(['glossy','matte','polished','honed','brushed','tumbled','satin']);
+        const COLL_STOP_FORMAT = new Set(['mosaic','herringbone','hexagon','hex','subway','chevron',
+          'arabesque','splitface','panel','peel','beveled','interlocking','brick','stack',
+          'picket','scallop','octagon','penny','round','mini','multi','pebbles','wave','mesh',
+          'basketweave','checkered','veneer','pattern','hive','3d']);
         const cleaned = result.name.replace(/\s+(Porcelain|Ceramic|Marble|Granite|Travertine|Vinyl|Tile|Plank|Flooring|Collection|Wood|Luxury|Series|Waterproof|Hybrid|Rigid|Core).*$/i, '').trim();
         const words = cleaned.split(/\s+/);
         const sizePrefixes = ['xl', 'xxl', 'lg', 'sm', 'md'];
         const cw = (words.length >= 2 && sizePrefixes.includes(words[0].toLowerCase())) ? words.slice(1) : words;
-        if (cw.length >= 1 && cw[0].length > 2) result.collection = cw[0];
+        const collWords = [];
+        for (const w of cw) {
+          const low = w.toLowerCase().replace(/[()]/g, '');
+          if (COLL_STOP_FINISH.has(low) || COLL_STOP_FORMAT.has(low) || /^\d+[x"']/i.test(w) || /^\d+mm$/i.test(w) || /^\(prem\)/i.test(w)) break;
+          collWords.push(w);
+        }
+        if (collWords.length > 0 && collWords[0].length > 2) result.collection = collWords.join(' ');
       }
 
       // --- Vinyl/non-dt/dd spec extraction ---
@@ -1235,6 +1247,7 @@ async function scrapeProductPage(browser, url, config) {
           if (/\/thumbnails\//i.test(href)) return;
           if (/\/flyers\//i.test(href)) return;
           if (/\/brochures\//i.test(href)) return;
+          if (/\/social-media\//i.test(href)) return;
           if (/roomvo|wetcutting/i.test(href)) return;
           // Unless from a trusted source (og:image, JSON-LD), verify the URL
           // contains at least one keyword from the product name to avoid
