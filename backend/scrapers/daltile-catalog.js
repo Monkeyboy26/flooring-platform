@@ -296,12 +296,17 @@ async function queryCoveo(domain, extraFilter, firstResult, numberOfResults) {
  * Returns Map<string, { sku_id, product_id, vendor_sku }>.
  */
 async function loadExistingSkus(pool, vendorId) {
+  // All three Daltile-family brands (DAL, AO, MZ) store products under the
+  // DAL vendor.  When running the AO or MZ catalog scraper, we still need to
+  // match against those SKUs, so load from all sibling vendor IDs.
   const result = await pool.query(`
     SELECT s.id AS sku_id, s.product_id, s.vendor_sku, s.variant_type, s.variant_name
     FROM skus s
     JOIN products p ON p.id = s.product_id
-    WHERE p.vendor_id = $1
-  `, [vendorId]);
+    WHERE p.vendor_id IN (
+      SELECT id FROM vendors WHERE code IN ('DAL', 'AO', 'MZ')
+    )
+  `);
 
   const map = new Map();
   for (const row of result.rows) {
@@ -506,6 +511,7 @@ async function processItem(pool, item, vendorId, brand, existingSkus, stats, cat
     const existing = existingSkus.get(lookupKey);
 
     let productId, skuId;
+    let resolvedSize, resolvedFinish;
 
     if (existing) {
       // Existing SKU from PDF pricing — enrich with catalog data
@@ -554,10 +560,10 @@ async function processItem(pool, item, vendorId, brand, existingSkus, stats, cat
       }
 
       // Resolve single size for this specific SKU (Coveo may return all series sizes)
-      const resolvedSize = resolveSingleSize(rawCoveoSize, coveoSku, existing?.variant_name || '');
+      resolvedSize = resolveSingleSize(rawCoveoSize, coveoSku, existing?.variant_name || '');
 
       // Resolve finish: use Coveo value, fall back to vendor_sku suffix parsing
-      const resolvedFinish = finish || parseFinishFromSku(coveoSku, productType);
+      resolvedFinish = finish || parseFinishFromSku(coveoSku, productType);
 
       // Enrich variant_name if it's currently size-only (e.g., "6X6" → "6X6, Matte")
       if (resolvedFinish || shape) {
