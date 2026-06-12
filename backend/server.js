@@ -8455,18 +8455,6 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
       label: 'MSI EDI 832 Price Catalog (FTP)', source_type: 'edi_ftp',
       base_url: 'ftp://cftp.msisurfaces.com', categories: []
     },
-    'daltile-pricing': {
-      label: 'Daltile Price List (PDF)', source_type: 'pdf', base_url: '',
-      categories: []
-    },
-    'ao-pricing': {
-      label: 'American Olean Price List (PDF)', source_type: 'pdf', base_url: '',
-      categories: []
-    },
-    'marazzi-pricing': {
-      label: 'Marazzi Price List (PDF)', source_type: 'pdf', base_url: '',
-      categories: []
-    },
     'daltile-catalog': {
       label: 'Daltile Catalog (Website)', source_type: 'website', base_url: 'https://www.daltile.com',
       categories: []
