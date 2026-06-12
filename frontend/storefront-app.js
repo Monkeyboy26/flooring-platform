@@ -3512,7 +3512,7 @@
     const sheetSubtotal = sheetSqft * effectivePrice;
     const sheetNeedsSeam = isSheetVinyl && sheetMode === "dimensions" && sheetRollWidthFt > 0 && (parseFloat(roomWidth) || 0) > sheetRollWidthFt;
     const slabMissingSize = isPerUnit && sku && (sku.price_basis === "sqft" || sku.price_basis === "per_sqft") && !(parseFloat(sku.sqft_per_box) > 0);
-    const isSlabUnit = sku && sku.sell_by === "unit" && sqftPerBox >= 4;
+    const isSlabUnit = sku && sku.sell_by === "unit" && sqftPerBox >= 4 && (!sku.pieces_per_box || parseInt(sku.pieces_per_box) === 1);
     const isSheetUnit = !isSlabUnit && hasBoxCalc && sqftPerBox < 4 && !sku.pieces_per_box;
     const boxLabel = isSlabUnit ? "slab" : isSheetUnit ? "sheet" : "box";
     const boxLabelPlural = isSlabUnit ? "slabs" : isSheetUnit ? "sheets" : "boxes";
