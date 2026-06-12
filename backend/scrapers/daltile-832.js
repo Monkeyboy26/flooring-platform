@@ -836,9 +836,16 @@ export async function run(pool, job, source) {
 
         if (item.cost || item.retail_price) {
           const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
+          const cost = item.cost || 0;
+          let retail = item.retail_price || 0;
+          // When EDI has no separate list price (ST), retail_price = cost (0% margin).
+          // Apply markup to derive a retail price from cost.
+          if (!retail || (cost > 0 && Math.abs(retail - cost) < 0.01)) {
+            retail = retailFromCost(cost);
+          }
           await upsertPricing(pool, skuId, {
-            cost: item.cost || 0,
-            retail_price: item.retail_price || retailFromCost(item.cost || 0),
+            cost,
+            retail_price: retail,
             price_basis: priceBasis,
             cut_price: item.cut_price || null,
             roll_price: item.roll_price || null,
