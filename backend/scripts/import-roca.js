@@ -102,6 +102,7 @@ function parseSheet(ws, sheetType) {
           material: col2.substring(dashIdx + 3).replace(/\s+/g, ' ').trim(),
         };
         currentSize = ''; currentPrice = null; currentType = '';
+        currentPcsBox = null; currentSfBox = null; currentBxsPallet = null;
         continue;
       }
       if (col2 === 'SKU') continue;
@@ -145,6 +146,7 @@ function parseSheet(ws, sheetType) {
           material: col1.substring(dashIdx + 3).replace(/\s+/g, ' ').trim(),
         };
         currentSize = ''; currentPrice = null; currentType = '';
+        currentPcsBox = null; currentSfBox = null; currentBxsPallet = null;
         continue;
       }
       if (col1 === 'SKU') continue;
@@ -626,14 +628,18 @@ async function run() {
 
         // Packaging
         if (rec.sfBox || rec.pcsBox) {
+          const sfBox = rec.sfBox || null;
+          const bxPallet = rec.bxsPallet || null;
+          const sfPallet = (sfBox && bxPallet) ? +(sfBox * bxPallet).toFixed(2) : null;
           await client.query(`
-            INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, boxes_per_pallet)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, boxes_per_pallet, sqft_per_pallet)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (sku_id) DO UPDATE SET
               sqft_per_box = COALESCE(EXCLUDED.sqft_per_box, packaging.sqft_per_box),
               pieces_per_box = COALESCE(EXCLUDED.pieces_per_box, packaging.pieces_per_box),
-              boxes_per_pallet = COALESCE(EXCLUDED.boxes_per_pallet, packaging.boxes_per_pallet)
-          `, [skuId, rec.sfBox || null, rec.pcsBox || null, rec.bxsPallet || null]);
+              boxes_per_pallet = COALESCE(EXCLUDED.boxes_per_pallet, packaging.boxes_per_pallet),
+              sqft_per_pallet = COALESCE(EXCLUDED.sqft_per_pallet, packaging.sqft_per_pallet)
+          `, [skuId, sfBox, rec.pcsBox || null, bxPallet, sfPallet]);
           totalPkg++;
         }
 
@@ -706,14 +712,18 @@ async function run() {
 
         // Packaging for trims
         if (rec.sfBox || rec.pcsBox) {
+          const sfBox = rec.sfBox || null;
+          const bxPallet = rec.bxsPallet || null;
+          const sfPallet = (sfBox && bxPallet) ? +(sfBox * bxPallet).toFixed(2) : null;
           await client.query(`
-            INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, boxes_per_pallet)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO packaging (sku_id, sqft_per_box, pieces_per_box, boxes_per_pallet, sqft_per_pallet)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (sku_id) DO UPDATE SET
               sqft_per_box = COALESCE(EXCLUDED.sqft_per_box, packaging.sqft_per_box),
               pieces_per_box = COALESCE(EXCLUDED.pieces_per_box, packaging.pieces_per_box),
-              boxes_per_pallet = COALESCE(EXCLUDED.boxes_per_pallet, packaging.boxes_per_pallet)
-          `, [skuId, rec.sfBox || null, rec.pcsBox || null, rec.bxsPallet || null]);
+              boxes_per_pallet = COALESCE(EXCLUDED.boxes_per_pallet, packaging.boxes_per_pallet),
+              sqft_per_pallet = COALESCE(EXCLUDED.sqft_per_pallet, packaging.sqft_per_pallet)
+          `, [skuId, sfBox, rec.pcsBox || null, bxPallet, sfPallet]);
           totalPkg++;
         }
       }
