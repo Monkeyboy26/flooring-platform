@@ -220,10 +220,11 @@ export async function run(pool, job, source) {
 
         try {
           // Build product name: "12x24, Matte" or "3x24, Matte (Bullnose)"
+          // Collection prefix is NOT included here — display_name SQL adds it
+          // (collection || ' ' || name) to avoid doubling like "Beyond Beyond 12x24, Matte".
           let productName = buildVariantName(sizeNorm, finish);
           if (accessoryType) productName += ` (${accessoryType})`;
           if (!productName) productName = productData.name;
-          else if (productData.name) productName = `${productData.name} ${productName}`;
 
           // Determine sell_by: prefer the website's SoldAs field (authoritative),
           // fall back to dimension heuristics only when SoldAs is absent.
@@ -294,7 +295,7 @@ export async function run(pool, job, source) {
             return count === 0;
           });
 
-          const relevantNeutral = pickSkuImages(neutralImages, sizeNorm, finish);
+          const relevantNeutral = pickSkuImages(neutralImages, sizeNorm, finish, null);
           const firstSwatchEntry = firstVariant.colorId
             ? productData.swatchImagesByColorId.get(firstVariant.colorId) : null;
           const { productShots: sliderProductShots, lifestyle: sliderLifestyle } =
@@ -449,7 +450,7 @@ export async function run(pool, job, source) {
             );
             // Filter out cross-collection contamination, then pick best images for this size/finish
             const cleanColorImages = filterOwnCollectionImages(colorSliderImages, productData.name);
-            const filteredColorImages = pickSkuImages(cleanColorImages, sizeNorm, finish);
+            const filteredColorImages = pickSkuImages(cleanColorImages, sizeNorm, finish, colorName);
             const swatchEntry = v.colorId
               ? productData.swatchImagesByColorId.get(v.colorId) : null;
             const swatchUrl = swatchEntry
@@ -1057,28 +1058,42 @@ function parseDetailPage(html, url) {
 function parseSelectOptions(html, attributeName) {
   const options = [];
 
-  // New site layout (Sep 2025+): swatch labels instead of <select> dropdowns
-  // Pattern: <strong>Color:</strong> ... <label class="form-option-swatch" data-product-attribute-value="7599">
-  //            <span class="form-option-expanded">Cream</span>
-  //            <p class="variant-name-value">Cream</p>
-  //          </label>
-  const swatchSectionRegex = new RegExp(
-    `(?:<strong>|<label[^>]*>)[^<]*${attributeName}[^<]*(?:</strong>|</label>)([\\s\\S]*?)(?=<strong>|<label[^>]*>[^<]*(?:Color|Size|Finish)[^<]*</label>|$)`,
+  // Current site layout: each attribute is wrapped in a <div class="form-field"
+  // data-product-attribute="NNN"> containing a heading <label class="form-label">Color:</label>
+  // followed by option <label data-product-attribute-value="ID">...</label> elements.
+  //
+  // Color swatches:
+  //   <label class="form-option form-option-swatch" data-product-attribute-value="15160">
+  //     <span class="form-option-variant form-option-variant--pattern" style="background-image:..."></span>
+  //     <span class="form-option-expanded">
+  //       <span class="form-option-image"></span>
+  //       <p class="form-option-label variant-name-value">Bone</p>
+  //     </span>
+  //   </label>
+  //
+  // Size/Finish (text-only):
+  //   <label class="form-option" data-product-attribute-value="14703">
+  //     <span class="form-option-variant variant-name-value">12"x24"</span>
+  //   </label>
+
+  // Find the form-field section for this attribute.
+  // The heading label contains the attribute name (e.g., "Color:") possibly with
+  // child elements like <span>, so we use [\s\S]*? instead of [^<]* to cross tags.
+  const sectionRegex = new RegExp(
+    `<label[^>]*class="[^"]*form-label[^"]*"[^>]*>[\\s\\S]*?${attributeName}[\\s\\S]*?</label>([\\s\\S]*?)(?=<label[^>]*class="[^"]*form-label[^"]*"|<div[^>]*class="[^"]*productView-options|$)`,
     'i'
   );
-  const sectionMatch = html.match(swatchSectionRegex);
+  const sectionMatch = html.match(sectionRegex);
 
   if (sectionMatch) {
     const sectionHtml = sectionMatch[1];
-    // Extract from <label data-product-attribute-value="ID"> ... text content
     const labelRegex = /<label[^>]*data-product-attribute-value="(\d+)"[^>]*>([\s\S]*?)<\/label>/g;
     let lMatch;
     while ((lMatch = labelRegex.exec(sectionHtml)) !== null) {
       const id = lMatch[1];
       const inner = lMatch[2];
-      // Prefer <p class="variant-name-value"> text, fall back to <span class="form-option-expanded">
-      const nameMatch = inner.match(/<p[^>]*class="variant-name-value"[^>]*>([^<]+)<\/p>/)
-        || inner.match(/<span[^>]*class="form-option-expanded"[^>]*>([^<]+)<\/span>/)
+      // Match <p> or <span> with variant-name-value class (may have other classes before it)
+      const nameMatch = inner.match(/<(?:p|span)[^>]*class="[^"]*variant-name-value[^"]*"[^>]*>([^<]+)<\/(?:p|span)>/)
         || inner.match(/<span[^>]*>([^<]+)<\/span>/);
       const text = nameMatch ? nameMatch[1].trim() : stripTags(inner).trim();
       if (text && !options.find(o => o.id === id)) {
@@ -1107,7 +1122,7 @@ function parseSelectOptions(html, attributeName) {
   // Last resort: broad search for any data-product-attribute-value near the attribute name
   if (options.length === 0) {
     const broadRegex = new RegExp(
-      `${attributeName}[\\s\\S]{0,500}?data-product-attribute-value="(\\d+)"[^>]*>[\\s\\S]*?(?:<p[^>]*class="variant-name-value"[^>]*>([^<]+)|<span[^>]*>([^<]+))`,
+      `${attributeName}[\\s\\S]{0,500}?data-product-attribute-value="(\\d+)"[^>]*>[\\s\\S]*?(?:<(?:p|span)[^>]*class="[^"]*variant-name-value[^"]*"[^>]*>([^<]+)|<span[^>]*>([^<]+))`,
       'gi'
     );
     let bMatch;
@@ -1368,11 +1383,15 @@ function filterOwnCollectionImages(images, collectionName) {
     });
   }
 
-  return images.filter(url => {
+  const filtered = images.filter(url => {
     const fn = url.split('/').pop().split('?')[0].toLowerCase();
     if (fnMatchesOwn(fn)) return true;
     return !fnMatchesOther(fn);
   });
+  // Graceful degradation: when ALL images are removed, the filter is too aggressive
+  // (e.g., Duality's images all contain "marvel" from the manufacturer's product line
+  // name, but "duality" never appears in filenames). Keep originals instead of zero.
+  return filtered.length > 0 ? filtered : images;
 }
 
 /**
@@ -1388,6 +1407,8 @@ function filterOwnCollectionImages(images, collectionName) {
  *  to handle typos like "terrazo" vs "terrazzo" (shared prefix ≥ 5 chars). */
 function segFuzzyMatch(seg, w) {
   if (seg === w || seg.startsWith(w) || w.startsWith(seg)) return true;
+  // Compound segment: word appears as substring (e.g., "3dwheatbone" contains "wheat")
+  if (w.length >= 4 && seg.length >= w.length + 3 && seg.includes(w)) return true;
   const minLen = Math.min(seg.length, w.length);
   if (minLen >= 5) {
     let shared = 0;
@@ -1478,14 +1499,18 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
     // (e.g., "deco" in "castello_miele_deco_room", "castello_paglierino_deco_room").
     const NOISE_WORDS = new Set([
       'deco', 'ceramic', 'mix', 'mosaic', 'matte', 'glossy', 'polished',
-      'satin', 'grip', 'room', 'style', 'masonry', 'wheat', 'insert',
+      'satin', 'grip', 'room', 'style', 'insert',
     ]);
     // Color-meaningful words: exclude noise and short words
     const meaningfulWords = colorWords.filter(w => !NOISE_WORDS.has(w));
 
     const fnHasWord = (fn, word) => {
       const segments = fn.split(/[_\-]+/);
-      return segments.some(seg => seg === word || seg.startsWith(word + 's'));
+      return segments.some(seg =>
+        seg === word || seg.startsWith(word + 's') ||
+        // Compound segment: word inside longer segment (e.g., "3dwheatbone" contains "bone")
+        (word.length >= 4 && seg.length >= word.length + 3 && seg.includes(word))
+      );
     };
     const isMixImage = (fn) => fnHasWord(fn, 'mix');
     const mixFilter = (url) => {
@@ -1558,9 +1583,9 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
           // Check slug via word-boundary pattern
           const sibPattern = new RegExp(`(?:^|[_\\-.])${escapeRegex(sibSlug)}(?:[_\\-.]|$)`);
           if (sibPattern.test(fn)) return true;
-          // Check multi-word sibling names via segment matching
+          // Check multi-word sibling names via segment matching (including compound segments)
           const sibWords = sibLower.split(/[^a-z0-9]+/).filter(w => w.length >= 3);
-          if (sibWords.length >= 2 && sibWords.every(w => segments.some(seg => seg === w || seg.startsWith(w)))) return true;
+          if (sibWords.length >= 2 && sibWords.every(w => segments.some(seg => segFuzzyMatch(seg, w)))) return true;
           return false;
         });
       });
@@ -1629,7 +1654,7 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
  *   3. Pick best-scoring images as primary + alternates
  *   4. Cap at 4 images per SKU to avoid bloat
  */
-function pickSkuImages(colorImages, sizeNorm, finish) {
+function pickSkuImages(colorImages, sizeNorm, finish, colorName) {
   if (!colorImages.length) return [];
   if (!sizeNorm && !finish) return colorImages.slice(0, 1);
 
@@ -1668,6 +1693,12 @@ function pickSkuImages(colorImages, sizeNorm, finish) {
   ];
   const finishLower = (finish || '').toLowerCase();
   const finishSlug = finishLower.replace(/[^a-z0-9]+/g, '');
+
+  // Shape keywords that appear in the COLOR name should not trigger the "wrong shape"
+  // penalty. e.g., "Bone 3D Masonry Ceramic" has "3d" and "masonry" as part of the color,
+  // so "3d" in a filename is expected, not a mismatch with finish "Matte".
+  const colorLower = (colorName || '').toLowerCase();
+  const colorShapeKeys = SHAPE_KEYWORDS.filter(kw => colorLower.includes(kw));
 
   // Build positive match keywords and anti-keywords for precise matching.
   // "Stave 3D" → match "stave3d"; anti-keywords: none
@@ -1719,8 +1750,11 @@ function pickSkuImages(colorImages, sizeNorm, finish) {
     } else {
       // Finish match: +30 for matching this SKU's shape keywords
       const matchesFinish = finishKeys.length > 0 && finishKeys.some(kw => segmentMatch(fn, kw));
-      // Check if image has a DIFFERENT shape keyword (wrong variant)
-      const hasOtherShape = !matchesFinish && SHAPE_KEYWORDS.some(kw => fn.includes(kw));
+      // Check if image has a DIFFERENT shape keyword (wrong variant).
+      // Exclude shape keywords that are part of the color name (e.g., "3d" for "Bone 3D Masonry").
+      const hasOtherShape = !matchesFinish && SHAPE_KEYWORDS.some(kw =>
+        fn.includes(kw) && !colorShapeKeys.includes(kw)
+      );
       if (matchesFinish) score += 30;
       else if (hasOtherShape) score -= 40; // wrong shape → hard reject (better no image than wrong variant)
     }
