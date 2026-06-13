@@ -58,7 +58,7 @@
   }
   function parseRollWidthFt(productName) {
     if (!productName) return 0;
-    const m = productName.match(/(?:^|\D)(12|6(?:\.\d{1,2})?)(?:\D|$)/);
+    const m = productName.match(/(?:^|\D)(12|6(?:\.\d{1,2})?)(?!["″])(?:\D|$)/);
     return m ? parseFloat(m[1]) : 0;
   }
   function carpetSqftPrice(sqydPrice) {
@@ -3544,8 +3544,8 @@
     const sheetSqft = isSheetVinyl && includeCarpetOverage ? Math.ceil(sheetRawSqft * 11 / 10) : sheetRawSqft;
     const sheetSubtotal = sheetSqft * effectivePrice;
     const sheetNeedsSeam = isSheetVinyl && sheetMode === "dimensions" && sheetRollWidthFt > 0 && (parseFloat(roomWidth) || 0) > sheetRollWidthFt;
-    const slabMissingSize = isPerUnit && sku && (sku.price_basis === "sqft" || sku.price_basis === "per_sqft") && !(parseFloat(sku.sqft_per_box) > 0);
     const isSlabUnit = sku && SLAB_SLUGS.has(sku.category_slug);
+    const slabMissingSize = isSlabUnit && (sku.price_basis === "sqft" || sku.price_basis === "per_sqft") && !(parseFloat(sku.sqft_per_box) > 0);
     const isSheetUnit = !isSlabUnit && hasBoxCalc && sqftPerBox < 4 && !sku.pieces_per_box;
     const boxLabel = isSlabUnit ? "slab" : isSheetUnit ? "sheet" : "box";
     const boxLabelPlural = isSlabUnit ? "slabs" : isSheetUnit ? "sheets" : "boxes";
