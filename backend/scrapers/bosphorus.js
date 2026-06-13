@@ -29,7 +29,8 @@ const MAX_PAGES = 10; // safety limit
 const DEFAULT_DELAY_MS = 800;
 
 // Bosphorus website category labels → PIM category slugs.
-// All Bosphorus products are porcelain; "marble", "limestone", etc. are looks, not materials.
+// Most Bosphorus products are porcelain; "marble", "limestone", etc. are looks, not materials.
+// Ceramic products are detected separately via specs.material.
 const CATEGORY_MAP = {
   'wood look':      'porcelain-tile',
   'marble look':    'porcelain-tile',
@@ -38,6 +39,7 @@ const CATEGORY_MAP = {
   'metal look':     'porcelain-tile',
   'encaustic look': 'porcelain-tile',
   'solid look':     'porcelain-tile',
+  'deco look':      'porcelain-tile',
   'subway look':    'backsplash-tile',
   'picket look':    'backsplash-tile',
   'hexagon look':   'porcelain-tile',
@@ -46,7 +48,7 @@ const CATEGORY_MAP = {
 };
 
 // Collections explicitly known to be mosaics (small-format pattern tiles)
-const MOSAIC_COLLECTIONS = new Set(['frammenti', 'boutique', 'marvel']);
+const MOSAIC_COLLECTIONS = new Set(['frammenti', 'boutique']);
 
 export async function run(pool, job, source) {
   const config = { delayMs: DEFAULT_DELAY_MS, ...(source.config || {}) };
@@ -1933,7 +1935,20 @@ function resolveCategory(productData, categoryLookup) {
     }
   }
 
-  // Default to porcelain-tile (all Bosphorus products are porcelain)
+  // Broader marble detection: "marble-like", "marble inspired", etc.
+  if (/\bmarble[\s-]/.test(text)) {
+    const catId = categoryLookup.get('porcelain-tile');
+    if (catId) return { id: catId, slug: 'porcelain-tile' };
+  }
+
+  // Ceramic material → ceramic-tile (not porcelain-tile)
+  const material = (productData.specs.material || '').toLowerCase();
+  if (material === 'ceramic' || (material.includes('ceramic') && !material.includes('porcelain'))) {
+    const catId = categoryLookup.get('ceramic-tile');
+    if (catId) return { id: catId, slug: 'ceramic-tile' };
+  }
+
+  // Default: porcelain-tile for porcelain, porcelain & ceramic combos, or unknown
   return { id: categoryLookup.get('porcelain-tile') || null, slug: 'porcelain-tile' };
 }
 
