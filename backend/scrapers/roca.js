@@ -53,7 +53,11 @@ const SLUG_OVERRIDES = new Map([
   ['dolce-vita', 'Derby'],
   ['serpentino-stone-look-tile', 'Serpentino'],
   ['urban-antracita', 'Urban Antracita'],
+  ['zellige', 'Moroccan Zellige'],
 ]);
+
+// Collection pages that exist but aren't linked from /category/all
+const EXTRA_SLUGS = ['kronos', 'piasentina'];
 
 // Shape/format words to strip from DB product names when extracting base color
 const FORMAT_WORDS = [
@@ -75,6 +79,8 @@ const FORMAT_WORDS = [
   'modular', 'random',
   // Common qualifiers
   'bright', 'crackled', 'rev', 'beveled', 'ac', 'br',
+  // Material prefixes
+  'marble', 'slab',
 ].sort((a, b) => b.length - a.length); // longest first for correct stripping
 
 // Shape/finish words to PRESERVE for mosaic collections (CC Mosaics, CC Porcelain)
@@ -531,6 +537,9 @@ async function run() {
   // Step 1: Discover collection slugs
   console.log('=== Step 1: Discovering collection URLs ===');
   const slugs = await getCollectionSlugs();
+  for (const extra of EXTRA_SLUGS) {
+    if (!slugs.includes(extra)) slugs.push(extra);
+  }
   console.log(`  Found ${slugs.length} collection slugs\n`);
 
   // Step 2: Process each collection page
@@ -691,6 +700,7 @@ async function run() {
     // For mosaic collections, preserve shape/finish words to prevent "white picket" matching "white penny round"
     const isMosaicCollection = /^cc\s+(mosaics?|porcelain)/i.test(collectionName);
     const pass2Candidates = new Map(); // product_id → [{entry, score}]
+    const pass2UsedEntries = new Set();
 
     for (const entry of entries) {
       if (pass1UsedEntries.has(entry)) continue; // already matched by SKU code
@@ -701,6 +711,24 @@ async function run() {
       }
       webColor = webColor.replace(/^Suite\s+/i, '').trim();
       if (!webColor) continue;
+
+      // When entry IS the collection name (e.g. "Port Noir" on Port Noir page),
+      // prefix-stripping leaves it unchanged and no product matches. Assign to first unmatched product.
+      if (normalizeForMatch(webColor) === normalizeForMatch(collectionName) ||
+          normalizeForMatch(webColor) === normalizeForMatch(prefixToStrip)) {
+        for (const prod of collectionProducts) {
+          const prodSkus = skusByProduct.get(prod.product_id) || [];
+          const bestSku = prodSkus.find(s => s.variant_type !== 'accessory' && needsImage(s.sku_id));
+          if (bestSku) {
+            await saveSkuImages(pool, prod.product_id, bestSku.sku_id, [entry.url], { maxImages: 1 });
+            newlyMatchedSkuIds.add(bestSku.sku_id);
+            collectionMatched++;
+            break;
+          }
+        }
+        pass2UsedEntries.add(entry);
+        continue; // skip normal Pass 2 matching for this entry
+      }
 
       for (const prod of collectionProducts) {
         // Check if any SKU in this product needs an image
@@ -718,6 +746,13 @@ async function run() {
             dbName = dbName.substring(subPrefix.length).trim();
           }
         }
+        // Also strip collection name words from dbName for better matching
+        // e.g. "Marble Onice Supreme Marfil" in collection "Onice Supreme" → "marble marfil"
+        const colWords = collectionName.toLowerCase().split(/\s+/);
+        let dbNameWords = dbName.toLowerCase().split(/\s+/);
+        const strippedWords = dbNameWords.filter(w => !colWords.includes(w));
+        if (strippedWords.length > 0) dbName = strippedWords.join(' ');
+
         const baseColor = extractBaseColor(dbName, { keepMosaicWords: isMosaicCollection });
         if (colorsMatch(webColor, baseColor, { keepMosaicWords: isMosaicCollection })) {
           // Score by Jaccard similarity between web label (+ image filename) and full product name.
@@ -746,7 +781,6 @@ async function run() {
     }
     allPass2.sort((a, b) => b.score - a.score);
 
-    const pass2UsedEntries = new Set();
     const pass2AssignedProducts = new Set();
     for (const { pid, entry, score } of allPass2) {
       if (pass2UsedEntries.has(entry) || pass2AssignedProducts.has(pid)) continue;
@@ -870,6 +904,44 @@ async function run() {
   }
   if (propagatedCount > 0) {
     console.log(`\nPropagated images to ${propagatedCount} sibling SKUs within same products`);
+  }
+
+  // ── Cross-collection propagation ──
+  // For imageless field tile SKUs, find another product with the same name (any collection) that has an image
+  let crossPropagated = 0;
+  const imageLookupByName = new Map(); // lowercase product name → image URL
+  for (const [productId, skus] of skusByProduct) {
+    for (const sku of skus) {
+      if (skusWithImages.has(sku.sku_id) || newlyMatchedSkuIds.has(sku.sku_id)) {
+        const nameLower = sku.product_name.toLowerCase();
+        if (!imageLookupByName.has(nameLower)) {
+          const imgRes = await pool.query(
+            `SELECT url FROM media_assets WHERE sku_id = $1 AND asset_type = 'primary' LIMIT 1`,
+            [sku.sku_id]
+          );
+          if (imgRes.rows.length) {
+            imageLookupByName.set(nameLower, imgRes.rows[0].url);
+          }
+        }
+      }
+    }
+  }
+
+  for (const [productId, skus] of skusByProduct) {
+    for (const sku of skus) {
+      if (sku.variant_type === 'accessory') continue;
+      if (!needsImage(sku.sku_id)) continue;
+      const nameLower = sku.product_name.toLowerCase();
+      const donorUrl = imageLookupByName.get(nameLower);
+      if (donorUrl) {
+        await saveSkuImages(pool, productId, sku.sku_id, [donorUrl], { maxImages: 1 });
+        newlyMatchedSkuIds.add(sku.sku_id);
+        crossPropagated++;
+      }
+    }
+  }
+  if (crossPropagated > 0) {
+    console.log(`Cross-collection propagated images to ${crossPropagated} SKUs (same product name, different collection)`);
   }
 
   // ── Results ──
