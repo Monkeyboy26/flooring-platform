@@ -677,6 +677,7 @@
     [/mud\s*cap/i, "Mud Cap"]
   ];
   const GENERIC_LABELS = new Set(["trim", "trim & accessories", "accessory", "accessories", "atc", ""]);
+  const SLAB_SLUGS = new Set(["granite-countertops", "marble-countertops", "quartzite-countertops", "quartz-countertops", "porcelain-slabs", "soapstone-countertops"]);
   function getAccessoryDisplayLabel(acc) {
     const label = (acc.accessory_label || "").trim();
     if (label && !GENERIC_LABELS.has(label.toLowerCase())) return label;
@@ -3544,7 +3545,7 @@
     const sheetSubtotal = sheetSqft * effectivePrice;
     const sheetNeedsSeam = isSheetVinyl && sheetMode === "dimensions" && sheetRollWidthFt > 0 && (parseFloat(roomWidth) || 0) > sheetRollWidthFt;
     const slabMissingSize = isPerUnit && sku && (sku.price_basis === "sqft" || sku.price_basis === "per_sqft") && !(parseFloat(sku.sqft_per_box) > 0);
-    const isSlabUnit = sku && sku.sell_by === "unit" && sqftPerBox >= 4 && (!sku.pieces_per_box || parseInt(sku.pieces_per_box) === 1);
+    const isSlabUnit = sku && SLAB_SLUGS.has(sku.category_slug);
     const isSheetUnit = !isSlabUnit && hasBoxCalc && sqftPerBox < 4 && !sku.pieces_per_box;
     const boxLabel = isSlabUnit ? "slab" : isSheetUnit ? "sheet" : "box";
     const boxLabelPlural = isSlabUnit ? "slabs" : isSheetUnit ? "sheets" : "boxes";
