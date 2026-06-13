@@ -774,6 +774,7 @@ const CAPTION_TO_COLOR = {
   'Circe': {
     'CREMA MARFIL': 'Perla Pulido',
     'CREMA MARFIL RELIEVE': 'Perla Natural',
+    'CREMA MARFIL SIGMA': 'Perla Natural',
   },
   'Color Collection': {
     'WHITE GLOSSY 6 X 18': 'White Ice', 'WHITE GLOSSY 4 1/4 X 16': 'White Ice',
@@ -800,6 +801,7 @@ const CAPTION_TO_COLOR = {
   },
   'De Brick': {
     'CAMBRIDGE WHITE': 'White Glossy', 'LUTON WHITE': 'White Matte',
+    'LUTON ASH': 'Black Matte',
   },
   'Devon': {
     // Inlay = decorative pattern → map to Decor variants
@@ -820,6 +822,7 @@ const CAPTION_TO_COLOR = {
   },
   'Factory': {
     'ANTRACITE': 'Ferro', 'WHITE': 'Avorio',
+    'LUXURY STONE MARFIL': 'Sabbia',
   },
   'Flagstone': {
     // Plain tiles now match PRICE_LIST directly (Borgona, Canyon, Esla, Filita)
@@ -851,6 +854,7 @@ const CAPTION_TO_COLOR = {
   'Lux': {
     'ANTY SKY': 'Crema Polished',
     'BIANCO STONE': 'White Polished',
+    'BLONZE BIANCO': 'White Polished',
     'GLAIER BAY': 'Grey Polished',
   },
   'Madison': {
@@ -866,6 +870,7 @@ const CAPTION_TO_COLOR = {
     'CARRARA 24X48 (Pol)': 'Blanco Brillo', 'CARRARA 12X24 (Pol)': 'Blanco Brillo', 'CARRARA 32X32 (Pol)': 'Blanco Brillo',
     'CAVELANO 12X24 (Mat/Pol)': 'Gris Natural', 'CAVELANO 24X24 (Mat/Pol)': 'Gris Natural',
     'CALCATTA GOLD 12X24 (Mat/Pol)': 'Blanco Natural', 'CALCATTA GOLD 24X24 (Mat/Pol)': 'Blanco Natural',
+    'CALCATTA PIETRA 12X24 (Mat/Pol)': 'Blanco Natural', 'CALCATTA PIETRA 24X24 (Mat/Pol)': 'Blanco Natural',
     'ICE ROCK 12X24 (Mat/Pol)': 'Gris Brillo',
     'ICE ROCK 24\u00d748 (Mat/ Pol)': 'Gris Brillo', 'MARMO ICE ROCK 32\u00d732 (Pol)': 'Gris Brillo',
     'ice rock 24\u00d724 (Mat/ Pol)': 'Gris Brillo',
