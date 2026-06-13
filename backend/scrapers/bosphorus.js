@@ -223,12 +223,26 @@ export async function run(pool, job, source) {
           let productName = buildVariantName(sizeNorm, finish);
           if (accessoryType) productName += ` (${accessoryType})`;
           if (!productName) productName = productData.name;
+          else if (productData.name) productName = `${productData.name} ${productName}`;
 
-          // Determine sell_by from size (same for all colors in this group)
+          // Determine sell_by: prefer the website's SoldAs field (authoritative),
+          // fall back to dimension heuristics only when SoldAs is absent.
+          // Many small-format field tiles (3x6, 3x12, 2x16, 2x6) are sold by box
+          // but the dimension heuristic would misclassify them as accessories.
           const firstVariant = [...colorVariants.values()][0];
-          const sellBy = isAccessory ? 'unit'
-            : catSlug === 'mosaic-tile' ? 'unit'
-            : determineSellBy(firstVariant.size, firstVariant.sizeLabel);
+          const soldAs = firstVariant.soldAs; // 'box' | 'piece' from variant_groups
+          let sellBy;
+          if (soldAs === 'box') {
+            sellBy = 'box';
+          } else if (soldAs === 'piece') {
+            sellBy = 'unit';
+          } else if (isAccessory) {
+            sellBy = 'unit';
+          } else if (catSlug === 'mosaic-tile') {
+            sellBy = 'unit';
+          } else {
+            sellBy = determineSellBy(firstVariant.size, firstVariant.sizeLabel);
+          }
 
           // UPSERT PRODUCT (one per size+finish combo)
           const product = await upsertProduct(pool, {
@@ -270,15 +284,14 @@ export async function run(pool, job, source) {
             }
           }
 
-          // An image is neutral if: NOT claimed by any color, OR claimed by ALL colors.
-          // For single-color products, only truly unclaimed images go to product level —
-          // "claimed by all colors" is meaningless when there's only 1 color, and would
-          // wrongly promote all matched images to product level leaving the SKU with just a swatch.
+          // An image is neutral if NOT claimed by any color.
+          // With cross-color exclusion in getColorSliderImages, multi-color images
+          // (e.g., "sideral_dust.tif") are excluded from both colors, giving count = 0,
+          // so they correctly land here at product level.
           const neutralImages = ownImages.filter(url => {
             const base = url.split('?')[0];
             const count = claimedBases.get(base) || 0;
-            if (colorCount <= 1) return count === 0;
-            return count === 0 || count === colorCount;
+            return count === 0;
           });
 
           const relevantNeutral = pickSkuImages(neutralImages, sizeNorm, finish);
@@ -320,38 +333,10 @@ export async function run(pool, job, source) {
             });
             stats.imagesSet++;
           }
-          // Fallback: if product level got zero images, promote images from the most
-          // image-rich sibling color. Prefer lifestyle (room scenes) first; if none
-          // exist, fall back to non-swatch product shots. Far better than an empty
-          // gallery for swatch-only SKUs.
-          if (productSortOrder === 0 && colorCount > 0) {
-            let bestLifestyle = [];
-            let bestProductShots = [];
-            for (const [cn, variants] of colorGroups) {
-              const rawColor = variants[0]?._rawColor || cn;
-              const claimed = getColorSliderImages(
-                productData.imagesByVariantId, variants, productData.images, rawColor, siblingColorNamesForNeutral
-              );
-              const lifestyle = claimed.filter(u => isLifestyleUrl(u));
-              const nonSwatch = claimed.filter(u => {
-                if (isLifestyleUrl(u)) return false;
-                const fn = u.split('/').pop().split('?')[0].toLowerCase();
-                return !/swatch|chip|sample/.test(fn);
-              });
-              if (lifestyle.length > bestLifestyle.length) bestLifestyle = lifestyle;
-              if (nonSwatch.length > bestProductShots.length) bestProductShots = nonSwatch;
-            }
-            const fallbackImages = bestLifestyle.length > 0 ? bestLifestyle : bestProductShots;
-            const fallbackType = bestLifestyle.length > 0 ? 'lifestyle' : 'alternate';
-            for (const img of fallbackImages.slice(0, 3)) {
-              await upsertMediaAsset(pool, {
-                product_id: product.id, sku_id: null,
-                asset_type: fallbackType, url: img, original_url: img,
-                sort_order: productSortOrder++,
-              });
-              stats.imagesSet++;
-            }
-          }
+          // No fallback promotion from color-specific images to product level.
+          // Promoting creates duplication (same image on product + SKU levels).
+          // The API handles empty product-level galleries by using SKU images
+          // or supplementing swatch-only SKUs with product-level lifestyle.
 
           // ── For each COLOR in this size+finish group, create a SKU ──
           for (let ci = 0; ci < colors.length; ci++) {
@@ -418,26 +403,38 @@ export async function run(pool, job, source) {
               let cost = v.netPrice || v.price;
               let retailPrice = v.listPrice || null;
               const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
+              let pricingValid = true;
 
               if (sellBy === 'box') {
                 if (v.areaNetPrice > 0) {
                   cost = v.areaNetPrice;
                   retailPrice = v.areaListPrice || null;
                 } else {
-                  const sqftPerBox = (pkg && pkg.sqftPerBox) || v.sqft;
+                  // Prefer v.sqft (from variant_groups, per-variant) over pkg.sqftPerBox
+                  // (from packaging table scrape, per-size) since it's less prone to
+                  // website data errors (e.g., Forma 24x48 has sqft_per_box = 542.15).
+                  const sqftPerBox = v.sqft || (pkg && pkg.sqftPerBox);
                   if (sqftPerBox && sqftPerBox > 0) {
                     cost = +(cost / sqftPerBox).toFixed(4);
                     if (retailPrice) retailPrice = +(retailPrice / sqftPerBox).toFixed(4);
+                  } else {
+                    // No sqft divisor available — storing raw box price as per_sqft
+                    // would be wildly wrong. Skip pricing for this SKU.
+                    await appendLog(pool, job.id,
+                      `WARN: Skipping pricing for ${vendorSku} — no sqft_per_box to convert box price to per-sqft`);
+                    pricingValid = false;
                   }
                 }
               }
 
-              await upsertPricing(pool, sku.id, {
-                cost,
-                retail_price: retailPrice,
-                price_basis: priceBasis,
-              });
-              stats.pricingSet++;
+              if (pricingValid) {
+                await upsertPricing(pool, sku.id, {
+                  cost,
+                  retail_price: retailPrice,
+                  price_basis: priceBasis,
+                });
+                stats.pricingSet++;
+              }
             }
 
             // ── SKU-level images ──
@@ -450,8 +447,9 @@ export async function run(pool, job, source) {
             const colorSliderImages = getColorSliderImages(
               productData.imagesByVariantId, allColorVariants, productData.images, rawColorForImages, siblingColorNames
             );
-            // Filter out cross-collection contamination
-            const filteredColorImages = filterOwnCollectionImages(colorSliderImages, productData.name);
+            // Filter out cross-collection contamination, then pick best images for this size/finish
+            const cleanColorImages = filterOwnCollectionImages(colorSliderImages, productData.name);
+            const filteredColorImages = pickSkuImages(cleanColorImages, sizeNorm, finish);
             const swatchEntry = v.colorId
               ? productData.swatchImagesByColorId.get(v.colorId) : null;
             const swatchUrl = swatchEntry
@@ -1261,6 +1259,14 @@ function groupVariantsBySizeFinish(productData) {
       if (accessoryType) isAccessory = true;
     }
 
+    // SoldAs from variant_groups overrides dimension-based accessory classification.
+    // Many small-format field tiles (3x6, 3x12, 2x16, 2x6) are sold by box
+    // but inferAccessoryType would misclassify them as Bullnose/Trim Liner/etc.
+    if (isAccessory && v.soldAs === 'box') {
+      isAccessory = false;
+      accessoryType = null;
+    }
+
     const key = `${sizeNorm}|${finish || ''}|${isAccessory ? (accessoryType || 'accessory') : ''}`;
 
     if (!groups.has(key)) {
@@ -1526,6 +1532,40 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
       return filtered.length > 0 ? filtered : imgs;
     };
 
+    // Cross-color exclusion: remove images whose filenames also match a sibling
+    // color's slug/words. Prevents "sideral_dust.tif" from being claimed by both
+    // "Sideral" AND "Dust" — such multi-color images belong at product level.
+    // Only checks independent siblings (not subset/superset pairs like "Grey"/"Light Grey"
+    // which are handled by the specificity guard).
+    const crossColorSiblings = (siblingColorNames || []).filter(sib => {
+      const sibLower = sib.toLowerCase();
+      if (sibLower === colorLower) return false;
+      const sibSlug = sibLower.replace(/[^a-z0-9]+/g, '');
+      // Skip subset/superset pairs — specificity guard handles those
+      return !sibSlug.includes(colorSlug) && !colorSlug.includes(sibSlug);
+    });
+
+    const applyCrossColorExclusion = (imgs) => {
+      if (crossColorSiblings.length === 0 || imgs.length === 0) return imgs;
+      return imgs.filter(url => {
+        const fn = url.split('/').pop().split('?')[0].toLowerCase();
+        const segments = fn.split(/[_\-.]+/);
+        return !crossColorSiblings.some(sib => {
+          const sibLower = sib.toLowerCase();
+          const sibSlug = sibLower.replace(/[^a-z0-9]+/g, '');
+          // Check slug as a full segment
+          if (segments.some(seg => seg === sibSlug)) return true;
+          // Check slug via word-boundary pattern
+          const sibPattern = new RegExp(`(?:^|[_\\-.])${escapeRegex(sibSlug)}(?:[_\\-.]|$)`);
+          if (sibPattern.test(fn)) return true;
+          // Check multi-word sibling names via segment matching
+          const sibWords = sibLower.split(/[^a-z0-9]+/).filter(w => w.length >= 3);
+          if (sibWords.length >= 2 && sibWords.every(w => segments.some(seg => seg === w || seg.startsWith(w)))) return true;
+          return false;
+        });
+      });
+    };
+
     let matched;
 
     // Full slug match (e.g., "doratodeco" or "amibasalt" in filename)
@@ -1539,6 +1579,7 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
       return (slugPattern.test(fn) || hyphenPattern.test(fn)) && mixFilter(url);
     });
     matched = applySpecificityGuard(matched);
+    matched = applyCrossColorExclusion(matched);
     if (matched.length > 0) return matched;
 
     // ALL words match (AND logic, word-boundary) — uses all words including noise
@@ -1547,6 +1588,7 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
         const fn = url.split('/').pop().split('?')[0].toLowerCase();
         return colorWords.every(w => fnHasWord(fn, w)) && mixFilter(url);
       });
+      matched = applyCrossColorExclusion(matched);
       if (matched.length > 0) return matched;
     }
 
@@ -1569,6 +1611,7 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
         return meaningfulWords.some(w => fnHasWord(fn, w)) && mixFilter(url);
       });
       matched = applySpecificityGuard(matched);
+      matched = applyCrossColorExclusion(matched);
       if (matched.length > 0) return matched;
     }
   }
@@ -1679,7 +1722,7 @@ function pickSkuImages(colorImages, sizeNorm, finish) {
       // Check if image has a DIFFERENT shape keyword (wrong variant)
       const hasOtherShape = !matchesFinish && SHAPE_KEYWORDS.some(kw => fn.includes(kw));
       if (matchesFinish) score += 30;
-      else if (hasOtherShape) score -= 15; // wrong shape → penalize
+      else if (hasOtherShape) score -= 40; // wrong shape → hard reject (better no image than wrong variant)
     }
 
     // Product shot preference: +5 for product shots, -20 for lifestyle
@@ -1696,12 +1739,15 @@ function pickSkuImages(colorImages, sizeNorm, finish) {
   const result = [];
   for (const item of scored) {
     if (result.length >= 4) break;
-    // Skip heavily penalized images (wrong size + wrong finish + room scene)
-    if (item.score < -20 && result.length > 0) break;
+    // Skip heavily penalized images (wrong size + wrong finish + room scene).
+    // No image is better than a misleading one — swatch + product-level gallery suffice.
+    if (item.score <= -20) break;
     result.push(item.url);
   }
 
-  return result.length > 0 ? result : colorImages.slice(0, 1);
+  // Return empty if no good match — swatch alone is sufficient at SKU level,
+  // and product-level neutral images provide the gallery via API supplementation.
+  return result;
 }
 
 function escapeRegex(str) {
