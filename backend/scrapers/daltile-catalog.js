@@ -859,14 +859,15 @@ const VALID_TILE_SIZES = new Set([
   '20x20','20x39',
   '24x24','24x48',
   '30x60','33x33','36x36',
-  '39x59','48x48',
+  '39x59','39x118','48x48',
 ]);
 
 function parseSizeFromVendorSku(vendorSku) {
   if (!vendorSku) return null;
   const upper = vendorSku.toUpperCase();
-  // Primary: shape prefix + digits (PLK, RCT, SQU, SQ, HEX, XTP, RT)
-  const match = upper.match(/(PLK|RCT|SQU|SQ|HEX|XTP|RT)(\d{2,4})/);
+  // Primary: shape prefix + digits (PLK, RCT, SQU, HEX, XTP, RT)
+  // Note: SQ omitted — too short, conflicts with color code prefixes (SQ20, SQ21, etc.)
+  const match = upper.match(/(PLK|RCT|SQU|HEX|XTP|RT)(\d{2,5})/);
   if (match) return digitsToSize(match[2]);
 
   // Secondary: digit sequence before known suffixes (MOD, MS, 1P, SP, etc.)
@@ -886,6 +887,9 @@ function parseSizeFromVendorSku(vendorSku) {
 }
 
 function digitsToSize(digits) {
+  if (digits.length === 5) {
+    return `${parseInt(digits.slice(0, 2))}x${parseInt(digits.slice(2))}`;
+  }
   if (digits.length === 4) {
     return `${parseInt(digits.slice(0, 2))}x${parseInt(digits.slice(2))}`;
   }
