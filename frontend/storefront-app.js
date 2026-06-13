@@ -167,6 +167,13 @@
         u.searchParams.set("quality", "80");
         return u.toString();
       }
+      if (url.includes("scene7.com/is/image/")) {
+        const u = new URL(url);
+        u.searchParams.set("wid", width);
+        u.searchParams.set("fmt", "webp");
+        u.searchParams.set("qlt", "80");
+        return u.toString();
+      }
       const PROXY_DOMAINS = [
         "cdn.msisurfaces.com",
         "elysiumtile.com",
@@ -193,7 +200,8 @@
         "manningtonprod.pimcoreclient.com",
         "www.hartco.com",
         "armstrongflooring.com",
-        "style-access.com"
+        "style-access.com",
+        "digitalassets.daltile.com"
       ];
       if (url.startsWith("/uploads/rom440/") || PROXY_DOMAINS.some((d) => url.includes(d))) {
         return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
