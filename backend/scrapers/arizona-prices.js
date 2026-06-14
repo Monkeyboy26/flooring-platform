@@ -143,6 +143,8 @@ export function buildLookupKey(collection, colorSlug, sizeSlug, finishSlug) {
     size = size.replace(/^MESH\s+SHEET$/i, 'MESH');
     // Remove trailing MESH for non-hex mosaics
     size = size.replace(/\s+MESH$/i, '').trim();
+    // "LARGE CHEVRON" → "LG CHEVRON" (price list abbreviation)
+    size = size.replace(/\bLARGE\s+CHEVRON\b/i, 'LG CHEVRON');
     if (size) parts.push(size);
   }
 
@@ -403,12 +405,12 @@ export function loadAllPriceLists() {
       const keyWithFinishMosaico = key.replace(/(MOSAICO|STACK|HEXAGON)/, `${finishName} $1`);
       if (keyWithFinishMosaico !== key && allMaps.has(keyWithFinishMosaico)) return allMaps.get(keyWithFinishMosaico);
       // Insert finish before shape words (PICKET, RHOMBOID, LONG HEX)
-      const keyWithFinishShape = key.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX)\b/, `${finishName} $&`);
+      const keyWithFinishShape = key.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX|LG\s+CHEVRON)\b/, `${finishName} $&`);
       if (keyWithFinishShape !== key && allMaps.has(keyWithFinishShape)) return allMaps.get(keyWithFinishShape);
       // Try with dimension-shape swap: "6X10 RHOMBOID" → "RHOMBOID 6X10" then insert finish
-      const swapped = key.replace(/(\d+X\d+)\s+(PICKET|RHOMBOID|LONG\s+HEX)/, '$2 $1');
+      const swapped = key.replace(/(\d+X\d+)\s+(PICKET|RHOMBOID|LONG\s+HEX|LG\s+CHEVRON)/, '$2 $1');
       if (swapped !== key) {
-        const keySwappedFinish = swapped.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX)\b/, `${finishName} $&`);
+        const keySwappedFinish = swapped.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX|LG\s+CHEVRON)\b/, `${finishName} $&`);
         if (allMaps.has(keySwappedFinish)) return allMaps.get(keySwappedFinish);
       }
       // Insert finish before standalone HEX with fraction (hex mosaic: "HEX 2-3/8 IN")
@@ -437,12 +439,12 @@ export function loadAllPriceLists() {
           const k1 = key.replace(/(\d[\d\-\/]*X[\d\-\/]+)/, `${sf} $1`);
           if (k1 !== key && allMaps.has(k1)) return allMaps.get(k1);
           // Insert before shape words (PICKET, RHOMBOID, etc.)
-          const k2 = key.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX|HEXAGON|MOSAICO|STACK)\b/, `${sf} $&`);
+          const k2 = key.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX|LG\s+CHEVRON|HEXAGON|MOSAICO|STACK)\b/, `${sf} $&`);
           if (k2 !== key && allMaps.has(k2)) return allMaps.get(k2);
           // Try with dimension-shape swap: "6X10 RHOMBOID" → "RHOMBOID 6X10"
-          const swapped = key.replace(/(\d+X\d+)\s+(PICKET|RHOMBOID|LONG\s+HEX)/, '$2 $1');
+          const swapped = key.replace(/(\d+X\d+)\s+(PICKET|RHOMBOID|LONG\s+HEX|LG\s+CHEVRON)/, '$2 $1');
           if (swapped !== key) {
-            const k3 = swapped.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX)\b/, `${sf} $&`);
+            const k3 = swapped.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX|LG\s+CHEVRON)\b/, `${sf} $&`);
             if (allMaps.has(k3)) return allMaps.get(k3);
           }
           // Abbreviation (POLISHED → POL)
@@ -463,10 +465,27 @@ export function loadAllPriceLists() {
         // Rebuild key without duplicating: use just the collection + size + finish
         const dedupKey = buildLookupKey(collection, null, sizeSlug, finishSlug);
         if (dedupKey && allMaps.has(dedupKey)) return allMaps.get(dedupKey);
-        // Also try with finish before size
+        // Also try with finish before size dimension
         if (finishName && dedupKey) {
           const dedupFinish = dedupKey.replace(/(\d[\d\-\/]*X[\d\-\/]+)/, `${finishName} $1`);
           if (allMaps.has(dedupFinish)) return allMaps.get(dedupFinish);
+          // Finish before shape words (LG CHEVRON, PICKET, etc.)
+          const dedupFinishShape = dedupKey.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX|LG\s+CHEVRON|HEXAGON|MOSAICO|STACK)\b/, `${finishName} $&`);
+          if (dedupFinishShape !== dedupKey && allMaps.has(dedupFinishShape)) return allMaps.get(dedupFinishShape);
+          // Try abbreviated finish before shape
+          if (finishAbbr) {
+            const dedupAbbrShape = dedupKey.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX|LG\s+CHEVRON|HEXAGON|MOSAICO|STACK)\b/, `${finishAbbr} $&`);
+            if (dedupAbbrShape !== dedupKey && allMaps.has(dedupAbbrShape)) return allMaps.get(dedupAbbrShape);
+          }
+          // Dedup + VEIN CUT: try finish before "VEIN CUT" + thickness
+          if (dedupKey.includes('VEIN CUT')) {
+            const dedupVC = dedupKey.replace(/(.*?)VEIN CUT/, (_, before) =>
+              before.trim() + ' ' + finishName + ' VEIN CUT'
+            ).replace(/\s+/g, ' ').trim();
+            if (allMaps.has(dedupVC)) return allMaps.get(dedupVC);
+            const dedupVCThick = dedupVC.replace(/(\d+X\d+)(?!\S)/, '$1X3/8');
+            if (dedupVCThick !== dedupVC && allMaps.has(dedupVCThick)) return allMaps.get(dedupVCThick);
+          }
         }
       }
     }
@@ -477,6 +496,94 @@ export function loadAllPriceLists() {
       const colorUp = colorSlug.toUpperCase().replace(/-/g, ' ').trim();
       const hyphenKey = key.replace(collUp + ' ' + colorUp, collUp + '-' + colorUp);
       if (hyphenKey !== key && allMaps.has(hyphenKey)) return allMaps.get(hyphenKey);
+      // Also try with "HEX MESH" suffix (Geo 2 porcelain mosaics: "GEO 2-BISOU DAWN 13X13 HEX MESH")
+      if (hyphenKey !== key) {
+        const hyphenHexMesh = hyphenKey + ' HEX MESH';
+        if (allMaps.has(hyphenHexMesh)) return allMaps.get(hyphenHexMesh);
+      }
+    }
+
+    // Thickness suffix: natural stone tiles use "12X24X3/8" or "18X36X1/2" in price list
+    // Try appending common thickness suffixes to the dimension
+    {
+      const thicknesses = ['X3/8', 'X1/2'];
+      for (const t of thicknesses) {
+        const keyThick = key.replace(/(\d+X\d+)(?!\S)/, `$1${t}`);
+        if (keyThick !== key && allMaps.has(keyThick)) return allMaps.get(keyThick);
+      }
+      // Also try deduped key + thickness (Sahara: "SAHARA HONED 12X24X3/8")
+      if (colorSlug) {
+        const collUp = (collection || '').toUpperCase().trim();
+        const colorUp = colorSlug.toUpperCase().replace(/-/g, ' ').trim();
+        if (collUp === colorUp || collUp.startsWith(colorUp) || colorUp.startsWith(collUp)) {
+          const dedupKey = buildLookupKey(collection, null, sizeSlug, finishSlug);
+          if (dedupKey) {
+            for (const t of thicknesses) {
+              const dk = dedupKey.replace(/(\d+X\d+)(?!\S)/, `$1${t}`);
+              if (dk !== dedupKey && allMaps.has(dk)) return allMaps.get(dk);
+            }
+            // Also try finish inserted before size + thickness
+            if (finishName) {
+              const dedupFinishThick = dedupKey.replace(/(\d[\d\-\/]*X[\d\-\/]+)/, `${finishName} $1X3/8`);
+              if (allMaps.has(dedupFinishThick)) return allMaps.get(dedupFinishThick);
+              if (finishAbbr) {
+                const dedupAbbrThick = dedupKey.replace(/(\d[\d\-\/]*X[\d\-\/]+)/, `${finishAbbr} $1X3/8`);
+                if (allMaps.has(dedupAbbrThick)) return allMaps.get(dedupAbbrThick);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // "BLACK AND WHITE BW" → "B&W" (Cementine product naming)
+    if (key.includes('BLACK AND WHITE BW')) {
+      const bwKey = key
+        .replace(/BLACK AND WHITE BW\s*/, 'B&W ')
+        .replace(/\s+/g, ' ').trim();
+      if (allMaps.has(bwKey)) return allMaps.get(bwKey);
+    } else if (key.includes('BLACK AND WHITE')) {
+      const bwKey = key
+        .replace(/BLACK AND WHITE\s*/, 'B&W ')
+        .replace(/\s+/g, ' ').trim();
+      if (allMaps.has(bwKey)) return allMaps.get(bwKey);
+    }
+
+    // "SPLIT X" collection prefix: "SPLIT JADE 4X16" → "JADE SPLIT 4X16"
+    // Price list puts material name first, then SPLIT as a format qualifier
+    if (collection && /^split\b/i.test(collection)) {
+      const baseColl = collection.replace(/^split\s+/i, '').trim();
+      const splitKey = buildLookupKey(baseColl, colorSlug, sizeSlug, null);
+      if (splitKey) {
+        // Insert SPLIT after base collection name
+        const baseUp = baseColl.toUpperCase().trim();
+        const splitInserted = splitKey.replace(baseUp, baseUp + ' SPLIT');
+        if (allMaps.has(splitInserted)) return allMaps.get(splitInserted);
+        // Also try with 3D prefix: "JADE SPLIT 3D 4X16"
+        const split3d = splitKey.replace(baseUp, baseUp + ' SPLIT 3D');
+        if (allMaps.has(split3d)) return allMaps.get(split3d);
+      }
+    }
+
+    // "VEIN CUT" products: finish goes BEFORE "VEIN CUT" in price list
+    // "SILVER BEIGE VEIN CUT HONED 16X24" → "SILVER BEIGE HONED VEIN CUT 16X24X3/8"
+    if (key.includes('VEIN CUT') && finishName) {
+      const vcKey = key.replace(/(.*?)VEIN CUT\s*/, (_, before) => {
+        return before.trim() + ' ' + finishName + ' VEIN CUT ';
+      }).replace(/\s+/g, ' ').trim();
+      if (allMaps.has(vcKey)) return allMaps.get(vcKey);
+      // With thickness suffix
+      const vcThick = vcKey.replace(/(\d+X\d+)(?!\S)/, '$1X3/8');
+      if (vcThick !== vcKey && allMaps.has(vcThick)) return allMaps.get(vcThick);
+      // With abbreviated finish
+      if (finishAbbr) {
+        const vcAbbr = key.replace(/(.*?)VEIN CUT\s*/, (_, before) => {
+          return before.trim() + ' ' + finishAbbr + ' VEIN CUT ';
+        }).replace(/\s+/g, ' ').trim();
+        if (allMaps.has(vcAbbr)) return allMaps.get(vcAbbr);
+        const vcAbbrThick = vcAbbr.replace(/(\d+X\d+)(?!\S)/, '$1X3/8');
+        if (vcAbbrThick !== vcAbbr && allMaps.has(vcAbbrThick)) return allMaps.get(vcAbbrThick);
+      }
     }
 
     // Try with RECT suffix (price list uses "RECT" for rectified edges)
@@ -494,12 +601,12 @@ export function loadAllPriceLists() {
         if (tryKeyRect !== key && allMaps.has(tryKeyRect)) return allMaps.get(tryKeyRect);
         // Insert before shape words (PICKET, RHOMBOID, etc.) — handles cases
         // where finish goes between color and shape in price list
-        const tryShape = key.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX|HEXAGON|MOSAICO|STACK)\b/, `${f} $&`);
+        const tryShape = key.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX|LG\s+CHEVRON|HEXAGON|MOSAICO|STACK)\b/, `${f} $&`);
         if (tryShape !== key && allMaps.has(tryShape)) return allMaps.get(tryShape);
         // Try with dimension-shape swap: "6X10 RHOMBOID" → "RHOMBOID 6X10"
-        const swapped = key.replace(/(\d+X\d+)\s+(PICKET|RHOMBOID|LONG\s+HEX)/, '$2 $1');
+        const swapped = key.replace(/(\d+X\d+)\s+(PICKET|RHOMBOID|LONG\s+HEX|LG\s+CHEVRON)/, '$2 $1');
         if (swapped !== key) {
-          const trySwapped = swapped.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX)\b/, `${f} $&`);
+          const trySwapped = swapped.replace(/\b(PICKET|RHOMBOID|LONG\s+HEX|LG\s+CHEVRON)\b/, `${f} $&`);
           if (allMaps.has(trySwapped)) return allMaps.get(trySwapped);
         }
       }
@@ -817,7 +924,20 @@ export function loadAllPriceLists() {
       }
     }
 
-    // ── 7) Fuzzy compact match (strip spaces/hyphens) ──
+    // ── 7) Tile prefix match for simple products ──
+    // For non-slab tile products without size (e.g. "SPARK BARS IVORY"),
+    // try matching with common finishes appended
+    {
+      const COMMON_FINISHES = ['MATTE', 'GLOSSY', 'POLISHED', 'HONED', 'NATURAL'];
+      for (const [k, v] of allMaps) {
+        if (v.source !== 'tile') continue;
+        for (const f of COMMON_FINISHES) {
+          if (k.startsWith(searchName + ' ' + f + ' ')) return v;
+        }
+      }
+    }
+
+    // ── 8) Fuzzy compact match (strip spaces/hyphens) ──
     const nameCompact = searchName.replace(/[\s\-\/]+/g, '');
     for (const [k, v] of allMaps) {
       const kStem = k.replace(/\s+SLAB.*$/, '').replace(/\s+\d+X\d+.*$/, '');
