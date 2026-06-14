@@ -3171,7 +3171,23 @@
         tagFacets,
         onTagToggle
       }
-    ), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 0 } }, /* @__PURE__ */ React.createElement(BrowseToolbar, { totalSkus, sortBy, onSortChange, currentPage }), /* @__PURE__ */ React.createElement("button", { className: "mobile-filter-btn", onClick: () => setFilterDrawerOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("line", { x1: "4", y1: "6", x2: "20", y2: "6" }), /* @__PURE__ */ React.createElement("line", { x1: "8", y1: "12", x2: "20", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "18", x2: "20", y2: "18" })), "Filters", totalActiveFilterCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "filter-badge" }, totalActiveFilterCount))), loading ? /* @__PURE__ */ React.createElement(SkeletonGrid, { count: 8 }) : skus.length === 0 ? searchQuery ? /* @__PURE__ */ React.createElement(SearchEmptyState, { searchQuery, categories, onSearch, onCategorySelect, didYouMean }) : /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "4rem", color: "var(--stone-600)" } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "1.125rem", marginBottom: "1rem" } }, "No products found"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.875rem" } }, "Try adjusting your filters")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SkuGrid, { skus, onSkuClick, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku }), totalPages > 1 && /* @__PURE__ */ React.createElement(Pagination, { currentPage, totalPages, onPageChange })), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-overlay" + (filterDrawerOpen ? " open" : ""), onClick: () => setFilterDrawerOpen(false) }), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer" + (filterDrawerOpen ? " open" : "") }, /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-head" }, /* @__PURE__ */ React.createElement("h3", null, "Filters"), /* @__PURE__ */ React.createElement("button", { className: "cart-drawer-close", onClick: () => setFilterDrawerOpen(false) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "18", y2: "18" })))), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-body" }, /* @__PURE__ */ React.createElement(FacetPanel, { ...facetProps, isMobile: true })), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn", style: { width: "100%" }, onClick: () => setFilterDrawerOpen(false) }, "Show ", totalSkus, " Result", totalSkus !== 1 ? "s" : ""))))));
+    ), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 0 } }, /* @__PURE__ */ React.createElement(BrowseToolbar, { totalSkus, sortBy, onSortChange, currentPage }), /* @__PURE__ */ React.createElement("button", { className: "mobile-filter-btn", onClick: () => setFilterDrawerOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("line", { x1: "4", y1: "6", x2: "20", y2: "6" }), /* @__PURE__ */ React.createElement("line", { x1: "8", y1: "12", x2: "20", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "18", x2: "20", y2: "18" })), "Filters", totalActiveFilterCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "filter-badge" }, totalActiveFilterCount))), loading ? /* @__PURE__ */ React.createElement(SkeletonGrid, { count: 8 }) : skus.length === 0 ? searchQuery ? /* @__PURE__ */ React.createElement(SearchEmptyState, { searchQuery, categories, onSearch, onCategorySelect, didYouMean }) : /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "4rem", color: "var(--stone-600)" } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "1.125rem", marginBottom: "1rem" } }, "No products found"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.875rem" } }, "Try adjusting your filters")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(SkuGrid, { skus, onSkuClick, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku }), totalPages > 1 && /* @__PURE__ */ React.createElement(Pagination, { currentPage, totalPages, onPageChange })), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-overlay" + (filterDrawerOpen ? " open" : ""), onClick: () => setFilterDrawerOpen(false) }), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer" + (filterDrawerOpen ? " open" : "") }, /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-head" }, /* @__PURE__ */ React.createElement("h3", null, "Filters", totalActiveFilterCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "filter-group-count-badge" }, totalActiveFilterCount)), /* @__PURE__ */ React.createElement("button", { className: "cart-drawer-close", onClick: () => setFilterDrawerOpen(false) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "18", y2: "18" })))), hasFilters && /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-pills" }, /* @__PURE__ */ React.createElement(
+      ActiveFilterPills,
+      {
+        filters,
+        facets,
+        onFilterToggle,
+        onClearFilters,
+        vendorFilters,
+        onVendorToggle,
+        userPriceRange,
+        onPriceRangeChange,
+        tagFilters,
+        tagFacets,
+        onTagToggle,
+        inline: true
+      }
+    )), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-body" }, /* @__PURE__ */ React.createElement(FacetPanel, { ...facetProps, isMobile: true })), /* @__PURE__ */ React.createElement("div", { className: "filter-drawer-footer" }, /* @__PURE__ */ React.createElement("button", { className: "filter-drawer-results-btn", onClick: () => setFilterDrawerOpen(false) }, "Show ", totalSkus, " Result", totalSkus !== 1 ? "s" : ""))))));
   }
   function PriceRangeFilter({ priceRange, userPriceRange, onChange }) {
     const min = priceRange.min || 0;
@@ -3278,8 +3294,12 @@
     const hasAny = hasAttrFilters || hasVendorFilters || hasPriceFilters || hasTagFilters;
     const [collapsed, setCollapsed] = useState({});
     const [filterSearch, setFilterSearch] = useState({});
+    const [expandedGroups, setExpandedGroups] = useState({});
+    const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+    const VALUE_LIMIT = 8;
     const prioritySlugs = ["material", "finish", "size", "application"];
     const bottomSlugs = ["pei_rating", "water_absorption", "dcof"];
+    const primarySlugs = ["material", "finish", "size", "application"];
     const chevron = (isOpen) => /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", style: { width: 14, height: 14, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" } }, /* @__PURE__ */ React.createElement("polyline", { points: "6 9 12 15 18 9" }));
     const isGroupCollapsed = (slug) => {
       if (collapsed[slug] !== void 0) return collapsed[slug];
@@ -3335,13 +3355,25 @@
       if (bBot !== -1) return -1;
       return 0;
     });
+    const primaryFacets = sortedFacets.filter((g) => primarySlugs.includes(g.slug));
+    const secondaryFacets = sortedFacets.filter((g) => !primarySlugs.includes(g.slug));
+    const hasActiveSecondary = secondaryFacets.some((g) => (filters[g.slug] || []).length > 0);
+    const showMoreFilters = moreFiltersOpen || hasActiveSecondary;
+    const roomTags = (tagFacets || []).filter((t) => t.category === "Room");
+    const featureTags = (tagFacets || []).filter((t) => t.category !== "Room");
+    const roomTagActiveCount = roomTags.filter((t) => (tagFilters || []).includes(t.slug)).length;
+    const featureTagActiveCount = featureTags.filter((t) => (tagFilters || []).includes(t.slug)).length;
     const renderFilterGroup = (group) => {
       const isCol = isGroupCollapsed(group.slug);
       const searchTerm = filterSearch[group.slug] || "";
-      const values = searchTerm ? group.values.filter((v) => v.value.toLowerCase().includes(searchTerm.toLowerCase())) : group.values;
+      const allValues = searchTerm ? group.values.filter((v) => v.value.toLowerCase().includes(searchTerm.toLowerCase())) : group.values;
       const activeCount = (filters[group.slug] || []).length;
       const checkId = (val) => "f-" + group.slug + "-" + val.replace(/[^a-zA-Z0-9]/g, "_");
-      return /* @__PURE__ */ React.createElement("div", { key: group.slug, className: "filter-group" }, /* @__PURE__ */ React.createElement("div", { className: "filter-group-title", onClick: () => setCollapsed((prev) => ({ ...prev, [group.slug]: !isCol })) }, /* @__PURE__ */ React.createElement("span", null, group.name, activeCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "filter-group-count-badge" }, activeCount)), chevron(!isCol)), !isCol && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.625rem" } }, group.values.length > 15 && /* @__PURE__ */ React.createElement(
+      const isExpanded = expandedGroups[group.slug] || false;
+      const shouldTruncate = !searchTerm && allValues.length > VALUE_LIMIT;
+      const values = shouldTruncate && !isExpanded ? allValues.slice(0, VALUE_LIMIT) : allValues;
+      const hiddenCount = allValues.length - VALUE_LIMIT;
+      return /* @__PURE__ */ React.createElement("div", { key: group.slug, className: "filter-group" }, /* @__PURE__ */ React.createElement("div", { className: "filter-group-title", onClick: () => setCollapsed((prev) => ({ ...prev, [group.slug]: !isCol })) }, /* @__PURE__ */ React.createElement("span", null, group.name, activeCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "filter-group-count-badge" }, activeCount)), chevron(!isCol)), /* @__PURE__ */ React.createElement("div", { className: "filter-group-content" + (isCol ? " collapsed" : "") }, group.values.length > 15 && /* @__PURE__ */ React.createElement(
         "input",
         {
           className: "filter-search-input",
@@ -3362,30 +3394,59 @@
             onChange: () => onFilterToggle(group.slug, v.value)
           }
         ), /* @__PURE__ */ React.createElement("label", { htmlFor: checkId(v.value) }, formatCarpetValue(v.value)), /* @__PURE__ */ React.createElement("span", { className: "filter-count" }, "(", v.count, ")"));
-      }), values.length === 0 && searchTerm && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.75rem", color: "var(--stone-400)", padding: "0.25rem 0" } }, "No matches"))));
+      }), values.length === 0 && searchTerm && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.75rem", color: "var(--stone-400)", padding: "0.25rem 0" } }, "No matches")), shouldTruncate && /* @__PURE__ */ React.createElement("button", { className: "show-more-btn", onClick: () => setExpandedGroups((prev) => ({ ...prev, [group.slug]: !isExpanded })) }, isExpanded ? "Show less" : "Show " + hiddenCount + " more")));
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "filter-panel" }, /* @__PURE__ */ React.createElement("div", { className: "sidebar-refine-header", style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", null, "Refine \xB7 ", totalSkus ? totalSkus + " products" : "All materials"), hasAny && /* @__PURE__ */ React.createElement("button", { className: "filter-clear", onClick: onClearFilters, style: { marginBottom: 0 } }, "Clear")), vendors && vendors.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "filter-group vendor-filter-group" }, /* @__PURE__ */ React.createElement("div", { className: "filter-group-title", onClick: () => setCollapsed((prev) => ({ ...prev, _vendor: !prev._vendor })) }, /* @__PURE__ */ React.createElement("span", null, "Brand", hasVendorFilters && /* @__PURE__ */ React.createElement("span", { className: "filter-group-count-badge" }, vendorFilters.length)), chevron(!collapsed._vendor)), !collapsed._vendor && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.625rem" } }, vendors.length > 15 && /* @__PURE__ */ React.createElement(
-      "input",
-      {
-        className: "filter-search-input",
-        type: "text",
-        placeholder: "Search brands...",
-        value: filterSearch._vendor || "",
-        onChange: (e) => setFilterSearch((prev) => ({ ...prev, _vendor: e.target.value })),
-        onClick: (e) => e.stopPropagation()
-      }
-    ), /* @__PURE__ */ React.createElement("div", { className: "filter-values-scroll" }, (filterSearch._vendor ? vendors.filter((v) => v.name.toLowerCase().includes(filterSearch._vendor.toLowerCase())) : vendors).map((v) => {
-      const checked = vendorFilters.includes(v.name);
-      return /* @__PURE__ */ React.createElement("div", { key: v.name, className: "filter-option" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "filter-panel" }, /* @__PURE__ */ React.createElement("div", { className: "sidebar-refine-header", style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", null, "Refine \xB7 ", totalSkus ? totalSkus + " products" : "All materials"), hasAny && /* @__PURE__ */ React.createElement("button", { className: "filter-clear", onClick: onClearFilters }, "Clear all")), vendors && vendors.length > 0 && (() => {
+      const isCol = collapsed._vendor || false;
+      const searchTerm = filterSearch._vendor || "";
+      const allVendors = searchTerm ? vendors.filter((v) => v.name.toLowerCase().includes(searchTerm.toLowerCase())) : vendors;
+      const isExpanded = expandedGroups._vendor || false;
+      const shouldTruncate = !searchTerm && allVendors.length > VALUE_LIMIT;
+      const visibleVendors = shouldTruncate && !isExpanded ? allVendors.slice(0, VALUE_LIMIT) : allVendors;
+      const hiddenCount = allVendors.length - VALUE_LIMIT;
+      return /* @__PURE__ */ React.createElement("div", { className: "filter-group vendor-filter-group" }, /* @__PURE__ */ React.createElement("div", { className: "filter-group-title", onClick: () => setCollapsed((prev) => ({ ...prev, _vendor: !isCol })) }, /* @__PURE__ */ React.createElement("span", null, "Brand", hasVendorFilters && /* @__PURE__ */ React.createElement("span", { className: "filter-group-count-badge" }, vendorFilters.length)), chevron(!isCol)), /* @__PURE__ */ React.createElement("div", { className: "filter-group-content" + (isCol ? " collapsed" : "") }, vendors.length > 15 && /* @__PURE__ */ React.createElement(
         "input",
         {
-          type: "checkbox",
-          id: "f-vendor-" + v.name.replace(/[^a-zA-Z0-9]/g, "_"),
-          checked,
-          onChange: () => onVendorToggle(v.name)
+          className: "filter-search-input",
+          type: "text",
+          placeholder: "Search brands...",
+          value: searchTerm,
+          onChange: (e) => setFilterSearch((prev) => ({ ...prev, _vendor: e.target.value })),
+          onClick: (e) => e.stopPropagation()
         }
-      ), /* @__PURE__ */ React.createElement("label", { htmlFor: "f-vendor-" + v.name.replace(/[^a-zA-Z0-9]/g, "_") }, v.name), /* @__PURE__ */ React.createElement("span", { className: "filter-count" }, "(", v.count, ")"));
-    })))), tagFacets && tagFacets.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "filter-group" }, /* @__PURE__ */ React.createElement("div", { className: "filter-group-title" }, /* @__PURE__ */ React.createElement("span", null, "Features & Room", hasTagFilters && /* @__PURE__ */ React.createElement("span", { className: "filter-group-count-badge" }, tagFilters.length))), /* @__PURE__ */ React.createElement("div", { className: "tag-chips" }, tagFacets.map((tag) => /* @__PURE__ */ React.createElement(
+      ), /* @__PURE__ */ React.createElement("div", { className: "filter-values-scroll" }, visibleVendors.map((v) => {
+        const checked = vendorFilters.includes(v.name);
+        return /* @__PURE__ */ React.createElement("div", { key: v.name, className: "filter-option" }, /* @__PURE__ */ React.createElement(
+          "input",
+          {
+            type: "checkbox",
+            id: "f-vendor-" + v.name.replace(/[^a-zA-Z0-9]/g, "_"),
+            checked,
+            onChange: () => onVendorToggle(v.name)
+          }
+        ), /* @__PURE__ */ React.createElement("label", { htmlFor: "f-vendor-" + v.name.replace(/[^a-zA-Z0-9]/g, "_") }, v.name), /* @__PURE__ */ React.createElement("span", { className: "filter-count" }, "(", v.count, ")"));
+      })), shouldTruncate && /* @__PURE__ */ React.createElement("button", { className: "show-more-btn", onClick: () => setExpandedGroups((prev) => ({ ...prev, _vendor: !isExpanded })) }, isExpanded ? "Show less" : "Show " + hiddenCount + " more")));
+    })(), roomTags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "filter-group" }, /* @__PURE__ */ React.createElement("div", { className: "filter-group-title" }, /* @__PURE__ */ React.createElement("span", null, "Room", roomTagActiveCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "filter-group-count-badge" }, roomTagActiveCount))), /* @__PURE__ */ React.createElement("div", { className: "room-tag-grid" }, roomTags.map((tag) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: tag.slug,
+        className: "room-tag-card" + ((tagFilters || []).includes(tag.slug) ? " active" : ""),
+        onClick: () => onTagToggle(tag.slug)
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "room-tag-card-name" }, tag.name),
+      /* @__PURE__ */ React.createElement("span", { className: "room-tag-card-count" }, tag.count)
+    )))), primaryFacets.filter((g) => g.slug === "material").map((group) => renderFilterGroup(group)), colorFacet && (() => {
+      const isCol = isGroupCollapsed("color");
+      return /* @__PURE__ */ React.createElement("div", { className: "filter-group" }, /* @__PURE__ */ React.createElement("div", { className: "filter-group-title", onClick: () => setCollapsed((prev) => ({ ...prev, color: !isCol })) }, /* @__PURE__ */ React.createElement("span", null, "Color", (filters.color || []).length > 0 && /* @__PURE__ */ React.createElement("span", { className: "filter-group-count-badge" }, (filters.color || []).length)), chevron(!isCol)), /* @__PURE__ */ React.createElement("div", { className: "filter-group-content" + (isCol ? " collapsed" : "") }, /* @__PURE__ */ React.createElement("div", { className: "color-family-grid" }, Object.entries(COLOR_FAMILIES).map(([name, { hex }]) => {
+        if (!familyCounts[name]) return null;
+        const isActive = activeFamilies.includes(name);
+        const style = hex.includes("gradient") ? { background: hex } : { backgroundColor: hex };
+        return /* @__PURE__ */ React.createElement("div", { key: name, className: "color-family-swatch" + (isActive ? " active" : ""), onClick: () => handleFamilyClick(name) }, /* @__PURE__ */ React.createElement("div", { className: "color-family-circle", style }), /* @__PURE__ */ React.createElement("span", { className: "color-family-name" }, name), /* @__PURE__ */ React.createElement("span", { className: "color-family-count" }, familyCounts[name]));
+      }))));
+    })(), primaryFacets.filter((g) => g.slug !== "material").map((group) => renderFilterGroup(group)), priceRange && priceRange.max > 0 && (() => {
+      const isCol = collapsed._price || false;
+      return /* @__PURE__ */ React.createElement("div", { className: "filter-group" }, /* @__PURE__ */ React.createElement("div", { className: "filter-group-title", onClick: () => setCollapsed((prev) => ({ ...prev, _price: !isCol })) }, /* @__PURE__ */ React.createElement("span", null, "Price", hasPriceFilters && /* @__PURE__ */ React.createElement("span", { className: "filter-group-count-badge" }, "1")), chevron(!isCol)), /* @__PURE__ */ React.createElement("div", { className: "filter-group-content" + (isCol ? " collapsed" : "") }, /* @__PURE__ */ React.createElement(PriceRangeFilter, { priceRange, userPriceRange: userPriceRange || { min: null, max: null }, onChange: onPriceRangeChange })));
+    })(), featureTags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "filter-group" }, /* @__PURE__ */ React.createElement("div", { className: "filter-group-title" }, /* @__PURE__ */ React.createElement("span", null, "Features", featureTagActiveCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "filter-group-count-badge" }, featureTagActiveCount))), /* @__PURE__ */ React.createElement("div", { className: "tag-chips" }, featureTags.map((tag) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: tag.slug,
@@ -3395,35 +3456,9 @@
       tag.name,
       " ",
       /* @__PURE__ */ React.createElement("span", { className: "filter-count" }, "(", tag.count, ")")
-    )))), priceRange && priceRange.max > 0 && /* @__PURE__ */ React.createElement("div", { className: "filter-group" }, /* @__PURE__ */ React.createElement("div", { className: "filter-group-title", onClick: () => setCollapsed((prev) => ({ ...prev, _price: !prev._price })) }, /* @__PURE__ */ React.createElement("span", null, "Price", hasPriceFilters && /* @__PURE__ */ React.createElement("span", { className: "filter-group-count-badge" }, "1")), chevron(collapsed._price)), !collapsed._price && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.625rem" } }, /* @__PURE__ */ React.createElement(PriceRangeFilter, { priceRange, userPriceRange: userPriceRange || { min: null, max: null }, onChange: onPriceRangeChange }))), colorFacet && /* @__PURE__ */ React.createElement("div", { className: "filter-group" }, /* @__PURE__ */ React.createElement("div", { className: "filter-group-title", onClick: () => setCollapsed((prev) => ({ ...prev, color: !isGroupCollapsed("color") })) }, /* @__PURE__ */ React.createElement("span", null, "Color", (filters.color || []).length > 0 && /* @__PURE__ */ React.createElement("span", { className: "filter-group-count-badge" }, (filters.color || []).length)), chevron(isGroupCollapsed("color"))), !isGroupCollapsed("color") && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.625rem" } }, /* @__PURE__ */ React.createElement("div", { className: "color-family-grid" }, Object.entries(COLOR_FAMILIES).map(([name, { hex }]) => {
-      if (!familyCounts[name]) return null;
-      const isActive = activeFamilies.includes(name);
-      const style = hex.includes("gradient") ? { background: hex } : { backgroundColor: hex };
-      return /* @__PURE__ */ React.createElement("div", { key: name, className: "color-family-swatch" + (isActive ? " active" : ""), onClick: () => handleFamilyClick(name) }, /* @__PURE__ */ React.createElement("div", { className: "color-family-circle", style }), /* @__PURE__ */ React.createElement("span", { className: "color-family-name" }, name));
-    })), colorFacet.values.length > 15 && /* @__PURE__ */ React.createElement(
-      "input",
-      {
-        className: "filter-search-input",
-        type: "text",
-        placeholder: "Search colors...",
-        value: filterSearch.color || "",
-        onChange: (e) => setFilterSearch((prev) => ({ ...prev, color: e.target.value })),
-        onClick: (e) => e.stopPropagation()
-      }
-    ), /* @__PURE__ */ React.createElement("div", { className: "filter-values-scroll" }, (filterSearch.color ? colorFacet.values.filter((v) => v.value.toLowerCase().includes(filterSearch.color.toLowerCase())) : colorFacet.values).map((v) => {
-      const checked = (filters.color || []).includes(v.value);
-      return /* @__PURE__ */ React.createElement("div", { key: v.value, className: "filter-option" }, /* @__PURE__ */ React.createElement(
-        "input",
-        {
-          type: "checkbox",
-          id: "f-color-" + v.value.replace(/[^a-zA-Z0-9]/g, "_"),
-          checked,
-          onChange: () => onFilterToggle("color", v.value)
-        }
-      ), /* @__PURE__ */ React.createElement("label", { htmlFor: "f-color-" + v.value.replace(/[^a-zA-Z0-9]/g, "_") }, formatCarpetValue(v.value)), /* @__PURE__ */ React.createElement("span", { className: "filter-count" }, "(", v.count, ")"));
-    })))), sortedFacets.map((group) => renderFilterGroup(group)));
+    )))), secondaryFacets.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "more-filters-divider" }, /* @__PURE__ */ React.createElement("button", { className: "more-filters-toggle", onClick: () => setMoreFiltersOpen((prev) => !prev) }, /* @__PURE__ */ React.createElement("span", null, "More Filters"), chevron(showMoreFilters)), /* @__PURE__ */ React.createElement("div", { className: "more-filters-content" + (showMoreFilters ? " expanded" : " collapsed") }, secondaryFacets.map((group) => renderFilterGroup(group)))));
   }
-  function ActiveFilterPills({ filters, facets, onFilterToggle, onClearFilters, vendorFilters, onVendorToggle, userPriceRange, onPriceRangeChange, tagFilters, tagFacets, onTagToggle }) {
+  function ActiveFilterPills({ filters, facets, onFilterToggle, onClearFilters, vendorFilters, onVendorToggle, userPriceRange, onPriceRangeChange, tagFilters, tagFacets, onTagToggle, inline }) {
     const pills = [];
     (vendorFilters || []).forEach((name) => {
       pills.push({ type: "vendor", value: name, label: "Brand: " + name, onRemove: () => onVendorToggle(name) });
@@ -3444,6 +3479,9 @@
       });
     });
     if (pills.length === 0) return null;
+    if (inline) {
+      return pills.map((p, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "filter-pill", style: { whiteSpace: "nowrap", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("span", null, p.label), /* @__PURE__ */ React.createElement("button", { onClick: p.onRemove }, "\xD7")));
+    }
     return /* @__PURE__ */ React.createElement("div", { className: "active-filters" }, /* @__PURE__ */ React.createElement("span", { className: "active-filters-label" }, "Refined by"), pills.map((p, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "filter-pill" }, /* @__PURE__ */ React.createElement("span", null, p.label), /* @__PURE__ */ React.createElement("button", { onClick: p.onRemove }, "\xD7"))), /* @__PURE__ */ React.createElement("button", { className: "filter-clear", onClick: onClearFilters }, "Clear all"));
   }
   function BrowseToolbar({ totalSkus, sortBy, onSortChange, currentPage }) {

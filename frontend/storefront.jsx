@@ -4003,16 +4003,23 @@
             <div className={'filter-drawer-overlay' + (filterDrawerOpen ? ' open' : '')} onClick={() => setFilterDrawerOpen(false)} />
             <div className={'filter-drawer' + (filterDrawerOpen ? ' open' : '')}>
               <div className="filter-drawer-head">
-                <h3>Filters</h3>
+                <h3>Filters{totalActiveFilterCount > 0 && <span className="filter-group-count-badge">{totalActiveFilterCount}</span>}</h3>
                 <button className="cart-drawer-close" onClick={() => setFilterDrawerOpen(false)}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
+              {hasFilters && (
+                <div className="filter-drawer-pills">
+                  <ActiveFilterPills filters={filters} facets={facets} onFilterToggle={onFilterToggle} onClearFilters={onClearFilters}
+                    vendorFilters={vendorFilters} onVendorToggle={onVendorToggle} userPriceRange={userPriceRange} onPriceRangeChange={onPriceRangeChange}
+                    tagFilters={tagFilters} tagFacets={tagFacets} onTagToggle={onTagToggle} inline={true} />
+                </div>
+              )}
               <div className="filter-drawer-body">
                 <FacetPanel {...facetProps} isMobile={true} />
               </div>
               <div className="filter-drawer-footer">
-                <button className="btn" style={{ width: '100%' }} onClick={() => setFilterDrawerOpen(false)}>
+                <button className="filter-drawer-results-btn" onClick={() => setFilterDrawerOpen(false)}>
                   Show {totalSkus} Result{totalSkus !== 1 ? 's' : ''}
                 </button>
               </div>
@@ -4124,9 +4131,14 @@
 
       const [collapsed, setCollapsed] = useState({});
       const [filterSearch, setFilterSearch] = useState({});
+      const [expandedGroups, setExpandedGroups] = useState({});
+      const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
+      const VALUE_LIMIT = 8;
       const prioritySlugs = ['material', 'finish', 'size', 'application'];
       const bottomSlugs = ['pei_rating', 'water_absorption', 'dcof'];
+      // Groups shown before "More Filters" divider
+      const primarySlugs = ['material', 'finish', 'size', 'application'];
 
       const chevron = (isOpen) => (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
@@ -4137,13 +4149,9 @@
       // Determine default collapsed state for a group
       const isGroupCollapsed = (slug) => {
         if (collapsed[slug] !== undefined) return collapsed[slug];
-        // Groups with active selections: always expanded
         if (filters[slug] && filters[slug].length > 0) return false;
-        // Priority groups start expanded
         if (prioritySlugs.includes(slug)) return false;
-        // Color starts expanded
         if (slug === 'color') return false;
-        // Rest collapsed by default
         return true;
       };
 
@@ -4201,14 +4209,32 @@
         return 0;
       });
 
+      // Split into primary (shown above "More Filters") and secondary (inside "More Filters")
+      const primaryFacets = sortedFacets.filter(g => primarySlugs.includes(g.slug));
+      const secondaryFacets = sortedFacets.filter(g => !primarySlugs.includes(g.slug));
+
+      // Auto-expand "More Filters" if any contained facet has active selections
+      const hasActiveSecondary = secondaryFacets.some(g => (filters[g.slug] || []).length > 0);
+      const showMoreFilters = moreFiltersOpen || hasActiveSecondary;
+
+      // Split tags by category
+      const roomTags = (tagFacets || []).filter(t => t.category === 'Room');
+      const featureTags = (tagFacets || []).filter(t => t.category !== 'Room');
+      const roomTagActiveCount = roomTags.filter(t => (tagFilters || []).includes(t.slug)).length;
+      const featureTagActiveCount = featureTags.filter(t => (tagFilters || []).includes(t.slug)).length;
+
       const renderFilterGroup = (group) => {
         const isCol = isGroupCollapsed(group.slug);
         const searchTerm = filterSearch[group.slug] || '';
-        const values = searchTerm
+        const allValues = searchTerm
           ? group.values.filter(v => v.value.toLowerCase().includes(searchTerm.toLowerCase()))
           : group.values;
         const activeCount = (filters[group.slug] || []).length;
         const checkId = (val) => 'f-' + group.slug + '-' + val.replace(/[^a-zA-Z0-9]/g, '_');
+        const isExpanded = expandedGroups[group.slug] || false;
+        const shouldTruncate = !searchTerm && allValues.length > VALUE_LIMIT;
+        const values = shouldTruncate && !isExpanded ? allValues.slice(0, VALUE_LIMIT) : allValues;
+        const hiddenCount = allValues.length - VALUE_LIMIT;
 
         return (
           <div key={group.slug} className="filter-group">
@@ -4216,31 +4242,34 @@
               <span>{group.name}{activeCount > 0 && <span className="filter-group-count-badge">{activeCount}</span>}</span>
               {chevron(!isCol)}
             </div>
-            {!isCol && (
-              <div style={{ marginTop: '0.625rem' }}>
-                {group.values.length > 15 && (
-                  <input className="filter-search-input" type="text" placeholder={'Search ' + group.name.toLowerCase() + '...'}
-                    value={searchTerm} onChange={e => setFilterSearch(prev => ({ ...prev, [group.slug]: e.target.value }))}
-                    onClick={e => e.stopPropagation()} />
+            <div className={'filter-group-content' + (isCol ? ' collapsed' : '')}>
+              {group.values.length > 15 && (
+                <input className="filter-search-input" type="text" placeholder={'Search ' + group.name.toLowerCase() + '...'}
+                  value={searchTerm} onChange={e => setFilterSearch(prev => ({ ...prev, [group.slug]: e.target.value }))}
+                  onClick={e => e.stopPropagation()} />
+              )}
+              <div className="filter-values-scroll">
+                {values.map(v => {
+                  const checked = (filters[group.slug] || []).includes(v.value);
+                  return (
+                    <div key={v.value} className="filter-option">
+                      <input type="checkbox" id={checkId(v.value)} checked={checked}
+                        onChange={() => onFilterToggle(group.slug, v.value)} />
+                      <label htmlFor={checkId(v.value)}>{formatCarpetValue(v.value)}</label>
+                      <span className="filter-count">({v.count})</span>
+                    </div>
+                  );
+                })}
+                {values.length === 0 && searchTerm && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', padding: '0.25rem 0' }}>No matches</div>
                 )}
-                <div className="filter-values-scroll">
-                  {values.map(v => {
-                    const checked = (filters[group.slug] || []).includes(v.value);
-                    return (
-                      <div key={v.value} className="filter-option">
-                        <input type="checkbox" id={checkId(v.value)} checked={checked}
-                          onChange={() => onFilterToggle(group.slug, v.value)} />
-                        <label htmlFor={checkId(v.value)}>{formatCarpetValue(v.value)}</label>
-                        <span className="filter-count">({v.count})</span>
-                      </div>
-                    );
-                  })}
-                  {values.length === 0 && searchTerm && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', padding: '0.25rem 0' }}>No matches</div>
-                  )}
-                </div>
               </div>
-            )}
+              {shouldTruncate && (
+                <button className="show-more-btn" onClick={() => setExpandedGroups(prev => ({ ...prev, [group.slug]: !isExpanded }))}>
+                  {isExpanded ? 'Show less' : 'Show ' + hiddenCount + ' more'}
+                </button>
+              )}
+            </div>
           </div>
         );
       };
@@ -4250,28 +4279,35 @@
           {/* Header + Clear All */}
           <div className="sidebar-refine-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>Refine · {totalSkus ? totalSkus + ' products' : 'All materials'}</span>
-            {hasAny && <button className="filter-clear" onClick={onClearFilters} style={{ marginBottom: 0 }}>Clear</button>}
+            {hasAny && <button className="filter-clear" onClick={onClearFilters}>Clear all</button>}
           </div>
 
-          {/* Vendor filter */}
-          {vendors && vendors.length > 0 && (
-            <div className="filter-group vendor-filter-group">
-              <div className="filter-group-title" onClick={() => setCollapsed(prev => ({ ...prev, _vendor: !prev._vendor }))}>
-                <span>Brand{hasVendorFilters && <span className="filter-group-count-badge">{vendorFilters.length}</span>}</span>
-                {chevron(!collapsed._vendor)}
-              </div>
-              {!collapsed._vendor && (
-                <div style={{ marginTop: '0.625rem' }}>
+          {/* 1. Brand filter */}
+          {vendors && vendors.length > 0 && (() => {
+            const isCol = collapsed._vendor || false;
+            const searchTerm = filterSearch._vendor || '';
+            const allVendors = searchTerm
+              ? vendors.filter(v => v.name.toLowerCase().includes(searchTerm.toLowerCase()))
+              : vendors;
+            const isExpanded = expandedGroups._vendor || false;
+            const shouldTruncate = !searchTerm && allVendors.length > VALUE_LIMIT;
+            const visibleVendors = shouldTruncate && !isExpanded ? allVendors.slice(0, VALUE_LIMIT) : allVendors;
+            const hiddenCount = allVendors.length - VALUE_LIMIT;
+
+            return (
+              <div className="filter-group vendor-filter-group">
+                <div className="filter-group-title" onClick={() => setCollapsed(prev => ({ ...prev, _vendor: !isCol }))}>
+                  <span>Brand{hasVendorFilters && <span className="filter-group-count-badge">{vendorFilters.length}</span>}</span>
+                  {chevron(!isCol)}
+                </div>
+                <div className={'filter-group-content' + (isCol ? ' collapsed' : '')}>
                   {vendors.length > 15 && (
                     <input className="filter-search-input" type="text" placeholder="Search brands..."
-                      value={filterSearch._vendor || ''} onChange={e => setFilterSearch(prev => ({ ...prev, _vendor: e.target.value }))}
+                      value={searchTerm} onChange={e => setFilterSearch(prev => ({ ...prev, _vendor: e.target.value }))}
                       onClick={e => e.stopPropagation()} />
                   )}
                   <div className="filter-values-scroll">
-                    {(filterSearch._vendor
-                      ? vendors.filter(v => v.name.toLowerCase().includes(filterSearch._vendor.toLowerCase()))
-                      : vendors
-                    ).map(v => {
+                    {visibleVendors.map(v => {
                       const checked = vendorFilters.includes(v.name);
                       return (
                         <div key={v.name} className="filter-option">
@@ -4283,51 +4319,48 @@
                       );
                     })}
                   </div>
+                  {shouldTruncate && (
+                    <button className="show-more-btn" onClick={() => setExpandedGroups(prev => ({ ...prev, _vendor: !isExpanded }))}>
+                      {isExpanded ? 'Show less' : 'Show ' + hiddenCount + ' more'}
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            );
+          })()}
 
-          {/* Tag chips (Features & Room) */}
-          {tagFacets && tagFacets.length > 0 && (
+          {/* 2. Room tags (cards) */}
+          {roomTags.length > 0 && (
             <div className="filter-group">
-              <div className="filter-group-title"><span>Features & Room{hasTagFilters && <span className="filter-group-count-badge">{tagFilters.length}</span>}</span></div>
-              <div className="tag-chips">
-                {tagFacets.map(tag => (
+              <div className="filter-group-title">
+                <span>Room{roomTagActiveCount > 0 && <span className="filter-group-count-badge">{roomTagActiveCount}</span>}</span>
+              </div>
+              <div className="room-tag-grid">
+                {roomTags.map(tag => (
                   <button key={tag.slug}
-                    className={'tag-chip' + ((tagFilters || []).includes(tag.slug) ? ' active' : '')}
+                    className={'room-tag-card' + ((tagFilters || []).includes(tag.slug) ? ' active' : '')}
                     onClick={() => onTagToggle(tag.slug)}>
-                    {tag.name} <span className="filter-count">({tag.count})</span>
+                    <span className="room-tag-card-name">{tag.name}</span>
+                    <span className="room-tag-card-count">{tag.count}</span>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Price range */}
-          {priceRange && priceRange.max > 0 && (
-            <div className="filter-group">
-              <div className="filter-group-title" onClick={() => setCollapsed(prev => ({ ...prev, _price: !prev._price }))}>
-                <span>Price{hasPriceFilters && <span className="filter-group-count-badge">1</span>}</span>
-                {chevron(collapsed._price)}
-              </div>
-              {!collapsed._price && (
-                <div style={{ marginTop: '0.625rem' }}>
-                  <PriceRangeFilter priceRange={priceRange} userPriceRange={userPriceRange || { min: null, max: null }} onChange={onPriceRangeChange} />
-                </div>
-              )}
-            </div>
-          )}
+          {/* 3. Primary attribute facets (Material) */}
+          {primaryFacets.filter(g => g.slug === 'material').map(group => renderFilterGroup(group))}
 
-          {/* Color families + color facet */}
-          {colorFacet && (
-            <div className="filter-group">
-              <div className="filter-group-title" onClick={() => setCollapsed(prev => ({ ...prev, color: !isGroupCollapsed('color') }))}>
-                <span>Color{(filters.color || []).length > 0 && <span className="filter-group-count-badge">{(filters.color || []).length}</span>}</span>
-                {chevron(isGroupCollapsed('color'))}
-              </div>
-              {!isGroupCollapsed('color') && (
-                <div style={{ marginTop: '0.625rem' }}>
+          {/* 4. Color families + color facet */}
+          {colorFacet && (() => {
+            const isCol = isGroupCollapsed('color');
+            return (
+              <div className="filter-group">
+                <div className="filter-group-title" onClick={() => setCollapsed(prev => ({ ...prev, color: !isCol }))}>
+                  <span>Color{(filters.color || []).length > 0 && <span className="filter-group-count-badge">{(filters.color || []).length}</span>}</span>
+                  {chevron(!isCol)}
+                </div>
+                <div className={'filter-group-content' + (isCol ? ' collapsed' : '')}>
                   {/* Color family swatches */}
                   <div className="color-family-grid">
                     {Object.entries(COLOR_FAMILIES).map(([name, { hex }]) => {
@@ -4340,44 +4373,70 @@
                         <div key={name} className={'color-family-swatch' + (isActive ? ' active' : '')} onClick={() => handleFamilyClick(name)}>
                           <div className="color-family-circle" style={style} />
                           <span className="color-family-name">{name}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* Detailed color values with search */}
-                  {colorFacet.values.length > 15 && (
-                    <input className="filter-search-input" type="text" placeholder="Search colors..."
-                      value={filterSearch.color || ''} onChange={e => setFilterSearch(prev => ({ ...prev, color: e.target.value }))}
-                      onClick={e => e.stopPropagation()} />
-                  )}
-                  <div className="filter-values-scroll">
-                    {(filterSearch.color
-                      ? colorFacet.values.filter(v => v.value.toLowerCase().includes(filterSearch.color.toLowerCase()))
-                      : colorFacet.values
-                    ).map(v => {
-                      const checked = (filters.color || []).includes(v.value);
-                      return (
-                        <div key={v.value} className="filter-option">
-                          <input type="checkbox" id={'f-color-' + v.value.replace(/[^a-zA-Z0-9]/g, '_')} checked={checked}
-                            onChange={() => onFilterToggle('color', v.value)} />
-                          <label htmlFor={'f-color-' + v.value.replace(/[^a-zA-Z0-9]/g, '_')}>{formatCarpetValue(v.value)}</label>
-                          <span className="filter-count">({v.count})</span>
+                          <span className="color-family-count">{familyCounts[name]}</span>
                         </div>
                       );
                     })}
                   </div>
                 </div>
-              )}
+              </div>
+            );
+          })()}
+
+          {/* 5. Remaining primary facets (Finish, Size, Application) */}
+          {primaryFacets.filter(g => g.slug !== 'material').map(group => renderFilterGroup(group))}
+
+          {/* 6. Price range */}
+          {priceRange && priceRange.max > 0 && (() => {
+            const isCol = collapsed._price || false;
+            return (
+              <div className="filter-group">
+                <div className="filter-group-title" onClick={() => setCollapsed(prev => ({ ...prev, _price: !isCol }))}>
+                  <span>Price{hasPriceFilters && <span className="filter-group-count-badge">1</span>}</span>
+                  {chevron(!isCol)}
+                </div>
+                <div className={'filter-group-content' + (isCol ? ' collapsed' : '')}>
+                  <PriceRangeFilter priceRange={priceRange} userPriceRange={userPriceRange || { min: null, max: null }} onChange={onPriceRangeChange} />
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* 7. Feature tags (chips) */}
+          {featureTags.length > 0 && (
+            <div className="filter-group">
+              <div className="filter-group-title">
+                <span>Features{featureTagActiveCount > 0 && <span className="filter-group-count-badge">{featureTagActiveCount}</span>}</span>
+              </div>
+              <div className="tag-chips">
+                {featureTags.map(tag => (
+                  <button key={tag.slug}
+                    className={'tag-chip' + ((tagFilters || []).includes(tag.slug) ? ' active' : '')}
+                    onClick={() => onTagToggle(tag.slug)}>
+                    {tag.name} <span className="filter-count">({tag.count})</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Attribute facets */}
-          {sortedFacets.map(group => renderFilterGroup(group))}
+          {/* 8. "More Filters" — secondary attribute facets */}
+          {secondaryFacets.length > 0 && (
+            <div className="more-filters-divider">
+              <button className="more-filters-toggle" onClick={() => setMoreFiltersOpen(prev => !prev)}>
+                <span>More Filters</span>
+                {chevron(showMoreFilters)}
+              </button>
+              <div className={'more-filters-content' + (showMoreFilters ? ' expanded' : ' collapsed')}>
+                {secondaryFacets.map(group => renderFilterGroup(group))}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
 
-    function ActiveFilterPills({ filters, facets, onFilterToggle, onClearFilters, vendorFilters, onVendorToggle, userPriceRange, onPriceRangeChange, tagFilters, tagFacets, onTagToggle }) {
+    function ActiveFilterPills({ filters, facets, onFilterToggle, onClearFilters, vendorFilters, onVendorToggle, userPriceRange, onPriceRangeChange, tagFilters, tagFacets, onTagToggle, inline }) {
       const pills = [];
       // Vendor pills
       (vendorFilters || []).forEach(name => {
@@ -4402,6 +4461,15 @@
         });
       });
       if (pills.length === 0) return null;
+      // Inline mode: just pills, no wrapper (used in mobile drawer pills strip)
+      if (inline) {
+        return pills.map((p, i) => (
+          <div key={i} className="filter-pill" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <span>{p.label}</span>
+            <button onClick={p.onRemove}>&times;</button>
+          </div>
+        ));
+      }
       return (
         <div className="active-filters">
           <span className="active-filters-label">Refined by</span>
