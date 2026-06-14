@@ -916,18 +916,22 @@
 
     function StockBadge({ status, vendorHasInventory }) {
       if (vendorHasInventory === false && (status === 'unknown' || status === 'out_of_stock')) {
-        return React.createElement('span', {
-          className: 'stock-badge stock-badge--unknown',
-          style: { fontSize: '0.75rem' }
-        }, 'Call (714) 999-0009 for stock check');
+        return React.createElement('div', { className: 'pdp-stock-badge out-of-stock' },
+          React.createElement('span', { className: 'pdp-stock-dot' }),
+          'Call for availability'
+        );
       }
       const map = {
         in_stock: { label: 'In Stock', cls: 'in-stock' },
-        low_stock: { label: 'Low Stock', cls: 'low-stock' },
+        low_stock: { label: 'Low Stock \u2014 Order Soon', cls: 'low-stock' },
         out_of_stock: { label: 'Out of Stock', cls: 'out-of-stock' },
+        discontinued: { label: 'Discontinued', cls: 'discontinued' },
       };
-      const info = map[status] || { label: 'Check Availability', cls: 'unknown' };
-      return React.createElement('span', { className: `stock-badge stock-badge--${info.cls}` }, info.label);
+      const info = map[status] || { label: 'Check Availability', cls: 'out-of-stock' };
+      return React.createElement('div', { className: `pdp-stock-badge ${info.cls}` },
+        React.createElement('span', { className: 'pdp-stock-dot' }),
+        info.label
+      );
     }
 
     function StarDisplay({ rating, size = 16, color = '#c8a97e' }) {
@@ -1557,12 +1561,8 @@
         setTagFilters([]);
         setUserPriceRange({ min: null, max: null });
         setCurrentPage(1);
-        // Auto-select first category instead of showing "Shop All"
-        const firstCat = categories.length > 0 ? categories[0].slug : null;
-        setSelectedCategory(firstCat);
-        fetchSkus({ cat: firstCat, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
-        fetchFacets({ cat: firstCat, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
-        pushShopUrl(firstCat, null, '', {}, false, [], null, null, []);
+        setSelectedCategory(null);
+        history.pushState({ view: 'browse' }, '', '/shop');
         window.scrollTo(0, 0);
       };
 
@@ -1859,8 +1859,10 @@
           if (vf.length) setVendorFilters(vf);
           if (tf.length) setTagFilters(tf);
           if (prMin != null || prMax != null) setUserPriceRange({ min: prMin, max: prMax });
-          fetchSkus({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
-          fetchFacets({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+          if (cat || coll || q || Object.keys(af).length > 0 || vf.length > 0 || tf.length > 0) {
+            fetchSkus({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+            fetchFacets({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+          }
         } else {
           setView('home');
         }
@@ -1933,19 +1935,6 @@
         window.addEventListener('popstate', handlePop);
         return () => window.removeEventListener('popstate', handlePop);
       }, []);
-
-      // Auto-select first category on bare /shop when categories load
-      useEffect(() => {
-        if (view === 'browse' && categories.length > 0 && !selectedCategory && !selectedCollection && !searchQuery && Object.keys(filters).length === 0) {
-          const firstParent = categories[0];
-          if (firstParent && firstParent.slug) {
-            setSelectedCategory(firstParent.slug);
-            fetchSkus({ cat: firstParent.slug, coll: null, search: '', activeFilters: filters, page: 1 });
-            fetchFacets({ cat: firstParent.slug, coll: null, search: '', activeFilters: filters });
-            pushShopUrl(firstParent.slug, null, '', filters, true, [], null, null, []);
-          }
-        }
-      }, [view, categories]);
 
       // SEO updates on view change
       useEffect(() => {
@@ -2071,25 +2060,35 @@
           )}
 
           {view === 'browse' && (
-            <BrowseView
-              skus={skus} totalSkus={totalSkus} loading={loadingSkus}
-              categories={categories} selectedCategory={selectedCategory}
-              selectedCollection={selectedCollection} searchQuery={searchQuery}
-              onCategorySelect={handleCategorySelect} onSearch={handleSearch}
-              facets={facets} filters={filters}
-              onFilterToggle={handleFilterToggle} onBatchFilterSet={handleBatchFilterSet} onClearFilters={handleClearFilters}
-              sortBy={sortBy} onSortChange={handleSortChange}
-              onSkuClick={goSkuDetail}
-              currentPage={currentPage} onPageChange={handlePageChange}
-              wishlist={wishlist} toggleWishlist={toggleWishlist}
-              setQuickViewSku={setQuickViewSku}
-              filterDrawerOpen={filterDrawerOpen} setFilterDrawerOpen={setFilterDrawerOpen}
-              goHome={goHome}
-              vendorFacets={vendorFacets} vendorFilters={vendorFilters} onVendorToggle={handleVendorToggle}
-              priceRange={priceRange} userPriceRange={userPriceRange} onPriceRangeChange={handlePriceRangeChange}
-              tagFacets={tagFacets} tagFilters={tagFilters} onTagToggle={handleTagToggle}
-              didYouMean={searchDidYouMean}
-            />
+            (!selectedCategory && !selectedCollection && !searchQuery) ? (
+              <ShopLanding
+                categories={categories}
+                featuredSkus={featuredSkus} featuredLoading={featuredLoading}
+                onCategorySelect={(slug) => { handleCategorySelect(slug); setView('browse'); }}
+                onSkuClick={goSkuDetail}
+                goTrade={goTrade} navigate={navigate}
+              />
+            ) : (
+              <BrowseView
+                skus={skus} totalSkus={totalSkus} loading={loadingSkus}
+                categories={categories} selectedCategory={selectedCategory}
+                selectedCollection={selectedCollection} searchQuery={searchQuery}
+                onCategorySelect={handleCategorySelect} onSearch={handleSearch}
+                facets={facets} filters={filters}
+                onFilterToggle={handleFilterToggle} onBatchFilterSet={handleBatchFilterSet} onClearFilters={handleClearFilters}
+                sortBy={sortBy} onSortChange={handleSortChange}
+                onSkuClick={goSkuDetail}
+                currentPage={currentPage} onPageChange={handlePageChange}
+                wishlist={wishlist} toggleWishlist={toggleWishlist}
+                setQuickViewSku={setQuickViewSku}
+                filterDrawerOpen={filterDrawerOpen} setFilterDrawerOpen={setFilterDrawerOpen}
+                goHome={goHome}
+                vendorFacets={vendorFacets} vendorFilters={vendorFilters} onVendorToggle={handleVendorToggle}
+                priceRange={priceRange} userPriceRange={userPriceRange} onPriceRangeChange={handlePriceRangeChange}
+                tagFacets={tagFacets} tagFilters={tagFilters} onTagToggle={handleTagToggle}
+                didYouMean={searchDidYouMean}
+              />
+            )
           )}
 
           {view === 'detail' && selectedSkuId && (
@@ -2234,7 +2233,7 @@
           {showFloorQuiz && <FloorQuizModal onClose={() => setShowFloorQuiz(false)} onSkuClick={goSkuDetail} onViewAll={(qs) => { navigate('/shop?' + qs); }} />}
 
           <SiteFooter goHome={goHome} goBrowse={goBrowse} goCollections={goCollections} goTrade={goTrade}
-            onInstallClick={goInstallation} />
+            onInstallClick={goInstallation} navigate={navigate} />
 
           <nav className="mobile-bottom-nav">
             <button className={'mobile-bottom-nav-item' + (view === 'home' ? ' active' : '')} onClick={goHome}>
@@ -2262,7 +2261,395 @@
       );
     }
 
-    // ==================== Header (4-Row) ====================
+    // ==================== Mega Panel Data ====================
+
+    const MEGA_PANELS = {
+      services: {
+        label: 'Services',
+        columns: [
+          { title: 'Design', items: [
+            { name: 'Free In-Home Consultation', meta: 'Complimentary' },
+            { name: 'Design Services', meta: 'Custom layouts' },
+            { name: 'Room Visualizer', meta: 'See it in your space' },
+            { name: 'Sample Program', meta: 'Try before you buy' },
+          ]},
+          { title: 'Installation', items: [
+            { name: 'Professional Installation', meta: 'Licensed & insured' },
+            { name: 'Measurement & Estimate', meta: 'Free with purchase' },
+            { name: 'Demolition & Prep', meta: 'Full service' },
+            { name: 'Furniture Moving', meta: 'Available' },
+          ]},
+          { title: 'Support', items: [
+            { name: 'Financing Options', meta: '0% APR available' },
+            { name: 'Commercial Projects', meta: 'Volume pricing' },
+            { name: 'Warranty & Care', meta: 'Maintenance guides' },
+          ]},
+        ],
+        featured: { title: 'Free In-Home Consultation', meta: 'Book your complimentary design visit', image: '/uploads/homepage/consult-hero.jpg', cta: 'Book Now' },
+      },
+      materials: {
+        label: 'Materials',
+        columns: [
+          { title: 'Hard Surface', items: [
+            { name: 'Porcelain Tile', meta: '' },
+            { name: 'Ceramic Tile', meta: '' },
+            { name: 'Natural Stone', meta: '' },
+            { name: 'Hardwood', meta: '' },
+            { name: 'Laminate', meta: '' },
+            { name: 'Luxury Vinyl', meta: '' },
+          ]},
+          { title: 'Soft Surface', items: [
+            { name: 'Carpet', meta: '' },
+            { name: 'Carpet Tile', meta: '' },
+            { name: 'Area Rugs', meta: '' },
+          ]},
+          { title: 'Surfaces', items: [
+            { name: 'Countertops', meta: '' },
+            { name: 'Mosaics', meta: '' },
+            { name: 'Wall Tile', meta: '' },
+            { name: 'Outdoor & Pavers', meta: '' },
+          ]},
+        ],
+        featured: { title: 'New Porcelain Arrivals', meta: 'Explore the latest collections', image: '/uploads/homepage/porcelain-featured.jpg', cta: 'View Collection' },
+      },
+      trade: {
+        label: 'Trade',
+        columns: [
+          { title: 'Program', items: [
+            { name: 'Trade Program Overview', meta: 'Exclusive benefits', action: 'trade' },
+            { name: 'Apply for Trade', meta: 'Quick approval', action: 'trade' },
+            { name: 'Trade Dashboard', meta: 'Manage orders', action: 'trade' },
+          ]},
+          { title: 'Benefits', items: [
+            { name: 'Trade Pricing', meta: 'Up to 40% off', action: 'trade' },
+            { name: 'Bulk Ordering', meta: 'Volume discounts', action: 'trade' },
+            { name: 'Dedicated Rep', meta: 'Personal service', action: 'trade' },
+            { name: 'Net 30 Terms', meta: 'For qualified accounts', action: 'trade' },
+          ]},
+        ],
+        featured: { title: 'Trade Program', meta: 'Join 500+ design professionals', image: '/uploads/homepage/trade-hero.jpg', cta: 'Apply Now' },
+      },
+    };
+
+    // ==================== Header (2-Row Editorial) ====================
+
+    function MegaPanel({ panelId, categories, onCategorySelect, onTradeClick, navigate, shopColumns, onEnter, onClose }) {
+      if (panelId === 'shop') {
+        const colCount = Math.min(shopColumns.length, 4) + 1;
+        return (
+          <div className="mega-panel" onMouseEnter={onEnter} onMouseLeave={onClose}>
+            <div className="mega-panel-inner">
+              <div className="mega-panel-grid" style={{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }}>
+                {shopColumns.slice(0, 4).map(col => (
+                  <div key={col.title} className="mega-panel-col">
+                    <div className="mega-panel-col-title">{col.title}</div>
+                    <div className="mega-panel-items">
+                      {col.items.map(item => (
+                        <button key={item.slug} className="mega-panel-link" onClick={() => onCategorySelect(item.slug)}>
+                          {item.name}
+                          {item.count > 0 && <span className="mega-panel-link-meta">{item.count}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <div className="mega-panel-featured">
+                  <div className="mega-panel-featured-eyebrow">Featured</div>
+                  <div className="mega-panel-featured-card" onClick={() => navigate('/shop?sort=newest')}>
+                    <img src="/uploads/homepage/new-arrivals.jpg" alt="New Arrivals" loading="lazy" decoding="async" />
+                    <div className="mega-panel-featured-overlay">
+                      <div className="mega-panel-featured-title">New Arrivals</div>
+                      <div className="mega-panel-featured-meta">Latest collections</div>
+                      <div className="mega-panel-featured-cta">View &rarr;</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      const panel = MEGA_PANELS[panelId];
+      if (!panel) return null;
+      const colCount = panel.columns.length + (panel.featured ? 1 : 0);
+      return (
+        <div className="mega-panel" onMouseEnter={onEnter} onMouseLeave={onClose}>
+          <div className="mega-panel-inner">
+            <div className="mega-panel-grid" style={{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }}>
+              {panel.columns.map(col => (
+                <div key={col.title} className="mega-panel-col">
+                  <div className="mega-panel-col-title">{col.title}</div>
+                  <div className="mega-panel-items">
+                    {col.items.map(item => (
+                      <button key={item.name} className="mega-panel-link" onClick={() => {
+                        if (item.action === 'trade') { onTradeClick(); }
+                        else if (panelId === 'materials') {
+                          const slug = item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                          onCategorySelect(slug);
+                        }
+                        else { navigate('/shop'); }
+                      }}>
+                        {item.name}
+                        {item.meta && <span className="mega-panel-link-meta">{item.meta}</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {panel.featured && (
+                <div className="mega-panel-featured">
+                  <div className="mega-panel-featured-eyebrow">Featured</div>
+                  <div className="mega-panel-featured-card" onClick={() => {
+                    if (panelId === 'trade') onTradeClick();
+                    else navigate('/shop');
+                  }}>
+                    <img src={panel.featured.image} alt={panel.featured.title} loading="lazy" decoding="async" />
+                    <div className="mega-panel-featured-overlay">
+                      <div className="mega-panel-featured-title">{panel.featured.title}</div>
+                      <div className="mega-panel-featured-meta">{panel.featured.meta}</div>
+                      <div className="mega-panel-featured-cta">{panel.featured.cta} &rarr;</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function SearchPanel({ searchInput, parentCats, suggestData, suggestLoading, popularSearches, recentSearches, activeIdx, onSearch, onCategorySelect, onSkuClick, onClose, selectSuggestion, tradeCustomer, hasSuggestResults, suggestItems, navigate }) {
+      const totalProducts = suggestData.categories.reduce((s, c) => s + (c.product_count || 0), 0) + suggestData.products.length;
+      const clockIcon = React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
+        React.createElement('circle', { cx: 12, cy: 12, r: 10 }),
+        React.createElement('polyline', { points: '12 6 12 12 16 14' })
+      );
+
+      // Explore mode — no query
+      if (!searchInput) {
+        return (
+          <div className="search-panel" onMouseDown={e => e.stopPropagation()}>
+            <div className="search-panel-inner">
+              <div className="search-panel-explore">
+                {/* Col 1 — Recent searches */}
+                <div>
+                  <div className="search-panel-section-label">Recent Searches</div>
+                  {recentSearches.length > 0 ? (
+                    <>
+                      {recentSearches.slice(0, 6).map(term => (
+                        <button key={term} className="search-panel-recent-item" onClick={() => selectSuggestion({ type: 'recent', data: { term } })}>
+                          {clockIcon}
+                          <span>{term}</span>
+                        </button>
+                      ))}
+                      <button className="search-panel-clear" onClick={() => { clearRecentSearches(); }}>
+                        Clear recent
+                      </button>
+                    </>
+                  ) : (
+                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', fontStyle: 'italic', color: 'var(--stone-400)' }}>No recent searches</div>
+                  )}
+                </div>
+                {/* Col 2 — Trending this week */}
+                <div>
+                  <div className="search-panel-section-label search-panel-section-label--accent">Trending This Week</div>
+                  <div className="search-panel-pills">
+                    {popularSearches.slice(0, 12).map(term => (
+                      <button key={term} className="search-panel-pill" onClick={() => selectSuggestion({ type: 'popular', data: { term } })}>
+                        {term}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Col 3 — Browse categories */}
+                <div>
+                  <div className="search-panel-section-label">Browse Categories</div>
+                  {parentCats.slice(0, 6).map(cat => (
+                    <button key={cat.slug} className="search-panel-cat-row" onClick={() => { onClose(); onCategorySelect(cat.slug); }}>
+                      <div className="search-panel-cat-swatch">
+                        {cat.image ? <img src={optimizeImg(cat.image, 60)} alt="" decoding="async" loading="lazy" width={28} height={28} /> : null}
+                      </div>
+                      <span className="search-panel-cat-name">{cat.name}</span>
+                      <span className="search-panel-cat-meta">{cat.product_count || 0}</span>
+                    </button>
+                  ))}
+                </div>
+                {/* Col 4 — Featured promo */}
+                <div>
+                  <div className="search-panel-section-label">Featured</div>
+                  <div className="search-panel-promo" onClick={() => { onClose(); navigate('/shop?sort=newest'); }}>
+                    <img src="/uploads/homepage/new-arrivals.jpg" alt="New Arrivals" loading="lazy" decoding="async" />
+                    <div className="search-panel-promo-overlay" />
+                    <div className="search-panel-promo-text">
+                      <div className="search-panel-promo-title">New Arrivals</div>
+                      <div className="search-panel-promo-desc">Latest collections just added</div>
+                      <div className="search-panel-promo-bottom">
+                        <span className="search-panel-promo-price">From $2.49/sqft</span>
+                        <span className="search-panel-promo-cta">View &rarr;</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="search-panel-footer">
+              <div className="search-panel-footer-keys">
+                <span><span className="search-panel-kbd">&uarr;</span><span className="search-panel-kbd">&darr;</span> Navigate</span>
+                <span><span className="search-panel-kbd">&crarr;</span> Select</span>
+                <span><span className="search-panel-kbd">Esc</span> Close</span>
+              </div>
+              <span className="search-panel-footer-action" onClick={() => { onClose(); navigate('/shop'); }}>Search 2,400+ products</span>
+            </div>
+          </div>
+        );
+      }
+
+      // Results mode — has query
+      const isLoading = suggestLoading && !hasSuggestResults;
+      const isEmpty = !suggestLoading && !hasSuggestResults && searchInput.length >= 2;
+      let resultIdx = 0;
+
+      return (
+        <div className="search-panel" onMouseDown={e => e.stopPropagation()}>
+          <div className="search-panel-inner">
+            {isLoading && (
+              <div className="search-panel-results">
+                <div className="search-panel-loading">
+                  <div className="search-suggest-loading-dots"><span /><span /><span /></div>
+                </div>
+                <div />
+              </div>
+            )}
+            {isEmpty && (
+              <div className="search-panel-results">
+                <div>
+                  <div className="search-panel-empty">
+                    Nothing matches yet &mdash; try{' '}
+                    {popularSearches.slice(0, 3).map((term, i) => (
+                      <React.Fragment key={term}>
+                        {i > 0 && (i === 2 ? ', or ' : ', ')}
+                        <a onClick={() => selectSuggestion({ type: 'popular', data: { term } })}>{term}</a>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                  {suggestData.didYouMean && (
+                    <div style={{ marginTop: '1rem' }}>
+                      <div className="search-panel-section-label">Did You Mean</div>
+                      <div className="search-panel-dym-item">
+                        <button onClick={() => selectSuggestion({ type: 'popular', data: { term: suggestData.didYouMean } })}>{suggestData.didYouMean}</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div />
+              </div>
+            )}
+            {hasSuggestResults && (
+              <div className="search-panel-results">
+                {/* Left — results */}
+                <div>
+                  <div className="search-panel-section-label">
+                    {suggestData.total || totalProducts} matches for &lsquo;{searchInput}&rsquo;
+                  </div>
+                  {suggestData.categories.map(cat => {
+                    const idx = resultIdx++;
+                    return (
+                      <div key={cat.slug} className={'search-panel-result' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'category', data: cat })}>
+                        <div className="search-panel-result-img">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, padding: 10, color: 'var(--stone-400)' }}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        </div>
+                        <div>
+                          <div className="search-panel-result-name">{highlightMatch(cat.name, searchInput)}</div>
+                          <div className="search-panel-result-cat">Category</div>
+                        </div>
+                        <span className="search-panel-result-price">{cat.product_count} products</span>
+                        <span className="search-panel-result-enter">&crarr;</span>
+                      </div>
+                    );
+                  })}
+                  {suggestData.collections.map(col => {
+                    const idx = resultIdx++;
+                    return (
+                      <div key={col.name} className={'search-panel-result' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'collection', data: col })}>
+                        <div className="search-panel-result-img">
+                          {col.image ? <img src={optimizeImg(col.image, 100)} alt="" decoding="async" loading="lazy" width={44} height={44} /> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, padding: 10, color: 'var(--stone-400)' }}><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>}
+                        </div>
+                        <div>
+                          <div className="search-panel-result-name">{highlightMatch(col.name, searchInput)}</div>
+                          <div className="search-panel-result-cat">Collection</div>
+                        </div>
+                        <span className="search-panel-result-price">{col.product_count} products</span>
+                        <span className="search-panel-result-enter">&crarr;</span>
+                      </div>
+                    );
+                  })}
+                  {suggestData.products.map(sku => {
+                    const idx = resultIdx++;
+                    return (
+                      <div key={sku.sku_id} className={'search-panel-result' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'product', data: sku })}>
+                        <div className="search-panel-result-img">
+                          {sku.primary_image ? <img src={optimizeImg(sku.primary_image, 100)} alt="" decoding="async" loading="lazy" width={44} height={44} /> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, padding: 10, color: 'var(--stone-300)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>}
+                        </div>
+                        <div>
+                          <div className="search-panel-result-name">{highlightMatch(fullProductName(sku), searchInput)}</div>
+                          <div className="search-panel-result-cat">{sku.brand_name || sku.vendor_name || sku.category_name || ''}</div>
+                        </div>
+                        <span className="search-panel-result-price">${displayPrice(sku, skuListPrice(sku)).toFixed(2)}{priceSuffix(sku)}</span>
+                        <span className="search-panel-result-enter">&crarr;</span>
+                      </div>
+                    );
+                  })}
+                  <button className="search-panel-seeall" onClick={() => { const q = searchInput.trim(); if (q) { addRecentSearch(q); } onSearch(q); onClose(); }}>
+                    See all {suggestData.total || totalProducts} results &rarr;
+                  </button>
+                </div>
+                {/* Right — suggestions & scope */}
+                <div>
+                  {suggestData.didYouMean && (
+                    <div style={{ marginBottom: '2rem' }}>
+                      <div className="search-panel-section-label">Did You Mean</div>
+                      <div className="search-panel-dym-item">
+                        <button onClick={() => selectSuggestion({ type: 'popular', data: { term: suggestData.didYouMean } })}>{suggestData.didYouMean}</button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="search-panel-section-label">Also In</div>
+                  {suggestData.categories.length > 0 && (
+                    <div className="search-panel-scope-item" onClick={() => { onClose(); onSearch(searchInput); }}>
+                      <span className="search-panel-scope-name">All categories</span>
+                      <span className="search-panel-scope-meta">{suggestData.categories.length} matches</span>
+                    </div>
+                  )}
+                  {suggestData.collections.length > 0 && (
+                    <div className="search-panel-scope-item" onClick={() => { onClose(); onSearch(searchInput); }}>
+                      <span className="search-panel-scope-name">Collections</span>
+                      <span className="search-panel-scope-meta">{suggestData.collections.length} matches</span>
+                    </div>
+                  )}
+                  <div className="search-panel-scope-item" onClick={() => { onClose(); navigate('/trade'); }}>
+                    <span className="search-panel-scope-name">Trade catalog</span>
+                    <span className="search-panel-scope-meta">Trade only</span>
+                  </div>
+                  <div className="search-panel-scope-item" onClick={() => { onClose(); navigate('/design-services'); }}>
+                    <span className="search-panel-scope-name">Services</span>
+                    <span className="search-panel-scope-meta">Design &amp; install</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="search-panel-footer">
+            <div className="search-panel-footer-keys">
+              <span><span className="search-panel-kbd">&uarr;</span><span className="search-panel-kbd">&darr;</span> Navigate</span>
+              <span><span className="search-panel-kbd">&crarr;</span> Select</span>
+              <span><span className="search-panel-kbd">Esc</span> Close</span>
+            </div>
+            <span className="search-panel-footer-action" onClick={() => { onClose(); navigate('/shop'); }}>Search 2,400+ products</span>
+          </div>
+        </div>
+      );
+    }
 
     function Header({ goHome, goBrowse, cart, cartDrawerOpen, setCartDrawerOpen, cartFlash, onSearch, onSkuClick, tradeCustomer, onTradeClick, onTradeLogout, customer, onAccountClick, onCustomerLogout, wishlistCount, goWishlist, goCollections, categories, onCategorySelect, globalFacets, onAxisSelect, mobileNavOpen, setMobileNavOpen, mobileSearchOpen, setMobileSearchOpen, view, navigate, goSale }) {
       const [searchInput, setSearchInput] = useState('');
@@ -2272,14 +2659,14 @@
       const [popularSearches, setPopularSearches] = useState([]);
       const [recentSearches, setRecentSearches] = useState(() => getRecentSearches());
       const [suggestLoading, setSuggestLoading] = useState(false);
-      const [materialHover, setMaterialHover] = useState(null);
-      const [condensed, setCondensed] = useState(false);
+      const [megaOpen, setMegaOpen] = useState(null);
+      const [searchOpen, setSearchOpen] = useState(false);
       const suggestTimerRef = useRef(null);
       const abortRef = useRef(null);
       const preArrowInputRef = useRef(null);
       const searchWrapRef = useRef(null);
-      const materialTimerRef = useRef(null);
-      const lastScrollY = useRef(0);
+      const searchInputRef = useRef(null);
+      const megaTimerRef = useRef(null);
       const itemCount = cart.length;
 
       // Fetch popular searches once on mount
@@ -2287,8 +2674,28 @@
         fetch(API + '/api/storefront/search/popular').then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => setPopularSearches(d.terms || [])).catch(() => {});
       }, []);
 
-      const handleMaterialEnter = (slug) => { clearTimeout(materialTimerRef.current); setMaterialHover(slug); };
-      const handleMaterialLeave = () => { materialTimerRef.current = setTimeout(() => setMaterialHover(null), 120); };
+      // Cmd+K / Ctrl+K global shortcut to focus search
+      useEffect(() => {
+        const handler = (e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            if (searchInputRef.current) {
+              searchInputRef.current.focus();
+              setSearchOpen(true); setMegaOpen(null); clearTimeout(megaTimerRef.current);
+              if (!searchInput && (popularSearches.length > 0 || recentSearches.length > 0)) setShowSuggestions(true);
+            }
+          }
+          if (e.key === 'Escape') {
+            if (searchOpen) { setSearchOpen(false); setShowSuggestions(false); if (searchInputRef.current) searchInputRef.current.blur(); }
+            else if (megaOpen) { setMegaOpen(null); }
+          }
+        };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+      }, [searchInput, popularSearches, recentSearches, megaOpen, searchOpen]);
+
+      const openMegaPanel = (id) => { clearTimeout(megaTimerRef.current); setMegaOpen(id); setShowSuggestions(false); setSearchOpen(false); };
+      const closeMegaPanel = () => { megaTimerRef.current = setTimeout(() => setMegaOpen(null), 140); };
 
       // Build flat list of all suggest items for keyboard navigation
       const suggestItems = useMemo(() => {
@@ -2328,7 +2735,7 @@
 
       const handleSearchInput = (e) => { preArrowInputRef.current = null; setActiveIdx(-1); setSearchInput(e.target.value); fetchSuggestions(e.target.value); };
       const selectSuggestion = (item) => {
-        setShowSuggestions(false); setSearchInput(''); setSuggestData({ categories: [], collections: [], products: [], total: 0 });
+        setShowSuggestions(false); setSearchOpen(false); setSearchInput(''); setSuggestData({ categories: [], collections: [], products: [], total: 0 });
         if (item.type === 'recent' || item.type === 'popular') { addRecentSearch(item.data.term); setRecentSearches(getRecentSearches()); onSearch(item.data.term); }
         else if (item.type === 'category') { addRecentSearch(item.data.name); setRecentSearches(getRecentSearches()); onCategorySelect(item.data.slug); }
         else if (item.type === 'collection') { addRecentSearch(item.data.name); setRecentSearches(getRecentSearches()); onSearch(item.data.name); }
@@ -2345,7 +2752,10 @@
       };
       const handleSearchKeyDown = (e) => {
         const totalItems = suggestItems.length;
-        if (!showSuggestions || totalItems === 0) return;
+        if ((!showSuggestions && !searchOpen) || totalItems === 0) {
+          if (e.key === 'Escape' && searchOpen) { setSearchOpen(false); setShowSuggestions(false); }
+          return;
+        }
         if (e.key === 'ArrowDown') {
           e.preventDefault();
           if (preArrowInputRef.current === null) preArrowInputRef.current = searchInput;
@@ -2367,43 +2777,49 @@
           setTimeout(() => { const el = searchWrapRef.current && searchWrapRef.current.querySelector('.active'); if (el) el.scrollIntoView({ block: 'nearest' }); }, 0);
         }
         else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); preArrowInputRef.current = null; selectSuggestion(suggestItems[activeIdx]); }
-        else if (e.key === 'Escape') { setShowSuggestions(false); if (preArrowInputRef.current !== null) { setSearchInput(preArrowInputRef.current); preArrowInputRef.current = null; } }
+        else if (e.key === 'Escape') { setShowSuggestions(false); setSearchOpen(false); if (preArrowInputRef.current !== null) { setSearchInput(preArrowInputRef.current); preArrowInputRef.current = null; } }
       };
 
       useEffect(() => {
         const handleClickOutside = (e) => {
-          if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) setShowSuggestions(false);
+          if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) {
+            // If click is inside the search panel, don't close
+            const panel = e.target.closest('.search-panel');
+            if (!panel) { setShowSuggestions(false); setSearchOpen(false); }
+          }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
       }, []);
 
-      useEffect(() => {
-        const onScroll = () => {
-          const y = window.scrollY;
-          const delta = y - lastScrollY.current;
-          if (y > 80 && delta > 5) {
-            setCondensed(true);
-          } else if (delta < -5 || y <= 10) {
-            setCondensed(false);
-          }
-          lastScrollY.current = y;
-        };
-        window.addEventListener('scroll', onScroll, { passive: true });
-        return () => window.removeEventListener('scroll', onScroll);
-      }, []);
-
       const parentCats = categories.filter(c => !c.parent_id && c.product_count > 0);
+
+      // Build dynamic shop columns from categories
+      const shopColumns = useMemo(() => {
+        const cols = [];
+        parentCats.forEach(cat => {
+          const children = categories.filter(c => c.parent_id === cat.id);
+          cols.push({
+            title: cat.name,
+            items: children.length > 0
+              ? children.map(ch => ({ name: ch.name, slug: ch.slug, count: ch.product_count || 0 }))
+              : [{ name: 'View All', slug: cat.slug, count: cat.product_count || 0 }],
+          });
+        });
+        return cols;
+      }, [parentCats, categories]);
 
       const hasSuggestResults = suggestData.categories.length > 0 || suggestData.collections.length > 0 || suggestData.products.length > 0;
       let suggestItemIdx = 0;
 
       const searchForm = (
-        <form className="header-search" ref={searchWrapRef} onSubmit={(e) => { e.preventDefault(); const q = searchInput.trim(); if (q) { addRecentSearch(q); setRecentSearches(getRecentSearches()); onSearch(q); setShowSuggestions(false); setSearchInput(''); } }}>
+        <form className="header-search" ref={searchWrapRef} onSubmit={(e) => { e.preventDefault(); const q = searchInput.trim(); if (q) { addRecentSearch(q); setRecentSearches(getRecentSearches()); onSearch(q); setShowSuggestions(false); setSearchOpen(false); setSearchInput(''); } }}>
           <button type="submit" className="header-search-icon" tabIndex={-1} aria-label="Search">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </button>
-          <input type="text" placeholder="Search products..." value={searchInput} autoComplete="off" onChange={handleSearchInput} onKeyDown={handleSearchKeyDown} onFocus={() => {
+          <input ref={searchInputRef} type="text" placeholder="Search products..." value={searchInput} autoComplete="off" onChange={handleSearchInput} onKeyDown={handleSearchKeyDown} onFocus={() => {
+            setMegaOpen(null); clearTimeout(megaTimerRef.current);
+            setSearchOpen(true);
             if (hasSuggestResults || (!searchInput && (popularSearches.length > 0 || recentSearches.length > 0))) setShowSuggestions(true);
           }} />
           {searchInput && (
@@ -2411,171 +2827,73 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           )}
-          {showSuggestions && !searchInput && (recentSearches.length > 0 || popularSearches.length > 0) && (
-            <div className="search-suggestions">
-              {recentSearches.length > 0 && (
-                <div className="search-suggest-section">
-                  <div className="search-suggest-label">
-                    Recent Searches
-                    <button className="search-recent-clear" onClick={(e) => { e.stopPropagation(); clearRecentSearches(); setRecentSearches([]); }}>Clear</button>
-                  </div>
-                  <div className="search-suggest-popular">
-                    {recentSearches.map((term) => {
-                      const idx = suggestItemIdx++;
-                      return (
-                        <div key={term} className={'search-suggest-popular-item' + (idx === activeIdx ? ' active' : '')} onClick={() => { addRecentSearch(term); setRecentSearches(getRecentSearches()); onSearch(term); setShowSuggestions(false); setSearchInput(''); }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                          {term}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {popularSearches.length > 0 && (
-                <div className="search-suggest-section">
-                  <div className="search-suggest-label">Popular Searches</div>
-                  <div className="search-suggest-popular">
-                    {popularSearches.map((term) => {
-                      const idx = suggestItemIdx++;
-                      return (
-                        <div key={term} className={'search-suggest-popular-item' + (idx === activeIdx ? ' active' : '')} onClick={() => { addRecentSearch(term); setRecentSearches(getRecentSearches()); onSearch(term); setShowSuggestions(false); setSearchInput(''); }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                          {term}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          {showSuggestions && suggestLoading && searchInput && !hasSuggestResults && (
-            <div className="search-suggestions">
-              <div className="search-suggest-loading">
-                <div className="search-suggest-loading-dots"><span /><span /><span /></div>
-                Searching...
-              </div>
-            </div>
-          )}
-          {showSuggestions && !hasSuggestResults && !suggestLoading && searchInput && searchInput.length >= 2 && suggestData.didYouMean && (
-            <div className="search-suggestions">
-              <div className="search-suggest-section">
-                <div className="search-did-you-mean" onClick={() => { onSearch(suggestData.didYouMean); setShowSuggestions(false); setSearchInput(''); }}>
-                  Did you mean: <strong>{suggestData.didYouMean}</strong>?
-                </div>
-              </div>
-            </div>
-          )}
-          {showSuggestions && hasSuggestResults && (
-            <div className="search-suggestions">
-              {suggestData.expandedFrom && (
-                <div className="search-expanded-indicator">
-                  Showing results for <strong>{suggestData.expandedTo ? suggestData.expandedTo.split(' ').slice(0, 4).join(' ') : suggestData.expandedFrom}</strong>
-                </div>
-              )}
-              {suggestData.categories.length > 0 && (
-                <div className="search-suggest-section">
-                  <div className="search-suggest-label">Categories</div>
-                  {suggestData.categories.map(cat => {
-                    const idx = suggestItemIdx++;
-                    return (
-                      <div key={cat.slug} className={'search-suggest-item' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'category', data: cat })}>
-                        <span className="search-suggest-item-icon">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-                        </span>
-                        <span className="search-suggest-category-text">{highlightMatch(cat.name, searchInput)}</span>
-                        <span className="search-suggest-count">{cat.product_count} products</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {suggestData.collections.length > 0 && (
-                <div className="search-suggest-section">
-                  <div className="search-suggest-label">Collections</div>
-                  {suggestData.collections.map(col => {
-                    const idx = suggestItemIdx++;
-                    return (
-                      <div key={col.name} className={'search-suggest-item' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'collection', data: col })}>
-                        {col.image ? <img className="search-suggest-collection-img" onLoad={handleProductImgLoad} src={optimizeImg(col.image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} /> : <span className="search-suggest-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>}
-                        <div className="search-suggest-collection-text">
-                          <div className="search-suggest-collection-name">{highlightMatch(col.name, searchInput)}</div>
-                        </div>
-                        <span className="search-suggest-count">{col.product_count} products</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {suggestData.products.length > 0 && (
-                <div className="search-suggest-section">
-                  <div className="search-suggest-label">Products</div>
-                  {suggestData.products.map(sku => {
-                    const idx = suggestItemIdx++;
-                    return (
-                      <div key={sku.sku_id} className={'search-suggestion' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'product', data: sku })}>
-                        <div className="search-suggestion-img">{sku.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} /> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, color: 'var(--stone-300)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>}</div>
-                        <div className="search-suggestion-text">
-                          <div className="search-suggestion-name">{highlightMatch(fullProductName(sku), searchInput)}</div>
-                          {(sku.brand_name || sku.vendor_name) && <div className="search-suggestion-vendor">{sku.brand_name || sku.vendor_name}</div>}
-                          {sku.variant_name && <div className="search-suggestion-variant">{formatCarpetValue(sku.variant_name)}</div>}
-                          {tradeCustomer && sku.vendor_sku && <div className="search-suggestion-sku">SKU: {sku.vendor_sku}</div>}
-                        </div>
-                        <span className="search-suggestion-price">${displayPrice(sku, skuListPrice(sku)).toFixed(2)}{priceSuffix(sku)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="search-suggest-footer" onClick={() => { const q = searchInput.trim(); if (q) { addRecentSearch(q); setRecentSearches(getRecentSearches()); } onSearch(q); setShowSuggestions(false); setSearchInput(''); }}>
-                View all {suggestData.total} results
-              </div>
-            </div>
+          {!searchInput && !searchOpen && (
+            <span className="header-search-kbd">{navigator.platform.indexOf('Mac') > -1 ? '⌘K' : 'Ctrl+K'}</span>
           )}
         </form>
       );
 
+      const NAV_ITEMS = [
+        { id: 'shop', label: 'Shop', hasPanel: true, onClick: () => goBrowse() },
+        { id: 'services', label: 'Services', hasPanel: true, onClick: () => navigate('/design-services') },
+        { id: 'materials', label: 'Materials', hasPanel: true, onClick: () => goBrowse() },
+        { id: 'trade', label: 'Trade', hasPanel: true, onClick: () => onTradeClick() },
+        { id: 'about', label: 'About', hasPanel: false, onClick: () => navigate('/about') },
+      ];
+
       return (
-        <header className={condensed ? 'header-condensed' : ''}>
-          {/* Row 1 — Utility Bar */}
+        <header onMouseLeave={() => setMegaOpen(null)}>
+          {/* Row 1 — Warm Utility Strip */}
           <div className="utility-bar">
             <div className="utility-bar-inner">
               <div className="utility-bar-left">
+                <span>1440 S. State College Blvd</span>
+                <span className="utility-bar-dot">&bull;</span>
+                <span>Anaheim, CA</span>
+                <span className="utility-bar-dot">&bull;</span>
+                <span>Mon&ndash;Sat 9&ndash;6</span>
+              </div>
+              <div className="utility-bar-right">
                 <a href="tel:+17149990009" className="utility-bar-phone">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
                   (714) 999-0009
                 </a>
-                <span className="utility-bar-dot">&bull;</span>
-                <span>Anaheim, CA Showroom</span>
-              </div>
-              <div className="utility-bar-right">
-                <button onClick={onTradeClick}>
-                  {tradeCustomer ? `Trade: ${tradeCustomer.company_name}` : 'Trade Program'}
-                </button>
-                <span className="utility-bar-dot">&bull;</span>
-                <button onClick={onAccountClick}>
-                  {customer ? `Hi, ${customer.first_name}` : 'Sign In'}
+                <button className="utility-bar-consult" onClick={() => navigate('/design-services')}>
+                  Free in-home consult &rarr;
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Row 2 — Logo Bar (grid: 1fr auto 1fr) */}
+          {/* Row 2 — Main Bar (grid: logo | nav | actions) */}
           <div className="header-main">
             <div className="header-main-left">
               <button className="mobile-menu-btn" aria-label="Open navigation menu" onClick={() => setMobileNavOpen(true)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
               </button>
-              {searchForm}
+              <div className="logo" onClick={goHome}>
+                <span className="logo-text">R O M A <em>Flooring</em></span>
+              </div>
             </div>
-            <div className="logo" onClick={goHome}>
-              <img src="/assets/logo/roma-transparent.png" alt="Roma Flooring Designs" width="120" height="38" decoding="async" fetchPriority="high" />
-            </div>
+
+            <nav className="header-nav">
+              {NAV_ITEMS.map(item => (
+                <button
+                  key={item.id}
+                  className={'header-nav-btn' + (megaOpen === item.id ? ' active' : '')}
+                  onMouseEnter={() => { if (item.hasPanel) openMegaPanel(item.id); else { setMegaOpen(null); setSearchOpen(false); setShowSuggestions(false); } }}
+                  onClick={() => { setMegaOpen(null); setSearchOpen(false); setShowSuggestions(false); item.onClick(); }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+
             <div className="header-main-right">
               <button className="mobile-search-btn" aria-label="Search products" onClick={() => setMobileSearchOpen(true)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </button>
+              {searchForm}
               <button className="header-action-btn" onClick={onAccountClick} aria-label="Account" title={customer ? customer.first_name : 'Account'}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               </button>
@@ -2592,57 +2910,41 @@
             </div>
           </div>
 
-          {/* Row 3 — General Sections Nav */}
-          <div className="nav-row">
-            <div className="nav-row-inner">
-              <div className="nav-row-group">
-                <button className="nav-row-link" onClick={goCollections}>Collections</button>
-                <button className="nav-row-link" onClick={() => navigate('/shop?sort=newest')}>New Arrivals</button>
-                <button className="nav-row-link" onClick={goSale}>Sale</button>
-                <button className="nav-row-link" onClick={() => navigate('/shop?room=kitchen')}>Shop by Room</button>
-              </div>
-              <span className="nav-row-separator" />
-              <div className="nav-row-group">
-                <button className="nav-row-link" onClick={() => navigate('/inspiration')}>Inspiration</button>
-                <button className="nav-row-link" onClick={() => navigate('/design-services')}>Design Services</button>
-                <button className="nav-row-link" onClick={() => navigate('/installation')}>Installation</button>
-                <button className="nav-row-link" onClick={onTradeClick}>Trade</button>
-                <button className="nav-row-link" onClick={() => navigate('/about')}>About Us</button>
-              </div>
-            </div>
-          </div>
+          {megaOpen && (
+            <MegaPanel
+              panelId={megaOpen}
+              categories={categories}
+              onCategorySelect={(slug) => { setMegaOpen(null); onCategorySelect(slug); }}
+              onTradeClick={() => { setMegaOpen(null); onTradeClick(); }}
+              navigate={(path) => { setMegaOpen(null); navigate(path); }}
+              shopColumns={shopColumns}
+              onEnter={() => clearTimeout(megaTimerRef.current)}
+              onClose={closeMegaPanel}
+            />
+          )}
 
-          {/* Row 4 — Material Categories Bar */}
-          <div className="material-bar">
-            <div className="material-bar-inner">
-              {parentCats.map(cat => {
-                const children = categories.filter(c => c.parent_id === cat.id);
-                const hasChildren = children.length > 0;
-                return (
-                  <div key={cat.slug} className="material-bar-item"
-                    onMouseEnter={() => hasChildren && handleMaterialEnter(cat.slug)}
-                    onMouseLeave={handleMaterialLeave}>
-                    <button className="material-bar-link" onClick={() => onCategorySelect(cat.slug)}>
-                      {cat.name}
-                      {hasChildren && <span className="material-bar-chevron">&#9662;</span>}
-                    </button>
-                    {hasChildren && (
-                      <div className={'material-dropdown' + (materialHover === cat.slug ? ' visible' : '')}
-                        onMouseEnter={() => handleMaterialEnter(cat.slug)}
-                        onMouseLeave={handleMaterialLeave}>
-                        {children.map(child => (
-                          <a key={child.slug} href="#" onClick={e => { e.preventDefault(); onCategorySelect(child.slug); }}>{child.name}</a>
-                        ))}
-                        <a className="material-dropdown-viewall" href="#" onClick={e => { e.preventDefault(); onCategorySelect(cat.slug); }}>View All {cat.name} &rarr;</a>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          {searchOpen && !megaOpen && (
+            <SearchPanel
+              searchInput={searchInput}
+              parentCats={parentCats}
+              suggestData={suggestData}
+              suggestLoading={suggestLoading}
+              popularSearches={popularSearches}
+              recentSearches={recentSearches}
+              activeIdx={activeIdx}
+              onSearch={(q) => { setSearchOpen(false); setShowSuggestions(false); setSearchInput(''); onSearch(q); }}
+              onCategorySelect={onCategorySelect}
+              onSkuClick={onSkuClick}
+              onClose={() => { setSearchOpen(false); setShowSuggestions(false); }}
+              selectSuggestion={selectSuggestion}
+              tradeCustomer={tradeCustomer}
+              hasSuggestResults={hasSuggestResults}
+              suggestItems={suggestItems}
+              navigate={(path) => { setSearchOpen(false); setShowSuggestions(false); navigate(path); }}
+            />
+          )}
 
-          <div className={'mega-menu-scrim' + (materialHover ? ' visible' : '')} />
+          <div className={'mega-menu-scrim' + ((megaOpen || searchOpen) ? ' visible' : '')} onClick={() => { setMegaOpen(null); setSearchOpen(false); setShowSuggestions(false); }} />
         </header>
       );
     }
@@ -2797,6 +3099,15 @@
       };
 
       const currentImg = media[imgIndex] || {};
+      const catName = activeSku.category_name || '';
+      const vendorLabel = activeSku.brand_name || activeSku.vendor_name || '';
+      const effectivePrice = displayPrice(activeSku, activeSku.trade_price || activeSku.sale_price || skuListPrice(activeSku) || 0);
+      const sqftBox = parseFloat(activeSku.sqft_per_box) || 0;
+      const boxPrice = sqftBox > 0 && !isUnit ? (effectivePrice * sqftBox) : 0;
+      const allSwatches = siblings.length > 0 ? [
+        { sku_id: activeSku.sku_id, variant_name: activeSku.variant_name, primary_image: (baseMediaRef.current[0] || {}).url, _isCurrent: true },
+        ...siblings.filter(s => s.sku_id !== activeSku.sku_id)
+      ].sort((a, b) => (a.variant_name || '').localeCompare(b.variant_name || '')) : [];
 
       return (
         <div className="quick-view-overlay" onClick={onClose}>
@@ -2811,82 +3122,113 @@
             <div className="quick-view-gallery">
               <div className="quick-view-main-image">
                 {media.length > 1 && (
-                  <button className="quick-view-gallery-arrow left" disabled={imgIndex === 0} onClick={() => setImgIndex(i => i - 1)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
-                  </button>
+                  <button className="quick-view-gallery-arrow left" disabled={imgIndex === 0} onClick={() => setImgIndex(i => i - 1)}>{'\u2039'}</button>
                 )}
-                {currentImg.url && <img onLoad={handleProductImgLoad} src={optimizeImg(currentImg.url, 800)} {...optimizeSrcSet(currentImg.url, [400, 600, 800])} sizes="(max-width: 768px) 90vw, 400px" alt={activeSku.product_name} decoding="async" width={400} height={400} />}
+                {currentImg.url && <img onLoad={handleProductImgLoad} src={optimizeImg(currentImg.url, 800)} {...optimizeSrcSet(currentImg.url, [400, 600, 800])} sizes="(max-width: 768px) 90vw, 540px" alt={activeSku.product_name} decoding="async" width={540} height={540} />}
                 {media.length > 1 && (
-                  <button className="quick-view-gallery-arrow right" disabled={imgIndex >= media.length - 1} onClick={() => setImgIndex(i => i + 1)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
-                  </button>
+                  <button className="quick-view-gallery-arrow right" disabled={imgIndex >= media.length - 1} onClick={() => setImgIndex(i => i + 1)}>{'\u203A'}</button>
+                )}
+                {media.length > 1 && (
+                  <div className="quick-view-img-counter">{String(imgIndex + 1).padStart(2, '0')} / {String(media.length).padStart(2, '0')}</div>
                 )}
               </div>
               {media.length > 1 && (
-                <div className="quick-view-gallery-dots">
-                  {media.map((_, i) => (
-                    <span key={i} className={i === imgIndex ? 'active' : ''} onClick={() => setImgIndex(i)} />
-                  ))}
-                </div>
-              )}
-              {siblings.length > 0 && (
-                <div className="quick-view-variants">
-                  {[
-                    { sku_id: activeSku.sku_id, variant_name: activeSku.variant_name, primary_image: (baseMediaRef.current[0] || {}).url, _isCurrent: true },
-                    ...siblings.filter(s => s.sku_id !== activeSku.sku_id)
-                  ].sort((a, b) => (a.variant_name || '').localeCompare(b.variant_name || '')).map(sib => (
-                    <div
-                      key={sib.sku_id}
-                      className={'quick-view-variant-swatch' + (sib._isCurrent ? ' active' : '')}
-                      title={formatVariantName(sib.variant_name)}
-                      onMouseEnter={() => !sib._isCurrent && handleVariantHover(sib)}
-                      onMouseLeave={() => !sib._isCurrent && handleVariantLeave()}
-                      onClick={() => !sib._isCurrent && handleVariantClick(sib)}
-                    >
-                      {sib.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(sib.primary_image, 120)} alt={sib.variant_name} decoding="async" width={64} height={64} /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.5rem', fontWeight: 600, color: 'var(--stone-500)', textAlign: 'center', lineHeight: 1.2, padding: '2px' }}>{formatVariantName(sib.variant_name)}</div>}
+                <div className="quick-view-thumbstrip">
+                  {media.map((m, i) => (
+                    <div key={i} className={'quick-view-thumb' + (i === imgIndex ? ' active' : '')} onClick={() => setImgIndex(i)}>
+                      {m.url && <img src={optimizeImg(m.url, 160)} alt={''} decoding="async" width={80} height={72} />}
                     </div>
                   ))}
                 </div>
               )}
             </div>
             <div className="quick-view-info">
+              <div className="qv-eyebrow">
+                <span className="qv-eyebrow-cat">{catName}{vendorLabel ? ' \u00B7 ' + vendorLabel : ''}</span>
+                <span className="qv-eyebrow-stock" style={{ color: 'var(--stone-500)' }}>{isUnit ? 'Accessory' : 'Flooring'}</span>
+              </div>
               <h2>{fullProductName(activeSku)}</h2>
-              <div className="price">
-                {activeSku.trade_price && skuListPrice(activeSku) && (
-                  <span style={{ textDecoration: 'line-through', color: 'var(--stone-500)', fontSize: '1rem', marginRight: '0.5rem' }}>
-                    ${displayPrice(activeSku, skuListPrice(activeSku)).toFixed(2)}
-                  </span>
-                )}
-                {!activeSku.trade_price && activeSku.sale_price && skuListPrice(activeSku) && (
-                  <span className="sale-original-price">
-                    ${displayPrice(activeSku, skuListPrice(activeSku)).toFixed(2)}
-                  </span>
-                )}
-                <span className={!activeSku.trade_price && activeSku.sale_price ? 'sale-price-text' : ''}>
-                  ${displayPrice(activeSku, activeSku.trade_price || activeSku.sale_price || skuListPrice(activeSku) || 0).toFixed(2)}
-                </span>
-                <span>{priceSuffix(activeSku)}</span>
-                {!activeSku.trade_price && activeSku.sale_price && parseFloat(skuListPrice(activeSku)) > 0 && (
-                  <span className="sale-discount-tag">{Math.round((1 - parseFloat(activeSku.sale_price) / parseFloat(skuListPrice(activeSku))) * 100)}% off</span>
+              {activeSku.variant_name && (
+                <div className="qv-variant-label">{formatVariantName(activeSku.variant_name)}{activeSku.sku_code ? ' \u00B7 SKU ' + activeSku.sku_code : ''}</div>
+              )}
+              <div className="qv-price-block">
+                <div>
+                  <div className="qv-price-amount">
+                    {(activeSku.trade_price && skuListPrice(activeSku)) && (
+                      <span className="qv-price-original">${displayPrice(activeSku, skuListPrice(activeSku)).toFixed(2)}</span>
+                    )}
+                    {(!activeSku.trade_price && activeSku.sale_price && skuListPrice(activeSku)) && (
+                      <span className="qv-price-original">${displayPrice(activeSku, skuListPrice(activeSku)).toFixed(2)}</span>
+                    )}
+                    ${effectivePrice.toFixed(2)}
+                    <span className="qv-price-suffix">{priceSuffix(activeSku)}</span>
+                    {!activeSku.trade_price && activeSku.sale_price && parseFloat(skuListPrice(activeSku)) > 0 && (
+                      <span className="qv-sale-tag">{Math.round((1 - parseFloat(activeSku.sale_price) / parseFloat(skuListPrice(activeSku))) * 100)}% off</span>
+                    )}
+                  </div>
+                  {activeSku.trade_price && (
+                    <div className="qv-price-note">Trade pricing applied</div>
+                  )}
+                </div>
+                {sqftBox > 0 && !isUnit && (
+                  <div className="qv-price-right">
+                    Boxed at <strong>{sqftBox.toFixed(1)} sf</strong><br/>
+                    <span style={{ color: 'var(--stone-500)' }}>${boxPrice.toFixed(2)} / box</span>
+                  </div>
                 )}
               </div>
-              {activeSku.description_short && (
-                <p style={{ fontSize: '0.875rem', color: 'var(--stone-600)', lineHeight: 1.6, marginBottom: '1rem' }}>{activeSku.description_short}</p>
+
+              {allSwatches.length > 0 && (
+                <div>
+                  <div className="quick-view-variants-header">
+                    <span>Colorway &middot; {allSwatches.length} options</span>
+                    <span className="qv-current-variant">{formatVariantName(activeSku.variant_name)}</span>
+                  </div>
+                  <div className="quick-view-variants">
+                    {allSwatches.map(sib => (
+                      <div
+                        key={sib.sku_id}
+                        className={'quick-view-variant-swatch' + (sib._isCurrent ? ' active' : '')}
+                        title={formatVariantName(sib.variant_name)}
+                        onMouseEnter={() => !sib._isCurrent && handleVariantHover(sib)}
+                        onMouseLeave={() => !sib._isCurrent && handleVariantLeave()}
+                        onClick={() => !sib._isCurrent && handleVariantClick(sib)}
+                      >
+                        {sib.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(sib.primary_image, 120)} alt={sib.variant_name} decoding="async" width={44} height={44} /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 600, color: 'var(--stone-500)', textAlign: 'center', lineHeight: 1.2, padding: '2px' }}>{formatVariantName(sib.variant_name)}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
-              <div className="quick-view-actions">
-                {isUnit ? (
-                  <>
-                    <div className="unit-qty-stepper">
-                      <button onClick={() => setQty(q => Math.max(1, q - 1))}>-</button>
-                      <input type="number" value={qty} onChange={e => setQty(Math.max(1, parseInt(e.target.value) || 1))} />
-                      <button onClick={() => setQty(q => q + 1)}>+</button>
-                    </div>
-                    <button className="btn" onClick={handleAdd}>Add to Cart</button>
-                  </>
-                ) : (
-                  <p style={{ fontSize: '0.875rem', color: 'var(--stone-500)' }}>Use the coverage calculator on the detail page to add this item to your cart.</p>
-                )}
-                <button className="btn btn-secondary" onClick={() => onViewDetail(activeSku.sku_id, activeSku.product_name)}>View Full Details</button>
+
+              {activeSku.description_short && (
+                <p className="qv-description">{activeSku.description_short}</p>
+              )}
+
+              {isUnit ? (
+                <div className="quick-view-actions">
+                  <div className="qv-qty-stepper">
+                    <button onClick={() => setQty(q => Math.max(1, q - 1))}>&minus;</button>
+                    <div className="qv-qty-display">{qty}</div>
+                    <button onClick={() => setQty(q => q + 1)}>+</button>
+                  </div>
+                  <button className="qv-btn-primary" onClick={handleAdd}>Add to cart{qty > 1 ? ' \u00B7 $' + (effectivePrice * qty).toFixed(2) : ''}</button>
+                  <button className="qv-btn-secondary" onClick={() => { onViewDetail(activeSku.sku_id, activeSku.product_name); onClose(); }}>View full details</button>
+                </div>
+              ) : (
+                <div className="quick-view-actions qv-sqft-actions">
+                  <button className="qv-btn-primary" onClick={() => { onViewDetail(activeSku.sku_id, activeSku.product_name); onClose(); }}>Calculate coverage</button>
+                  <button className="qv-btn-secondary" onClick={() => { onViewDetail(activeSku.sku_id, activeSku.product_name); onClose(); }}>View full details</button>
+                </div>
+              )}
+
+              <div className="qv-footer">
+                <div className="qv-footer-links">
+                  <button className="qv-footer-link" onClick={() => { if (typeof toggleWishlist === 'function') toggleWishlist(activeSku.sku_id); }} title="Save to wishlist">
+                    <span className="qv-link-icon">{'\u2661'}</span> Save
+                  </button>
+                </div>
+                <button className="qv-detail-link" onClick={() => { onViewDetail(activeSku.sku_id, activeSku.product_name); onClose(); }}>View full details &rarr;</button>
               </div>
             </div>
             </>}
@@ -3207,221 +3549,104 @@
 
     function HomePage({ featuredSkus, featuredLoading, categories, onSkuClick, onCategorySelect, goBrowse, goTrade, navigate, wishlist, toggleWishlist, setQuickViewSku, newsletterEmail, setNewsletterEmail, newsletterSubmitted, onNewsletterSubmit, onOpenQuiz }) {
       const parentCats = categories.filter(c => !c.parent_id && c.product_count > 0);
-      const topCats = parentCats.slice(0, 6);
-      const heroRef = useRef(null);
-
-      useEffect(() => {
-        const timer = setTimeout(() => {
-          if (heroRef.current) heroRef.current.classList.add('loaded');
-        }, 100);
-        return () => clearTimeout(timer);
-      }, []);
-
-      const looks = [
-        { name: 'Modern Minimalist', slug: 'modern-minimalist', image: '/uploads/looks/modern-minimalist.jpg' },
-        { name: 'Warm Mediterranean', slug: 'warm-mediterranean', image: '/uploads/looks/warm-mediterranean.jpg' },
-        { name: 'Coastal Retreat', slug: 'coastal-retreat', image: '/uploads/looks/coastal-retreat.jpg' },
-        { name: 'Classic Elegance', slug: 'classic-elegance', image: '/uploads/looks/classic-elegance.jpg' },
-      ];
-
-      const inspoImages = [
-        { src: '/uploads/inspo/kitchen.jpg', label: 'Kitchen' },
-        { src: '/uploads/inspo/living-room.jpg', label: 'Living Room', tall: true },
-        { src: '/uploads/inspo/bathroom.jpg', label: 'Bathroom' },
-        { src: '/uploads/inspo/bedroom.jpg', label: 'Bedroom' },
-        { src: '/uploads/inspo/outdoor.jpg', label: 'Outdoor' },
-      ];
+      const cabinetImages = parentCats.slice(0, 3).map(c => c.image_url).filter(Boolean);
+      const specimens = featuredSkus.slice(0, 3);
 
       return (
         <>
-          <section className="hero" ref={heroRef}>
-            <div className="hero-bg" style={{ backgroundImage: 'url(/api/img?url=%2Fuploads%2Fhero-bg.jpg&w=1600)' }} />
-            <div className="hero-content">
-              <h1>Redefine Your Space</h1>
-              <button className="hero-cta" onClick={goBrowse}>Explore Our Floors</button>
+          {/* Hero */}
+          <section className="form-hero">
+            <div className="form-hero-inner">
+              <div className="form-eyebrow">Flooring &amp; Surfaces &middot; Anaheim, est. 1974</div>
+              <h1 className="form-hero-headline">Premium surfaces for the spaces that shape how you live</h1>
+              <button className="form-hero-cta" onClick={goBrowse}>Browse the catalog</button>
             </div>
           </section>
 
+          {/* Cabinet Feature Band */}
           <RevealSection>
-            <div className="trust-strip">
-              <div className="trust-strip-inner">
-                <div className="trust-strip-item">
-                  <div className="trust-strip-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 00-8 0v2"/></svg>
-                  </div>
-                  <div className="trust-strip-text">Free Samples<span>Try before you buy</span></div>
+            <section className="form-cabinet-band">
+              <div className="form-cabinet-inner">
+                <div className="form-cabinet-images">
+                  {cabinetImages.length > 0 ? cabinetImages.map((url, i) => (
+                    <img key={i} src={optimizeImg(url, 500)} alt="" loading="lazy" decoding="async" />
+                  )) : (
+                    <>
+                      <div style={{ background: 'var(--stone-300)' }} />
+                      <div style={{ background: 'var(--stone-300)' }} />
+                      <div style={{ background: 'var(--stone-300)' }} />
+                    </>
+                  )}
                 </div>
-                <div className="trust-strip-item">
-                  <div className="trust-strip-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/><circle cx="12" cy="12" r="5"/></svg>
+                <div className="form-cabinet-content">
+                  <div className="form-eyebrow">Custom Cabinetry</div>
+                  <h2 className="form-cabinet-headline">Cabinets, built to <em>the room</em></h2>
+                  <p className="form-cabinet-body">Every kitchen and bath is different. Our cabinetry program pairs premium materials with made-to-measure construction so nothing is compromised.</p>
+                  <div className="form-cabinet-stats">
+                    <div className="form-cabinet-stat">
+                      <div className="form-cabinet-stat-label">From</div>
+                      <div className="form-cabinet-stat-value">$189/lf</div>
+                    </div>
+                    <div className="form-cabinet-stat">
+                      <div className="form-cabinet-stat-label">Lines</div>
+                      <div className="form-cabinet-stat-value">4</div>
+                    </div>
+                    <div className="form-cabinet-stat">
+                      <div className="form-cabinet-stat-label">Lead time</div>
+                      <div className="form-cabinet-stat-value">3 wk</div>
+                    </div>
                   </div>
-                  <div className="trust-strip-text">Trade Pricing<span>Exclusive pro discounts</span></div>
-                </div>
-                <div className="trust-strip-item">
-                  <div className="trust-strip-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                  </div>
-                  <div className="trust-strip-text">Expert Guidance<span>Design consultation available</span></div>
-                </div>
-                <div className="trust-strip-item">
-                  <div className="trust-strip-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3" width="15" height="13" rx="1"/><polyline points="16 8 20 8 23 11 23 16 20 16"/><circle cx="18" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
-                  </div>
-                  <div className="trust-strip-text">Fast Shipping<span>Direct from warehouse</span></div>
+                  <button className="form-cabinet-link" onClick={() => navigate('/shop?category=cabinets')}>Explore cabinetry &rarr;</button>
                 </div>
               </div>
-            </div>
+            </section>
           </RevealSection>
 
-          {topCats.length > 0 && (
-            <RevealSection>
-              <section className="homepage-section">
-                <h2>Shop by Category</h2>
-                <p className="subtitle">Explore our curated selection of premium surfaces</p>
-                <div className="homepage-cat-grid">
-                  {topCats.map(cat => (
-                    <div key={cat.slug} className="homepage-cat-tile" onClick={() => onCategorySelect(cat.slug)}>
-                      {cat.image_url && <img onLoad={handleProductImgLoad} src={optimizeImg(cat.image_url, 400)} {...optimizeSrcSet(cat.image_url, [200, 400, 600])} sizes="(max-width: 640px) 50vw, 33vw" alt={cat.name} loading="lazy" decoding="async" />}
-                      <div className="homepage-cat-tile-overlay">
-                        <span className="homepage-cat-tile-name">{cat.name}</span>
-                        <span className="homepage-cat-tile-cta">Shop Now &rarr;</span>
+          {/* Featured This Season */}
+          <RevealSection delay={0.1}>
+            <section className="form-section">
+              <div className="form-section-header">
+                <div className="form-eyebrow">Featured This Season</div>
+                <h2 className="form-section-headline">Selected specimens</h2>
+              </div>
+              {featuredLoading ? (
+                <SkeletonGrid count={3} />
+              ) : specimens.length > 0 ? (
+                <div className="form-specimen-grid">
+                  {specimens.map((sku, i) => {
+                    const basePrice = isCarpet(sku) ? sku.cut_price : sku.retail_price;
+                    const price = sku.trade_price || sku.sale_price || basePrice;
+                    return (
+                      <div key={sku.sku_id} className="form-specimen-card" onClick={() => onSkuClick(sku.sku_id, sku.product_name)}>
+                        <div className="form-specimen-card-image">
+                          {sku.primary_image && <img src={optimizeImg(sku.primary_image, 600)} alt={sku.product_name} loading="lazy" decoding="async" />}
+                        </div>
+                        <div className="form-specimen-card-meta">No. {String(i + 1).padStart(2, '0')} &middot; {sku.category_name || 'Flooring'}</div>
+                        {price && <div className="form-specimen-card-price">${displayPrice(sku, price).toFixed(2)}{priceSuffix(sku)}</div>}
+                        <div className="form-specimen-card-name">{fullProductName(sku)}</div>
+                        <div className="form-specimen-card-desc">{sku.brand_name || sku.vendor_name}{sku.variant_name ? ' \u00B7 ' + sku.variant_name : ''}</div>
+                        <div className="form-specimen-card-cta">View in catalog &rarr;</div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              </section>
-            </RevealSection>
-          )}
-
-          <RevealSection delay={0.1}>
-            <section className="homepage-featured-band">
-              <div className="homepage-section">
-                <h2>Featured Products</h2>
-                <p className="subtitle">Our most popular floors, chosen by customers like you</p>
-                {featuredLoading ? (
-                  <SkeletonGrid count={8} />
-                ) : featuredSkus.length > 0 ? (
-                  <SkuGrid skus={featuredSkus} onSkuClick={onSkuClick} wishlist={wishlist} toggleWishlist={toggleWishlist} setQuickViewSku={setQuickViewSku} />
-                ) : (
-                  <p style={{ textAlign: 'center', color: 'var(--stone-500)', padding: '2rem 0' }}>Featured products coming soon.</p>
-                )}
-              </div>
-            </section>
-          </RevealSection>
-
-          <RevealSection delay={0.1}>
-            <section className="homepage-section">
-              <h2>Shop the Look</h2>
-              <p className="subtitle">Curated collections for every style</p>
-              <div className="looks-grid">
-                {looks.map(look => (
-                  <div key={look.slug} className="look-card" onClick={() => navigate('/shop?collection=' + look.slug)}>
-                    <img onLoad={handleProductImgLoad} src={optimizeImg(look.image, 400)} {...optimizeSrcSet(look.image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, 25vw" alt={look.name} loading="lazy" decoding="async" />
-                    <div className="look-card-overlay">
-                      <span className="look-card-name">{look.name}</span>
-                      <span className="look-card-cta">Explore &rarr;</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </RevealSection>
-
-          <RevealSection delay={0.1}>
-            <section className="homepage-section">
-              <h2>Get Inspired</h2>
-              <p className="subtitle">Real spaces, real transformations</p>
-              <div className="inspo-gallery">
-                {inspoImages.map((img, i) => (
-                  <div key={i} className={'inspo-gallery-item' + (img.tall ? ' tall' : '')} onClick={() => navigate('/shop?room=' + img.label.toLowerCase().replace(/\s+/g, '-'))}>
-                    <img onLoad={handleProductImgLoad} src={optimizeImg(img.src, 400)} {...optimizeSrcSet(img.src, [200, 400, 600])} sizes="(max-width: 640px) 50vw, 25vw" alt={img.label} loading="lazy" decoding="async" />
-                    <div className="inspo-gallery-overlay">
-                      <span className="inspo-gallery-label">{img.label}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </RevealSection>
-
-          <RevealSection delay={0.1}>
-            <div className="homepage-cta-duo">
-              <div className="cta-card cta-card-dark">
-                <div className="cta-card-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                </div>
-                <h3>Room Visualizer</h3>
-                <p>See how our floors look in your space before you buy. Upload a photo and preview any product.</p>
-                <button className="btn-outline" onClick={() => { if (window.roomvo && typeof window.roomvo.startStandaloneVisualizer === 'function') { window.roomvo.startStandaloneVisualizer(); } else { window.location.href = '/shop'; } }}>Try It Now</button>
-              </div>
-              <div className="cta-card cta-card-light">
-                <div className="cta-card-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                </div>
-                <h3>Find Your Floor</h3>
-                <p>Answer a few quick questions and we'll recommend the perfect flooring for your space and style.</p>
-                <button className="btn-outline" onClick={onOpenQuiz}>Take the Quiz</button>
-              </div>
-            </div>
-          </RevealSection>
-
-          <RevealSection delay={0.1}>
-            <section className="homepage-section">
-              <h2>How We Help</h2>
-              <p className="subtitle">From selection to installation, we're with you every step</p>
-              <div className="services-grid">
-                <div className="service-card" onClick={() => navigate('/design-services')}>
-                  <div className="service-card-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-                  </div>
-                  <h4>Design Consultation</h4>
-                  <p>Work with our team to find the perfect material and style for your project</p>
-                </div>
-                <div className="service-card" onClick={goBrowse}>
-                  <div className="service-card-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 00-8 0v2"/></svg>
-                  </div>
-                  <h4>Free Samples</h4>
-                  <p>Order up to 5 free samples and experience the quality in your own home</p>
-                </div>
-                <div className="service-card" onClick={() => navigate('/installation')}>
-                  <div className="service-card-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
-                  </div>
-                  <h4>Professional Installation</h4>
-                  <p>Licensed installers with years of experience to ensure a perfect finish</p>
-                </div>
-                <div className="service-card" onClick={goTrade}>
-                  <div className="service-card-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-                  </div>
-                  <h4>Trade Program</h4>
-                  <p>Exclusive pricing and dedicated support for contractors and designers</p>
-                </div>
-              </div>
-            </section>
-          </RevealSection>
-
-          <RevealSection delay={0.15}>
-            <section className="homepage-trade-band">
-              <h2>Trade Professional?</h2>
-              <p>Exclusive pricing, dedicated support, and tools built for the trade. Join our professional program.</p>
-              <button className="btn" onClick={goTrade}>Learn More</button>
-            </section>
-          </RevealSection>
-
-          <RevealSection delay={0.1}>
-            <section className="newsletter-band">
-              <h2>Stay in the Know</h2>
-              <p className="subtitle">New arrivals, design tips, and exclusive offers delivered to your inbox</p>
-              {newsletterSubmitted ? (
-                <p className="newsletter-success">Thank you for subscribing! Check your inbox for a welcome email.</p>
               ) : (
-                <form className="newsletter-form" onSubmit={onNewsletterSubmit}>
-                  <input type="email" placeholder="Enter your email" value={newsletterEmail} onChange={(e) => setNewsletterEmail(e.target.value)} required />
-                  <button type="submit">Subscribe</button>
-                </form>
+                <p style={{ textAlign: 'center', color: 'var(--stone-500)', padding: '2rem 0' }}>Featured products coming soon.</p>
               )}
+            </section>
+          </RevealSection>
+
+          {/* Counsel Band */}
+          <RevealSection delay={0.1}>
+            <section className="form-counsel-band">
+              <div className="form-counsel-inner">
+                <h2 className="form-counsel-headline">We send free samples anywhere in the country</h2>
+                <p className="form-counsel-body">Choose up to five materials and we will ship them to your door at no cost. Touch the grain, see the color in your own light, then decide.</p>
+                <div className="form-counsel-actions">
+                  <button className="form-counsel-btn form-counsel-btn-light" onClick={goBrowse}>Build a sample box</button>
+                  <button className="form-counsel-btn form-counsel-btn-outline" onClick={() => navigate('/about')}>Visit the showroom</button>
+                </div>
+              </div>
             </section>
           </RevealSection>
         </>
@@ -3460,6 +3685,149 @@
       );
     }
 
+    // ==================== Shop Landing ====================
+
+    function ShopLanding({ categories, featuredSkus, featuredLoading, onCategorySelect, onSkuClick, goTrade, navigate }) {
+      const parentCats = categories.filter(c => !c.parent_id && c.product_count > 0);
+      const heroCats = parentCats.slice(0, 2);
+      const gridCats = parentCats.slice(2, 6);
+      const totalProducts = categories.reduce((s, c) => s + (c.product_count || 0), 0);
+      const featured = featuredSkus.slice(0, 6);
+
+      return (
+        <>
+          {/* Shop Hero */}
+          <section className="shop-landing-hero">
+            <div className="shop-landing-hero-inner">
+              <div className="shop-landing-hero-left">
+                <div className="form-eyebrow">Roma Flooring Designs</div>
+                <h1 className="shop-landing-hero-headline">The catalog.</h1>
+              </div>
+              <div className="shop-landing-hero-right">
+                <p className="shop-landing-hero-intro">Every surface we carry has been tested, graded, and selected by our materials team. Browse by category, compare specimens side by side, and order samples shipped free.</p>
+                <div className="shop-landing-hero-actions">
+                  <button className="shop-landing-hero-btn" onClick={() => navigate('/shop?category=tile')}>Order samples</button>
+                  <button className="shop-landing-hero-link" onClick={() => navigate('/about')}>Book a showroom visit</button>
+                </div>
+                <div className="shop-landing-stat"><strong>{totalProducts.toLocaleString()}</strong> products across <strong>{parentCats.length}</strong> categories</div>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 01 — Category Mosaic */}
+          {parentCats.length > 0 && (
+            <RevealSection>
+              <section className="shop-landing-section">
+                <div className="shop-landing-section-header">
+                  <span className="shop-landing-section-num">01</span>
+                  <h2 className="shop-landing-section-title">Shop by material</h2>
+                </div>
+                <div className="shop-cat-mosaic">
+                  <div className="shop-cat-heroes">
+                    {heroCats.map(cat => (
+                      <div key={cat.slug} className="shop-cat-card shop-cat-card-hero" onClick={() => onCategorySelect(cat.slug)}>
+                        {cat.image_url && <img src={optimizeImg(cat.image_url, 600)} alt={cat.name} loading="lazy" decoding="async" />}
+                        <div className="shop-cat-card-overlay">
+                          <div className="shop-cat-card-count">{cat.product_count} products</div>
+                          <div className="shop-cat-card-name">{cat.name}</div>
+                          <div className="shop-cat-card-cta">Browse &rarr;</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="shop-cat-grid-right">
+                    {gridCats.map(cat => (
+                      <div key={cat.slug} className="shop-cat-card shop-cat-card-std" onClick={() => onCategorySelect(cat.slug)}>
+                        {cat.image_url && <img src={optimizeImg(cat.image_url, 400)} alt={cat.name} loading="lazy" decoding="async" />}
+                        <div className="shop-cat-card-overlay">
+                          <div className="shop-cat-card-count">{cat.product_count} products</div>
+                          <div className="shop-cat-card-name">{cat.name}</div>
+                          <div className="shop-cat-card-cta">Browse &rarr;</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            </RevealSection>
+          )}
+
+          {/* Section 02 — Featured Grid */}
+          <RevealSection delay={0.1}>
+            <section className="shop-landing-section">
+              <div className="shop-landing-section-header">
+                <span className="shop-landing-section-num">02</span>
+                <h2 className="shop-landing-section-title">Featured specimens</h2>
+              </div>
+              {featuredLoading ? (
+                <SkeletonGrid count={6} />
+              ) : featured.length > 0 ? (
+                <div className="shop-featured-grid">
+                  {featured.map(sku => {
+                    const basePrice = isCarpet(sku) ? sku.cut_price : sku.retail_price;
+                    const price = sku.trade_price || sku.sale_price || basePrice;
+                    return (
+                      <div key={sku.sku_id} className="shop-featured-card" onClick={() => onSkuClick(sku.sku_id, sku.product_name)}>
+                        <div className="shop-featured-card-image">
+                          {sku.primary_image && <img src={optimizeImg(sku.primary_image, 500)} alt={sku.product_name} loading="lazy" decoding="async" />}
+                        </div>
+                        <div className="shop-featured-card-cat">{sku.category_name || 'Flooring'}</div>
+                        <div className="shop-featured-card-name">{fullProductName(sku)}</div>
+                        <div className="shop-featured-card-meta">{sku.brand_name || sku.vendor_name}{sku.variant_name ? ' \u00B7 ' + sku.variant_name : ''}</div>
+                        <div className="shop-featured-card-bottom">
+                          <span className="shop-featured-card-price">{price ? '$' + displayPrice(sku, price).toFixed(2) + priceSuffix(sku) : 'Call for price'}</span>
+                          <span className="shop-featured-card-cta">View &rarr;</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p style={{ textAlign: 'center', color: 'var(--stone-500)', padding: '2rem 0' }}>Featured products coming soon.</p>
+              )}
+            </section>
+          </RevealSection>
+
+          {/* Section 03 — Trade Band */}
+          <RevealSection delay={0.1}>
+            <section className="shop-trade-band">
+              <div className="shop-trade-inner">
+                <h2 className="shop-trade-headline">Built for the trade</h2>
+                <p className="shop-trade-body">Contractors, designers, and architects get exclusive pricing, dedicated account management, and tools built for commercial projects.</p>
+                <div className="shop-trade-benefits">
+                  <div className="shop-trade-benefit">
+                    <div className="shop-trade-benefit-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/><circle cx="12" cy="12" r="5"/></svg>
+                    </div>
+                    <div className="shop-trade-benefit-label">Tiered pricing</div>
+                  </div>
+                  <div className="shop-trade-benefit">
+                    <div className="shop-trade-benefit-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3" width="15" height="13" rx="1"/><polyline points="16 8 20 8 23 11 23 16 20 16"/><circle cx="18" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+                    </div>
+                    <div className="shop-trade-benefit-label">Free shipping</div>
+                  </div>
+                  <div className="shop-trade-benefit">
+                    <div className="shop-trade-benefit-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                    </div>
+                    <div className="shop-trade-benefit-label">Dedicated rep</div>
+                  </div>
+                  <div className="shop-trade-benefit">
+                    <div className="shop-trade-benefit-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 00-8 0v2"/></svg>
+                    </div>
+                    <div className="shop-trade-benefit-label">Bulk samples</div>
+                  </div>
+                </div>
+                <button className="shop-trade-cta" onClick={goTrade}>Apply for trade access</button>
+              </div>
+            </section>
+          </RevealSection>
+        </>
+      );
+    }
+
     // ==================== Category Hero ====================
 
     function CategoryHero({ category, crumbs, searchQuery, totalSkus }) {
@@ -3473,14 +3841,39 @@
         );
       }
 
-      const bgImage = category ? (category.banner_image || category.image_url) : null;
-      const style = bgImage ? { backgroundImage: 'url(' + bgImage + ')' } : {};
+      const catName = category ? category.name : 'Shop All';
 
       return (
-        <div className="category-hero" style={style}>
-          <Breadcrumbs items={crumbs} />
-          <h1>{category ? category.name : 'Shop All'}</h1>
-          {category && category.description && <p>{category.description}</p>}
+        <div className="category-header-editorial">
+          <div className="cat-header-top">
+            <div className="cat-header-breadcrumb">
+              {crumbs.map((c, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <span className="cat-crumb-sep" />}
+                  {c.onClick
+                    ? <a onClick={c.onClick}>{c.label}</a>
+                    : <span className="cat-crumb-current">{c.label}</span>
+                  }
+                </React.Fragment>
+              ))}
+            </div>
+            <div className="cat-header-stats">
+              {totalSkus} product{totalSkus !== 1 ? 's' : ''}
+            </div>
+          </div>
+          <div className="cat-header-body">
+            <div>
+              {category && <div className="cat-header-kicker">
+                Material · {catName}
+              </div>}
+              <h1 className="cat-header-headline">{catName}</h1>
+            </div>
+            {category && category.description && (
+              <div className="cat-header-right">
+                <p className="cat-header-intro">{category.description}</p>
+              </div>
+            )}
+          </div>
         </div>
       );
     }
@@ -3573,14 +3966,14 @@
             <FacetPanel {...facetProps} />
           </div>
 
-          <div>
+          <div className="browse-content">
             {hasFilters && (
               <ActiveFilterPills filters={filters} facets={facets} onFilterToggle={onFilterToggle} onClearFilters={onClearFilters}
                 vendorFilters={vendorFilters} onVendorToggle={onVendorToggle} userPriceRange={userPriceRange} onPriceRangeChange={onPriceRangeChange}
                 tagFilters={tagFilters} tagFacets={tagFacets} onTagToggle={onTagToggle} />
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <BrowseToolbar totalSkus={totalSkus} sortBy={sortBy} onSortChange={onSortChange} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 0 }}>
+              <BrowseToolbar totalSkus={totalSkus} sortBy={sortBy} onSortChange={onSortChange} currentPage={currentPage} />
               <button className="mobile-filter-btn" onClick={() => setFilterDrawerOpen(true)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
                 Filters
@@ -3855,9 +4248,9 @@
       return (
         <div className="filter-panel">
           {/* Header + Clear All */}
-          <div style={{ paddingBottom: '0.75rem', borderBottom: '1px solid var(--stone-200)', marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--stone-900)' }}>Filters</span>
-            {hasAny && <button className="filter-clear" onClick={onClearFilters}>Clear All</button>}
+          <div className="sidebar-refine-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Refine · {totalSkus ? totalSkus + ' products' : 'All materials'}</span>
+            {hasAny && <button className="filter-clear" onClick={onClearFilters} style={{ marginBottom: 0 }}>Clear</button>}
           </div>
 
           {/* Vendor filter */}
@@ -4011,28 +4404,41 @@
       if (pills.length === 0) return null;
       return (
         <div className="active-filters">
+          <span className="active-filters-label">Refined by</span>
           {pills.map((p, i) => (
             <div key={i} className="filter-pill">
               <span>{p.label}</span>
               <button onClick={p.onRemove}>&times;</button>
             </div>
           ))}
-          <button className="filter-clear" onClick={onClearFilters}>Clear All</button>
+          <button className="filter-clear" onClick={onClearFilters}>Clear all</button>
         </div>
       );
     }
 
-    function BrowseToolbar({ totalSkus, sortBy, onSortChange }) {
+    function BrowseToolbar({ totalSkus, sortBy, onSortChange, currentPage }) {
+      const page = currentPage || 1;
+      const per = 24;
+      const startIdx = (page - 1) * per + 1;
+      const endIdx = Math.min(page * per, totalSkus);
       return (
         <div className="browse-toolbar">
-          <div className="result-count">{totalSkus} product{totalSkus !== 1 ? 's' : ''}</div>
-          <select value={sortBy} onChange={(e) => onSortChange(e.target.value)}>
-            <option value="name_asc">Name A-Z</option>
-            <option value="name_desc">Name Z-A</option>
-            <option value="price_asc">Price: Low to High</option>
-            <option value="price_desc">Price: High to Low</option>
-            <option value="newest">Newest</option>
-          </select>
+          <div className="result-count">
+            {totalSkus > 0
+              ? 'Showing ' + startIdx + '\u2013' + endIdx + ' of ' + totalSkus
+              : '0 products'
+            }
+          </div>
+          <div className="sort-group">
+            <span className="sort-label">Sort</span>
+            <select value={sortBy} onChange={(e) => onSortChange(e.target.value)}>
+              <option value="name_asc">Name A-Z</option>
+              <option value="name_desc">Name Z-A</option>
+              <option value="price_asc">Price: Low → High</option>
+              <option value="price_desc">Price: High → Low</option>
+              <option value="newest">Newest</option>
+            </select>
+          </div>
         </div>
       );
     }
@@ -4096,6 +4502,12 @@
       const basePrice = isCarpet(sku) ? sku.cut_price : sku.retail_price;
       const price = sku.trade_price || (onSale ? sku.sale_price : basePrice);
       const discountPct = onSale && parseFloat(basePrice) > 0 ? Math.round((1 - parseFloat(sku.sale_price) / parseFloat(basePrice)) * 100) : 0;
+      const catName = sku.category_name || '';
+      const variantLabel = sku.variant_name || '';
+      const vendorLabel = sku.brand_name || sku.vendor_name || '';
+      const stockStatus = sku.stock_status || 'unknown';
+      const stockLabel = stockStatus === 'in_stock' ? 'In stock' : stockStatus === 'low_stock' ? 'Low stock' : stockStatus === 'out_of_stock' ? 'Out of stock' : '';
+      const stockClass = stockStatus === 'in_stock' ? 'sku-card-stock--in' : stockStatus === 'low_stock' ? 'sku-card-stock--low' : 'sku-card-stock--out';
       return (
         <div className="sku-card" onClick={onClick} data-sku={sku.vendor_sku || sku.internal_sku}>
           <button className={'wishlist-heart' + (isWished ? ' active' : '')}
@@ -4105,38 +4517,46 @@
             </svg>
           </button>
           <div className="sku-card-image">
-            {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 400)} {...optimizeSrcSet(sku.primary_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt={sku.product_name} loading={isAboveFold ? 'eager' : 'lazy'} fetchPriority={isAboveFold ? 'high' : 'auto'} decoding={isAboveFold ? 'sync' : 'async'} width="300" height="300" />}
-            {sku.alternate_image && <img className="sku-card-alt-img" onLoad={handleProductImgLoad} src={optimizeImg(sku.alternate_image, 400)} {...optimizeSrcSet(sku.alternate_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt="" loading="lazy" decoding="async" width="300" height="300" />}
+            {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 400)} {...optimizeSrcSet(sku.primary_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt={sku.product_name} loading={isAboveFold ? 'eager' : 'lazy'} fetchPriority={isAboveFold ? 'high' : 'auto'} decoding={isAboveFold ? 'sync' : 'async'} width="300" height="280" />}
+            {sku.alternate_image && <img className="sku-card-alt-img" onLoad={handleProductImgLoad} src={optimizeImg(sku.alternate_image, 400)} {...optimizeSrcSet(sku.alternate_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt="" loading="lazy" decoding="async" width="300" height="280" />}
             {onSale && <span className="sale-badge">SALE</span>}
             {onQuickView && <button className="quick-view-btn" onClick={(e) => { e.stopPropagation(); onQuickView(); }}>Quick View</button>}
           </div>
-          <div className="sku-card-name">{fullProductName(sku)}</div>
-          {(sku.brand_name || sku.vendor_name) && <div className="sku-card-vendor">{sku.brand_name || sku.vendor_name}</div>}
-          {sku.variant_count > 1 && (
-            <div className="sku-card-options">
-              {sku.variant_count} {(sku.attributes || []).some(a => a.slug === 'color') ? 'colors' : 'options'}
+          <div className="sku-card-body">
+            <div className="sku-card-meta-row">
+              <span>{catName}</span>
+              {stockLabel && <span className={'sku-card-stock ' + stockClass}>{'\u25CF'} {stockLabel}</span>}
             </div>
-          )}
-          <div className="sku-card-price">
-            {price ? (
-              <>
-                {sku.trade_price && basePrice && (
-                  <span style={{ textDecoration: 'line-through', color: 'var(--stone-500)', fontSize: '0.875rem', marginRight: '0.5rem' }}>
-                    ${displayPrice(sku, basePrice).toFixed(2)}
-                  </span>
-                )}
-                {onSale && (
-                  <span className="sale-original-price">
-                    ${displayPrice(sku, basePrice).toFixed(2)}
-                  </span>
-                )}
-                <span className={onSale ? 'sale-price-text' : ''}>
-                  ${displayPrice(sku, price).toFixed(2)}
-                </span>
-                <span className="price-suffix">{priceSuffix(sku)}</span>
-                {onSale && discountPct > 0 && <span className="sale-discount-tag">{discountPct}% off</span>}
-              </>
-            ) : 'Call for Price & Stock'}
+            <div className="sku-card-name">{fullProductName(sku)}</div>
+            <div className="sku-card-vendor">
+              {variantLabel && vendorLabel ? variantLabel + ' \u00B7 ' + vendorLabel : vendorLabel || variantLabel}
+              {!variantLabel && !vendorLabel && sku.variant_count > 1 && (
+                sku.variant_count + ' ' + ((sku.attributes || []).some(a => a.slug === 'color') ? 'colors' : 'options')
+              )}
+            </div>
+            <div className="sku-card-price-row">
+              <div className="sku-card-price">
+                {price ? (
+                  <>
+                    {sku.trade_price && basePrice && (
+                      <span style={{ textDecoration: 'line-through', color: 'var(--stone-500)', fontSize: '0.875rem', marginRight: '0.5rem' }}>
+                        ${displayPrice(sku, basePrice).toFixed(2)}
+                      </span>
+                    )}
+                    {onSale && (
+                      <span className="sale-original-price">
+                        ${displayPrice(sku, basePrice).toFixed(2)}
+                      </span>
+                    )}
+                    <span className={onSale ? 'sale-price-text' : ''}>
+                      ${displayPrice(sku, price).toFixed(2)}
+                    </span>
+                    <span className="price-suffix">{priceSuffix(sku)}</span>
+                  </>
+                ) : 'Call for Price'}
+              </div>
+              <span className="sku-card-view-link">View →</span>
+            </div>
           </div>
         </div>
       );
@@ -4307,6 +4727,8 @@
       const retailPrice = sku ? displayPrice(sku, skuListPrice(sku)) : 0;
       const salePrice = sku && sku.sale_price ? displayPrice(sku, sku.sale_price) : null;
       const tradePrice = sku && sku.trade_price ? displayPrice(sku, sku.trade_price) : null;
+      const msrpAttr = sku && (sku.attributes || []).find(a => a.slug === 'msrp');
+      const msrpPrice = msrpAttr && parseFloat(msrpAttr.value) > 0 ? parseFloat(msrpAttr.value) : null;
       const isCarpetSku = sku && isCarpet(sku);
       const cutPrice = isCarpetSku ? parseFloat(sku.cut_price) : 0;
       const rollPrice = isCarpetSku ? parseFloat(sku.roll_price) : 0;
@@ -4631,30 +5053,35 @@
 
       return (
         <>
-          <div className="sku-detail" data-sku={sku.vendor_sku || sku.internal_sku} style={loading ? { opacity: 0.6, pointerEvents: 'none', transition: 'opacity 0.15s ease' } : { opacity: 1, transition: 'opacity 0.15s ease' }}>
-            <div className="breadcrumbs">
+          <div key={sku.sku_id} className={'sku-detail' + (images.every(img => /swatch|alternate/i.test(img.asset_type || '')) ? ' sku-detail--contain' : '')} data-sku={sku.vendor_sku || sku.internal_sku} style={loading ? { opacity: 0.6, pointerEvents: 'none', transition: 'opacity 0.15s ease' } : { animation: 'pdpFadeIn 280ms ease-out both' }}>
+            <div className="pdp-breadcrumbs">
               <a href="#" onClick={e => { e.preventDefault(); goBack(); }}>Shop</a>
-              <span>/</span>
-              {sku.category_name && <><a href="#" onClick={e => { e.preventDefault(); goBack(); }}>{sku.category_name}</a><span>/</span></>}
-              <span style={{ color: 'var(--stone-800)' }}>{fullProductName(sku)}</span>
+              <span className="pdp-crumb"></span>
+              {sku.category_name && <><a href="#" onClick={e => { e.preventDefault(); goBack(); }}>{sku.category_name}</a><span className="pdp-crumb"></span></>}
+              <span style={{ color: 'var(--stone-900)' }}>{fullProductName(sku)}</span>
             </div>
 
             <div className="sku-detail-main">
             <div className="sku-detail-gallery">
               <div className="sku-detail-image">
                 {mainImage && <img onLoad={handleProductImgLoad} src={optimizeImg(mainImage.url, 800)} {...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200])} sizes="(max-width: 768px) 100vw, 50vw" alt={sku.product_name} fetchPriority="high" decoding="async" />}
+                <span className="gallery-main-label">{sku.product_name}{sku.variant_name ? ' \u2014 ' + formatVariantName(sku.variant_name) : ''}</span>
               </div>
               {images.length > 1 && (
                 <div className="gallery-thumbs">
-                  {images.map((img, i) => (
-                    <div key={img.id} className={'gallery-thumb' + (i === selectedImage ? ' active' : '')} onClick={() => setSelectedImage(i)}>
-                      <img onLoad={handleProductImgLoad} src={optimizeImg(img.url, 120)} alt="" loading="lazy" decoding="async" width="80" height="80" onError={e => { e.target.style.display = 'none'; }} />
-                    </div>
-                  ))}
+                  {images.map((img, i) => {
+                    const viewLabels = ['Specimen', 'Close-up', 'In-room', 'Pattern', 'Detail', 'Lifestyle'];
+                    return (
+                      <div key={img.id} className={'gallery-thumb' + (i === selectedImage ? ' active' : '')} onClick={() => setSelectedImage(i)}>
+                        <img onLoad={handleProductImgLoad} src={optimizeImg(img.url, 120)} alt="" loading="lazy" decoding="async" width="80" height="80" onError={e => { e.target.style.display = 'none'; }} />
+                        <span className="gallery-thumb-label">{viewLabels[i] || 'View ' + (i + 1)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
-              {/* Specs Table — below gallery */}
+              {/* Specs — below gallery */}
               {(() => {
                 const HIDDEN_SLUGS = new Set(['price_list', 'material_class', 'style_code', 'companion_skus', 'subcategory', 'msrp', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number']);
                 const ORDER = ['_collection', '_category', '_sku', 'collection', 'species', 'color', 'color_code', 'brand', 'application', 'fiber', 'material', 'construction', 'finish', 'style', 'pattern', 'size', 'thickness', 'width', 'wear_layer', 'weight', 'weight_per_sqyd', 'roll_width', 'roll_length'];
@@ -4706,13 +5133,16 @@
                 }
                 if (sorted.length === 0) return null;
                 return (
-                  <table className="specs-table">
-                    <tbody>
-                      {sorted.map((a, i) => (
-                        <tr key={i}><td>{a.name}</td><td>{a.slug === '_sku' ? a.value : formatCarpetValue(a.value)}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div style={{ marginTop: '2.5rem' }}>
+                    <div className="pdp-section-label">Specifications</div>
+                    <table className="specs-table">
+                      <tbody>
+                        {sorted.map((a, i) => (
+                          <tr key={i}><td>{a.name}</td><td>{a.slug === '_sku' ? a.value : formatCarpetValue(a.value)}</td></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 );
               })()}
 
@@ -4720,44 +5150,60 @@
               {(sku.description_long || sku.description_short) && (() => {
                 const cleaned = cleanDescription(sku.description_long || sku.description_short, sku.brand_name || sku.vendor_name);
                 return cleaned ? (
-                  <div style={{ marginTop: '1rem', fontSize: '0.9rem', lineHeight: 1.7, color: 'var(--stone-600)' }}>
-                    {cleaned}
+                  <div className="pdp-desc-section">
+                    <div className="pdp-desc-label">About this product</div>
+                    <p className="pdp-description">{cleaned}</p>
                   </div>
                 ) : null;
               })()}
 
               {/* Spec PDF Downloads — below gallery */}
               {specPdfs.length > 0 && (
-                <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--stone-200)' }}>
+                <div className="pdp-docs-section">
+                <div className="pdp-docs-label">Documentation</div>
+                <div className="pdp-pdf-grid">
                   {specPdfs.map(pdf => (
-                    <a key={pdf.id} href={pdf.url} target="_blank" rel="noopener noreferrer"
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem',
-                        border: '1px solid var(--stone-200)', fontSize: '0.8125rem', color: 'var(--stone-800)',
-                        textDecoration: 'none', transition: 'border-color 0.2s', marginRight: '0.5rem', marginBottom: '0.5rem'
-                      }}
-                      onMouseOver={e => e.currentTarget.style.borderColor = 'var(--gold)'}
-                      onMouseOut={e => e.currentTarget.style.borderColor = 'var(--stone-200)'}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16, flexShrink: 0 }}>
+                    <a key={pdf.id} href={pdf.url} target="_blank" rel="noopener noreferrer" className="pdp-pdf-card">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}>
                         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/>
                       </svg>
-                      {pdf.alt_text || 'Spec Sheet (PDF)'}
+                      <span>
+                        {(() => { const fn = (pdf.url || '').split('/').pop().replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' '); return fn.length > 3 ? fn.replace(/\b\w/g, c => c.toUpperCase()) : 'Spec Sheet'; })()}
+                        <span className="pdp-pdf-type">PDF</span>
+                      </span>
                     </a>
                   ))}
+                </div>
                 </div>
               )}
             </div>
 
             <div className="sku-detail-info">
-              <a className="back-btn" href="#" onClick={e => { e.preventDefault(); goBack(); }}>&larr; Back to Shop</a>
-              <h1 className="sku-detail-title-row">
-                {fullProductName(sku)}
-              </h1>
-              {sku.vendor_sku && (
-                <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '0.03em', marginTop: '0.25rem' }}>
-                  SKU: {(sku.vendor_sku || '').toUpperCase()}
-                </div>
-              )}
+              {/* Category · Collection label */}
+              <div className="pdp-category-label">
+                {sku.category_name}{sku.collection && sku.collection !== sku.category_name ? ' \u00B7 ' + sku.collection : ''}
+              </div>
+
+              {/* Title row with wishlist heart */}
+              <div className="pdp-title-row">
+                <h1 className="sku-detail-title-row">
+                  {sku.product_name || fullProductName(sku)}
+                </h1>
+                <button className={'pdp-wishlist-heart' + (wishlist.includes(sku.sku_id) ? ' active' : '')} onClick={() => toggleWishlist(sku.sku_id)} aria-label={wishlist.includes(sku.sku_id) ? 'Remove from wishlist' : 'Add to wishlist'}>
+                  <svg viewBox="0 0 24 24" fill={wishlist.includes(sku.sku_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}>
+                    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+                  </svg>
+                </button>
+              </div>
+
+              {/* Variant name (italic) */}
+              {sku.variant_name && <div className="pdp-variant-name">{formatVariantName(sku.variant_name)}</div>}
+
+              {/* SKU · Vendor line */}
+              <div className="pdp-sku-line">
+                {sku.vendor_sku && <><span style={{ color: 'var(--stone-500)' }}>SKU</span> <span style={{ margin: '0 0.25rem', color: 'var(--stone-400)' }}>&middot;</span> <span className="pdp-sku-val">{(sku.vendor_sku || '').toUpperCase()}</span><span className="pdp-sku-sep"></span></>}
+                <span>{sku.vendor_name || sku.brand_name || ''}</span>
+              </div>
 
               {productTags.length > 0 && (
                 <div className="product-tag-badges">
@@ -4768,46 +5214,57 @@
               <div className="sku-detail-price">
                 {isCarpet(sku) ? (
                   <>
-                    <div>
-                      <span style={{ fontSize: '1.75rem', fontWeight: 600 }}>${parseFloat(sku.cut_price).toFixed(2)}</span>
-                      <span>/sqyd</span>
-                      <span style={{ color: 'var(--stone-500)', fontSize: '0.9375rem', marginLeft: '0.5rem' }}>
-                        (${carpetSqftPrice(sku.cut_price)}/sqft)
-                      </span>
+                    <div className="pdp-price-main">
+                      <span className="pdp-price-amount">${parseFloat(sku.cut_price).toFixed(2)}</span>
+                      <span className="pdp-price-suffix">/sqyd &middot; ${carpetSqftPrice(sku.cut_price)}/sqft</span>
+                      {tradePrice && <span className="pdp-price-badge trade">Trade</span>}
                     </div>
                     {sku.roll_price && parseFloat(sku.roll_price) < parseFloat(sku.cut_price) && (
-                      <div style={{ fontSize: '0.875rem', color: 'var(--sage)', marginTop: '0.375rem' }}>
-                        Roll Price: ${parseFloat(sku.roll_price).toFixed(2)}/sqyd (${carpetSqftPrice(sku.roll_price)}/sqft)
-                        {sku.roll_min_sqft && <span> — orders over {parseFloat(sku.roll_min_sqft).toFixed(0)} sqft</span>}
+                      <div className="pdp-price-roll-badge">
+                        Roll ${parseFloat(sku.roll_price).toFixed(2)}/sqyd{sku.roll_min_sqft ? ' \u00B7 ' + parseFloat(sku.roll_min_sqft).toFixed(0) + ' sqft min' : ''}
                       </div>
-                    )}
-                    {tradePrice && (
-                      <div style={{ fontSize: '0.8125rem', color: 'var(--gold)', marginTop: '0.25rem' }}>Trade Price ({sku.trade_tier})</div>
                     )}
                   </>
                 ) : tradePrice ? (
                   <>
-                    <span style={{ textDecoration: 'line-through', color: 'var(--stone-500)', fontSize: '1.25rem', marginRight: '0.5rem' }}>
-                      ${retailPrice.toFixed(2)}
-                    </span>
-                    ${tradePrice.toFixed(2)}
-                    <span>{priceSuffix(sku)}</span>
-                    <div style={{ fontSize: '0.8125rem', color: 'var(--gold)', marginTop: '0.25rem' }}>Trade Price ({sku.trade_tier})</div>
+                    <div className="pdp-price-main">
+                      <span className="pdp-price-amount">${tradePrice.toFixed(2)}</span>
+                      <span className="pdp-price-suffix">{priceSuffix(sku)}</span>
+                      <span className="pdp-price-strike">${retailPrice.toFixed(2)}</span>
+                      <span className="pdp-price-badge trade">Trade</span>
+                    </div>
+                    {!isPerUnit && sqftPerBox > 0 && (
+                      <div className="pdp-price-per-box">${(tradePrice * sqftPerBox).toFixed(2)} per {boxLabel} &middot; {sqftPerBox} sqft{sku.pieces_per_box ? ' \u00B7 ' + sku.pieces_per_box + ' pieces' : ''}</div>
+                    )}
                   </>
                 ) : salePrice ? (
                   <>
-                    <span className="sale-original-price" style={{ fontSize: '1.25rem' }}>
-                      ${retailPrice.toFixed(2)}
-                    </span>
-                    <span className="sale-price-text" style={{ fontSize: '1.75rem', fontWeight: 600 }}>
-                      ${salePrice.toFixed(2)}
-                    </span>
-                    <span>{priceSuffix(sku)}</span>
-                    {retailPrice > 0 && <span className="sale-discount-tag">{Math.round((1 - salePrice / retailPrice) * 100)}% off</span>}
+                    <div className="pdp-price-main">
+                      <span className="pdp-price-amount">${salePrice.toFixed(2)}</span>
+                      <span className="pdp-price-suffix">{priceSuffix(sku)}</span>
+                      <span className="pdp-price-strike">${retailPrice.toFixed(2)}</span>
+                      {retailPrice > 0 && <span className="pdp-price-badge sale">{Math.round((1 - salePrice / retailPrice) * 100)}% off</span>}
+                    </div>
+                    {!isPerUnit && sqftPerBox > 0 && (
+                      <div className="pdp-price-per-box">${(salePrice * sqftPerBox).toFixed(2)} per {boxLabel} &middot; {sqftPerBox} sqft{sku.pieces_per_box ? ' \u00B7 ' + sku.pieces_per_box + ' pieces' : ''}</div>
+                    )}
                   </>
                 ) : retailPrice > 0 ? (
-                  <>${retailPrice.toFixed(2)}<span>{priceSuffix(sku)}</span></>
-                ) : 'Call for Price & Stock'}
+                  <>
+                    <div className="pdp-price-main">
+                      {msrpPrice && msrpPrice > retailPrice && <span className="pdp-price-strike">${msrpPrice.toFixed(2)}</span>}
+                      <span className="pdp-price-amount">${retailPrice.toFixed(2)}</span>
+                      <span className="pdp-price-suffix">{priceSuffix(sku)}</span>
+                    </div>
+                    {!isPerUnit && sqftPerBox > 0 && (
+                      <div className="pdp-price-per-box">${(retailPrice * sqftPerBox).toFixed(2)} per {boxLabel} &middot; {sqftPerBox} sqft{sku.pieces_per_box ? ' \u00B7 ' + sku.pieces_per_box + ' pieces' : ''}</div>
+                    )}
+                  </>
+                ) : (
+                  <div className="pdp-price-main">
+                    <span className="pdp-price-amount" style={{ fontSize: '1.5rem' }}>Call for Price</span>
+                  </div>
+                )}
               </div>
 
               {/* Carpet Details Band */}
@@ -5564,7 +6021,7 @@
                     )}
                     {showColors && (
                       <div className="variant-selector-group">
-                        <div className="variant-selector-label">{colorLabel}</div>
+                        <div className="variant-selector-label">{colorLabel}<span>{(() => { const cur = colorItems.find(c => c.is_current); return cur ? (isRomanVariants ? romanPillLabel(cur.product_name) : (cur.color || cur.variant_name || cur.product_name)) : ''; })()}</span></div>
                         <div className="color-swatches">
                           {(isRomanVariants ? [...colorItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)) : colorItems).map(c => {
                             const label = isRomanVariants ? romanPillLabel(c.product_name) : (c.color || c.variant_name || c.product_name);
@@ -5957,18 +6414,34 @@
               {/* Packaging Info (box-based and slab products) */}
               {!isCarpetSku && sqftPerBox > 0 && (
                 <div className="packaging-info">
-                  <h4>{isSlabUnit ? 'Slab Details' : 'Packaging Details'}</h4>
-                  <div>{isSlabUnit ? 'Slab Size' : 'Coverage'}: {sqftPerBox} sqft{isSlabUnit ? '' : `/${boxLabel}`}</div>
-                  {!isSlabUnit && sku.pieces_per_box && <div>Pieces: {sku.pieces_per_box}/{boxLabel}</div>}
-                  {sku.weight_per_box_lbs && <div>Weight: {parseFloat(sku.weight_per_box_lbs).toFixed(1)} lbs</div>}
-                  {!isSlabUnit && sku.boxes_per_pallet && <div>Pallet: {sku.boxes_per_pallet} {boxLabelPlural} ({parseFloat(sku.sqft_per_pallet || (sqftPerBox * sku.boxes_per_pallet) || 0).toFixed(0)} sqft)</div>}
+                  <div className="pdp-pkg-cell">
+                    <span className="pdp-pkg-cell-label">{isSlabUnit ? 'Slab Size' : 'Coverage'}</span>
+                    <span className="pdp-pkg-cell-value">{sqftPerBox} sqft{isSlabUnit ? '' : '/' + boxLabel}</span>
+                  </div>
+                  {!isSlabUnit && sku.pieces_per_box && (
+                    <div className="pdp-pkg-cell">
+                      <span className="pdp-pkg-cell-label">Pieces</span>
+                      <span className="pdp-pkg-cell-value">{sku.pieces_per_box}/{boxLabel}</span>
+                    </div>
+                  )}
+                  {sku.weight_per_box_lbs && (
+                    <div className="pdp-pkg-cell">
+                      <span className="pdp-pkg-cell-label">Weight</span>
+                      <span className="pdp-pkg-cell-value">{parseFloat(sku.weight_per_box_lbs).toFixed(1)} lbs</span>
+                    </div>
+                  )}
+                  {!isSlabUnit && sku.boxes_per_pallet && (
+                    <div className="pdp-pkg-cell">
+                      <span className="pdp-pkg-cell-label">Pallet</span>
+                      <span className="pdp-pkg-cell-value">{sku.boxes_per_pallet} {boxLabelPlural}{sku.sqft_per_pallet ? ' (' + parseFloat(sku.sqft_per_pallet).toLocaleString() + ' sqft)' : ''}</span>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Roll Specifications (carpet products) */}
               {isCarpetSku && (rollWidthFt > 0 || rollLengthFt > 0 || sku.sqft_per_pallet || sku.weight_per_pallet_lbs) && (
                 <div className="carpet-roll-info">
-                  <h4>Roll Specifications</h4>
                   <div className="carpet-roll-info-grid">
                     {rollWidthFt > 0 && (
                       <div className="carpet-roll-info-row">
@@ -6008,24 +6481,12 @@
                       {rollWidthFt}' Wide Roll
                     </div>
                   )}
-                  <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '1rem' }}>
+                  <div className="calc-mode-tabs">
                     {rollWidthFt > 0 && (
-                      <button
-                        onClick={() => setCarpetInputMode('linear')}
-                        style={{ flex: 1, padding: '0.4375rem 0.25rem', border: '1px solid var(--stone-300)', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, background: carpetInputMode === 'linear' ? 'var(--stone-900)' : 'white', color: carpetInputMode === 'linear' ? 'white' : 'var(--stone-700)', transition: 'all 0.15s' }}>
-                        Linear Feet
-                      </button>
+                      <button className={'calc-mode-tab' + (carpetInputMode === 'linear' ? ' active' : '')} onClick={() => setCarpetInputMode('linear')}>Linear Feet</button>
                     )}
-                    <button
-                      onClick={() => setCarpetInputMode('dimensions')}
-                      style={{ flex: 1, padding: '0.4375rem 0.25rem', border: '1px solid var(--stone-300)', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, background: carpetInputMode === 'dimensions' ? 'var(--stone-900)' : 'white', color: carpetInputMode === 'dimensions' ? 'white' : 'var(--stone-700)', transition: 'all 0.15s' }}>
-                      Room Size
-                    </button>
-                    <button
-                      onClick={() => setCarpetInputMode('sqft')}
-                      style={{ flex: 1, padding: '0.4375rem 0.25rem', border: '1px solid var(--stone-300)', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, background: carpetInputMode === 'sqft' ? 'var(--stone-900)' : 'white', color: carpetInputMode === 'sqft' ? 'white' : 'var(--stone-700)', transition: 'all 0.15s' }}>
-                      Enter Sqft
-                    </button>
+                    <button className={'calc-mode-tab' + (carpetInputMode === 'dimensions' ? ' active' : '')} onClick={() => setCarpetInputMode('dimensions')}>Room Size</button>
+                    <button className={'calc-mode-tab' + (carpetInputMode === 'sqft' ? ' active' : '')} onClick={() => setCarpetInputMode('sqft')}>Enter Sqft</button>
                   </div>
                   {carpetInputMode === 'linear' ? (
                     <div className="calc-input-row">
@@ -6107,9 +6568,9 @@
                       Add {carpetSqftToRoll.toFixed(0)} more sqft for roll pricing — save ${carpetRollSavings}
                     </div>
                   )}
-                  <button className="btn" style={{ width: '100%', marginTop: '1.5rem' }}
+                  <button className="pdp-btn pdp-btn-primary" style={{ marginTop: '1.25rem' }}
                     onClick={handleAddToCart} disabled={carpetSqft <= 0}>
-                    Add to Cart {carpetSqft > 0 ? `- $${carpetSubtotal.toFixed(2)}` : ''}
+                    Add to Cart {carpetSqft > 0 ? '\u2014 $' + carpetSubtotal.toFixed(2) : ''}
                   </button>
                 </div>
               )}
@@ -6125,7 +6586,7 @@
                         value={sqftInput} onChange={(e) => setSqftInput(e.target.value)} />
                     </div>
                   </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer', marginBottom: '1rem' }}>
+                  <label className="carpet-overage-label">
                     <input type="checkbox" checked={includeOverage} onChange={(e) => setIncludeOverage(e.target.checked)} />
                     Add 10% overage for cuts &amp; breakage
                   </label>
@@ -6136,9 +6597,9 @@
                       <div className="calc-summary-total"><span>Subtotal</span><span>${sqftCalcSubtotal.toFixed(2)}</span></div>
                     </div>
                   )}
-                  <button className="btn" style={{ width: '100%', marginTop: '1.5rem' }}
+                  <button className="pdp-btn pdp-btn-primary" style={{ marginTop: '1.25rem' }}
                     onClick={handleAddToCart} disabled={sqftCalcAmount <= 0}>
-                    Add to Cart {sqftCalcAmount > 0 ? `- $${sqftCalcSubtotal.toFixed(2)}` : ''}
+                    Add to Cart {sqftCalcAmount > 0 ? '\u2014 $' + sqftCalcSubtotal.toFixed(2) : ''}
                   </button>
                 </div>
               )}
@@ -6159,23 +6620,23 @@
                         value={boxesInput} onChange={(e) => handleBoxesChange(e.target.value)} />
                     </div>
                   </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer', marginBottom: '1rem' }}>
+                  <label className="carpet-overage-label">
                     <input type="checkbox" checked={includeOverage} onChange={(e) => setIncludeOverage(e.target.checked)} />
                     Add 10% overage for cuts &amp; breakage
                   </label>
                   {numBoxes > 0 && (
                     <div className="calc-summary">
-                      <div className="calc-summary-row"><span>{isSheetUnit ? 'Sheets' : 'Boxes'} Needed</span><span>{numBoxes}</span></div>
-                      <div className="calc-summary-row"><span>Total Coverage</span><span>{actualSqft.toFixed(1)} sqft</span></div>
+                      <div className="calc-summary-row"><span>{isSheetUnit ? 'Sheets' : 'Boxes'}</span><span>{numBoxes}</span></div>
+                      <div className="calc-summary-row"><span>Coverage</span><span>{actualSqft.toFixed(1)} sqft</span></div>
                       {numBoxes > 0 && sku.weight_per_box_lbs && (
                         <div className="calc-summary-row"><span>Est. Weight</span><span>{(numBoxes * parseFloat(sku.weight_per_box_lbs)).toFixed(0)} lbs</span></div>
                       )}
                       <div className="calc-summary-total"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
                     </div>
                   )}
-                  <button className="btn" style={{ width: '100%', marginTop: '1.5rem' }}
+                  <button className="pdp-btn pdp-btn-primary" style={{ marginTop: '1.25rem' }}
                     onClick={handleAddToCart} disabled={numBoxes <= 0}>
-                    Add to Cart {numBoxes > 0 ? `- $${subtotal.toFixed(2)}` : ''}
+                    Add to Cart {numBoxes > 0 ? '\u2014 $' + subtotal.toFixed(2) : ''}
                   </button>
                 </div>
               )}
@@ -6185,25 +6646,13 @@
                 <div className="calculator-widget">
                   <h3>Roll Calculator</h3>
                   <div className="carpet-roll-width-header">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 20, height: 20 }}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16 }}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
                     {sheetRollWidthFt}' Wide Roll
                   </div>
-                  <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '1rem' }}>
-                    <button
-                      onClick={() => setCarpetInputMode('linear')}
-                      style={{ flex: 1, padding: '0.4375rem 0.25rem', border: '1px solid var(--stone-300)', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, background: carpetInputMode === 'linear' ? 'var(--stone-900)' : 'white', color: carpetInputMode === 'linear' ? 'white' : 'var(--stone-700)', transition: 'all 0.15s' }}>
-                      Linear Feet
-                    </button>
-                    <button
-                      onClick={() => setCarpetInputMode('dimensions')}
-                      style={{ flex: 1, padding: '0.4375rem 0.25rem', border: '1px solid var(--stone-300)', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, background: carpetInputMode === 'dimensions' ? 'var(--stone-900)' : 'white', color: carpetInputMode === 'dimensions' ? 'white' : 'var(--stone-700)', transition: 'all 0.15s' }}>
-                      Room Size
-                    </button>
-                    <button
-                      onClick={() => setCarpetInputMode('sqft')}
-                      style={{ flex: 1, padding: '0.4375rem 0.25rem', border: '1px solid var(--stone-300)', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, background: carpetInputMode === 'sqft' ? 'var(--stone-900)' : 'white', color: carpetInputMode === 'sqft' ? 'white' : 'var(--stone-700)', transition: 'all 0.15s' }}>
-                      Enter Sqft
-                    </button>
+                  <div className="calc-mode-tabs">
+                    <button className={'calc-mode-tab' + (carpetInputMode === 'linear' ? ' active' : '')} onClick={() => setCarpetInputMode('linear')}>Linear Feet</button>
+                    <button className={'calc-mode-tab' + (carpetInputMode === 'dimensions' ? ' active' : '')} onClick={() => setCarpetInputMode('dimensions')}>Room Size</button>
+                    <button className={'calc-mode-tab' + (carpetInputMode === 'sqft' ? ' active' : '')} onClick={() => setCarpetInputMode('sqft')}>Enter Sqft</button>
                   </div>
                   {sheetMode === 'linear' ? (
                     <div className="calc-input-row">
@@ -6269,9 +6718,9 @@
                       <div className="calc-summary-total"><span>Subtotal</span><span>${sheetSubtotal.toFixed(2)}</span></div>
                     </div>
                   )}
-                  <button className="btn" style={{ width: '100%', marginTop: '1.5rem' }}
+                  <button className="pdp-btn pdp-btn-primary" style={{ marginTop: '1.25rem' }}
                     onClick={handleAddToCart} disabled={sheetSqft <= 0}>
-                    Add to Cart {sheetSqft > 0 ? `- $${sheetSubtotal.toFixed(2)}` : ''}
+                    Add to Cart {sheetSqft > 0 ? '\u2014 $' + sheetSubtotal.toFixed(2) : ''}
                   </button>
                 </div>
               )}
@@ -6279,13 +6728,13 @@
               {/* Per-unit inquiry (slabs missing size, or no pricing) */}
               {isPerUnit && (slabMissingSize || effectivePrice <= 0) && (
                 <div className="unit-add-to-cart">
-                  <div style={{ background: 'var(--stone-50, #fafaf9)', border: '1px solid var(--stone-200, #e7e5e4)', borderRadius: 8, padding: '1.25rem', textAlign: 'center' }}>
-                    <p style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '0.95rem', color: 'var(--stone-800, #292524)' }}>Slab — Please Inquire</p>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--stone-600, #57534e)', lineHeight: 1.5 }}>
-                      Contact us to confirm slab dimensions and availability before ordering.
+                  <div style={{ background: 'var(--stone-50)', border: '0.5px solid rgba(21,18,15,0.07)', borderRadius: 4, padding: '1.5rem', textAlign: 'center' }}>
+                    <p style={{ margin: '0 0 0.375rem', fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 300, color: 'var(--stone-900)' }}>Slab — Please Inquire</p>
+                    <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--stone-500)', lineHeight: 1.5 }}>
+                      Contact us to confirm slab dimensions and availability.
                     </p>
-                    <a href="tel:7149990009" className="btn" style={{ width: '100%', marginTop: '1rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                    <a href="tel:7149990009" className="pdp-btn pdp-btn-ghost" style={{ marginTop: '1rem', textDecoration: 'none' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16 }}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
                       Call (714) 999-0009
                     </a>
                   </div>
@@ -6302,33 +6751,33 @@
                       <button onClick={() => setUnitQty(q => q + 1)}>+</button>
                     </div>
                   </div>
-                  <button className="btn" style={{ width: '100%' }}
+                  <button className="pdp-btn pdp-btn-primary"
                     onClick={handleAddToCart} disabled={unitQty <= 0}>
-                    {effectivePrice > 0 ? `Add to Cart — $${unitSubtotal.toFixed(2)}` : 'Add to Cart'}
+                    {effectivePrice > 0 ? 'Add to Cart \u2014 $' + unitSubtotal.toFixed(2) : 'Add to Cart'}
                   </button>
                 </div>
               )}
 
               {/* Call for Price & Stock — shown when no pricing is available */}
               {!isCarpetSku && !isPerUnit && !isSoldPerSqft && (effectivePrice <= 0 || (sqftPerBox <= 0 && !isSheetVinyl)) && (
-                <div style={{ background: 'var(--stone-50, #fafaf9)', border: '1px solid var(--stone-200, #e7e5e4)', borderRadius: 8, padding: '1.25rem', textAlign: 'center' }}>
-                  <p style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '0.95rem', color: 'var(--stone-800, #292524)' }}>Call for Price &amp; Stock</p>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--stone-600, #57534e)', lineHeight: 1.5 }}>
+                <div style={{ background: 'var(--stone-50)', border: '0.5px solid rgba(21,18,15,0.07)', borderRadius: 4, padding: '1.5rem', textAlign: 'center' }}>
+                  <p style={{ margin: '0 0 0.375rem', fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 300, color: 'var(--stone-900)' }}>Call for Price &amp; Stock</p>
+                  <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--stone-500)', lineHeight: 1.5 }}>
                     Contact us for current pricing, stock availability, and lead times.
                   </p>
-                  <a href="tel:7149990009" className="btn" style={{ width: '100%', marginTop: '1rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                  <a href="tel:7149990009" className="pdp-btn pdp-btn-ghost" style={{ marginTop: '1rem', textDecoration: 'none' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16 }}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
                     Call (714) 999-0009
                   </a>
                 </div>
               )}
 
               {/* Visualize in Your Room — Roomvo enables this button automatically when the SKU is recognized */}
-              <button className="btn roomvo-visualize-btn"
+              <button className="pdp-btn pdp-btn-ghost roomvo-visualize-btn"
                 ref={el => { try { if (el && window.roomvo) window.roomvo.enableButtonForVisualization(el); } catch(e) {} }}
                 data-sku={sku.vendor_sku || sku.internal_sku}
-                style={{ width: '100%', marginBottom: '1rem', padding: '1.125rem 2rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.625rem', visibility: 'hidden' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 22, height: 22 }}>
+                style={{ visibility: 'hidden' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}>
                   <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
                   <polyline points="9 22 9 12 15 12 15 22"/>
                 </svg>
@@ -6336,25 +6785,18 @@
               </button>
 
               {/* Sample CTA */}
-              <button className="btn btn-secondary" style={{ width: '100%', marginBottom: '1rem' }} onClick={handleRequestSample}>
+              <button className="pdp-btn pdp-btn-ghost" onClick={handleRequestSample}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16 }}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
                 Request Free Sample
               </button>
 
-              {/* Wishlist */}
-              {sku && (
-                <button className="btn btn-secondary" style={{ width: '100%', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                  onClick={() => toggleWishlist(sku.sku_id)}>
-                  <svg viewBox="0 0 24 24" fill={wishlist.includes(sku.sku_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18, color: wishlist.includes(sku.sku_id) ? '#e11d48' : 'currentColor' }}>
-                    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
-                  </svg>
-                  {wishlist.includes(sku.sku_id) ? 'Saved to Wishlist' : 'Add to Wishlist'}
-                </button>
-              )}
-
               {/* Installation CTA */}
               <div className="install-cta">
-                <p>Need professional installation?</p>
-                <button className="btn btn-secondary" onClick={() => onRequestInstall(sku)}>Request Installation Quote</button>
+                <div className="install-cta-text">
+                  <div className="install-cta-title">Need professional installation?</div>
+                  <div className="install-cta-sub">Free estimates &middot; Licensed &amp; insured installers</div>
+                </div>
+                <button className="pdp-btn pdp-btn-primary" onClick={() => onRequestInstall(sku)}>Get Quote</button>
               </div>
 
             </div>
@@ -6370,10 +6812,13 @@
               });
               return (
                 <div className="siblings-section">
-                  <h2>Complete the Look</h2>
+                  <div className="siblings-section-header">
+                    <div className="siblings-section-eyebrow">02 &mdash; Complete the Look</div>
+                    <h2>Companion Products</h2>
+                  </div>
                   {Object.entries(byCategory).map(([catName, items]) => (
                     <div key={catName} style={{ marginBottom: '1.5rem' }}>
-                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>{catName}</div>
+                      <div className="sibling-card-meta" style={{ marginBottom: '0.75rem', fontSize: '0.6875rem' }}>{catName}</div>
                       <div className="siblings-strip">
                         {items.map(s => (
                           <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
@@ -6394,26 +6839,35 @@
             {/* Same Product Siblings (non-accessory) — hidden for ADEX (brochure catalog below covers it) */}
             {!isAdexProduct && mainSiblings.length > 0 && (
               <div className="siblings-section">
-                <h2>Other Sizes &amp; Finishes</h2>
+                <div className="siblings-section-header">
+                  <div className="siblings-section-eyebrow">03 &mdash; Variants</div>
+                  <h2>Other Sizes &amp; Finishes</h2>
+                  <div className="siblings-section-sub">Same species, same finish &mdash; different plank dimensions and price points.</div>
+                </div>
                 <div className="siblings-strip">
-                  {mainSiblings.map(s => (
-                    <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
-                      <div className="sibling-card-image">
-                        {s.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 400)} alt={formatVariantName(s.variant_name)} loading="lazy" decoding="async" />}
+                  {mainSiblings.map(s => {
+                    const isCurrent = s.sku_id === skuId;
+                    return (
+                      <div key={s.sku_id} className={'sibling-card' + (isCurrent ? ' is-current' : '')} onClick={() => !isCurrent && onSkuClick(s.sku_id)}>
+                        <div className="sibling-card-image">
+                          {s.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 400)} alt={formatVariantName(s.variant_name)} loading="lazy" decoding="async" />}
+                        </div>
+                        <div className="sibling-card-name">{formatCarpetValue(s.variant_name) || 'Variant'}</div>
+                        {s.attributes && s.attributes.length > 0 && (() => {
+                          const SKIP = new Set(['price_list', 'material_class', 'style_code', 'subcategory', 'upc', 'color', 'color_code', 'collection', 'material']);
+                          const useful = s.attributes.filter(a => !SKIP.has(a.slug));
+                          const currentVals = (sku.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
+                          const differing = useful.filter(a => currentVals[a.slug] !== a.value);
+                          if (differing.length === 0) return null;
+                          return <div className="sibling-card-meta">{differing.map(a => formatCarpetValue(a.value)).join(' \u00B7 ')}</div>;
+                        })()}
+                        <div className="sibling-card-footer">
+                          {skuListPrice(s) && <span className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</span>}
+                          <span className="sibling-card-cta">{isCurrent ? 'Current' : 'View \u2192'}</span>
+                        </div>
                       </div>
-                      <div className="sibling-card-name">{formatCarpetValue(s.variant_name) || 'Variant'}</div>
-                      {s.attributes && s.attributes.length > 0 && (() => {
-                        const SKIP = new Set(['price_list', 'material_class', 'style_code', 'subcategory', 'upc', 'color', 'color_code', 'collection', 'material']);
-                        const useful = s.attributes.filter(a => !SKIP.has(a.slug));
-                        // Only show attrs that differ from the current SKU
-                        const currentVals = (sku.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
-                        const differing = useful.filter(a => currentVals[a.slug] !== a.value);
-                        if (differing.length === 0) return null;
-                        return <div className="sibling-card-meta">{differing.map(a => formatCarpetValue(a.value)).join(' \u00B7 ')}</div>;
-                      })()}
-                      {skuListPrice(s) && <div className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</div>}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -6426,17 +6880,26 @@
               if (collectionSiblings.length === 0) return null;
               return (
                 <div className="siblings-section">
-                  <h2>More from {sku.collection}</h2>
+                  <div className="siblings-section-header">
+                    <div className="siblings-section-eyebrow">04 &mdash; Collection</div>
+                    <h2>More from <em>{sku.collection}</em></h2>
+                  </div>
                   <div className="siblings-strip">
-                    {collectionSiblings.map(s => (
-                      <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
-                        <div className="sibling-card-image">
-                          {s.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
+                    {collectionSiblings.map(s => {
+                      const isCurrent = s.sku_id === skuId;
+                      return (
+                        <div key={s.sku_id} className={'sibling-card' + (isCurrent ? ' is-current' : '')} onClick={() => !isCurrent && onSkuClick(s.sku_id)}>
+                          <div className="sibling-card-image">
+                            {s.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
+                          </div>
+                          <div className="sibling-card-name">{fullProductName(s)}</div>
+                          <div className="sibling-card-footer">
+                            {skuListPrice(s) && <span className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</span>}
+                            <span className="sibling-card-cta">{isCurrent ? 'Current' : 'View \u2192'}</span>
+                          </div>
                         </div>
-                        <div className="sibling-card-name">{fullProductName(s)}</div>
-                        {skuListPrice(s) && <div className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</div>}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -6444,7 +6907,15 @@
 
             {recentlyViewed && recentlyViewed.filter(r => r.sku_id !== skuId).length > 0 && (
               <div className="siblings-section">
-                <h2>Recently Viewed</h2>
+                <div className="siblings-section-header">
+                  <div className="siblings-section-header-row">
+                    <div>
+                      <div className="siblings-section-eyebrow">05 &mdash; Recently Viewed</div>
+                      <h2>Recently Viewed</h2>
+                    </div>
+                    <span className="siblings-section-aside">Saved on this device</span>
+                  </div>
+                </div>
                 <div className="siblings-strip">
                   {recentlyViewed.filter(r => r.sku_id !== skuId).slice(0, 8).map(s => (
                     <div key={s.sku_id} className="sibling-card" onClick={() => onSkuClick(s.sku_id)}>
@@ -6452,7 +6923,10 @@
                         {s.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 400)} alt={s.product_name} loading="lazy" decoding="async" />}
                       </div>
                       <div className="sibling-card-name">{fullProductName(s)}</div>
-                      {skuListPrice(s) && <div className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</div>}
+                      <div className="sibling-card-footer">
+                        {skuListPrice(s) && <span className="sibling-card-price">${displayPrice(s, skuListPrice(s)).toFixed(2)}{priceSuffix(s)}</span>}
+                        <span className="sibling-card-cta">View &#8594;</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -6461,52 +6935,109 @@
 
             {/* Customer Reviews */}
             <div className="reviews-section">
-              <h2>Customer Reviews</h2>
-              {reviewCount > 0 && (
-                <div className="reviews-summary">
-                  <div className="reviews-summary-rating">{avgRating.toFixed(1)}</div>
-                  <div className="reviews-summary-stars"><StarDisplay rating={avgRating} size={20} /></div>
-                  <div className="reviews-summary-count">{reviewCount} review{reviewCount !== 1 ? 's' : ''}</div>
+              <div className="siblings-section-header">
+                <div className="siblings-section-eyebrow">06 &mdash; Reviews</div>
+                <h2>Customer Reviews</h2>
+              </div>
+              <div className="reviews-grid">
+                {/* Left — rating summary + histogram */}
+                <div className="reviews-sidebar">
+                  {reviewCount > 0 ? (
+                    <>
+                      <div className="reviews-sidebar-rating">{avgRating.toFixed(1)}<span>/5</span></div>
+                      <div className="reviews-sidebar-stars"><StarDisplay rating={avgRating} size={18} /></div>
+                      <div className="reviews-sidebar-count">{reviewCount} verified review{reviewCount !== 1 ? 's' : ''}</div>
+                      <div className="reviews-dist">
+                        {[5,4,3,2,1].map(star => {
+                          const count = reviews.filter(r => Math.round(r.rating) === star).length;
+                          const pct = reviewCount > 0 ? Math.round((count / reviewCount) * 100) : 0;
+                          return (
+                            <div key={star} className="reviews-dist-row">
+                              <span className="reviews-dist-label">{star}&#9733;</span>
+                              <div className="reviews-dist-bar"><div className="reviews-dist-fill" style={{ width: pct + '%' }} /></div>
+                              <span className="reviews-dist-pct">{pct}%</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <p style={{ color: 'var(--stone-400)', fontSize: '0.875rem', fontStyle: 'italic' }}>No reviews yet. Be the first to share your experience.</p>
+                  )}
                 </div>
-              )}
-              {reviews.length > 0 ? reviews.map(r => (
-                <div key={r.id} className="review-card">
-                  <div className="review-card-header">
-                    <StarDisplay rating={r.rating} size={14} />
-                    <span className="review-card-author">{r.first_name}</span>
-                    <span className="review-card-date">{new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                  </div>
-                  {r.title && <div className="review-card-title">{r.title}</div>}
-                  {r.body && <div className="review-card-body">{r.body}</div>}
+                {/* Right — form + review cards */}
+                <div className="reviews-main">
+                  {customer ? (
+                    reviewSubmitted ? (
+                      <div className="review-submitted">
+                        <div className="review-submitted-label">&#10003; Submitted for review</div>
+                        <div className="review-submitted-msg">Thanks &mdash; we&rsquo;ll publish it within 24 hours.</div>
+                      </div>
+                    ) : (
+                      <div className="review-form">
+                        <div>
+                          <div className="review-form-title">Write a review</div>
+                          <div className="review-form-sub">Posting as <strong>{tradeCustomer ? 'Roma Trade Member' : 'Verified Buyer'}</strong></div>
+                        </div>
+                        <div>
+                          <div className="review-form-label">Rating</div>
+                          <div className="star-picker">
+                            {[1,2,3,4,5].map(i => (
+                              <button key={i}
+                                className={(i <= (reviewHover || reviewRating) ? 'active' : '') + (i <= reviewHover ? ' hover' : '')}
+                                onMouseEnter={() => setReviewHover(i)}
+                                onMouseLeave={() => setReviewHover(0)}
+                                onClick={() => setReviewRating(i)}
+                              >
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill={i <= (reviewHover || reviewRating) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.4">
+                                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77 5.82 21l1.18-6.88-5-4.87 6.91-1.01z"/>
+                                </svg>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="review-form-label">Title</div>
+                          <input type="text" placeholder="One-line summary" value={reviewTitle} onChange={e => setReviewTitle(e.target.value)} maxLength={200} />
+                        </div>
+                        <div>
+                          <div className="review-form-label">Your review</div>
+                          <textarea placeholder="What worked, what didn't, what you'd tell the next buyer." value={reviewBody} onChange={e => setReviewBody(e.target.value)} />
+                        </div>
+                        <div className="review-form-actions">
+                          <button className="pdp-btn pdp-btn-primary" onClick={handleReviewSubmit} disabled={reviewSubmitting || reviewRating < 1}>
+                            {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  ) : (
+                    <div className="review-signin">
+                      <div>
+                        <div className="review-signin-text">Sign in to write a review.</div>
+                        <div className="review-signin-sub">Verified buyers only &mdash; no anonymous comments, no incentives.</div>
+                      </div>
+                      <button className="pdp-btn pdp-btn-primary" onClick={e => { e.preventDefault(); onShowAuth(); }}>Sign in</button>
+                    </div>
+                  )}
+                  {reviews.map(r => (
+                    <div key={r.id} className="review-card">
+                      <div className="review-card-header">
+                        <div>
+                          <div className="review-card-author">{r.first_name}</div>
+                          <div className="review-card-meta">
+                            {new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            {' \u00B7 '}<span className="verified">&#10003; Verified</span>
+                          </div>
+                        </div>
+                        <StarDisplay rating={r.rating} size={14} />
+                      </div>
+                      {r.title && <div className="review-card-title">{r.title}</div>}
+                      {r.body && <div className="review-card-body">{r.body}</div>}
+                    </div>
+                  ))}
                 </div>
-              )) : (
-                <p style={{ color: 'var(--stone-400)', fontSize: '0.875rem' }}>No reviews yet. Be the first to share your experience.</p>
-              )}
-
-              {customer ? (
-                <div className="review-form">
-                  <h3>{reviewSubmitted ? 'Update Your Review' : 'Write a Review'}</h3>
-                  <div className="star-picker">
-                    {[1,2,3,4,5].map(i => (
-                      <button key={i}
-                        className={(i <= (reviewHover || reviewRating) ? 'active' : '') + (i <= reviewHover ? ' hover' : '')}
-                        onMouseEnter={() => setReviewHover(i)}
-                        onMouseLeave={() => setReviewHover(0)}
-                        onClick={() => setReviewRating(i)}
-                      >&#9733;</button>
-                    ))}
-                  </div>
-                  <input type="text" placeholder="Review title (optional)" value={reviewTitle} onChange={e => setReviewTitle(e.target.value)} maxLength={200} />
-                  <textarea placeholder="Share your experience with this product..." value={reviewBody} onChange={e => setReviewBody(e.target.value)} />
-                  <button className="btn" onClick={handleReviewSubmit} disabled={reviewSubmitting || reviewRating < 1}>
-                    {reviewSubmitting ? 'Submitting...' : reviewSubmitted ? 'Update Review' : 'Submit Review'}
-                  </button>
-                </div>
-              ) : (
-                <p className="review-login-prompt">
-                  <a href="#" onClick={e => { e.preventDefault(); onShowAuth(); }}>Sign in</a> to write a review
-                </p>
-              )}
+              </div>
             </div>
           </div>
         </>
@@ -10407,35 +10938,54 @@
 
     // ==================== Footer (Redesigned) ====================
 
-    function SiteFooter({ goHome, goBrowse, goCollections, goTrade, onInstallClick }) {
+    function SiteFooter({ goHome, goBrowse, goCollections, goTrade, onInstallClick, navigate }) {
       return (
         <div className="footer">
           <div className="footer-inner">
             <div className="footer-brand">
               <h3>Roma Flooring Designs</h3>
-              <p>Premium flooring, tile, stone, and countertop products. Visit our showroom in Anaheim, CA or shop online.</p>
-              <p style={{ marginTop: '1rem', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>
-                1440 S. State College Blvd #6m<br />Anaheim, CA 92806<br />(714) 999-0009
-              </p>
+              <p>Premium flooring, tile, stone, and countertop products. Curated collections for designers, builders, and homeowners since 2010.</p>
             </div>
             <div className="footer-col">
               <h4>Shop</h4>
               <a href="#" onClick={e => { e.preventDefault(); goBrowse(); }}>All Products</a>
               <a href="#" onClick={e => { e.preventDefault(); goCollections(); }}>Collections</a>
+              <a href="#" onClick={e => { e.preventDefault(); navigate('/shop?new=1'); }}>New Arrivals</a>
+              <a href="#" onClick={e => { e.preventDefault(); navigate('/shop?sale=1'); }}>Sale</a>
+            </div>
+            <div className="footer-col">
+              <h4>Services</h4>
               <a href="#" onClick={e => { e.preventDefault(); onInstallClick && onInstallClick(); }}>Installation</a>
+              <a href="#" onClick={e => { e.preventDefault(); navigate('/shop'); }}>Design Consultation</a>
+              <a href="#" onClick={e => { e.preventDefault(); navigate('/shop'); }}>Room Visualizer</a>
+              <a href="#" onClick={e => { e.preventDefault(); navigate('/shop'); }}>Free Samples</a>
             </div>
             <div className="footer-col">
               <h4>Trade</h4>
               <a href="#" onClick={e => { e.preventDefault(); goTrade(); }}>Trade Program</a>
               <a href="#" onClick={e => { e.preventDefault(); goTrade(); }}>Apply Now</a>
+              <a href="#" onClick={e => { e.preventDefault(); goTrade(); }}>Trade Login</a>
             </div>
             <div className="footer-col">
-              <h4>Company</h4>
-              <a href="#" onClick={e => { e.preventDefault(); goHome(); }}>Home</a>
-              <a href="mailto:Sales@romaflooringdesigns.com">Contact</a>
+              <h4>Visit</h4>
+              <div className="footer-visit-detail">
+                1440 S. State College Blvd #6m<br />Anaheim, CA 92806<br /><br />
+                Mon–Fri 8am–5pm<br />Sat 10am–3pm<br />Sun Closed<br /><br />
+                <a href="tel:+17149990009">(714) 999-0009</a><br />
+                <a href="mailto:Sales@romaflooringdesigns.com">Sales@romaflooringdesigns.com</a>
+              </div>
             </div>
           </div>
-          <div className="footer-bottom">&copy; 2026 Roma Flooring Designs. All rights reserved. License #830966</div>
+          <div className="footer-bottom">
+            &copy; 2026 Roma Flooring Designs. All rights reserved. License #830966
+            <div className="footer-bottom-links">
+              <a href="#" onClick={e => e.preventDefault()}>Privacy</a>
+              <span>|</span>
+              <a href="#" onClick={e => e.preventDefault()}>Terms</a>
+              <span>|</span>
+              <a href="#" onClick={e => e.preventDefault()}>Accessibility</a>
+            </div>
+          </div>
         </div>
       );
     }
