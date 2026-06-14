@@ -771,7 +771,8 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .sku-detail--contain .accessory-card-sf-image img { object-fit: contain; }
 .sku-detail--contain .accessory-card-sf-img img { object-fit: contain; }
 .sku-card:hover .sku-card-image .sku-card-alt-img { opacity: 1; }
-.sku-card-image .quick-view-btn { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(0deg, rgba(28,25,23,0.8), transparent); color: white; border: none; padding: 14px; font: 500 11px/1 var(--font-body); letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; opacity: 0; transition: opacity 220ms; display: flex; justify-content: center; align-items: center; gap: 8px; }
+.sku-card-image .quick-view-btn { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); background: var(--warm-bg); color: var(--stone-800); border: none; padding: 10px 18px; font: 500 11px/1 var(--font-body); letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; opacity: 0; transition: opacity 220ms, transform 220ms; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.18); z-index: 2; }
+.sku-card-image .quick-view-btn:hover { background: var(--stone-800); color: var(--warm-bg); }
 .sku-card:hover .sku-card-image .quick-view-btn { opacity: 1; }
 .sku-card-body { padding: 16px 20px 18px; display: grid; gap: 6px; }
 .sku-card-meta-row { display: flex; justify-content: space-between; font: 500 10px/1 ui-monospace, SFMono-Regular, monospace; letter-spacing: 0.18em; text-transform: uppercase; color: var(--stone-500); }
