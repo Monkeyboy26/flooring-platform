@@ -48,6 +48,7 @@ const REMOTE_DIRS = [
   '/var/data', '/var/edi', '/var/spool',
   '/opt', '/tmp',
   '/home/18110', '/sftpusers/18110',
+  '/outbox', '/inbox',
   '/',
 ];
 
@@ -567,8 +568,9 @@ function groupIntoProducts(items) {
   for (const item of items) {
     if (!item.vendor_sku && !item.product_name) continue;
 
-    // Skip Pentz brand items — these are handled by the PC vendor importer
-    if (item.brand && /^pentz$/i.test(item.brand.trim())) continue;
+    // NOTE: Pentz brand items are NOT skipped — the 832 must create EF-side
+    // SKUs so merge-ef-pentz-pricing.js can transfer pricing to PC vendor SKUs.
+    // The merge script then deactivates the EF duplicates.
 
     const collection = item.collection || '';
     const category = item.category || '';
