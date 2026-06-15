@@ -1340,6 +1340,8 @@ export async function run(pool, job, source) {
   }
 
   // ── Step 5b: Discontinuation detection ──
+  // Safety: only deactivate if the imported file covers a substantial portion of the catalog.
+  // Small/incremental 832 files should not nuke the entire catalog.
   if (importedSkus.size >= 10) {
     const activeResult = await pool.query(
       `SELECT s.id, s.internal_sku FROM skus s
@@ -1348,19 +1350,29 @@ export async function run(pool, job, source) {
       [vendorId]
     );
 
-    let deactivated = 0;
-    for (const row of activeResult.rows) {
-      if (!importedSkus.has(row.internal_sku)) {
+    const orphanSkus = activeResult.rows.filter(r => !importedSkus.has(r.internal_sku));
+    const totalActive = activeResult.rows.length;
+    const retainedRatio = totalActive > 0 ? (totalActive - orphanSkus.length) / totalActive : 1;
+
+    if (retainedRatio < 0.5) {
+      // The import covers less than half of active SKUs — likely a partial/incremental file.
+      await appendLog(pool, job.id,
+        `Skipping deactivation: imported ${importedSkus.size} SKUs but ${orphanSkus.length}/${totalActive} active SKUs would be deactivated ` +
+        `(retained ratio ${(retainedRatio * 100).toFixed(1)}% < 50% threshold — likely a partial 832 file)`
+      );
+    } else {
+      let deactivated = 0;
+      for (const row of orphanSkus) {
         await pool.query(
           `UPDATE skus SET status = 'inactive', updated_at = NOW() WHERE id = $1`,
           [row.id]
         );
         deactivated++;
       }
-    }
 
-    if (deactivated > 0) {
-      await appendLog(pool, job.id, `Deactivated ${deactivated} SKUs not found in latest 832`);
+      if (deactivated > 0) {
+        await appendLog(pool, job.id, `Deactivated ${deactivated} SKUs not found in latest 832 (retained ${(retainedRatio * 100).toFixed(1)}% of catalog)`);
+      }
     }
   }
 
