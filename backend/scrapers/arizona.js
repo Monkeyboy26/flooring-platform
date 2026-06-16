@@ -606,6 +606,10 @@ export async function run(pool, job, source) {
             if (plEntry) {
               const cost = plEntry.netPrice;
               const sellBy = (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'unit' : 'box';
+              // Keep sell_by in sync with price list unit so price suffix matches
+              if (skuRec.sell_by !== sellBy) {
+                await pool.query('UPDATE skus SET sell_by = $1, updated_at = NOW() WHERE id = $2', [sellBy, skuId]);
+              }
               await upsertPricing(pool, skuId, {
                 cost,
                 retail_price: Math.round(cost * 2 * 100) / 100,
@@ -634,6 +638,9 @@ export async function run(pool, job, source) {
           if (plEntry) {
             const cost = plEntry.netPrice;
             const sellBy = (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'unit' : 'box';
+            if (skuRec.sell_by !== sellBy) {
+              await pool.query('UPDATE skus SET sell_by = $1, updated_at = NOW() WHERE id = $2', [sellBy, skuId]);
+            }
             await upsertPricing(pool, skuId, {
               cost,
               retail_price: Math.round(cost * 2 * 100) / 100,
