@@ -621,6 +621,13 @@ app.get('/api/storefront/featured', async (req, res) => {
   try {
     const LIMIT = 8;
 
+    // Curated homepage picks (shown first in "Selected specimens")
+    const CURATED_IDS = [
+      'de38be41-c73b-40ef-8c0b-8faffdb0662a', // Zellige White - Roca USA
+      '837127eb-01c2-4efb-b57f-9381d77d2d49', // Bianco Carrara 24x48 Polished - Arizona Tile
+      'ca206f85-9376-4e1a-ad43-07ac5fc5f5d3', // European Oak Alabaster - Johnson Hardwood
+    ];
+
     // Best-sellers: SKUs ordered most often in confirmed/shipped/delivered orders
     const bestSellersSQL = `
       WITH best AS (
@@ -705,9 +712,81 @@ app.get('/api/storefront/featured', async (req, res) => {
       ORDER BY b.times_ordered DESC
     `;
 
+    // Fetch curated picks first
+    const curatedSQL = `
+      WITH sku_images AS (
+        SELECT DISTINCT ON (sku_id) sku_id, url
+        FROM media_assets WHERE asset_type = 'primary' AND sku_id IS NOT NULL
+        ORDER BY sku_id, sort_order
+      ),
+      sku_alt_images AS (
+        SELECT DISTINCT ON (sku_id) sku_id, url
+        FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
+        ORDER BY sku_id, sort_order
+      ),
+      sku_lifestyle_images AS (
+        SELECT DISTINCT ON (sku_id) sku_id, url
+        FROM media_assets WHERE asset_type = 'lifestyle' AND sku_id IS NOT NULL
+        ORDER BY sku_id, sort_order
+      ),
+      product_images AS (
+        SELECT DISTINCT ON (product_id) product_id, url
+        FROM media_assets WHERE asset_type = 'primary' AND sku_id IS NULL
+        ORDER BY product_id, sort_order
+      ),
+      product_alt_images AS (
+        SELECT DISTINCT ON (product_id) product_id, url
+        FROM media_assets WHERE asset_type = 'alternate' AND sku_id IS NULL
+        ORDER BY product_id, sort_order
+      ),
+      variant_counts AS (
+        SELECT product_id, COUNT(*) as variant_count
+        FROM skus WHERE status = 'active' AND is_sample = false AND COALESCE(variant_type, '') != 'accessory'
+        GROUP BY product_id
+      )
+      SELECT
+        s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
+        COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short,
+        v.name as vendor_name,
+        COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
+        COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
+        c.name as category_name, c.slug as category_slug,
+        pr.retail_price, pr.price_basis, pr.cut_price,
+        CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+        pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
+        COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
+        COALESCE(sai.url, pai.url) as alternate_image,
+        CASE
+          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+          WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+          ELSE 'out_of_stock'
+        END as stock_status,
+        COALESCE(vc.variant_count, 0) as variant_count
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      LEFT JOIN sku_images si ON si.sku_id = s.id
+      LEFT JOIN sku_lifestyle_images sli ON sli.sku_id = s.id
+      LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
+      LEFT JOIN product_images pi ON pi.product_id = p.id
+      LEFT JOIN product_alt_images pai ON pai.product_id = p.id
+      LEFT JOIN variant_counts vc ON vc.product_id = p.id
+      WHERE s.id = ANY($1) AND s.status = 'active' AND p.status = 'active'
+      ORDER BY array_position($1::uuid[], s.id)
+    `;
+    const { rows: curatedRows } = await pool.query(curatedSQL, [CURATED_IDS]);
+
     const { rows: bestSellers } = await pool.query(bestSellersSQL, [LIMIT]);
 
-    let skus = bestSellers;
+    // Curated first, then best-sellers (excluding duplicates)
+    const curatedIds = new Set(curatedRows.map(r => r.sku_id));
+    let skus = [...curatedRows, ...bestSellers.filter(r => !curatedIds.has(r.sku_id))];
 
     // Fallback: pad with newest SKUs if fewer than LIMIT best-sellers
     if (skus.length < LIMIT) {
@@ -1809,6 +1888,46 @@ app.get('/api/storefront/skus/compare', async (req, res) => {
   }
 });
 
+// ==================== Product Reviews ====================
+app.get('/api/storefront/products/:productId/reviews', async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { rows } = await pool.query(
+      `SELECT pr.rating, pr.title, pr.body, pr.created_at,
+              c.first_name, c.last_name
+       FROM product_reviews pr
+       JOIN customers c ON c.id = pr.customer_id
+       WHERE pr.product_id = $1
+       ORDER BY pr.created_at DESC`,
+      [productId]
+    );
+    const count = rows.length;
+    const avg = count > 0 ? rows.reduce((s, r) => s + r.rating, 0) / count : 0;
+    res.json({ reviews: rows, review_count: count, average_rating: parseFloat(avg.toFixed(1)) });
+  } catch (err) {
+    console.error('GET reviews error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/storefront/products/:productId/reviews', customerAuth, async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { rating, title, body } = req.body;
+    if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be 1-5' });
+    await pool.query(
+      `INSERT INTO product_reviews (product_id, customer_id, rating, title, body)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (product_id, customer_id) DO UPDATE SET rating = $3, title = $4, body = $5`,
+      [productId, req.customer.id, rating, title || null, body || null]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('POST review error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== Slug-based product detail ====================
 app.get('/api/storefront/products/:categorySlug/:productSlug', optionalTradeAuth, async (req, res) => {
   try {
@@ -2020,6 +2139,20 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       }
     }
 
+    // Spec PDFs (both SKU-level and product-level)
+    const specPdfResult = await pool.query(`
+      SELECT id, asset_type, url, sort_order, sku_id
+      FROM media_assets
+      WHERE product_id = $1 AND asset_type = 'spec_pdf'
+      ORDER BY sort_order
+    `, [sku.product_id]);
+    for (const row of specPdfResult.rows) {
+      if (!seenUrls.has(row.url)) {
+        seenUrls.add(row.url);
+        dedupedMedia.push(row);
+      }
+    }
+
     // Same-product siblings (other SKUs of the same product)
     const siblingsResult = await pool.query(`
       SELECT
@@ -2136,6 +2269,151 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         }
         const baseRows = baseOnlyResult.rows.map(s => ({ ...s, attributes: baseAttrMap[s.sku_id] || [] }));
         sameSiblings = sameSiblings.concat(baseRows);
+      }
+    }
+
+    // JMV vanities: find matching "Cabinet" (no countertop) product in same collection
+    // Cabinet products are separate products in "Storage Cabinets" category with same color
+    // Match by closest width (36.0" vanity → 35.88" cabinet)
+    if (curHasCt && sku.vendor_code === 'JMV' && sku.collection) {
+      const skuColorAttr = (sku.attributes || []).find(a => a.slug === 'color');
+      const skuColorVal = skuColorAttr ? skuColorAttr.value : null;
+      const skuWidthAttr = (sku.attributes || []).find(a => a.slug === 'width');
+      const skuWidthNum = skuWidthAttr ? parseFloat(skuWidthAttr.value) : null;
+      if (skuColorVal) {
+        const cabinetResult = await pool.query(`
+          SELECT
+            s.id as sku_id, s.variant_name, s.internal_sku, s.vendor_sku, s.variant_type, s.sell_by,
+            pr.retail_price, pr.price_basis, pk.sqft_per_box,
+            CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+            COALESCE(
+              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+              (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+            ) as primary_image,
+            CASE
+              WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+              WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+              WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+              ELSE 'out_of_stock'
+            END as stock_status
+          FROM products p
+          JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+          LEFT JOIN pricing pr ON pr.sku_id = s.id
+          LEFT JOIN packaging pk ON pk.sku_id = s.id
+          LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+          WHERE LOWER(p.collection) = LOWER($1)
+            AND p.vendor_id = $2
+            AND p.category_id != $3
+            AND p.name ILIKE '%Cabinet%'
+            AND p.status = 'active'
+            AND EXISTS (
+              SELECT 1 FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+              WHERE sa.sku_id = s.id AND a.slug = 'color' AND sa.value = $4
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+              WHERE sa.sku_id = s.id AND a.slug = 'countertop_finish'
+            )
+          ORDER BY ABS(CAST(REGEXP_REPLACE(
+            COALESCE((SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'width' LIMIT 1), '0'),
+            '[^0-9.]', '', 'g') AS numeric) - $5)
+          LIMIT 1
+        `, [sku.collection, sku.vendor_id, sku.category_id, skuColorVal, skuWidthNum || 0]);
+        if (cabinetResult.rows.length > 0) {
+          const cabIds = cabinetResult.rows.map(s => s.sku_id);
+          const cabAttrResult = await pool.query(`
+            SELECT sa.sku_id, a.name, a.slug,
+              CASE WHEN a.slug = 'finish' THEN INITCAP(sa.value) ELSE sa.value END as value
+            FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+            WHERE sa.sku_id = ANY($1) ORDER BY a.display_order
+          `, [cabIds]);
+          const cabAttrMap = {};
+          for (const row of cabAttrResult.rows) {
+            if (!cabAttrMap[row.sku_id]) cabAttrMap[row.sku_id] = [];
+            cabAttrMap[row.sku_id].push({ slug: row.slug, name: row.name, value: row.value });
+          }
+          const cabRows = cabinetResult.rows.map(s => ({ ...s, attributes: cabAttrMap[s.sku_id] || [] }));
+          sameSiblings = sameSiblings.concat(cabRows);
+        }
+      }
+    }
+
+    // JMV cabinets (no countertop): find matching Vanity SKUs with countertop finishes
+    // so the countertop pill selector still appears on cabinet pages
+    if (!curHasCt && sku.vendor_code === 'JMV' && sku.collection && /cabinet/i.test(sku.product_name)) {
+      const skuColorAttr = (sku.attributes || []).find(a => a.slug === 'color');
+      const skuColorVal = skuColorAttr ? skuColorAttr.value : null;
+      const skuWidthAttr = (sku.attributes || []).find(a => a.slug === 'width');
+      const skuWidthNum = skuWidthAttr ? parseFloat(skuWidthAttr.value) : null;
+      if (skuColorVal) {
+        // Find vanity SKUs in same collection, same color, closest width, that have countertop_finish
+        const vanityResult = await pool.query(`
+          SELECT
+            s.id as sku_id, s.variant_name, s.internal_sku, s.vendor_sku, s.variant_type, s.sell_by,
+            pr.retail_price, pr.price_basis, pk.sqft_per_box,
+            CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
+            COALESCE(
+              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+              (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
+            ) as primary_image,
+            COALESCE(
+              (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+              (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1)
+            ) as sku_image,
+            (SELECT ma.url FROM media_assets ma
+              JOIN skus s_ref ON s_ref.id = ma.sku_id AND ma.asset_type = 'primary'
+              WHERE s_ref.vendor_sku IN (
+                (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'top_ref_sku') || '-SNK',
+                (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'top_ref_sku'),
+                REGEXP_REPLACE((SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'top_ref_sku'), '-([^-]+)$', '-BS-\\1')
+              )
+              LIMIT 1
+            ) as countertop_image,
+            CASE
+              WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+              WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+              WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+              ELSE 'out_of_stock'
+            END as stock_status
+          FROM products p
+          JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+          LEFT JOIN pricing pr ON pr.sku_id = s.id
+          LEFT JOIN packaging pk ON pk.sku_id = s.id
+          LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+          WHERE LOWER(p.collection) = LOWER($1)
+            AND p.vendor_id = $2
+            AND p.category_id != $3
+            AND p.name ILIKE '%Vanity%'
+            AND p.status = 'active'
+            AND EXISTS (
+              SELECT 1 FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+              WHERE sa.sku_id = s.id AND a.slug = 'color' AND sa.value = $4
+            )
+            AND EXISTS (
+              SELECT 1 FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+              WHERE sa.sku_id = s.id AND a.slug = 'countertop_finish'
+            )
+            AND ABS(CAST(REGEXP_REPLACE(
+              COALESCE((SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'width' LIMIT 1), '0'),
+              '[^0-9.]', '', 'g') AS numeric) - $5) < 1
+          ORDER BY s.variant_name
+        `, [sku.collection, sku.vendor_id, sku.category_id, skuColorVal, skuWidthNum || 0]);
+        if (vanityResult.rows.length > 0) {
+          const vanIds = vanityResult.rows.map(s => s.sku_id);
+          const vanAttrResult = await pool.query(`
+            SELECT sa.sku_id, a.name, a.slug,
+              CASE WHEN a.slug = 'finish' THEN INITCAP(sa.value) ELSE sa.value END as value
+            FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+            WHERE sa.sku_id = ANY($1) ORDER BY a.display_order
+          `, [vanIds]);
+          const vanAttrMap = {};
+          for (const row of vanAttrResult.rows) {
+            if (!vanAttrMap[row.sku_id]) vanAttrMap[row.sku_id] = [];
+            vanAttrMap[row.sku_id].push({ slug: row.slug, name: row.name, value: row.value });
+          }
+          const vanRows = vanityResult.rows.map(s => ({ ...s, attributes: vanAttrMap[s.sku_id] || [] }));
+          sameSiblings = sameSiblings.concat(vanRows);
+        }
       }
     }
 

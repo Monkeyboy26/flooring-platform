@@ -7390,13 +7390,30 @@
                     {showSizePills && !attrSlugs.includes('shape') && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{collectionSizeItems.find(s => s.is_current)?.label || ''}</span></div>
-                        <div className="attr-pills">
-                          {collectionSizeItems.map(s => (
-                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
-                              {s.label}
-                            </button>
-                          ))}
-                        </div>
+                        {sku.vendor_code === 'JMV' ? (
+                          <div className="color-swatches">
+                            {collectionSizeItems.map(s => (
+                              <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                                <div className={'color-swatch' + (s.is_current ? ' active' : '')}>
+                                  {s.primary_image ? (
+                                    <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 120)} alt={s.label} loading="lazy" decoding="async" width="64" height="64" />
+                                  ) : (
+                                    <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.625rem', fontWeight: 600, color: 'var(--stone-500)', textAlign: 'center', lineHeight: 1.2, padding: '4px' }}>{s.label}</div>
+                                  )}
+                                </div>
+                                <div className="color-swatch-tooltip">{s.label}</div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="attr-pills">
+                            {collectionSizeItems.map(s => (
+                              <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                                {s.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                     {showFinishPills && (
@@ -7414,13 +7431,30 @@
                     {showSibSizes && !attrSlugs.includes('shape') && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{sibSizeItems.find(s => s.is_current)?.label || ''}</span></div>
-                        <div className="attr-pills">
-                          {sibSizeItems.map(s => (
-                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
-                              {s.label}
-                            </button>
-                          ))}
-                        </div>
+                        {sku.vendor_code === 'JMV' ? (
+                          <div className="color-swatches">
+                            {sibSizeItems.map(s => (
+                              <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                                <div className={'color-swatch' + (s.is_current ? ' active' : '')}>
+                                  {s.primary_image ? (
+                                    <img onLoad={handleProductImgLoad} src={optimizeImg(s.primary_image, 120)} alt={s.label} loading="lazy" decoding="async" width="64" height="64" />
+                                  ) : (
+                                    <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.625rem', fontWeight: 600, color: 'var(--stone-500)', textAlign: 'center', lineHeight: 1.2, padding: '4px' }}>{s.label}</div>
+                                  )}
+                                </div>
+                                <div className="color-swatch-tooltip">{s.label}</div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="attr-pills">
+                            {sibSizeItems.map(s => (
+                              <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '')} onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
+                                {s.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                     {showAttrSizes && !attrSlugs.includes('shape') && (
