@@ -980,7 +980,7 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .variant-selector-label span { font-family: var(--font-heading); font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--stone-900); margin-left: 0.5rem; font-size: 0.9375rem; }
 .variant-selectors .color-swatches { display: flex; flex-wrap: wrap; gap: 0.625rem; }
 .variant-selectors .color-swatch-wrap { position: relative; cursor: pointer; }
-.variant-selectors .color-swatch { width: 80px; height: 80px; overflow: hidden; border: 0.5px solid rgba(21,18,15,0.2); transition: border-color 0.2s; border-radius: 3px; transform: none; position: static; }
+.variant-selectors .color-swatch { width: 60px; height: 60px; overflow: hidden; border: 0.5px solid rgba(21,18,15,0.2); transition: border-color 0.2s; border-radius: 3px; transform: none; position: static; }
 .variant-selectors .color-swatch-wrap:hover .color-swatch { border-color: var(--stone-500); }
 .variant-selectors .color-swatch.active { border-width: 2px; border-color: var(--stone-900); border-radius: 3px; }
 .variant-selectors .color-swatch img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -2373,7 +2373,7 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
   .carousel-arrow-right { right: 0; }
   .siblings-strip { gap: 0.75rem; }
   .variant-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem; }
-  .color-swatch { width: 56px; height: 56px; }
+  .color-swatch { width: 40px; height: 40px; }
   .attr-pill { font-size: 0.75rem; padding: 0.35rem 0.75rem; }
   .attr-select { font-size: 0.8125rem; padding: 0.5rem 0.75rem; }
   .sibling-card { width: 140px; }
