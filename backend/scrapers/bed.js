@@ -882,12 +882,12 @@ function parseBedrosianName(rawName) {
     result.size = normalizeSize(sizeMatch[0]);
   }
 
-  const finishMatch = rawName.match(/\b(Matte|Polished|Honed|Glossy|Satin|Textured|Natural|Lappato|Brushed|Tumbled|Chiseled|Latte)\b/i);
+  const finishMatch = rawName.match(/\b(Matte|Polished|Honed|Glossy|Satin|Textured|Natural|Lappato|Brushed|Tumbled|Chiseled|Latte|Flamed|Bush Hammered|Leathered|Sandblasted|Split Face|Antiqued)\b/i);
   if (finishMatch) {
     result.finish = finishMatch[1].charAt(0).toUpperCase() + finishMatch[1].slice(1).toLowerCase();
   }
 
-  const shapeMatch = rawName.match(/\b(Field Tile|Mosaic|Bullnose|Quarter Round|Pencil Liner|Wall Tile|Floor Tile|Subway Tile|Hexagon|Herringbone|Chevron|Deco(?:rative)?|Listello|Chair Rail|Trim|Cove Base)\b/i);
+  const shapeMatch = rawName.match(/\b(Field Tile|Mosaic|Bullnose|Quarter Round|Pencil Liner|Wall Tile|Floor Tile|Subway Tile|Hexagon|Herringbone|Chevron|Deco(?:rative)?|Listello|Chair Rail|Trim|Cove Base|Basketweave|Arabesque|Picket|Diamond|Lantern|Fan|Penny Round)\b/i);
   if (shapeMatch) {
     result.shape = shapeMatch[1];
   }
@@ -942,14 +942,15 @@ function mapListingProduct(raw) {
     }
   }
 
-  let productName = raw.SeriesColor || parsed.color || verboseName;
+  const seriesColor = raw.SeriesColor && raw.SeriesColor.length >= 2 && !/^[A-Z0-9]{1,4}$/.test(raw.SeriesColor) ? raw.SeriesColor : null;
+  let productName = seriesColor || parsed.color || verboseName;
   let variantType = null;
 
   // If it's an accessory, extract color from end of verbose name and use accessory label as variant
   if (accessoryType) {
     variantType = 'accessory';
     // Color is typically the last word(s): "...Canvas", "...khaki", "...Driftwood"
-    const colorFromEnd = verboseName.replace(/.*(?:T-Mold|Reducer|Stair Nose|Quarter Round|End Cap|Threshold|Underlayment)\b[^A-Za-z]*/i, '').trim();
+    const colorFromEnd = verboseName.replace(/.*(?:T-Mold|Reducer|Flush\s+Stair\s+Nose|Overlapping\s+Stair\s+Nose|Stair\s+Nose|Quarter\s+Round|End\s+Cap|Threshold|Underlayment)\b[^A-Za-z]*/i, '').trim();
     if (colorFromEnd) productName = colorFromEnd;
   }
 
@@ -973,7 +974,14 @@ function mapListingProduct(raw) {
   }
 
   // ── Sell by ──
-  const sellBy = mapUomToSellBy(raw.SellingUom);
+  // Slabs are sold per piece regardless of UOM
+  const materialLower = (raw.MaterialType || '').toLowerCase();
+  const slabSizeMatch = parsed.size && parsed.size.match(/(\d{2,3})x(\d{2,3})/);
+  const isSlabSize = slabSizeMatch && (parseFloat(slabSizeMatch[1]) > 50 || parseFloat(slabSizeMatch[2]) > 50);
+  const isSlab = materialLower === 'mineral surface' || materialLower === 'quartz'
+    || (raw.ProductCode && String(raw.ProductCode).toUpperCase().includes('SLAB'))
+    || isSlabSize;
+  const sellBy = isSlab ? 'unit' : mapUomToSellBy(raw.SellingUom);
 
   // ── Pricing from PriceToDisplay ──
   const pricing = { retailPrice: null, priceBasis: 'per_sqft' };
