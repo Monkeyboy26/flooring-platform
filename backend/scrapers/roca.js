@@ -93,6 +93,19 @@ const MOSAIC_KEEP_WORDS = new Set([
   'bright', 'matte', 'glossy', 'crackled',
 ]);
 
+// Shape words that distinguish different mosaic/tile shapes — products with
+// different shapes should never share images even if their base color matches.
+const DISTINCT_SHAPES = [
+  'penny round', 'basket weave', 'basketweave', 'hexagon', 'octagon',
+  'lantern', 'arabesque', 'picket', 'stacked', 'herringbone', 'chevron',
+  'diamond', 'fan', 'subway', 'brick', 'arrow', 'flower', 'oval',
+];
+
+function getShape(name) {
+  const lower = name.toLowerCase();
+  return DISTINCT_SHAPES.find(s => lower.includes(s)) || null;
+}
+
 // ── Normalization helpers ──
 
 function normalizeForMatch(str) {
@@ -526,6 +539,16 @@ async function run() {
     allByCollection.get(normCol).push(sku);
   }
 
+  // Track how many distinct collections each product name appears in —
+  // generic names like "Blanco" or "Gris" in 3+ collections should not
+  // propagate images across collections.
+  const nameCollectionCount = new Map();
+  for (const sku of dbSkus.rows) {
+    const key = sku.product_name.toLowerCase();
+    if (!nameCollectionCount.has(key)) nameCollectionCount.set(key, new Set());
+    nameCollectionCount.get(key).add(sku.collection || '');
+  }
+
   const totalSkus = dbSkus.rowCount;
   const totalProducts = productSet.size;
   const initialSkusWithImages = skusWithImages.size;
@@ -755,6 +778,11 @@ async function run() {
 
         const baseColor = extractBaseColor(dbName, { keepMosaicWords: isMosaicCollection });
         if (colorsMatch(webColor, baseColor, { keepMosaicWords: isMosaicCollection })) {
+          // Prevent shape cross-contamination (e.g. "Penny Round" vs "Lantern")
+          const dbShape = getShape(prod.product_name);
+          const webShape = getShape(entry.color);
+          if (dbShape && webShape && dbShape !== webShape) continue;
+
           // Score by Jaccard similarity between web label (+ image filename) and full product name.
           const labelWords = normalizeSpelling(webColor.toLowerCase()).split(/[^a-z]+/).filter(w => w.length >= 2);
           const imgFile = entry.url.split('/').pop().replace(/\.(jpeg|jpg|png|webp|gif)/gi, '').toLowerCase();
@@ -830,6 +858,11 @@ async function run() {
         }
 
         if (score >= 0.6) {
+          // Prevent shape cross-contamination (e.g. "Penny Round" vs "Lantern")
+          const dbShape = getShape(prod.product_name);
+          const webShape = getShape(entry.color);
+          if (dbShape && webShape && dbShape !== webShape) continue;
+
           pass3Candidates.push({ pid: prod.product_id, entry, score });
         }
       }
@@ -932,6 +965,10 @@ async function run() {
       if (sku.variant_type === 'accessory') continue;
       if (!needsImage(sku.sku_id)) continue;
       const nameLower = sku.product_name.toLowerCase();
+      // Skip generic names that appear in many collections — these are
+      // too ambiguous to safely propagate (e.g. "Blanco", "Gris", "Silver")
+      const colCount = nameCollectionCount.get(nameLower)?.size || 0;
+      if (colCount > 2) continue;
       const donorUrl = imageLookupByName.get(nameLower);
       if (donorUrl) {
         await saveSkuImages(pool, productId, sku.sku_id, [donorUrl], { maxImages: 1 });
