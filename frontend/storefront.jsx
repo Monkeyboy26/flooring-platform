@@ -54,7 +54,7 @@
       return sku.price_basis === 'per_sqyd';
     }
     function isCarpet(sku) {
-      return sku && sku.cut_price != null;
+      return sku && sku.cut_price != null && sku.sell_by === 'roll';
     }
     function parseRollWidthFt(productName) {
       if (!productName) return 0;
@@ -1045,6 +1045,1044 @@
       );
     }
 
+    // ==================== Cabinets Page ====================
+
+    function materialFace(kind, tone) {
+      const T = tone || {};
+      const A = T.a || '#c8b094';
+      const B = T.b || '#7a6850';
+      const C = T.c || '#3a3127';
+      switch (kind) {
+        case 'wood':
+          return { background: `repeating-linear-gradient(92deg, ${A} 0 7px, ${B} 7px 9px, ${A} 9px 22px, ${C}55 22px 23px, ${A} 23px 41px, ${B} 41px 43px), linear-gradient(180deg, ${A}, ${B})`, backgroundBlendMode: 'multiply' };
+        case 'marble':
+          return { background: `radial-gradient(120% 80% at 30% 20%, ${A} 0%, ${A} 30%, ${B}88 55%, ${A} 70%), radial-gradient(80% 60% at 70% 80%, ${C}55, transparent 60%), linear-gradient(135deg, ${A}, ${B}44)` };
+        case 'tile':
+          return { background: `repeating-linear-gradient(0deg, ${C}22 0 0.5px, transparent 0.5px 60px), repeating-linear-gradient(90deg, ${C}22 0 0.5px, transparent 0.5px 60px), radial-gradient(60% 80% at 40% 30%, ${A}, ${B})` };
+        case 'stone':
+          return { background: `radial-gradient(40% 60% at 25% 30%, ${A}, ${B} 80%), radial-gradient(30% 30% at 70% 60%, ${A}88, transparent), radial-gradient(20% 20% at 50% 80%, ${C}55, transparent), ${B}` };
+        case 'lvp':
+          return { background: `repeating-linear-gradient(95deg, ${A} 0 14px, ${B}77 14px 15px, ${A} 15px 30px), linear-gradient(180deg, ${A}, ${B})`, backgroundBlendMode: 'multiply' };
+        case 'quartz':
+          return { background: `radial-gradient(2px 2px at 20% 30%, ${C}55, transparent), radial-gradient(2px 2px at 60% 20%, ${C}55, transparent), radial-gradient(3px 3px at 80% 60%, ${C}77, transparent), radial-gradient(2px 2px at 30% 70%, ${C}55, transparent), radial-gradient(2px 2px at 50% 50%, ${C}55, transparent), linear-gradient(135deg, ${A}, ${B}44)` };
+        default:
+          return { background: A };
+      }
+    }
+
+    const CAB_BRANDS = {
+      waypoint: {
+        id: 'waypoint', name: 'Waypoint', tagline: 'Living Spaces',
+        origin: 'Cumberland, MD · American Woodmark', framing: 'framed',
+        framingLabel: 'Face-frame construction',
+        framingNote: 'Traditional American build. Visible frame around the door opening keeps fronts perfectly aligned for decades.',
+        pitch: 'Painted maple and stained oak, built by hand in the United States — soft-close standard, dent-resistant UV-catalytic paint, lifetime warranty.',
+        bestFor: 'Classic · Transitional · Traditional kitchens',
+        doors: [
+          { id: 'shaker',   name: 'Hawthorne Shaker',   profile: 'shaker' },
+          { id: 'recessed', name: 'Maple Recessed',     profile: 'recessed' },
+          { id: 'raised',   name: 'Sonoma Raised',      profile: 'raised' },
+          { id: 'beaded',   name: 'Linen Beaded',       profile: 'beaded' },
+          { id: 'arch',     name: 'Hartwell Arched',    profile: 'arched' },
+          { id: 'mullion',  name: 'Vienna Mullion',     profile: 'mullion' },
+        ],
+        finishes: [
+          { id: 'white',    name: 'Painted White',    family: 'painted', fill: '#f7f2e8' },
+          { id: 'linen',    name: 'Painted Linen',    family: 'painted', fill: '#f1ebd9' },
+          { id: 'oat',      name: 'Painted Oat',      family: 'painted', fill: '#e3d8b8' },
+          { id: 'hazelnut', name: 'Painted Hazelnut', family: 'painted', fill: '#c9b694' },
+          { id: 'sage',     name: 'Painted Sage',     family: 'painted', fill: '#a8b095' },
+          { id: 'fern',     name: 'Painted Fern',     family: 'painted', fill: '#7a8769' },
+          { id: 'olive',    name: 'Painted Olive',    family: 'painted', fill: '#56603e' },
+          { id: 'bluestone',name: 'Painted Bluestone',family: 'painted', fill: '#6a7a85' },
+          { id: 'slate',    name: 'Painted Slate',    family: 'painted', fill: '#3e4856' },
+          { id: 'cinnamon', name: 'Painted Cinnamon', family: 'painted', fill: '#a26a4a' },
+          { id: 'charcoalp',name: 'Painted Charcoal', family: 'painted', fill: '#33312e' },
+          { id: 'black',    name: 'Painted Black',    family: 'painted', fill: '#1a1815' },
+          { id: 'natmaple', name: 'Natural Maple',    family: 'stained', species: 'maple',   fill: '#d9b988', wood: true, tone: { a: '#d9b988', b: '#a07d4e', c: '#5a4022' } },
+          { id: 'cider',    name: 'Maple Cider',      family: 'stained', species: 'maple',   fill: '#a87b4a', wood: true, tone: { a: '#caa97f', b: '#7a5635', c: '#3a2814' } },
+          { id: 'cocoa',    name: 'Maple Cocoa',      family: 'stained', species: 'maple',   fill: '#704024', wood: true, tone: { a: '#8a5e3a', b: '#4a2818', c: '#1c0e07' } },
+          { id: 'espresso', name: 'Maple Espresso',   family: 'stained', species: 'maple',   fill: '#3a2418', wood: true, tone: { a: '#5a3a26', b: '#2a1c12', c: '#0a0604' } },
+          { id: 'natural',  name: 'Natural Oak',      family: 'stained', species: 'oak',     fill: '#caa97f', wood: true, tone: { a: '#caa97f', b: '#7a5635', c: '#3a2814' } },
+          { id: 'honey',    name: 'Honey Oak',        family: 'stained', species: 'oak',     fill: '#b8884c', wood: true, tone: { a: '#b8884c', b: '#7a5424', c: '#3a280a' } },
+          { id: 'saddle',   name: 'Saddle Oak',       family: 'stained', species: 'oak',     fill: '#8a5d2e', wood: true, tone: { a: '#a86e3a', b: '#6a3c16', c: '#2a1c08' } },
+          { id: 'coffee',   name: 'Coffee Oak',       family: 'stained', species: 'oak',     fill: '#4a2e1a', wood: true, tone: { a: '#6e4a30', b: '#3e2412', c: '#1a0e06' } },
+          { id: 'cherry',   name: 'Aged Cherry',      family: 'stained', species: 'cherry',  fill: '#8a4a30', wood: true, tone: { a: '#a86848', b: '#5a3018', c: '#2a140a' } },
+          { id: 'bordeaux', name: 'Bordeaux Cherry',  family: 'stained', species: 'cherry',  fill: '#5a2418', wood: true, tone: { a: '#7a3624', b: '#3a160c', c: '#180806' } },
+          { id: 'hickory',  name: 'Natural Hickory',  family: 'stained', species: 'hickory', fill: '#bf9670', wood: true, tone: { a: '#d4b08a', b: '#6a4226', c: '#2a1a0e' } },
+          { id: 'smoked',   name: 'Smoked Hickory',   family: 'stained', species: 'hickory', fill: '#5a4632', wood: true, tone: { a: '#7a5e44', b: '#3a2c1e', c: '#1a120c' } },
+          { id: 'charcoal', name: 'Charcoal Stain',   family: 'stained', species: 'oak',     fill: '#3a3530', wood: true, tone: { a: '#5a5048', b: '#2a241e', c: '#0a0808' } },
+        ],
+        hardware: [
+          { id: 'knob', name: 'Round Knob' },
+          { id: 'bar',  name: 'Bar Pull' },
+          { id: 'cup',  name: 'Cup Pull' },
+        ],
+        defaults: { door: 'shaker', finish: 'linen', hardware: 'knob' },
+        warranty: 'Lifetime', lead: '5–7 weeks', startingAt: '$240 / lf',
+        stat: { v: '420+', l: 'Sample doors stocked' },
+      },
+      europa: {
+        id: 'europa', name: 'Europa', tagline: 'Cabinetry',
+        origin: 'Italian-engineered', framing: 'frameless',
+        framingLabel: 'Frameless full-access',
+        framingNote: 'No face frame. Doors and drawers mount directly to the box, returning ~15% of the interior to you.',
+        pitch: 'Slab fronts, integrated handles, push-to-open and soft-close throughout. Every appliance can be panel-ready.',
+        bestFor: 'Modern · Contemporary · Minimal kitchens',
+        doors: [
+          { id: 'slab',    name: 'Linea Slab',        profile: 'slab' },
+          { id: 'channel', name: 'Vetro Channel',     profile: 'channel' },
+          { id: 'slim',    name: 'Atmosfera Slim',    profile: 'slim' },
+          { id: 'gloss',   name: 'Tribeca High-Gloss',profile: 'slab', sheen: 'gloss' },
+          { id: 'reeded',  name: 'Onda Reeded',       profile: 'reeded' },
+          { id: 'glass',   name: 'Vetrina Glass',     profile: 'glass' },
+        ],
+        finishes: [
+          { id: 'snow',     name: 'Snow Matte',       family: 'matte',  fill: '#ece8df' },
+          { id: 'ivory',    name: 'Ivory Matte',      family: 'matte',  fill: '#e8dfc8' },
+          { id: 'linenm',   name: 'Linen Matte',      family: 'matte',  fill: '#d8ccb2' },
+          { id: 'sand',     name: 'Sand Matte',       family: 'matte',  fill: '#cbbf9e' },
+          { id: 'stone',    name: 'Stone Matte',      family: 'matte',  fill: '#a59f8a' },
+          { id: 'sagem',    name: 'Sage Matte',       family: 'matte',  fill: '#8e9a82' },
+          { id: 'olivem',   name: 'Olive Matte',      family: 'matte',  fill: '#5e6644' },
+          { id: 'fog',      name: 'Fog Grey',         family: 'matte',  fill: '#9aa0a3' },
+          { id: 'cement',   name: 'Cement',           family: 'matte',  fill: '#666560' },
+          { id: 'graphite', name: 'Graphite',         family: 'matte',  fill: '#2a2c2e' },
+          { id: 'carbon',   name: 'Carbon Matte',     family: 'matte',  fill: '#16171a' },
+          { id: 'cobalt',   name: 'Cobalt Matte',     family: 'matte',  fill: '#2c3a5e' },
+          { id: 'terracotta',name: 'Terracotta Matte',family: 'matte',  fill: '#a85838' },
+          { id: 'bordeauxm',name: 'Bordeaux Matte',   family: 'matte',  fill: '#5a2424' },
+          { id: 'glosswhite', name: 'High-Gloss White', family: 'gloss', fill: '#fafaf5' },
+          { id: 'glossblack', name: 'High-Gloss Black', family: 'gloss', fill: '#16171a' },
+          { id: 'glosspearl', name: 'High-Gloss Pearl', family: 'gloss', fill: '#e8e4d8' },
+          { id: 'oakv',     name: 'White Oak Veneer', family: 'veneer', species: 'oak',     fill: '#caa97f', wood: true, tone: { a: '#caa97f', b: '#7a5635', c: '#3a2814' } },
+          { id: 'walnut',   name: 'Walnut Veneer',    family: 'veneer', species: 'walnut',  fill: '#6a3818', wood: true, tone: { a: '#8a5e3a', b: '#4a2818', c: '#1c0e07' } },
+          { id: 'smokedv',  name: 'Smoked Oak Veneer',family: 'veneer', species: 'oak',     fill: '#3a2e22', wood: true, tone: { a: '#5a4a36', b: '#2c1f14', c: '#0e0806' } },
+          { id: 'cerused',  name: 'Cerused Oak',      family: 'veneer', species: 'oak',     fill: '#b8a890', wood: true, tone: { a: '#d4c4a8', b: '#8a7e64', c: '#3a3424' } },
+          { id: 'beton',    name: 'Béton Concrete',   family: 'textured', fill: '#8a8682' },
+          { id: 'brass',    name: 'Patina Brass',     family: 'textured', fill: '#a87a3a' },
+        ],
+        hardware: [
+          { id: 'integrated', name: 'Integrated Channel' },
+          { id: 'bar',        name: 'Slim Bar Pull' },
+          { id: 'none',       name: 'Push-to-Open' },
+        ],
+        defaults: { door: 'slab', finish: 'snow', hardware: 'integrated' },
+        warranty: '10-year', lead: '4–6 weeks', startingAt: '$320 / lf',
+        stat: { v: '+15%', l: 'Accessible interior' },
+      },
+    };
+
+    function cabBtn(bg, fg, kind, theme) {
+      if (kind === 'primary') return {
+        padding: '14px 22px', background: bg, color: fg, border: 'none', borderRadius: 999,
+        font: '500 12px/1 var(--font-body)', letterSpacing: '0.08em', textTransform: 'uppercase',
+        cursor: 'pointer', whiteSpace: 'nowrap', transition: 'opacity 0.2s, transform 0.2s',
+      };
+      return {
+        padding: '13px 21px', background: 'transparent', color: theme.ink,
+        border: `0.5px solid ${theme.ink}33`, borderRadius: 999,
+        font: '500 12px/1 var(--font-body)', letterSpacing: '0.08em', textTransform: 'uppercase',
+        cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background 0.2s, color 0.2s, border-color 0.2s',
+      };
+    }
+
+    function CabSectionHead({ theme, num, eyebrow, headline, sub, align = 'left' }) {
+      const { ink, accent, muted } = theme;
+      return (
+        <div style={{ textAlign: align, marginBottom: 56 }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 14,
+            font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.22em',
+            textTransform: 'uppercase', color: muted, marginBottom: 22,
+          }}>
+            <span style={{ color: accent }}>{num}</span>
+            <span style={{ width: 24, height: 1, background: `${ink}22` }} />
+            <span>{eyebrow}</span>
+          </div>
+          <h2 style={{
+            font: '300 56px/1.18 var(--font-heading)', margin: 0,
+            letterSpacing: '-0.018em', textWrap: 'pretty', color: ink,
+          }}>{headline}</h2>
+          {sub && (
+            <p style={{
+              font: '400 17px/1.55 var(--font-body)', color: `${ink}dd`,
+              margin: '36px 0 0', maxWidth: 640,
+              ...(align === 'center' ? { marginLeft: 'auto', marginRight: 'auto' } : {}),
+            }}>{sub}</p>
+          )}
+        </div>
+      );
+    }
+
+    function CabinetSpecimen({ theme, brand, door, finish, hardware, softClose, big }) {
+      const { ink, paper, accent, muted } = theme;
+      const B = CAB_BRANDS[brand];
+      const D = B.doors.find(d => d.id === door) || B.doors[0];
+      const F = B.finishes.find(f => f.id === finish) || B.finishes[0];
+      const H = B.hardware.find(h => h.id === hardware) || B.hardware[0];
+      const framed = B.framing === 'framed';
+      const gloss = D.sheen === 'gloss' || F.family === 'gloss';
+      const VB_W = 640, VB_H = 720;
+      const X0 = 30, X1 = 610, Y0 = 50, Y1 = 660;
+      const FR = framed ? 18 : 2;
+      const DR_Y0 = Y0 + FR, DR_Y1 = DR_Y0 + 100;
+      const DOORS_Y0 = DR_Y1 + FR, DOORS_Y1 = Y1 - FR;
+      const MIDX = (X0 + X1) / 2;
+      const finishFillId = `cab-fill-${brand}-${F.id}-${gloss ? 'g' : 'm'}`;
+      const woodPatternId = `cab-wood-${brand}-${F.id}`;
+      const useWood = !!F.wood;
+      const faceFill = useWood ? `url(#${woodPatternId})` : `url(#${finishFillId})`;
+
+      const renderDoor = (x0, y0, x1, y1, isDrawer) => (
+        <g key={`${x0}-${y0}`}>
+          <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill={faceFill} stroke={ink} strokeOpacity="0.18" strokeWidth="0.5" />
+          {gloss && <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill={`url(#${finishFillId}-gloss)`} />}
+          {F.family === 'textured' && <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill="url(#cab-texture-noise)" opacity="0.4" />}
+          {(D.profile === 'shaker' || D.profile === 'recessed' || D.profile === 'slim') && (() => {
+            const inset = D.profile === 'slim' ? 10 : (D.profile === 'shaker' ? 26 : 22);
+            const ix0 = x0 + inset, iy0 = y0 + (isDrawer ? Math.min(inset, 14) : inset);
+            const ix1 = x1 - inset, iy1 = y1 - (isDrawer ? Math.min(inset, 14) : inset);
+            return (<g>
+              <rect x={ix0} y={iy0} width={ix1 - ix0} height={iy1 - iy0} fill="rgba(0,0,0,0.06)" />
+              <line x1={ix0} y1={iy0} x2={ix1} y2={iy0} stroke="rgba(0,0,0,0.18)" strokeWidth="0.7" />
+              <line x1={ix0} y1={iy0} x2={ix0} y2={iy1} stroke="rgba(0,0,0,0.14)" strokeWidth="0.7" />
+              <line x1={ix1} y1={iy0} x2={ix1} y2={iy1} stroke="rgba(255,255,255,0.35)" strokeWidth="0.5" />
+              <line x1={ix0} y1={iy1} x2={ix1} y2={iy1} stroke="rgba(255,255,255,0.35)" strokeWidth="0.5" />
+            </g>);
+          })()}
+          {D.profile === 'raised' && (() => {
+            const inset = 22;
+            const ix0 = x0 + inset, iy0 = y0 + (isDrawer ? 12 : inset);
+            const ix1 = x1 - inset, iy1 = y1 - (isDrawer ? 12 : inset);
+            const ch = 14;
+            return (<g>
+              <polygon points={`${ix0+ch},${iy0+ch} ${ix1-ch},${iy0+ch} ${ix1-ch},${iy1-ch} ${ix0+ch},${iy1-ch}`} fill="rgba(255,255,255,0.18)" />
+              <polygon points={`${ix0},${iy0} ${ix1},${iy0} ${ix1-ch},${iy0+ch} ${ix0+ch},${iy0+ch}`} fill="rgba(255,255,255,0.18)" />
+              <polygon points={`${ix0},${iy1} ${ix1},${iy1} ${ix1-ch},${iy1-ch} ${ix0+ch},${iy1-ch}`} fill="rgba(0,0,0,0.16)" />
+              <polygon points={`${ix0},${iy0} ${ix0+ch},${iy0+ch} ${ix0+ch},${iy1-ch} ${ix0},${iy1}`} fill="rgba(0,0,0,0.08)" />
+              <polygon points={`${ix1},${iy0} ${ix1-ch},${iy0+ch} ${ix1-ch},${iy1-ch} ${ix1},${iy1}`} fill="rgba(255,255,255,0.08)" />
+            </g>);
+          })()}
+          {D.profile === 'beaded' && (() => {
+            const inset = 18;
+            const ix0 = x0 + inset, iy0 = y0 + (isDrawer ? 10 : inset);
+            const ix1 = x1 - inset, iy1 = y1 - (isDrawer ? 10 : inset);
+            return (<g>
+              <rect x={ix0} y={iy0} width={ix1 - ix0} height={iy1 - iy0} fill="rgba(0,0,0,0.04)" />
+              <rect x={ix0 + 6} y={iy0 + 6} width={ix1 - ix0 - 12} height={iy1 - iy0 - 12} fill="none" stroke="rgba(0,0,0,0.25)" strokeWidth="0.5" />
+              <rect x={ix0 + 8} y={iy0 + 8} width={ix1 - ix0 - 16} height={iy1 - iy0 - 16} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="0.5" />
+            </g>);
+          })()}
+          {D.profile === 'channel' && (<g>
+            <rect x={x0} y={y0} width={x1 - x0} height={10} fill="rgba(0,0,0,0.32)" />
+            <rect x={x0 + 4} y={y0 + 2} width={x1 - x0 - 8} height={6} fill="rgba(0,0,0,0.45)" />
+          </g>)}
+          {D.profile === 'reeded' && (() => {
+            const w = x1 - x0;
+            const count = Math.max(10, Math.floor(w / 14));
+            const step = w / count;
+            return (<g>
+              {Array.from({ length: count + 1 }).map((_, i) => <line key={i} x1={x0 + i * step} y1={y0 + 2} x2={x0 + i * step} y2={y1 - 2} stroke="rgba(0,0,0,0.18)" strokeWidth="0.6" />)}
+              {Array.from({ length: count }).map((_, i) => <line key={`h${i}`} x1={x0 + i * step + step / 2} y1={y0 + 4} x2={x0 + i * step + step / 2} y2={y1 - 4} stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />)}
+            </g>);
+          })()}
+          {D.profile === 'glass' && !isDrawer && (() => {
+            const ix0 = x0 + 14, iy0 = y0 + 14, ix1 = x1 - 14, iy1 = y1 - 14;
+            const midX = (ix0 + ix1) / 2, midY = (iy0 + iy1) / 2;
+            return (<g stroke="rgba(0,0,0,0.28)" strokeWidth="1" fill="rgba(255,255,255,0.18)">
+              <rect x={ix0} y={iy0} width={ix1 - ix0} height={iy1 - iy0} />
+              <line x1={midX} y1={iy0} x2={midX} y2={iy1} />
+              <line x1={ix0} y1={midY} x2={ix1} y2={midY} />
+              <line x1={ix0 + 12} y1={iy0 + 12} x2={ix0 + 60} y2={iy0 + 60} stroke="rgba(255,255,255,0.45)" strokeWidth="1" />
+            </g>);
+          })()}
+          {D.profile === 'mullion' && !isDrawer && (() => {
+            const ix0 = x0 + 16, iy0 = y0 + 16, ix1 = x1 - 16, iy1 = y1 - 16;
+            return (<g stroke="rgba(0,0,0,0.3)" strokeWidth="1.2" fill="rgba(0,0,0,0.06)">
+              <rect x={ix0} y={iy0} width={ix1 - ix0} height={iy1 - iy0} />
+              <line x1={(ix0 + ix1) / 2} y1={iy0} x2={(ix0 + ix1) / 2} y2={iy1} strokeWidth="1" />
+              <line x1={ix0} y1={(iy0 + iy1) / 2} x2={ix1} y2={(iy0 + iy1) / 2} strokeWidth="1" />
+            </g>);
+          })()}
+          {D.profile === 'arched' && !isDrawer && (() => {
+            const inset = 18;
+            const ix0 = x0 + inset, ix1 = x1 - inset, iy1 = y1 - inset;
+            const arcStartY = y0 + 80;
+            const path = `M ${ix0} ${iy1} L ${ix0} ${arcStartY} Q ${ix0} ${y0 + inset} ${(ix0 + ix1) / 2} ${y0 + inset} Q ${ix1} ${y0 + inset} ${ix1} ${arcStartY} L ${ix1} ${iy1} Z`;
+            return <path d={path} fill="rgba(0,0,0,0.06)" stroke="rgba(0,0,0,0.22)" strokeWidth="0.7" />;
+          })()}
+        </g>
+      );
+
+      const renderHardware = (cx, cy, kind) => {
+        if (kind === 'none' || kind === 'integrated') return null;
+        if (kind === 'knob') return <circle cx={cx} cy={cy} r="5" fill={ink} />;
+        if (kind === 'bar') return <rect x={cx - 40} y={cy - 3} width="80" height="6" rx="3" fill={ink} />;
+        if (kind === 'cup') return (<g>
+          <path d={`M ${cx - 32} ${cy - 4} L ${cx - 32} ${cy + 6} Q ${cx} ${cy + 14}, ${cx + 32} ${cy + 6} L ${cx + 32} ${cy - 4} Z`} fill={ink} fillOpacity="0.85" />
+          <rect x={cx - 32} y={cy - 5} width="64" height="3" fill={ink} />
+        </g>);
+        return null;
+      };
+
+      return (
+        <svg viewBox={`0 0 ${VB_W} ${VB_H}`} style={{ width: '100%', height: '100%', display: 'block' }}>
+          <defs>
+            <linearGradient id={finishFillId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={F.fill} stopOpacity="1" />
+              <stop offset="60%" stopColor={F.fill} stopOpacity="1" />
+              <stop offset="100%" stopColor={F.fill} stopOpacity={F.family === 'matte' ? 0.94 : 1} />
+            </linearGradient>
+            <linearGradient id={`${finishFillId}-gloss`} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="rgba(255,255,255,0.55)" />
+              <stop offset="35%" stopColor="rgba(255,255,255,0.05)" />
+              <stop offset="65%" stopColor="rgba(0,0,0,0.05)" />
+              <stop offset="100%" stopColor="rgba(0,0,0,0.28)" />
+            </linearGradient>
+            {F.wood && (
+              <pattern id={woodPatternId} patternUnits="userSpaceOnUse" width="80" height="16" patternTransform="rotate(90)">
+                <rect width="80" height="16" fill={F.tone.a} />
+                <rect x="0" y="5" width="80" height="0.8" fill={F.tone.c} opacity="0.55" />
+                <rect x="0" y="11" width="80" height="0.6" fill={F.tone.c} opacity="0.35" />
+                <rect x="0" y="2" width="80" height="0.4" fill={F.tone.b} opacity="0.45" />
+                <rect x="0" y="0" width="0.6" height="16" fill={F.tone.c} opacity="0.4" />
+                <rect x="38" y="0" width="0.6" height="16" fill={F.tone.c} opacity="0.32" />
+                <ellipse cx="60" cy="8" rx="6" ry="3" fill={F.tone.b} opacity="0.22" />
+              </pattern>
+            )}
+            <pattern id="cab-texture-noise" patternUnits="userSpaceOnUse" width="8" height="8">
+              <rect width="8" height="8" fill="none" />
+              <circle cx="2" cy="3" r="0.6" fill="rgba(0,0,0,0.5)" />
+              <circle cx="6" cy="5" r="0.5" fill="rgba(255,255,255,0.35)" />
+              <circle cx="4" cy="7" r="0.4" fill="rgba(0,0,0,0.3)" />
+            </pattern>
+            <pattern id="cab-hatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+              <line x1="0" y1="0" x2="0" y2="6" stroke={ink} strokeWidth="0.5" strokeOpacity="0.55" />
+            </pattern>
+          </defs>
+          <rect x="0" y="0" width={VB_W} height="38" fill={`${ink}11`} />
+          <rect x="0" y="38" width={VB_W} height="6" fill={ink} />
+          <line x1="0" y1="44" x2={VB_W} y2="44" stroke={paper} strokeWidth="2" />
+          <rect x={X0} y={Y0} width={X1 - X0} height={Y1 - Y0} fill={ink} fillOpacity="0.04" />
+          {framed && (<g fill="url(#cab-hatch)">
+            <rect x={X0} y={Y0} width={FR} height={Y1 - Y0} />
+            <rect x={X1 - FR} y={Y0} width={FR} height={Y1 - Y0} />
+            <rect x={X0} y={Y0} width={X1 - X0} height={FR} />
+            <rect x={X0} y={DR_Y1} width={X1 - X0} height={FR} />
+            <rect x={X0} y={Y1 - FR} width={X1 - X0} height={FR} />
+            <rect x={MIDX - FR / 2} y={DOORS_Y0} width={FR} height={DOORS_Y1 - DOORS_Y0} />
+          </g>)}
+          {framed ? renderDoor(X0 + FR, DR_Y0, X1 - FR, DR_Y1, true) : renderDoor(X0 + 2, DR_Y0, X1 - 2, DR_Y1, true)}
+          {framed ? renderDoor(X0 + FR, DOORS_Y0, MIDX - FR / 2, DOORS_Y1, false) : renderDoor(X0 + 2, DOORS_Y0, MIDX - 2, DOORS_Y1, false)}
+          {framed ? renderDoor(MIDX + FR / 2, DOORS_Y0, X1 - FR, DOORS_Y1, false) : renderDoor(MIDX + 2, DOORS_Y0, X1 - 2, DOORS_Y1, false)}
+          {(H.id !== 'integrated' && H.id !== 'none' && D.profile !== 'channel') && renderHardware((X0 + X1) / 2, (DR_Y0 + DR_Y1) / 2, H.id)}
+          {(H.id !== 'integrated' && H.id !== 'none' && D.profile !== 'channel') && (() => {
+            const door1x = MIDX - FR / 2 - (H.id === 'knob' ? 24 : 70);
+            const door2x = MIDX + FR / 2 + (H.id === 'knob' ? 24 : 70);
+            const knobY = DOORS_Y0 + 60;
+            if (H.id === 'knob') return (<g>{renderHardware(door1x, knobY, 'knob')}{renderHardware(door2x, knobY, 'knob')}</g>);
+            const x1c = MIDX - FR / 2 - 22, x2c = MIDX + FR / 2 + 22;
+            const hy0 = DOORS_Y0 + 40, hy1 = hy0 + 100;
+            return (<g>
+              <rect x={x1c - 3} y={hy0} width="6" height={hy1 - hy0} rx="3" fill={ink} />
+              <rect x={x2c - 3} y={hy0} width="6" height={hy1 - hy0} rx="3" fill={ink} />
+            </g>);
+          })()}
+          <rect x={X0 + 12} y={Y1} width={X1 - X0 - 24} height={VB_H - Y1 - 4} fill={ink} fillOpacity="0.6" />
+          <rect x="0" y={VB_H - 4} width={VB_W} height="4" fill={ink} fillOpacity="0.12" />
+          <g fill={ink} fillOpacity="0.45" fontFamily="ui-monospace, monospace" fontSize="9" letterSpacing="0.16em">
+            <text x={X0} y={VB_H - 14} stroke="none">36&quot; W · 34.5&quot; H · 24&quot; D</text>
+            <text x={X1} y={VB_H - 14} stroke="none" textAnchor="end">{B.framingLabel.toUpperCase()}</text>
+          </g>
+          {softClose && (<g>
+            <rect x={X1 - 168} y={Y0 + 14} width="146" height="22" rx="11" fill={paper} stroke={accent} strokeWidth="0.5" />
+            <circle cx={X1 - 154} cy={Y0 + 25} r="3" fill={accent} />
+            <text x={X1 - 144} y={Y0 + 28} fontSize="9" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} stroke="none">SOFT-CLOSE ACTIVE</text>
+          </g>)}
+          <g>
+            <rect x="0" y={VB_H - 30} width="120" height="22" fill={ink} />
+            <text x="14" y={VB_H - 14} fontSize="10" fontFamily="ui-monospace, monospace" letterSpacing="0.18em" fill={paper} stroke="none">{B.name.toUpperCase()}</text>
+          </g>
+        </svg>
+      );
+    }
+
+    function CabBrandTile({ theme, B, selected, onPick }) {
+      const { ink, paper, accent, muted } = theme;
+      const [hover, setHover] = useState(false);
+      const lift = !selected && hover;
+      return (
+        <button onClick={onPick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} style={{
+          position: 'relative', textAlign: 'left', cursor: 'pointer',
+          background: selected ? paper : `${ink}03`,
+          border: 'none', borderTop: `3px solid ${selected ? accent : ink + '22'}`,
+          padding: 0, transition: 'all .25s',
+          transform: lift ? 'translateY(-3px)' : 'none',
+          boxShadow: selected ? `0 24px 60px ${ink}22, 0 0 0 0.5px ${ink}22` : lift ? `0 12px 32px ${ink}18, 0 0 0 0.5px ${ink}22` : `0 0 0 0.5px ${ink}11`,
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr', height: 420 }}>
+            <div style={{ padding: '36px 32px 32px', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: selected ? accent : muted, marginBottom: 16 }}>
+                <span>{B.framingLabel}</span>
+              </div>
+              <div style={{ font: '300 64px/0.92 var(--font-heading)', color: ink, letterSpacing: '-0.02em' }}>{B.name}</div>
+              <div style={{ font: '400 13px/1 var(--font-heading)', color: muted, fontStyle: 'italic', marginTop: 6 }}>{B.tagline} · {B.origin}</div>
+              <p style={{ font: '400 14px/1.55 var(--font-body)', color: `${ink}dd`, margin: '20px 0 0', flex: 1 }}>{B.pitch}</p>
+              <div style={{ marginTop: 18, paddingTop: 16, borderTop: `0.5px solid ${ink}11`, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <div>
+                  <div style={{ font: '400 24px/1 var(--font-heading)', color: ink }}>{B.stat.v}</div>
+                  <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', color: muted, marginTop: 4, textTransform: 'uppercase' }}>{B.stat.l}</div>
+                </div>
+                <span style={{ font: '500 11px/1 var(--font-body)', letterSpacing: '0.12em', textTransform: 'uppercase', color: selected ? accent : ink }}>
+                  {selected ? 'Selected \u2713' : 'Choose \u2192'}
+                </span>
+              </div>
+            </div>
+            <div style={{ position: 'relative', background: `${ink}05`, overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', inset: '20px 20px 20px 0' }}>
+                <CabinetSpecimen theme={theme} brand={B.id} door={B.defaults.door} finish={B.defaults.finish} hardware={B.defaults.hardware} softClose />
+              </div>
+            </div>
+          </div>
+        </button>
+      );
+    }
+
+    function CabHero({ theme, brand, setBrand }) {
+      const { ink, paper, accent, muted } = theme;
+      return (
+        <section style={{ position: 'relative', background: paper, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '16px 80px', borderBottom: `0.5px solid ${ink}11`, font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.22em', textTransform: 'uppercase', color: muted, whiteSpace: 'nowrap' }}>
+            <span style={{ color: ink }}>Roma · Cabinets</span><span>—</span><span>Two lines, fully stocked</span>
+            <span style={{ flex: 1, height: 1, background: `${ink}11` }} />
+            <span style={{ color: accent }}>Designed in-house · Installed by our crew</span>
+            <span style={{ flex: 1, height: 1, background: `${ink}11` }} />
+            <span>Anaheim, CA</span>
+          </div>
+          <div style={{ padding: '72px 80px 88px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: muted, marginBottom: 28 }}>
+              <span style={{ width: 28, height: 1, background: accent }} /> 01 · Pick a philosophy
+            </div>
+            <h1 style={{ font: '300 112px/0.92 var(--font-heading)', margin: 0, letterSpacing: '-0.025em', textWrap: 'pretty', color: ink }}>
+              Cabinetry, <em style={{ color: accent }}>two ways.</em>
+            </h1>
+            <p style={{ font: '400 20px/1.55 var(--font-body)', color: `${ink}dd`, margin: '32px 0 0', maxWidth: 760 }}>
+              Roma stocks both lines because most kitchens need a little of both. Choose American face-frame craftsmanship, or European frameless precision — both
+              <strong style={{ color: ink, fontWeight: 500 }}> sampled, specified, and installed </strong>
+              from one Anaheim showroom.
+            </p>
+            <div style={{ marginTop: 56, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+              {Object.values(CAB_BRANDS).map(B => (
+                <CabBrandTile key={B.id} theme={theme} B={B} selected={brand === B.id} onPick={() => setBrand(B.id)} />
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function CabAnatomyDiagram({ theme, framed, brand }) {
+      const { ink, paper, accent, muted } = theme;
+      const VB_W = 720, VB_H = 600;
+      const CB_X0 = 120, CB_X1 = 600, CB_Y0 = 60, CB_Y1 = 280;
+      const WALL = 16, FRAME_DEPTH = 18, FRAME_INWARD = 14, DOOR_THK = 13, DOOR_LEN = 220;
+      const MID = (CB_X0 + CB_X1) / 2;
+      const frontY = CB_Y1;
+      const frameFrontY = frontY + FRAME_DEPTH;
+      const leftHinge = framed ? { x: CB_X0 + WALL + FRAME_INWARD, y: frameFrontY } : { x: CB_X0 + WALL, y: frontY };
+      const rightInner = framed ? CB_X1 - WALL - FRAME_INWARD : CB_X1 - WALL;
+      const openingStart = leftHinge.x, openingEnd = rightInner;
+      const usableLabel = framed ? '27\u2033' : '28\u00BD\u2033';
+      const doorOpenX = leftHinge.x, doorOpenY = leftHinge.y;
+      const doorOpenTipY = doorOpenY + DOOR_LEN;
+      const doorClosedTipX = leftHinge.x + DOOR_LEN;
+
+      return (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 18, paddingBottom: 12, borderBottom: `0.5px solid ${ink}22` }}>
+            <div>
+              <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: muted, marginBottom: 6 }}>Plan view · Section A-A · 1 of 2</div>
+              <div style={{ font: '400 32px/1 var(--font-heading)', color: ink, letterSpacing: '-0.01em' }}>{framed ? 'Face-frame' : 'Frameless'}</div>
+            </div>
+            <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: accent }}>{brand.name}</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '0 0 18px', gap: 24 }}>
+            <div>
+              <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: muted, marginBottom: 10 }}>Door opening</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+                <span style={{ font: '300 64px/0.9 var(--font-heading)', color: ink, letterSpacing: '-0.02em' }}>{usableLabel}</span>
+                <span style={{ font: '400 14px/1 var(--font-body)', color: muted, fontStyle: 'italic' }}>{framed ? 'usable, after frame' : 'edge to edge'}</span>
+              </div>
+            </div>
+            <div style={{ font: '500 10px/1.5 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: framed ? muted : accent, textAlign: 'right' }}>
+              {framed ? (<React.Fragment><div>Lost to face frame</div><div style={{ color: ink, fontSize: 18, fontFamily: 'var(--font-heading), serif', textTransform: 'none', letterSpacing: '0', marginTop: 6 }}>{'\u2212'}3{'\u2033'} each cabinet</div></React.Fragment>)
+                : (<React.Fragment><div>Gained back</div><div style={{ color: ink, fontSize: 18, fontFamily: 'var(--font-heading), serif', textTransform: 'none', letterSpacing: '0', marginTop: 6 }}>+1{'\u00BD\u2033'} each cabinet</div></React.Fragment>)}
+            </div>
+          </div>
+          <div style={{ background: paper, border: `0.5px solid ${ink}22`, padding: '12px 18px 6px' }}>
+            <svg viewBox={`0 0 ${VB_W} ${VB_H}`} style={{ width: '100%', height: 'auto', display: 'block', overflow: 'visible' }}>
+              <defs>
+                <pattern id={`anat-hatch-${framed ? 'fr' : 'fl'}`} patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">
+                  <line x1="0" y1="0" x2="0" y2="5" stroke={ink} strokeWidth="0.6" strokeOpacity="0.7" />
+                </pattern>
+                <pattern id={`anat-frame-${framed ? 'fr' : 'fl'}`} patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(-45)">
+                  <line x1="0" y1="0" x2="0" y2="4" stroke={ink} strokeWidth="0.5" strokeOpacity="0.55" />
+                </pattern>
+              </defs>
+              {Array.from({ length: 13 }).map((_, i) => <line key={`gv${i}`} x1={120 + i * 40} y1={40} x2={120 + i * 40} y2={540} stroke={ink} strokeOpacity="0.04" strokeWidth="0.5" />)}
+              {Array.from({ length: 12 }).map((_, i) => <line key={`gh${i}`} x1={100} y1={60 + i * 40} x2={620} y2={60 + i * 40} stroke={ink} strokeOpacity="0.04" strokeWidth="0.5" />)}
+              <g stroke={ink} strokeOpacity="0.4" strokeWidth="0.5" fill={ink} fillOpacity="0.7">
+                <line x1={CB_X0} y1={36} x2={CB_X1} y2={36} />
+                <line x1={CB_X0} y1={28} x2={CB_X0} y2={44} />
+                <line x1={CB_X1} y1={28} x2={CB_X1} y2={44} />
+                <rect x={MID - 38} y={26} width="76" height="20" fill={paper} stroke="none" />
+                <text x={MID} y={42} fontSize="11" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" textAnchor="middle" stroke="none">30{'\u2033'} EXTERIOR</text>
+              </g>
+              <rect x={CB_X0 + WALL} y={CB_Y0} width={CB_X1 - CB_X0 - 2 * WALL} height={CB_Y1 - CB_Y0} fill={`${ink}05`} />
+              <rect x={CB_X0} y={CB_Y0} width={WALL} height={CB_Y1 - CB_Y0} fill={`url(#anat-hatch-${framed ? 'fr' : 'fl'})`} stroke={ink} strokeWidth="1" />
+              <rect x={CB_X1 - WALL} y={CB_Y0} width={WALL} height={CB_Y1 - CB_Y0} fill={`url(#anat-hatch-${framed ? 'fr' : 'fl'})`} stroke={ink} strokeWidth="1" />
+              <rect x={CB_X0} y={CB_Y0} width={CB_X1 - CB_X0} height={WALL} fill={`url(#anat-hatch-${framed ? 'fr' : 'fl'})`} stroke={ink} strokeWidth="1" />
+              <line x1={CB_X0 + WALL + 2} y1={CB_Y0 + (CB_Y1 - CB_Y0) / 2} x2={CB_X1 - WALL - 2} y2={CB_Y0 + (CB_Y1 - CB_Y0) / 2} stroke={ink} strokeOpacity="0.18" strokeWidth="0.5" strokeDasharray="4,3" />
+              <text x={CB_X0 + WALL + 8} y={CB_Y0 + (CB_Y1 - CB_Y0) / 2 - 5} fontSize="8" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.32" stroke="none">ADJ. SHELF</text>
+              {framed && (<g>
+                <rect x={CB_X0} y={frontY} width={WALL + FRAME_INWARD} height={FRAME_DEPTH + 4} fill={accent} fillOpacity="0.18" />
+                <rect x={CB_X1 - WALL - FRAME_INWARD} y={frontY} width={WALL + FRAME_INWARD} height={FRAME_DEPTH + 4} fill={accent} fillOpacity="0.18" />
+                <rect x={MID - FRAME_INWARD} y={frontY} width={2 * FRAME_INWARD} height={FRAME_DEPTH + 4} fill={accent} fillOpacity="0.18" />
+                <rect x={CB_X0} y={frontY} width={WALL + FRAME_INWARD} height={FRAME_DEPTH} fill={`url(#anat-frame-fr)`} stroke={ink} strokeWidth="1" />
+                <rect x={CB_X1 - WALL - FRAME_INWARD} y={frontY} width={WALL + FRAME_INWARD} height={FRAME_DEPTH} fill={`url(#anat-frame-fr)`} stroke={ink} strokeWidth="1" />
+                <rect x={MID - FRAME_INWARD} y={frontY} width={2 * FRAME_INWARD} height={FRAME_DEPTH} fill={`url(#anat-frame-fr)`} stroke={ink} strokeWidth="1" />
+                <line x1={CB_X0 + WALL + FRAME_INWARD} y1={frontY + 2} x2={MID - FRAME_INWARD} y2={frontY + 2} stroke={ink} strokeOpacity="0.5" strokeWidth="0.7" />
+                <line x1={CB_X0 + WALL + FRAME_INWARD} y1={frameFrontY - 2} x2={MID - FRAME_INWARD} y2={frameFrontY - 2} stroke={ink} strokeOpacity="0.5" strokeWidth="0.7" />
+                <line x1={MID + FRAME_INWARD} y1={frontY + 2} x2={CB_X1 - WALL - FRAME_INWARD} y2={frontY + 2} stroke={ink} strokeOpacity="0.5" strokeWidth="0.7" />
+                <line x1={MID + FRAME_INWARD} y1={frameFrontY - 2} x2={CB_X1 - WALL - FRAME_INWARD} y2={frameFrontY - 2} stroke={ink} strokeOpacity="0.5" strokeWidth="0.7" />
+                <g stroke={accent} strokeWidth="1" fill={accent}>
+                  <line x1={CB_X0 + WALL - 4} y1={frontY + FRAME_DEPTH + 14} x2={CB_X0 + WALL + FRAME_INWARD + 2} y2={frontY + FRAME_DEPTH + 14} />
+                  <polygon points={`${CB_X0 + WALL + FRAME_INWARD + 2},${frontY + FRAME_DEPTH + 14} ${CB_X0 + WALL + FRAME_INWARD - 6},${frontY + FRAME_DEPTH + 10} ${CB_X0 + WALL + FRAME_INWARD - 6},${frontY + FRAME_DEPTH + 18}`} />
+                </g>
+              </g>)}
+              <rect x={framed ? MID + FRAME_INWARD + 2 : MID + 2} y={framed ? frameFrontY : frontY} width={framed ? CB_X1 - WALL - FRAME_INWARD - MID - FRAME_INWARD - 2 : CB_X1 - WALL - MID - 2} height={DOOR_THK} fill={ink} fillOpacity="0.86" stroke={ink} strokeWidth="0.6" />
+              <path d={`M ${doorClosedTipX} ${doorOpenY} A ${DOOR_LEN} ${DOOR_LEN} 0 0 1 ${doorOpenX} ${doorOpenY + DOOR_LEN}`} fill="none" stroke={accent} strokeWidth="0.8" strokeDasharray="4,4" strokeOpacity="0.5" />
+              <rect x={doorOpenX} y={doorOpenY} width={DOOR_LEN} height={DOOR_THK} fill="none" stroke={ink} strokeWidth="0.5" strokeDasharray="3,3" strokeOpacity="0.3" />
+              <rect x={doorOpenX} y={doorOpenY} width={DOOR_THK} height={DOOR_LEN} fill={ink} fillOpacity="0.86" stroke={ink} strokeWidth="0.6" />
+              <line x1={doorOpenX + DOOR_THK / 2} y1={doorOpenY + 6} x2={doorOpenX + DOOR_THK / 2} y2={doorOpenY + DOOR_LEN - 6} stroke={paper} strokeOpacity="0.15" strokeWidth="0.5" />
+              {framed ? (<g>
+                <rect x={doorOpenX - 6} y={doorOpenY + 12} width={6} height={14} fill={accent} stroke={ink} strokeWidth="0.5" />
+                <rect x={doorOpenX - 6} y={doorOpenY + DOOR_LEN - 26} width={6} height={14} fill={accent} stroke={ink} strokeWidth="0.5" />
+                <circle cx={doorOpenX} cy={doorOpenY + 19} r="2" fill={ink} />
+                <circle cx={doorOpenX} cy={doorOpenY + DOOR_LEN - 19} r="2" fill={ink} />
+                <rect x={CB_X1 - WALL - FRAME_INWARD - 4} y={frameFrontY + DOOR_THK / 2 - 7} width={8} height={14} fill={accent} stroke={ink} strokeWidth="0.5" />
+              </g>) : (<g>
+                {[CB_Y0 + 32, CB_Y1 - 56].map((cy, i) => (<g key={`lh${i}`}>
+                  <rect x={CB_X0 + WALL} y={cy - 4} width={22} height={28} fill={paper} stroke={ink} strokeWidth="0.7" />
+                  <line x1={CB_X0 + WALL + 4} y1={cy} x2={CB_X0 + WALL + 18} y2={cy} stroke={ink} strokeOpacity="0.35" strokeWidth="0.5" />
+                  <line x1={CB_X0 + WALL + 4} y1={cy + 20} x2={CB_X0 + WALL + 18} y2={cy + 20} stroke={ink} strokeOpacity="0.35" strokeWidth="0.5" />
+                  <path d={`M ${CB_X0 + WALL + 22} ${cy + 10} L ${CB_X0 + WALL + 32} ${cy + 10} L ${doorOpenX + DOOR_THK / 2} ${doorOpenY + (i === 0 ? 18 : DOOR_LEN - 18)}`} fill="none" stroke={accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx={doorOpenX + DOOR_THK / 2} cy={doorOpenY + (i === 0 ? 18 : DOOR_LEN - 18)} r="5" fill={paper} stroke={accent} strokeWidth="1.2" />
+                  <circle cx={doorOpenX + DOOR_THK / 2} cy={doorOpenY + (i === 0 ? 18 : DOOR_LEN - 18)} r="2" fill={accent} />
+                  <circle cx={CB_X0 + WALL + 7} cy={cy + 6} r="1.4" fill={ink} fillOpacity="0.5" />
+                  <circle cx={CB_X0 + WALL + 7} cy={cy + 18} r="1.4" fill={ink} fillOpacity="0.5" />
+                </g>))}
+                {[CB_Y0 + 32, CB_Y1 - 56].map((cy, i) => (<g key={`rh${i}`}>
+                  <rect x={CB_X1 - WALL - 22} y={cy - 4} width={22} height={28} fill={paper} stroke={ink} strokeWidth="0.7" />
+                  <line x1={CB_X1 - WALL - 18} y1={cy} x2={CB_X1 - WALL - 4} y2={cy} stroke={ink} strokeOpacity="0.35" strokeWidth="0.5" />
+                  <line x1={CB_X1 - WALL - 18} y1={cy + 20} x2={CB_X1 - WALL - 4} y2={cy + 20} stroke={ink} strokeOpacity="0.35" strokeWidth="0.5" />
+                  <circle cx={CB_X1 - WALL - 7} cy={cy + 6} r="1.4" fill={ink} fillOpacity="0.5" />
+                  <circle cx={CB_X1 - WALL - 7} cy={cy + 18} r="1.4" fill={ink} fillOpacity="0.5" />
+                </g>))}
+              </g>)}
+              {framed ? (<g>
+                <line x1={CB_X0 + WALL + FRAME_INWARD / 2} y1={frontY + FRAME_DEPTH / 2} x2={CB_X0 + 4} y2={frontY + 60} stroke={ink} strokeOpacity="0.55" strokeWidth="0.6" />
+                <circle cx={CB_X0 + WALL + FRAME_INWARD / 2} cy={frontY + FRAME_DEPTH / 2} r="2" fill={ink} />
+                <text x={CB_X0 + 4} y={frontY + 76} fontSize="12" fontFamily="ui-monospace, monospace" letterSpacing="0.16em" fill={ink} fillOpacity="0.8" textAnchor="start" stroke="none">1{'\u00BD\u2033'} FRAME</text>
+                <text x={CB_X0 + 4} y={frontY + 92} fontSize="10" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.55" textAnchor="start" stroke="none">maple stile</text>
+                <line x1={doorOpenX - 3} y1={doorOpenY + 19} x2={CB_X1 - 4} y2={frontY + 70} stroke={ink} strokeOpacity="0.55" strokeWidth="0.6" />
+                <circle cx={doorOpenX - 3} cy={doorOpenY + 19} r="2" fill={ink} />
+                <text x={CB_X1 - 4} y={frontY + 86} fontSize="12" fontFamily="ui-monospace, monospace" letterSpacing="0.16em" fill={ink} fillOpacity="0.8" textAnchor="end" stroke="none">BUTT HINGE</text>
+                <text x={CB_X1 - 4} y={frontY + 102} fontSize="10" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.55" textAnchor="end" stroke="none">mortised</text>
+              </g>) : (<g>
+                <line x1={CB_X0 + WALL + 11} y1={CB_Y0 + 42} x2={CB_X0 + 4} y2={CB_Y0 + 8} stroke={ink} strokeOpacity="0.55" strokeWidth="0.6" />
+                <circle cx={CB_X0 + WALL + 11} cy={CB_Y0 + 42} r="2" fill={ink} />
+                <text x={CB_X0 + 4} y={CB_Y0 - 6} fontSize="12" fontFamily="ui-monospace, monospace" letterSpacing="0.16em" fill={ink} fillOpacity="0.8" textAnchor="start" stroke="none">35mm CUP</text>
+                <text x={CB_X0 + 4} y={CB_Y0 + 10} fontSize="10" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.55" textAnchor="start" stroke="none">3-way adj.</text>
+                <line x1={doorOpenX + DOOR_THK / 2} y1={doorOpenY + DOOR_LEN / 2} x2={CB_X1 - 4} y2={frontY + 90} stroke={ink} strokeOpacity="0.55" strokeWidth="0.6" />
+                <circle cx={doorOpenX + DOOR_THK / 2} cy={doorOpenY + DOOR_LEN / 2} r="2" fill={ink} />
+                <text x={CB_X1 - 4} y={frontY + 106} fontSize="12" fontFamily="ui-monospace, monospace" letterSpacing="0.16em" fill={ink} fillOpacity="0.8" textAnchor="end" stroke="none">FULL OVERLAY</text>
+                <text x={CB_X1 - 4} y={frontY + 122} fontSize="10" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.55" textAnchor="end" stroke="none">19mm slab</text>
+              </g>)}
+              <text x={CB_X0 + WALL / 2} y={CB_Y0 + (CB_Y1 - CB_Y0) / 2 + 3} fontSize="8" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.55" textAnchor="middle" stroke="none" transform={`rotate(-90, ${CB_X0 + WALL / 2}, ${CB_Y0 + (CB_Y1 - CB_Y0) / 2})`}>{'\u00BE\u2033'} PLY</text>
+              <text x={CB_X1 - WALL / 2} y={CB_Y0 + (CB_Y1 - CB_Y0) / 2 + 3} fontSize="8" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.55" textAnchor="middle" stroke="none" transform={`rotate(-90, ${CB_X1 - WALL / 2}, ${CB_Y0 + (CB_Y1 - CB_Y0) / 2})`}>{'\u00BE\u2033'} PLY</text>
+              <text x={doorOpenX + DOOR_THK + 6} y={doorOpenY + DOOR_LEN + 14} fontSize="9" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.5" stroke="none">DOOR · 90° OPEN</text>
+              <text x={CB_X1 - 6} y={(framed ? frameFrontY : frontY) - 4} fontSize="9" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.5" textAnchor="end" stroke="none">DOOR · CLOSED</text>
+              <g stroke={accent} strokeWidth="1.4" fill={accent}>
+                <line x1={openingStart} y1={500} x2={openingEnd} y2={500} />
+                <polygon points={`${openingStart},${500} ${openingStart + 12},${493} ${openingStart + 12},${507}`} />
+                <polygon points={`${openingEnd},${500} ${openingEnd - 12},${493} ${openingEnd - 12},${507}`} />
+                <line x1={openingStart} y1={488} x2={openingStart} y2={512} />
+                <line x1={openingEnd} y1={488} x2={openingEnd} y2={512} />
+              </g>
+              <g>
+                <rect x={MID - 80} y={488} width="160" height="24" fill={paper} stroke="none" />
+                <text x={MID} y={508} textAnchor="middle" fontSize="22" fontWeight="400" fontFamily="var(--font-heading), serif" fill={ink} stroke="none">{usableLabel}</text>
+              </g>
+              <text x={MID} y={530} textAnchor="middle" fontSize="11" fontFamily="ui-monospace, monospace" letterSpacing="0.18em" fill={accent} stroke="none">{framed ? '\u2014 30\u2033 EXT \u2212 1\u00BD\u2033 WALLS \u2212 1\u00BD\u2033 FRAME \u2014' : '\u2014 30\u2033 EXT \u2212 1\u00BD\u2033 WALLS \u2014'}</text>
+              <g fill={ink} fillOpacity="0.5" fontFamily="ui-monospace, monospace" fontSize="9" letterSpacing="0.16em">
+                <line x1={CB_X0} y1={552} x2={CB_X1} y2={552} stroke={ink} strokeOpacity="0.15" strokeWidth="0.5" />
+                <text x={CB_X0} y={570} stroke="none">SCALE 1:8 · SECTION A-A @ 17{'\u2033'} AFF</text>
+                <text x={CB_X1} y={570} textAnchor="end" stroke="none">B30 · 30{'\u2033'} {'\u00D7'} 24{'\u2033'} {'\u00D7'} 34{'\u00BD\u2033'} H</text>
+              </g>
+            </svg>
+          </div>
+          <div style={{ marginTop: 22, display: 'grid', gap: 10 }}>
+            {(framed ? [
+              'Face frame keeps door alignment perfect for decades',
+              'Traditional door styles (shaker, beaded, raised) need the frame to read correctly',
+              'Field-repairable \u2014 broken butt hinge swaps in 10 min, no special tools',
+              'Slight reveal between doors hides minor wood movement',
+            ] : [
+              'Zero face-frame intrusion · ~1\u00BD\u2033 more usable opening per cabinet',
+              'Doors flush with one another \u2014 no visible gaps, no shadow lines',
+              'Concealed European cup hinge adjusts in three planes after install',
+              'Required for handleless, integrated-channel, and push-to-open designs',
+            ]).map((p, i) => (
+              <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: accent, marginTop: 7, flexShrink: 0 }} />
+                <span style={{ font: '400 14px/1.45 var(--font-body)', color: `${ink}dd` }}>{p}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function CabAnatomy({ theme }) {
+      const { ink, paper, accent, muted } = theme;
+      return (
+        <section style={{ padding: '120px 80px', borderTop: `0.5px solid ${ink}11`, background: paper }}>
+          <CabSectionHead theme={theme} num="02" eyebrow="The Bones" headline={<>Framed, <em style={{ color: accent }}>or frameless.</em></>} sub="The single decision that drives most of the others. Same finish, two very different ways of getting inside the box." />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56, alignItems: 'start' }}>
+            <CabAnatomyDiagram theme={theme} framed brand={CAB_BRANDS.waypoint} />
+            <CabAnatomyDiagram theme={theme} brand={CAB_BRANDS.europa} />
+          </div>
+          <div style={{ marginTop: 56, padding: '36px 40px', background: ink, color: paper, position: 'relative', overflow: 'hidden', display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: 40, alignItems: 'center' }}>
+            <div style={{ position: 'absolute', top: -80, right: -40, width: 240, height: 240, borderRadius: '50%', background: `radial-gradient(circle at 30% 30%, ${accent}33, transparent 70%)` }} />
+            <div style={{ position: 'relative' }}>
+              <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.22em', textTransform: 'uppercase', color: accent, marginBottom: 10 }}>The delta</div>
+              <div style={{ font: '300 36px/1.05 var(--font-heading)', color: paper, letterSpacing: '-0.01em', textWrap: 'pretty' }}>
+                Over a 24-foot kitchen run, frameless gives you back <em style={{ color: accent, fontStyle: 'italic', fontWeight: 400 }}> 14 extra inches</em> of usable interior.
+              </div>
+            </div>
+            {[{ v: '1\u00BD\u2033', l: 'Per cabinet' }, { v: '14\u2033', l: 'Over 24-ft run' }, { v: '~5\u201310%', l: 'More interior' }].map((s, i) => (
+              <div key={i} style={{ position: 'relative', paddingLeft: 24, borderLeft: `0.5px solid ${paper}22` }}>
+                <div style={{ font: '300 42px/1 var(--font-heading)', color: paper }}>{s.v}</div>
+                <div style={{ font: '500 10px/1.3 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: `${paper}88`, marginTop: 8 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    function CabConfigGroup({ theme, label, children }) {
+      const { ink, muted } = theme;
+      return (
+        <div>
+          <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: muted, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${ink}11` }}>{label}</div>
+          {children}
+        </div>
+      );
+    }
+
+    function CabSegRow({ theme, value, onChange, options }) {
+      const { ink, paper, accent, muted } = theme;
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 0, border: `0.5px solid ${ink}22` }}>
+          {options.map((o, i) => {
+            const active = value === o.id;
+            return (
+              <button key={o.id} onClick={() => onChange(o.id)} style={{
+                padding: '12px 14px', cursor: 'pointer', background: active ? ink : 'transparent', color: active ? paper : ink,
+                border: 'none', borderLeft: i === 0 ? 'none' : `0.5px solid ${ink}22`,
+                font: '500 11px/1 var(--font-body)', letterSpacing: '0.06em', transition: 'background .15s, color .15s',
+              }}>{o.label}</button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    function CabMiniDoor({ theme, d, brand, finish }) {
+      const B = CAB_BRANDS[brand];
+      const F = B.finishes.find(f => f.id === finish) || B.finishes[0];
+      return (
+        <svg viewBox="0 0 60 64" style={{ width: '100%', height: '100%', display: 'block' }}>
+          <defs>
+            {F.wood && (<pattern id={`mini-wood-${brand}-${F.id}`} patternUnits="userSpaceOnUse" width="60" height="10" patternTransform="rotate(90)">
+              <rect width="60" height="10" fill={F.tone.a} />
+              <rect x="0" y="3" width="60" height="0.6" fill={F.tone.c} opacity="0.45" />
+              <rect x="0" y="7" width="60" height="0.5" fill={F.tone.c} opacity="0.3" />
+              <rect x="0" y="0" width="0.5" height="10" fill={F.tone.c} opacity="0.35" />
+              <rect x="29" y="0" width="0.5" height="10" fill={F.tone.c} opacity="0.28" />
+            </pattern>)}
+            <linearGradient id="mini-gloss" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="rgba(255,255,255,0.5)" />
+              <stop offset="50%" stopColor="rgba(255,255,255,0)" />
+              <stop offset="100%" stopColor="rgba(0,0,0,0.2)" />
+            </linearGradient>
+          </defs>
+          <rect x="0" y="0" width="60" height="64" fill={F.wood ? `url(#mini-wood-${brand}-${F.id})` : F.fill} />
+          {F.family === 'gloss' && <rect x="0" y="0" width="60" height="64" fill="url(#mini-gloss)" />}
+          {d.profile === 'shaker' && <rect x="8" y="8" width="44" height="48" fill="rgba(0,0,0,0.06)" stroke="rgba(0,0,0,0.18)" strokeWidth="0.4" />}
+          {d.profile === 'recessed' && <rect x="6" y="6" width="48" height="52" fill="rgba(0,0,0,0.06)" stroke="rgba(0,0,0,0.18)" strokeWidth="0.4" />}
+          {d.profile === 'raised' && (() => { const ix0=8,iy0=8,ix1=52,iy1=56,ch=4; return (<g><polygon points={`${ix0+ch},${iy0+ch} ${ix1-ch},${iy0+ch} ${ix1-ch},${iy1-ch} ${ix0+ch},${iy1-ch}`} fill="rgba(255,255,255,0.2)" /><polygon points={`${ix0},${iy0} ${ix1},${iy0} ${ix1-ch},${iy0+ch} ${ix0+ch},${iy0+ch}`} fill="rgba(255,255,255,0.18)" /><polygon points={`${ix0},${iy1} ${ix1},${iy1} ${ix1-ch},${iy1-ch} ${ix0+ch},${iy1-ch}`} fill="rgba(0,0,0,0.16)" /></g>); })()}
+          {d.profile === 'beaded' && (<g><rect x="6" y="6" width="48" height="52" fill="rgba(0,0,0,0.04)" /><rect x="9" y="9" width="42" height="46" fill="none" stroke="rgba(0,0,0,0.22)" strokeWidth="0.4" /></g>)}
+          {d.profile === 'arched' && <path d="M 8 56 L 8 18 Q 8 8 30 8 Q 52 8 52 18 L 52 56 Z" fill="rgba(0,0,0,0.05)" stroke="rgba(0,0,0,0.2)" strokeWidth="0.4" />}
+          {d.profile === 'mullion' && (<g stroke="rgba(0,0,0,0.28)" strokeWidth="0.4" fill="rgba(255,255,255,0.1)"><rect x="8" y="8" width="44" height="48" /><line x1="8" y1="32" x2="52" y2="32" /><line x1="30" y1="8" x2="30" y2="56" /></g>)}
+          {d.profile === 'channel' && <rect x="0" y="0" width="60" height="6" fill="rgba(0,0,0,0.4)" />}
+          {d.profile === 'slim' && <rect x="4" y="4" width="52" height="56" fill="none" stroke="rgba(0,0,0,0.2)" strokeWidth="0.3" />}
+          {d.profile === 'reeded' && (<g stroke="rgba(0,0,0,0.22)" strokeWidth="0.5">{Array.from({length:9}).map((_,i)=><line key={i} x1={4+i*6.5} y1="0" x2={4+i*6.5} y2="64" />)}</g>)}
+          {d.profile === 'glass' && (<g><rect x="6" y="6" width="48" height="52" fill="rgba(255,255,255,0.25)" stroke="rgba(0,0,0,0.25)" strokeWidth="0.5" /><line x1="30" y1="6" x2="30" y2="58" stroke="rgba(0,0,0,0.25)" strokeWidth="0.5" /><line x1="6" y1="32" x2="54" y2="32" stroke="rgba(0,0,0,0.25)" strokeWidth="0.5" /><line x1="10" y1="10" x2="22" y2="22" stroke="rgba(255,255,255,0.6)" strokeWidth="0.6" /></g>)}
+        </svg>
+      );
+    }
+
+    function CabDoorChoice({ theme, d, brand, finish, active, onPick }) {
+      const { ink, paper, accent, muted } = theme;
+      return (
+        <button onClick={onPick} style={{ position: 'relative', cursor: 'pointer', padding: 0, background: paper, border: `0.5px solid ${active ? accent : ink + '22'}`, boxShadow: active ? `0 0 0 1px ${accent}` : 'none', display: 'grid', gridTemplateColumns: '60px 1fr', alignItems: 'stretch', textAlign: 'left', transition: 'border-color .15s, box-shadow .15s' }}>
+          <div style={{ width: 60, height: 64, overflow: 'hidden' }}><CabMiniDoor theme={theme} d={d} brand={brand} finish={finish} /></div>
+          <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ font: '400 14px/1.1 var(--font-heading)', color: ink, letterSpacing: '-0.005em' }}>{d.name}</div>
+            <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: muted, marginTop: 3 }}>{d.profile}{d.sheen ? ` · ${d.sheen}` : ''}</div>
+          </div>
+        </button>
+      );
+    }
+
+    function CabFinishSwatch({ theme, f, active, onPick }) {
+      const { ink, paper, accent } = theme;
+      const dark = (() => { const hex = (f.fill || '#888').replace('#', ''); const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16); return (r * 0.299 + g * 0.587 + b * 0.114) < 130; })();
+      const overlayText = dark ? paper : ink;
+      return (
+        <button onClick={onPick} style={{ position: 'relative', cursor: 'pointer', padding: 0, height: 78, border: 'none', background: 'transparent' }}>
+          <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', boxShadow: active ? `0 0 0 2px ${accent}, 0 8px 18px ${ink}33` : `0 0 0 0.5px ${ink}22`, transition: 'box-shadow .15s' }}>
+            {f.wood ? <div style={{ position: 'absolute', inset: 0, ...materialFace('wood', f.tone) }} /> : <div style={{ position: 'absolute', inset: 0, background: f.fill }} />}
+            {f.family === 'gloss' && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.5) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.22) 100%)' }} />}
+            {f.family === 'textured' && <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(0,0,0,0.18) 1px, transparent 1.4px)', backgroundSize: '5px 5px', mixBlendMode: 'overlay' }} />}
+          </div>
+          <div style={{ position: 'absolute', left: 6, top: 6, right: 6, font: '500 8px/1.1 ui-monospace, monospace', letterSpacing: '0.1em', color: overlayText, textTransform: 'uppercase', opacity: 0.85, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={f.name}>{f.name}</div>
+          {active && <div style={{ position: 'absolute', right: 6, bottom: 6, width: 18, height: 18, borderRadius: '50%', background: accent, color: paper, display: 'flex', alignItems: 'center', justifyContent: 'center', font: '500 11px/1 var(--font-body)' }}>{'\u2713'}</div>}
+        </button>
+      );
+    }
+
+    function CabConfigurator({ theme, brand, setBrand }) {
+      const { ink, paper, accent, muted } = theme;
+      const B = CAB_BRANDS[brand];
+      const [door, setDoor] = useState(B.defaults.door);
+      const [finish, setFinish] = useState(B.defaults.finish);
+      const [hardware, setHardware] = useState(B.defaults.hardware);
+      const [softClose, setSoftClose] = useState(true);
+      const [inserts, setInserts] = useState({ trash: true, spice: false, lazy: false, divider: true });
+      useEffect(() => {
+        const validDoor = B.doors.some(d => d.id === door);
+        const validFinish = B.finishes.some(f => f.id === finish);
+        const validHw = B.hardware.some(h => h.id === hardware);
+        if (!validDoor) setDoor(B.defaults.door);
+        if (!validFinish) setFinish(B.defaults.finish);
+        if (!validHw) setHardware(B.defaults.hardware);
+      }, [brand]);
+      const F = B.finishes.find(f => f.id === finish) || B.finishes[0];
+      const D = B.doors.find(d => d.id === door) || B.doors[0];
+      const H = B.hardware.find(h => h.id === hardware) || B.hardware[0];
+      return (
+        <section style={{ padding: '120px 80px', background: `${ink}05`, borderTop: `0.5px solid ${ink}11` }}>
+          <CabSectionHead theme={theme} num="03" eyebrow="Build a sample" headline={<>Configure a base unit. <em style={{ color: accent }}>See it live.</em></>} sub="Every choice updates the specimen. Brand, door, finish, hardware, and inserts — the same set of decisions you'll make in the showroom, surfaced up front." />
+          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 56, alignItems: 'start' }}>
+            <div>
+              <div style={{ background: paper, padding: 24, border: `0.5px solid ${ink}11`, position: 'relative' }}>
+                <CabinetSpecimen theme={theme} brand={brand} door={door} finish={finish} hardware={hardware} softClose={softClose} big />
+              </div>
+              <div style={{ marginTop: 16, padding: '18px 20px', background: paper, border: `0.5px solid ${ink}11`, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 0 }}>
+                {[
+                  { l: 'Unit', v: 'B36 \u2014 36" Base', mono: true },
+                  { l: 'Door', v: D.name },
+                  { l: 'Finish', v: F.name },
+                  { l: 'Hardware', v: H.name },
+                  { l: 'SKU', v: `${B.name.slice(0,2).toUpperCase()}-${door.slice(0,2).toUpperCase()}-${finish.slice(0,2).toUpperCase()}-${hardware.slice(0,2).toUpperCase()}`.toUpperCase(), mono: true },
+                ].map((it, i) => (
+                  <div key={i} style={{ paddingLeft: i === 0 ? 0 : 18, borderLeft: i === 0 ? 'none' : `0.5px solid ${ink}11` }}>
+                    <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: muted, marginBottom: 6 }}>{it.l}</div>
+                    <div style={{ font: it.mono ? '500 12px/1.2 ui-monospace, monospace' : '400 15px/1.2 var(--font-heading)', color: ink, letterSpacing: it.mono ? '0.08em' : '-0.005em' }}>{it.v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'grid', gap: 32 }}>
+              <CabConfigGroup theme={theme} label="Brand">
+                <CabSegRow theme={theme} value={brand} onChange={setBrand} options={[{ id: 'waypoint', label: 'Waypoint' }, { id: 'europa', label: 'Europa' }]} />
+              </CabConfigGroup>
+              <CabConfigGroup theme={theme} label={`Door style · ${B.doors.length}`}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                  {B.doors.map(d => <CabDoorChoice key={d.id} theme={theme} d={d} brand={brand} finish={finish} active={door === d.id} onPick={() => setDoor(d.id)} />)}
+                </div>
+              </CabConfigGroup>
+              <CabConfigGroup theme={theme} label={`Finish · ${B.finishes.length} colors`}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, maxHeight: 280, overflowY: 'auto', paddingRight: 4 }}>
+                  {B.finishes.map(f => <CabFinishSwatch key={f.id} theme={theme} f={f} active={finish === f.id} onPick={() => setFinish(f.id)} />)}
+                </div>
+              </CabConfigGroup>
+              <CabConfigGroup theme={theme} label="Hardware">
+                <CabSegRow theme={theme} value={hardware} onChange={setHardware} options={B.hardware.map(h => ({ id: h.id, label: h.name }))} />
+              </CabConfigGroup>
+              <CabConfigGroup theme={theme} label="Performance">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '12px 14px', border: `0.5px solid ${ink}22`, background: softClose ? `${accent}11` : 'transparent' }}>
+                  <span style={{ width: 36, height: 20, borderRadius: 10, background: softClose ? accent : `${ink}22`, position: 'relative', transition: 'background .2s', flexShrink: 0 }}>
+                    <span style={{ position: 'absolute', top: 2, left: softClose ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: paper, transition: 'left .2s' }} />
+                  </span>
+                  <span style={{ flex: 1, font: '400 14px/1.3 var(--font-body)', color: ink }}>Soft-close hinges & drawer slides</span>
+                  <input type="checkbox" checked={softClose} onChange={(e) => setSoftClose(e.target.checked)} style={{ display: 'none' }} />
+                </label>
+              </CabConfigGroup>
+              <CabConfigGroup theme={theme} label="Add interior fittings">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {[
+                    { id: 'trash', l: 'Pull-out trash bin', d: 'Twin 35-qt bins, blumotion close.' },
+                    { id: 'spice', l: 'Spice rack pull-out', d: '4" wide vertical filler unit.' },
+                    { id: 'lazy', l: 'Lazy susan corner', d: 'Two-tier 360\u00B0 rotating shelves.' },
+                    { id: 'divider', l: 'Drawer organizer', d: 'Walnut grid, custom-cut to fit.' },
+                  ].map(it => (
+                    <button key={it.id} onClick={() => setInserts(p => ({ ...p, [it.id]: !p[it.id] }))} style={{ textAlign: 'left', cursor: 'pointer', padding: '12px 14px', border: `0.5px solid ${ink}22`, background: inserts[it.id] ? `${accent}11` : 'transparent', borderColor: inserts[it.id] ? accent : `${ink}22` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ width: 14, height: 14, border: `1.5px solid ${inserts[it.id] ? accent : ink + '55'}`, background: inserts[it.id] ? accent : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {inserts[it.id] && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={theme.paper} strokeWidth="3"><path d="M5 12l5 5 9-11" /></svg>}
+                        </span>
+                        <span style={{ font: '500 12px/1.2 var(--font-body)', color: ink }}>{it.l}</span>
+                      </div>
+                      <div style={{ font: '400 11px/1.4 var(--font-body)', color: muted, paddingLeft: 22 }}>{it.d}</div>
+                    </button>
+                  ))}
+                </div>
+              </CabConfigGroup>
+              <div style={{ marginTop: 4, padding: '20px 22px', background: ink, color: paper, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: accent, marginBottom: 6 }}>Estimated · {B.lead}</div>
+                  <div style={{ font: '300 28px/1 var(--font-heading)', color: paper, whiteSpace: 'nowrap' }}>from {B.startingAt}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+                  <button style={{ ...cabBtn(accent, paper, 'primary', theme), padding: '11px 16px', fontSize: 11 }}>Order sample</button>
+                  <button style={{ ...cabBtn(paper, ink, 'primary', theme), background: 'transparent', color: paper, border: `0.5px solid ${paper}55`, padding: '11px 16px', fontSize: 11 }}>Wishlist</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function CabFeatureIcon({ theme, kind }) {
+      const { ink, accent } = theme;
+      const W = 240, H = 180, cab = ink, mover = accent;
+      switch (kind) {
+        case 'trash': return (<svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:'100%'}}><rect x="20" y="20" width="200" height="140" fill="none" stroke={cab} strokeWidth="2" /><line x1="20" y1="40" x2="220" y2="40" stroke={cab} strokeWidth="1" strokeOpacity="0.3" /><rect x="40" y="60" width="60" height="80" fill="none" stroke={mover} strokeWidth="1.5" /><line x1="40" y1="70" x2="100" y2="70" stroke={mover} strokeWidth="1.2" /><rect x="120" y="60" width="60" height="80" fill="none" stroke={mover} strokeWidth="1.5" /><line x1="120" y1="70" x2="180" y2="70" stroke={mover} strokeWidth="1.2" /></svg>);
+        case 'lazy': return (<svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:'100%'}}><path d="M 20 30 L 20 160 L 220 160 L 220 30 L 130 30 L 100 30 Z" fill="none" stroke={cab} strokeWidth="2" /><circle cx="115" cy="100" r="62" fill="none" stroke={mover} strokeWidth="1.5" strokeDasharray="3,3" /><circle cx="115" cy="100" r="40" fill="none" stroke={mover} strokeWidth="1.5" /><line x1="115" y1="100" x2="175" y2="60" stroke={mover} strokeWidth="1.2" /><line x1="115" y1="100" x2="60" y2="80" stroke={mover} strokeWidth="1.2" /></svg>);
+        case 'spice': return (<svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:'100%'}}><rect x="60" y="20" width="120" height="140" fill="none" stroke={cab} strokeWidth="2" /><rect x="100" y="30" width="40" height="120" fill="none" stroke={mover} strokeWidth="1.5" />{[50,70,90,110,130].map(y=>(<g key={y}><line x1="100" y1={y} x2="140" y2={y} stroke={mover} strokeWidth="1" /><rect x="104" y={y+3} width="8" height="12" fill={mover} fillOpacity="0.5" /><rect x="116" y={y+3} width="8" height="12" fill={mover} fillOpacity="0.5" /><rect x="128" y={y+3} width="8" height="12" fill={mover} fillOpacity="0.5" /></g>))}</svg>);
+        case 'rollout': return (<svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:'100%'}}><rect x="20" y="20" width="200" height="140" fill="none" stroke={cab} strokeWidth="2" /><line x1="20" y1="60" x2="220" y2="60" stroke={cab} strokeWidth="1" strokeOpacity="0.3" /><line x1="20" y1="110" x2="220" y2="110" stroke={cab} strokeWidth="1" strokeOpacity="0.3" /><rect x="70" y="68" width="110" height="34" fill="none" stroke={mover} strokeWidth="1.5" /><rect x="40" y="118" width="110" height="34" fill="none" stroke={mover} strokeWidth="1.5" /></svg>);
+        case 'plate': return (<svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:'100%'}}><rect x="20" y="20" width="200" height="140" fill="none" stroke={cab} strokeWidth="2" />{[40,70,100,130,160,190].map(x=><line key={x} x1={x} y1="35" x2={x} y2="145" stroke={mover} strokeWidth="1.2" />)}{[55,85,115,145,175].map(x=><circle key={x} cx={x} cy="90" r="14" fill="none" stroke={mover} strokeWidth="1" strokeOpacity="0.7" />)}</svg>);
+        case 'divider': return (<svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:'100%'}}><rect x="20" y="30" width="200" height="120" fill="none" stroke={cab} strokeWidth="2" /><line x1="80" y1="30" x2="80" y2="150" stroke={mover} strokeWidth="1.5" /><line x1="140" y1="30" x2="140" y2="150" stroke={mover} strokeWidth="1.5" /><line x1="20" y1="90" x2="80" y2="90" stroke={mover} strokeWidth="1.5" /><line x1="140" y1="70" x2="220" y2="70" stroke={mover} strokeWidth="1.5" /><line x1="140" y1="110" x2="220" y2="110" stroke={mover} strokeWidth="1.5" /></svg>);
+        case 'softclose': return (<svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:'100%'}}><rect x="20" y="40" width="100" height="100" fill="none" stroke={cab} strokeWidth="2" /><line x1="120" y1="40" x2="120" y2="140" stroke={cab} strokeWidth="2" /><g transform="translate(120 90)"><path d="M 0 -28 A 38 38 0 0 1 38 0 A 38 38 0 0 1 0 28" stroke={mover} strokeWidth="2" fill="none" strokeDasharray="4,4" /><line x1="0" y1="0" x2="0" y2="-28" stroke={mover} strokeWidth="2" /><line x1="0" y1="0" x2="28" y2="0" stroke={mover} strokeWidth="2" /><circle cx="0" cy="0" r="3" fill={mover} /></g><rect x="160" y="70" width="40" height="40" fill={mover} fillOpacity="0.18" stroke={mover} strokeWidth="1" /><text x="180" y="96" textAnchor="middle" fontSize="14" fontFamily="var(--font-heading), serif" fill={ink}>S/C</text></svg>);
+        case 'tipout': return (<svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:'100%'}}><rect x="20" y="20" width="200" height="140" fill="none" stroke={cab} strokeWidth="2" /><line x1="20" y1="60" x2="220" y2="60" stroke={cab} strokeWidth="1" strokeOpacity="0.3" /><g transform="translate(120 60)"><rect x="-80" y="-20" width="160" height="22" fill="none" stroke={mover} strokeWidth="1.5" transform="rotate(-22)" /></g><rect x="60" y="78" width="120" height="14" fill={mover} fillOpacity="0.5" stroke={mover} strokeWidth="1" /></svg>);
+        default: return null;
+      }
+    }
+
+    function CabFeatures({ theme }) {
+      const { ink, paper, accent, muted } = theme;
+      const features = [
+        { id: 'trash', name: 'Pull-out trash', blurb: 'Twin 35-qt bins on full-extension slides.', icon: 'trash' },
+        { id: 'lazy', name: 'Lazy-susan corner', blurb: 'Two-tier 360\u00B0 rotating shelves.', icon: 'lazy' },
+        { id: 'spice', name: 'Spice pull-out', blurb: '4\u2033 filler unit, four tiered shelves.', icon: 'spice' },
+        { id: 'rollout', name: 'Roll-out tray', blurb: 'Convert any door cabinet into a deep drawer.', icon: 'rollout' },
+        { id: 'plate', name: 'Plate rack divider', blurb: 'Vertical slots for plates and cookware lids.', icon: 'plate' },
+        { id: 'divider', name: 'Drawer organizer', blurb: 'Walnut grid, custom-cut to your drawer width.', icon: 'divider' },
+        { id: 'softclose', name: 'Soft-close hinges', blurb: 'Cushioned closing, every door, every drawer.', icon: 'softclose' },
+        { id: 'tipout', name: 'Sink-front tip-out', blurb: 'Sponge tray hidden behind a false-front panel.', icon: 'tipout' },
+      ];
+      return (
+        <section style={{ padding: '120px 80px', background: paper, borderTop: `0.5px solid ${ink}11` }}>
+          <CabSectionHead theme={theme} num="04" eyebrow="Inside the box" headline={<>Storage that <em style={{ color: accent }}>actually stores.</em></>} sub={"Every Roma cabinet is sized to a 16\u2033 deep insert. Mix-and-match these on the configurator above."} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
+            {features.map((f, i) => (
+              <div key={f.id} style={{ position: 'relative', background: `${ink}04`, border: `0.5px solid ${ink}11`, padding: 24, display: 'grid', gap: 18 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: muted }}>
+                  <span>F-{String(i + 1).padStart(2, '0')}</span><span>Insert</span>
+                </div>
+                <div style={{ height: 180, position: 'relative' }}><CabFeatureIcon theme={theme} kind={f.icon} /></div>
+                <div>
+                  <div style={{ font: '400 20px/1.15 var(--font-heading)', color: ink, letterSpacing: '-0.01em' }}>{f.name}</div>
+                  <div style={{ font: '400 13px/1.45 var(--font-body)', color: `${ink}bb`, marginTop: 6 }}>{f.blurb}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    function CabFinishCard({ theme, f }) {
+      const { ink, paper, accent, muted } = theme;
+      const [hover, setHover] = useState(false);
+      const dark = (() => { if (!f.fill) return false; const hex = f.fill.replace('#', ''); const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16); return (r * 0.299 + g * 0.587 + b * 0.114) < 130; })();
+      const overlayText = dark ? paper : ink;
+      return (
+        <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} style={{ position: 'relative', height: 240, overflow: 'hidden', background: paper, boxShadow: `0 0 0 0.5px ${ink}22, 0 ${hover ? 14 : 0}px ${hover ? 28 : 0}px ${ink}1a`, transition: 'box-shadow .2s, transform .2s', transform: hover ? 'translateY(-4px)' : 'none' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 164, overflow: 'hidden' }}>
+            {f.wood ? <div style={{ position: 'absolute', inset: 0, ...materialFace('wood', f.tone) }} /> : <div style={{ position: 'absolute', inset: 0, background: f.fill }} />}
+            {f.family === 'gloss' && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.1) 35%, transparent 60%, rgba(0,0,0,0.22) 100%)' }} />}
+            {f.family === 'textured' && <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(0,0,0,0.18) 1px, transparent 1.4px), radial-gradient(rgba(255,255,255,0.15) 1px, transparent 1.4px)', backgroundSize: '6px 6px, 9px 9px', backgroundPosition: '0 0, 3px 3px', mixBlendMode: 'overlay' }} />}
+            {f.family === 'matte' && <div style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 60px rgba(0,0,0,0.08)' }} />}
+            <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', alignItems: 'center', gap: 6, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: overlayText, opacity: 0.85 }}>
+              <span style={{ padding: '3px 6px', border: `0.5px solid ${overlayText}55`, borderRadius: 2 }}>{f.brand === 'waypoint' ? 'WP' : 'EU'}</span>
+              <span>{f.family}{f.species ? ` · ${f.species}` : ''}</span>
+            </div>
+          </div>
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 76, padding: '14px 14px', background: paper, borderTop: `0.5px solid ${ink}11`, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6 }} title={f.name}>
+            <div style={{ font: '400 15px/1.15 var(--font-heading)', color: ink, letterSpacing: '-0.005em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: muted }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.fill.toUpperCase()}</span>
+              <span style={{ color: accent, whiteSpace: 'nowrap', flexShrink: 0 }}>{'\u2192'}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function CabFinishes({ theme }) {
+      const { ink, paper, accent, muted } = theme;
+      const all = [...CAB_BRANDS.waypoint.finishes.map(f => ({ ...f, brand: 'waypoint' })), ...CAB_BRANDS.europa.finishes.map(f => ({ ...f, brand: 'europa' }))];
+      const [filter, setFilter] = useState('all');
+      const filters = [{ id: 'all', l: 'All' }, { id: 'waypoint', l: 'Waypoint' }, { id: 'europa', l: 'Europa' }, { id: 'painted', l: 'Painted' }, { id: 'stained', l: 'Stained' }, { id: 'matte', l: 'Matte' }, { id: 'gloss', l: 'Gloss' }, { id: 'veneer', l: 'Veneer' }, { id: 'textured', l: 'Textured' }];
+      const shown = all.filter(f => filter === 'all' || filter === f.brand || filter === f.family);
+      return (
+        <section style={{ padding: '120px 80px', background: `${ink}05`, borderTop: `0.5px solid ${ink}11` }}>
+          <CabSectionHead theme={theme} num="05" eyebrow="Finishes" headline={<><em style={{ color: accent }}>{all.length}</em> ways to wear it.</>} sub={"Painted, stained, matte, gloss, real-wood veneer, textured concrete. All physically stocked in the showroom \u2014 request any as a 5\u2033 door sample, free."} />
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 28, alignItems: 'baseline' }}>
+            {filters.map(ft => {
+              const active = filter === ft.id;
+              const count = ft.id === 'all' ? all.length : all.filter(f => ft.id === f.brand || ft.id === f.family).length;
+              return (<button key={ft.id} onClick={() => setFilter(ft.id)} style={{ padding: '9px 14px', borderRadius: 999, cursor: 'pointer', border: `0.5px solid ${active ? accent : ink + '22'}`, background: active ? accent : 'transparent', color: active ? paper : ink, font: '500 11px/1 var(--font-body)', letterSpacing: '0.06em', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'all .15s' }}>
+                {ft.l}<span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.08em', opacity: 0.6 }}>{count}</span>
+              </button>);
+            })}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
+            {shown.map(f => <CabFinishCard key={`${f.brand}-${f.id}`} theme={theme} f={f} />)}
+          </div>
+        </section>
+      );
+    }
+
+    function CabCompare({ theme, setBrand }) {
+      const { ink, paper, accent, muted } = theme;
+      const rows = [
+        { label: 'Construction', w: 'Face-frame, \u00BE\u2033 ply box', e: 'Frameless, 19mm full-overlay' },
+        { label: 'Door styles', w: '6 styles: shaker, recessed, raised, beaded, arched, mullion', e: '6 styles: slab, channel, slim, gloss, reeded, glass' },
+        { label: 'Finishes', w: '25 total · 12 paints · 12 stains', e: '23 total · 14 mattes · 3 glosses · 4 veneers · 2 textured' },
+        { label: 'Drawer guides', w: 'Blum Tandem full-extension', e: 'Blum Legrabox full-extension' },
+        { label: 'Soft-close', w: 'Standard, all doors & drawers', e: 'Standard, push-to-open optional' },
+        { label: 'Hardware', w: 'Knobs, bar pulls, cup pulls', e: 'Integrated channel, slim bar, push-to-open' },
+        { label: 'Custom paint', w: 'No (8 standard colors)', e: 'Yes, any RAL or Pantone (+$45 /opening)' },
+        { label: 'Warranty', w: 'Lifetime', e: '10-year' },
+        { label: 'Lead time', w: '5\u20137 weeks', e: '4\u20136 weeks' },
+        { label: 'Made in', w: 'Cumberland, MD · USA', e: 'Italian-engineered, assembled in Mexico' },
+        { label: 'Starting at', w: '$240 / lf', e: '$320 / lf' },
+      ];
+      return (
+        <section style={{ padding: '120px 80px', background: paper, borderTop: `0.5px solid ${ink}11` }}>
+          <CabSectionHead theme={theme} num="06" eyebrow="The fine print" headline={<>Side by side, <em style={{ color: accent }}>row by row.</em></>} sub="The spec sheet, exposed." />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderTop: `0.5px solid ${ink}22` }}>
+            <div style={{ padding: '20px 0' }}><div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: muted }}>Spec</div></div>
+            <div style={{ padding: '20px 24px', borderLeft: `0.5px solid ${ink}22` }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: muted, marginBottom: 8 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: ink }} />Waypoint</div>
+              <div style={{ font: '400 22px/1 var(--font-heading)', color: ink }}>Face-frame</div>
+            </div>
+            <div style={{ padding: '20px 24px', borderLeft: `0.5px solid ${ink}22`, background: `${accent}06` }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: accent, marginBottom: 8 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: accent }} />Europa</div>
+              <div style={{ font: '400 22px/1 var(--font-heading)', color: ink }}>Frameless</div>
+            </div>
+            {rows.map((r, i) => (
+              <React.Fragment key={i}>
+                <div style={{ padding: '18px 0', borderTop: `0.5px solid ${ink}11`, font: '500 10px/1.2 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: muted }}>{r.label}</div>
+                <div style={{ padding: '18px 24px', borderTop: `0.5px solid ${ink}11`, borderLeft: `0.5px solid ${ink}22`, font: '400 15px/1.4 var(--font-heading)', color: ink }}>{r.w}</div>
+                <div style={{ padding: '18px 24px', borderTop: `0.5px solid ${ink}11`, borderLeft: `0.5px solid ${ink}22`, font: '400 15px/1.4 var(--font-heading)', color: ink, background: `${accent}06` }}>{r.e}</div>
+              </React.Fragment>
+            ))}
+          </div>
+          <div style={{ marginTop: 32, padding: '24px 28px', background: `${ink}05`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: muted, marginBottom: 6 }}>Still deciding?</div>
+              <div style={{ font: '400 22px/1.2 var(--font-heading)', color: ink }}>Order a sample door from each. They're free, they arrive in a week.</div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setBrand('waypoint')} style={cabBtn(ink, paper, 'primary', theme)}>Waypoint sample</button>
+              <button onClick={() => setBrand('europa')} style={cabBtn(accent, paper, 'primary', theme)}>Europa sample</button>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function CabCTA({ theme }) {
+      const { ink, paper, accent, muted } = theme;
+      return (
+        <section style={{ padding: '120px 80px', background: ink, color: paper, position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: -160, right: -120, width: 520, height: 520, borderRadius: '50%', background: `radial-gradient(circle at 30% 30%, ${accent}38, transparent 70%)` }} />
+          <div style={{ position: 'relative' }}>
+            <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.22em', textTransform: 'uppercase', color: accent, marginBottom: 24 }}>07 · The showroom</div>
+            <h2 style={{ font: '300 84px/0.92 var(--font-heading)', margin: 0, letterSpacing: '-0.02em', color: paper, maxWidth: 1100 }}>
+              Touch the doors. <em style={{ color: accent, fontStyle: 'italic' }}>Open the drawers.</em><br />
+              <span style={{ color: `${paper}aa`, fontStyle: 'italic' }}>Then build a kitchen.</span>
+            </h2>
+            <p style={{ font: '400 18px/1.55 var(--font-body)', color: `${paper}cc`, margin: '32px 0 0', maxWidth: 640 }}>
+              A full Waypoint and Europa wall lives in our Anaheim showroom — every door style, every finish, every hinge, ready to be opened, slammed shut, and judged in person. Bring a paint chip. Bring a cabinet maker. We'll meet you there.
+            </p>
+            <div style={{ display: 'flex', gap: 14, marginTop: 44, flexWrap: 'wrap' }}>
+              <button style={cabBtn(accent, paper, 'primary', theme)}>Book a design consult</button>
+              <button style={{ ...cabBtn(paper, ink, 'primary', theme), background: 'transparent', color: paper, border: `0.5px solid ${paper}55` }}>Order sample doors</button>
+              <button style={{ ...cabBtn(paper, ink, 'primary', theme), background: 'transparent', color: paper, border: `0.5px solid ${paper}55` }}>Visit the showroom</button>
+            </div>
+            <div style={{ marginTop: 64, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, paddingTop: 32, borderTop: `0.5px solid ${paper}22` }}>
+              {[{ v: 'Mon\u2013Sat', l: '9 am \u2013 6 pm' }, { v: '1440', l: 'S. State College, Anaheim' }, { v: '(714) 999-0009', l: 'Showroom direct' }, { v: 'Free', l: 'Sample door program' }].map((it, i) => (
+                <div key={i} style={{ paddingLeft: i === 0 ? 0 : 24, borderLeft: i === 0 ? 'none' : `0.5px solid ${paper}22` }}>
+                  <div style={{ font: '400 22px/1.1 var(--font-heading)', color: paper }}>{it.v}</div>
+                  <div style={{ font: '500 11px/1.3 var(--font-body)', color: `${paper}88`, marginTop: 6 }}>{it.l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function CabinetsPage() {
+      const [brand, setBrand] = useState('waypoint');
+      const theme = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e6b' };
+      useEffect(() => {
+        updateSEO({ title: 'Custom Cabinets | Roma Flooring Designs', description: 'Waypoint face-frame and Europa frameless cabinetry — designed in-house, installed by our crew. Visit our Anaheim showroom.', url: SITE_URL + '/cabinets' });
+      }, []);
+      return (
+        <div className="cab-page" style={{ background: theme.paper, color: theme.ink, fontFamily: 'var(--font-body)' }}>
+          <CabHero theme={theme} brand={brand} setBrand={setBrand} />
+          <CabAnatomy theme={theme} />
+          <CabConfigurator theme={theme} brand={brand} setBrand={setBrand} />
+          <CabFeatures theme={theme} />
+          <CabFinishes theme={theme} />
+          <CabCompare theme={theme} setBrand={setBrand} />
+          <CabCTA theme={theme} />
+        </div>
+      );
+    }
+
     // ==================== Main App ====================
 
     function StorefrontApp() {
@@ -1472,6 +2510,12 @@
         window.scrollTo(0, 0);
       };
 
+      const goCabinets = () => {
+        setView('cabinets');
+        history.pushState({ view: 'cabinets' }, '', '/cabinets');
+        window.scrollTo(0, 0);
+      };
+
       const [comingSoonTitle, setComingSoonTitle] = useState('');
       const [newsletterEmail, setNewsletterEmail] = useState('');
       const [newsletterSubmitted, setNewsletterSubmitted] = useState(false);
@@ -1520,6 +2564,10 @@
         }
         if (path === '/sale') {
           goSale();
+          return;
+        }
+        if (path === '/cabinets') {
+          goCabinets();
           return;
         }
         // Service page placeholders
@@ -1751,6 +2799,8 @@
 
       // ---- Init ----
       useEffect(() => {
+        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+        window.scrollTo(0, 0);
         fetchCart();
 
         fetch(API + '/api/categories').then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -1833,6 +2883,8 @@
           setView('inspiration');
         } else if (path === '/sale') {
           setView('sale');
+        } else if (path === '/cabinets') {
+          setView('cabinets');
         } else if (['/design-services', '/about'].includes(path)) {
           const titles = { '/design-services': 'Design Services', '/about': 'About Us' };
           setComingSoonTitle(titles[path]);
@@ -1903,6 +2955,7 @@
             } else if (p === '/trade') { setView('trade'); }
             else if (p === '/trade/dashboard') { setView('trade-dashboard'); }
             else if (p === '/sale') { setView('sale'); }
+            else if (p === '/cabinets') { setView('cabinets'); }
             else if (p.startsWith('/visit/')) { setVisitRecapToken(p.replace('/visit/', '')); setView('visit-recap'); }
             else {
               setView('browse');
@@ -2014,9 +3067,11 @@
         // Lock body scroll when cart drawer is open
       }, [view, selectedCategory, selectedCollection, categories, currentPage]);
 
+      const isCheckoutFlow = view === 'checkout' || view === 'confirmation';
+
       return (
         <>
-          <Header
+          {!isCheckoutFlow && <Header
             goHome={goHome} goBrowse={goBrowse} cart={cart}
             cartDrawerOpen={cartDrawerOpen} setCartDrawerOpen={setCartDrawerOpen}
             cartFlash={cartFlash}
@@ -2039,7 +3094,7 @@
             view={view}
             navigate={navigate}
             goSale={goSale}
-          />
+          />}
 
           {view === 'home' && (
             <HomePage
@@ -2050,6 +3105,7 @@
               onCategorySelect={(slug) => { handleCategorySelect(slug); setView('browse'); }}
               goBrowse={goBrowse}
               goTrade={goTrade}
+              goCabinets={goCabinets}
               navigate={navigate}
               wishlist={wishlist} toggleWishlist={toggleWishlist}
               setQuickViewSku={setQuickViewSku}
@@ -2119,7 +3175,7 @@
           {view === 'checkout' && (
             <CheckoutPage cart={cart} sessionId={sessionId.current}
               goCart={goCart} handleOrderComplete={handleOrderComplete}
-              deliveryMethod={deliveryMethod} liftgateEnabled={liftgateEnabled}
+              deliveryMethod={deliveryMethod} setDeliveryMethod={setDeliveryMethod} liftgateEnabled={liftgateEnabled}
               tradeCustomer={tradeCustomer} tradeToken={tradeToken}
               customer={customer} customerToken={customerToken}
               onCustomerLogin={handleCustomerLogin}
@@ -2190,6 +3246,10 @@
             <SalePage onSkuClick={goSkuDetail} wishlist={wishlist} toggleWishlist={toggleWishlist} setQuickViewSku={setQuickViewSku} navigate={navigate} />
           )}
 
+          {view === 'cabinets' && (
+            <CabinetsPage />
+          )}
+
           {view === 'coming-soon' && (
             <div style={{ maxWidth: 600, margin: '6rem auto', textAlign: 'center', padding: '0 2rem' }}>
               <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: '2.5rem', marginBottom: '1rem' }}>{comingSoonTitle}</h1>
@@ -2232,10 +3292,10 @@
           {showInstallModal && <InstallationModal onClose={() => setShowInstallModal(false)} product={installModalProduct} />}
           {showFloorQuiz && <FloorQuizModal onClose={() => setShowFloorQuiz(false)} onSkuClick={goSkuDetail} onViewAll={(qs) => { navigate('/shop?' + qs); }} />}
 
-          <SiteFooter goHome={goHome} goBrowse={goBrowse} goCollections={goCollections} goTrade={goTrade}
-            onInstallClick={goInstallation} navigate={navigate} />
+          {!isCheckoutFlow && <SiteFooter goHome={goHome} goBrowse={goBrowse} goCollections={goCollections} goTrade={goTrade}
+            onInstallClick={goInstallation} navigate={navigate} />}
 
-          <nav className="mobile-bottom-nav">
+          {!isCheckoutFlow && <nav className="mobile-bottom-nav">
             <button className={'mobile-bottom-nav-item' + (view === 'home' ? ' active' : '')} onClick={goHome}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
               Home
@@ -2253,7 +3313,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               Account
             </button>
-          </nav>
+          </nav>}
 
           <BackToTop />
           <ToastContainer toasts={toasts} />
@@ -2345,9 +3405,9 @@
                     <div className="mega-panel-col-title">{col.title}</div>
                     <div className="mega-panel-items">
                       {col.items.map(item => (
-                        <button key={item.slug} className="mega-panel-link" onClick={() => onCategorySelect(item.slug)}>
+                        <button key={item.slug} className={`mega-panel-link${item.isViewAll ? ' mega-panel-view-all' : ''}`} onClick={() => onCategorySelect(item.slug)}>
                           {item.name}
-                          {item.count > 0 && <span className="mega-panel-link-meta">{item.count}</span>}
+                          {!item.isViewAll && item.count > 0 && <span className="mega-panel-link-meta">{item.count}</span>}
                         </button>
                       ))}
                     </div>
@@ -2356,7 +3416,7 @@
                 <div className="mega-panel-featured">
                   <div className="mega-panel-featured-eyebrow">Featured</div>
                   <div className="mega-panel-featured-card" onClick={() => navigate('/shop?sort=newest')}>
-                    <img src="/uploads/homepage/new-arrivals.jpg" alt="New Arrivals" loading="lazy" decoding="async" />
+                    <img src="/uploads/homepage/hero.jpg" alt="New Arrivals" loading="lazy" decoding="async" />
                     <div className="mega-panel-featured-overlay">
                       <div className="mega-panel-featured-title">New Arrivals</div>
                       <div className="mega-panel-featured-meta">Latest collections</div>
@@ -2794,17 +3854,16 @@
 
       const parentCats = categories.filter(c => !c.parent_id && c.product_count > 0);
 
-      // Build dynamic shop columns from categories
+      // Build dynamic shop columns from categories (children are nested in API response)
       const shopColumns = useMemo(() => {
         const cols = [];
         parentCats.forEach(cat => {
-          const children = categories.filter(c => c.parent_id === cat.id);
-          cols.push({
-            title: cat.name,
-            items: children.length > 0
-              ? children.map(ch => ({ name: ch.name, slug: ch.slug, count: ch.product_count || 0 }))
-              : [{ name: 'View All', slug: cat.slug, count: cat.product_count || 0 }],
-          });
+          const children = (cat.children || [])
+            .filter(ch => ch.product_count > 0)
+            .sort((a, b) => b.product_count - a.product_count);
+          const items = children.slice(0, 8).map(ch => ({ name: ch.name, slug: ch.slug, count: ch.product_count || 0 }));
+          items.push({ name: 'View All', slug: cat.slug, count: cat.product_count || 0, isViewAll: true });
+          cols.push({ title: cat.name, items });
         });
         return cols;
       }, [parentCats, categories]);
@@ -2841,26 +3900,23 @@
         { id: 'about', label: 'About', hasPanel: false, onClick: () => navigate('/about') },
       ];
 
-      return (
+      return (<>
         <header onMouseLeave={() => setMegaOpen(null)}>
           {/* Row 1 — Warm Utility Strip */}
           <div className="utility-bar">
             <div className="utility-bar-inner">
               <div className="utility-bar-left">
-                <span>1440 S. State College Blvd</span>
+                <span>1440 S. State College Blvd Suite 6M</span>
                 <span className="utility-bar-dot">&bull;</span>
                 <span>Anaheim, CA</span>
                 <span className="utility-bar-dot">&bull;</span>
-                <span>Mon&ndash;Sat 9&ndash;6</span>
+                <span>Mon&ndash;Fri 9&ndash;5 &middot; Sat 10&ndash;5</span>
               </div>
               <div className="utility-bar-right">
                 <a href="tel:+17149990009" className="utility-bar-phone">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
                   (714) 999-0009
                 </a>
-                <button className="utility-bar-consult" onClick={() => navigate('/design-services')}>
-                  Free in-home consult &rarr;
-                </button>
               </div>
             </div>
           </div>
@@ -2944,8 +4000,9 @@
             />
           )}
 
-          <div className={'mega-menu-scrim' + ((megaOpen || searchOpen) ? ' visible' : '')} onClick={() => { setMegaOpen(null); setSearchOpen(false); setShowSuggestions(false); }} />
         </header>
+        <div className={'mega-menu-scrim' + ((megaOpen || searchOpen) ? ' visible' : '')} onClick={() => { setMegaOpen(null); setSearchOpen(false); setShowSuggestions(false); }} />
+      </>
       );
     }
 
@@ -3109,13 +4166,21 @@
         ...siblings.filter(s => s.sku_id !== activeSku.sku_id)
       ].sort((a, b) => (a.variant_name || '').localeCompare(b.variant_name || '')) : [];
 
+      // Build compact specs from attributes
+      const specItems = [];
+      const specKeys = ['species', 'width', 'finish', 'material'];
+      (activeSku.attributes || []).forEach(attr => {
+        if (specKeys.includes(attr.slug) && attr.value) specItems.push({ label: attr.name || attr.slug, value: attr.value });
+      });
+      if (specItems.length < 4 && catName) specItems.push({ label: 'Category', value: catName });
+
       return (
         <div className="quick-view-overlay" onClick={onClose}>
           <div className="quick-view" onClick={e => e.stopPropagation()}>
-            <button className="quick-view-close" onClick={onClose}>&times;</button>
+            <button className="quick-view-close" onClick={onClose} aria-label="Close">&times;</button>
             {fetchError ? (
-              <div style={{ padding: '3rem 2rem', textAlign: 'center', gridColumn: '1 / -1' }}>
-                <p style={{ color: 'var(--stone-600)', marginBottom: '1rem' }}>Unable to load product details.</p>
+              <div className="qv-error-state">
+                <p className="qv-error-text">Unable to load product details.</p>
                 <button className="btn btn-outline" onClick={onClose}>Close</button>
               </div>
             ) : <>
@@ -3145,12 +4210,25 @@
             <div className="quick-view-info">
               <div className="qv-eyebrow">
                 <span className="qv-eyebrow-cat">{catName}{vendorLabel ? ' \u00B7 ' + vendorLabel : ''}</span>
-                <span className="qv-eyebrow-stock" style={{ color: 'var(--stone-500)' }}>{isUnit ? 'Accessory' : 'Flooring'}</span>
+                <span className="qv-eyebrow-stock">{isUnit ? 'Accessory' : 'Flooring'}</span>
               </div>
               <h2>{fullProductName(activeSku)}</h2>
               {activeSku.variant_name && (
                 <div className="qv-variant-label">{formatVariantName(activeSku.variant_name)}{activeSku.sku_code ? ' \u00B7 SKU ' + activeSku.sku_code : ''}</div>
               )}
+
+              {/* Compact specs grid */}
+              {specItems.length > 0 && (
+                <div className="qv-specs-grid">
+                  {specItems.slice(0, 4).map((sp, i) => (
+                    <div key={i} className="qv-spec-item">
+                      <div className="qv-spec-label">{sp.label}</div>
+                      <div className="qv-spec-value">{sp.value}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="qv-price-block">
                 <div>
                   <div className="qv-price-amount">
@@ -3173,7 +4251,7 @@
                 {sqftBox > 0 && !isUnit && (
                   <div className="qv-price-right">
                     Boxed at <strong>{sqftBox.toFixed(1)} sf</strong><br/>
-                    <span style={{ color: 'var(--stone-500)' }}>${boxPrice.toFixed(2)} / box</span>
+                    <span className="qv-box-price">${boxPrice.toFixed(2)} / box</span>
                   </div>
                 )}
               </div>
@@ -3194,7 +4272,7 @@
                         onMouseLeave={() => !sib._isCurrent && handleVariantLeave()}
                         onClick={() => !sib._isCurrent && handleVariantClick(sib)}
                       >
-                        {sib.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(sib.primary_image, 120)} alt={sib.variant_name} decoding="async" width={44} height={44} /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 600, color: 'var(--stone-500)', textAlign: 'center', lineHeight: 1.2, padding: '2px' }}>{formatVariantName(sib.variant_name)}</div>}
+                        {sib.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(sib.primary_image, 120)} alt={sib.variant_name} decoding="async" width={44} height={44} /> : <div className="qv-swatch-placeholder">{formatVariantName(sib.variant_name)}</div>}
                       </div>
                     ))}
                   </div>
@@ -3213,12 +4291,12 @@
                     <button onClick={() => setQty(q => q + 1)}>+</button>
                   </div>
                   <button className="qv-btn-primary" onClick={handleAdd}>Add to cart{qty > 1 ? ' \u00B7 $' + (effectivePrice * qty).toFixed(2) : ''}</button>
-                  <button className="qv-btn-secondary" onClick={() => { onViewDetail(activeSku.sku_id, activeSku.product_name); onClose(); }}>View full details</button>
+                  <button className="qv-btn-secondary" onClick={() => { onViewDetail(activeSku.sku_id, activeSku.product_name); onClose(); }}>Order sample</button>
                 </div>
               ) : (
                 <div className="quick-view-actions qv-sqft-actions">
                   <button className="qv-btn-primary" onClick={() => { onViewDetail(activeSku.sku_id, activeSku.product_name); onClose(); }}>Calculate coverage</button>
-                  <button className="qv-btn-secondary" onClick={() => { onViewDetail(activeSku.sku_id, activeSku.product_name); onClose(); }}>View full details</button>
+                  <button className="qv-btn-secondary" onClick={() => { onViewDetail(activeSku.sku_id, activeSku.product_name); onClose(); }}>Order sample</button>
                 </div>
               )}
 
@@ -3547,7 +4625,7 @@
 
     // ==================== Home Page ====================
 
-    function HomePage({ featuredSkus, featuredLoading, categories, onSkuClick, onCategorySelect, goBrowse, goTrade, navigate, wishlist, toggleWishlist, setQuickViewSku, newsletterEmail, setNewsletterEmail, newsletterSubmitted, onNewsletterSubmit, onOpenQuiz }) {
+    function HomePage({ featuredSkus, featuredLoading, categories, onSkuClick, onCategorySelect, goBrowse, goTrade, goCabinets, navigate, wishlist, toggleWishlist, setQuickViewSku, newsletterEmail, setNewsletterEmail, newsletterSubmitted, onNewsletterSubmit, onOpenQuiz }) {
       const parentCats = categories.filter(c => !c.parent_id && c.product_count > 0);
       const cabinetImages = parentCats.slice(0, 3).map(c => c.image_url).filter(Boolean);
       const specimens = featuredSkus.slice(0, 3);
@@ -3557,7 +4635,7 @@
           {/* Hero */}
           <section className="form-hero">
             <div className="form-hero-inner">
-              <div className="form-eyebrow">Flooring &amp; Surfaces &middot; Anaheim, est. 1974</div>
+              <div className="form-eyebrow">Flooring &amp; Surfaces &middot; Anaheim, est. 1999</div>
               <h1 className="form-hero-headline">Premium surfaces for the spaces that shape how you live</h1>
               <button className="form-hero-cta" onClick={goBrowse}>Browse the catalog</button>
             </div>
@@ -3568,15 +4646,9 @@
             <section className="form-cabinet-band">
               <div className="form-cabinet-inner">
                 <div className="form-cabinet-images">
-                  {cabinetImages.length > 0 ? cabinetImages.map((url, i) => (
-                    <img key={i} src={optimizeImg(url, 500)} alt="" loading="lazy" decoding="async" />
-                  )) : (
-                    <>
-                      <div style={{ background: 'var(--stone-300)' }} />
-                      <div style={{ background: 'var(--stone-300)' }} />
-                      <div style={{ background: 'var(--stone-300)' }} />
-                    </>
-                  )}
+                  <img src={optimizeImg('/uploads/homepage/cabinet-1.jpg', 500)} alt="Maple Cider and Painted Sage kitchen" loading="lazy" decoding="async" />
+                  <img src={optimizeImg('/uploads/homepage/cabinet-2.jpg', 500)} alt="Navy island with Maple Cider uppers" loading="lazy" decoding="async" />
+                  <img src={optimizeImg('/uploads/homepage/cabinet-3.jpg', 500)} alt="Maple Cider and Painted Vanilla kitchen" loading="lazy" decoding="async" />
                 </div>
                 <div className="form-cabinet-content">
                   <div className="form-eyebrow">Custom Cabinetry</div>
@@ -3584,19 +4656,19 @@
                   <p className="form-cabinet-body">Every kitchen and bath is different. Our cabinetry program pairs premium materials with made-to-measure construction so nothing is compromised.</p>
                   <div className="form-cabinet-stats">
                     <div className="form-cabinet-stat">
-                      <div className="form-cabinet-stat-label">From</div>
-                      <div className="form-cabinet-stat-value">$189/lf</div>
-                    </div>
-                    <div className="form-cabinet-stat">
-                      <div className="form-cabinet-stat-label">Lines</div>
                       <div className="form-cabinet-stat-value">4</div>
+                      <div className="form-cabinet-stat-label">Brands</div>
                     </div>
                     <div className="form-cabinet-stat">
-                      <div className="form-cabinet-stat-label">Lead time</div>
-                      <div className="form-cabinet-stat-value">3 wk</div>
+                      <div className="form-cabinet-stat-value">86</div>
+                      <div className="form-cabinet-stat-label">Door styles</div>
+                    </div>
+                    <div className="form-cabinet-stat">
+                      <div className="form-cabinet-stat-value">140+</div>
+                      <div className="form-cabinet-stat-label">Colors</div>
                     </div>
                   </div>
-                  <button className="form-cabinet-link" onClick={() => navigate('/shop?category=cabinets')}>Explore cabinetry &rarr;</button>
+                  <button className="form-cabinet-link" onClick={goCabinets}>Explore cabinetry &rarr;</button>
                 </div>
               </div>
             </section>
@@ -3631,7 +4703,7 @@
                   })}
                 </div>
               ) : (
-                <p style={{ textAlign: 'center', color: 'var(--stone-500)', padding: '2rem 0' }}>Featured products coming soon.</p>
+                <p className="featured-empty">Featured products coming soon.</p>
               )}
             </section>
           </RevealSection>
@@ -3783,7 +4855,7 @@
                   })}
                 </div>
               ) : (
-                <p style={{ textAlign: 'center', color: 'var(--stone-500)', padding: '2rem 0' }}>Featured products coming soon.</p>
+                <p className="featured-empty">Featured products coming soon.</p>
               )}
             </section>
           </RevealSection>
@@ -3830,18 +4902,47 @@
 
     // ==================== Category Hero ====================
 
-    function CategoryHero({ category, crumbs, searchQuery, totalSkus }) {
+    function CategoryHero({ category, crumbs, searchQuery, totalSkus, vendorCount }) {
       if (searchQuery) {
         return (
-          <div className="category-hero" style={{ height: '160px' }}>
-            <Breadcrumbs items={crumbs} />
-            <h1>Search: "{searchQuery}"</h1>
-            {totalSkus > 0 && <p className="search-result-count">{totalSkus} result{totalSkus !== 1 ? 's' : ''}</p>}
+          <div className="category-header-editorial category-header-search">
+            <div className="cat-header-top">
+              <div className="cat-header-breadcrumb">
+                {crumbs.map((c, i) => (
+                  <React.Fragment key={i}>
+                    {i > 0 && <span className="cat-crumb-sep" />}
+                    {c.onClick
+                      ? <a onClick={c.onClick}>{c.label}</a>
+                      : <span className="cat-crumb-current">{c.label}</span>
+                    }
+                  </React.Fragment>
+                ))}
+              </div>
+              <div className="cat-header-stats">
+                {totalSkus} result{totalSkus !== 1 ? 's' : ''}
+              </div>
+            </div>
+            <div className="cat-header-body cat-header-body-search">
+              <div>
+                <h1 className="cat-header-headline">
+                  {totalSkus} results for {'\u2018'}<em>{searchQuery}</em>{'\u2019'}
+                </h1>
+              </div>
+            </div>
           </div>
         );
       }
 
       const catName = category ? category.name : 'Shop All';
+      const children = category && category.children ? category.children : [];
+      const isParent = children.length > 0 && category && !category.parent_id;
+
+      // Build kicker text: for parent categories, show child names + product count
+      let kickerText = category ? `Material · ${catName}` : null;
+      if (isParent && children.length > 0) {
+        const childNames = children.map(ch => ch.name).join(' & ').toUpperCase();
+        kickerText = `Material · ${childNames} · ${totalSkus} Products`;
+      }
 
       return (
         <div className="category-header-editorial">
@@ -3863,16 +4964,32 @@
           </div>
           <div className="cat-header-body">
             <div>
-              {category && <div className="cat-header-kicker">
-                Material · {catName}
+              {kickerText && <div className="cat-header-kicker">
+                {kickerText}
               </div>}
               <h1 className="cat-header-headline">{catName}</h1>
             </div>
-            {category && category.description && (
-              <div className="cat-header-right">
+            <div className="cat-header-right">
+              {category && category.description && (
                 <p className="cat-header-intro">{category.description}</p>
-              </div>
-            )}
+              )}
+              {isParent && (
+                <div className="cat-header-facts">
+                  <div className="cat-fact">
+                    <div className="cat-fact-value">{vendorCount || 0}</div>
+                    <div className="cat-fact-label">Brands</div>
+                  </div>
+                  <div className="cat-fact">
+                    <div className="cat-fact-value">{totalSkus}</div>
+                    <div className="cat-fact-label">Products</div>
+                  </div>
+                  <div className="cat-fact">
+                    <div className="cat-fact-value">{children.length}</div>
+                    <div className="cat-fact-label">Sub-categories</div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       );
@@ -3882,6 +4999,7 @@
 
     function BrowseView({ skus, totalSkus, loading, categories, selectedCategory, selectedCollection, searchQuery, onCategorySelect, onSearch, facets, filters, onFilterToggle, onBatchFilterSet, onClearFilters, sortBy, onSortChange, onSkuClick, currentPage, onPageChange, wishlist, toggleWishlist, setQuickViewSku, filterDrawerOpen, setFilterDrawerOpen, goHome,
       vendorFacets, vendorFilters, onVendorToggle, priceRange, userPriceRange, onPriceRangeChange, tagFacets, tagFilters, onTagToggle, didYouMean }) {
+      const [viewMode, setViewMode] = useState('grid');
       const totalPages = Math.ceil(totalSkus / 24);
       const hasAttrFilters = Object.keys(filters).length > 0;
       const hasVendorFilters = vendorFilters && vendorFilters.length > 0;
@@ -3919,47 +5037,29 @@
         ? (currentCategory.children || []).filter(ch => ch.product_count > 0)
         : [];
 
-      if (isParentLanding && landingChildren.length === 0 && (currentCategory.children || []).length > 0) {
-        return (
-          <>
-            <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} totalSkus={totalSkus} />
-            <section className="category-landing">
-              <h2>{currentCategory.name}</h2>
-              <p className="subtitle">Products coming soon. Check back later!</p>
-            </section>
-          </>
-        );
-      }
-
-      if (isParentLanding && landingChildren.length > 0) {
-        return (
-          <>
-            <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} totalSkus={totalSkus} />
-            <section className="category-landing">
-              <h2>Browse {currentCategory.name}</h2>
-              <p className="subtitle">Explore our {currentCategory.name.toLowerCase()} collections</p>
-              <div className="category-landing-grid">
+      return (
+        <>
+          <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} totalSkus={totalSkus} vendorCount={vendorFacets ? vendorFacets.length : 0} />
+          {isParentLanding && landingChildren.length > 0 && (
+            <div className="subcategory-strip">
+              <div className="subcategory-strip-grid" style={{ gridTemplateColumns: 'repeat(' + Math.min(landingChildren.length, 6) + ', 1fr)' }}>
                 {landingChildren.map(child => (
-                  <div key={child.slug} className="category-tile" onClick={() => onCategorySelect(child.slug)}>
-                    {child.image_url
-                      ? <img onLoad={handleProductImgLoad} src={optimizeImg(child.image_url, 400)} alt={child.name} loading="lazy" decoding="async" />
-                      : <div style={{ width: '100%', height: '100%', background: 'var(--stone-200)' }} />
-                    }
-                    <div className="category-tile-overlay">
-                      <span className="category-tile-name">{child.name}</span>
-                      <span className="category-tile-count">{child.product_count} products</span>
+                  <div key={child.slug} className={'subcategory-strip-tile' + (selectedCategory === child.slug ? ' active' : '')} onClick={() => onCategorySelect(child.slug)}>
+                    <div className="subcategory-tile-bg">
+                      {child.image_url
+                        ? <img src={optimizeImg(child.image_url, 300)} alt="" loading="lazy" decoding="async" />
+                        : <div className="subcategory-strip-placeholder" />
+                      }
+                    </div>
+                    <div className="subcategory-tile-label">
+                      <span className="subcategory-strip-name">{child.name}</span>
+                      <span className="subcategory-strip-count">{child.product_count}</span>
                     </div>
                   </div>
                 ))}
               </div>
-            </section>
-          </>
-        );
-      }
-
-      return (
-        <>
-          <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} totalSkus={totalSkus} />
+            </div>
+          )}
           <div className="browse-layout">
 
           <div className="sidebar">
@@ -3972,8 +5072,8 @@
                 vendorFilters={vendorFilters} onVendorToggle={onVendorToggle} userPriceRange={userPriceRange} onPriceRangeChange={onPriceRangeChange}
                 tagFilters={tagFilters} tagFacets={tagFacets} onTagToggle={onTagToggle} />
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 0 }}>
-              <BrowseToolbar totalSkus={totalSkus} sortBy={sortBy} onSortChange={onSortChange} currentPage={currentPage} />
+            <div className="browse-toolbar-row">
+              <BrowseToolbar totalSkus={totalSkus} sortBy={sortBy} onSortChange={onSortChange} currentPage={currentPage} viewMode={viewMode} onViewModeChange={setViewMode} />
               <button className="mobile-filter-btn" onClick={() => setFilterDrawerOpen(true)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
                 Filters
@@ -3986,14 +5086,14 @@
               searchQuery ? (
                 <SearchEmptyState searchQuery={searchQuery} categories={categories} onSearch={onSearch} onCategorySelect={onCategorySelect} didYouMean={didYouMean} />
               ) : (
-                <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--stone-600)' }}>
-                  <p style={{ fontSize: '1.125rem', marginBottom: '1rem' }}>No products found</p>
-                  <p style={{ fontSize: '0.875rem' }}>Try adjusting your filters</p>
+                <div className="browse-empty">
+                  <p>No products found</p>
+                  <p>Try adjusting your filters</p>
                 </div>
               )
             ) : (
               <>
-                <SkuGrid skus={skus} onSkuClick={onSkuClick} wishlist={wishlist} toggleWishlist={toggleWishlist} setQuickViewSku={setQuickViewSku} />
+                <SkuGrid skus={skus} onSkuClick={onSkuClick} wishlist={wishlist} toggleWishlist={toggleWishlist} setQuickViewSku={setQuickViewSku} viewMode={viewMode} />
                 {totalPages > 1 && (
                   <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} />
                 )}
@@ -4128,6 +5228,7 @@
       const hasPriceFilters = userPriceRange && (userPriceRange.min != null || userPriceRange.max != null);
       const hasTagFilters = tagFilters && tagFilters.length > 0;
       const hasAny = hasAttrFilters || hasVendorFilters || hasPriceFilters || hasTagFilters;
+      const totalActiveFilterCount = (vendorFilters ? vendorFilters.length : 0) + (hasPriceFilters ? 1 : 0) + (tagFilters ? tagFilters.length : 0) + Object.values(filters).reduce((s, a) => s + a.length, 0);
 
       const [collapsed, setCollapsed] = useState({});
       const [filterSearch, setFilterSearch] = useState({});
@@ -4141,7 +5242,7 @@
       const primarySlugs = ['material', 'finish', 'size', 'application'];
 
       const chevron = (isOpen) => (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={'filter-chevron' + (isOpen ? ' open' : '')}>
           <polyline points="6 9 12 15 18 9" />
         </svg>
       );
@@ -4223,6 +5324,13 @@
       const roomTagActiveCount = roomTags.filter(t => (tagFilters || []).includes(t.slug)).length;
       const featureTagActiveCount = featureTags.filter(t => (tagFilters || []).includes(t.slug)).length;
 
+      const FacetCheck = ({ checked, onChange, id }) => (
+        <span className={'facet-check' + (checked ? ' checked' : '')} onClick={onChange} role="checkbox" aria-checked={checked} tabIndex={0} id={id}
+          onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onChange(); } }}>
+          {checked && <svg viewBox="0 0 12 10" fill="none"><polyline points="1.5 5 4.5 8 10.5 2" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+        </span>
+      );
+
       const renderFilterGroup = (group) => {
         const isCol = isGroupCollapsed(group.slug);
         const searchTerm = filterSearch[group.slug] || '';
@@ -4252,16 +5360,15 @@
                 {values.map(v => {
                   const checked = (filters[group.slug] || []).includes(v.value);
                   return (
-                    <div key={v.value} className="filter-option">
-                      <input type="checkbox" id={checkId(v.value)} checked={checked}
-                        onChange={() => onFilterToggle(group.slug, v.value)} />
+                    <div key={v.value} className="filter-option" onClick={() => onFilterToggle(group.slug, v.value)}>
+                      <FacetCheck checked={checked} onChange={() => onFilterToggle(group.slug, v.value)} id={checkId(v.value)} />
                       <label htmlFor={checkId(v.value)}>{formatCarpetValue(v.value)}</label>
                       <span className="filter-count">({v.count})</span>
                     </div>
                   );
                 })}
                 {values.length === 0 && searchTerm && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', padding: '0.25rem 0' }}>No matches</div>
+                  <div className="filter-no-matches">No matches</div>
                 )}
               </div>
               {shouldTruncate && (
@@ -4277,9 +5384,15 @@
       return (
         <div className="filter-panel">
           {/* Header + Clear All */}
-          <div className="sidebar-refine-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Refine · {totalSkus ? totalSkus + ' products' : 'All materials'}</span>
-            {hasAny && <button className="filter-clear" onClick={onClearFilters}>Clear all</button>}
+          <div className="sidebar-refine-header">
+            <div className="sidebar-refine-top">
+              <span className="sidebar-refine-label">Refine</span>
+              {hasAny && <span className="sidebar-refine-active">{totalActiveFilterCount} active</span>}
+            </div>
+            <div className="sidebar-refine-bottom">
+              <span className="sidebar-refine-category">{totalSkus ? totalSkus + ' products' : 'All materials'}</span>
+              {hasAny && <button className="filter-clear" onClick={onClearFilters}>Clear all</button>}
+            </div>
           </div>
 
           {/* 1. Brand filter */}
@@ -4310,9 +5423,8 @@
                     {visibleVendors.map(v => {
                       const checked = vendorFilters.includes(v.name);
                       return (
-                        <div key={v.name} className="filter-option">
-                          <input type="checkbox" id={'f-vendor-' + v.name.replace(/[^a-zA-Z0-9]/g, '_')} checked={checked}
-                            onChange={() => onVendorToggle(v.name)} />
+                        <div key={v.name} className="filter-option" onClick={() => onVendorToggle(v.name)}>
+                          <FacetCheck checked={checked} onChange={() => onVendorToggle(v.name)} id={'f-vendor-' + v.name.replace(/[^a-zA-Z0-9]/g, '_')} />
                           <label htmlFor={'f-vendor-' + v.name.replace(/[^a-zA-Z0-9]/g, '_')}>{v.name}</label>
                           <span className="filter-count">({v.count})</span>
                         </div>
@@ -4370,11 +5482,10 @@
                         ? { background: hex }
                         : { backgroundColor: hex };
                       return (
-                        <div key={name} className={'color-family-swatch' + (isActive ? ' active' : '')} onClick={() => handleFamilyClick(name)}>
+                        <button key={name} className={'color-family-swatch' + (isActive ? ' active' : '')} onClick={() => handleFamilyClick(name)} title={name + ' (' + familyCounts[name] + ')'}>
                           <div className="color-family-circle" style={style} />
                           <span className="color-family-name">{name}</span>
-                          <span className="color-family-count">{familyCounts[name]}</span>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -4440,24 +5551,24 @@
       const pills = [];
       // Vendor pills
       (vendorFilters || []).forEach(name => {
-        pills.push({ type: 'vendor', value: name, label: 'Brand: ' + name, onRemove: () => onVendorToggle(name) });
+        pills.push({ type: 'vendor', value: name, groupLabel: 'Brand', valueLabel: name, onRemove: () => onVendorToggle(name) });
       });
       // Tag pills
       (tagFilters || []).forEach(slug => {
         const tag = (tagFacets || []).find(t => t.slug === slug);
-        pills.push({ type: 'tag', value: slug, label: tag ? tag.name : slug, onRemove: () => onTagToggle(slug) });
+        pills.push({ type: 'tag', value: slug, groupLabel: 'Tag', valueLabel: tag ? tag.name : slug, onRemove: () => onTagToggle(slug) });
       });
       // Price pill
       if (userPriceRange && (userPriceRange.min != null || userPriceRange.max != null)) {
-        const label = 'Price: $' + (userPriceRange.min || 0) + ' – $' + (userPriceRange.max || '∞');
-        pills.push({ type: 'price', value: 'price', label, onRemove: () => onPriceRangeChange(null, null) });
+        const valueLabel = '$' + (userPriceRange.min || 0) + ' \u2013 $' + (userPriceRange.max || '\u221E');
+        pills.push({ type: 'price', value: 'price', groupLabel: 'Price', valueLabel, onRemove: () => onPriceRangeChange(null, null) });
       }
       // Attribute pills
       Object.keys(filters).forEach(slug => {
         const group = facets.find(f => f.slug === slug);
         const name = group ? group.name : slug;
         (filters[slug] || []).forEach(val => {
-          pills.push({ type: 'attr', slug, value: val, label: name + ': ' + val, onRemove: () => onFilterToggle(slug, val) });
+          pills.push({ type: 'attr', slug, value: val, groupLabel: name, valueLabel: val, onRemove: () => onFilterToggle(slug, val) });
         });
       });
       if (pills.length === 0) return null;
@@ -4465,7 +5576,8 @@
       if (inline) {
         return pills.map((p, i) => (
           <div key={i} className="filter-pill" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
-            <span>{p.label}</span>
+            <span className="filter-pill-group">{p.groupLabel}:</span>
+            <span>{p.valueLabel}</span>
             <button onClick={p.onRemove}>&times;</button>
           </div>
         ));
@@ -4475,7 +5587,8 @@
           <span className="active-filters-label">Refined by</span>
           {pills.map((p, i) => (
             <div key={i} className="filter-pill">
-              <span>{p.label}</span>
+              <span className="filter-pill-group">{p.groupLabel}:</span>
+              <span>{p.valueLabel}</span>
               <button onClick={p.onRemove}>&times;</button>
             </div>
           ))}
@@ -4484,11 +5597,12 @@
       );
     }
 
-    function BrowseToolbar({ totalSkus, sortBy, onSortChange, currentPage }) {
+    function BrowseToolbar({ totalSkus, sortBy, onSortChange, currentPage, viewMode, onViewModeChange }) {
       const page = currentPage || 1;
       const per = 24;
       const startIdx = (page - 1) * per + 1;
       const endIdx = Math.min(page * per, totalSkus);
+      const mode = viewMode || 'grid';
       return (
         <div className="browse-toolbar">
           <div className="result-count">
@@ -4497,15 +5611,26 @@
               : '0 products'
             }
           </div>
-          <div className="sort-group">
-            <span className="sort-label">Sort</span>
-            <select value={sortBy} onChange={(e) => onSortChange(e.target.value)}>
-              <option value="name_asc">Name A-Z</option>
-              <option value="name_desc">Name Z-A</option>
-              <option value="price_asc">Price: Low → High</option>
-              <option value="price_desc">Price: High → Low</option>
-              <option value="newest">Newest</option>
-            </select>
+          <div className="browse-toolbar-right">
+            {onViewModeChange && (
+              <div className="view-mode-toggle">
+                {['grid', 'compact', 'spec'].map(m => (
+                  <button key={m} className={'view-mode-btn' + (mode === m ? ' active' : '')} onClick={() => onViewModeChange(m)}>
+                    {m === 'grid' ? 'Grid' : m === 'compact' ? 'Compact' : 'Spec'}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="sort-group">
+              <span className="sort-label">Sort</span>
+              <select value={sortBy} onChange={(e) => onSortChange(e.target.value)}>
+                <option value="name_asc">Name A-Z</option>
+                <option value="name_desc">Name Z-A</option>
+                <option value="price_asc">Price: Low → High</option>
+                <option value="price_desc">Price: High → Low</option>
+                <option value="newest">Newest</option>
+              </select>
+            </div>
           </div>
         </div>
       );
@@ -4525,16 +5650,29 @@
       );
     }
 
-    function SkuGrid({ skus, onSkuClick, wishlist, toggleWishlist, setQuickViewSku }) {
+    function SkuGrid({ skus, onSkuClick, wishlist, toggleWishlist, setQuickViewSku, viewMode }) {
+      const gridClass = 'sku-grid' + (viewMode === 'compact' ? ' sku-grid--compact' : viewMode === 'spec' ? ' sku-grid--spec' : '');
       return (
-        <div className="sku-grid">
-          {skus.map((sku, idx) => (
-            <SkuCard key={sku.sku_id} sku={sku} index={idx} onClick={() => onSkuClick(sku.sku_id, sku.product_name || sku.collection)}
-              isWished={wishlist.includes(sku.sku_id)}
-              onToggleWishlist={() => toggleWishlist(sku.sku_id)}
-              onQuickView={setQuickViewSku ? () => setQuickViewSku(sku) : null} />
-          ))}
-        </div>
+        <>
+          {viewMode === 'spec' && (
+            <div className="spec-header">
+              <span></span>
+              <div className="spec-header-cols">
+                <span className="spec-header-col">Product</span>
+                <span className="spec-header-col">Brand</span>
+                <span className="spec-header-col">Price</span>
+              </div>
+            </div>
+          )}
+          <div className={gridClass}>
+            {skus.map((sku, idx) => (
+              <SkuCard key={sku.sku_id} sku={sku} index={idx} onClick={() => onSkuClick(sku.sku_id, sku.product_name || sku.collection)}
+                isWished={wishlist.includes(sku.sku_id)}
+                onToggleWishlist={() => toggleWishlist(sku.sku_id)}
+                onQuickView={setQuickViewSku ? () => setQuickViewSku(sku) : null} />
+            ))}
+          </div>
+        </>
       );
     }
 
@@ -4551,15 +5689,15 @@
 
       return (
         <nav className="pagination" aria-label="Product pages">
-          <button className="pagination-btn" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>&larr; Previous</button>
+          <button className="pagination-btn" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>{'\u2190'} Previous</button>
           <div className="pagination-pages">
             {pages.map((p, i) => p === '...' ? (
-              <span key={'e' + i} className="pagination-ellipsis">&hellip;</span>
+              <span key={'e' + i} className="pagination-ellipsis">{'\u2026'}</span>
             ) : (
-              <button key={p} className={'pagination-num' + (p === currentPage ? ' active' : '')} onClick={() => onPageChange(p)}>{p}</button>
+              <button key={p} className={'pagination-num' + (p === currentPage ? ' active' : '')} onClick={() => onPageChange(p)} {...(p === currentPage ? { 'aria-current': 'page' } : {})}>{p}</button>
             ))}
           </div>
-          <button className="pagination-btn" disabled={currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>Next &rarr;</button>
+          <button className="pagination-btn" disabled={currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>Next {'\u2192'}</button>
         </nav>
       );
     }
@@ -4576,19 +5714,29 @@
       const stockStatus = sku.stock_status || 'unknown';
       const stockLabel = stockStatus === 'in_stock' ? 'In stock' : stockStatus === 'low_stock' ? 'Low stock' : stockStatus === 'out_of_stock' ? 'Out of stock' : '';
       const stockClass = stockStatus === 'in_stock' ? 'sku-card-stock--in' : stockStatus === 'low_stock' ? 'sku-card-stock--low' : 'sku-card-stock--out';
+      const hasVariants = sku.variant_count > 1;
+      const variantImages = sku.variant_images || [];
       return (
         <div className="sku-card" onClick={onClick} data-sku={sku.vendor_sku || sku.internal_sku}>
-          <button className={'wishlist-heart' + (isWished ? ' active' : '')}
-            onClick={(e) => { e.stopPropagation(); onToggleWishlist(); }}>
-            <svg viewBox="0 0 24 24" fill={isWished ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
-            </svg>
-          </button>
           <div className="sku-card-image">
             {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 400)} {...optimizeSrcSet(sku.primary_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt={sku.product_name} loading={isAboveFold ? 'eager' : 'lazy'} fetchPriority={isAboveFold ? 'high' : 'auto'} decoding={isAboveFold ? 'sync' : 'async'} width="300" height="280" />}
             {sku.alternate_image && <img className="sku-card-alt-img" onLoad={handleProductImgLoad} src={optimizeImg(sku.alternate_image, 400)} {...optimizeSrcSet(sku.alternate_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt="" loading="lazy" decoding="async" width="300" height="280" />}
             {onSale && <span className="sale-badge">SALE</span>}
-            {onQuickView && <button className="quick-view-btn" onClick={(e) => { e.stopPropagation(); onQuickView(); }}>Quick View</button>}
+            {/* Hover overlay with wishlist + compare */}
+            <div className="sku-card-hover-actions">
+              <button className={'sku-card-action-btn wishlist-heart' + (isWished ? ' active' : '')}
+                onClick={(e) => { e.stopPropagation(); onToggleWishlist(); }} title="Save to wishlist">
+                <svg viewBox="0 0 24 24" fill={isWished ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+                </svg>
+              </button>
+            </div>
+            {/* Gradient quick-view CTA at bottom */}
+            {onQuickView && (
+              <div className="sku-card-qv-gradient" onClick={(e) => { e.stopPropagation(); onQuickView(); }}>
+                <button className="sku-card-qv-btn">Quick View</button>
+              </div>
+            )}
           </div>
           <div className="sku-card-body">
             <div className="sku-card-meta-row">
@@ -4596,9 +5744,19 @@
               {stockLabel && <span className={'sku-card-stock ' + stockClass}>{'\u25CF'} {stockLabel}</span>}
             </div>
             <div className="sku-card-name">{fullProductName(sku)}</div>
+            {hasVariants && variantImages.length > 0 && (
+              <div className="sku-card-variant-swatches">
+                {variantImages.slice(0, 5).map((vi, i) => (
+                  <div key={i} className="sku-card-variant-dot">
+                    {vi.image ? <img src={optimizeImg(vi.image, 60)} alt="" loading="lazy" decoding="async" width={22} height={22} /> : null}
+                  </div>
+                ))}
+                {variantImages.length > 5 && <span className="sku-card-variant-more">+{variantImages.length - 5}</span>}
+              </div>
+            )}
             <div className="sku-card-vendor">
               {variantLabel && vendorLabel ? variantLabel + ' \u00B7 ' + vendorLabel : vendorLabel || variantLabel}
-              {!variantLabel && !vendorLabel && sku.variant_count > 1 && (
+              {!variantLabel && !vendorLabel && hasVariants && (
                 sku.variant_count + ' ' + ((sku.attributes || []).some(a => a.slug === 'color') ? 'colors' : 'options')
               )}
             </div>
@@ -4607,7 +5765,7 @@
                 {price ? (
                   <>
                     {sku.trade_price && basePrice && (
-                      <span style={{ textDecoration: 'line-through', color: 'var(--stone-500)', fontSize: '0.875rem', marginRight: '0.5rem' }}>
+                      <span className="sku-card-trade-strike">
                         ${displayPrice(sku, basePrice).toFixed(2)}
                       </span>
                     )}
@@ -4623,7 +5781,7 @@
                   </>
                 ) : 'Call for Price'}
               </div>
-              <span className="sku-card-view-link">View →</span>
+              <span className="sku-card-view-link">View &rarr;</span>
             </div>
           </div>
         </div>
@@ -4682,6 +5840,122 @@
       const [alertSubscribed, setAlertSubscribed] = useState(false);
       const [alertLoading, setAlertLoading] = useState(false);
       const [alertSuccess, setAlertSuccess] = useState(false);
+
+      // Section refs for scroll navigation
+      const sectionRefs = {
+        details: useRef(null),
+        companions: useRef(null),
+        variants: useRef(null),
+        collection: useRef(null),
+        recent: useRef(null),
+        reviews: useRef(null),
+      };
+      const navRef = useRef(null);
+
+      // Scroll spy — direct DOM manipulation to avoid re-render timing issues
+      useEffect(() => {
+        const handleScroll = () => {
+          const nav = navRef.current;
+          if (!nav) return;
+          // Show/hide nav based on scroll position
+          const show = window.scrollY > 300;
+          nav.classList.toggle('visible', show);
+          // Determine active section
+          const offset = 140;
+          const entries = Object.entries(sectionRefs);
+          let current = 'details';
+          for (const [key, ref] of entries) {
+            if (ref.current) {
+              const rect = ref.current.getBoundingClientRect();
+              if (rect.top <= offset) current = key;
+            }
+          }
+          // Update active button
+          nav.querySelectorAll('.pdp-section-nav-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.section === current);
+          });
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+      }, []);
+
+      const scrollToSection = (key) => {
+        const ref = sectionRefs[key];
+        if (ref && ref.current) {
+          const navH = navRef.current ? navRef.current.offsetHeight : 0;
+          const y = ref.current.getBoundingClientRect().top + window.scrollY - 90 - navH - 12;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+      };
+
+      // Dual-column independent scroll — scroll-direction-aware sticky
+      const galleryRef = useRef(null);
+      const infoRef = useRef(null);
+      const reviewsSidebarRef = useRef(null);
+      const reviewsMainRef = useRef(null);
+      useEffect(() => {
+        let lastScrollY = window.scrollY;
+        let galleryTop = 0;
+        let infoTop = 0;
+        let revSidebarTop = 0;
+        let revMainTop = 0;
+        const HEADER_BASE = 90;
+        const updateStickyPair = (colA, colB, delta, vh, header) => {
+          const cols = [colA, colB];
+          for (const col of cols) {
+            if (!col.el) continue;
+            const h = col.el.offsetHeight;
+            if (h <= vh - header) {
+              col.top = header;
+            } else if (delta > 0) {
+              const maxTop = -(h - vh);
+              col.top = Math.max(maxTop, col.top - delta);
+              col.top = Math.min(col.top, header);
+            } else {
+              col.top = Math.min(header, col.top - delta);
+              col.top = Math.max(col.top, -(h - vh));
+            }
+            col.el.style.top = col.top + 'px';
+          }
+          return cols;
+        };
+        const handleDualSticky = () => {
+          if (window.innerWidth < 769) return;
+          const scrollY = window.scrollY;
+          const delta = scrollY - lastScrollY;
+          const vh = window.innerHeight;
+          const nav = document.querySelector('.pdp-section-nav');
+          const navH = (nav && nav.classList.contains('visible')) ? nav.offsetHeight : 0;
+          const HEADER = HEADER_BASE + navH;
+          // PDP gallery / info columns
+          const gallery = galleryRef.current;
+          const info = infoRef.current;
+          if (gallery && info) {
+            const r = updateStickyPair(
+              { el: gallery, top: galleryTop },
+              { el: info, top: infoTop },
+              delta, vh, HEADER
+            );
+            galleryTop = r[0].top;
+            infoTop = r[1].top;
+          }
+          // Reviews sidebar / main columns
+          const revSidebar = reviewsSidebarRef.current;
+          const revMain = reviewsMainRef.current;
+          if (revSidebar && revMain) {
+            const r = updateStickyPair(
+              { el: revSidebar, top: revSidebarTop },
+              { el: revMain, top: revMainTop },
+              delta, vh, HEADER
+            );
+            revSidebarTop = r[0].top;
+            revMainTop = r[1].top;
+          }
+          lastScrollY = scrollY;
+        };
+        window.addEventListener('scroll', handleDualSticky, { passive: true });
+        return () => window.removeEventListener('scroll', handleDualSticky);
+      }, []);
 
       useEffect(() => {
         setLoading(true);
@@ -5119,8 +6393,23 @@
       // ADEX products use a 3-row variant selector (Color / Finish / Type) + grouped collection siblings
       const isAdexProduct = /adex/i.test(sku.vendor_name || '');
 
+      // Build sections list for nav
+      const navSections = [{ key: 'details', label: 'Details' }];
+      if (groupedProducts.length > 0) navSections.push({ key: 'companions', label: 'Complete the Look' });
+      if (!isAdexProduct && mainSiblings.length > 0) navSections.push({ key: 'variants', label: 'Variants' });
+      if (!isAdexProduct && collectionSiblings.length > 0) navSections.push({ key: 'collection', label: 'Collection' });
+      if (recentlyViewed && recentlyViewed.filter(r => r.sku_id !== skuId).length > 0) navSections.push({ key: 'recent', label: 'Recently Viewed' });
+      navSections.push({ key: 'reviews', label: 'Reviews' });
+
       return (
         <>
+          <div className="pdp-section-nav" ref={navRef}>
+            {navSections.map(s => (
+              <button key={s.key} data-section={s.key} className={'pdp-section-nav-btn' + (s.key === 'details' ? ' active' : '')} onClick={() => scrollToSection(s.key)}>
+                {s.label}
+              </button>
+            ))}
+          </div>
           <div key={sku.sku_id} className={'sku-detail' + (images.every(img => /swatch|alternate/i.test(img.asset_type || '')) ? ' sku-detail--contain' : '')} data-sku={sku.vendor_sku || sku.internal_sku} style={loading ? { opacity: 0.6, pointerEvents: 'none', transition: 'opacity 0.15s ease' } : { animation: 'pdpFadeIn 280ms ease-out both' }}>
             <div className="pdp-breadcrumbs">
               <a href="#" onClick={e => { e.preventDefault(); goBack(); }}>Shop</a>
@@ -5129,20 +6418,17 @@
               <span style={{ color: 'var(--stone-900)' }}>{fullProductName(sku)}</span>
             </div>
 
-            <div className="sku-detail-main">
-            <div className="sku-detail-gallery">
+            <div className="sku-detail-main" ref={sectionRefs.details}>
+            <div className="sku-detail-gallery" ref={galleryRef}>
               <div className="sku-detail-image">
                 {mainImage && <img onLoad={handleProductImgLoad} src={optimizeImg(mainImage.url, 800)} {...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200])} sizes="(max-width: 768px) 100vw, 50vw" alt={sku.product_name} fetchPriority="high" decoding="async" />}
-                <span className="gallery-main-label">{sku.product_name}{sku.variant_name ? ' \u2014 ' + formatVariantName(sku.variant_name) : ''}</span>
               </div>
               {images.length > 1 && (
                 <div className="gallery-thumbs">
                   {images.map((img, i) => {
-                    const viewLabels = ['Specimen', 'Close-up', 'In-room', 'Pattern', 'Detail', 'Lifestyle'];
                     return (
                       <div key={img.id} className={'gallery-thumb' + (i === selectedImage ? ' active' : '')} onClick={() => setSelectedImage(i)}>
                         <img onLoad={handleProductImgLoad} src={optimizeImg(img.url, 120)} alt="" loading="lazy" decoding="async" width="80" height="80" onError={e => { e.target.style.display = 'none'; }} />
-                        <span className="gallery-thumb-label">{viewLabels[i] || 'View ' + (i + 1)}</span>
                       </div>
                     );
                   })}
@@ -5173,26 +6459,21 @@
                   if (bi >= 0) return 1;
                   return a.name.localeCompare(b.name);
                 });
-                // Inject Collection — use product_name when collection matches category (e.g. both "Pool Tile")
-                // so the real series identity shows (e.g. "Joya Series" instead of "Pool Tile")
                 if (!slugMap.collection) {
                   const collectionVal = (sku.collection && sku.category_name && sku.collection === sku.category_name)
                     ? sku.product_name
                     : sku.collection;
                   if (collectionVal) sorted.unshift({ slug: '_collection', name: 'Collection', value: collectionVal });
                 }
-                // Inject Category — skip when it would duplicate the Collection row
                 const injectedCollection = sorted.find(a => a.slug === '_collection');
                 if (sku.category_name && (!injectedCollection || injectedCollection.value !== sku.category_name)) {
                   const insertIdx = injectedCollection ? 1 : 0;
                   sorted.splice(insertIdx, 0, { slug: '_category', name: 'Category', value: sku.category_name });
                 }
-                // Inject vendor SKU
                 if (sku.vendor_sku) {
                   const afterCat = sorted.findIndex(a => a.slug === '_category');
                   sorted.splice(afterCat >= 0 ? afterCat + 1 : (injectedCollection ? 1 : 0), 0, { slug: '_sku', name: 'SKU', value: (sku.vendor_sku || '').toUpperCase() });
                 }
-                // Inject brand from price_list attribute if brand isn't already visible
                 const priceListAttr = (sku.attributes || []).find(a => a.slug === 'price_list');
                 if (priceListAttr && priceListAttr.value && !slugMap.brand) {
                   const brandLine = priceListAttr.value.replace(/\s+\d+$/, '');
@@ -5214,7 +6495,7 @@
                 );
               })()}
 
-              {/* Description — below gallery */}
+              {/* Description */}
               {(sku.description_long || sku.description_short) && (() => {
                 const cleaned = cleanDescription(sku.description_long || sku.description_short, sku.brand_name || sku.vendor_name);
                 return cleaned ? (
@@ -5225,7 +6506,7 @@
                 ) : null;
               })()}
 
-              {/* Spec PDF Downloads — below gallery */}
+              {/* Documentation */}
               {specPdfs.length > 0 && (
                 <div className="pdp-docs-section">
                 <div className="pdp-docs-label">Documentation</div>
@@ -5246,7 +6527,7 @@
               )}
             </div>
 
-            <div className="sku-detail-info">
+            <div className="sku-detail-info" ref={infoRef}>
               {/* Category · Collection label */}
               <div className="pdp-category-label">
                 {sku.category_name}{sku.collection && sku.collection !== sku.category_name ? ' \u00B7 ' + sku.collection : ''}
@@ -6428,57 +7709,6 @@
                 </div>
               )}
 
-              {/* Matching Accessories */}
-              {accessorySiblings.length > 0 && (
-                <div className="accessories-section-sf">
-                  <h3>Matching Accessories</h3>
-                  <p className="accessories-subtitle-sf">{/^bath/i.test(sku.category_slug || '') || /vanitie|mirror|cabinet/i.test(sku.category_name || '') ? 'Complete your bathroom with matching pieces' : 'Complete your installation with coordinating trim and transitions'}</p>
-                  {accessorySiblings.map(acc => {
-                    const accPrice = parseFloat(acc.sale_price || acc.retail_price) || 0;
-                    const accQty = accessoryQtys[acc.sku_id] || 1;
-                    const accLabel = acc.accessory_label || formatVariantName(acc.variant_name) || 'Accessory';
-                    const accColor = acc.variant_name ? formatVariantName(acc.variant_name) : null;
-                    // Don't show color subtitle if it's the same as the label
-                    const showColor = accColor && accColor !== accLabel;
-                    return (
-                      <div key={acc.sku_id} className="accessory-card-sf">
-                        {acc.primary_image && (
-                          <div className="accessory-card-sf-image">
-                            <img onLoad={handleProductImgLoad} src={optimizeImg(acc.primary_image, 80)} alt={accLabel} width="48" height="48" loading="lazy" decoding="async" />
-                          </div>
-                        )}
-                        <div className="accessory-card-sf-header">
-                          <div className="accessory-card-sf-name">{accLabel}</div>
-                          {showColor && <div className="accessory-card-sf-color">{accColor}</div>}
-                          <div className="accessory-card-sf-price">${accPrice.toFixed(2)} {acc.sell_by === 'box' ? '/sqft' : '/ea'}</div>
-                        </div>
-                        <div className="accessory-card-sf-actions">
-                          <div className="unit-qty-stepper">
-                            <button onClick={() => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: Math.max(1, (prev[acc.sku_id] || 1) - 1) }))}>&minus;</button>
-                            <input type="number" min="1" value={accQty} onChange={(e) => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: Math.max(1, parseInt(e.target.value) || 1) }))} />
-                            <button onClick={() => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: (prev[acc.sku_id] || 1) + 1 }))}>+</button>
-                          </div>
-                          <button className="btn" style={{ padding: '0.6rem 1.5rem', fontSize: '0.8125rem' }} onClick={() => {
-                            addToCart({
-                              product_id: sku.product_id,
-                              sku_id: acc.sku_id,
-                              sqft_needed: 0,
-                              num_boxes: accQty,
-                              include_overage: false,
-                              unit_price: accPrice,
-                              subtotal: (accQty * accPrice).toFixed(2),
-                              sell_by: acc.sell_by || 'unit'
-                            });
-                          }}>
-                            Add &mdash; ${(accQty * accPrice).toFixed(2)}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
               {/* Packaging Info (box-based and slab products) */}
               {!isCarpetSku && sqftPerBox > 0 && (
                 <div className="packaging-info">
@@ -6840,6 +8070,56 @@
                 </div>
               )}
 
+              {/* Matching Accessories */}
+              {accessorySiblings.length > 0 && (
+                <div className="accessories-section-sf">
+                  <h3>Matching Accessories</h3>
+                  <p className="accessories-subtitle-sf">{/^bath/i.test(sku.category_slug || '') || /vanitie|mirror|cabinet/i.test(sku.category_name || '') ? 'Complete your bathroom with matching pieces' : 'Complete your installation with coordinating trim and transitions'}</p>
+                  {accessorySiblings.map(acc => {
+                    const accPrice = parseFloat(acc.sale_price || acc.retail_price) || 0;
+                    const accQty = accessoryQtys[acc.sku_id] || 1;
+                    const accLabel = acc.accessory_label || formatVariantName(acc.variant_name) || 'Accessory';
+                    const accColor = acc.variant_name ? formatVariantName(acc.variant_name) : null;
+                    const showColor = accColor && accColor !== accLabel;
+                    return (
+                      <div key={acc.sku_id} className="accessory-card-sf">
+                        {acc.primary_image && (
+                          <div className="accessory-card-sf-image">
+                            <img onLoad={handleProductImgLoad} src={optimizeImg(acc.primary_image, 80)} alt={accLabel} width="48" height="48" loading="lazy" decoding="async" />
+                          </div>
+                        )}
+                        <div className="accessory-card-sf-header">
+                          <div className="accessory-card-sf-name">{accLabel}</div>
+                          {showColor && <div className="accessory-card-sf-color">{accColor}</div>}
+                          <div className="accessory-card-sf-price">${accPrice.toFixed(2)} {acc.sell_by === 'box' ? '/sqft' : '/ea'}</div>
+                        </div>
+                        <div className="accessory-card-sf-actions">
+                          <div className="unit-qty-stepper">
+                            <button onClick={() => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: Math.max(1, (prev[acc.sku_id] || 1) - 1) }))}>&minus;</button>
+                            <input type="number" min="1" value={accQty} onChange={(e) => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: Math.max(1, parseInt(e.target.value) || 1) }))} />
+                            <button onClick={() => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: (prev[acc.sku_id] || 1) + 1 }))}>+</button>
+                          </div>
+                          <button className="btn" style={{ padding: '0.6rem 1.5rem', fontSize: '0.8125rem' }} onClick={() => {
+                            addToCart({
+                              product_id: sku.product_id,
+                              sku_id: acc.sku_id,
+                              sqft_needed: 0,
+                              num_boxes: accQty,
+                              include_overage: false,
+                              unit_price: accPrice,
+                              subtotal: (accQty * accPrice).toFixed(2),
+                              sell_by: acc.sell_by || 'unit'
+                            });
+                          }}>
+                            Add &mdash; ${(accQty * accPrice).toFixed(2)}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* Visualize in Your Room — Roomvo enables this button automatically when the SKU is recognized */}
               <button className="pdp-btn pdp-btn-ghost roomvo-visualize-btn"
                 ref={el => { try { if (el && window.roomvo) window.roomvo.enableButtonForVisualization(el); } catch(e) {} }}
@@ -6879,7 +8159,7 @@
                 byCategory[cat].push(gp);
               });
               return (
-                <div className="siblings-section">
+                <div className="siblings-section" ref={sectionRefs.companions}>
                   <div className="siblings-section-header">
                     <div className="siblings-section-eyebrow">02 &mdash; Complete the Look</div>
                     <h2>Companion Products</h2>
@@ -6906,7 +8186,7 @@
 
             {/* Same Product Siblings (non-accessory) — hidden for ADEX (brochure catalog below covers it) */}
             {!isAdexProduct && mainSiblings.length > 0 && (
-              <div className="siblings-section">
+              <div className="siblings-section" ref={sectionRefs.variants}>
                 <div className="siblings-section-header">
                   <div className="siblings-section-eyebrow">03 &mdash; Variants</div>
                   <h2>Other Sizes &amp; Finishes</h2>
@@ -6947,7 +8227,7 @@
               // Default: flat strip for non-ADEX products
               if (collectionSiblings.length === 0) return null;
               return (
-                <div className="siblings-section">
+                <div className="siblings-section" ref={sectionRefs.collection}>
                   <div className="siblings-section-header">
                     <div className="siblings-section-eyebrow">04 &mdash; Collection</div>
                     <h2>More from <em>{sku.collection}</em></h2>
@@ -6974,7 +8254,7 @@
             })()}
 
             {recentlyViewed && recentlyViewed.filter(r => r.sku_id !== skuId).length > 0 && (
-              <div className="siblings-section">
+              <div className="siblings-section" ref={sectionRefs.recent}>
                 <div className="siblings-section-header">
                   <div className="siblings-section-header-row">
                     <div>
@@ -7002,14 +8282,14 @@
             )}
 
             {/* Customer Reviews */}
-            <div className="reviews-section">
-              <div className="siblings-section-header">
-                <div className="siblings-section-eyebrow">06 &mdash; Reviews</div>
-                <h2>Customer Reviews</h2>
-              </div>
+            <div className="reviews-section" ref={sectionRefs.reviews}>
               <div className="reviews-grid">
                 {/* Left — rating summary + histogram */}
-                <div className="reviews-sidebar">
+                <div className="reviews-sidebar" ref={reviewsSidebarRef}>
+                  <div className="siblings-section-header">
+                    <div className="siblings-section-eyebrow">06 &mdash; Reviews</div>
+                    <h2>Customer Reviews</h2>
+                  </div>
                   {reviewCount > 0 ? (
                     <>
                       <div className="reviews-sidebar-rating">{avgRating.toFixed(1)}<span>/5</span></div>
@@ -7034,7 +8314,7 @@
                   )}
                 </div>
                 {/* Right — form + review cards */}
-                <div className="reviews-main">
+                <div className="reviews-main" ref={reviewsMainRef}>
                   {customer ? (
                     reviewSubmitted ? (
                       <div className="review-submitted">
@@ -7244,194 +8524,290 @@
         setSelectedShippingOption(null);
       };
 
-      return (
-        <div className="cart-page">
-          <Breadcrumbs items={[
-            { label: 'Home', onClick: goHome },
-            { label: 'Cart' }
-          ]} />
-          <a className="back-btn" href="#" onClick={e => { e.preventDefault(); goBrowse(); }}>&larr; Continue Shopping</a>
-          <h1>Your Cart</h1>
+      const totalSqft = boxItems.reduce((sum, i) => sum + parseFloat(i.sqft_needed || 0), 0);
 
-          {cart.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--stone-600)' }}>
-              <p style={{ fontSize: '1.125rem', marginBottom: '2rem' }}>Your cart is empty</p>
-              <button className="btn" onClick={goBrowse}>Browse Products</button>
-            </div>
-          ) : (
-            <div className="cart-page-layout">
-              <div>
-                <div className="cart-table">
-                  <div className="cart-table-header">
-                    <div>Product</div><div>Quantity</div><div>Coverage</div><div>Total</div><div></div>
+      // --- Empty cart state ---
+      if (cart.length === 0) {
+        return (
+          <div className="ct-wrap">
+            <section className="ct-header">
+              <nav className="ct-breadcrumb">
+                <a onClick={goHome}>Home</a>
+                <span className="ct-breadcrumb-sep" />
+                <a onClick={goBrowse}>Shop</a>
+                <span className="ct-breadcrumb-sep" />
+                <span className="ct-breadcrumb-current">Your Cart</span>
+              </nav>
+              <div className="ct-hero-grid">
+                <div>
+                  <div className="ct-eyebrow" style={{ color: 'var(--gold)' }}>0 items · cart empty</div>
+                  <h1 className="ct-title">Nothing in the cart, <em>yet</em>.</h1>
+                </div>
+                <div className="ct-hero-right">
+                  <p className="ct-hero-desc">Start a sample box, pick up where you left off, or browse the showroom by material. Anything you add will sit here, saved across devices, until you're ready to check out.</p>
+                  <div className="ct-hero-actions">
+                    <button className="ct-btn-primary" onClick={goBrowse}>Browse the shop</button>
                   </div>
-                  {cart.map(item => (
-                    <div key={item.id} className={'cart-table-row' + (item.is_sample ? ' sample-item' : '')}>
-                      <div>
-                        <div className="cart-table-product-name">
-                          {fullProductName(item) || 'Product'}
-                          {item.is_sample && <span className="sample-tag">Sample</span>}
-                        </div>
-                        <div className="cart-table-product-meta">
-                          {item.is_sample ? 'Free sample' : (
-                            <>
-                              ${parseFloat(item.unit_price).toFixed(2)}{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft'}
-                              {item.price_tier && (
-                                <span style={{ display: 'inline-block', marginLeft: '0.375rem', padding: '0.0625rem 0.375rem', borderRadius: '0.1875rem', fontSize: '0.6875rem', fontWeight: 600, background: item.price_tier === 'roll' ? 'var(--sage, #6b9080)' : 'var(--stone-200)', color: item.price_tier === 'roll' ? 'white' : 'var(--stone-600)' }}>
-                                  {item.price_tier === 'roll' ? 'Roll Price' : 'Cut Price'}
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        {item.is_sample ? '1' : item.price_tier ? (
-                          <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>
-                            {parseFloat(item.sqft_needed || 0).toFixed(0)} sqft
-                          </div>
-                        ) : item.sell_by === 'sqft' ? (
-                          <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>
-                            {parseFloat(item.sqft_needed || 0).toFixed(0)} sqft
-                          </div>
-                        ) : (
-                          <>
-                            <div className="cart-qty-controls">
-                              <button className="cart-qty-btn" onClick={() => handleQtyChange(item, -1)}>&minus;</button>
-                              <span style={{ width: 40, textAlign: 'center', fontWeight: 500 }}>{item.num_boxes}</span>
-                              <button className="cart-qty-btn" onClick={() => handleQtyChange(item, 1)}>+</button>
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--stone-600)', marginTop: '0.25rem' }}>
-                              {item.sell_by === 'unit' ? (parseInt(item.num_boxes) !== 1 ? 'units' : 'unit') : ('box' + (parseInt(item.num_boxes) !== 1 ? 'es' : ''))}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <div>{item.is_sample || item.sell_by === 'unit' || item.sell_by === 'sqft' ? '\u2014' : parseFloat(item.sqft_needed || 0).toFixed(1) + ' sqft'}</div>
-                      <div style={{ fontWeight: 500 }}>{item.is_sample ? 'FREE' : '$' + parseFloat(item.subtotal).toFixed(2)}</div>
-                      <div>
-                        <button className="cart-remove-btn" onClick={() => removeFromCart(item.id)} title="Remove">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
+            </section>
+          </div>
+        );
+      }
 
-              <div className="order-summary">
-                <h3>Order Summary</h3>
-                {productItems.length > 0 && (
-                  <div className="order-summary-row">
-                    <span>Products ({[totalBoxes > 0 && `${totalBoxes} box${totalBoxes !== 1 ? 'es' : ''}`, totalUnits > 0 && `${totalUnits} unit${totalUnits !== 1 ? 's' : ''}`].filter(Boolean).join(', ')})</span>
-                    <span>${productSubtotal.toFixed(2)}</span>
+      // --- Cart item count label ---
+      const itemCount = productItems.length + sampleItems.length;
+      const materialLabel = productItems.length === 1 ? '1 material' : productItems.length + ' materials';
+      const sampleLabel = sampleItems.length > 0 ? (sampleItems.length === 1 ? ' · 1 sample' : ' · ' + sampleItems.length + ' samples') : '';
+
+      return (
+        <div className="ct-wrap">
+          {/* --- Cart header --- */}
+          <section className="ct-header">
+            <div className="ct-header-top">
+              <nav className="ct-breadcrumb">
+                <a onClick={goHome}>Home</a>
+                <span className="ct-breadcrumb-sep" />
+                <a onClick={goBrowse}>Shop</a>
+                <span className="ct-breadcrumb-sep" />
+                <span className="ct-breadcrumb-current">Your Cart</span>
+              </nav>
+            </div>
+            <div className="ct-hero-grid">
+              <div>
+                <div className="ct-eyebrow" style={{ color: 'var(--gold)' }}>{materialLabel}{sampleLabel} · in your cart</div>
+                <h1 className="ct-title">Your <em>cart</em>.</h1>
+              </div>
+              <div className="ct-hero-right">
+                {totalSqft > 0 && (
+                  <div className="ct-stats-strip">
+                    <div className="ct-stat">
+                      <div className="ct-stat-value">{Math.round(totalSqft)} sf</div>
+                      <div className="ct-stat-label">Materials</div>
+                    </div>
+                    <div className="ct-stat">
+                      <div className="ct-stat-value">${productSubtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="ct-stat-label">Subtotal</div>
+                    </div>
+                    <div className="ct-stat">
+                      <div className="ct-stat-value">{itemCount}</div>
+                      <div className="ct-stat-label">{itemCount === 1 ? 'Item' : 'Items'}</div>
+                    </div>
                   </div>
                 )}
-                {sampleItems.length > 0 && (
-                  <>
-                    <div className="order-summary-row muted"><span>Samples ({sampleItems.length})</span><span>FREE</span></div>
-                    <div className="order-summary-row muted"><span>Sample Shipping</span><span>$12.00</span></div>
-                  </>
-                )}
+              </div>
+            </div>
+          </section>
 
-                {/* Delivery Method */}
+          {/* --- Main grid: items + summary --- */}
+          <div className="ct-grid">
+            {/* LEFT: Line items */}
+            <div className="ct-items">
+              <div className="ct-items-header">
+                <h2 className="ct-items-title">Materials</h2>
+              </div>
+
+              {cart.map((item, idx) => {
+                const isLast = idx === cart.length - 1;
+                const sqft = parseFloat(item.sqft_needed || 0);
+                const boxes = parseInt(item.num_boxes) || 0;
+                const unitPrice = parseFloat(item.unit_price) || 0;
+                const subtotal = parseFloat(item.subtotal || 0);
+                const canStepper = !item.is_sample && item.sell_by !== 'sqft' && !item.price_tier;
+                const priceSuf = item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft';
+
+                return (
+                  <div key={item.id} className={'ct-line' + (isLast ? ' ct-line-last' : '')}>
+                    {/* Thumbnail */}
+                    <div className="ct-line-thumb">
+                      {item.primary_image ? (
+                        <img src={optimizeImg(item.primary_image, 200)} alt="" onLoad={handleProductImgLoad} loading="lazy" decoding="async" />
+                      ) : (
+                        <div className="ct-line-thumb-placeholder" />
+                      )}
+                      {item.is_sample && <span className="ct-line-sample-badge">Sample</span>}
+                    </div>
+
+                    {/* Middle: title + meta */}
+                    <div className="ct-line-info">
+                      <div className="ct-line-cat">{item.category_name || ''}</div>
+                      <h3 className="ct-line-name">{fullProductName(item) || 'Product'}</h3>
+                      {item.variant_name && <div className="ct-line-variant">{item.variant_name}</div>}
+
+                      {/* Lead-time / stock */}
+                      {item.stock_status && item.stock_status !== 'unknown' && (
+                        <div className={'ct-line-stock' + (item.stock_status === 'in_stock' ? ' in-stock' : item.stock_status === 'low_stock' ? ' low-stock' : ' out-stock')}>
+                          {item.stock_status === 'in_stock' ? 'In stock' : item.stock_status === 'low_stock' ? 'Low stock' : 'Out of stock'}
+                        </div>
+                      )}
+
+                      {/* Pickup-only badge */}
+                      {item.pickup_only && (
+                        <div className="ct-line-pickup-badge">Pickup only</div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="ct-line-actions">
+                        <a className="ct-line-action-remove" onClick={() => removeFromCart(item.id)}>Remove</a>
+                      </div>
+                    </div>
+
+                    {/* Right: qty + subtotal */}
+                    <div className="ct-line-right">
+                      {/* Qty stepper */}
+                      {canStepper && (
+                        <div className="ct-qty-wrap">
+                          <div className="ct-qty-stepper">
+                            <button className="ct-qty-btn" onClick={() => handleQtyChange(item, -1)} aria-label="Decrease quantity">&minus;</button>
+                            <span className="ct-qty-value">{boxes} {item.sell_by === 'unit' ? (boxes === 1 ? 'unit' : 'units') : (boxes === 1 ? 'box' : 'boxes')}</span>
+                            <button className="ct-qty-btn" onClick={() => handleQtyChange(item, 1)} aria-label="Increase quantity">+</button>
+                          </div>
+                          {item.sell_by !== 'unit' && sqft > 0 && (
+                            <div className="ct-qty-coverage">{sqft.toFixed(1)} sf coverage</div>
+                          )}
+                        </div>
+                      )}
+                      {!canStepper && !item.is_sample && (
+                        <div className="ct-qty-wrap">
+                          <div className="ct-qty-static">{item.sell_by === 'sqft' || item.price_tier ? `${sqft.toFixed(0)} sqft` : `${boxes} ${item.sell_by === 'unit' ? 'unit' : 'box'}${boxes !== 1 ? (item.sell_by === 'unit' ? 's' : 'es') : ''}`}</div>
+                        </div>
+                      )}
+
+                      {/* Unit price */}
+                      {!item.is_sample && (
+                        <div className="ct-line-unit-price">
+                          <span>Unit price</span>
+                          <span className="ct-line-unit-price-value">${unitPrice.toFixed(2)}<span className="ct-line-unit-price-suffix">{priceSuf}</span></span>
+                        </div>
+                      )}
+
+                      {item.price_tier && (
+                        <div className="ct-line-price-tier">{item.price_tier === 'roll' ? 'Roll price' : 'Cut price'}</div>
+                      )}
+
+                      {/* Subtotal */}
+                      <div className="ct-line-subtotal">
+                        <span className="ct-line-subtotal-label">Subtotal</span>
+                        <span className="ct-line-subtotal-value">{item.is_sample ? 'Free' : '$' + subtotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Promo + keep browsing */}
+              <div className="ct-promo-row">
+                <div className="ct-promo-input-wrap">
+                  {promoResult ? (
+                    <div className="ct-promo-applied">
+                      <span className="ct-promo-code-pill">{promoResult.code}</span>
+                      <span className="ct-promo-discount">-${promoDiscount.toFixed(2)}</span>
+                      <a className="ct-promo-remove" onClick={e => { e.preventDefault(); removePromo(); }}>Remove</a>
+                    </div>
+                  ) : (
+                    <div className="ct-promo-form">
+                      <input type="text" value={promoCode} onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoError(''); }}
+                        placeholder="Promo code or trade ID" onKeyDown={e => e.key === 'Enter' && applyPromoCode()}
+                        className="ct-promo-input" />
+                      <button onClick={() => applyPromoCode()} disabled={promoLoading || !promoCode.trim()} className="ct-promo-apply">
+                        {promoLoading ? '...' : 'Apply'}
+                      </button>
+                    </div>
+                  )}
+                  {promoError && <div className="ct-promo-error">{promoError}</div>}
+                  {promoResult && promoResult.description && <div className="ct-promo-desc">{promoResult.description}</div>}
+                </div>
+                <a className="ct-keep-browsing" onClick={e => { e.preventDefault(); goBrowse(); }}>&#8592; Keep browsing</a>
+              </div>
+            </div>
+
+            {/* RIGHT: Order summary */}
+            <aside className="ct-summary">
+              <div className="ct-summary-inner">
+                <div className="ct-summary-eyebrow">Order summary</div>
+
+                {/* Summary line items */}
+                <div className="ct-summary-lines">
+                  {productItems.length > 0 && (
+                    <div className="ct-summary-line">
+                      <span>Materials subtotal</span>
+                      <span>${productSubtotal.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {sampleItems.length > 0 && (
+                    <>
+                      <div className="ct-summary-line"><span>Samples ({sampleItems.length})</span><span>Free</span></div>
+                      <div className="ct-summary-line"><span>Sample shipping</span><span>$12.00</span></div>
+                    </>
+                  )}
+                  {promoResult && (
+                    <div className="ct-summary-line ct-summary-line-accent">
+                      <span>Promo · {promoResult.code}</span>
+                      <span>-${promoDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Delivery method */}
                 {productItems.length > 0 && (
-                  <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--stone-200)' }}>
-                    <div style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem' }}>Delivery Method</div>
+                  <div className="ct-summary-delivery">
+                    <div className="ct-summary-delivery-label">Delivery</div>
                     {hasPickupOnly && (
-                      <div style={{ fontSize: '0.75rem', color: '#b45309', background: '#fef3c7', padding: '0.5rem 0.75rem', marginBottom: '0.5rem', borderLeft: '3px solid #f59e0b' }}>
-                        Your cart contains items available for store pickup only.
-                      </div>
+                      <div className="ct-summary-pickup-notice">Cart contains pickup-only items.</div>
                     )}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', cursor: hasPickupOnly ? 'not-allowed' : 'pointer', marginBottom: '0.4rem', opacity: hasPickupOnly ? 0.5 : 1 }}>
-                      <input type="radio" name="deliveryMethod" value="shipping" checked={deliveryMethod === 'shipping'}
-                        onChange={() => setDeliveryMethod('shipping')} disabled={hasPickupOnly} />
-                      Ship to Address <span style={{ color: 'var(--stone-600)', fontSize: '0.75rem' }}>(5-10 business days)</span>
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', cursor: 'pointer', marginBottom: '0.5rem' }}>
-                      <input type="radio" name="deliveryMethod" value="pickup" checked={deliveryMethod === 'pickup'}
+                    <label className={'ct-delivery-option' + (deliveryMethod === 'pickup' ? ' active' : '')}>
+                      <input type="radio" name="ctDelivery" value="pickup" checked={deliveryMethod === 'pickup'}
                         onChange={() => { setDeliveryMethod('pickup'); setShippingEstimate(null); setSelectedShippingOption(null); }} />
-                      Store Pickup — Free <span style={{ color: 'var(--stone-600)', fontSize: '0.75rem' }}>(up to 5 business days)</span>
-                    </label>
-
-                    {deliveryMethod === 'pickup' && (
-                      <div className="order-summary-row" style={{ marginTop: '0.5rem' }}>
-                        <span>Shipping</span>
-                        <span style={{ color: '#16a34a', fontWeight: 500 }}>FREE</span>
+                      <div>
+                        <div className="ct-delivery-option-title">Showroom pickup</div>
+                        <div className="ct-delivery-option-sub">Free · Anaheim</div>
                       </div>
-                    )}
+                    </label>
+                    <label className={'ct-delivery-option' + (deliveryMethod === 'shipping' ? ' active' : '') + (hasPickupOnly ? ' disabled' : '')}>
+                      <input type="radio" name="ctDelivery" value="shipping" checked={deliveryMethod === 'shipping'}
+                        onChange={() => setDeliveryMethod('shipping')} disabled={hasPickupOnly} />
+                      <div>
+                        <div className="ct-delivery-option-title">Ship to address</div>
+                        <div className="ct-delivery-option-sub">Enter ZIP for rate</div>
+                      </div>
+                    </label>
 
                     {deliveryMethod === 'shipping' && (
-                      <>
-                        <div style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem', marginTop: '0.5rem' }}>Estimate Shipping</div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <input className="checkout-input" style={{ flex: 1, padding: '0.6rem 0.75rem', fontSize: '0.875rem' }}
-                            type="text" placeholder="ZIP Code" value={shippingZip}
+                      <div className="ct-summary-shipping">
+                        <div className="ct-shipping-zip-row">
+                          <input type="text" placeholder="ZIP Code" value={shippingZip}
                             onChange={e => setShippingZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                            onKeyDown={e => e.key === 'Enter' && fetchShippingEstimate()} maxLength={5} />
-                          <button className="btn" style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}
-                            onClick={fetchShippingEstimate} disabled={shippingLoading || shippingZip.length < 5}>
-                            {shippingLoading ? '...' : 'Get Rate'}
+                            onKeyDown={e => e.key === 'Enter' && fetchShippingEstimate()}
+                            maxLength={5} className="ct-shipping-zip-input" />
+                          <button onClick={fetchShippingEstimate} disabled={shippingLoading || shippingZip.length < 5} className="ct-shipping-zip-btn">
+                            {shippingLoading ? '...' : 'Get rate'}
                           </button>
                         </div>
-                        {shippingError && (
-                          <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '0.4rem' }}>{shippingError}</div>
-                        )}
+                        {shippingError && <div className="ct-shipping-error">{shippingError}</div>}
                         {shippingEstimate && shippingEstimate.options && shippingEstimate.options.length > 0 && shippingEstimate.options[0].amount > 0 && (
-                          <div style={{ marginTop: '0.5rem' }}>
-                            <div style={{ fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.4rem', color: 'var(--stone-700)' }}>
-                              {shippingEstimate.method === 'ltl_freight' ? 'LTL Freight Options' : 'Shipping'}
-                            </div>
+                          <div className="ct-shipping-options">
                             {shippingEstimate.options.map(opt => (
-                              <label key={opt.id} onClick={() => setSelectedShippingOption(opt)}
-                                style={{
-                                  display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.75rem',
-                                  marginBottom: '0.35rem', cursor: 'pointer', fontSize: '0.8125rem',
-                                  border: selectedShippingOption && selectedShippingOption.id === opt.id ? '2px solid var(--gold)' : '1px solid var(--stone-200)',
-                                  borderRadius: '6px', background: selectedShippingOption && selectedShippingOption.id === opt.id ? '#fefce8' : 'white',
-                                  transition: 'border-color 0.15s'
-                                }}>
-                                <input type="radio" name="shippingOption" checked={selectedShippingOption && selectedShippingOption.id === opt.id}
+                              <label key={opt.id} className={'ct-shipping-opt' + (selectedShippingOption && selectedShippingOption.id === opt.id ? ' active' : '')}
+                                onClick={() => setSelectedShippingOption(opt)}>
+                                <input type="radio" name="ctShipping" checked={selectedShippingOption && selectedShippingOption.id === opt.id}
                                   onChange={() => setSelectedShippingOption(opt)} />
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                    <span style={{ fontWeight: 500 }}>{opt.carrier}</span>
-                                    {opt.service && opt.service !== opt.carrier && <span style={{ color: 'var(--stone-600)', fontSize: '0.75rem' }}>{opt.service}</span>}
-                                    {opt.is_cheapest && <span style={{ background: '#dcfce7', color: '#166534', fontSize: '0.625rem', fontWeight: 600, padding: '0.1rem 0.35rem', borderRadius: '3px' }}>Best Price</span>}
-                                  </div>
-                                  {opt.transit_days && (
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--stone-600)', marginTop: '0.15rem' }}>
-                                      Est. {opt.transit_days} business day{opt.transit_days !== 1 ? 's' : ''}
-                                    </div>
-                                  )}
+                                <div className="ct-shipping-opt-info">
+                                  <span className="ct-shipping-opt-carrier">{opt.carrier}</span>
+                                  {opt.transit_days && <span className="ct-shipping-opt-days">{opt.transit_days} day{opt.transit_days !== 1 ? 's' : ''}</span>}
                                 </div>
-                                <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>${parseFloat(opt.amount).toFixed(2)}</span>
+                                <span className="ct-shipping-opt-price">${parseFloat(opt.amount).toFixed(2)}</span>
                               </label>
                             ))}
-                            {shippingEstimate.options.some(o => o.is_fallback) && (
-                              <div style={{ fontSize: '0.7rem', color: '#b45309', background: '#fef3c7', padding: '0.4rem 0.6rem', marginTop: '0.25rem', borderRadius: '4px' }}>
-                                Estimated rate. Final rate calculated at confirmation.
-                              </div>
-                            )}
                           </div>
                         )}
                         {shippingEstimate && shippingEstimate.options && shippingEstimate.options.length > 0 && shippingEstimate.options[0].amount === 0 && shippingEstimate.method === null && (
-                          <div className="order-summary-row muted" style={{ marginTop: '0.5rem' }}>
-                            <span>Shipping</span><span>$0.00</span>
-                          </div>
-                        )}
-                        {!shippingEstimate && !shippingLoading && !shippingError && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--stone-600)', marginTop: '0.4rem' }}>
-                            Enter zip for shipping estimate
-                          </div>
+                          <div className="ct-summary-line" style={{ marginTop: 8 }}><span>Shipping</span><span>$0.00</span></div>
                         )}
                         {shippingEstimate && shippingEstimate.weight_lbs > 0 && (
-                          <div style={{ fontSize: '0.7rem', color: 'var(--stone-600)', marginTop: '0.25rem' }}>
-                            Est. weight: {shippingEstimate.weight_lbs} lbs ({shippingEstimate.total_boxes} item{shippingEstimate.total_boxes !== 1 ? 's' : ''})
-                          </div>
+                          <div className="ct-shipping-weight">Est. weight: {shippingEstimate.weight_lbs} lbs</div>
                         )}
                         {shippingEstimate && shippingEstimate.method === 'ltl_freight' && (
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--stone-600)', marginTop: '0.4rem', cursor: 'pointer' }}>
+                          <label className="ct-liftgate-toggle">
                             <input type="checkbox" checked={liftgateEnabled} onChange={e => {
                               setLiftgateEnabled(e.target.checked);
                               setShippingEstimate(null);
@@ -7440,57 +8816,42 @@
                             Liftgate delivery (residential)
                           </label>
                         )}
-                      </>
+                      </div>
+                    )}
+
+                    {deliveryMethod === 'pickup' && (
+                      <div className="ct-summary-line" style={{ marginTop: 8 }}>
+                        <span>Shipping</span>
+                        <span style={{ color: 'var(--gold)' }}>Free</span>
+                      </div>
                     )}
                   </div>
                 )}
 
-                {/* Promo Code */}
-                <div style={{ borderTop: '1px solid var(--stone-200)', marginTop: '0.75rem', paddingTop: '0.75rem' }}>
-                  {promoResult ? (
-                    <div>
-                      <div className="order-summary-row" style={{ color: '#16a34a' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <span style={{ background: '#dcfce7', color: '#166534', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>{promoResult.code}</span>
-                          <a href="#" onClick={e => { e.preventDefault(); removePromo(); }} style={{ fontSize: '0.75rem', color: 'var(--stone-500)', cursor: 'pointer', textDecoration: 'underline' }}>Remove</a>
-                        </span>
-                        <span style={{ fontWeight: 500 }}>-${promoDiscount.toFixed(2)}</span>
-                      </div>
-                      {promoResult.description && (
-                        <div style={{ fontSize: '0.7rem', color: 'var(--stone-500)', marginTop: '0.15rem' }}>{promoResult.description}</div>
-                      )}
-                    </div>
-                  ) : (
-                    <div>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <input type="text" value={promoCode} onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoError(''); }}
-                          placeholder="Promo code" onKeyDown={e => e.key === 'Enter' && applyPromoCode()}
-                          style={{ flex: 1, padding: '0.5rem 0.6rem', border: '1px solid var(--stone-300)', borderRadius: '4px', fontSize: '0.8rem', fontFamily: "'Inter', sans-serif" }} />
-                        <button onClick={() => applyPromoCode()} disabled={promoLoading || !promoCode.trim()}
-                          style={{ padding: '0.5rem 0.75rem', background: 'var(--stone-800)', color: 'white', border: 'none', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer', opacity: promoLoading || !promoCode.trim() ? 0.5 : 1 }}>
-                          {promoLoading ? '...' : 'Apply'}
-                        </button>
-                      </div>
-                      {promoError && <div style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '0.3rem' }}>{promoError}</div>}
-                    </div>
-                  )}
+                {/* Total */}
+                <div className="ct-summary-total">
+                  <span className="ct-summary-total-label">{selectedShippingOption ? 'Estimated total' : 'Subtotal'}</span>
+                  <span className="ct-summary-total-value">${cartTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
 
-                <div className="order-summary-total">
-                  <span>{selectedShippingOption ? 'Estimated Total' : 'Subtotal'}</span>
-                  <span>${cartTotal.toFixed(2)}</span>
+                {/* CTA */}
+                <button className="ct-checkout-btn" onClick={goCheckout}>Checkout securely</button>
+
+                {/* Trust */}
+                <div className="ct-summary-trust">
+                  <div>Secure checkout · Stripe</div>
+                  <div>(714) 999-0009</div>
                 </div>
-                <button className="btn" style={{ width: '100%', marginTop: '1rem' }} onClick={goCheckout}>Proceed to Checkout</button>
               </div>
-            </div>
-          )}
+            </aside>
+          </div>
         </div>
       );
     }
 
     // ==================== Checkout Page ====================
 
-    function CheckoutPage({ cart, sessionId, goCart, handleOrderComplete, deliveryMethod, liftgateEnabled, tradeCustomer, tradeToken, customer, customerToken, onCustomerLogin, appliedPromoCode, setAppliedPromoCode }) {
+    function CheckoutPage({ cart, sessionId, goCart, handleOrderComplete, deliveryMethod, setDeliveryMethod, liftgateEnabled, tradeCustomer, tradeToken, customer, customerToken, onCustomerLogin, appliedPromoCode, setAppliedPromoCode }) {
       const [customerName, setCustomerName] = useState(tradeCustomer ? tradeCustomer.contact_name : (customer ? (customer.first_name + ' ' + customer.last_name) : ''));
       const [customerEmail, setCustomerEmail] = useState(tradeCustomer ? tradeCustomer.email : (customer ? customer.email : ''));
       const [phone, setPhone] = useState(customer ? (customer.phone || '') : '');
@@ -7505,16 +8866,6 @@
       const cardRef = useRef(null);
       const cardMounted = useRef(false);
       const taxDebounce = useRef(null);
-
-      if (!cart || cart.length === 0) {
-        return (
-          <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-            <h2>Your cart is empty</h2>
-            <p style={{ color: 'var(--stone-500)', margin: '1rem 0' }}>Add items to your cart before checking out.</p>
-            <button className="btn" onClick={goCart}>Go to Cart</button>
-          </div>
-        );
-      }
       const addressInputRef = useRef(null);
       const autocompleteRef = useRef(null);
       const [placesReady, setPlacesReady] = useState(false);
@@ -7524,6 +8875,13 @@
       const [passwordError, setPasswordError] = useState('');
       const [walletAvailable, setWalletAvailable] = useState(false);
       const paymentRequestRef = useRef(null);
+      const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const [walletMode, setWalletMode] = useState(null);
+      const [orderNotes, setOrderNotes] = useState('');
+      const [editingContact, setEditingContact] = useState(!customer && !tradeCustomer);
+      const [editingAddress, setEditingAddress] = useState(!customer || !customer.address_line1);
+
+      const cartEmpty = !cart || cart.length === 0;
 
       const isPickup = deliveryMethod === 'pickup';
       const productItems = cart.filter(i => !i.is_sample);
@@ -7535,21 +8893,20 @@
       const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'];
 
       useEffect(() => {
-        if (cardMounted.current || !stripeInstance) return;
+        if (cartEmpty || cardMounted.current || !stripeInstance) return;
+        const el = document.getElementById('card-element');
+        if (!el) return;
         const elements = stripeInstance.elements();
         const card = elements.create('card', {
           style: { base: { fontFamily: "'Inter', sans-serif", fontSize: '15px', color: '#292524', '::placeholder': { color: '#57534e' } } }
         });
-        card.mount('#card-element');
+        card.mount(el);
         cardRef.current = card;
         cardMounted.current = true;
         return () => { if (cardRef.current) { cardRef.current.unmount(); cardMounted.current = false; } };
-      }, []);
+      }, [cartEmpty]);
 
       // Apple Pay / Google Pay via Payment Request API
-      const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const [walletMode, setWalletMode] = useState(null); // 'native' | 'simulated'
-
       useEffect(() => {
         if (!stripeInstance) return;
         const pr = stripeInstance.paymentRequest({
@@ -7847,105 +9204,397 @@
         }
       };
 
+      const contactSaved = customerName.trim().length > 2 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(customerEmail) && phone.replace(/\D/g, '').length >= 10;
+      const addressSaved = isPickup || (line1.trim() && city.trim() && state && /^\d{5}(-\d{4})?$/.test(zip.trim()));
+      const initials = customerName.trim().split(/\s+/).map(n => n[0] || '').join('').toUpperCase().slice(0, 2);
+
+      const formatPhone = (val) => {
+        const digits = val.replace(/\D/g, '').slice(0, 10);
+        let fmt = ''; if (digits.length > 0) fmt = '(' + digits.slice(0, 3);
+        if (digits.length >= 3) fmt += ') '; if (digits.length > 3) fmt += digits.slice(3, 6);
+        if (digits.length >= 6) fmt += '-' + digits.slice(6);
+        return fmt;
+      };
+
+      if (cartEmpty) {
+        return (
+          <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+            <h2>Your cart is empty</h2>
+            <p style={{ color: 'var(--stone-500)', margin: '1rem 0' }}>Add items to your cart before checking out.</p>
+            <button className="btn" onClick={goCart}>Go to Cart</button>
+          </div>
+        );
+      }
+
       return (
-        <div className="checkout-page">
-          <h1>Checkout</h1>
-          <form className="checkout-form" onSubmit={handleSubmit}>
-            {error && <div className="checkout-error">{error}</div>}
-            <div className="checkout-section">
-              <h3>Contact Information</h3>
-              <div className="checkout-row">
-                <div className="checkout-field"><label>Full Name *</label><input className="checkout-input" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="John Smith" /></div>
-                <div className="checkout-field"><label>Email *</label><input className="checkout-input" type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="john@example.com" /></div>
-              </div>
-              <div className="checkout-field"><label>Phone *</label><input className="checkout-input" type="tel" value={phone} onChange={e => {
-                const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                let fmt = ''; if (digits.length > 0) fmt = '(' + digits.slice(0, 3);
-                if (digits.length >= 3) fmt += ') '; if (digits.length > 3) fmt += digits.slice(3, 6);
-                if (digits.length >= 6) fmt += '-' + digits.slice(6); setPhone(fmt);
-              }} placeholder="(555) 123-4567" /></div>
+        <div className="co-wrap">
+          {/* Slim checkout header */}
+          <div className="co-header">
+            <a className="co-header-logo" onClick={(e) => { e.preventDefault(); goCart(); }} href="#">Roma</a>
+            <div className="co-header-meta">
+              <span className="co-phone">(714) 999-0009</span>
+              <span className="co-secure">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                Secure checkout
+              </span>
             </div>
-            {!customer && !tradeCustomer && (
-              <div className="checkout-section">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9375rem' }}>
-                  <input type="checkbox" checked={createAccount} onChange={e => { setCreateAccount(e.target.checked); if (!e.target.checked) { setAccountPassword(''); setConfirmPassword(''); setPasswordError(''); } }} />
-                  Create an account for faster checkout next time
-                </label>
-                {createAccount && (
-                  <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <div className="checkout-field">
-                      <label>Password *</label>
-                      <input className="checkout-input" type="password" value={accountPassword} onChange={e => { setAccountPassword(e.target.value); setPasswordError(''); }} placeholder="Create a password" autoComplete="new-password" />
-                      <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.25rem' }}>Min 8 characters, 1 uppercase letter, 1 number</div>
+          </div>
+
+          {/* Progress strip */}
+          <div className="co-progress">
+            <div className="co-progress-inner">
+              <div className="co-progress-step">
+                <div className="co-progress-dot past">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div>
+                  <div className="co-progress-label">Cart</div>
+                  <div className="co-progress-status">Complete</div>
+                </div>
+              </div>
+              <div className="co-progress-step">
+                <div className="co-progress-dot current">2</div>
+                <div>
+                  <div className="co-progress-label">Checkout</div>
+                  <div className="co-progress-status">In progress</div>
+                </div>
+              </div>
+              <div className="co-progress-step">
+                <div className="co-progress-dot future">3</div>
+                <div>
+                  <div className="co-progress-label">Confirmation</div>
+                  <div className="co-progress-status">&mdash;</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            <div className="co-grid">
+              {/* LEFT: Step sections */}
+              <div className="co-steps">
+                {error && <div className="co-error">{error}</div>}
+
+                {/* Step 01 — Contact */}
+                <div className={`co-step ${editingContact ? 'focus' : ''}`}>
+                  <div className="co-step-head">
+                    <div className="co-step-left">
+                      <span className={`co-step-num ${contactSaved && !editingContact ? 'saved' : ''}`}>01</span>
+                      <h3 className="co-step-title">Contact</h3>
                     </div>
-                    <div className="checkout-field">
-                      <label>Confirm Password *</label>
-                      <input className="checkout-input" type="password" value={confirmPassword} onChange={e => { setConfirmPassword(e.target.value); setPasswordError(''); }} placeholder="Re-enter password" autoComplete="new-password" />
-                    </div>
-                    {passwordError && <div style={{ color: '#dc2626', fontSize: '0.8125rem' }}>{passwordError}</div>}
+                    {contactSaved && !editingContact && (
+                      <div className="co-step-chip">
+                        <span className="co-step-chip-label" style={{ color: 'var(--gold)' }}>Saved</span>
+                        <button type="button" className="co-step-chip-action" onClick={() => setEditingContact(true)}>Edit</button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
-            {isPickup ? (
-              <div className="checkout-section">
-                <h3>Store Pickup</h3>
-                <div style={{ background: 'var(--stone-100)', padding: '1.25rem', fontSize: '0.875rem', lineHeight: 1.6 }}>
-                  <div style={{ fontWeight: 500, marginBottom: '0.5rem' }}>Pickup Location</div>
-                  <div>Roma Flooring Designs</div><div>1440 S. State College Blvd., Suite 6M</div><div>Anaheim, CA 92806</div>
-                  <div style={{ marginTop: '0.75rem', color: 'var(--stone-600)', fontSize: '0.8125rem' }}>Ready for pickup within 5 business days.</div>
-                </div>
-              </div>
-            ) : (
-              <div className="checkout-section">
-                <h3>Shipping Address</h3>
-                <div className="checkout-field"><label>Address Line 1 *</label><input ref={addressInputRef} className="checkout-input" value={line1} onChange={e => setLine1(e.target.value)} placeholder="Start typing an address..." autoComplete="off" /></div>
-                <div className="checkout-field"><label>Address Line 2</label><input className="checkout-input" value={line2} onChange={e => setLine2(e.target.value)} placeholder="Apt, Suite, Unit" /></div>
-                <div className="checkout-row-3">
-                  <div className="checkout-field"><label>City *</label><input className="checkout-input" value={city} onChange={e => setCity(e.target.value)} placeholder="New York" /></div>
-                  <div className="checkout-field"><label>State *</label><select className="checkout-input" value={state} onChange={e => setState(e.target.value)}><option value="">Select</option>{US_STATES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-                  <div className="checkout-field"><label>ZIP *</label><input className="checkout-input" value={zip} onChange={e => setZip(e.target.value)} placeholder="10001" /></div>
-                </div>
-              </div>
-            )}
-            <div className="checkout-section">
-              <h3>Payment</h3>
-              {walletAvailable && (
-                <div className="checkout-field">
-                  <label>Express Checkout</label>
-                  {walletMode === 'native' ? (
-                    <div id="payment-request-button"></div>
+                  {editingContact ? (
+                    <div className="co-form-grid">
+                      <div className="co-form-row-2">
+                        <div className="co-field">
+                          <div className="co-field-label">Full name</div>
+                          <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="John Smith" />
+                        </div>
+                        <div className="co-field">
+                          <div className="co-field-label">Email</div>
+                          <input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="john@example.com" />
+                        </div>
+                      </div>
+                      <div className="co-field">
+                        <div className="co-field-label">Phone</div>
+                        <input type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="(555) 123-4567" />
+                      </div>
+                      {!customer && !tradeCustomer && (
+                        <>
+                          <label className="co-create-account">
+                            <input type="checkbox" checked={createAccount} onChange={e => { setCreateAccount(e.target.checked); if (!e.target.checked) { setAccountPassword(''); setConfirmPassword(''); setPasswordError(''); } }} />
+                            Create an account for faster checkout
+                          </label>
+                          {createAccount && (
+                            <div className="co-password-fields">
+                              <div className="co-field">
+                                <div className="co-field-label">Password</div>
+                                <input type="password" value={accountPassword} onChange={e => { setAccountPassword(e.target.value); setPasswordError(''); }} placeholder="Min 8 chars, 1 uppercase, 1 number" autoComplete="new-password" />
+                              </div>
+                              <div className="co-field">
+                                <div className="co-field-label">Confirm password</div>
+                                <input type="password" value={confirmPassword} onChange={e => { setConfirmPassword(e.target.value); setPasswordError(''); }} placeholder="Re-enter password" autoComplete="new-password" />
+                              </div>
+                              {passwordError && <div className="co-password-error">{passwordError}</div>}
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {contactSaved && (
+                        <button type="button" style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'var(--stone-800)', color: 'var(--warm-bg)', border: 'none', font: '500 0.75rem/1 var(--font-body)', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }} onClick={() => setEditingContact(false)}>Save contact</button>
+                      )}
+                    </div>
                   ) : (
-                    <button type="button" className="simulated-wallet-btn" onClick={handleSimulatedWalletPay} disabled={processing}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-                      {processing ? 'Processing...' : 'Pay with Wallet'}
-                      {isLocalDev && <span className="dev-badge">DEV</span>}
-                    </button>
+                    <div className="co-contact-saved">
+                      <div className="co-contact-avatar">{initials || '?'}</div>
+                      <div>
+                        <div className="co-contact-info">{customerName} &middot; {customerEmail}</div>
+                        {phone && <div className="co-contact-meta">{phone}</div>}
+                        {tradeCustomer && <div className="co-contact-meta">Trade account &middot; {tradeCustomer.company_name}</div>}
+                      </div>
+                    </div>
                   )}
-                  <div className="checkout-divider">or pay with card</div>
                 </div>
-              )}
-              <div className="checkout-field"><label>Card Details</label><div id="card-element" className="stripe-element"></div></div>
+
+                {/* Step 02 — Delivery method */}
+                <div className="co-step focus">
+                  <div className="co-step-head">
+                    <div className="co-step-left">
+                      <span className="co-step-num">02</span>
+                      <h3 className="co-step-title">Delivery</h3>
+                    </div>
+                  </div>
+                  <div className="co-delivery-grid">
+                    <button type="button" className={`co-delivery-card ${isPickup ? 'selected' : ''}`} onClick={() => { if (typeof setDeliveryMethod === 'function') setDeliveryMethod('pickup'); }}>
+                      <div className="co-delivery-card-top">
+                        <div>
+                          <div className="co-delivery-card-name">Showroom Pickup</div>
+                          <div className="co-delivery-card-meta">Anaheim, CA</div>
+                        </div>
+                        <div className="co-delivery-card-cost">FREE</div>
+                      </div>
+                      <div className="co-delivery-card-sub">Roma Flooring Designs, 1440 S. State College Blvd.</div>
+                      <div className="co-delivery-card-eta">Ready in 3-5 business days</div>
+                    </button>
+                    <button type="button" className={`co-delivery-card ${!isPickup ? 'selected' : ''}`} onClick={() => { if (typeof setDeliveryMethod === 'function') setDeliveryMethod('shipping'); }}>
+                      <div className="co-delivery-card-top">
+                        <div>
+                          <div className="co-delivery-card-name">Local Delivery</div>
+                          <div className="co-delivery-card-meta">Orange County</div>
+                        </div>
+                        <div className="co-delivery-card-cost">Quoted</div>
+                      </div>
+                      <div className="co-delivery-card-sub">We deliver within the greater Anaheim area</div>
+                      <div className="co-delivery-card-eta">Scheduled after order</div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Step 03 — Address */}
+                <div className={`co-step ${!isPickup && editingAddress ? 'focus' : ''}`}>
+                  <div className="co-step-head">
+                    <div className="co-step-left">
+                      <span className={`co-step-num ${addressSaved && !editingAddress ? 'saved' : ''}`}>03</span>
+                      <h3 className="co-step-title">Address</h3>
+                    </div>
+                    {!isPickup && addressSaved && !editingAddress && (
+                      <div className="co-step-chip">
+                        <span className="co-step-chip-label" style={{ color: 'var(--gold)' }}>Saved</span>
+                        <button type="button" className="co-step-chip-action" onClick={() => setEditingAddress(true)}>Edit</button>
+                      </div>
+                    )}
+                    {isPickup && (
+                      <div className="co-step-chip">
+                        <span className="co-step-chip-label" style={{ color: 'var(--gold)' }}>Pickup</span>
+                      </div>
+                    )}
+                  </div>
+                  {isPickup ? (
+                    <div className="co-pickup-info">
+                      <div className="co-pickup-label">Pickup location</div>
+                      <div className="co-pickup-name">Roma Flooring Designs</div>
+                      <div className="co-pickup-addr">1440 S. State College Blvd., Suite 6M, Anaheim, CA 92806</div>
+                      <div className="co-pickup-ready">Ready in 3-5 business days</div>
+                    </div>
+                  ) : editingAddress ? (
+                    <div className="co-form-grid">
+                      <div className="co-field">
+                        <div className="co-field-label">Address line 1</div>
+                        <input ref={addressInputRef} value={line1} onChange={e => setLine1(e.target.value)} placeholder="Start typing an address..." autoComplete="off" />
+                      </div>
+                      <div className="co-field">
+                        <div className="co-field-label">Address line 2</div>
+                        <input value={line2} onChange={e => setLine2(e.target.value)} placeholder="Apt, Suite, Unit" />
+                      </div>
+                      <div className="co-form-row-3">
+                        <div className="co-field">
+                          <div className="co-field-label">City</div>
+                          <input value={city} onChange={e => setCity(e.target.value)} placeholder="Anaheim" />
+                        </div>
+                        <div className="co-field">
+                          <div className="co-field-label">State</div>
+                          <select value={state} onChange={e => setState(e.target.value)}>
+                            <option value="">Select</option>
+                            {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                        <div className="co-field">
+                          <div className="co-field-label">ZIP</div>
+                          <input value={zip} onChange={e => setZip(e.target.value)} placeholder="92806" />
+                        </div>
+                      </div>
+                      {addressSaved && (
+                        <button type="button" style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'var(--stone-800)', color: 'var(--warm-bg)', border: 'none', font: '500 0.75rem/1 var(--font-body)', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }} onClick={() => setEditingAddress(false)}>Save address</button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="co-address-saved">
+                      <div className="co-address-text">{line1}{line2 ? ', ' + line2 : ''}<br />{city}, {state} {zip}</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Step 04 — Schedule (in-home measure offer) */}
+                <div className="co-step">
+                  <div className="co-step-head">
+                    <div className="co-step-left">
+                      <span className="co-step-num">04</span>
+                      <h3 className="co-step-title">Schedule</h3>
+                    </div>
+                    <div className="co-step-chip">
+                      <span className="co-step-chip-label" style={{ color: 'var(--warm-muted)' }}>Optional</span>
+                    </div>
+                  </div>
+                  <div className="co-measure-offer">
+                    <div>
+                      <div className="co-measure-offer-label">Free with order</div>
+                      <div className="co-measure-offer-title">In-home measure</div>
+                      <div className="co-measure-offer-sub">We'll measure your space to ensure a perfect fit. Schedule after checkout.</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 05 — Payment */}
+                <div className="co-step focus">
+                  <div className="co-step-head">
+                    <div className="co-step-left">
+                      <span className="co-step-num">05</span>
+                      <h3 className="co-step-title">Payment</h3>
+                    </div>
+                  </div>
+                  {walletAvailable && (
+                    <div className="co-express-section">
+                      {walletMode === 'native' ? (
+                        <div id="payment-request-button"></div>
+                      ) : (
+                        <button type="button" className="co-wallet-btn" onClick={handleSimulatedWalletPay} disabled={processing}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                          {processing ? 'Processing...' : 'Pay with Wallet'}
+                          {isLocalDev && <span className="dev-badge">DEV</span>}
+                        </button>
+                      )}
+                      <div className="co-divider">or pay with card</div>
+                    </div>
+                  )}
+                  <div className="co-card-form">
+                    <div className="co-stripe-wrap">
+                      <div className="co-field-label">Card number</div>
+                      <div id="card-element"></div>
+                    </div>
+                    <label className="co-save-card">
+                      <input type="checkbox" defaultChecked /> Save card for future orders
+                    </label>
+                  </div>
+                </div>
+
+                {/* Step 06 — Order notes */}
+                <div className="co-step">
+                  <div className="co-step-head">
+                    <div className="co-step-left">
+                      <span className="co-step-num">06</span>
+                      <h3 className="co-step-title">Notes</h3>
+                    </div>
+                    <div className="co-step-chip">
+                      <span className="co-step-chip-label" style={{ color: 'var(--warm-muted)' }}>Optional</span>
+                    </div>
+                  </div>
+                  <div className="co-notes">
+                    <textarea value={orderNotes} onChange={e => setOrderNotes(e.target.value)} placeholder="Delivery instructions, gate codes, special requests..." />
+                    <div className="co-notes-hint">Visible to your project manager</div>
+                  </div>
+                </div>
+
+                {/* Place order CTA */}
+                <button type="submit" className="co-place-order" disabled={processing}>
+                  {processing && <span className="co-spinner"></span>}
+                  {processing ? 'Processing...' : `Place Order \u2014 $${cartTotal.toFixed(2)}`}
+                </button>
+                <div className="co-terms">
+                  By placing this order you agree to Roma's terms of service and privacy policy.
+                </div>
+              </div>
+
+              {/* RIGHT: Order summary */}
+              <div className="co-summary">
+                <div className="co-summary-box">
+                  <div className="co-summary-header">Order summary</div>
+                  <div className="co-summary-items">
+                    {cart.map(item => (
+                      <div key={item.id} className="co-summary-item">
+                        <div className="co-summary-thumb">
+                          {item.image_url ? (
+                            <img src={item.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', background: 'var(--stone-200)' }} />
+                          )}
+                          {!item.is_sample && <div className="co-summary-thumb-badge">{item.num_boxes}</div>}
+                        </div>
+                        <div>
+                          <div className="co-summary-item-name">{item.product_name || 'Product'}</div>
+                          <div className="co-summary-item-detail">
+                            {item.is_sample ? 'Free sample' : item.sell_by === 'unit' ? `Qty ${item.num_boxes}` : `${item.num_boxes} box${parseInt(item.num_boxes) !== 1 ? 'es' : ''}`}
+                          </div>
+                        </div>
+                        <div className="co-summary-item-price">
+                          {item.is_sample ? 'FREE' : '$' + parseFloat(item.subtotal).toFixed(2)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="co-summary-totals">
+                    <div className="co-summary-row">
+                      <span className="label">Subtotal</span>
+                      <span className="value">${productSubtotal.toFixed(2)}</span>
+                    </div>
+                    {sampleItems.length > 0 && (
+                      <div className="co-summary-row">
+                        <span className="label">Sample shipping</span>
+                        <span className="value">$12.00</span>
+                      </div>
+                    )}
+                    {taxEstimate.amount > 0 && (
+                      <div className="co-summary-row">
+                        <span className="label">Tax ({(taxEstimate.rate * 100).toFixed(2)}%)</span>
+                        <span className="value">${taxEstimate.amount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {isPickup && (
+                      <div className="co-summary-row">
+                        <span className="label">Delivery</span>
+                        <span className="value">Pickup &mdash; Free</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="co-summary-total">
+                    <span className="co-summary-total-label">Total</span>
+                    <span className="co-summary-total-amount">${cartTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+                <a className="co-summary-edit-cart" href="#" onClick={e => { e.preventDefault(); goCart(); }}>&larr; Edit cart</a>
+                <div className="co-summary-trust">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                    256-bit TLS encryption
+                  </div>
+                </div>
+              </div>
             </div>
-            <button type="submit" className="checkout-btn" disabled={processing}>
-              {processing && <span className="checkout-spinner"></span>}
-              {processing ? 'Processing...' : isPickup ? `Place Order - $${cartTotal.toFixed(2)}` : 'Place Order'}
-            </button>
           </form>
 
-          <div className="order-summary">
-            <h3>Order Summary</h3>
-            {cart.map(item => (
-              <div key={item.id} className="order-summary-row" style={{ fontSize: '0.875rem' }}>
-                <span>{item.product_name || 'Product'}{item.is_sample ? ' (Sample)' : item.sell_by === 'unit' ? ` x ${item.num_boxes}` : ` x ${item.num_boxes} bx`}</span>
-                <span>{item.is_sample ? 'FREE' : '$' + parseFloat(item.subtotal).toFixed(2)}</span>
-              </div>
-            ))}
-            {productItems.length > 0 && <div className="order-summary-row" style={{ borderTop: '1px solid var(--stone-200)', marginTop: '0.5rem', paddingTop: '0.75rem' }}><span>Subtotal</span><span>${productSubtotal.toFixed(2)}</span></div>}
-            {sampleItems.length > 0 && <div className="order-summary-row muted"><span>Sample Shipping</span><span>$12.00</span></div>}
-            {taxEstimate.amount > 0 && <div className="order-summary-row muted"><span>Estimated Tax ({(taxEstimate.rate * 100).toFixed(2)}%)</span><span>${taxEstimate.amount.toFixed(2)}</span></div>}
-            <div className="order-summary-total"><span>Total</span><span>${cartTotal.toFixed(2)}</span></div>
-            <a className="back-btn" href="#" onClick={e => { e.preventDefault(); goCart(); }} style={{ marginTop: '1rem', display: 'inline-block' }}>&larr; Back to Cart</a>
+          {/* Checkout footer */}
+          <div className="co-footer">
+            <span>&copy; {new Date().getFullYear()} Roma Flooring Designs</span>
+            <div className="co-footer-links">
+              <a href="#">Terms</a>
+              <a href="#">Privacy</a>
+              <a href="#">Returns</a>
+            </div>
           </div>
         </div>
       );
@@ -7959,47 +9608,115 @@
       const sampleRequest = orderData.sample_request;
       const items = order ? (order.items || []) : [];
       const sampleItems = sampleRequest ? (sampleRequest.items || []) : [];
+      const orderTotal = order ? parseFloat(order.total || 0) : 0;
+
       return (
-        <div className="confirmation-page">
-          <div className="confirmation-check">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <div className="conf-wrap">
+          {/* Hero */}
+          <div className="conf-hero">
+            <div className="conf-check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h1>Thank You</h1>
+            {order && <div className="conf-order-num">Order {order.order_number}</div>}
+            <div className="conf-hero-sub">
+              Your order has been placed. We&rsquo;ll send a confirmation to your email with tracking details once your order ships.
+            </div>
           </div>
-          <h1>Order Confirmed</h1>
-          {order && <div className="confirmation-order-number">Order number: <strong>{order.order_number}</strong></div>}
+
+          {/* Items ordered */}
           {items.length > 0 && (
-            <div className="confirmation-details">
-              <h3>Items Ordered</h3>
+            <div className="conf-items">
+              <div className="conf-items-header">Items ordered</div>
               {items.map((item, idx) => (
-                <div key={idx} className="confirmation-item">
-                  <span>{item.product_name || 'Product'}{item.sell_by === 'unit' ? ` - Qty ${item.num_boxes}` : ` - ${item.num_boxes} box${parseInt(item.num_boxes) !== 1 ? 'es' : ''}`}</span>
-                  <span style={{ fontWeight: 500 }}>{'$' + parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                <div key={idx} className="conf-item">
+                  <div className="conf-item-thumb">
+                    {item.image_url ? (
+                      <img src={item.image_url} alt="" />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', background: 'var(--stone-200)' }} />
+                    )}
+                  </div>
+                  <div>
+                    <div className="conf-item-name">{item.product_name || 'Product'}</div>
+                    <div className="conf-item-detail">
+                      {item.sell_by === 'unit' ? `Qty ${item.num_boxes}` : `${item.num_boxes} box${parseInt(item.num_boxes) !== 1 ? 'es' : ''}`}
+                    </div>
+                  </div>
+                  <div className="conf-item-price">{'$' + parseFloat(item.subtotal || 0).toFixed(2)}</div>
                 </div>
               ))}
-              <div className="confirmation-item" style={{ fontWeight: 600 }}><span>Total</span><span>${parseFloat(order.total || 0).toFixed(2)}</span></div>
+              <div className="conf-item-total-row">
+                <span className="conf-item-total-label">Total paid</span>
+                <span className="conf-item-total-amount">${orderTotal.toFixed(2)}</span>
+              </div>
             </div>
           )}
+
+          {/* Sample request */}
           {sampleRequest && (
-            <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--stone-200, #e7e5e4)' }}>
-              <div className="confirmation-check" style={{ width: 40, height: 40 }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <div className="conf-samples">
+              <div className="conf-samples-header">
+                <span className="conf-samples-badge">Samples</span>
+                <span className="conf-samples-title">Request #{sampleRequest.request_number}</span>
               </div>
-              <h2 style={{ fontFamily: "var(--font-heading, 'Cormorant Garamond', serif)", fontWeight: 400, marginBottom: '0.5rem' }}>Sample Request Created</h2>
-              <div className="confirmation-order-number">Request number: <strong>{sampleRequest.request_number}</strong></div>
-              <div className="confirmation-details">
-                <h3>Samples Requested</h3>
-                {sampleItems.map((item, idx) => (
-                  <div key={idx} className="confirmation-item">
-                    <span>{item.product_name || 'Product'}{item.variant_name ? ' \u2014 ' + item.variant_name : ''}</span>
-                    <span style={{ fontWeight: 500, color: 'var(--stone-500, #78716c)' }}>FREE</span>
-                  </div>
-                ))}
-                <p style={{ fontSize: '0.875rem', color: 'var(--stone-500, #78716c)', marginTop: '1rem' }}>
-                  Your samples will be prepared and shipped separately.
-                </p>
+              {sampleItems.map((item, idx) => (
+                <div key={idx} className="conf-sample-item">
+                  <span>{item.product_name || 'Product'}{item.variant_name ? ' \u2014 ' + item.variant_name : ''}</span>
+                  <span className="conf-sample-free">Free</span>
+                </div>
+              ))}
+              <div style={{ fontSize: '0.8125rem', color: 'var(--warm-muted)', marginTop: '0.75rem' }}>
+                Samples ship separately within 2-3 business days.
               </div>
             </div>
           )}
-          <button className="btn" style={{ marginTop: '2rem' }} onClick={goBrowse}>Continue Shopping</button>
+
+          {/* Details grid */}
+          <div className="conf-details">
+            <div className="conf-detail-card">
+              <div className="conf-detail-label">Delivery</div>
+              <div className="conf-detail-title">{order && order.delivery_method === 'pickup' ? 'Showroom Pickup' : 'Local Delivery'}</div>
+              <div className="conf-detail-text">
+                {order && order.delivery_method === 'pickup'
+                  ? '1440 S. State College Blvd., Suite 6M, Anaheim, CA 92806'
+                  : order && order.shipping_address ? `${order.shipping_address.line1}, ${order.shipping_address.city}, ${order.shipping_address.state} ${order.shipping_address.zip}` : 'Address on file'
+                }
+              </div>
+              <div className="conf-detail-text" style={{ marginTop: '0.5rem' }}>
+                {order && order.delivery_method === 'pickup' ? 'Ready in 3-5 business days' : 'Delivery scheduled after confirmation'}
+              </div>
+            </div>
+            <div className="conf-detail-card">
+              <div className="conf-detail-label">Payment</div>
+              <div className="conf-detail-title">Card ending in ****</div>
+              <div className="conf-detail-text">
+                Total charged: ${orderTotal.toFixed(2)}
+              </div>
+              {order && order.tax_amount > 0 && (
+                <div className="conf-detail-text">
+                  Includes ${parseFloat(order.tax_amount).toFixed(2)} tax
+                </div>
+              )}
+            </div>
+            <div className="conf-detail-card">
+              <div className="conf-detail-label">Your contact</div>
+              <div className="conf-detail-title">Lia Romano</div>
+              <div className="conf-detail-text">
+                Project Manager<br />
+                lia@romaflooringdesigns.com<br />
+                (714) 999-0009
+              </div>
+              <div className="conf-detail-text" style={{ marginTop: '0.5rem', fontStyle: 'italic' }}>
+                "We'll be in touch within 24 hours."
+              </div>
+            </div>
+          </div>
+
+          {/* Continue shopping */}
+          <div className="conf-cta">
+            <button className="conf-cta-btn" onClick={goBrowse}>Continue Shopping</button>
+          </div>
         </div>
       );
     }
@@ -10879,7 +12596,7 @@
           </div>
           <div style={{ textAlign: 'center', paddingTop: '2rem', borderTop: '1px solid var(--stone-200)' }}>
             <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Questions? Contact us at (714) 999-0009</p>
-            <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>Roma Flooring Designs &middot; 1440 S. State College Blvd #6m, Anaheim, CA 92806</p>
+            <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>Roma Flooring Designs &middot; 1440 S. State College Blvd Suite 6M, Anaheim, CA 92806</p>
           </div>
         </div>
       );
@@ -11037,8 +12754,8 @@
             <div className="footer-col">
               <h4>Visit</h4>
               <div className="footer-visit-detail">
-                1440 S. State College Blvd #6m<br />Anaheim, CA 92806<br /><br />
-                Mon–Fri 8am–5pm<br />Sat 10am–3pm<br />Sun Closed<br /><br />
+                1440 S. State College Blvd Suite 6M<br />Anaheim, CA 92806<br /><br />
+                Mon–Fri 9am–5pm<br />Sat 10am–5pm<br />Sun Closed<br /><br />
                 <a href="tel:+17149990009">(714) 999-0009</a><br />
                 <a href="mailto:Sales@romaflooringdesigns.com">Sales@romaflooringdesigns.com</a>
               </div>
