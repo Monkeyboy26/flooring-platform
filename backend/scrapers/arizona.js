@@ -265,6 +265,14 @@ const SLAB_CATEGORIES = new Set([
 ]);
 // Format categories that need variant-level splitting when mixed with field tiles
 const FORMAT_CATS = new Set(['mosaic-tile', 'stacked-stone', 'pavers']);
+// Fallback tile category when slab products have tile-format variants but no tile
+// WooCommerce category — AZ lumps marble tiles under marble-slab, for example.
+const SLAB_TO_TILE_FALLBACK = {
+  'marble-countertops': 'natural-stone',
+  'granite-countertops': 'natural-stone',
+  'quartzite-countertops': 'natural-stone',
+  'porcelain-slabs': 'porcelain-tile',
+};
 // Categories that don't use box packaging (slabs, sheets)
 const NO_BOX_CATEGORIES = new Set([
   'mosaic-tile', 'stacked-stone', 'granite-countertops', 'marble-countertops',
@@ -827,7 +835,10 @@ export async function run(pool, job, source) {
           for (const [colorSlug, variations] of colorGroups) {
             // Product name = deslugified color (e.g., "white-ribbon" → "White Ribbon")
             // If no color, fall back to the API title
-            const productName = colorSlug ? deslugify(colorSlug) : apiProduct.title;
+            const rawColor = colorSlug ? deslugify(colorSlug) : apiProduct.title;
+            const productName = (collectionName && !rawColor.toLowerCase().startsWith(collectionName.toLowerCase()))
+              ? `${collectionName} ${rawColor}`
+              : rawColor;
 
             // Build best product-shot lookup from all sibling variations in this color group.
             // When a variant only has a lifestyle image, we can substitute a product shot from a sibling.
@@ -876,9 +887,18 @@ export async function run(pool, job, source) {
                 const paverId = categoryLookup.get('pavers');
                 if (paverId) { effectiveCatId = paverId; effectiveCatSlug = 'pavers'; }
                 if (needsSuffix) effectiveCollection += ' Pavers';
-              } else if (fmt === 'tile' && tileCatId) {
-                effectiveCatId = tileCatId;
-                effectiveCatSlug = tileCatSlug;
+              } else if (fmt === 'tile') {
+                if (tileCatId) {
+                  effectiveCatId = tileCatId;
+                  effectiveCatSlug = tileCatSlug;
+                } else {
+                  // No tile category from AZ WC tags — use slab-to-tile fallback
+                  const fb = SLAB_TO_TILE_FALLBACK[originalSlabSlug];
+                  if (fb && categoryLookup.has(fb)) {
+                    effectiveCatId = categoryLookup.get(fb);
+                    effectiveCatSlug = fb;
+                  }
+                }
                 if (needsSuffix) effectiveCollection += ' Tile';
               }
 
@@ -1027,7 +1047,7 @@ export async function run(pool, job, source) {
                 await upsertPricing(pool, sku.id, {
                   cost,
                   retail_price: Math.round(cost * 2 * 100) / 100,
-                  price_basis: sellBy === 'unit' ? 'per_unit' : 'per_sqft',
+                  price_basis: (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'per_unit' : 'per_sqft',
                 });
                 stats.priceListHits++;
               } else {
@@ -1196,7 +1216,7 @@ export async function run(pool, job, source) {
               await upsertPricing(pool, sku.id, {
                 cost,
                 retail_price: Math.round(cost * 2 * 100) / 100,
-                price_basis: entrySellBy === 'unit' ? 'per_unit' : 'per_sqft',
+                price_basis: (entry.unit === 'EA' || entry.unit === 'SHT') ? 'per_unit' : 'per_sqft',
               });
               stats.priceListHits++;
 
@@ -1259,7 +1279,7 @@ export async function run(pool, job, source) {
               await upsertPricing(pool, sku.id, {
                 cost,
                 retail_price: Math.round(cost * 2 * 100) / 100,
-                price_basis: sellBy === 'unit' ? 'per_unit' : 'per_sqft',
+                price_basis: (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'per_unit' : 'per_sqft',
               });
               stats.priceListHits++;
             } else {
