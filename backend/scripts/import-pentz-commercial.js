@@ -37,7 +37,7 @@ const VENDOR_WEBSITE = 'https://www.pentzcommercial.com';
 
 const CATEGORY_MAP = {
   'Modular':   'carpet-tile',
-  'Broadloom': 'carpet-tile',
+  'Broadloom': 'carpet',
   'LVT':       'luxury-vinyl',
 };
 
@@ -296,14 +296,14 @@ async function main() {
         vendor_sku: vendorSku,
         internal_sku: internalSku,
         variant_name: item.color,
-        sell_by: 'box',
+        sell_by: product.carpetType === 'Broadloom' ? 'roll' : 'box',
         variant_type: null,
       });
       stats.skus++;
       if (sku.is_new) stats.newSkus++;
 
       // Placeholder pricing (DO NOTHING if exists)
-      await upsertPricing(sku.id, { cost: 0, retail_price: 0, price_basis: 'per_sqft' });
+      await upsertPricing(sku.id, { cost: 0, retail_price: 0, price_basis: product.carpetType === 'Broadloom' ? 'per_sqyd' : 'per_sqft' });
 
       // Packaging
       const pkg = buildPackaging(item);

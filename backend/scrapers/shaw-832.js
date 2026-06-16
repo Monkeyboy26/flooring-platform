@@ -769,6 +769,7 @@ function finalizeItem(item) {
       item.pieces_per_carton = null;
       item.cartons_per_pallet = null;
       item.freight_class = 55;
+      if (!item.sell_by) item.sell_by = 'roll';  // broadloom always sold by roll
     }
 
     // Carpet tile: sold in boxes (sqft), not rolls

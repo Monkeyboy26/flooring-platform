@@ -68,9 +68,9 @@ const CATEGORY_MAP = {
   'engineered hardwood': 'hardwood',
   'hardwood':            'hardwood',
   'laminate':            'laminate',
-  'carpet':              'carpet-tile',
+  'carpet':              'carpet',
   'carpet tile':         'carpet-tile',
-  'broadloom':           'carpet-tile',
+  'broadloom':           'carpet',
   'tile':                'tile',
   'porcelain':           'tile',
   'ceramic':             'tile',
@@ -354,8 +354,8 @@ function parse832(raw) {
 
 // MAC (material class) → category slug mapping
 const MAC_CATEGORY_MAP = {
-  CARINDR: 'carpet-tile',   // Carpet Indoor Residential
-  CARINDC: 'carpet-tile',   // Carpet Indoor Commercial
+  CARINDR: 'carpet',        // Carpet Indoor Residential (broadloom)
+  CARINDC: 'carpet',        // Carpet Indoor Commercial (broadloom)
   CARTILR: 'carpet-tile',   // Carpet Tile Residential
   CARTILC: 'carpet-tile',   // Carpet Tile Commercial
   VINTILR: 'luxury-vinyl',  // Vinyl Tile/LVP Residential
@@ -510,6 +510,32 @@ function finalizeItem(item) {
       const wuom = (widthMea.unit_of_measure || '').toUpperCase();
       item.roll_width_ft = (wuom === 'IN' || w > 24) ? w / 12 : w;
     }
+  }
+
+  // Broadloom-specific handling: keep SY prices native, set roll fields
+  const macPidBL = item.descriptions.find(d => d.characteristic_code === 'MAC');
+  if (macPidBL && /^CARIND/i.test(macPidBL.description || '')) {
+    item.sell_by = 'roll';
+    // Undo the SY→SF conversion (lines above) — broadloom prices are native $/SY
+    if (item.cost) item.cost = parseFloat((item.cost * 9).toFixed(4));
+    if (item.retail_price) item.retail_price = parseFloat((item.retail_price * 9).toFixed(4));
+    if (item.cut_price) item.cut_price = parseFloat((item.cut_price * 9).toFixed(4));
+    if (item.roll_price) item.roll_price = parseFloat((item.roll_price * 9).toFixed(4));
+    if (item.cut_cost) item.cut_cost = parseFloat((item.cut_cost * 9).toFixed(4));
+    if (item.roll_cost) item.roll_cost = parseFloat((item.roll_cost * 9).toFixed(4));
+    // Roll width from WD measurement (if not already set by carpet block)
+    if (!item.roll_width_ft) {
+      const wMea = item.measurements.find(m => m.qualifier === 'WD');
+      if (wMea && wMea.value) {
+        const w = wMea.value;
+        const wuom = (wMea.unit_of_measure || '').toUpperCase();
+        item.roll_width_ft = (wuom === 'IN' || w > 24) ? w / 12 : w;
+      }
+    }
+    // Null out box-specific fields
+    item.sqft_per_box = null;
+    item.weight_per_box_lbs = null;
+    item.pieces_per_box = null;
   }
 }
 
@@ -747,7 +773,7 @@ export async function run(pool, job, source) {
 
       // Pricing
       if (item.cost || item.retail_price) {
-        const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
+        const priceBasis = sellBy === 'roll' ? 'per_sqyd' : sellBy === 'box' ? 'per_sqft' : 'per_unit';
         await upsertPricing(pool, skuId, {
           cost: item.cost || 0,
           retail_price: item.retail_price || item.cost || 0,
