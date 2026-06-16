@@ -5250,6 +5250,7 @@
           if (attrSlug === "finish" && _finishIsColor) return true;
           return sameColorSibs.some((s) => {
             const a = (s.attributes || []).find((a2) => a2.slug === attrSlug);
+            if (curVal === "No Countertop" && attrSlug === "countertop_finish") return !a;
             return a && a.value === curVal;
           });
         });
@@ -5318,7 +5319,13 @@
             }, {});
             let score = 0;
             attrSlugs.forEach((k) => {
-              if (k !== "size" && sa[k] === currentAttrs[k]) score++;
+              if (k !== "size") {
+                if (currentAttrs[k] === "No Countertop" && k === "countertop_finish") {
+                  if (!sa[k]) score++;
+                } else if (sa[k] === currentAttrs[k]) {
+                  score++;
+                }
+              }
             });
             const curBase = currentSizeRaw.replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, "").trim();
             const sibSize = (sa["size"] || "").replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, "").trim();
@@ -5356,6 +5363,7 @@
             if (currentAttrs["size"] && sa["size"] && normalizeSize(sa["size"]) !== normalizeSize(currentAttrs["size"])) return false;
             return attrSlugs.every((otherSlug) => {
               if (otherSlug === slug) return true;
+              if (currentAttrs[otherSlug] === "No Countertop" && otherSlug === "countertop_finish") return !sa[otherSlug];
               return !currentAttrs[otherSlug] || !sa[otherSlug] || sa[otherSlug] === currentAttrs[otherSlug];
             });
           });
@@ -5367,7 +5375,13 @@
           if (currentAttrs["color"] && sa["color"] && normColor(sa["color"]) === normColor(currentAttrs["color"])) score += 10;
           if (currentAttrs["size"] && sa["size"] && normalizeSize(sa["size"]) === normalizeSize(currentAttrs["size"])) score += 10;
           attrSlugs.forEach((k) => {
-            if (k !== slug && sa[k] === currentAttrs[k]) score++;
+            if (k !== slug) {
+              if (currentAttrs[k] === "No Countertop" && k === "countertop_finish") {
+                if (!sa[k]) score++;
+              } else if (sa[k] === currentAttrs[k]) {
+                score++;
+              }
+            }
           });
           return score;
         };

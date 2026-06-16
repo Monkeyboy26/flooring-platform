@@ -7347,6 +7347,7 @@
                     if (attrSlug === 'finish' && _finishIsColor) return true;
                     return sameColorSibs.some(s => {
                       const a = (s.attributes || []).find(a => a.slug === attrSlug);
+                      if (curVal === 'No Countertop' && attrSlug === 'countertop_finish') return !a;
                       return a && a.value === curVal;
                     });
                   });
@@ -7537,7 +7538,7 @@
                               const scored = candidates.map(s => {
                                 const sa = (s.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
                                 let score = 0;
-                                attrSlugs.forEach(k => { if (k !== 'size' && sa[k] === currentAttrs[k]) score++; });
+                                attrSlugs.forEach(k => { if (k !== 'size') { if (currentAttrs[k] === 'No Countertop' && k === 'countertop_finish') { if (!sa[k]) score++; } else if (sa[k] === currentAttrs[k]) { score++; } } });
                                 // Prefer same base size dimension
                                 const curBase = currentSizeRaw.replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, '').trim();
                                 const sibSize = (sa['size'] || '').replace(/\s*(Paver|Mosaic|TRIM|LINER|Deco)\s*/gi, '').trim();
@@ -7586,6 +7587,7 @@
                           // Must match all other selectable attributes
                           return attrSlugs.every(otherSlug => {
                             if (otherSlug === slug) return true;
+                            if (currentAttrs[otherSlug] === 'No Countertop' && otherSlug === 'countertop_finish') return !sa[otherSlug];
                             return !currentAttrs[otherSlug] || !sa[otherSlug] || sa[otherSlug] === currentAttrs[otherSlug];
                           });
                         });
@@ -7598,7 +7600,7 @@
                         if (currentAttrs['color'] && sa['color'] && normColor(sa['color']) === normColor(currentAttrs['color'])) score += 10;
                         if (currentAttrs['size'] && sa['size'] && normalizeSize(sa['size']) === normalizeSize(currentAttrs['size'])) score += 10;
                         // Score other selectable attribute matches
-                        attrSlugs.forEach(k => { if (k !== slug && sa[k] === currentAttrs[k]) score++; });
+                        attrSlugs.forEach(k => { if (k !== slug) { if (currentAttrs[k] === 'No Countertop' && k === 'countertop_finish') { if (!sa[k]) score++; } else if (sa[k] === currentAttrs[k]) { score++; } } });
                         return score;
                       };
                       const findBest = (val) => {
