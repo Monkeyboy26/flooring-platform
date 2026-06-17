@@ -704,6 +704,7 @@ async function scrapeDetailPage(browser, baseUrl, detailPath) {
           if (/icon|logo|badge|placeholder|PDP%20Updates/i.test(base)) continue;
           if (/bd_default/i.test(normalized)) continue; // Cloudinary fallback/filler image
           if (/\/w_(50|100)\b|t_product_150/i.test(normalized)) continue; // tiny thumbnails
+          if (/t_product_300/i.test(normalized)) continue; // recommendation carousel thumbnails (cross-sell, not this product's gallery)
           if (!seen.has(base)) {
             seen.add(base);
             result.galleryImages.push(normalized);
