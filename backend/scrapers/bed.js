@@ -235,20 +235,11 @@ export async function run(pool, job, source) {
         stats.inventorySet++;
 
         // ── Images (direct Cloudinary CDN URLs — no downloading) ──
-        // HEAD-validate each URL to avoid storing broken Cloudinary links.
         const imageUrls = mapped.imageUrls; // already deduplicated, max MAX_GALLERY_IMAGES
-        const validImageUrls = [];
-        for (const imgUrl of imageUrls) {
-          try {
-            const resp = await fetch(imgUrl, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
-            if (resp.ok) { validImageUrls.push(imgUrl); }
-            else { stats.brokenImages = (stats.brokenImages || 0) + 1; }
-          } catch { stats.brokenImages = (stats.brokenImages || 0) + 1; }
-        }
 
         // SKU-level images
-        for (let gi = 0; gi < validImageUrls.length && gi < MAX_GALLERY_IMAGES; gi++) {
-          const imgUrl = validImageUrls[gi];
+        for (let gi = 0; gi < imageUrls.length && gi < MAX_GALLERY_IMAGES; gi++) {
+          const imgUrl = imageUrls[gi];
           const assetType = gi === 0 ? 'primary' : 'alternate';
           await upsertMediaAsset(pool, {
             product_id: product.id,
@@ -366,20 +357,28 @@ export async function run(pool, job, source) {
           await appendLog(pool, job.id, `ERROR detail page ${productCode}: ${err.message}`);
           await addJobError(pool, job.id, `Detail ${productCode}: ${err.message}`);
           stats.errors++;
+          // If browser crashed, relaunch it before continuing
+          if (/Protocol error|Connection closed|Target closed|Session closed/i.test(err.message)) {
+            try { if (browser) await browser.close(); } catch (_) {}
+            browser = null;
+            await delay(3000);
+            browser = await launchBrowser();
+            await appendLog(pool, job.id, `Browser relaunched after crash at detail ${detailIdx}`);
+          }
         }
 
         // Log progress every 25
-        if (detailIdx % 25 === 0 || detailIdx === allProducts.size) {
-          await appendLog(pool, job.id, `Detail progress: ${detailIdx}/${allProducts.size} (packaging: ${stats.packagingSet})`);
+        if (detailIdx % 25 === 0 || detailIdx === detailQueue.length) {
+          await appendLog(pool, job.id, `Detail progress: ${detailIdx}/${detailQueue.length} (packaging: ${stats.packagingSet})`);
         }
 
         // Restart browser every 100 pages to prevent OOM from accumulated Chromium memory
-        if (detailIdx % 100 === 0 && detailIdx < allProducts.size) {
+        if (detailIdx % 100 === 0 && detailIdx < detailQueue.length) {
           await browser.close();
           browser = null;
           await delay(3000); // Give OS time to reclaim memory
           browser = await launchBrowser();
-          await appendLog(pool, job.id, `Browser restarted at ${detailIdx}/${allProducts.size} to free memory`);
+          await appendLog(pool, job.id, `Browser restarted at ${detailIdx}/${detailQueue.length} to free memory`);
         }
 
         await delay(config.delayMs);
