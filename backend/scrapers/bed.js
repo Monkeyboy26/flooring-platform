@@ -178,8 +178,11 @@ export async function run(pool, job, source) {
           continue;
         }
 
-        // Resolve category_id from MaterialType
-        const categoryId = resolveCategoryId(mapped.materialType, categoryLookup, mapped.collection);
+        // Resolve category_id from MaterialType + shape/slab context
+        const categoryId = resolveCategoryId(mapped.materialType, categoryLookup, mapped.collection, {
+          shape: mapped.shape,
+          isSlab: mapped.isSlab,
+        });
         if (mapped.materialType && !categoryId) {
           await appendLog(pool, job.id, `Unmapped MaterialType "${mapped.materialType}" for ${productCode} — product will have no category`);
         }
@@ -1029,6 +1032,8 @@ function mapListingProduct(raw) {
     sellBy,
     attributes,
     materialType: raw.MaterialType || null,
+    shape: parsed.shape || raw.Shape || null,
+    isSlab,
     pricing,
     inventory,
     imageUrls,
@@ -1111,8 +1116,10 @@ function normalizeCloudinaryUrl(url) {
 
 /**
  * Resolve a Bedrosians MaterialType to a PIM category_id.
+ * Uses shape and slab context to override the base MaterialType mapping
+ * for mosaics (→ mosaic-tile) and slabs (→ porcelain-slabs / countertop categories).
  */
-function resolveCategoryId(materialType, categoryLookup, collection) {
+function resolveCategoryId(materialType, categoryLookup, collection, { shape, isSlab } = {}) {
   if (!materialType) return null;
   const mt = materialType.toLowerCase();
   let slug = CATEGORY_MAP[mt];
@@ -1121,6 +1128,35 @@ function resolveCategoryId(materialType, categoryLookup, collection) {
     slug = 'lvp-plank';
   }
   if (!slug) return null;
+
+  // ── Shape override: mosaic shapes → mosaic-tile ──
+  if (shape) {
+    const shapeLower = shape.toLowerCase();
+    const MOSAIC_SHAPES = [
+      'mosaic', 'penny round', 'hexagon', 'herringbone', 'basketweave',
+      'arabesque', 'picket', 'diamond', 'lantern', 'fan', 'chevron',
+    ];
+    if (MOSAIC_SHAPES.some(s => shapeLower.includes(s))) {
+      slug = 'mosaic-tile';
+    }
+  }
+
+  // ── Slab override: route to slab/countertop categories ──
+  if (isSlab) {
+    if (mt === 'porcelain' || mt === 'cement') {
+      slug = 'porcelain-slabs';
+    } else if (mt === 'quartzite') {
+      slug = 'quartzite-countertops';
+    } else if (mt === 'granite') {
+      slug = 'granite-countertops';
+    } else if (mt === 'soapstone') {
+      slug = 'soapstone-countertops';
+    } else if (['marble', 'travertine', 'limestone', 'onyx'].includes(mt)) {
+      slug = 'marble-countertops';
+    }
+    // quartz / mineral surface already map to quartz-countertops via CATEGORY_MAP
+  }
+
   return categoryLookup.get(slug) || null;
 }
 
