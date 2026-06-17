@@ -645,6 +645,71 @@
       return text.replace(re, '').trim();
     }
 
+    // Strip technical specs from product name for cleaner PDP h1 display
+    function cleanProductTitle(name, sku) {
+      if (!name) return name;
+      let cleaned = name;
+      // Don't strip dimensions from countertop slabs — they ARE the product identity
+      const cat = (sku.category_name || '').toLowerCase();
+      const isCountertop = cat.includes('countertop') || cat.includes('slab');
+      if (!isCountertop) {
+        // Strip trailing plank/tile dimensions: "9 X60", "7 X48", "9x60", "7x48", "12 X24"
+        cleaned = cleaned.replace(/\s+\d+\s*[xX×]\s*\d+\s*$/, '');
+      }
+      // Strip common LVP/LVT technical spec tokens (case-insensitive, from end or mid-name)
+      cleaned = cleaned.replace(/\s+SPC\b/gi, '');
+      cleaned = cleaned.replace(/\s+WPC\b/gi, '');
+      cleaned = cleaned.replace(/\s+W\/?\s*pad\b/gi, '');
+      // Strip wear layer thickness: "20mil", "12mil", "20 mil", "6mm", "8mm"
+      cleaned = cleaned.replace(/\s+\d+\s*mil\b/gi, '');
+      cleaned = cleaned.replace(/\s+\d+mm\b/gi, '');
+      cleaned = cleaned.trim();
+      // Safety: don't strip if result is too short
+      if (cleaned.length < 3) return name;
+      return cleaned;
+    }
+
+    // Build a richer PDP subtitle from SKU attributes (color, size, finish)
+    function pdpSubtitle(sku) {
+      // Accessories: keep existing formatVariantName behavior
+      if (sku.variant_type === 'accessory') return formatVariantName(sku.variant_name);
+      // If variant_name already has a good compound format (contains comma → e.g. "12x24, Matte"), keep it
+      if (sku.variant_name && sku.variant_name.includes(',')) return formatVariantName(sku.variant_name);
+
+      const attrs = sku.attributes || [];
+      const titleName = cleanProductTitle(sku.product_name, sku) || sku.product_name || '';
+      const titleLower = titleName.toLowerCase();
+      const parts = [];
+
+      // Color — only if not already in the product title
+      const colorAttr = attrs.find(a => a.slug === 'color');
+      if (colorAttr && colorAttr.value) {
+        const colorVal = formatCarpetValue(colorAttr.value);
+        if (!titleLower.includes(colorVal.toLowerCase())) {
+          parts.push(colorVal);
+        }
+      }
+
+      // Size — formatted with inch/foot marks
+      const sizeAttr = attrs.find(a => a.slug === 'size');
+      if (sizeAttr && sizeAttr.value) {
+        parts.push(formatSizeDim(sizeAttr.value));
+      }
+
+      // Finish — if available and not redundant with title
+      const finishAttr = attrs.find(a => a.slug === 'finish');
+      if (finishAttr && finishAttr.value) {
+        const finishVal = formatCarpetValue(finishAttr.value);
+        if (!titleLower.includes(finishVal.toLowerCase())) {
+          parts.push(finishVal);
+        }
+      }
+
+      // Fall back to variant_name if no attributes built anything
+      if (parts.length === 0) return formatVariantName(sku.variant_name);
+      return parts.join(', ');
+    }
+
     function fullProductName(sku) {
       const rawName = sku.product_name || '';
       const col = sku.collection || '';
@@ -2083,6 +2148,13 @@
       );
     }
 
+    // ==================== Global broken-image handler ====================
+    // Delegated listener hides any <img> that fails to load (vendor CDN 404s,
+    // Cloudinary missing assets, etc.) so no broken-icon placeholders appear.
+    document.addEventListener('error', function(e) {
+      if (e.target.tagName === 'IMG') e.target.style.display = 'none';
+    }, true);
+
     // ==================== Main App ====================
 
     function StorefrontApp() {
@@ -2097,6 +2169,9 @@
       const [selectedCollection, setSelectedCollection] = useState(null);
       const [searchQuery, setSearchQuery] = useState('');
       const [searchDidYouMean, setSearchDidYouMean] = useState(null);
+      const [searchTimeMs, setSearchTimeMs] = useState(null);
+      const [relatedSearches, setRelatedSearches] = useState([]);
+      const [matchingCategories, setMatchingCategories] = useState([]);
       const [filters, setFilters] = useState({});
       const [facets, setFacets] = useState([]);
       const [vendorFacets, setVendorFacets] = useState([]);
@@ -2210,7 +2285,7 @@
         if (cat) params.set('category', cat);
         if (coll) params.set('collection', coll);
         if (search) params.set('q', search);
-        if (sort) params.set('sort', sort);
+        if (sort && sort !== 'relevance') params.set('sort', sort);
         params.set('limit', String(PAGE_SIZE));
         params.set('offset', String((page - 1) * PAGE_SIZE));
         const af = activeFilters || {};
@@ -2234,6 +2309,7 @@
             setSkus(data.skus || []);
             setTotalSkus(data.total || 0);
             setSearchDidYouMean(data.didYouMean || null);
+            setSearchTimeMs(data.searchTimeMs != null ? data.searchTimeMs : null);
             setLoadingSkus(false);
             if (pendingScroll.current !== null) {
               const pos = pendingScroll.current;
@@ -2615,15 +2691,22 @@
       };
 
       const goSkuDetail = (skuId, productName) => {
+        const fromDetail = view === 'detail';
         if (view === 'browse' || view === 'home') scrollY.current = window.scrollY;
         setSelectedSkuId(skuId);
         setView('detail');
         const slug = generateSlug(productName || 'product');
-        history.pushState({ view: 'detail', skuId }, '', '/shop/sku/' + skuId + '/' + slug);
+        history.pushState({ view: 'detail', skuId, _fromDetail: fromDetail }, '', '/shop/sku/' + skuId + '/' + slug);
         window.scrollTo(0, 0);
       };
 
       const goBackToBrowse = () => {
+        // Use browser history when the previous page was also a detail page (e.g. navigating back from accessory)
+        const prev = history.state;
+        if (prev && prev._fromDetail) {
+          history.back();
+          return;
+        }
         setView('browse');
         pushShopUrl(selectedCategory, selectedCollection, searchQuery, filters, false, vendorFilters, userPriceRange.min, userPriceRange.max, tagFilters);
         requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, scrollY.current)));
@@ -2672,7 +2755,10 @@
         setTagFilters([]);
         setUserPriceRange({ min: null, max: null });
         setCurrentPage(1);
-        fetchSkus({ cat: slug, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
+        setSortBy('name_asc');
+        setRelatedSearches([]);
+        setMatchingCategories([]);
+        fetchSkus({ cat: slug, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1, sort: 'name_asc' });
         fetchFacets({ cat: slug, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
         pushShopUrl(slug, null, '', {}, false, [], null, null, []);
       };
@@ -2778,10 +2864,22 @@
         setTagFilters([]);
         setUserPriceRange({ min: null, max: null });
         setCurrentPage(1);
+        setSortBy('relevance');
         setView('browse');
-        fetchSkus({ cat: null, coll: null, search: query, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
+        fetchSkus({ cat: null, coll: null, search: query, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1, sort: 'relevance' });
         fetchFacets({ cat: null, coll: null, search: query, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
         pushShopUrl(null, null, query, {}, false, [], null, null, []);
+        // Fetch related searches
+        setRelatedSearches([]);
+        fetch(API + '/api/storefront/search/related?q=' + encodeURIComponent(query))
+          .then(r => r.ok ? r.json() : { terms: [] })
+          .then(d => setRelatedSearches(d.terms || []))
+          .catch(() => {});
+        // Fetch matching categories from suggest for quick filter pills
+        fetch(API + '/api/storefront/search/suggest?q=' + encodeURIComponent(query))
+          .then(r => r.ok ? r.json() : { categories: [] })
+          .then(d => setMatchingCategories(d.categories || []))
+          .catch(() => {});
         window.scrollTo(0, 0);
       };
 
@@ -2906,14 +3004,25 @@
           const tf = sp.get('tags') ? sp.get('tags').split('|') : [];
           if (cat) setSelectedCategory(cat);
           if (coll) setSelectedCollection(coll);
-          if (q) setSearchQuery(q);
+          if (q) { setSearchQuery(q); setSortBy('relevance'); }
           if (Object.keys(af).length) setFilters(af);
           if (vf.length) setVendorFilters(vf);
           if (tf.length) setTagFilters(tf);
           if (prMin != null || prMax != null) setUserPriceRange({ min: prMin, max: prMax });
           if (cat || coll || q || Object.keys(af).length > 0 || vf.length > 0 || tf.length > 0) {
-            fetchSkus({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+            fetchSkus({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, sort: q ? 'relevance' : undefined });
             fetchFacets({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+            // Fetch related searches & matching categories for URL-based search
+            if (q) {
+              fetch(API + '/api/storefront/search/related?q=' + encodeURIComponent(q))
+                .then(r => r.ok ? r.json() : { terms: [] })
+                .then(d => setRelatedSearches(d.terms || []))
+                .catch(() => {});
+              fetch(API + '/api/storefront/search/suggest?q=' + encodeURIComponent(q))
+                .then(r => r.ok ? r.json() : { categories: [] })
+                .then(d => setMatchingCategories(d.categories || []))
+                .catch(() => {});
+            }
           }
         } else {
           setView('home');
@@ -3143,6 +3252,7 @@
                 priceRange={priceRange} userPriceRange={userPriceRange} onPriceRangeChange={handlePriceRangeChange}
                 tagFacets={tagFacets} tagFilters={tagFilters} onTagToggle={handleTagToggle}
                 didYouMean={searchDidYouMean}
+                searchTimeMs={searchTimeMs} relatedSearches={relatedSearches} matchingCategories={matchingCategories}
               />
             )
           )}
@@ -3576,7 +3686,16 @@
             {isLoading && (
               <div className="search-panel-results">
                 <div className="search-panel-loading">
-                  <div className="search-suggest-loading-dots"><span /><span /><span /></div>
+                  {[0, 1, 2, 3].map(i => (
+                    <div key={i} className="skeleton-search-result" style={{ animationDelay: (i * 0.1) + 's' }}>
+                      <div className="skeleton-search-img" />
+                      <div className="skeleton-search-lines">
+                        <div className="skeleton-bar skeleton-bar-short" style={{ marginTop: 0 }} />
+                        <div className="skeleton-bar skeleton-bar-medium" />
+                      </div>
+                      <div className="skeleton-bar" style={{ width: 50, height: 12 }} />
+                    </div>
+                  ))}
                 </div>
                 <div />
               </div>
@@ -3609,6 +3728,22 @@
               <div className="search-panel-results">
                 {/* Left — results */}
                 <div>
+                  {suggestData.expandedFrom && (
+                    <div className="search-panel-synonym-banner">
+                      Showing results for <em>{suggestData.expandedTo ? suggestData.expandedTo.split(' ').slice(0, 4).join(' ') : suggestData.expandedFrom}</em>
+                      <button className="search-panel-synonym-link" onClick={() => { /* re-search without expansion — user clicks original */ selectSuggestion({ type: 'popular', data: { term: suggestData.expandedFrom } }); }}>
+                        Search for &ldquo;{suggestData.expandedFrom}&rdquo; only
+                      </button>
+                    </div>
+                  )}
+                  {suggestData.autoCorrect && (
+                    <div className="search-panel-autocorrect-banner">
+                      Showing results for <em>{suggestData.autoCorrect.correctedQuery}</em>.{' '}
+                      <button className="search-panel-synonym-link" onClick={() => selectSuggestion({ type: 'popular', data: { term: searchInput } })}>
+                        Search instead for &ldquo;{searchInput}&rdquo;
+                      </button>
+                    </div>
+                  )}
                   <div className="search-panel-section-label">
                     {suggestData.total || totalProducts} matches for &lsquo;{searchInput}&rsquo;
                   </div>
@@ -3617,7 +3752,10 @@
                     return (
                       <div key={cat.slug} className={'search-panel-result' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'category', data: cat })}>
                         <div className="search-panel-result-img">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, padding: 10, color: 'var(--stone-400)' }}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                          {cat.image_url
+                            ? <img src={optimizeImg(cat.image_url, 120)} alt="" decoding="async" loading="lazy" width={56} height={56} />
+                            : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, padding: 16, color: 'var(--stone-400)' }}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                          }
                         </div>
                         <div>
                           <div className="search-panel-result-name">{highlightMatch(cat.name, searchInput)}</div>
@@ -3632,8 +3770,8 @@
                     const idx = resultIdx++;
                     return (
                       <div key={col.name} className={'search-panel-result' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'collection', data: col })}>
-                        <div className="search-panel-result-img">
-                          {col.image ? <img src={optimizeImg(col.image, 100)} alt="" decoding="async" loading="lazy" width={44} height={44} /> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, padding: 10, color: 'var(--stone-400)' }}><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>}
+                        <div className="search-panel-result-img search-panel-result-img--lg">
+                          {col.image ? <img src={optimizeImg(col.image, 120)} alt="" decoding="async" loading="lazy" width={56} height={56} /> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, padding: 16, color: 'var(--stone-400)' }}><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>}
                         </div>
                         <div>
                           <div className="search-panel-result-name">{highlightMatch(col.name, searchInput)}</div>
@@ -3646,16 +3784,23 @@
                   })}
                   {suggestData.products.map(sku => {
                     const idx = resultIdx++;
+                    const colorInfo = sku.color_family;
                     return (
-                      <div key={sku.sku_id} className={'search-panel-result' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'product', data: sku })}>
-                        <div className="search-panel-result-img">
-                          {sku.primary_image ? <img src={optimizeImg(sku.primary_image, 100)} alt="" decoding="async" loading="lazy" width={44} height={44} /> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, padding: 10, color: 'var(--stone-300)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>}
+                      <div key={sku.sku_id} className={'search-panel-result search-panel-result--product' + (idx === activeIdx ? ' active' : '')} onClick={() => selectSuggestion({ type: 'product', data: sku })}>
+                        <div className="search-panel-result-img search-panel-result-img--lg">
+                          {sku.primary_image ? <img src={optimizeImg(sku.primary_image, 120)} alt="" decoding="async" loading="lazy" width={56} height={56} /> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 24, height: 24, padding: 16, color: 'var(--stone-300)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>}
                         </div>
                         <div>
                           <div className="search-panel-result-name">{highlightMatch(fullProductName(sku), searchInput)}</div>
-                          <div className="search-panel-result-cat">{sku.brand_name || sku.vendor_name || sku.category_name || ''}</div>
+                          <div className="search-panel-result-cat">
+                            {colorInfo && colorInfo.hex && <span className="search-panel-color-dot" style={{ background: colorInfo.hex }} title={colorInfo.family} />}
+                            {sku.brand_name || sku.vendor_name || sku.category_name || ''}
+                          </div>
                         </div>
-                        <span className="search-panel-result-price">${displayPrice(sku, skuListPrice(sku)).toFixed(2)}{priceSuffix(sku)}</span>
+                        <span className="search-panel-result-price">
+                          {sku.sale_price && <span className="search-panel-sale-tag">SALE</span>}
+                          ${displayPrice(sku, skuListPrice(sku)).toFixed(2)}{priceSuffix(sku)}
+                        </span>
                         <span className="search-panel-result-enter">&crarr;</span>
                       </div>
                     );
@@ -4477,12 +4622,19 @@
               )}
             </div>
           )}
-          {!hasResults && !loading && query && query.length >= 2 && suggestData.didYouMean && (
+          {!hasResults && !loading && query && query.length >= 2 && (suggestData.didYouMean || suggestData.autoCorrect) && (
             <div className="mobile-search-results">
               <div className="search-suggest-section">
-                <div className="search-did-you-mean" onClick={() => { setQuery(suggestData.didYouMean); }}>
-                  Did you mean: <strong>{suggestData.didYouMean}</strong>?
-                </div>
+                {suggestData.autoCorrect ? (
+                  <div className="search-autocorrect-banner">
+                    Showing results for <strong>{suggestData.autoCorrect.correctedQuery}</strong>.{' '}
+                    <button className="search-autocorrect-link" onClick={() => setQuery(query)}>Search instead for &ldquo;{query}&rdquo;</button>
+                  </div>
+                ) : (
+                  <div className="search-did-you-mean" onClick={() => { setQuery(suggestData.didYouMean); }}>
+                    Did you mean: <strong>{suggestData.didYouMean}</strong>?
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -4499,7 +4651,10 @@
                   {suggestData.categories.map(cat => (
                     <div key={cat.slug} className="search-suggest-item" onClick={() => { addRecentSearch(cat.name); onCategorySelect(cat.slug); onClose(); }}>
                       <span className="search-suggest-item-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        {cat.image_url
+                          ? <img src={optimizeImg(cat.image_url, 80)} alt="" decoding="async" loading="lazy" width={32} height={32} style={{ borderRadius: 3, objectFit: 'cover' }} />
+                          : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        }
                       </span>
                       <span className="search-suggest-category-text">{highlightMatch(cat.name, query)}</span>
                       <span className="search-suggest-count">{cat.product_count}</span>
@@ -4524,18 +4679,27 @@
               {suggestData.products.length > 0 && (
                 <div className="search-suggest-section">
                   <div className="search-suggest-label">Products</div>
-                  {suggestData.products.map(sku => (
-                    <div key={sku.sku_id} className="mobile-search-result" onClick={() => { addRecentSearch(sku.product_name || sku.collection); onSkuClick(sku.sku_id, sku.product_name); onClose(); }}>
-                      <div className="mobile-search-result-img">
-                        {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 100)} alt="" decoding="async" loading="lazy" width={48} height={48} />}
+                  {suggestData.products.map(sku => {
+                    const colorInfo = sku.color_family;
+                    return (
+                      <div key={sku.sku_id} className="mobile-search-result" onClick={() => { addRecentSearch(sku.product_name || sku.collection); onSkuClick(sku.sku_id, sku.product_name); onClose(); }}>
+                        <div className="mobile-search-result-img mobile-search-result-img--lg">
+                          {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 120)} alt="" decoding="async" loading="lazy" width={56} height={56} />}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{highlightMatch(fullProductName(sku), query)}</div>
+                          <div className="search-suggestion-vendor">
+                            {colorInfo && colorInfo.hex && <span className="search-panel-color-dot" style={{ background: colorInfo.hex }} title={colorInfo.family} />}
+                            {sku.brand_name || sku.vendor_name || ''}
+                          </div>
+                          <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
+                            {sku.sale_price && <span className="search-panel-sale-tag">SALE</span>}
+                            ${displayPrice(sku, skuListPrice(sku)).toFixed(2)}{priceSuffix(sku)}
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{highlightMatch(fullProductName(sku), query)}</div>
-                        {(sku.brand_name || sku.vendor_name) && <div className="search-suggestion-vendor">{sku.brand_name || sku.vendor_name}</div>}
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>${displayPrice(sku, skuListPrice(sku)).toFixed(2)}{priceSuffix(sku)}</div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               {suggestData.total > 0 && (
@@ -4547,13 +4711,14 @@
           )}
           {loading && (
             <div style={{ padding: '0.5rem 1rem' }}>
-              {[0, 1, 2].map(i => (
-                <div key={i} className="skeleton-search-result">
-                  <div className="skeleton-search-img" />
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className="skeleton-search-result" style={{ animationDelay: (i * 0.1) + 's' }}>
+                  <div className="skeleton-search-img" style={{ width: 56, height: 56 }} />
                   <div className="skeleton-search-lines">
                     <div className="skeleton-bar skeleton-bar-short" style={{ marginTop: 0 }} />
                     <div className="skeleton-bar skeleton-bar-medium" />
                   </div>
+                  <div className="skeleton-bar" style={{ width: 40, height: 10 }} />
                 </div>
               ))}
             </div>
@@ -4998,7 +5163,7 @@
     // ==================== Browse View ====================
 
     function BrowseView({ skus, totalSkus, loading, categories, selectedCategory, selectedCollection, searchQuery, onCategorySelect, onSearch, facets, filters, onFilterToggle, onBatchFilterSet, onClearFilters, sortBy, onSortChange, onSkuClick, currentPage, onPageChange, wishlist, toggleWishlist, setQuickViewSku, filterDrawerOpen, setFilterDrawerOpen, goHome,
-      vendorFacets, vendorFilters, onVendorToggle, priceRange, userPriceRange, onPriceRangeChange, tagFacets, tagFilters, onTagToggle, didYouMean }) {
+      vendorFacets, vendorFilters, onVendorToggle, priceRange, userPriceRange, onPriceRangeChange, tagFacets, tagFilters, onTagToggle, didYouMean, searchTimeMs, relatedSearches, matchingCategories }) {
       const [viewMode, setViewMode] = useState('grid');
       const totalPages = Math.ceil(totalSkus / 24);
       const hasAttrFilters = Object.keys(filters).length > 0;
@@ -5073,7 +5238,7 @@
                 tagFilters={tagFilters} tagFacets={tagFacets} onTagToggle={onTagToggle} />
             )}
             <div className="browse-toolbar-row">
-              <BrowseToolbar totalSkus={totalSkus} sortBy={sortBy} onSortChange={onSortChange} currentPage={currentPage} viewMode={viewMode} onViewModeChange={setViewMode} />
+              <BrowseToolbar totalSkus={totalSkus} sortBy={sortBy} onSortChange={onSortChange} currentPage={currentPage} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} searchTimeMs={searchTimeMs} relatedSearches={relatedSearches} onSearch={onSearch} matchingCategories={matchingCategories} onCategorySelect={onCategorySelect} />
               <button className="mobile-filter-btn" onClick={() => setFilterDrawerOpen(true)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
                 Filters
@@ -5597,42 +5762,66 @@
       );
     }
 
-    function BrowseToolbar({ totalSkus, sortBy, onSortChange, currentPage, viewMode, onViewModeChange }) {
+    function BrowseToolbar({ totalSkus, sortBy, onSortChange, currentPage, viewMode, onViewModeChange, searchQuery, searchTimeMs, relatedSearches, onSearch, matchingCategories, onCategorySelect }) {
       const page = currentPage || 1;
       const per = 24;
       const startIdx = (page - 1) * per + 1;
       const endIdx = Math.min(page * per, totalSkus);
       const mode = viewMode || 'grid';
+      const isSearching = !!searchQuery;
       return (
-        <div className="browse-toolbar">
-          <div className="result-count">
-            {totalSkus > 0
-              ? 'Showing ' + startIdx + '\u2013' + endIdx + ' of ' + totalSkus
-              : '0 products'
-            }
-          </div>
-          <div className="browse-toolbar-right">
-            {onViewModeChange && (
-              <div className="view-mode-toggle">
-                {['grid', 'compact', 'spec'].map(m => (
-                  <button key={m} className={'view-mode-btn' + (mode === m ? ' active' : '')} onClick={() => onViewModeChange(m)}>
-                    {m === 'grid' ? 'Grid' : m === 'compact' ? 'Compact' : 'Spec'}
-                  </button>
-                ))}
+        <React.Fragment>
+          <div className="browse-toolbar">
+            <div className="result-count">
+              {totalSkus > 0
+                ? 'Showing ' + startIdx + '\u2013' + endIdx + ' of ' + totalSkus + (searchTimeMs != null ? ' in ' + (searchTimeMs / 1000).toFixed(2) + 's' : '')
+                : '0 products'
+              }
+            </div>
+            <div className="browse-toolbar-right">
+              {onViewModeChange && (
+                <div className="view-mode-toggle">
+                  {['grid', 'compact', 'spec'].map(m => (
+                    <button key={m} className={'view-mode-btn' + (mode === m ? ' active' : '')} onClick={() => onViewModeChange(m)}>
+                      {m === 'grid' ? 'Grid' : m === 'compact' ? 'Compact' : 'Spec'}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="sort-group">
+                <span className="sort-label">Sort</span>
+                <select value={sortBy} onChange={(e) => onSortChange(e.target.value)}>
+                  {isSearching && <option value="relevance">Best Match</option>}
+                  <option value="name_asc">Name A-Z</option>
+                  <option value="name_desc">Name Z-A</option>
+                  <option value="price_asc">{`Price: Low \u2192 High`}</option>
+                  <option value="price_desc">{`Price: High \u2192 Low`}</option>
+                  <option value="newest">Newest</option>
+                </select>
               </div>
-            )}
-            <div className="sort-group">
-              <span className="sort-label">Sort</span>
-              <select value={sortBy} onChange={(e) => onSortChange(e.target.value)}>
-                <option value="name_asc">Name A-Z</option>
-                <option value="name_desc">Name Z-A</option>
-                <option value="price_asc">Price: Low → High</option>
-                <option value="price_desc">Price: High → Low</option>
-                <option value="newest">Newest</option>
-              </select>
             </div>
           </div>
-        </div>
+          {isSearching && matchingCategories && matchingCategories.length > 0 && (
+            <div className="browse-category-pills">
+              {matchingCategories.map(cat => (
+                <button key={cat.slug} className="browse-category-pill" onClick={() => onCategorySelect(cat.slug)}>
+                  {cat.name}
+                  {cat.product_count > 0 && <span className="browse-category-pill-count">{cat.product_count}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+          {isSearching && relatedSearches && relatedSearches.length > 0 && (
+            <div className="browse-related-searches">
+              <span className="browse-related-label">Related:</span>
+              {relatedSearches.map(term => (
+                <button key={term} className="browse-related-pill" onClick={() => onSearch(term)}>
+                  {term}
+                </button>
+              ))}
+            </div>
+          )}
+        </React.Fragment>
       );
     }
 
@@ -6411,6 +6600,9 @@
             ))}
           </div>
           <div key={sku.sku_id} className={'sku-detail' + (images.every(img => /swatch|alternate/i.test(img.asset_type || '')) ? ' sku-detail--contain' : '')} data-sku={sku.vendor_sku || sku.internal_sku} style={loading ? { opacity: 0.6, pointerEvents: 'none', transition: 'opacity 0.15s ease' } : { animation: 'pdpFadeIn 280ms ease-out both' }}>
+            <button className="pdp-back-btn" onClick={goBack} aria-label="Back">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            </button>
             <div className="pdp-breadcrumbs">
               <a href="#" onClick={e => { e.preventDefault(); goBack(); }}>Shop</a>
               <span className="pdp-crumb"></span>
@@ -6428,7 +6620,7 @@
                   {images.map((img, i) => {
                     return (
                       <div key={img.id} className={'gallery-thumb' + (i === selectedImage ? ' active' : '')} onClick={() => setSelectedImage(i)}>
-                        <img onLoad={handleProductImgLoad} src={optimizeImg(img.url, 120)} alt="" loading="lazy" decoding="async" width="80" height="80" onError={e => { e.target.style.display = 'none'; }} />
+                        <img onLoad={handleProductImgLoad} src={optimizeImg(img.url, 120)} alt="" loading="lazy" decoding="async" width="80" height="80" />
                       </div>
                     );
                   })}
@@ -6530,13 +6722,13 @@
             <div className="sku-detail-info" ref={infoRef}>
               {/* Category · Collection label */}
               <div className="pdp-category-label">
-                {sku.category_name}{sku.collection && sku.collection !== sku.category_name ? ' \u00B7 ' + sku.collection : ''}
+                {sku.category_name}{sku.collection && sku.collection !== sku.category_name && sku.collection !== sku.vendor_name && sku.collection !== sku.brand_name ? ' \u00B7 ' + sku.collection : ''}
               </div>
 
               {/* Title row with wishlist heart */}
               <div className="pdp-title-row">
                 <h1 className="sku-detail-title-row">
-                  {sku.product_name || fullProductName(sku)}
+                  {cleanProductTitle(sku.product_name, sku) || fullProductName(sku)}
                 </h1>
                 <button className={'pdp-wishlist-heart' + (wishlist.includes(sku.sku_id) ? ' active' : '')} onClick={() => toggleWishlist(sku.sku_id)} aria-label={wishlist.includes(sku.sku_id) ? 'Remove from wishlist' : 'Add to wishlist'}>
                   <svg viewBox="0 0 24 24" fill={wishlist.includes(sku.sku_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}>
@@ -6546,7 +6738,7 @@
               </div>
 
               {/* Variant name (italic) */}
-              {sku.variant_name && <div className="pdp-variant-name">{formatVariantName(sku.variant_name)}</div>}
+              {(sku.variant_name || (sku.attributes && sku.attributes.length > 0)) && <div className="pdp-variant-name">{pdpSubtitle(sku)}</div>}
 
               {/* SKU · Vendor line */}
               <div className="pdp-sku-line">
@@ -7069,24 +7261,40 @@
                     }
                   }
                 }
-                // Augment with collection-wide sizes when current product has fewer size options
-                if (attrSizeItems.length === 0 && !showSizePills && sibSizeItems.length === 0 && collectionAttributes.size && (collectionAttributes.size.values || []).length >= 2) {
+                // Augment with collection-wide sizes for consistent pills across the collection
+                if (!showSizePills && sibSizeItems.length === 0 && collectionAttributes.size && (collectionAttributes.size.values || []).length >= 2) {
                   const _csa = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
-                  const curSz = _csa(sku.attributes);
+                  let curSz = _csa(sku.attributes);
                   const _dimRe = /(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/;
-                  if (curSz && _dimRe.test(curSz)) {
+                  // Infer current size from variant_name when attribute is missing
+                  if (!curSz) {
+                    const vnMatch = (sku.variant_name || '').match(_dimRe);
+                    if (vnMatch) {
+                      // Find the full collection_attributes size value that contains this dimension
+                      const vnNorm = normalizeSize(vnMatch[0]);
+                      const fullVal = (collectionAttributes.size.values || []).find(sv => normalizeSize(sv).startsWith(vnNorm));
+                      curSz = fullVal || vnMatch[0];
+                    }
+                  }
+                  if (curSz) {
                     const sizeMap = new Map();
-                    sizeMap.set(normalizeSize(curSz), { label: formatSizeDim(curSz), sku_id: sku.sku_id, is_current: true, sort: parseFractionalInches(curSz.match(_dimRe)[1]) });
-                    mainSiblings.forEach(s => {
-                      if (s.variant_type === 'accessory') return;
-                      const sv = _csa(s.attributes);
-                      if (!sv) return;
-                      const nk = normalizeSize(sv);
-                      if (sizeMap.has(nk)) return;
-                      const dm = sv.match(_dimRe);
-                      if (!dm) return;
-                      sizeMap.set(nk, { label: formatSizeDim(sv), sku_id: s.sku_id, is_current: false, sort: parseFractionalInches(dm[1]) });
-                    });
+                    // Seed from existing attrSizeItems if already built from same-product siblings
+                    if (attrSizeItems.length > 0) {
+                      attrSizeItems.forEach(item => { sizeMap.set(normalizeSize(item.label.replace(/[″″"]/g, '').replace(/\s*×\s*/g, 'x').trim()), item); });
+                    } else {
+                      const dm = curSz.match(_dimRe);
+                      if (dm) sizeMap.set(normalizeSize(curSz), { label: formatSizeDim(curSz), sku_id: sku.sku_id, is_current: true, sort: parseFractionalInches(dm[1]) });
+                      mainSiblings.forEach(s => {
+                        if (s.variant_type === 'accessory') return;
+                        const sv = _csa(s.attributes);
+                        if (!sv) return;
+                        const nk = normalizeSize(sv);
+                        if (sizeMap.has(nk)) return;
+                        const dm2 = sv.match(_dimRe);
+                        if (!dm2) return;
+                        sizeMap.set(nk, { label: formatSizeDim(sv), sku_id: s.sku_id, is_current: false, sort: parseFractionalInches(dm2[1]) });
+                      });
+                    }
                     const curFinish = currentAttrs['finish'] || '';
                     (collectionAttributes.size.values || []).forEach(sv => {
                       const nk = normalizeSize(sv);
@@ -7141,7 +7349,7 @@
                   attrMap['countertop_finish'].values.add('No Countertop');
                   if (!currentAttrs['countertop_finish']) currentAttrs['countertop_finish'] = 'No Countertop';
                 }
-                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory', 'upc', 'msrp', 'weight', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number', 'width', 'size', 'height', 'depth', 'hardware_finish', 'num_drawers', 'num_doors', 'num_shelves', 'num_sinks', 'soft_close', 'sink_material', 'sink_type', 'vanity_type', 'bowl_shape', 'style', 'origin', 'countertop_material', 'construction', 'sub_line', 'collection', 'brand', 'surface_texture', 'wear_layer', 'ac_rating', 'edge_treatment', 'plank_width', 'plank_length', 'composition', 'install_method', 'features', 'technology', 'product_line', 'color_family', 'breaking_strength', 'thickness', 'mohs_hardness', 'color_generic', 'pattern', 'projection', 'clearance', 'overall_length', 'diameter', 'center_to_center']);
+                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'material_class', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory', 'upc', 'msrp', 'weight', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number', 'width', 'size', 'height', 'depth', 'hardware_finish', 'num_drawers', 'num_doors', 'num_shelves', 'num_sinks', 'soft_close', 'sink_material', 'sink_type', 'vanity_type', 'bowl_shape', 'style', 'origin', 'countertop_material', 'construction', 'sub_line', 'collection', 'brand', 'surface_texture', 'wear_layer', 'ac_rating', 'edge_treatment', 'plank_width', 'plank_length', 'composition', 'install_method', 'features', 'technology', 'product_line', 'color_family', 'breaking_strength', 'thickness', 'mohs_hardness', 'color_generic', 'pattern', 'projection', 'clearance', 'overall_length', 'diameter', 'center_to_center']);
 
                 // --- Sub-Line format selector (ADURA Max/Rigid/Flex/APEX) ---
                 const curSubLineAttr = (sku.attributes || []).find(a => a.slug === 'sub_line');
@@ -8062,7 +8270,7 @@
               {/* Per-unit inquiry (slabs missing size, or no pricing) */}
               {isPerUnit && (slabMissingSize || effectivePrice <= 0) && (
                 <div className="unit-add-to-cart">
-                  <div style={{ background: 'var(--stone-50)', border: '0.5px solid rgba(21,18,15,0.07)', borderRadius: 4, padding: '1.5rem', textAlign: 'center' }}>
+                  <div style={{ background: 'var(--cream-warm)', border: '0.5px solid rgba(21,18,15,0.07)', borderRadius: 4, padding: '1.5rem', textAlign: 'center' }}>
                     <p style={{ margin: '0 0 0.375rem', fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 300, color: 'var(--stone-900)' }}>Slab — Please Inquire</p>
                     <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--stone-500)', lineHeight: 1.5 }}>
                       Contact us to confirm slab dimensions and availability.
@@ -8094,7 +8302,7 @@
 
               {/* Call for Price & Stock — shown when no pricing is available */}
               {!isCarpetSku && !isPerUnit && !isSoldPerSqft && (effectivePrice <= 0 || (sqftPerBox <= 0 && !isSheetVinyl)) && (
-                <div style={{ background: 'var(--stone-50)', border: '0.5px solid rgba(21,18,15,0.07)', borderRadius: 4, padding: '1.5rem', textAlign: 'center' }}>
+                <div style={{ background: 'var(--cream-warm)', border: '0.5px solid rgba(21,18,15,0.07)', borderRadius: 4, padding: '1.5rem', textAlign: 'center' }}>
                   <p style={{ margin: '0 0 0.375rem', fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 300, color: 'var(--stone-900)' }}>Call for Price &amp; Stock</p>
                   <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--stone-500)', lineHeight: 1.5 }}>
                     Contact us for current pricing, stock availability, and lead times.
@@ -8110,32 +8318,29 @@
               {accessorySiblings.length > 0 && (
                 <div className="accessories-section-sf">
                   <h3>Matching Accessories</h3>
-                  <p className="accessories-subtitle-sf">{/^bath/i.test(sku.category_slug || '') || /vanitie|mirror|cabinet/i.test(sku.category_name || '') ? 'Complete your bathroom with matching pieces' : 'Complete your installation with coordinating trim and transitions'}</p>
+                  <div className="accessories-subtitle-sf">{/^bath/i.test(sku.category_slug || '') || /vanitie|mirror|cabinet/i.test(sku.category_name || '') ? 'Complete your bathroom with matching pieces' : 'Complete your installation with coordinating trim and transitions'}</div>
                   {accessorySiblings.map(acc => {
                     const accPrice = parseFloat(acc.sale_price || acc.retail_price) || 0;
                     const accQty = accessoryQtys[acc.sku_id] || 1;
                     const accLabel = acc.accessory_label || formatVariantName(acc.variant_name) || 'Accessory';
-                    const accColor = acc.variant_name ? formatVariantName(acc.variant_name) : null;
-                    const showColor = accColor && accColor !== accLabel;
                     return (
                       <div key={acc.sku_id} className="accessory-card-sf">
                         {acc.primary_image && (
-                          <div className="accessory-card-sf-image">
+                          <div className="accessory-card-sf-image" style={{ cursor: 'pointer' }} onClick={() => onSkuClick(acc.sku_id, acc.accessory_label || acc.variant_name)}>
                             <img onLoad={handleProductImgLoad} src={optimizeImg(acc.primary_image, 80)} alt={accLabel} width="48" height="48" loading="lazy" decoding="async" />
                           </div>
                         )}
                         <div className="accessory-card-sf-header">
-                          <div className="accessory-card-sf-name">{accLabel}</div>
-                          {showColor && <div className="accessory-card-sf-color">{accColor}</div>}
+                          <div className="accessory-card-sf-name" style={{ cursor: 'pointer' }} onClick={() => onSkuClick(acc.sku_id, acc.accessory_label || acc.variant_name)}>{accLabel}</div>
                           <div className="accessory-card-sf-price">${accPrice.toFixed(2)} {acc.sell_by === 'box' ? '/sqft' : '/ea'}</div>
                         </div>
                         <div className="accessory-card-sf-actions">
-                          <div className="unit-qty-stepper">
+                          <div className="acc-stepper">
                             <button onClick={() => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: Math.max(1, (prev[acc.sku_id] || 1) - 1) }))}>&minus;</button>
-                            <input type="number" min="1" value={accQty} onChange={(e) => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: Math.max(1, parseInt(e.target.value) || 1) }))} />
+                            <span>{accQty}</span>
                             <button onClick={() => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: (prev[acc.sku_id] || 1) + 1 }))}>+</button>
                           </div>
-                          <button className="btn" style={{ padding: '0.6rem 1.5rem', fontSize: '0.8125rem' }} onClick={() => {
+                          <button className="acc-add-btn" onClick={() => {
                             addToCart({
                               product_id: sku.product_id,
                               sku_id: acc.sku_id,
@@ -8147,7 +8352,7 @@
                               sell_by: acc.sell_by || 'unit'
                             });
                           }}>
-                            Add &mdash; ${(accQty * accPrice).toFixed(2)}
+                            Add ${(accQty * accPrice).toFixed(2)}
                           </button>
                         </div>
                       </div>
@@ -8238,7 +8443,7 @@
                         </div>
                         <div className="sibling-card-name">{formatCarpetValue(s.variant_name) || 'Variant'}</div>
                         {s.attributes && s.attributes.length > 0 && (() => {
-                          const SKIP = new Set(['price_list', 'material_class', 'style_code', 'subcategory', 'upc', 'color', 'color_code', 'collection', 'material']);
+                          const SKIP = new Set(['price_list', 'material_class', 'style_code', 'subcategory', 'upc', 'color', 'color_code', 'collection', 'material', 'companion_skus', 'brand', 'application', 'roll_width', 'roll_length', 'weight_per_sqyd']);
                           const useful = s.attributes.filter(a => !SKIP.has(a.slug));
                           const currentVals = (sku.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
                           const differing = useful.filter(a => currentVals[a.slug] !== a.value);
@@ -12033,7 +12238,7 @@
                   <div className="checkout-field"><label>Name *</label><input className="checkout-input" value={name} onChange={e => setName(e.target.value)} required /></div>
                   <div className="checkout-row">
                     <div className="checkout-field"><label>Email *</label><input className="checkout-input" type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
-                    <div className="checkout-field"><label>Phone</label><input className="checkout-input" type="tel" value={phone} onChange={e => setPhone(e.target.value)} /></div>
+                    <div className="checkout-field"><label>Phone *</label><input className="checkout-input" type="tel" value={phone} onChange={e => setPhone(e.target.value)} required /></div>
                   </div>
                   <div className="checkout-row">
                     <div className="checkout-field"><label>ZIP Code</label><input className="checkout-input" value={zipCode} onChange={e => setZipCode(e.target.value)} maxLength={5} /></div>

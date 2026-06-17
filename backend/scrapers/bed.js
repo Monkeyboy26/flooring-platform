@@ -67,7 +67,7 @@ const CATEGORY_MAP = {
   'vinyl': 'lvp-plank',
   'lvt': 'lvp-plank',
   'lvp': 'lvp-plank',
-  'tile': 'lvp-plank',
+  // 'tile' omitted — ambiguous catch-all; logged as unmapped so new products can be triaged
   'hardwood': 'engineered-hardwood',
   'engineered hdf wood': 'engineered-hardwood',
   'hickory': 'engineered-hardwood',
@@ -79,7 +79,7 @@ const CATEGORY_MAP = {
   'pebble rock': 'natural-stone',
   'ledger': 'natural-stone',
   'corner': 'natural-stone',
-  'brick': 'natural-stone',
+  'brick': 'ceramic-tile',
   'mineral surface': 'quartz-countertops',
   'quartz': 'quartz-countertops',
   'quarry': 'ceramic-tile',
@@ -179,7 +179,10 @@ export async function run(pool, job, source) {
         }
 
         // Resolve category_id from MaterialType
-        const categoryId = resolveCategoryId(mapped.materialType, categoryLookup);
+        const categoryId = resolveCategoryId(mapped.materialType, categoryLookup, mapped.collection);
+        if (mapped.materialType && !categoryId) {
+          await appendLog(pool, job.id, `Unmapped MaterialType "${mapped.materialType}" for ${productCode} — product will have no category`);
+        }
 
         // Upsert product
         const product = await upsertProduct(pool, {
@@ -232,11 +235,20 @@ export async function run(pool, job, source) {
         stats.inventorySet++;
 
         // ── Images (direct Cloudinary CDN URLs — no downloading) ──
+        // HEAD-validate each URL to avoid storing broken Cloudinary links.
         const imageUrls = mapped.imageUrls; // already deduplicated, max MAX_GALLERY_IMAGES
+        const validImageUrls = [];
+        for (const imgUrl of imageUrls) {
+          try {
+            const resp = await fetch(imgUrl, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+            if (resp.ok) { validImageUrls.push(imgUrl); }
+            else { stats.brokenImages = (stats.brokenImages || 0) + 1; }
+          } catch { stats.brokenImages = (stats.brokenImages || 0) + 1; }
+        }
 
         // SKU-level images
-        for (let gi = 0; gi < imageUrls.length && gi < MAX_GALLERY_IMAGES; gi++) {
-          const imgUrl = imageUrls[gi];
+        for (let gi = 0; gi < validImageUrls.length && gi < MAX_GALLERY_IMAGES; gi++) {
+          const imgUrl = validImageUrls[gi];
           const assetType = gi === 0 ? 'primary' : 'alternate';
           await upsertMediaAsset(pool, {
             product_id: product.id,
@@ -391,7 +403,8 @@ export async function run(pool, job, source) {
     await appendLog(pool, job.id,
       `Scrape complete. Found: ${stats.found}, Created: ${stats.created}, ` +
       `Updated: ${stats.updated}, SKUs: ${stats.skusCreated}, ` +
-      `Images: ${stats.imagesSet}, Pricing: ${stats.pricingSet}, ` +
+      `Images: ${stats.imagesSet}, Broken images skipped: ${stats.brokenImages || 0}, ` +
+      `Pricing: ${stats.pricingSet}, ` +
       `Inventory: ${stats.inventorySet}, Packaging: ${stats.packagingSet}, ` +
       `Errors: ${stats.errors}`,
       {
@@ -1099,9 +1112,14 @@ function normalizeCloudinaryUrl(url) {
 /**
  * Resolve a Bedrosians MaterialType to a PIM category_id.
  */
-function resolveCategoryId(materialType, categoryLookup) {
+function resolveCategoryId(materialType, categoryLookup, collection) {
   if (!materialType) return null;
-  const slug = CATEGORY_MAP[materialType.toLowerCase()];
+  const mt = materialType.toLowerCase();
+  let slug = CATEGORY_MAP[mt];
+  // Narrow override: Bedrosians labels Shorewood vinyl planks as MaterialType "Tile"
+  if (!slug && mt === 'tile' && collection && /^shorewood$/i.test(collection)) {
+    slug = 'lvp-plank';
+  }
   if (!slug) return null;
   return categoryLookup.get(slug) || null;
 }
