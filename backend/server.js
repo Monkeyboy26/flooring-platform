@@ -41,6 +41,7 @@ const UPLOADS_DIR = process.env.UPLOADS_PATH || './uploads';
 
 // Shipping configuration
 const WEIGHT_THRESHOLD_LBS = 150; // parcel vs LTL cutoff
+const DEFAULT_WEIGHT_PER_BOX_LBS = 45; // fallback when packaging data missing
 const SHIP_FROM = { zip: '92806', city: 'Anaheim', state: 'CA', country: 'US' };
 
 // Sales tax, helpers, documents, auth — extracted to lib/ modules
@@ -96,6 +97,7 @@ const BAD_IMAGE_HASHES = new Set([
   'd0a7127af62d07881dbc4e8a1d29bf26', // Armstrong "IT team" meme (577KB)
   'd488a4a8c70e99179bfd4550fccd3297', // Armstrong placeholder.jpeg (61KB)
   'aab2252aad617be32d88e1aa936cacdf', // Armstrong tiny blank swatch (~3KB)
+  'ed35f9e3649f263f7086f75487ab71e8', // Widen CDN 300×300 "PREVIEW NOT AVAILABLE" placeholder (8KB)
 ]);
 
 function isPrivateUrl(urlStr) {
@@ -153,14 +155,30 @@ app.get('/api/img', imgLimiter, async (req, res) => {
           inputBuffer = await fs.promises.readFile(localPath);
         } else {
           if (isPrivateUrl(url)) return null;
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 10000);
-          try {
-            const resp = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'Roma-ImageProxy/1.0' } });
-            clearTimeout(timeout);
-            if (!resp.ok) return null;
-            inputBuffer = Buffer.from(await resp.arrayBuffer());
-          } catch { clearTimeout(timeout); return null; }
+          const isWiden = url.includes('.widen.net');
+          const maxAttempts = isWiden ? 3 : 1;
+          for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+            try {
+              const fetchUrl = attempt > 0 ? url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now() : url;
+              const resp = await fetch(fetchUrl, { signal: controller.signal, headers: { 'User-Agent': 'Roma-ImageProxy/1.0' } });
+              clearTimeout(timeout);
+              if (!resp.ok) {
+                if (isWiden && attempt < maxAttempts - 1) { await new Promise(r => setTimeout(r, 300)); continue; }
+                return null;
+              }
+              inputBuffer = Buffer.from(await resp.arrayBuffer());
+              // Check for Widen placeholder before accepting
+              const tmpHash = crypto.createHash('md5').update(inputBuffer).digest('hex');
+              if (isWiden && BAD_IMAGE_HASHES.has(tmpHash) && attempt < maxAttempts - 1) {
+                await new Promise(r => setTimeout(r, 300));
+                continue;
+              }
+              break;
+            } catch { clearTimeout(timeout); if (attempt >= maxAttempts - 1) return null; await new Promise(r => setTimeout(r, 300)); }
+          }
+          if (!inputBuffer) return null;
         }
         // Reject known bad/error images (e.g. Armstrong CDN meme)
         const inputHash = crypto.createHash('md5').update(inputBuffer).digest('hex');
@@ -685,7 +703,7 @@ app.get('/api/storefront/featured', async (req, res) => {
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
         COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
-        COALESCE(sai.url, pai.url) as alternate_image,
+        COALESCE(sai.url, CASE WHEN vc.variant_count <= 1 THEN pai.url END) as alternate_image,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -755,7 +773,7 @@ app.get('/api/storefront/featured', async (req, res) => {
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
         COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
-        COALESCE(sai.url, pai.url) as alternate_image,
+        COALESCE(sai.url, CASE WHEN vc.variant_count <= 1 THEN pai.url END) as alternate_image,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -834,7 +852,7 @@ app.get('/api/storefront/featured', async (req, res) => {
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
             COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
-            COALESCE(sai.url, pai.url) as alternate_image,
+            COALESCE(sai.url, CASE WHEN vc.variant_count <= 1 THEN pai.url END) as alternate_image,
             CASE
               WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
               WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -1075,6 +1093,90 @@ function expandSynonyms(query) {
   return { text: query, expandedFrom: null };
 }
 
+// ==================== Color Family Mapping ====================
+
+const COLOR_FAMILY_MAP = {
+  // Whites & Creams
+  white: { family: 'White', hex: '#F5F5F0' },
+  ivory: { family: 'White', hex: '#F5F5F0' },
+  cream: { family: 'Cream', hex: '#F5F0E0' },
+  snow: { family: 'White', hex: '#F5F5F0' },
+  pearl: { family: 'White', hex: '#F5F5F0' },
+  alabaster: { family: 'White', hex: '#F5F5F0' },
+  // Grays
+  gray: { family: 'Gray', hex: '#9E9E9E' },
+  grey: { family: 'Gray', hex: '#9E9E9E' },
+  silver: { family: 'Gray', hex: '#C0C0C0' },
+  charcoal: { family: 'Gray', hex: '#5C5C5C' },
+  slate: { family: 'Gray', hex: '#708090' },
+  ash: { family: 'Gray', hex: '#B2BEB5' },
+  pewter: { family: 'Gray', hex: '#8E8E8E' },
+  smoke: { family: 'Gray', hex: '#9E9E9E' },
+  // Beiges & Tans
+  beige: { family: 'Beige', hex: '#D4C5A9' },
+  tan: { family: 'Beige', hex: '#D2B48C' },
+  sand: { family: 'Beige', hex: '#D4C5A9' },
+  taupe: { family: 'Beige', hex: '#B8A99A' },
+  khaki: { family: 'Beige', hex: '#C3B091' },
+  linen: { family: 'Beige', hex: '#D4C5A9' },
+  // Browns
+  brown: { family: 'Brown', hex: '#8B6F47' },
+  chocolate: { family: 'Brown', hex: '#5C3D2E' },
+  mocha: { family: 'Brown', hex: '#7B5B3A' },
+  walnut: { family: 'Brown', hex: '#5C3D2E' },
+  oak: { family: 'Brown', hex: '#8B6F47' },
+  espresso: { family: 'Brown', hex: '#3C1F0E' },
+  chestnut: { family: 'Brown', hex: '#7B4B2A' },
+  hickory: { family: 'Brown', hex: '#8B6F47' },
+  maple: { family: 'Brown', hex: '#C4955A' },
+  mahogany: { family: 'Brown', hex: '#6B3A2E' },
+  cedar: { family: 'Brown', hex: '#A0522D' },
+  // Blacks
+  black: { family: 'Black', hex: '#2C2C2C' },
+  ebony: { family: 'Black', hex: '#2C2C2C' },
+  onyx: { family: 'Black', hex: '#2C2C2C' },
+  midnight: { family: 'Black', hex: '#2C2C2C' },
+  noir: { family: 'Black', hex: '#2C2C2C' },
+  // Blues
+  blue: { family: 'Blue', hex: '#5B7FA5' },
+  navy: { family: 'Blue', hex: '#2C3E6B' },
+  cobalt: { family: 'Blue', hex: '#3D5BA9' },
+  aqua: { family: 'Blue', hex: '#7FCDCD' },
+  teal: { family: 'Blue', hex: '#4A8B8B' },
+  // Greens
+  green: { family: 'Green', hex: '#6B8E6B' },
+  sage: { family: 'Green', hex: '#9CAF88' },
+  olive: { family: 'Green', hex: '#6B7C3F' },
+  moss: { family: 'Green', hex: '#6B8E6B' },
+  forest: { family: 'Green', hex: '#3D5C3A' },
+  // Reds & Terracotta
+  red: { family: 'Red', hex: '#B5534B' },
+  terracotta: { family: 'Red', hex: '#C4704B' },
+  rust: { family: 'Red', hex: '#B5534B' },
+  burgundy: { family: 'Red', hex: '#6B2D3E' },
+  // Golds & Yellows
+  gold: { family: 'Gold', hex: '#C4955A' },
+  honey: { family: 'Gold', hex: '#D4A54A' },
+  amber: { family: 'Gold', hex: '#D4A54A' },
+  blonde: { family: 'Gold', hex: '#E8D4A0' },
+  natural: { family: 'Gold', hex: '#D4C5A9' },
+  // Multi & Others
+  multi: { family: 'Multi', hex: null },
+  mixed: { family: 'Multi', hex: null },
+};
+
+function mapColorFamily(colorValue) {
+  if (!colorValue) return null;
+  const lower = colorValue.toLowerCase().trim();
+  // Direct match
+  if (COLOR_FAMILY_MAP[lower]) return COLOR_FAMILY_MAP[lower];
+  // Partial match — check if any key is contained in the color value
+  for (const [key, val] of Object.entries(COLOR_FAMILY_MAP)) {
+    if (lower.includes(key)) return val;
+  }
+  return null;
+}
+
 // ==================== Query Normalization ====================
 
 function normalizeSearchQuery(raw) {
@@ -1144,6 +1246,7 @@ function clearSearchCaches() {
 
 app.get('/api/storefront/search/suggest', async (req, res) => {
   try {
+    const suggestStartTime = Date.now();
     const raw = (req.query.q || '').trim();
     if (!raw || raw.length < 2) return res.json({ categories: [], collections: [], products: [], total: 0 });
 
@@ -1385,9 +1488,29 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
 
     prodRows = prodRows.slice(0, 6);
 
-    // Did-you-mean: if zero product results, try spelling correction
+    // Batch-fetch color attributes for returned product SKUs
+    let colorMap = {};
+    if (prodRows.length > 0) {
+      try {
+        const skuIds = prodRows.map(r => r.sku_id).filter(Boolean);
+        if (skuIds.length > 0) {
+          const colorResult = await pool.query(`
+            SELECT sa.sku_id, sa.value
+            FROM sku_attributes sa
+            JOIN attributes a ON a.id = sa.attribute_id
+            WHERE sa.sku_id = ANY($1) AND a.slug = 'color'
+          `, [skuIds]);
+          for (const row of colorResult.rows) {
+            colorMap[row.sku_id] = mapColorFamily(row.value);
+          }
+        }
+      } catch (e) { /* color lookup is best-effort */ }
+    }
+
+    // Did-you-mean + auto-correct: trigger when product results < 3 (not just 0)
     let didYouMean = null;
-    if (prodRows.length === 0) {
+    let autoCorrect = null;
+    if (prodRows.length < 3) {
       try {
         const queryWords = sanitized.toLowerCase().split(/\s+/).filter(Boolean);
         const corrections = [];
@@ -1408,12 +1531,38 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
         }
         const corrected = corrections.join(' ');
         if (corrected !== sanitized.toLowerCase()) {
-          didYouMean = corrected;
+          // Run a quick count to see if the corrected query yields more results
+          const { text: corrExpanded } = expandSynonyms(corrected);
+          const corrWords = corrExpanded.split(/\s+/).filter(Boolean);
+          const corrAndTs = corrWords.map(w => w + ':*').join(' & ');
+          const corrOrTs = corrWords.map(w => w + ':*').join(' | ');
+          const corrCountResult = await pool.query(`
+            SELECT COUNT(DISTINCT p.id) as cnt
+            FROM products p
+            WHERE p.status = 'active'
+              AND (p.search_vector @@ to_tsquery('english', unaccent($1))
+                OR p.search_vector @@ to_tsquery('english', unaccent($2))
+                OR p.name % $3 OR p.collection % $3)
+          `, [corrAndTs, corrOrTs, corrected]);
+          const correctedCount = parseInt(corrCountResult.rows[0].cnt);
+
+          if (correctedCount > prodRows.length) {
+            // Auto-correct: corrected query yields more results
+            didYouMean = corrected;
+            if (prodRows.length === 0) {
+              // Zero original results — auto-show corrected results
+              autoCorrect = { correctedQuery: corrected, correctedCount };
+            }
+          } else {
+            didYouMean = corrected;
+          }
         }
       } catch (err) {
         // search_vocabulary may not exist yet — skip
       }
     }
+
+    const suggestTimeMs = Date.now() - suggestStartTime;
 
     const result = {
       categories: catResult.rows.map(r => ({ name: r.name, slug: r.slug, image_url: r.image_url, product_count: parseInt(r.product_count) })),
@@ -1422,10 +1571,13 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
         sku_id: r.sku_id, product_name: r.product_name, collection: r.collection,
         variant_name: r.variant_name, vendor_name: r.vendor_name, primary_image: r.primary_image,
         vendor_sku: r.vendor_sku,
-        retail_price: r.retail_price, price_basis: r.price_basis, sell_by: r.sell_by, sqft_per_box: r.sqft_per_box, sale_price: r.sale_price
+        retail_price: r.retail_price, price_basis: r.price_basis, sell_by: r.sell_by, sqft_per_box: r.sqft_per_box, sale_price: r.sale_price,
+        color_family: colorMap[r.sku_id] || null
       })),
       total: totalCount,
+      searchTimeMs: suggestTimeMs,
       ...(didYouMean ? { didYouMean } : {}),
+      ...(autoCorrect ? { autoCorrect } : {}),
       ...(expandedFrom ? { expandedFrom, expandedTo: expanded } : {})
     };
 
@@ -1463,10 +1615,88 @@ app.get('/api/storefront/search/popular', async (req, res) => {
   }
 });
 
+// ==================== Related Searches ====================
+
+const relatedSearchCache = new SearchCache(200, 10 * 60 * 1000); // 10 min TTL
+
+app.get('/api/storefront/search/related', async (req, res) => {
+  try {
+    const raw = (req.query.q || '').trim();
+    if (!raw || raw.length < 2) return res.json({ terms: [] });
+
+    const cacheKey = raw.toLowerCase();
+    const cached = relatedSearchCache.get(cacheKey);
+    if (cached) return res.json(cached);
+
+    // Strategy 1: co-occurring searches from analytics (users who searched X also searched Y)
+    let terms = [];
+    try {
+      const coResult = await pool.query(`
+        WITH searchers AS (
+          SELECT DISTINCT session_id
+          FROM analytics_events
+          WHERE event_type = 'search'
+            AND LOWER(properties->>'query') = LOWER($1)
+            AND created_at > NOW() - INTERVAL '90 days'
+          LIMIT 200
+        )
+        SELECT properties->>'query' as term, COUNT(*) as cnt
+        FROM analytics_events ae
+        WHERE ae.event_type = 'search'
+          AND ae.session_id IN (SELECT session_id FROM searchers)
+          AND LOWER(ae.properties->>'query') != LOWER($1)
+          AND ae.properties->>'query' IS NOT NULL
+          AND LENGTH(ae.properties->>'query') >= 2
+          AND ae.created_at > NOW() - INTERVAL '90 days'
+        GROUP BY LOWER(ae.properties->>'query'), ae.properties->>'query'
+        HAVING COUNT(*) >= 2
+        ORDER BY cnt DESC
+        LIMIT 8
+      `, [raw]);
+      terms = coResult.rows.map(r => r.term);
+    } catch (e) { /* analytics_events may not exist */ }
+
+    // Strategy 2 fallback: extract related collections/categories from search results
+    if (terms.length < 4) {
+      try {
+        const sanitized = raw.replace(/[^\w\s'.-]/g, '').trim();
+        const { text: expanded } = expandSynonyms(sanitized);
+        const words = expanded.split(/\s+/).filter(Boolean);
+        const orTsQuery = words.map(w => w + ':*').join(' | ');
+        const fallbackResult = await pool.query(`
+          SELECT DISTINCT p.collection as term
+          FROM products p
+          WHERE p.status = 'active'
+            AND p.collection != '' AND p.collection IS NOT NULL
+            AND p.search_vector @@ to_tsquery('english', unaccent($1))
+            AND LOWER(p.collection) != LOWER($2)
+          ORDER BY p.collection
+          LIMIT 8
+        `, [orTsQuery, raw]);
+        const existingLower = new Set(terms.map(t => t.toLowerCase()));
+        for (const row of fallbackResult.rows) {
+          if (!existingLower.has(row.term.toLowerCase()) && terms.length < 8) {
+            terms.push(row.term);
+            existingLower.add(row.term.toLowerCase());
+          }
+        }
+      } catch (e) { /* best-effort */ }
+    }
+
+    const data = { terms };
+    relatedSearchCache.set(cacheKey, data);
+    res.json(data);
+  } catch (err) {
+    console.error('Related searches error:', err);
+    res.json({ terms: [] });
+  }
+});
+
 // ==================== Storefront SKU Browse ====================
 
 app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
   try {
+    const skuBrowseStartTime = Date.now();
     const { category, collection, search, sort, q } = req.query;
     const limit = Math.min(parseInt(req.query.limit) || 24, 100);
     const offset = parseInt(req.query.offset) || 0;
@@ -1707,7 +1937,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
         COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
-        COALESCE(sai.url, pai.url) as alternate_image,
+        COALESCE(sai.url, CASE WHEN vc.variant_count <= 1 THEN pai.url END) as alternate_image,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -1822,7 +2052,8 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       } catch (e) { /* search_vocabulary may not exist */ }
     }
 
-    const response = { skus: skus.map(({ search_vector, popularity_score, sort_priority, discount_pct, ...rest }) => rest), total };
+    const searchTimeMs = Date.now() - skuBrowseStartTime;
+    const response = { skus: skus.map(({ search_vector, popularity_score, sort_priority, discount_pct, ...rest }) => rest), total, searchTimeMs };
     if (didYouMean) response.didYouMean = didYouMean;
     res.json(response);
   } catch (err) {
@@ -3103,6 +3334,7 @@ async function getParcelRates(weightLbs, destination) {
     throw new Error('No parcel rates available for this destination');
   }
   const sorted = shipment.rates.sort((a, b) => parseFloat(a.rate) - parseFloat(b.rate));
+  console.log(`[Shipping] Parcel: ${sorted.length} rates, cheapest $${sorted[0].rate} via ${sorted[0].carrier} ${sorted[0].service}`);
   return { amount: parseFloat(sorted[0].rate), carrier: sorted[0].carrier, service: sorted[0].service };
 }
 
@@ -3337,6 +3569,15 @@ async function getLTLRates(freightItems, destination, options = {}) {
     getEstesRate(freightItems, destination.zip, opts)
   ]);
 
+  const carrierNames = ['R+L Carriers', 'FedEx Freight', 'Estes Express'];
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled' && r.value) {
+      console.log(`[Shipping] LTL ${carrierNames[i]}: $${r.value.amount.toFixed(2)}`);
+    } else {
+      console.log(`[Shipping] LTL ${carrierNames[i]}: ${r.status === 'rejected' ? r.reason?.message || 'failed' : 'no quote'}`);
+    }
+  });
+
   const quotes = results
     .filter(r => r.status === 'fulfilled' && r.value)
     .map(r => r.value);
@@ -3399,13 +3640,22 @@ async function calculateShipping(sessionId, destination, shippingOptions = {}) {
     WHERE ci.session_id = $1 AND ci.is_sample = false
   `, [sessionId]);
 
+  // No non-sample items — no product shipping needed
+  if (result.rows.length === 0) {
+    console.log('[Shipping] No non-sample items in cart — skipping shipping calc');
+    return { options: [{ id: 'none', amount: 0, carrier: null, service: null, transit_days: null, is_cheapest: true, is_fallback: false }], method: null, weight_lbs: 0, total_boxes: 0, residential, liftgate, weight_estimated: false };
+  }
+
   let totalWeightLbs = 0;
   let totalBoxes = 0;
+  let weightEstimated = false;
   // Group weight by freight class for LTL items array
   const byFreightClass = {};
   for (const row of result.rows) {
     const boxes = parseInt(row.num_boxes) || 0;
-    const weightPerBox = parseFloat(row.weight_per_box_lbs) || 0;
+    const actualWeight = parseFloat(row.weight_per_box_lbs);
+    const weightPerBox = (actualWeight > 0) ? actualWeight : DEFAULT_WEIGHT_PER_BOX_LBS;
+    if (!(actualWeight > 0)) weightEstimated = true;
     const weight = boxes * weightPerBox;
     const fc = parseInt(row.freight_class) || 70;
     totalWeightLbs += weight;
@@ -3413,11 +3663,7 @@ async function calculateShipping(sessionId, destination, shippingOptions = {}) {
     if (!byFreightClass[fc]) byFreightClass[fc] = 0;
     byFreightClass[fc] += weight;
   }
-
-  // Sample-only order — no product shipping
-  if (totalWeightLbs === 0 || totalBoxes === 0) {
-    return { options: [{ id: 'none', amount: 0, carrier: null, service: null, transit_days: null, is_cheapest: true, is_fallback: false }], method: null, weight_lbs: 0, total_boxes: 0, residential, liftgate };
-  }
+  console.log(`[Shipping] ${result.rows.length} items, ${totalBoxes} boxes, ${totalWeightLbs.toFixed(1)} lbs total${weightEstimated ? ' (some weights estimated)' : ''}, dest=${destination.zip}`);
 
   let options;
   let method;
@@ -3458,7 +3704,8 @@ async function calculateShipping(sessionId, destination, shippingOptions = {}) {
     weight_lbs: parseFloat(totalWeightLbs.toFixed(2)),
     total_boxes: totalBoxes,
     residential,
-    liftgate
+    liftgate,
+    weight_estimated: weightEstimated
   };
 }
 
@@ -3475,22 +3722,26 @@ async function calculateShippingForOrder(orderId, destination, shippingOptions =
     WHERE oi.order_id = $1 AND oi.is_sample = false
   `, [orderId]);
 
+  // No non-sample items — no product shipping needed
+  if (result.rows.length === 0) {
+    return { options: [{ id: 'none', amount: 0, carrier: null, service: null, transit_days: null, is_cheapest: true, is_fallback: false }], method: null, weight_lbs: 0, total_boxes: 0, residential, liftgate, weight_estimated: false };
+  }
+
   let totalWeightLbs = 0;
   let totalBoxes = 0;
+  let weightEstimated = false;
   const byFreightClass = {};
   for (const row of result.rows) {
     const boxes = parseInt(row.num_boxes) || 0;
-    const weightPerBox = parseFloat(row.weight_per_box_lbs) || 0;
+    const actualWeight = parseFloat(row.weight_per_box_lbs);
+    const weightPerBox = (actualWeight > 0) ? actualWeight : DEFAULT_WEIGHT_PER_BOX_LBS;
+    if (!(actualWeight > 0)) weightEstimated = true;
     const weight = boxes * weightPerBox;
     const fc = parseInt(row.freight_class) || 70;
     totalWeightLbs += weight;
     totalBoxes += boxes;
     if (!byFreightClass[fc]) byFreightClass[fc] = 0;
     byFreightClass[fc] += weight;
-  }
-
-  if (totalWeightLbs === 0 || totalBoxes === 0) {
-    return { options: [{ id: 'none', amount: 0, carrier: null, service: null, transit_days: null, is_cheapest: true, is_fallback: false }], method: null, weight_lbs: 0, total_boxes: 0, residential, liftgate };
   }
 
   let options;
@@ -3531,7 +3782,8 @@ async function calculateShippingForOrder(orderId, destination, shippingOptions =
     weight_lbs: parseFloat(totalWeightLbs.toFixed(2)),
     total_boxes: totalBoxes,
     residential,
-    liftgate
+    liftgate,
+    weight_estimated: weightEstimated
   };
 }
 
@@ -4176,7 +4428,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
   try {
     const { session_id, payment_intent_id, customer_name: bodyName, customer_email: bodyEmail, phone: bodyPhone, shipping, delivery_method,
             po_number, project_id, is_tax_exempt, shipping_option_id, residential, liftgate,
-            create_account, account_password, promo_code, payment_method: reqPaymentMethod } = req.body;
+            create_account, account_password, promo_code, payment_method: reqPaymentMethod,
+            notes: orderNotes, measure_requested, preferred_measure_date, preferred_measure_time } = req.body;
 
     // Pre-fill from customer profile if logged in
     const customer_name = bodyName || (req.customer ? (req.customer.first_name + ' ' + req.customer.last_name) : '');
@@ -4298,8 +4551,9 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         trade_customer_id, po_number, is_tax_exempt, project_id,
         shipping_carrier, shipping_transit_days, shipping_residential, shipping_liftgate, shipping_is_fallback,
         customer_id, promo_code_id, promo_code, discount_amount, amount_paid,
-        tax_rate, tax_amount, payment_method, bank_transfer_instructions, bank_transfer_expires_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37)
+        tax_rate, tax_amount, payment_method, bank_transfer_instructions, bank_transfer_expires_at,
+        notes, measure_requested, preferred_measure_date, preferred_measure_time)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41)
       RETURNING *
     `, [orderNumber, session_id, customer_email, customer_name, phone || null,
         isPickup ? null : shipping.line1, isPickup ? null : (shipping.line2 || null),
@@ -4309,7 +4563,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         tradeCustomerId, po_number || null, is_tax_exempt || false, project_id || null,
         selectedCarrier, selectedTransitDays, isResidential, isLiftgate, isFallback,
         existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2), amountPaid,
-        taxRate, taxAmount.toFixed(2), reqPaymentMethod || 'stripe', bankInstructions ? JSON.stringify(bankInstructions) : null, bankExpiresAt]);
+        taxRate, taxAmount.toFixed(2), reqPaymentMethod || 'stripe', bankInstructions ? JSON.stringify(bankInstructions) : null, bankExpiresAt,
+        orderNotes || null, measure_requested || false, preferred_measure_date || null, preferred_measure_time || null]);
 
     const order = orderResult.rows[0];
 
@@ -7507,7 +7762,10 @@ async function searchSkus(pool, rawQuery) {
     LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = s.id
       AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)`;
   const imageSelect = `
-    (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, sort_order LIMIT 1) as primary_image`;
+    COALESCE(
+      (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, sort_order LIMIT 1),
+      (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type IN ('primary','alternate') ORDER BY CASE asset_type WHEN 'primary' THEN 0 ELSE 1 END, sort_order LIMIT 1)
+    ) as primary_image`;
 
   // 1. SKU fast path — direct prefix match on vendor_sku / internal_sku
   let skuRows = [];
@@ -22331,6 +22589,33 @@ app.get('/api/dev/email-preview/:name', (req, res) => {
 app.use((err, req, res, _next) => {
   console.error('Unhandled error:', err);
   res.status(err.status || 500).json({ error: 'Internal server error' });
+});
+
+// --- Crash detection: log why the process exits ---
+process.on('exit', (code) => {
+  const msg = `[PROCESS EXIT] code=${code} at ${new Date().toISOString()}\n`;
+  try { fs.appendFileSync('/app/_cache/exit.log', msg + new Error().stack + '\n\n'); } catch {}
+  process.stderr.write(msg);
+});
+process.on('SIGTERM', () => {
+  const msg = `[PROCESS SIGTERM] at ${new Date().toISOString()}\n`;
+  try { fs.appendFileSync('/app/_cache/exit.log', msg); } catch {}
+  process.stderr.write(msg);
+});
+process.on('SIGINT', () => {
+  const msg = `[PROCESS SIGINT] at ${new Date().toISOString()}\n`;
+  try { fs.appendFileSync('/app/_cache/exit.log', msg); } catch {}
+  process.stderr.write(msg);
+});
+process.on('uncaughtException', (err) => {
+  const msg = `[PROCESS UNCAUGHT] ${err.stack}\n`;
+  try { fs.appendFileSync('/app/_cache/exit.log', msg); } catch {}
+  process.stderr.write(msg);
+});
+process.on('unhandledRejection', (reason) => {
+  const msg = `[PROCESS UNHANDLED REJECTION] ${reason?.stack || reason}\n`;
+  try { fs.appendFileSync('/app/_cache/exit.log', msg); } catch {}
+  process.stderr.write(msg);
 });
 
 runMigrations().then(() => {

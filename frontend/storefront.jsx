@@ -157,13 +157,42 @@
     // Switches non-square product images from cover to contain so they aren't cropped
     function handleProductImgLoad(e) {
       const { naturalWidth: w, naturalHeight: h } = e.target;
-      if (w && h) {
-        const r = w / h;
-        if (r > 1.4 || r < 0.71) {
-          e.target.style.objectFit = 'contain';
-          const card = e.target.closest('.sku-card');
-          if (card) card.classList.add('sku-card--contain');
+      if (!w || !h) return;
+      // Widen CDN intermittently serves a 300×300 "PREVIEW NOT AVAILABLE"
+      // placeholder PNG instead of the real image (CloudFront edge-cache miss).
+      // Detect by fixed 300×300 dims. Retry strategy:
+      //   1st attempt: cache-bust with _cb param (different CDN edge)
+      //   2nd attempt: request original (no w/quality — most reliably cached)
+      //   3rd fail: hide the image
+      const src = e.target.currentSrc || e.target.src || '';
+      if (w === 300 && h === 300 && src.includes('.widen.net')) {
+        const attempt = parseInt(e.target.dataset.widenRetry || '0', 10);
+        if (attempt >= 2) {
+          // Exhausted retries — hide it
+          e.target.style.display = 'none';
+          return;
         }
+        e.target.dataset.widenRetry = String(attempt + 1);
+        if (e.target.srcset) e.target.srcset = '';
+        if (attempt === 0) {
+          // 1st retry: cache-bust to hit a different CDN edge
+          const clean = src.replace(/[&?]_cb=\d+/, '');
+          const sep = clean.includes('?') ? '&' : '?';
+          e.target.src = clean + sep + '_cb=' + Date.now();
+        } else {
+          // 2nd retry: request original image (no resize params)
+          // The full-size original is the most reliably cached asset
+          const u = new URL(src);
+          u.search = '';
+          e.target.src = u.toString();
+        }
+        return;
+      }
+      const r = w / h;
+      if (r > 1.4 || r < 0.71) {
+        e.target.style.objectFit = 'contain';
+        const card = e.target.closest('.sku-card');
+        if (card) card.classList.add('sku-card--contain');
       }
     }
 
@@ -195,12 +224,19 @@
           const base = url.split('?')[0]; // strip any existing query params
           return `${base}/v1/fill/w_${width},h_${width},al_c,q_80/image.jpg`;
         }
-        // Widen: *.widen.net
+        // Widen: *.widen.net — route through our proxy to avoid intermittent
+        // CDN placeholder responses. Proxy fetches original, resizes with Sharp,
+        // caches on disk, and retries on placeholder detection.
         if (url.includes('.widen.net')) {
           const u = new URL(url);
-          u.searchParams.set('w', width);
-          u.searchParams.set('quality', '80');
-          return u.toString();
+          // Strip CDN resize params — our proxy handles resizing
+          u.searchParams.delete('w');
+          u.searchParams.delete('h');
+          u.searchParams.delete('quality');
+          u.searchParams.delete('position');
+          u.searchParams.delete('keep');
+          u.searchParams.delete('x.app');
+          return `/api/img?url=${encodeURIComponent(u.toString())}&w=${width}`;
         }
         // All other vendor domains: route through our resize proxy for
         // webp conversion, right-sizing, and nginx edge caching.
@@ -4346,7 +4382,7 @@
                 <div className="quick-view-thumbstrip">
                   {media.map((m, i) => (
                     <div key={i} className={'quick-view-thumb' + (i === imgIndex ? ' active' : '')} onClick={() => setImgIndex(i)}>
-                      {m.url && <img src={optimizeImg(m.url, 160)} alt={''} decoding="async" width={80} height={72} />}
+                      {m.url && <img onLoad={handleProductImgLoad} src={optimizeImg(m.url, 160)} alt={''} decoding="async" width={80} height={72} />}
                     </div>
                   ))}
                 </div>
@@ -4856,7 +4892,7 @@
                     return (
                       <div key={sku.sku_id} className="form-specimen-card" onClick={() => onSkuClick(sku.sku_id, sku.product_name)}>
                         <div className="form-specimen-card-image">
-                          {sku.primary_image && <img src={optimizeImg(sku.primary_image, 600)} alt={sku.product_name} loading="lazy" decoding="async" />}
+                          {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 600)} alt={sku.product_name} loading="lazy" decoding="async" />}
                         </div>
                         <div className="form-specimen-card-meta">No. {String(i + 1).padStart(2, '0')} &middot; {sku.category_name || 'Flooring'}</div>
                         {price && <div className="form-specimen-card-price">${displayPrice(sku, price).toFixed(2)}{priceSuffix(sku)}</div>}
@@ -5006,7 +5042,7 @@
                     return (
                       <div key={sku.sku_id} className="shop-featured-card" onClick={() => onSkuClick(sku.sku_id, sku.product_name)}>
                         <div className="shop-featured-card-image">
-                          {sku.primary_image && <img src={optimizeImg(sku.primary_image, 500)} alt={sku.product_name} loading="lazy" decoding="async" />}
+                          {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 500)} alt={sku.product_name} loading="lazy" decoding="async" />}
                         </div>
                         <div className="shop-featured-card-cat">{sku.category_name || 'Flooring'}</div>
                         <div className="shop-featured-card-name">{fullProductName(sku)}</div>
@@ -6150,6 +6186,7 @@
         setLoading(true);
         setFetchError(null);
         setSelectedImage(0);
+        setMedia([]);
         setAccessoryQtys({});
         const headers = {};
         const t = localStorage.getItem('trade_token');
@@ -6831,6 +6868,37 @@
                 );
               })()}
 
+              {/* Slab Dimensions */}
+              {(() => {
+                const isSlab = /slab|countertop/i.test(sku.category_name || '') || /slab/i.test(sku.variant_name || '') || /slab/i.test(sku.product_name || '');
+                if (!isSlab) return null;
+                const sa = {};
+                (sku.attributes || []).forEach(a => { sa[a.slug] = a.value; });
+                const size = sa.size;
+                const thickness = sa.thickness;
+                if (!size && !thickness) return null;
+                const dims = [];
+                if (size && size !== 'Variable') {
+                  const parts = size.replace(/ Slab$/i, '').split('x');
+                  if (parts.length === 2) dims.push({ label: 'Slab Size', value: parts[0].trim() + '" \u00D7 ' + parts[1].trim() + '"' });
+                  else dims.push({ label: 'Slab Size', value: size });
+                } else if (size === 'Variable') {
+                  dims.push({ label: 'Slab Size', value: 'Variable (natural stone)' });
+                }
+                if (thickness) dims.push({ label: 'Thickness', value: thickness });
+                if (dims.length === 0) return null;
+                return (
+                  <div className="carpet-specs-band">
+                    {dims.map((d, i) => (
+                      <div key={i} className="carpet-spec-card">
+                        <div className="carpet-spec-card-label">{d.label}</div>
+                        <div className="carpet-spec-card-value">{d.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
               {/* Variant Selectors */}
               {(() => {
                 const currentAttrs = (sku.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
@@ -7349,7 +7417,7 @@
                   attrMap['countertop_finish'].values.add('No Countertop');
                   if (!currentAttrs['countertop_finish']) currentAttrs['countertop_finish'] = 'No Countertop';
                 }
-                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'material_class', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory', 'upc', 'msrp', 'weight', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number', 'width', 'size', 'height', 'depth', 'hardware_finish', 'num_drawers', 'num_doors', 'num_shelves', 'num_sinks', 'soft_close', 'sink_material', 'sink_type', 'vanity_type', 'bowl_shape', 'style', 'origin', 'countertop_material', 'construction', 'sub_line', 'collection', 'brand', 'surface_texture', 'wear_layer', 'ac_rating', 'edge_treatment', 'plank_width', 'plank_length', 'composition', 'install_method', 'features', 'technology', 'product_line', 'color_family', 'breaking_strength', 'thickness', 'mohs_hardness', 'color_generic', 'pattern', 'projection', 'clearance', 'overall_length', 'diameter', 'center_to_center']);
+                const NON_SELECTABLE = new Set(['pei_rating', 'shade_variation', 'water_absorption', 'dcof', 'material', 'material_class', 'country', 'application', 'edge', 'look', 'color', 'color_code', 'style_code', 'price_list', 'companion_skus', 'species', 'subcategory', 'upc', 'msrp', 'weight', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number', 'width', 'size', 'height', 'depth', 'hardware_finish', 'num_drawers', 'num_doors', 'num_shelves', 'num_sinks', 'soft_close', 'sink_material', 'sink_type', 'vanity_type', 'bowl_shape', 'style', 'origin', 'countertop_material', 'construction', 'sub_line', 'collection', 'brand', 'surface_texture', 'wear_layer', 'ac_rating', 'edge_treatment', 'plank_width', 'plank_length', 'composition', 'install_method', 'features', 'technology', 'product_line', 'color_family', 'breaking_strength', 'mohs_hardness', 'color_generic', 'pattern', 'projection', 'clearance', 'overall_length', 'diameter', 'center_to_center']);
 
                 // --- Sub-Line format selector (ADURA Max/Rigid/Flex/APEX) ---
                 const curSubLineAttr = (sku.attributes || []).find(a => a.slug === 'sub_line');
@@ -9045,7 +9113,10 @@
                           <div className="ct-summary-line" style={{ marginTop: 8 }}><span>Shipping</span><span>$0.00</span></div>
                         )}
                         {shippingEstimate && shippingEstimate.weight_lbs > 0 && (
-                          <div className="ct-shipping-weight">Est. weight: {shippingEstimate.weight_lbs} lbs</div>
+                          <div className="ct-shipping-weight">Est. weight: {shippingEstimate.weight_lbs} lbs{shippingEstimate.weight_estimated ? ' *' : ''}</div>
+                        )}
+                        {shippingEstimate && shippingEstimate.weight_estimated && (
+                          <div className="ct-shipping-weight" style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: 2 }}>* Some item weights estimated. Final shipping may vary.</div>
                         )}
                         {shippingEstimate && shippingEstimate.method === 'ltl_freight' && (
                           <label className="ct-liftgate-toggle">
@@ -9121,6 +9192,9 @@
       const [orderNotes, setOrderNotes] = useState('');
       const [editingContact, setEditingContact] = useState(!customer && !tradeCustomer);
       const [editingAddress, setEditingAddress] = useState(!customer || !customer.address_line1);
+      const [measureRequested, setMeasureRequested] = useState(false);
+      const [preferredDate, setPreferredDate] = useState('');
+      const [preferredTime, setPreferredTime] = useState('');
 
       const cartEmpty = !cart || cart.length === 0;
 
@@ -9232,6 +9306,10 @@
               delivery_method: deliveryMethod,
               shipping: isPickup ? null : { line1, line2, city, state, zip },
               residential: true, liftgate: liftgateEnabled,
+              notes: orderNotes || undefined,
+              measure_requested: measureRequested || undefined,
+              preferred_measure_date: measureRequested && preferredDate ? preferredDate : undefined,
+              preferred_measure_time: measureRequested && preferredTime ? preferredTime : undefined
             };
             const orderHeaders = { 'Content-Type': 'application/json' };
             if (tradeToken) orderHeaders['X-Trade-Token'] = tradeToken;
@@ -9280,7 +9358,11 @@
             shipping: isPickup ? null : { line1, line2, city, state, zip },
             residential: true, liftgate: liftgateEnabled,
             create_account: createAccount || undefined,
-            account_password: createAccount ? accountPassword : undefined
+            account_password: createAccount ? accountPassword : undefined,
+            notes: orderNotes || undefined,
+            measure_requested: measureRequested || undefined,
+            preferred_measure_date: measureRequested && preferredDate ? preferredDate : undefined,
+            preferred_measure_time: measureRequested && preferredTime ? preferredTime : undefined
           };
           const orderHeaders = { 'Content-Type': 'application/json' };
           if (tradeToken) orderHeaders['X-Trade-Token'] = tradeToken;
@@ -9425,7 +9507,11 @@
             shipping: isPickup ? null : { line1, line2, city, state, zip },
             residential: true, liftgate: liftgateEnabled,
             create_account: createAccount || undefined,
-            account_password: createAccount ? accountPassword : undefined
+            account_password: createAccount ? accountPassword : undefined,
+            notes: orderNotes || undefined,
+            measure_requested: measureRequested || undefined,
+            preferred_measure_date: measureRequested && preferredDate ? preferredDate : undefined,
+            preferred_measure_time: measureRequested && preferredTime ? preferredTime : undefined
           };
           const orderHeaders = { 'Content-Type': 'application/json' };
           if (tradeToken) orderHeaders['X-Trade-Token'] = tradeToken;
@@ -9606,7 +9692,7 @@
                     <button type="button" className={`co-delivery-card ${!isPickup ? 'selected' : ''}`} onClick={() => { if (typeof setDeliveryMethod === 'function') setDeliveryMethod('shipping'); }}>
                       <div className="co-delivery-card-top">
                         <div>
-                          <div className="co-delivery-card-name">Local Delivery</div>
+                          <div className="co-delivery-card-name">Freight</div>
                           <div className="co-delivery-card-meta">Orange County</div>
                         </div>
                         <div className="co-delivery-card-cost">Quoted</div>
@@ -9681,24 +9767,56 @@
                   )}
                 </div>
 
-                {/* Step 04 — Schedule (in-home measure offer) */}
-                <div className="co-step">
+                {/* Step 04 — Installation quote */}
+                <div className={`co-step ${measureRequested ? 'focus' : ''}`}>
                   <div className="co-step-head">
                     <div className="co-step-left">
                       <span className="co-step-num">04</span>
-                      <h3 className="co-step-title">Schedule</h3>
+                      <h3 className="co-step-title">Installation</h3>
                     </div>
                     <div className="co-step-chip">
-                      <span className="co-step-chip-label" style={{ color: 'var(--warm-muted)' }}>Optional</span>
+                      <span className="co-step-chip-label" style={{ color: measureRequested ? 'var(--gold)' : 'var(--warm-muted)' }}>
+                        {measureRequested ? 'Requested' : 'Optional'}
+                      </span>
                     </div>
                   </div>
-                  <div className="co-measure-offer">
-                    <div>
-                      <div className="co-measure-offer-label">Free with order</div>
-                      <div className="co-measure-offer-title">In-home measure</div>
-                      <div className="co-measure-offer-sub">We'll measure your space to ensure a perfect fit. Schedule after checkout.</div>
+                  <label className={`co-measure-toggle ${measureRequested ? 'active' : ''}`}>
+                    <div className="co-measure-toggle-left">
+                      <div className="co-measure-offer-label">Free estimate</div>
+                      <div className="co-measure-offer-title">Get an installation quote</div>
+                      <div className="co-measure-offer-sub">We'll measure your space and provide a detailed installation estimate.</div>
                     </div>
-                  </div>
+                    <div className={`co-toggle-switch ${measureRequested ? 'on' : ''}`} onClick={() => { setMeasureRequested(!measureRequested); if (measureRequested) { setPreferredDate(''); setPreferredTime(''); } }}>
+                      <div className="co-toggle-knob" />
+                    </div>
+                  </label>
+                  {measureRequested && (
+                    <div className="co-schedule-fields">
+                      <div className="co-schedule-row">
+                        <div className="co-field">
+                          <div className="co-field-label">Preferred date</div>
+                          <input type="date" value={preferredDate} onChange={e => setPreferredDate(e.target.value)}
+                            min={(() => { const d = new Date(); d.setDate(d.getDate() + 3); return d.toISOString().split('T')[0]; })()}
+                            max={(() => { const d = new Date(); d.setDate(d.getDate() + 60); return d.toISOString().split('T')[0]; })()} />
+                        </div>
+                        <div className="co-field">
+                          <div className="co-field-label">Time window</div>
+                          <div className="co-time-slots">
+                            {[['morning', 'Morning', '8am – 12pm'], ['afternoon', 'Afternoon', '12 – 4pm'], ['evening', 'Evening', '4 – 7pm']].map(([val, label, sub]) => (
+                              <button key={val} type="button" className={`co-time-slot ${preferredTime === val ? 'selected' : ''}`}
+                                onClick={() => setPreferredTime(preferredTime === val ? '' : val)}>
+                                <span className="co-time-slot-label">{label}</span>
+                                <span className="co-time-slot-sub">{sub}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="co-schedule-note">
+                        We'll confirm your appointment within 24 hours. Dates subject to availability.
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Step 05 — Payment */}
@@ -9917,7 +10035,7 @@
           <div className="conf-details">
             <div className="conf-detail-card">
               <div className="conf-detail-label">Delivery</div>
-              <div className="conf-detail-title">{order && order.delivery_method === 'pickup' ? 'Showroom Pickup' : 'Local Delivery'}</div>
+              <div className="conf-detail-title">{order && order.delivery_method === 'pickup' ? 'Showroom Pickup' : 'Freight'}</div>
               <div className="conf-detail-text">
                 {order && order.delivery_method === 'pickup'
                   ? '1440 S. State College Blvd., Suite 6M, Anaheim, CA 92806'
@@ -9940,6 +10058,21 @@
                 </div>
               )}
             </div>
+            {order && order.measure_requested && (
+              <div className="conf-detail-card">
+                <div className="conf-detail-label">Installation quote</div>
+                <div className="conf-detail-title">Requested</div>
+                <div className="conf-detail-text">
+                  {order.preferred_measure_date
+                    ? new Date(order.preferred_measure_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+                    : 'Date to be confirmed'}
+                  {order.preferred_measure_time && ` \u2014 ${order.preferred_measure_time.charAt(0).toUpperCase() + order.preferred_measure_time.slice(1)}`}
+                </div>
+                <div className="conf-detail-text" style={{ marginTop: '0.5rem' }}>
+                  We'll confirm your appointment within 24 hours.
+                </div>
+              </div>
+            )}
             <div className="conf-detail-card">
               <div className="conf-detail-label">Your contact</div>
               <div className="conf-detail-title">Lia Romano</div>
