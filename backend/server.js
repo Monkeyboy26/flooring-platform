@@ -41,7 +41,32 @@ const UPLOADS_DIR = process.env.UPLOADS_PATH || './uploads';
 
 // Shipping configuration
 const WEIGHT_THRESHOLD_LBS = 150; // parcel vs LTL cutoff
-const DEFAULT_WEIGHT_PER_BOX_LBS = 45; // fallback when packaging data missing
+const DEFAULT_WEIGHT_PER_BOX_LBS = 45; // ultimate fallback
+const CATEGORY_WEIGHT_LBS = {
+  'Porcelain Tile': 58, 'Ceramic Tile': 26, 'Mosaic Tile': 31,
+  'Wood Look Tile': 63, 'Backsplash & Wall Tile': 37, 'Backsplash Tile': 37,
+  'Natural Stone': 52, 'Fluted Tile': 67, 'Stacked Stone': 54,
+  'Pavers': 85, 'Pool Tile': 52, 'Large Format Tile': 63, 'Tile': 53,
+  'Commercial Tile': 53, 'Hardscaping': 85,
+  'Engineered Hardwood': 49, 'Solid Hardwood': 56, 'Hardwood': 49, 'Waterproof Wood': 49,
+  'LVP (Plank)': 44, 'LVT (Tile)': 48, 'Luxury Vinyl': 39,
+  'Sheet Vinyl': 39, 'VBT': 39, 'VCT': 39,
+  'Laminate': 43, 'Laminate Flooring': 36,
+  'Carpet Tile': 50, 'Carpet': 50,
+  'Vanities': 338, 'Vanity': 338, 'Storage Cabinets': 182,
+  'Bath Accessories': 79, 'Mirrors': 37, 'Vanity Tops': 111, 'Bath': 79,
+  'Porcelain Slabs': 250, 'Granite Countertops': 64, 'Quartzite Countertops': 47,
+  'Quartz Countertops': 64, 'Marble Countertops': 64, 'Countertops': 100,
+  'Prefabricated Countertops': 100,
+  'Transitions & Moldings': 3, 'Trim & Accessories': 3, 'Wall Base': 5,
+  'Stair Treads & Nosing': 10, 'Installation & Sundries': 4,
+  'Adhesives & Sealants': 30, 'Surface Prep & Levelers': 30,
+  'Underlayment': 45, 'Rubber Flooring': 45, 'Tools & Trowels': 10,
+  'Decorative Hardware': 5, 'Functional Hardware': 5, 'Bath Hardware': 5,
+  'Hardware & Specialty': 5, 'Organizers': 10, 'Moulding': 3,
+  'Kitchen Sinks': 40, 'Kitchen Faucets': 10, 'Bathroom Sinks': 30, 'Bathroom Faucets': 10,
+  'Sinks': 35, 'Kitchen': 25, 'Wall Panels': 40, 'Artificial Turf': 50,
+};
 const SHIP_FROM = { zip: '92806', city: 'Anaheim', state: 'CA', country: 'US' };
 
 // Sales tax, helpers, documents, auth — extracted to lib/ modules
@@ -3631,11 +3656,15 @@ async function calculateShipping(sessionId, destination, shippingOptions = {}) {
   const residential = shippingOptions.residential !== false;
   const liftgate = shippingOptions.liftgate !== false;
 
-  // Get packaging weight + freight class for non-sample cart items
+  // Get packaging weight + freight class + category for non-sample cart items
   const result = await pool.query(`
-    SELECT ci.num_boxes, ci.is_sample, pk.weight_per_box_lbs, pk.freight_class
+    SELECT ci.num_boxes, pk.weight_per_box_lbs, pk.freight_class,
+           c.name as category_name, pc.name as parent_category_name
     FROM cart_items ci
     JOIN skus s ON s.id = ci.sku_id
+    JOIN products pr ON pr.id = s.product_id
+    LEFT JOIN categories c ON c.id = pr.category_id
+    LEFT JOIN categories pc ON pc.id = c.parent_id
     LEFT JOIN packaging pk ON pk.sku_id = s.id
     WHERE ci.session_id = $1 AND ci.is_sample = false
   `, [sessionId]);
@@ -3654,8 +3683,13 @@ async function calculateShipping(sessionId, destination, shippingOptions = {}) {
   for (const row of result.rows) {
     const boxes = parseInt(row.num_boxes) || 0;
     const actualWeight = parseFloat(row.weight_per_box_lbs);
-    const weightPerBox = (actualWeight > 0) ? actualWeight : DEFAULT_WEIGHT_PER_BOX_LBS;
-    if (!(actualWeight > 0)) weightEstimated = true;
+    let weightPerBox;
+    if (actualWeight > 0) {
+      weightPerBox = actualWeight;
+    } else {
+      weightPerBox = CATEGORY_WEIGHT_LBS[row.category_name] || CATEGORY_WEIGHT_LBS[row.parent_category_name] || DEFAULT_WEIGHT_PER_BOX_LBS;
+      weightEstimated = true;
+    }
     const weight = boxes * weightPerBox;
     const fc = parseInt(row.freight_class) || 70;
     totalWeightLbs += weight;
@@ -3663,7 +3697,7 @@ async function calculateShipping(sessionId, destination, shippingOptions = {}) {
     if (!byFreightClass[fc]) byFreightClass[fc] = 0;
     byFreightClass[fc] += weight;
   }
-  console.log(`[Shipping] ${result.rows.length} items, ${totalBoxes} boxes, ${totalWeightLbs.toFixed(1)} lbs total${weightEstimated ? ' (some weights estimated)' : ''}, dest=${destination.zip}`);
+  console.log(`[Shipping] ${result.rows.length} items, ${totalBoxes} boxes, ${totalWeightLbs.toFixed(1)} lbs total${weightEstimated ? ' (some weights estimated by category)' : ''}, dest=${destination.zip}`);
 
   let options;
   let method;
@@ -3715,9 +3749,13 @@ async function calculateShippingForOrder(orderId, destination, shippingOptions =
   const liftgate = shippingOptions.liftgate !== false;
 
   const result = await pool.query(`
-    SELECT oi.num_boxes, oi.is_sample, pk.weight_per_box_lbs, pk.freight_class
+    SELECT oi.num_boxes, pk.weight_per_box_lbs, pk.freight_class,
+           c.name as category_name, pc.name as parent_category_name
     FROM order_items oi
     JOIN skus s ON s.id = oi.sku_id
+    JOIN products pr ON pr.id = s.product_id
+    LEFT JOIN categories c ON c.id = pr.category_id
+    LEFT JOIN categories pc ON pc.id = c.parent_id
     LEFT JOIN packaging pk ON pk.sku_id = s.id
     WHERE oi.order_id = $1 AND oi.is_sample = false
   `, [orderId]);
@@ -3734,8 +3772,13 @@ async function calculateShippingForOrder(orderId, destination, shippingOptions =
   for (const row of result.rows) {
     const boxes = parseInt(row.num_boxes) || 0;
     const actualWeight = parseFloat(row.weight_per_box_lbs);
-    const weightPerBox = (actualWeight > 0) ? actualWeight : DEFAULT_WEIGHT_PER_BOX_LBS;
-    if (!(actualWeight > 0)) weightEstimated = true;
+    let weightPerBox;
+    if (actualWeight > 0) {
+      weightPerBox = actualWeight;
+    } else {
+      weightPerBox = CATEGORY_WEIGHT_LBS[row.category_name] || CATEGORY_WEIGHT_LBS[row.parent_category_name] || DEFAULT_WEIGHT_PER_BOX_LBS;
+      weightEstimated = true;
+    }
     const weight = boxes * weightPerBox;
     const fc = parseInt(row.freight_class) || 70;
     totalWeightLbs += weight;
