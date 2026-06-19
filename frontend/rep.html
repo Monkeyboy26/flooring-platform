@@ -3336,26 +3336,32 @@
       padding: 0.875rem 1rem;
       cursor: default;
       border-right: 0.5px solid rgba(28,25,23,0.07);
-      transition: background 0.2s, color 0.2s;
+      transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
       position: relative;
     }
     .rof-rail-step:last-child { border-right: none; }
     .rof-rail-step.active {
       background: #1c1917;
       color: #f5f0e8;
+      box-shadow: inset 0 -2px 0 #a87935;
     }
     .rof-rail-step.completed {
       cursor: pointer;
       background: rgba(28,25,23,0.03);
     }
     .rof-rail-step.completed:hover { background: rgba(28,25,23,0.07); }
+    .rof-rail-step.future { opacity: 0.45; }
     .rof-rail-num {
       font: 300 1.125rem/1 'Cormorant Garamond', serif;
       opacity: 0.45;
       min-width: 1.25rem;
+      transition: opacity 0.25s ease;
     }
     .rof-rail-step.active .rof-rail-num { opacity: 0.65; }
-    .rof-rail-step.completed .rof-rail-num { opacity: 0.3; }
+    .rof-rail-step.completed .rof-rail-num {
+      opacity: 0.7;
+      color: var(--green, #3a7d44);
+    }
     .rof-rail-text {
       min-width: 0;
     }
@@ -3363,6 +3369,7 @@
       font: 500 0.5625rem/1.2 ui-monospace, 'SF Mono', monospace;
       letter-spacing: 0.1em;
       text-transform: uppercase;
+      transition: color 0.25s ease;
     }
     .rof-rail-sub {
       font: 400 0.5rem/1.2 'Inter', sans-serif;
@@ -3371,11 +3378,14 @@
     }
     .rof-rail-step.active .rof-rail-label { color: #f5f0e8; }
     .rof-rail-step.active .rof-rail-sub { color: rgba(245,240,232,0.5); }
+    .rof-rail-step.completed .rof-rail-label { color: #1c1917; opacity: 0.7; }
+    .rof-rail-step.completed .rof-rail-sub { opacity: 0.35; }
     .rof-rail-chev {
       font-size: 0.625rem;
       opacity: 0.25;
+      transition: color 0.25s ease, opacity 0.25s ease;
     }
-    .rof-rail-step.completed .rof-rail-chev { color: var(--green); }
+    .rof-rail-step.completed .rof-rail-chev { color: var(--green, #3a7d44); opacity: 0.8; }
 
     /* Body Grid */
     .rof-body {
@@ -4286,6 +4296,44 @@
       .rof-next-grid { grid-template-columns: 1fr; }
       .rof-item-row { grid-template-columns: 36px 1fr auto auto; }
       .rof-items-header { grid-template-columns: 36px 1fr auto auto; }
+    }
+    @media (max-width: 640px) {
+      .rof-container { padding: 0.75rem; }
+      .rof-breadcrumb { font-size: 0.5rem; padding: 0.5rem 0; }
+      .rof-rail { grid-template-columns: repeat(4, minmax(70px, 1fr)); }
+      .rof-rail-step { padding: 0.5rem 0.4rem; gap: 0.3rem; }
+      .rof-rail-num { font-size: 0.875rem; }
+      .rof-rail-label { font-size: 0.4375rem; letter-spacing: 0.06em; }
+      .rof-rail-sub { display: none; }
+      .rof-rail-chev { font-size: 0.5rem; }
+      .rof-card { padding: 0.75rem; }
+      .rof-card-header { padding: 0.625rem 0.75rem; }
+      .rof-section-hdr { padding: 1rem 0 0.5rem; }
+      .rof-section-hdr-num { font-size: 1.25rem; }
+      .rof-section-hdr-label { font-size: 0.5rem; }
+      .rof-anchors { gap: 0.3rem; padding: 0.4rem 0.5rem; font-size: 0.4375rem; }
+      .rof-pay-grid { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+      .rof-pay-tile { padding: 0.75rem 0.375rem; }
+      .rof-pay-tile-icon { font-size: 1.25rem; }
+      .rof-pay-tile-label { font-size: 0.4375rem; }
+      .rof-item-row { grid-template-columns: 28px 1fr auto auto; gap: 0.4rem; padding: 0.4rem 0; }
+      .rof-items-header { grid-template-columns: 28px 1fr auto auto; gap: 0.4rem; }
+      .rof-item-swatch { width: 28px; height: 28px; }
+      .rof-item-swatch img { width: 28px !important; height: 28px !important; }
+      .rof-item-name { font-size: 0.6875rem; }
+      .rof-item-meta { font-size: 0.5rem; }
+      .rof-hero { padding: 1.25rem 1rem; }
+      .rof-hero-total { font-size: 2rem; }
+      .rof-hero-stats { gap: 1rem; }
+      .rof-action-bar { padding: 0.625rem 0.75rem; flex-wrap: wrap; gap: 0.375rem; }
+      .rof-action-left { width: 100%; margin-bottom: 0.25rem; }
+      .rof-btn, .rof-btn-primary { font-size: 0.5rem; padding: 0.4rem 0.6rem; }
+      .rof-next-grid { grid-template-columns: 1fr; }
+      .rof-quick-btn { font-size: 0.625rem; padding: 0.5rem; }
+      .rof-summary { font-size: 0.75rem; }
+      .rof-summary-total-amount { font-size: 1.25rem; }
+      .rof-tender-row { font-size: 0.6875rem; }
+      .rof-customer-card { padding: 0.75rem; }
     }
   </style>
 </head>
@@ -7503,9 +7551,9 @@
             const canJump = isCompleted;
             return (
               <div key={s.key}
-                className={'rof-rail-step' + (isActive ? ' active' : '') + (isCompleted ? ' completed' : '')}
+                className={'rof-rail-step' + (isActive ? ' active' : '') + (isCompleted ? ' completed' : '') + (!isActive && !isCompleted ? ' future' : '')}
                 onClick={() => canJump ? setStep(stepNum) : null}>
-                <span className="rof-rail-num">{s.num}</span>
+                <span className="rof-rail-num">{isCompleted ? '\u2713' : s.num}</span>
                 <div className="rof-rail-text">
                   <div className="rof-rail-label">{s.label}</div>
                   <div className="rof-rail-sub">{s.sub}</div>
@@ -7519,7 +7567,7 @@
     }
 
     // --- RofActionBar ---
-    function RofActionBar({ step, setStep, canContinue, onProcess, processing, navigate, total, orderNumber }) {
+    function RofActionBar({ step, setStep, canContinue, onProcess, processing, navigate, total, orderNumber, itemCount }) {
       if (step === 4) return null;
       const labels = { 1: 'Continue to Payment', 2: 'Process Order', 3: 'Continue' };
       const nextLabel = labels[step] || 'Continue';
@@ -7527,7 +7575,15 @@
         <div className="rof-action-bar">
           <div className="rof-action-left">
             {orderNumber && <span className="rof-action-order">{orderNumber}</span>}
-            {total > 0 && <span className="rof-action-total">${total.toFixed(2)}</span>}
+            {!orderNumber && itemCount > 0 && (
+              <span className="rof-action-order" style={{ opacity: 0.5 }}>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+            )}
+            {total > 0 && (
+              <span className="rof-action-total">
+                ${total.toFixed(2)}
+                <span style={{ font: '400 0.4375rem/1 ui-monospace, monospace', opacity: 0.5, marginLeft: '0.3rem' }}>incl. tax</span>
+              </span>
+            )}
           </div>
           <button className="rof-btn" onClick={() => navigate('orders')}>Save & Close</button>
           {step > 1 && step < 4 && (
@@ -7734,7 +7790,15 @@
                   {data.customer.phone ? ' \u00b7 ' + data.customer.phone : ''}
                 </div>
                 {data.customer.type === 'trade' && (
-                  <span className="rof-search-tag trade" style={{ display: 'inline-block', marginTop: '0.25rem' }}>Trade</span>
+                  <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', marginTop: '0.25rem' }}>
+                    <span className="rof-search-tag trade">Trade</span>
+                    {data.customer.tier_name && (
+                      <span style={{ font: '400 0.4375rem/1 ui-monospace, monospace', color: '#a87935', letterSpacing: '0.04em' }}>{data.customer.tier_name}</span>
+                    )}
+                    {parseFloat(data.customer.discount_percent) > 0 && (
+                      <span style={{ font: '400 0.4375rem/1 ui-monospace, monospace', color: '#8a7e68' }}>{data.customer.discount_percent}% off</span>
+                    )}
+                  </div>
                 )}
                 <div className="rof-customer-stats">
                   <div className="rof-customer-stat">
@@ -7742,7 +7806,7 @@
                     <div className="rof-customer-stat-lbl">Orders</div>
                   </div>
                   <div className="rof-customer-stat">
-                    <div className="rof-customer-stat-val">${parseFloat(data.customer.lifetime_value || 0).toFixed(0)}</div>
+                    <div className="rof-customer-stat-val">${parseFloat(data.customer.lifetime_value || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
                     <div className="rof-customer-stat-lbl">Lifetime</div>
                   </div>
                 </div>
@@ -8411,7 +8475,15 @@
     function RofRunningSummary({ data, step }) {
       const itemsSubtotal = (data.items || []).reduce((sum, i) => sum + (i.subtotal || 0), 0);
       const discount = data.promoResult ? data.promoResult.discount_amount : 0;
-      const total = itemsSubtotal - discount;
+      const taxableSubtotal = Math.max(0, itemsSubtotal - discount);
+      // Estimate CA tax — 7.25% default, use destination zip if available
+      const destZip = data.deliveryMethod === 'pickup'
+        ? '92806'
+        : (data.shippingAddress && data.shippingAddress.zip ? data.shippingAddress.zip : '92806');
+      const taxRate = destZip && destZip.startsWith('9') ? 0.0725 : 0;
+      const estTax = parseFloat((taxableSubtotal * taxRate).toFixed(2));
+      const estShipping = data.deliveryMethod === 'shipping' ? (data.estShipping || 0) : 0;
+      const total = taxableSubtotal + estTax + estShipping;
       const paymentCollected = (data.paymentMethods || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 
       const statusLabel = step < 3 ? 'Draft' : 'Live';
@@ -8491,14 +8563,23 @@
                   <span>-${discount.toFixed(2)}</span>
                 </div>
               )}
-              {data.deliveryMethod === 'pickup' && (
+              {data.deliveryMethod && (
                 <div className="rof-summary-line">
                   <span>Shipping</span>
-                  <span style={{ color: 'var(--green)', fontWeight: 500 }}>FREE</span>
+                  {data.deliveryMethod === 'pickup'
+                    ? <span style={{ color: 'var(--green)', fontWeight: 500 }}>FREE</span>
+                    : <span>{estShipping > 0 ? '$' + estShipping.toFixed(2) : 'TBD'}</span>
+                  }
+                </div>
+              )}
+              {taxableSubtotal > 0 && (
+                <div className="rof-summary-line">
+                  <span>Est. Tax <span style={{ fontSize: '0.5rem', color: '#8a7e68' }}>({(taxRate * 100).toFixed(2)}%)</span></span>
+                  <span>${estTax.toFixed(2)}</span>
                 </div>
               )}
               <div className="rof-summary-total">
-                <span className="rof-summary-total-label">Total</span>
+                <span className="rof-summary-total-label">Est. Total</span>
                 <span className="rof-summary-total-amount">${total.toFixed(2)}</span>
               </div>
               <span className={'rof-summary-pill ' + statusClass}>{statusLabel}</span>
@@ -8558,7 +8639,13 @@
       }, []);
 
       const paymentMethod = data.paymentMethod || '';
-      const total = (data.items || []).reduce((s, i) => s + i.subtotal, 0) - (data.promoResult ? data.promoResult.discount_amount : 0);
+      const itemsSubtotal = (data.items || []).reduce((s, i) => s + i.subtotal, 0);
+      const discount = data.promoResult ? data.promoResult.discount_amount : 0;
+      const taxableSubtotal = Math.max(0, itemsSubtotal - discount);
+      const destZip = data.deliveryMethod === 'pickup' ? '92806' : (data.shippingAddress && data.shippingAddress.zip ? data.shippingAddress.zip : '92806');
+      const taxRate = destZip && destZip.startsWith('9') ? 0.0725 : 0;
+      const estTax = parseFloat((taxableSubtotal * taxRate).toFixed(2));
+      const total = taxableSubtotal + estTax;
       const paymentMethods = data.paymentMethods || [];
       const collectedAmount = paymentMethods.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
       const remaining = total - collectedAmount;
@@ -8655,8 +8742,26 @@
               </div>
             </div>
 
-            {/* Total */}
-            <div className="rof-summary-total" style={{ marginTop: '0.625rem' }}>
+            {/* Totals breakdown */}
+            <div style={{ marginTop: '0.625rem', paddingTop: '0.5rem', borderTop: '0.5px solid rgba(28,25,23,0.06)' }}>
+              <div className="rof-summary-line">
+                <span>Subtotal</span>
+                <span style={{ font: '300 0.875rem/1 "Cormorant Garamond", serif' }}>${itemsSubtotal.toFixed(2)}</span>
+              </div>
+              {discount > 0 && (
+                <div className="rof-summary-line" style={{ color: 'var(--green)' }}>
+                  <span>Discount</span>
+                  <span style={{ font: '300 0.875rem/1 "Cormorant Garamond", serif' }}>-${discount.toFixed(2)}</span>
+                </div>
+              )}
+              {estTax > 0 && (
+                <div className="rof-summary-line">
+                  <span>Est. Tax <span style={{ fontSize: '0.5rem', color: '#8a7e68' }}>({(taxRate * 100).toFixed(2)}%)</span></span>
+                  <span style={{ font: '300 0.875rem/1 "Cormorant Garamond", serif' }}>${estTax.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+            <div className="rof-summary-total" style={{ marginTop: '0.375rem' }}>
               <span className="rof-summary-total-label">Order Total</span>
               <span className="rof-summary-total-amount">${total.toFixed(2)}</span>
             </div>
@@ -9175,7 +9280,13 @@
         (data.shippingAddress && data.shippingAddress.line1 && data.shippingAddress.city && data.shippingAddress.state && data.shippingAddress.zip)
       );
 
-      const total = (data.items || []).reduce((s, i) => s + i.subtotal, 0) - (data.promoResult ? data.promoResult.discount_amount : 0);
+      const itemsSubtotal = (data.items || []).reduce((s, i) => s + i.subtotal, 0);
+      const discountAmt = data.promoResult ? data.promoResult.discount_amount : 0;
+      const taxableSub = Math.max(0, itemsSubtotal - discountAmt);
+      const wizDestZip = data.deliveryMethod === 'pickup' ? '92806' : (data.shippingAddress && data.shippingAddress.zip ? data.shippingAddress.zip : '92806');
+      const wizTaxRate = wizDestZip && wizDestZip.startsWith('9') ? 0.0725 : 0;
+      const wizEstTax = parseFloat((taxableSub * wizTaxRate).toFixed(2));
+      const total = taxableSub + wizEstTax;
       const collectedAmount = (data.paymentMethods || []).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
       const step2Valid = (data.paymentMethods || []).length > 0 && collectedAmount >= total - 0.01;
 
@@ -9314,6 +9425,7 @@
             navigate={navigate}
             total={total}
             orderNumber={orderNumber}
+            itemCount={(data.items || []).length}
           />
         </div>
       );

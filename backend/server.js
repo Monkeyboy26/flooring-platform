@@ -17385,7 +17385,9 @@ app.get('/api/rep/customers/search', repAuth, async (req, res) => {
       SELECT c.id, COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '') as name,
         c.email, c.phone,
         c.address_line1, c.address_line2, c.city, c.state, c.zip,
-        'retail' as type
+        'retail' as type,
+        (SELECT COUNT(*)::int FROM orders o WHERE o.customer_id = c.id) as order_count,
+        (SELECT COALESCE(SUM(o.total), 0) FROM orders o WHERE o.customer_id = c.id) as lifetime_value
       FROM customers c
       WHERE LOWER(COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '')) LIKE $1
         OR LOWER(c.email) LIKE $1
@@ -17400,7 +17402,9 @@ app.get('/api/rep/customers/search', repAuth, async (req, res) => {
         tc.city, tc.state, tc.zip,
         'trade' as type, tc.company_name,
         COALESCE(mt.discount_percent, 0) as discount_percent,
-        mt.name as tier_name
+        mt.name as tier_name,
+        (SELECT COUNT(*)::int FROM orders o WHERE o.trade_customer_id = tc.id) as order_count,
+        COALESCE(tc.total_spend, 0) as lifetime_value
       FROM trade_customers tc
       LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
       WHERE LOWER(COALESCE(tc.contact_name, '')) LIKE $1
