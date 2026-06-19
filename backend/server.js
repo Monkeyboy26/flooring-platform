@@ -7789,7 +7789,7 @@ async function searchSkus(pool, rawQuery) {
   const isSkuLike = /[a-zA-Z]/.test(sanitized) && /\d/.test(sanitized) && /^[\w.-]+$/.test(sanitized.replace(/\s/g, ''));
 
   const baseCols = `
-    s.id as sku_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
+    s.id as sku_id, s.product_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
     COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
     v.name as vendor_name, COALESCE(br.name, v.name) as brand_name,
     pr.retail_price, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
@@ -14349,6 +14349,119 @@ app.get('/api/rep/skus/search', repAuth, async (req, res) => {
   }
 });
 
+// ==================== Rep Global Search ====================
+
+app.get('/api/rep/global-search', repAuth, async (req, res) => {
+  try {
+    const { q, type, limit: limitParam } = req.query;
+    if (!q || q.trim().length < 2) return res.json({ results: {} });
+    const raw = q.toLowerCase().trim();
+    const term = '%' + raw + '%';
+    const digits = raw.replace(/\D/g, '');
+    const phoneTerm = digits.length >= 3 ? '%' + digits + '%' : null;
+    const repId = req.rep.id;
+    const limit = Math.min(parseInt(limitParam) || 5, 50);
+
+    const groups = {};
+    const searches = [];
+
+    // Customers (retail + trade)
+    if (!type || type === 'customers') {
+      searches.push(
+        pool.query(`
+          (SELECT c.id, COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '') as title,
+            'retail' as customer_type, c.email, c.phone,
+            c.city, c.state
+          FROM customers c
+          WHERE LOWER(COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '')) LIKE $1
+            OR LOWER(c.email) LIKE $1
+            OR ($2::text IS NOT NULL AND regexp_replace(COALESCE(c.phone, ''), '[^0-9]', '', 'g') LIKE $2)
+          ORDER BY c.updated_at DESC NULLS LAST
+          LIMIT $3)
+          UNION ALL
+          (SELECT tc.id, tc.contact_name as title,
+            'trade' as customer_type, tc.email, tc.phone,
+            NULL as city, NULL as state
+          FROM trade_customers tc
+          WHERE LOWER(COALESCE(tc.contact_name, '')) LIKE $1
+            OR LOWER(tc.email) LIKE $1
+            OR LOWER(COALESCE(tc.company_name, '')) LIKE $1
+            OR ($2::text IS NOT NULL AND regexp_replace(COALESCE(tc.phone, ''), '[^0-9]', '', 'g') LIKE $2)
+          ORDER BY tc.updated_at DESC NULLS LAST
+          LIMIT $3)
+        `, [term, phoneTerm, limit]).then(r => { groups.customers = r.rows.slice(0, limit); })
+      );
+    }
+
+    // Orders
+    if (!type || type === 'orders') {
+      searches.push(
+        pool.query(`
+          SELECT o.id, o.order_number, o.customer_name, o.customer_email, o.status,
+            o.total, o.created_at,
+            (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) as item_count
+          FROM orders o
+          WHERE (o.customer_name ILIKE $1 OR o.customer_email ILIKE $1 OR o.order_number ILIKE $1)
+          ORDER BY o.created_at DESC
+          LIMIT $2
+        `, [term, limit]).then(r => { groups.orders = r.rows; })
+      );
+    }
+
+    // Quotes
+    if (!type || type === 'quotes') {
+      searches.push(
+        pool.query(`
+          SELECT q.id, q.quote_number, q.customer_name, q.customer_email, q.status,
+            q.total, q.created_at, q.expires_at,
+            (SELECT COUNT(*)::int FROM quote_items qi WHERE qi.quote_id = q.id) as item_count
+          FROM quotes q
+          WHERE (q.customer_name ILIKE $1 OR q.customer_email ILIKE $1 OR q.quote_number ILIKE $1)
+            AND q.sales_rep_id = $3
+          ORDER BY q.created_at DESC
+          LIMIT $2
+        `, [term, limit, repId]).then(r => { groups.quotes = r.rows; })
+      );
+    }
+
+    // Estimates
+    if (!type || type === 'estimates') {
+      searches.push(
+        pool.query(`
+          SELECT e.id, e.estimate_number, e.customer_name, e.customer_email, e.status,
+            e.total, e.created_at, e.project_name,
+            (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id) as item_count
+          FROM estimates e
+          WHERE (e.customer_name ILIKE $1 OR e.customer_email ILIKE $1 OR e.estimate_number ILIKE $1 OR e.project_name ILIKE $1)
+            AND e.sales_rep_id = $3
+          ORDER BY e.created_at DESC
+          LIMIT $2
+        `, [term, limit, repId]).then(r => { groups.estimates = r.rows; })
+      );
+    }
+
+    // Products / SKUs
+    if (!type || type === 'products') {
+      searches.push(
+        searchSkus(pool, q).then(rows => { groups.products = rows.slice(0, limit); })
+      );
+    }
+
+    await Promise.all(searches);
+
+    // Count totals per group
+    const totals = {};
+    for (const [k, v] of Object.entries(groups)) {
+      totals[k] = v.length;
+    }
+
+    res.json({ results: groups, totals, query: q });
+  } catch (err) {
+    console.error('Global search error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== Rep Product Catalog ====================
 
 app.get('/api/rep/products', repAuth, async (req, res) => {
@@ -17283,10 +17396,13 @@ app.get('/api/rep/customers/search', repAuth, async (req, res) => {
 
     const trade = await pool.query(`
       SELECT tc.id, tc.contact_name as name, tc.email, tc.phone,
-        NULL as address_line1, NULL as address_line2,
-        NULL as city, NULL as state, NULL as zip,
-        'trade' as type, tc.company_name
+        tc.address_line1, NULL as address_line2,
+        tc.city, tc.state, tc.zip,
+        'trade' as type, tc.company_name,
+        COALESCE(mt.discount_percent, 0) as discount_percent,
+        mt.name as tier_name
       FROM trade_customers tc
+      LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
       WHERE LOWER(COALESCE(tc.contact_name, '')) LIKE $1
         OR LOWER(tc.email) LIKE $1
         OR ($2::text IS NOT NULL AND regexp_replace(COALESCE(tc.phone, ''), '[^0-9]', '', 'g') LIKE $2)
