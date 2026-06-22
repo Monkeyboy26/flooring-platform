@@ -435,7 +435,10 @@ async function run() {
     console.log(`Vendor: LDZ Flooring (${vendorId})\n`);
 
     let totalProducts = 0, totalSkus = 0, totalPricing = 0, totalPkg = 0;
-    let totalAttrs = 0, totalImages = 0, totalAccessories = 0;
+    let totalAttrs = 0, totalImages = 0, totalAccessories = 0, totalLinks = 0;
+
+    const flooringSkuIds = [];  // All flooring SKU IDs for accessory linking
+    const accessorySkuIds = []; // All accessory SKU IDs
 
     // ── Collect unique colors across all collections (for image fetching) ──
     // A single color can appear in multiple size groups but is one product
@@ -487,6 +490,7 @@ async function run() {
             RETURNING id
           `, [productId, vendorSku, internalSku, variantName, col.variantType]);
           const skuId = skuRes.rows[0].id;
+          flooringSkuIds.push(skuId);
           totalSkus++;
 
           // Pricing
@@ -611,9 +615,24 @@ async function run() {
         totalImages++;
       }
 
+      accessorySkuIds.push(skuId);
       totalAccessories++;
       console.log(`  ${variantName} (${internalSku}) — $${cost}/ea`);
     }
+
+    // ── Link accessories to flooring SKUs ──
+    console.log(`\n── Linking ${accessorySkuIds.length} accessories to ${flooringSkuIds.length} flooring SKUs ──`);
+    for (const parentSkuId of flooringSkuIds) {
+      for (let i = 0; i < accessorySkuIds.length; i++) {
+        await client.query(`
+          INSERT INTO sku_accessories (parent_sku_id, accessory_sku_id, sort_order)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (parent_sku_id, accessory_sku_id) DO UPDATE SET sort_order = EXCLUDED.sort_order
+        `, [parentSkuId, accessorySkuIds[i], i]);
+        totalLinks++;
+      }
+    }
+    console.log(`  ${totalLinks} links created`);
 
     await client.query('COMMIT');
 
@@ -626,6 +645,7 @@ async function run() {
     console.log(`Packaging records: ${totalPkg}`);
     console.log(`Attribute records: ${totalAttrs}`);
     console.log(`Image records: ${totalImages}`);
+    console.log(`Accessory links: ${totalLinks}`);
 
   } catch (err) {
     await client.query('ROLLBACK');
