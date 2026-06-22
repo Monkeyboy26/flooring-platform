@@ -493,9 +493,9 @@ async function run() {
           flooringSkuIds.push(skuId);
           totalSkus++;
 
-          // Pricing
+          // Pricing — retail = MAP (minimum advertised price)
           const cost = sg.cost.toFixed(2);
-          const retail = (sg.cost * MARKUP).toFixed(2);
+          const retail = sg.map.toFixed(2);
           await client.query(`
             INSERT INTO pricing (sku_id, cost, retail_price, price_basis, map_price)
             VALUES ($1, $2, $3, 'sqft', $4)
