@@ -30,10 +30,16 @@ const CAT = {
 
 // ─── Attribute IDs ───
 const ATTR = {
-  color:    'd50e8400-e29b-41d4-a716-446655440001',
-  size:     'd50e8400-e29b-41d4-a716-446655440004',
-  material: 'd50e8400-e29b-41d4-a716-446655440002',
-  finish:   'd50e8400-e29b-41d4-a716-446655440003',
+  color:       'd50e8400-e29b-41d4-a716-446655440001',
+  size:        'd50e8400-e29b-41d4-a716-446655440004',
+  material:    'd50e8400-e29b-41d4-a716-446655440002',
+  finish:      'd50e8400-e29b-41d4-a716-446655440003',
+  thickness:   'd50e8400-e29b-41d4-a716-446655440010',
+  wearLayer:   '3e46121c-991d-4f97-b9ed-ec2385b33624',
+  collection:  '120412b9-e5d7-44b5-919f-8e7fddd03606',
+  installation:'3e42771d-fcd8-4275-982d-92282c66044e',
+  plankWidth:  '5f552965-9eec-4d7c-b31f-87116c371a31',
+  plankLength: '3410336d-25b5-49b7-9fa0-ecb467f93b77',
 };
 
 const MARKUP = 2.0;
@@ -512,10 +518,20 @@ async function run() {
           await upsertAttr(client, skuId, ATTR.color, colorName);
           await upsertAttr(client, skuId, ATTR.size, sg.size);
           await upsertAttr(client, skuId, ATTR.material, col.material);
+          await upsertAttr(client, skuId, ATTR.thickness, col.thickness);
+          await upsertAttr(client, skuId, ATTR.wearLayer, col.wearLayer);
+          await upsertAttr(client, skuId, ATTR.collection, col.collection);
+          await upsertAttr(client, skuId, ATTR.installation, 'Floating');
           if (sg.bevel) {
             await upsertAttr(client, skuId, ATTR.finish, `${sg.bevel} Bevel`);
           }
-          totalAttrs += 4;
+          // Plank dimensions from size string (e.g. "7.2x48" → 7.2" width, 48" length)
+          const [w, l] = sg.size.split('x');
+          if (w && l) {
+            await upsertAttr(client, skuId, ATTR.plankWidth, `${w}"`);
+            await upsertAttr(client, skuId, ATTR.plankLength, `${l}"`);
+          }
+          totalAttrs += 9;
 
           console.log(`  ${variantName} (${internalSku}) — $${cost}/sf, ${sg.sfPerBox} sf/box`);
         }
