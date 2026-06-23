@@ -69,6 +69,7 @@ services:
       ESTES_USERNAME: ${ESTES_USERNAME:-}
       ESTES_PASSWORD: ${ESTES_PASSWORD:-}
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
       PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
       PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
       MSI_PORTAL_USERNAME: ${MSI_PORTAL_USERNAME:-}
@@ -115,6 +116,7 @@ services:
       - /app/node_modules
       - ./uploads:/app/uploads
       - img_cache:/app/_cache
+    mem_limit: 6g
     networks:
       - frontend_net
       - backend_net

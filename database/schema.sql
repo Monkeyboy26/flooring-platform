@@ -138,6 +138,10 @@ CREATE TABLE orders (
     status VARCHAR(30) DEFAULT 'pending',
     bank_transfer_instructions JSONB,
     bank_transfer_expires_at TIMESTAMP,
+    notes TEXT,
+    measure_requested BOOLEAN DEFAULT false,
+    preferred_measure_date DATE,
+    preferred_measure_time VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -679,6 +683,7 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_set BOOLEAN DEFAULT true
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS assigned_rep_id UUID REFERENCES sales_reps(id);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS created_via VARCHAR(30);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS google_id TEXT UNIQUE;
 
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
 ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);

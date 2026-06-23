@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 
 export default function createCustomerRoutes(ctx) {
   const router = Router();
@@ -40,7 +41,7 @@ export default function createCustomerRoutes(ctx) {
             [hash, salt, first_name, last_name, phone || null, existing.rows[0].id]
           );
           const custResult = await pool.query(
-            'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip FROM customers WHERE id = $1',
+            'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via FROM customers WHERE id = $1',
             [existing.rows[0].id]
           );
           const customer = custResult.rows[0];
@@ -56,7 +57,7 @@ export default function createCustomerRoutes(ctx) {
       const { hash, salt } = hashPassword(password);
       const result = await pool.query(
         `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, password_set)
-         VALUES ($1, $2, $3, $4, $5, $6, true) RETURNING id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip`,
+         VALUES ($1, $2, $3, $4, $5, $6, true) RETURNING id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via`,
         [email.toLowerCase(), hash, salt, first_name, last_name, phone || null]
       );
       const customer = result.rows[0];
@@ -86,7 +87,7 @@ export default function createCustomerRoutes(ctx) {
       email = String(email).trim().slice(0, 255);
 
       const result = await pool.query(
-        'SELECT id, email, password_hash, password_salt, first_name, last_name, phone, password_set, address_line1, address_line2, city, state, zip FROM customers WHERE email = $1',
+        'SELECT id, email, password_hash, password_salt, first_name, last_name, phone, password_set, created_via, address_line1, address_line2, city, state, zip FROM customers WHERE email = $1',
         [email.toLowerCase()]
       );
       if (!result.rows.length) {
@@ -114,7 +115,7 @@ export default function createCustomerRoutes(ctx) {
 
       res.json({
         token,
-        customer: { id: cust.id, email: cust.email, first_name: cust.first_name, last_name: cust.last_name, phone: cust.phone, address_line1: cust.address_line1, address_line2: cust.address_line2, city: cust.city, state: cust.state, zip: cust.zip }
+        customer: { id: cust.id, email: cust.email, first_name: cust.first_name, last_name: cust.last_name, phone: cust.phone, address_line1: cust.address_line1, address_line2: cust.address_line2, city: cust.city, state: cust.state, zip: cust.zip, password_set: cust.password_set, created_via: cust.created_via }
       });
     } catch (err) {
       console.error('Customer login error:', err);
@@ -144,7 +145,7 @@ export default function createCustomerRoutes(ctx) {
           address_line2 = COALESCE($5, address_line2), city = COALESCE($6, city),
           state = COALESCE($7, state), zip = COALESCE($8, zip), updated_at = CURRENT_TIMESTAMP
          WHERE id = $9
-         RETURNING id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip`,
+         RETURNING id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via`,
         [first_name, last_name, phone, address_line1, address_line2, city, state, zip, req.customer.id]
       );
       res.json({ customer: result.rows[0] });
@@ -244,7 +245,7 @@ export default function createCustomerRoutes(ctx) {
       await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
         [customerId, sessionToken, expiresAt]);
       const custResult = await pool.query(
-        'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip FROM customers WHERE id = $1',
+        'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via FROM customers WHERE id = $1',
         [customerId]
       );
 
@@ -252,6 +253,97 @@ export default function createCustomerRoutes(ctx) {
     } catch (err) {
       console.error('Reset password error:', err);
       res.status(500).json({ error: 'Failed to reset password' });
+    }
+  });
+
+  // ==================== Google OAuth ====================
+
+  router.post('/api/customer/auth/google', async (req, res) => {
+    try {
+      const { credential } = req.body;
+      if (!credential) return res.status(400).json({ error: 'Missing credential' });
+
+      const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+      if (!clientId) return res.status(500).json({ error: 'Google Sign-In is not configured' });
+
+      const client = new OAuth2Client(clientId);
+      let ticket;
+      try {
+        ticket = await client.verifyIdToken({ idToken: credential, audience: clientId });
+      } catch (verifyErr) {
+        console.error('Google token verification failed:', verifyErr.message);
+        return res.status(401).json({ error: 'Invalid Google credential' });
+      }
+
+      const payload = ticket.getPayload();
+      const googleId = payload.sub;
+      const email = payload.email?.toLowerCase();
+      const firstName = payload.given_name || '';
+      const lastName = payload.family_name || '';
+
+      if (!email) return res.status(400).json({ error: 'Google account has no email' });
+
+      // 1. Lookup by google_id
+      let existing = await pool.query(
+        'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via, google_id FROM customers WHERE google_id = $1',
+        [googleId]
+      );
+
+      if (!existing.rows.length) {
+        // 2. Lookup by email
+        existing = await pool.query(
+          'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via, google_id FROM customers WHERE email = $1',
+          [email]
+        );
+      }
+
+      let customer;
+
+      if (existing.rows.length) {
+        customer = existing.rows[0];
+
+        // Link google_id if not already set
+        if (!customer.google_id) {
+          await pool.query('UPDATE customers SET google_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [googleId, customer.id]);
+        }
+
+        // Rep-created account (password_set=false): claim it
+        if (customer.password_set === false) {
+          await pool.query(
+            `UPDATE customers SET first_name = COALESCE(NULLIF($1, ''), first_name), last_name = COALESCE(NULLIF($2, ''), last_name),
+             password_set = true, google_id = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
+            [firstName, lastName, googleId, customer.id]
+          );
+          // Re-fetch updated customer
+          const updated = await pool.query(
+            'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via FROM customers WHERE id = $1',
+            [customer.id]
+          );
+          customer = updated.rows[0];
+        }
+      } else {
+        // 3. New user — create with placeholder password
+        const placeholderHash = 'google_oauth_no_password';
+        const placeholderSalt = 'google_oauth_no_password';
+        const result = await pool.query(
+          `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, password_set, created_via, google_id)
+           VALUES ($1, $2, $3, $4, $5, false, 'google', $6)
+           RETURNING id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via`,
+          [email, placeholderHash, placeholderSalt, firstName, lastName, googleId]
+        );
+        customer = result.rows[0];
+      }
+
+      // Create session
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
+        [customer.id, token, expiresAt]);
+
+      res.json({ token, customer });
+    } catch (err) {
+      console.error('Google auth error:', err);
+      res.status(500).json({ error: 'Google sign-in failed' });
     }
   });
 

@@ -121,7 +121,8 @@ export function createAuthMiddleware(pool) {
     try {
       const result = await pool.query(`
         SELECT cs.id as session_id, c.id, c.email, c.first_name, c.last_name, c.phone,
-          c.address_line1, c.address_line2, c.city, c.state, c.zip
+          c.address_line1, c.address_line2, c.city, c.state, c.zip,
+          c.password_set, c.created_via
         FROM customer_sessions cs
         JOIN customers c ON c.id = cs.customer_id
         WHERE cs.token = $1 AND cs.expires_at > CURRENT_TIMESTAMP
@@ -146,7 +147,8 @@ export function createAuthMiddleware(pool) {
     try {
       const result = await pool.query(`
         SELECT cs.id as session_id, c.id, c.email, c.first_name, c.last_name, c.phone,
-          c.address_line1, c.address_line2, c.city, c.state, c.zip
+          c.address_line1, c.address_line2, c.city, c.state, c.zip,
+          c.password_set, c.created_via
         FROM customer_sessions cs
         JOIN customers c ON c.id = cs.customer_id
         WHERE cs.token = $1 AND cs.expires_at > CURRENT_TIMESTAMP

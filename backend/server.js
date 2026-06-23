@@ -105,7 +105,9 @@ app.use('/api/staff/login', authLimiter);
 app.use('/api/trade/login', authLimiter);
 app.use('/api/rep/login', authLimiter);
 app.use('/api/customer/login', authLimiter);
+app.use('/api/customer/register', registrationLimiter);
 app.use('/api/customer/reset-password', authLimiter);
+app.use('/api/customer/forgot-password', authLimiter);
 app.use('/api/checkout', checkoutLimiter);
 app.use('/api/storefront/search/suggest', searchLimiter);
 app.use('/api/trade/register', registrationLimiter);
@@ -9162,6 +9164,10 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
       label: 'Mapei — Fill Missing Products (Grout, Caulk, Thinset)', source_type: 'website',
       base_url: 'https://www.lowes.com', categories: []
     },
+    'orion': {
+      label: 'Orion Flooring Catalog', source_type: 'website',
+      base_url: 'https://orionflooring.com', categories: ['Porcelain', 'Vinyl', 'Countertop Slab']
+    },
   };
   try {
     const fs = await import('fs');
@@ -13332,13 +13338,16 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
     const items = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color, pr.cost as vendor_cost
+        sa_c.value as color, pr.cost as vendor_cost, s.variant_type,
+        cat.name as category_name,
+        (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
+      LEFT JOIN categories cat ON cat.id = p.category_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1
@@ -13358,13 +13367,29 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
     const paymentRequests = await pool.query('SELECT * FROM payment_requests WHERE order_id = $1 ORDER BY created_at DESC', [id]);
     const balanceInfo = await recalculateBalance(pool, id);
 
+    const commission = await pool.query(`
+      SELECT rc.*, sr.first_name || ' ' || sr.last_name as rep_name
+      FROM rep_commissions rc
+      LEFT JOIN sales_reps sr ON sr.id = rc.rep_id
+      WHERE rc.order_id = $1
+    `, [id]);
+
+    const invoices = await pool.query(`
+      SELECT id, invoice_number, issue_date, due_date, subtotal, tax_amount, shipping,
+        discount_amount, total, amount_paid, balance, status, sent_at, paid_at, notes, created_at
+      FROM invoices WHERE order_id = $1
+      ORDER BY created_at DESC
+    `, [id]);
+
     res.json({
       order: order.rows[0],
       items: items.rows,
       price_adjustments: adjustments.rows,
       payments: payments.rows,
       payment_requests: paymentRequests.rows,
-      balance: balanceInfo
+      balance: balanceInfo,
+      commission: commission.rows[0] || null,
+      invoices: invoices.rows
     });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -17500,6 +17525,10 @@ app.get('/api/config/stripe-key', (req, res) => {
 // GET /api/config/google-places-key — public API key for Google Places autocomplete
 app.get('/api/config/google-places-key', (req, res) => {
   res.json({ key: process.env.GOOGLE_PLACES_API_KEY || '' });
+});
+
+app.get('/api/config/google-client-id', (req, res) => {
+  res.json({ clientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '' });
 });
 
 // GET /api/rep/config/google-places-key — API key for Google Places autocomplete
