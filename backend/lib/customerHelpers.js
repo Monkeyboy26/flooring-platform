@@ -42,10 +42,11 @@ export function createCustomerHelpers(hashPassword, sendWelcomeSetPassword) {
 
     // 3. Generate password-set token (7-day expiry)
     const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await client.query(
       'UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3',
-      [token, expires, newCustomer.id]
+      [tokenHash, expires, newCustomer.id]
     );
 
     // 4. Send welcome email asynchronously (fire after transaction commits)

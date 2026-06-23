@@ -13,10 +13,14 @@ export default function createCustomerRoutes(ctx) {
 
   router.post('/api/customer/register', async (req, res) => {
     try {
-      const { email, password, first_name, last_name, phone } = req.body;
+      let { email, password, first_name, last_name, phone, newsletter } = req.body;
       if (!email || !password || !first_name || !last_name) {
         return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
       }
+      email = String(email).trim().slice(0, 255);
+      first_name = String(first_name).trim().slice(0, 100);
+      last_name = String(last_name).trim().slice(0, 100);
+      if (phone) phone = String(phone).trim().slice(0, 30);
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return res.status(400).json({ error: 'Invalid email address' });
       }
@@ -62,6 +66,10 @@ export default function createCustomerRoutes(ctx) {
       await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
         [customer.id, token, expiresAt]);
 
+      if (newsletter) {
+        await pool.query('INSERT INTO newsletter_subscribers (email) VALUES ($1) ON CONFLICT (email) DO NOTHING', [email.toLowerCase()]);
+      }
+
       res.json({ token, customer });
     } catch (err) {
       console.error('Customer register error:', err);
@@ -71,10 +79,11 @@ export default function createCustomerRoutes(ctx) {
 
   router.post('/api/customer/login', async (req, res) => {
     try {
-      const { email, password } = req.body;
+      let { email, password } = req.body;
       if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required' });
       }
+      email = String(email).trim().slice(0, 255);
 
       const result = await pool.query(
         'SELECT id, email, password_hash, password_salt, first_name, last_name, phone, password_set, address_line1, address_line2, city, state, zip FROM customers WHERE email = $1',
@@ -174,17 +183,19 @@ export default function createCustomerRoutes(ctx) {
 
   router.post('/api/customer/forgot-password', async (req, res) => {
     try {
-      const { email } = req.body;
+      let { email } = req.body;
       // Always return success to not leak whether email exists
       if (!email) return res.json({ success: true });
+      email = String(email).trim().slice(0, 255);
 
       const result = await pool.query('SELECT id, email FROM customers WHERE email = $1', [email.toLowerCase()]);
       if (result.rows.length) {
         const resetToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
         const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
         await pool.query(
           'UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3',
-          [resetToken, expires, result.rows[0].id]
+          [tokenHash, expires, result.rows[0].id]
         );
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
         const resetUrl = `${frontendUrl}?reset_token=${resetToken}`;
@@ -208,21 +219,36 @@ export default function createCustomerRoutes(ctx) {
         return res.status(400).json({ error: 'Password must be at least 8 characters with 1 uppercase letter and 1 number' });
       }
 
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
       const result = await pool.query(
         'SELECT id FROM customers WHERE password_reset_token = $1 AND password_reset_expires > CURRENT_TIMESTAMP',
-        [token]
+        [tokenHash]
       );
       if (!result.rows.length) {
         return res.status(400).json({ error: 'Invalid or expired reset link' });
       }
 
+      const customerId = result.rows[0].id;
       const { hash, salt } = hashPassword(new_password);
       await pool.query(
         'UPDATE customers SET password_hash = $1, password_salt = $2, password_set = true, password_reset_token = NULL, password_reset_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-        [hash, salt, result.rows[0].id]
+        [hash, salt, customerId]
       );
 
-      res.json({ success: true });
+      // Invalidate all existing sessions for this customer
+      await pool.query('DELETE FROM customer_sessions WHERE customer_id = $1', [customerId]);
+
+      // Create a new session so the user is auto-logged in
+      const sessionToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
+        [customerId, sessionToken, expiresAt]);
+      const custResult = await pool.query(
+        'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip FROM customers WHERE id = $1',
+        [customerId]
+      );
+
+      res.json({ success: true, token: sessionToken, customer: custResult.rows[0] });
     } catch (err) {
       console.error('Reset password error:', err);
       res.status(500).json({ error: 'Failed to reset password' });
