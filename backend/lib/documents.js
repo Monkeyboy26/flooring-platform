@@ -268,12 +268,14 @@ export function getDocumentFooter(terms) {
   `;
 }
 
-export async function generatePDF(html, filename, req, res) {
+export async function generatePDF(html, filename, req, res, options = {}) {
   // Preview mode: return HTML directly for iframe rendering
   if (req.query.preview === 'true') {
     res.set('Content-Type', 'text/html');
     return res.send(html);
   }
+  const defaultMargin = { top: '0.6in', bottom: '0.6in', left: '0.65in', right: '0.65in' };
+  const margin = options.margin || defaultMargin;
   try {
     const puppeteer = await import('puppeteer');
     const browser = await puppeteer.default.launch({
@@ -282,8 +284,8 @@ export async function generatePDF(html, filename, req, res) {
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'domcontentloaded' });
-    const pdf = await page.pdf({ format: 'Letter', margin: { top: '0.6in', bottom: '0.6in', left: '0.65in', right: '0.65in' } });
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 15000 });
+    const pdf = await page.pdf({ format: 'Letter', margin });
     await browser.close();
     res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${filename}"` });
     res.send(pdf);
@@ -294,7 +296,9 @@ export async function generatePDF(html, filename, req, res) {
   }
 }
 
-export async function generatePDFBuffer(html) {
+export async function generatePDFBuffer(html, options = {}) {
+  const defaultMargin = { top: '0.6in', bottom: '0.6in', left: '0.65in', right: '0.65in' };
+  const margin = options.margin || defaultMargin;
   const puppeteer = await import('puppeteer');
   const browser = await puppeteer.default.launch({
     headless: true,
@@ -302,105 +306,254 @@ export async function generatePDFBuffer(html) {
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
   const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'domcontentloaded' });
-  const pdf = await page.pdf({ format: 'Letter', margin: { top: '0.6in', bottom: '0.6in', left: '0.65in', right: '0.65in' } });
+  await page.setContent(html, { waitUntil: 'networkidle0', timeout: 15000 });
+  const pdf = await page.pdf({ format: 'Letter', margin });
   await browser.close();
   return Buffer.from(pdf);
 }
 
 export async function generatePOHtml(pool, poId) {
   const po = await pool.query(`
-    SELECT po.*, v.name as vendor_name, v.code as vendor_code, v.email as vendor_email,
-      sa.first_name || ' ' || sa.last_name as approved_by_name,
-      o.order_number
+    SELECT po.*,
+      v.name as vendor_name, v.code as vendor_code, v.email as vendor_email, v.edi_config,
+      COALESCE(sa.first_name || ' ' || sa.last_name, sr_a.first_name || ' ' || sr_a.last_name) as approved_by_name,
+      COALESCE(sa.email, sr_a.email) as approver_email,
+      o.order_number, o.sales_rep_id,
+      sr_b.first_name || ' ' || sr_b.last_name as buyer_name,
+      sr_b.email as buyer_email
     FROM purchase_orders po
     JOIN vendors v ON v.id = po.vendor_id
     LEFT JOIN staff_accounts sa ON sa.id = po.approved_by
+    LEFT JOIN sales_reps sr_a ON sr_a.id = po.approved_by
     LEFT JOIN orders o ON o.id = po.order_id
+    LEFT JOIN sales_reps sr_b ON sr_b.id = o.sales_rep_id
     WHERE po.id = $1
   `, [poId]);
   if (!po.rows.length) return null;
   const p = po.rows[0];
+
   const items = await pool.query(`
-    SELECT poi.*, pr.collection, sk.variant_name, sa_c.value as color
+    SELECT poi.*, ma.url as primary_image, sk.internal_sku
     FROM purchase_order_items poi
     LEFT JOIN skus sk ON sk.id = poi.sku_id
-    LEFT JOIN products pr ON pr.id = sk.product_id
-    LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = poi.sku_id
-      AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+    LEFT JOIN media_assets ma ON ma.sku_id = poi.sku_id AND ma.asset_type = 'primary'
     WHERE poi.purchase_order_id = $1 ORDER BY poi.created_at
   `, [poId]);
 
-  const statusClass = p.status ? 'badge-' + p.status : 'badge-draft';
+  // -- Derived values --
+  const buyerName = p.buyer_name || p.approved_by_name || '\u2014';
+  const buyerEmail = p.buyer_email || p.approver_email || '';
 
-  const html = `<!DOCTYPE html><html><head><style>
-    ${getDocumentBaseCSS()}
-  </style></head><body>
-    <div class="page">
-      ${getDocumentHeader('Purchase Order')}
+  const fmtDate = (d) => {
+    if (!d) return '\u2014';
+    const dt = new Date(d);
+    return dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+  const fmtShortDate = (d) => {
+    if (!d) return '\u2014';
+    const dt = new Date(d);
+    const m = dt.toLocaleDateString('en-US', { month: 'short' });
+    const day = dt.getDate();
+    const yr = dt.getFullYear();
+    const h = dt.getHours();
+    const min = dt.getMinutes().toString().padStart(2, '0');
+    const ampm = h >= 12 ? 'p' : 'a';
+    const h12 = h % 12 || 12;
+    return `${m} ${day}, ${yr} &middot; ${h12}:${min}${ampm}`;
+  };
 
-      <div class="doc-banner">
-        <div class="doc-banner-left">
-          <div class="meta-group">
-            <p class="meta-label">PO Number</p>
-            <p class="meta-value">${p.po_number}</p>
+  const statusDotClass = {
+    draft: 'dot-draft', sent: 'dot-sent', acknowledged: 'dot-ack',
+    fulfilled: 'dot-fulfilled', cancelled: 'dot-cancelled'
+  }[p.status] || 'dot-draft';
+  const statusLabel = (p.status || 'draft').toUpperCase();
+
+  const ediConfig = p.edi_config || {};
+  const ediId = ediConfig.receiver_id || '';
+  const shipTo = p.ship_to || 'Roma Anaheim Warehouse\n1440 S. State College Blvd\nAnaheim, CA 92806';
+  const shipLines = shipTo.split('\n');
+
+  const ink = '#1c1917';
+  const muted = '#8a7e68';
+  const accent = '#a87935';
+  const warm = '#d8cdb6';
+  const cool = '#c4bba5';
+  const mono = "ui-monospace, monospace";
+  const serif = "'Cormorant Garamond', 'Times New Roman', serif";
+  const sans = "'Inter', system-ui, sans-serif";
+  const subtotal = parseFloat(p.subtotal || 0);
+
+  // Approved stamp: show when PO has been approved/sent
+  const showApprovedStamp = ['sent', 'acknowledged', 'fulfilled'].includes(p.status);
+  const stampLabel = p.status === 'acknowledged' ? 'Acknowledged' : 'Approved &amp; sent';
+
+  const html = `<!DOCTYPE html><html><head>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <style>
+    :root{
+      --roma-serif:${serif};
+      --roma-sans:${sans};
+      --ink:${ink};--muted:${muted};--accent:${accent};--warm:${warm};--cool:${cool};
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{margin:0;padding:0;height:100%}
+    body{font-family:var(--roma-sans);color:var(--ink);font-size:11px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+    ol{margin:0;padding-left:14px;display:grid;gap:4px}
+    </style>
+    <script>document.fonts&&document.fonts.ready.then(function(){})</script>
+    </head><body>
+    <div style="width:100%;height:100%;background:#fff;color:${ink};font-family:${sans};padding:48px 56px 40px;box-sizing:border-box;display:grid;grid-template-rows:auto auto auto 1fr auto;gap:0;font-size:11px">
+
+      <!-- HEADER -->
+      <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid ${ink}22">
+        <div>
+          <div style="font:300 36px/1 ${serif};letter-spacing:-0.014em;color:${ink}">Roma</div>
+          <div style="margin-top:4px;font:500 8px/1 ${mono};letter-spacing:0.22em;text-transform:uppercase;color:${muted}">Flooring &middot; Surfaces &middot; Since 1999</div>
+          <div style="margin-top:14px;font:400 10px/1.5 ${sans};color:${ink}cc">
+            Roma Flooring Designs, Inc.<br>
+            1440 S. State College Blvd, Anaheim, CA 92806<br>
+            (714) 999-0009 &middot; orders@romaflooringdesigns.com<br>
+            CSLB #874621
           </div>
-          <div class="meta-group">
-            <p class="meta-label">Date</p>
-            <p class="meta-value-sm">${new Date(p.created_at).toLocaleDateString()}</p>
+        </div>
+        <div style="text-align:right;min-width:240px">
+          <div style="font:500 9px/1 ${mono};letter-spacing:0.22em;text-transform:uppercase;color:${muted}">Purchase order</div>
+          <div style="font:300 30px/1 ${serif};letter-spacing:-0.014em;color:${ink};margin-top:6px">${p.po_number}</div>
+          <div style="margin-top:12px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 ${sans};text-align:left">
+            <span style="color:${muted}">Issued</span>
+            <span style="color:${ink};text-align:right">${fmtDate(p.created_at)}</span>
+            ${p.expected_delivery ? `<span style="color:${muted}">Expected</span><span style="color:${ink};text-align:right">${fmtDate(p.expected_delivery)}</span>` : ''}
+            ${p.order_number ? `<span style="color:${muted}">Customer ref</span><span style="color:${ink};text-align:right">${p.order_number}</span>` : ''}
+            <span style="color:${muted}">Revision</span>
+            <span style="color:${ink};text-align:right">${p.revision || 0}</span>
+            <span style="color:${muted}">Status</span>
+            <span style="color:${accent};text-align:right;font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase">&#9679; ${statusLabel}</span>
           </div>
-          ${p.order_number ? `<div class="meta-group">
-            <p class="meta-label">Order</p>
-            <p class="meta-value-sm">${p.order_number}</p>
-          </div>` : ''}
+        </div>
+      </div>
+
+      <!-- APPROVED STAMP -->
+      <div style="display:grid;grid-template-columns:1fr auto;gap:24px;padding:14px 0;margin-bottom:4px;border-bottom:1px solid ${ink}11">
+        <div style="font:500 9px/1.4 ${sans};letter-spacing:0.06em;color:${ink}cc">
+          This purchase order is binding upon vendor acknowledgment. Reference <strong style="color:${ink}">${p.po_number}</strong> on all packing slips, invoices, BOLs, and shipping documents. Vendor to confirm via X12 855 or email reply within 1 business day. Pricing locked at the costs below; any change requires Roma&rsquo;s written approval.
+        </div>
+        ${showApprovedStamp ? `<div style="display:flex;align-items:center;gap:0;padding:8px 14px;border:1.5px solid ${accent};color:${accent};font:500 11px/1 ${mono};letter-spacing:0.32em;text-transform:uppercase;transform:rotate(-2deg)">${stampLabel}</div>` : ''}
+      </div>
+
+      <!-- BUYER / VENDOR / SHIP-TO -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:16px 0 20px;border-bottom:1px solid ${ink}22">
+        <div>
+          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Buyer</div>
+          <div style="font:500 11px/1.2 ${sans};color:${ink}">${buyerName}</div>
+          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">
+            Sales rep<br>${buyerEmail}
+            ${p.approved_by_name ? `<br><br><span style="color:${muted}">Approved by</span><br>${p.approved_by_name}<br>${fmtShortDate(p.approved_at)}` : ''}
+          </div>
         </div>
         <div>
-          <span class="badge ${statusClass}">${p.status || 'draft'}</span>
-          ${p.is_revised ? ' <span class="badge badge-revised">Revised</span>' : ''}
+          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Sold by &middot; ${p.vendor_code}</div>
+          <div style="font:500 11px/1.2 ${sans};color:${ink}">${p.vendor_name}</div>
+          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">
+            ${p.vendor_email || ''}
+          </div>
+        </div>
+        <div>
+          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Ship to</div>
+          <div style="font:500 11px/1.2 ${sans};color:${ink}">${shipLines[0] || ''}</div>
+          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">${shipLines.slice(1).join('<br>')}</div>
+          <div style="margin-top:8px;padding:6px 10px;background:${warm};font:500 9px/1.4 ${mono};letter-spacing:0.14em;text-transform:uppercase;color:${ink};display:inline-block">&#9679; Receiving &middot; Mon&ndash;Fri &middot; 7a&ndash;4p PT</div>
+          <div style="font:400 10px/1.5 ${sans};color:${ink}99;margin-top:6px">28&rsquo; truck max &middot; forklift on-site</div>
+          ${ediId ? `<div style="margin-top:10px;font:400 10px/1.5 ${sans};color:${muted}">EDI: <span style="color:${ink}">${ediId}</span></div>` : ''}
         </div>
       </div>
 
-      <div class="info-row">
-        <div class="info-card">
-          <h3>Vendor</h3>
-          <p><strong>${p.vendor_name}</strong><br/>Code: ${p.vendor_code}${p.vendor_email ? '<br/>' + p.vendor_email : ''}</p>
+      <!-- LINE ITEMS -->
+      <div style="padding-top:18px">
+        <div style="display:grid;grid-template-columns:28px 110px 1fr 70px 60px 80px 110px;gap:10px;padding:0 0 10px;border-bottom:1px solid ${ink}33;font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted}">
+          <span>Ln</span><span>Vendor SKU</span><span>Description</span>
+          <span style="text-align:right">Qty</span><span>UOM</span>
+          <span style="text-align:right">Unit cost</span><span style="text-align:right">Line subtotal</span>
         </div>
-        <div class="info-card">
-          <h3>Ship To</h3>
-          <p><strong>Roma Flooring Designs</strong><br/>1440 S. State College Blvd., Suite 6M<br/>Anaheim, CA 92806</p>
-        </div>
+        ${items.rows.map((it, idx) => {
+          const ln = String(idx + 1).padStart(2, '0');
+          const vsku = it.vendor_sku || '\u2014';
+          const rsku = it.internal_sku ? `Roma ${it.internal_sku}` : '';
+          const imgHtml = it.primary_image
+            ? `<img src="${it.primary_image}" style="width:32px;height:32px;object-fit:cover;flex-shrink:0;border:0.5px solid ${ink}22" />`
+            : '';
+          const desc = it.product_name || it.description || '\u2014';
+          const dyeLot = it.dye_lot || '\u2014';
+          const uom = (it.sell_by || 'unit').toUpperCase();
+          const cost = parseFloat(it.cost || 0).toFixed(2);
+          const sub = parseFloat(it.subtotal || 0).toFixed(2);
+          const isLast = idx === items.rows.length - 1;
+          return `<div style="display:grid;grid-template-columns:28px 110px 1fr 70px 60px 80px 110px;gap:10px;padding:12px 0;border-bottom:${isLast ? 'none' : `1px solid ${ink}11`};align-items:flex-start">
+            <span style="font:400 11px/1.4 ${serif};color:${muted}">${ln}</span>
+            <div>
+              <div style="font:500 10px/1.2 ${mono};color:${ink};letter-spacing:0.04em">${vsku}</div>
+              ${rsku ? `<div style="font:400 9px/1.4 ${sans};color:${muted};margin-top:2px">${rsku}</div>` : ''}
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              ${imgHtml}
+              <div>
+                <div style="font:500 11px/1.3 ${sans};color:${ink};letter-spacing:-0.004em">${desc}</div>
+                <div style="font:500 9px/1.4 ${mono};letter-spacing:0.12em;color:${muted};text-transform:uppercase;margin-top:3px">Dye lot: ${dyeLot}</div>
+              </div>
+            </div>
+            <div style="text-align:right;font:400 12px/1.2 ${serif};color:${ink};letter-spacing:-0.005em">${it.qty}</div>
+            <div style="font:500 9px/1.4 ${mono};color:${muted};text-transform:uppercase">${uom}</div>
+            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${ink};letter-spacing:-0.005em">$${cost}</div>
+            <div style="text-align:right;font:500 12px/1.2 ${serif};color:${ink};letter-spacing:-0.005em">$${sub}</div>
+          </div>`;
+        }).join('')}
       </div>
 
-      <table>
-        <thead><tr>
-          <th>Description</th><th>Vendor SKU</th>
-          <th class="text-right">Qty</th>
-          <th class="text-right">Cost</th><th class="text-right">Subtotal</th>
-        </tr></thead>
-        <tbody>
-          ${items.rows.map(i => {
-            const isUnit = i.sell_by === 'unit';
-            return `<tr>
-              <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td>
-              <td>${i.vendor_sku || '\u2014'}</td>
-              <td class="text-right">${i.qty}${isUnit ? '' : ' box' + (i.qty > 1 ? 'es' : '')}</td>
-              <td class="text-right">$${parseFloat(i.cost).toFixed(2)}${isUnit ? '/ea' : '/sqft'}</td>
-              <td class="text-right">$${parseFloat(i.subtotal).toFixed(2)}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
+      <!-- TERMS + TOTALS + SIGNATURES + FOOTER (5th grid row) -->
+      <div>
+        <div style="display:grid;grid-template-columns:1fr 220px;gap:28px;margin-top:12px">
+          <div style="padding-top:4px;font:400 9.5px/1.55 ${sans};color:${ink}cc">
+            <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Terms</div>
+            <ol>
+              <li>Freight + tax to be billed via 810 invoice (AP bill); not included on this PO.</li>
+              <li>Vendor to confirm receipt and acknowledge via X12 855 EDI or email reply within 1 business day.</li>
+              <li>Substitutions require Roma written approval before fulfillment.</li>
+              <li>Reference PO number on all packing slips, invoices, and shipping documents.</li>
+            </ol>
+            ${p.notes ? `<div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:6px;margin-top:14px">Notes to vendor</div><div style="font-style:italic">${p.notes}</div>` : ''}
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Lines</span><span style="color:${ink}">${items.rows.length}</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Subtotal</span><span style="color:${ink}">$${subtotal.toFixed(2)}</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Freight</span><span style="color:${muted};font-style:italic">By vendor invoice</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Tax</span><span style="color:${muted};font-style:italic">By vendor invoice</span></div>
+            <div style="margin-top:8px;padding-top:8px;border-top:1.5px solid ${ink};display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font:500 10px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${ink}">PO total &middot; USD</span>
+              <span style="font:300 26px/1 ${serif};letter-spacing:-0.012em;color:${ink}">$${subtotal.toFixed(2)}</span>
+            </div>
+            <div style="margin-top:4px;font:500 9px/1 ${mono};letter-spacing:0.14em;color:${muted};text-transform:uppercase;text-align:right">Materials only &middot; Freight + tax billed on 810</div>
+          </div>
+        </div>
 
-      <div class="totals-wrapper">
-        <div class="totals-box">
-          <div class="totals-line grand-total"><span>PO Total</span><span>$${parseFloat(p.subtotal || 0).toFixed(2)}</span></div>
+        <!-- SIGNATURES -->
+        <div style="margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:36px">
+          <div>
+            <div style="border-bottom:1px solid ${ink}66;padding-bottom:4px;font:400 12px/1 ${serif};color:${ink};font-style:italic">${p.approved_by_name || '\u2014'}</div>
+            <div style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted};margin-top:6px">Roma &middot; Approver${p.approved_at ? ` &middot; ${fmtShortDate(p.approved_at)}` : ''}</div>
+          </div>
+          <div>
+            <div style="border-bottom:1px solid ${ink}66;padding-bottom:4px;font:400 12px/1 ${serif};color:${muted}">&mdash;</div>
+            <div style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted};margin-top:6px">Vendor acknowledgment &middot; expected within 1 business day</div>
+          </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid ${ink}22;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 ${sans};color:${muted}">
+          <span>Roma Flooring Designs, Inc. &middot; 1440 S. State College Blvd &middot; Anaheim, CA 92806 &middot; CSLB #874621</span>
+          <span style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase">${p.po_number} &middot; Rev ${p.revision || 0} &middot; Page 1 / 1</span>
         </div>
       </div>
-
-      ${p.notes ? `<div class="notes-block"><h4>Notes</h4><div>${p.notes}</div></div>` : ''}
-      ${p.approved_by_name ? `<div class="approval-line">Approved by ${p.approved_by_name} on ${new Date(p.approved_at).toLocaleDateString()}</div>` : ''}
-
-      ${getDocumentFooter()}
     </div>
   </body></html>`;
 

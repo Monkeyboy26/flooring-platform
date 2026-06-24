@@ -9564,7 +9564,7 @@ app.post('/api/staff/login', async (req, res) => {
 });
 
 // Verify 2FA code
-app.post('/api/staff/verify-2fa', async (req, res) => {
+app.post('/api/staff/verify-2fa', authLimiter, async (req, res) => {
   try {
     const { staff_id, code, trust_device, device_fingerprint } = req.body;
     if (!staff_id || !code) return res.status(400).json({ error: 'Staff ID and code are required' });
@@ -11088,13 +11088,8 @@ app.get('/api/trade/visits/:id', tradeAuth, async (req, res) => {
   }
 });
 
-// Quote PDF download - accepts token from header or query param (for browser popup)
-app.get('/api/trade/quotes/:id/pdf', (req, res, next) => {
-  if (!req.headers['x-trade-token'] && req.query.token) {
-    req.headers['x-trade-token'] = req.query.token;
-  }
-  next();
-}, tradeAuth, async (req, res) => {
+// Quote PDF download
+app.get('/api/trade/quotes/:id/pdf', tradeAuth, async (req, res) => {
   try {
     const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
@@ -11346,13 +11341,8 @@ async function generateSampleRequestConfirmationHtml(sampleRequestId) {
 
 // ==================== Packing Slip & Invoice Endpoints (Phase 7) ====================
 
-// Packing slip - accepts token from header or query param (for browser popup)
-app.get('/api/staff/orders/:id/packing-slip', async (req, res, next) => {
-  if (!req.headers['x-staff-token'] && req.query.token) {
-    req.headers['x-staff-token'] = req.query.token;
-  }
-  next();
-}, staffAuth, async (req, res) => {
+// Packing slip PDF
+app.get('/api/staff/orders/:id/packing-slip', staffAuth, async (req, res) => {
   try {
     const result = await generateOrderPackingSlipHtml(req.params.id);
     if (!result) return res.status(404).json({ error: 'Order not found' });
@@ -11362,13 +11352,8 @@ app.get('/api/staff/orders/:id/packing-slip', async (req, res, next) => {
   }
 });
 
-// Invoice PDF - accepts token from header or query param
-app.get('/api/staff/orders/:id/invoice', async (req, res, next) => {
-  if (!req.headers['x-staff-token'] && req.query.token) {
-    req.headers['x-staff-token'] = req.query.token;
-  }
-  next();
-}, staffAuth, async (req, res) => {
+// Invoice PDF
+app.get('/api/staff/orders/:id/invoice', staffAuth, async (req, res) => {
   try {
     const result = await generateOrderInvoiceHtml(req.params.id);
     if (!result) return res.status(404).json({ error: 'Order not found' });
@@ -15117,12 +15102,7 @@ app.get('/api/rep/orders/:id/documents', repAuth, async (req, res) => {
 
 // ==================== Rep Invoice & Packing Slip ====================
 
-app.get('/api/rep/orders/:id/invoice', async (req, res, next) => {
-  if (!req.headers['x-rep-token'] && req.query.token) {
-    req.headers['x-rep-token'] = req.query.token;
-  }
-  next();
-}, repAuth, async (req, res) => {
+app.get('/api/rep/orders/:id/invoice', repAuth, async (req, res) => {
   try {
     const result = await generateOrderInvoiceHtml(req.params.id);
     if (!result) return res.status(404).json({ error: 'Order not found' });
@@ -15132,12 +15112,7 @@ app.get('/api/rep/orders/:id/invoice', async (req, res, next) => {
   }
 });
 
-app.get('/api/rep/orders/:id/packing-slip', async (req, res, next) => {
-  if (!req.headers['x-rep-token'] && req.query.token) {
-    req.headers['x-rep-token'] = req.query.token;
-  }
-  next();
-}, repAuth, async (req, res) => {
+app.get('/api/rep/orders/:id/packing-slip', repAuth, async (req, res) => {
   try {
     const result = await generateOrderPackingSlipHtml(req.params.id);
     if (!result) return res.status(404).json({ error: 'Order not found' });
@@ -15242,17 +15217,74 @@ app.post('/api/rep/orders/:id/send-invoice', repAuth, async (req, res) => {
 // ==================== Rep Purchase Order Endpoints ====================
 
 // List all POs (standalone + order-linked) with filters
+// PO summary stats (KPI cards + tab counts)
+app.get('/api/rep/purchase-orders/summary', repAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      WITH po_data AS (
+        SELECT po.id, po.status, po.subtotal, po.order_id, po.created_at,
+          po.edi_ack_status, po.revision,
+          COALESCE(v.edi_config->>'enabled', 'false') as edi_enabled,
+          (SELECT COUNT(*) FROM purchase_order_items poi WHERE poi.purchase_order_id = po.id) as item_count,
+          (SELECT COUNT(*) FROM purchase_order_items poi WHERE poi.purchase_order_id = po.id AND poi.status = 'received') as received_count,
+          (SELECT COUNT(*) FROM purchase_order_items poi WHERE poi.purchase_order_id = po.id AND poi.status NOT IN ('received','cancelled')) as pending_count
+        FROM purchase_orders po
+        JOIN vendors v ON v.id = po.vendor_id
+        WHERE po.status != 'cancelled'
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE status NOT IN ('fulfilled')) as open_count,
+        COALESCE(SUM(subtotal) FILTER (WHERE status NOT IN ('fulfilled')), 0) as outstanding_total,
+        COUNT(*) FILTER (WHERE status = 'sent' AND edi_ack_status IS NULL) as awaiting_ack,
+        COUNT(*) FILTER (WHERE status = 'sent' AND edi_ack_status IS NULL AND created_at < NOW() - interval '24 hours') as awaiting_ack_overdue,
+        COUNT(*) FILTER (WHERE status = 'draft' AND item_count > 0) as needs_review,
+        COALESCE(SUM(subtotal) FILTER (WHERE status = 'draft' AND item_count > 0), 0) as needs_review_total,
+        COUNT(*) FILTER (WHERE status = 'draft') as draft_count,
+        COUNT(*) FILTER (WHERE status = 'sent' AND edi_ack_status IS NOT NULL) as acknowledged_count,
+        COUNT(*) FILTER (WHERE (status = 'acknowledged' OR (status = 'sent' AND edi_ack_status IS NOT NULL)) AND received_count > 0 AND pending_count > 0) as partially_received,
+        COALESCE(SUM(pending_count) FILTER (WHERE (status = 'acknowledged' OR (status = 'sent' AND edi_ack_status IS NOT NULL)) AND received_count > 0 AND pending_count > 0), 0) as lines_short,
+        COUNT(*) FILTER (WHERE status IN ('sent','acknowledged') AND received_count = 0) as in_transit,
+        COUNT(*) FILTER (WHERE status = 'fulfilled') as received_count,
+        COUNT(*) as total_count,
+        COUNT(*) FILTER (WHERE order_id IS NULL) as standalone_count
+      FROM po_data
+    `);
+    res.json({ summary: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/api/rep/purchase-orders', repAuth, async (req, res) => {
   try {
-    const { status, vendor_id, search, date_from, date_to } = req.query;
+    const { status, vendor_id, search, date_from, date_to, tab, page, per_page, sort_by, sort_dir, edi_only } = req.query;
     const conditions = [];
     const params = [];
     let idx = 1;
 
-    if (status) { conditions.push(`po.status = $${idx++}`); params.push(status); }
+    // Tab-based filtering
+    if (tab === 'awaiting_ack') {
+      conditions.push(`po.status = 'sent' AND po.edi_ack_status IS NULL`);
+    } else if (tab === 'needs_review') {
+      conditions.push(`po.status = 'draft' AND (SELECT COUNT(*) FROM purchase_order_items poi2 WHERE poi2.purchase_order_id = po.id) > 0`);
+    } else if (tab === 'draft') {
+      conditions.push(`po.status = 'draft'`);
+    } else if (tab === 'in_transit') {
+      conditions.push(`po.status IN ('sent','acknowledged') AND (SELECT COUNT(*) FROM purchase_order_items poi2 WHERE poi2.purchase_order_id = po.id AND poi2.status = 'received') = 0`);
+    } else if (tab === 'partially_received') {
+      conditions.push(`(SELECT COUNT(*) FROM purchase_order_items poi2 WHERE poi2.purchase_order_id = po.id AND poi2.status = 'received') > 0`);
+      conditions.push(`(SELECT COUNT(*) FROM purchase_order_items poi2 WHERE poi2.purchase_order_id = po.id AND poi2.status NOT IN ('received','cancelled')) > 0`);
+    } else if (tab === 'received') {
+      conditions.push(`po.status = 'fulfilled'`);
+    } else if (tab === 'standalone') {
+      conditions.push(`po.order_id IS NULL`);
+    }
+
+    if (status && !tab) { conditions.push(`po.status = $${idx++}`); params.push(status); }
     if (vendor_id) { conditions.push(`po.vendor_id = $${idx++}`); params.push(vendor_id); }
     if (date_from) { conditions.push(`po.created_at >= $${idx++}`); params.push(date_from); }
     if (date_to) { conditions.push(`po.created_at <= $${idx++}::date + interval '1 day'`); params.push(date_to); }
+    if (edi_only === 'true') { conditions.push(`COALESCE(v.edi_config->>'enabled', 'false') = 'true'`); }
     if (search) {
       conditions.push(`(po.po_number ILIKE $${idx} OR v.name ILIKE $${idx} OR o.order_number ILIKE $${idx})`);
       params.push(`%${search}%`);
@@ -15260,25 +15292,51 @@ app.get('/api/rep/purchase-orders', repAuth, async (req, res) => {
     }
 
     const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    const limit = Math.min(parseInt(per_page) || 50, 200);
+    const offset = ((parseInt(page) || 1) - 1) * limit;
+
+    const allowedSorts = { po_number: 'po.po_number', vendor: 'v.name', subtotal: 'po.subtotal', expected: 'po.expected_delivery', created: 'po.created_at', status: 'po.status' };
+    const orderCol = allowedSorts[sort_by] || 'po.created_at';
+    const orderDir = sort_dir === 'asc' ? 'ASC' : 'DESC';
+
+    // Count total matching rows
+    const countResult = await pool.query(`
+      SELECT COUNT(*) as total
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      LEFT JOIN orders o ON o.id = po.order_id
+      ${where}
+    `, params);
 
     const result = await pool.query(`
       SELECT po.id, po.po_number, po.status, po.subtotal, po.created_at, po.updated_at,
-        po.order_id, po.vendor_id,
+        po.order_id, po.vendor_id, po.revision, po.edi_ack_status, po.edi_ack_received_at,
+        po.expected_delivery, po.ship_to, po.is_revised,
         v.name as vendor_name, v.code as vendor_code,
+        COALESCE(v.edi_config->>'enabled', 'false') as edi_enabled,
         o.order_number,
         (SELECT COUNT(*) FROM purchase_order_items poi WHERE poi.purchase_order_id = po.id) as item_count,
+        (SELECT COUNT(*) FROM purchase_order_items poi WHERE poi.purchase_order_id = po.id AND poi.status = 'received') as items_received,
+        (SELECT string_agg(DISTINCT poi.status, ',') FROM purchase_order_items poi WHERE poi.purchase_order_id = po.id) as item_statuses,
         sr.first_name || ' ' || sr.last_name as approved_by_name,
-        po.approved_at
+        po.approved_at,
+        (SELECT pal.action FROM po_activity_log pal WHERE pal.purchase_order_id = po.id ORDER BY pal.created_at DESC LIMIT 1) as last_action,
+        (SELECT pal.created_at FROM po_activity_log pal WHERE pal.purchase_order_id = po.id ORDER BY pal.created_at DESC LIMIT 1) as last_activity_at
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
       LEFT JOIN orders o ON o.id = po.order_id
       LEFT JOIN sales_reps sr ON sr.id = po.approved_by
       ${where}
-      ORDER BY po.created_at DESC
-      LIMIT 200
+      ORDER BY ${orderCol} ${orderDir}
+      LIMIT ${limit} OFFSET ${offset}
     `, params);
 
-    res.json({ purchase_orders: result.rows });
+    res.json({
+      purchase_orders: result.rows,
+      total: parseInt(countResult.rows[0].total),
+      page: parseInt(page) || 1,
+      per_page: limit
+    });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -15287,7 +15345,7 @@ app.get('/api/rep/purchase-orders', repAuth, async (req, res) => {
 // Create standalone PO (no order)
 app.post('/api/rep/purchase-orders', repAuth, async (req, res) => {
   try {
-    const { vendor_id, notes } = req.body;
+    const { vendor_id, notes, order_id, ship_to, expected_delivery, recipient_email, cc_emails } = req.body;
     if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required' });
 
     const vendor = await pool.query('SELECT id, code, name FROM vendors WHERE id = $1', [vendor_id]);
@@ -15297,16 +15355,16 @@ app.post('/api/rep/purchase-orders', repAuth, async (req, res) => {
     const poNumber = await getNextPONumber(vendorCode);
 
     const result = await pool.query(
-      `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes)
-       VALUES (NULL, $1, $2, 'draft', 0, $3) RETURNING *`,
-      [vendor_id, poNumber, notes || null]
+      `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes, ship_to, expected_delivery, recipient_email, cc_emails)
+       VALUES ($1, $2, $3, 'draft', 0, $4, $5, $6, $7, $8) RETURNING *`,
+      [order_id || null, vendor_id, poNumber, notes || null, ship_to || null, expected_delivery || null, recipient_email || null, cc_emails || '{}']
     );
 
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
     await pool.query(
       `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, details)
        VALUES ($1, 'created', $2, $3)`,
-      [result.rows[0].id, repName, JSON.stringify({ standalone: true })]
+      [result.rows[0].id, repName, JSON.stringify({ standalone: !order_id })]
     );
 
     res.json({ purchase_order: { ...result.rows[0], vendor_name: vendor.rows[0].name, vendor_code: vendorCode, item_count: 0 } });
@@ -15320,9 +15378,9 @@ app.get('/api/rep/purchase-orders/:poId/detail', repAuth, async (req, res) => {
   try {
     const { poId } = req.params;
     const po = await pool.query(`
-      SELECT po.*, v.name as vendor_name, v.code as vendor_code,
+      SELECT po.*, v.name as vendor_name, v.code as vendor_code, v.email as vendor_email, v.edi_config,
         sr.first_name || ' ' || sr.last_name as approved_by_name,
-        o.order_number
+        o.order_number, o.customer_name, o.customer_email, o.notes as order_notes
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
       LEFT JOIN sales_reps sr ON sr.id = po.approved_by
@@ -15331,17 +15389,97 @@ app.get('/api/rep/purchase-orders/:poId/detail', repAuth, async (req, res) => {
     `, [poId]);
     if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
 
-    const items = await pool.query(
-      'SELECT * FROM purchase_order_items WHERE purchase_order_id = $1 ORDER BY created_at',
-      [poId]
-    );
+    const poRow = po.rows[0];
+
+    // Get trade membership info if order is linked
+    let trade_tier = null;
+    let trade_company = null;
+    if (poRow.order_id) {
+      const tradeInfo = await pool.query(`
+        SELECT mt.name as tier, tc.company_name
+        FROM orders o
+        LEFT JOIN trade_customers tc ON tc.id = o.trade_customer_id
+        LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+        WHERE o.id = $1
+      `, [poRow.order_id]);
+      if (tradeInfo.rows.length) {
+        trade_tier = tradeInfo.rows[0].tier;
+        trade_company = tradeInfo.rows[0].company_name;
+      }
+    }
+
+    const items = await pool.query(`
+      SELECT poi.*, ma.url as primary_image
+      FROM purchase_order_items poi
+      LEFT JOIN media_assets ma ON ma.sku_id = poi.sku_id AND ma.asset_type = 'primary'
+      WHERE poi.purchase_order_id = $1
+      ORDER BY poi.created_at
+    `, [poId]);
 
     const activity = await pool.query(
       'SELECT * FROM po_activity_log WHERE purchase_order_id = $1 ORDER BY created_at DESC',
       [poId]
     );
 
-    res.json({ purchase_order: { ...po.rows[0], items: items.rows }, activity: activity.rows });
+    res.json({
+      purchase_order: { ...poRow, items: items.rows, trade_tier, trade_company },
+      activity: activity.rows
+    });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update draft PO fields
+app.put('/api/rep/purchase-orders/:poId', repAuth, async (req, res) => {
+  try {
+    const { poId } = req.params;
+    const { vendor_id, ship_to, expected_delivery, notes, recipient_email, cc_emails } = req.body;
+
+    const po = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+    if (po.rows[0].status !== 'draft') return res.status(400).json({ error: 'Only draft POs can be edited' });
+
+    const sets = [];
+    const params = [];
+    let idx = 1;
+
+    if (vendor_id !== undefined) { sets.push(`vendor_id = $${idx++}`); params.push(vendor_id); }
+    if (ship_to !== undefined) { sets.push(`ship_to = $${idx++}`); params.push(ship_to || null); }
+    if (expected_delivery !== undefined) { sets.push(`expected_delivery = $${idx++}`); params.push(expected_delivery || null); }
+    if (notes !== undefined) { sets.push(`notes = $${idx++}`); params.push(notes || null); }
+    if (recipient_email !== undefined) { sets.push(`recipient_email = $${idx++}`); params.push(recipient_email || null); }
+    if (cc_emails !== undefined) { sets.push(`cc_emails = $${idx++}`); params.push(cc_emails || '{}'); }
+
+    if (sets.length === 0) return res.status(400).json({ error: 'No fields to update' });
+
+    sets.push(`updated_at = CURRENT_TIMESTAMP`);
+    params.push(poId);
+
+    const result = await pool.query(
+      `UPDATE purchase_orders SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+      params
+    );
+
+    res.json({ purchase_order: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Vendor recent PO activity
+app.get('/api/rep/vendors/:vendorId/po-activity', repAuth, async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const result = await pool.query(`
+      SELECT pal.*, po.po_number
+      FROM po_activity_log pal
+      JOIN purchase_orders po ON po.id = pal.purchase_order_id
+      WHERE po.vendor_id = $1
+      ORDER BY pal.created_at DESC
+      LIMIT 10
+    `, [vendorId]);
+    res.json({ activity: result.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -15587,16 +15725,12 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId/status', repAuth, async (r
   }
 });
 
-// Update cost on a draft PO item
+// Update cost/qty/dye_lot on a draft PO item
 app.put('/api/rep/purchase-orders/:poId/items/:itemId', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { poId, itemId } = req.params;
-    const { cost } = req.body;
-
-    if (cost == null) return res.status(400).json({ error: 'cost is required' });
-    const newCost = parseFloat(cost);
-    if (isNaN(newCost) || newCost < 0) return res.status(400).json({ error: 'Invalid cost' });
+    const { cost, qty, dye_lot } = req.body;
 
     // Verify PO is draft
     const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
@@ -15614,10 +15748,19 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId', repAuth, async (req, res
       return res.status(404).json({ error: 'PO item not found' });
     }
 
-    const itemSubtotal = newCost * item.rows[0].qty;
+    const newCost = cost != null ? parseFloat(cost) : parseFloat(item.rows[0].cost);
+    const newQty = qty != null ? parseInt(qty) : item.rows[0].qty;
+    if (isNaN(newCost) || newCost < 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Invalid cost' }); }
+    if (isNaN(newQty) || newQty < 1) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Invalid qty' }); }
+
+    const itemSubtotal = newCost * newQty;
+    const sets = ['cost = $1', 'qty = $2', 'subtotal = $3'];
+    const params = [newCost.toFixed(2), newQty, itemSubtotal.toFixed(2)];
+    if (dye_lot !== undefined) { sets.push('dye_lot = $' + (params.length + 1)); params.push(dye_lot || null); }
+    params.push(itemId);
     await client.query(
-      'UPDATE purchase_order_items SET cost = $1, subtotal = $2 WHERE id = $3',
-      [newCost.toFixed(2), itemSubtotal.toFixed(2), itemId]
+      `UPDATE purchase_order_items SET ${sets.join(', ')} WHERE id = $${params.length}`,
+      params
     );
 
     // Recalculate PO subtotal
@@ -15640,17 +15783,13 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId', repAuth, async (req, res
   }
 });
 
-// Rep PO Document PDF - accepts token from header or query param
-app.get('/api/rep/purchase-orders/:id/pdf', async (req, res, next) => {
-  if (!req.headers['x-rep-token'] && req.query.token) {
-    req.headers['x-rep-token'] = req.query.token;
-  }
-  next();
-}, repAuth, async (req, res) => {
+// Rep PO Document PDF
+app.get('/api/rep/purchase-orders/:id/pdf', repAuth, async (req, res) => {
   try {
     const result = await generatePOHtml(pool, req.params.id);
     if (!result) return res.status(404).json({ error: 'Purchase order not found' });
-    await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res);
+    const zeroMargin = { margin: { top: '0', bottom: '0', left: '0', right: '0' } };
+    await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res, zeroMargin);
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -15791,7 +15930,7 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       try {
         const poData = await generatePOHtml(pool, poId);
         if (poData) {
-          const pdfBuffer = await generatePDFBuffer(poData.html);
+          const pdfBuffer = await generatePDFBuffer(poData.html, { margin: { top: '0', bottom: '0', left: '0', right: '0' } });
           const result = await sendPurchaseOrderToVendor({
             vendor_email: po.vendor_email,
             vendor_name: po.vendor_name,
@@ -16919,12 +17058,7 @@ app.delete('/api/rep/estimates/:id/items/:itemId', repAuth, async (req, res) => 
 });
 
 // GET /api/rep/estimates/:id/pdf — Branded PDF
-app.get('/api/rep/estimates/:id/pdf', (req, res, next) => {
-  if (!req.headers['x-rep-token'] && req.query.token) {
-    req.headers['x-rep-token'] = req.query.token;
-  }
-  next();
-}, repAuth, async (req, res) => {
+app.get('/api/rep/estimates/:id/pdf', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const estimate = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
@@ -19072,7 +19206,7 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
     const updatedData = await generatePOHtml(pool, poId);
     let pdfBuffer;
     try {
-      pdfBuffer = await generatePDFBuffer(updatedData.html);
+      pdfBuffer = await generatePDFBuffer(updatedData.html, { margin: { top: '0', bottom: '0', left: '0', right: '0' } });
     } catch (pdfErr) {
       console.error('[PO Send] PDF generation failed:', pdfErr.message);
       return res.status(500).json({ error: 'PDF generation failed. Puppeteer may not be available.' });
@@ -19517,17 +19651,13 @@ app.put('/api/admin/purchase-orders/:poId/items/:itemId/status', staffAuth, requ
   }
 });
 
-// PO Document PDF - accepts token from header or query param
-app.get('/api/staff/purchase-orders/:id/pdf', async (req, res, next) => {
-  if (!req.headers['x-staff-token'] && req.query.token) {
-    req.headers['x-staff-token'] = req.query.token;
-  }
-  next();
-}, staffAuth, async (req, res) => {
+// PO Document PDF
+app.get('/api/staff/purchase-orders/:id/pdf', staffAuth, async (req, res) => {
   try {
     const result = await generatePOHtml(pool, req.params.id);
     if (!result) return res.status(404).json({ error: 'Purchase order not found' });
-    await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res);
+    const zeroMargin = { margin: { top: '0', bottom: '0', left: '0', right: '0' } };
+    await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res, zeroMargin);
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -20472,12 +20602,7 @@ app.post('/api/admin/accounting/invoices/:id/void', staffAuth, requireRole('admi
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
-app.get('/api/admin/accounting/invoices/:id/pdf', (req, res, next) => {
-  if (!req.headers['x-staff-token'] && req.query.token) {
-    req.headers['x-staff-token'] = req.query.token;
-  }
-  next();
-}, staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+app.get('/api/admin/accounting/invoices/:id/pdf', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const inv = await pool.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
     if (!inv.rows.length) return res.status(404).json({ error: 'Not found' });

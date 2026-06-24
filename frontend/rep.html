@@ -14231,6 +14231,104 @@
       );
     }
 
+    // ========== PODocumentViewer ==========
+    function PODocumentViewer({ url, po, onClose, onSend }) {
+      const iframeRef = React.useRef(null);
+      const [sending, setSending] = React.useState(false);
+      useEffect(() => {
+        return () => { if (url && url.startsWith('blob:')) URL.revokeObjectURL(url); };
+      }, [url]);
+      useEffect(() => {
+        const handler = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+      }, [onClose]);
+
+      const isDraft = po && po.status === 'draft';
+      const filename = po ? po.po_number + '.pdf' : 'document.pdf';
+
+      const handleDownload = () => {
+        repOpenDoc('/api/rep/purchase-orders/' + po.id + '/pdf', true).catch(() => alert('Failed to download PDF'));
+      };
+      const handlePrint = () => {
+        try { iframeRef.current.contentWindow.print(); } catch(e) { window.open(url, '_blank'); }
+      };
+      const handleSend = async () => {
+        if (!confirm('Approve & send this PO to the vendor?')) return;
+        setSending(true);
+        try { await onSend(); } catch(e) { alert(e.message); }
+        setSending(false);
+      };
+
+      return (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          zIndex: 10000,
+          display: 'grid', gridTemplateRows: 'auto 1fr',
+          background: '#3a3835',
+        }}>
+          {/* Toolbar */}
+          <div style={{
+            background: '#22201e', color: '#fff',
+            padding: '12px 20px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            borderBottom: '1px solid #000',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <span style={{
+                font: "400 14px/1 'Inter', system-ui, sans-serif", color: '#fff',
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}>
+                <span style={{
+                  width: 22, height: 26, border: '0.5px solid #c7c2b8',
+                  background: '#fff', color: '#22201e',
+                  font: "500 9px/26px 'Inter', system-ui, sans-serif", textAlign: 'center',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                }}>{'\uD83D\uDCC4'}</span>
+                {filename}
+              </span>
+              <span style={{ color: '#aaa6a0', font: "400 12px/1 'Inter', system-ui, sans-serif" }}>
+                {'\u00B7'} 1 / 1 page
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button onClick={handleDownload} title="Download" style={{
+                padding: '8px 12px', background: '#3a7a4e', color: '#fff', border: 'none',
+                cursor: 'pointer', font: "500 12px/1 'Inter', system-ui, sans-serif", letterSpacing: '0.04em',
+              }}>{'\u2913'} Download</button>
+              {isDraft && onSend && (
+                <button onClick={handleSend} title="Send to vendor" disabled={sending} style={{
+                  padding: '8px 12px', background: '#a87935', color: '#fff', border: 'none',
+                  cursor: 'pointer', font: "500 12px/1 'Inter', system-ui, sans-serif", letterSpacing: '0.04em',
+                  opacity: sending ? 0.6 : 1,
+                }}>{sending ? 'Sending\u2026' : '\u2709 Send'}</button>
+              )}
+              <button onClick={handlePrint} title="Print" style={{
+                padding: '8px 12px', background: 'transparent', color: '#fff', border: '0.5px solid #4a4744',
+                cursor: 'pointer', font: "500 12px/1 'Inter', system-ui, sans-serif", letterSpacing: '0.04em',
+              }}>{'\u2399'} Print</button>
+              <button onClick={onClose} title="Close" style={{
+                padding: '8px 12px', background: 'transparent', color: '#fff', border: '0.5px solid #4a4744',
+                cursor: 'pointer', font: "500 12px/1 'Inter', system-ui, sans-serif", letterSpacing: '0.04em',
+              }}>{'\u2715'}</button>
+            </div>
+          </div>
+          {/* Page area */}
+          <div style={{
+            display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
+            padding: '28px 0', overflow: 'auto',
+          }}>
+            <div style={{
+              width: 816, height: 1056, flexShrink: 0,
+              boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+            }}>
+              <iframe ref={iframeRef} src={url} sandbox="allow-same-origin" style={{ width: '100%', height: '100%', border: 'none' }} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // ─── RodCard — lightweight card wrapper for order detail redesign ───
     function RodCard({ title, action, action2, onAction, onAction2, children }) {
       return (
@@ -14363,11 +14461,10 @@
         }
       };
 
-      const loadOrderActivity = useCallback(async () => {
-        try {
-          const data = await repFetch('/api/rep/orders/' + editId + '/activity');
-          setOrderActivity(data.activity || []);
-        } catch (err) { /* order activity load failed */ }
+      const loadOrderActivity = useCallback(() => {
+        repFetch('/api/rep/orders/' + editId + '/activity')
+          .then(data => setOrderActivity(data.activity || []))
+          .catch(() => {});
       }, [editId]);
 
       const loadPOs = useCallback(() => {
@@ -15165,7 +15262,7 @@
                   <div className="rod-po-section">
                     {posLoading ? <div style={{ padding: '18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>Loading...</div> : purchaseOrders.map((po, poIdx) => (
                       <div className="rod-po-row" key={po.id} style={poIdx === purchaseOrders.length - 1 ? { borderBottom: 'none' } : {}}>
-                        <a className="rod-po-id" onClick={async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + po.id + '/pdf?preview=true'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number }); } catch(e) { alert('Failed to load PO'); } }}>{po.po_number}</a>
+                        <a className="rod-po-id" onClick={async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + po.id + '/pdf?preview=true'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number, type: 'po', po: po }); } catch(e) { alert('Failed to load PO'); } }}>{po.po_number}</a>
                         <div>
                           <div className="rod-po-vendor">{po.vendor_name}</div>
                           <div className="rod-po-detail">
@@ -15875,7 +15972,19 @@
               onCancel={() => setShowCollectManualCard(false)}
             />
           )}
-          {docPreview && <DocumentPreviewModal url={docPreview.url} title={docPreview.title} onClose={() => setDocPreview(null)} />}
+          {docPreview && (docPreview.type === 'po'
+            ? <PODocumentViewer
+                url={docPreview.url}
+                po={docPreview.po}
+                onClose={() => setDocPreview(null)}
+                onSend={async () => {
+                  await repFetch('/api/rep/purchase-orders/' + docPreview.po.id + '/approve', { method: 'POST' });
+                  setDocPreview(null);
+                  loadPOs();
+                }}
+              />
+            : <DocumentPreviewModal url={docPreview.url} title={docPreview.title} onClose={() => setDocPreview(null)} />
+          )}
         </div>
       );
     }
@@ -19171,6 +19280,7 @@
       const [newVendorId, setNewVendorId] = useState('');
       const [newNotes, setNewNotes] = useState('');
       const [creating, setCreating] = useState(false);
+      const [tab, setTab] = useState('order');
 
       const load = useCallback(() => {
         setLoading(true);
@@ -19208,11 +19318,17 @@
         return <span className={'badge ' + (cls[s] || 'badge-draft')}>{s}</span>;
       };
 
+      const filteredPOs = pos.filter(po => tab === 'order' ? po.order_id != null : po.order_id == null);
+
       return (
         <div>
           <div className="content-header">
-            <h1>Purchase Orders</h1>
-            <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ New Purchase Order</button>
+            <h1>PO Tracking</h1>
+            {tab === 'standalone' && <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ New Purchase Order</button>}
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+            <button className={tab === 'order' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setTab('order')}>Order POs</button>
+            <button className={tab === 'standalone' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setTab('standalone')}>Standalone</button>
           </div>
           <div className="filter-bar">
             <input type="text" placeholder="Search PO#, vendor, order#..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -19226,7 +19342,7 @@
               <option value="">All Vendors</option>
               {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
             </select>
-            <span className="filter-count">{pos.length} PO{pos.length !== 1 ? 's' : ''}</span>
+            <span className="filter-count">{filteredPOs.length} PO{filteredPOs.length !== 1 ? 's' : ''}</span>
           </div>
           {loading ? <div className="loading">Loading purchase orders...</div> : (
             <div className="table-scroll-wrapper"><table className="rep-table">
@@ -19234,7 +19350,7 @@
                 <tr>
                   <th>PO #</th>
                   <th>Vendor</th>
-                  <th>Order #</th>
+                  {tab === 'order' && <th>Order #</th>}
                   <th>Items</th>
                   <th>Subtotal</th>
                   <th>Status</th>
@@ -19243,22 +19359,27 @@
                 </tr>
               </thead>
               <tbody>
-                {pos.map(po => (
-                  <tr key={po.id}>
+                {filteredPOs.map(po => (
+                  <tr key={po.id} style={{ cursor: 'pointer' }} onClick={() => tab === 'order' ? navigate('order-detail', po.order_id) : navigate('purchase-order-detail', po.id)}>
                     <td data-label="PO #" style={{ fontWeight: 500 }}>{po.po_number}</td>
                     <td data-label="Vendor">{po.vendor_name}</td>
-                    <td data-label="Order #">{po.order_number ? <span style={{ color: 'var(--gold)', cursor: 'pointer' }} onClick={() => navigate('order-detail', po.order_id)}>{po.order_number}</span> : <span style={{ color: 'var(--stone-400)', fontStyle: 'italic' }}>Standalone</span>}</td>
+                    {tab === 'order' && <td data-label="Order #"><span style={{ color: 'var(--gold)', fontWeight: 500 }}>{po.order_number}</span></td>}
                     <td data-label="Items">{po.item_count}</td>
                     <td data-label="Subtotal">${parseFloat(po.subtotal || 0).toFixed(2)}</td>
                     <td data-label="Status">{statusBadge(po.status)}</td>
                     <td data-label="Date" style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(po.created_at).toLocaleDateString()}</td>
-                    <td data-label="" className="actions">
-                      <button className="btn btn-secondary btn-sm" onClick={() => navigate('purchase-order-detail', po.id)}>View</button>
+                    <td data-label="" className="actions" onClick={e => e.stopPropagation()}>
+                      {tab === 'order'
+                        ? <button className="btn btn-secondary btn-sm" onClick={() => navigate('order-detail', po.order_id)}>Open order &rarr;</button>
+                        : <button className="btn btn-secondary btn-sm" onClick={() => navigate('purchase-order-detail', po.id)}>View</button>
+                      }
                     </td>
                   </tr>
                 ))}
-                {pos.length === 0 && (
-                  <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-400)' }}>No purchase orders found</td></tr>
+                {filteredPOs.length === 0 && (
+                  <tr><td colSpan={tab === 'order' ? 8 : 7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-400)' }}>
+                    {tab === 'order' ? 'No order-linked purchase orders found' : 'No standalone purchase orders found'}
+                  </td></tr>
                 )}
               </tbody>
             </table></div>
@@ -19297,6 +19418,9 @@
     }
 
     // ========== RepPurchaseOrderDetailView ==========
+    // Design: brass-charcoal palette, serif headlines, two modes
+    //   • Standalone (order_id == null) → editable action bar, inline editing
+    //   • Order-attached (order_id set) → view-only locked banner
     function RepPurchaseOrderDetailView({ navigate, editId }) {
       const [po, setPO] = useState(null);
       const [items, setItems] = useState([]);
@@ -19311,6 +19435,7 @@
       const skuSearchTimer = useRef(null);
       const skuSearchCounter = useRef(0);
       const [newPOItem, setNewPOItem] = useState({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'box' });
+      const [poDocPreview, setPoDocPreview] = useState(null);
 
       const load = async () => {
         setLoading(true);
@@ -19326,6 +19451,15 @@
 
       const isDraft = po && po.status === 'draft';
       const isSentOrLater = po && ['sent', 'acknowledged', 'fulfilled'].includes(po.status);
+      const isOrderLinked = po && !!po.order_number;
+      const editable = isDraft && !isOrderLinked;
+
+      // Design palette
+      const INK = '#1c1917', PAPER = '#ece5d8', ACCENT = '#a87935', MUTED = '#8a7e68', WARM = '#d8cdb6';
+      const GREEN = '#3a7a4e', AMBER = '#a87935', RED = '#c54731', BLUE = '#5c6e94';
+
+      const statusColor = { draft: MUTED, sent: AMBER, acknowledged: AMBER, fulfilled: GREEN, cancelled: RED };
+      const statusLabel = { draft: 'Draft', sent: 'Sent · awaiting acknowledgement', acknowledged: 'Acknowledged', fulfilled: 'Fulfilled · complete', cancelled: 'Cancelled' };
 
       const updatePOItem = async (itemId, updates) => {
         try {
@@ -19430,337 +19564,418 @@
         const labels = { sent: 'Sent', resent: 'Resent', revised_and_sent: 'Revised & Sent', acknowledged: 'Acknowledged', fulfilled: 'Fulfilled', cancelled: 'Cancelled', reverted: 'Reverted to Draft', created: 'Created', notes_updated: 'Notes Updated', edi_sent: 'Sent via EDI', edi_acknowledged: 'EDI Acknowledged', edi_shipped: 'EDI Ship Notice', edi_invoiced: 'EDI Invoice Received' };
         return labels[action] || action;
       };
-
-      const statusBadge = (s) => {
-        const cls = { draft: 'badge-draft', sent: 'badge-sent', acknowledged: 'badge-acknowledged', fulfilled: 'badge-fulfilled', cancelled: 'badge-cancelled' };
-        return <span className={'badge ' + (cls[s] || 'badge-draft')}>{s}</span>;
+      const actionColor = (action) => {
+        if (['sent', 'resent', 'revised_and_sent', 'edi_sent'].includes(action)) return BLUE;
+        if (['acknowledged', 'edi_acknowledged', 'fulfilled', 'created'].includes(action)) return GREEN;
+        if (['cancelled'].includes(action)) return RED;
+        return AMBER;
       };
+
+      // Computed financials
+      const subtotal = items.reduce((s, it) => s + parseFloat(it.cost || 0) * (it.qty || 0), 0);
+      const retail = items.reduce((s, it) => s + parseFloat(it.retail_price || 0) * (it.qty || 0), 0);
+      const margin = retail > 0 ? retail - subtotal : 0;
+      const marginPct = retail > 0 ? (margin / retail * 100).toFixed(1) : '0.0';
+      const receivedCount = items.filter(it => it.status === 'received').length;
+
+      // Mono label style helper
+      const monoLabel = { font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: MUTED };
+      const serifNum = (size) => ({ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: size, letterSpacing: '-0.01em', lineHeight: 1 });
+
+      // Section card component matching the design
+      const PdCard = ({ title, action, actionClick, action2, children }) => (
+        <section style={{ background: PAPER, border: '0.5px solid ' + INK + '22' }}>
+          <header style={{ padding: '14px 20px', borderBottom: '0.5px solid ' + INK + '18', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 style={{ font: '500 13px/1 Inter, sans-serif', letterSpacing: '0.04em', color: INK, margin: 0 }}>{title}</h3>
+            <div style={{ display: 'flex', gap: 14 }}>
+              {action2 && <span style={{ ...monoLabel, fontSize: 11, letterSpacing: '0.12em', cursor: 'default' }}>{action2}</span>}
+              {action && <span style={{ ...monoLabel, fontSize: 11, letterSpacing: '0.12em', color: ACCENT, cursor: actionClick ? 'pointer' : 'default' }} onClick={actionClick}>{action}</span>}
+            </div>
+          </header>
+          {children}
+        </section>
+      );
 
       if (loading) return <div className="loading">Loading purchase order...</div>;
       if (!po) return <div className="loading">Purchase order not found</div>;
 
-      return (
+      const sCol = statusColor[po.status] || MUTED;
+
+      return (<>
         <div>
-          <div className="content-header">
-            <button className="btn btn-secondary btn-sm" onClick={() => navigate('purchase-orders')}>&larr; Back to Purchase Orders</button>
+          {/* Breadcrumb */}
+          <div style={{ paddingBottom: 16, borderBottom: '0.5px solid ' + INK + '18', marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: MUTED, display: 'flex', gap: 12, alignItems: 'center' }}>
+              <span style={{ cursor: 'pointer' }} onClick={() => navigate('purchase-orders')}>PO Tracking</span>
+              <span style={{ width: 12, height: 1, background: INK + '33', display: 'inline-block' }} />
+              {isOrderLinked && (<>
+                <span style={{ cursor: 'pointer', color: ACCENT }} onClick={() => navigate('order-detail', po.order_id)}>{po.order_number}</span>
+                <span style={{ width: 12, height: 1, background: INK + '33', display: 'inline-block' }} />
+              </>)}
+              <span style={{ color: INK }}>{po.po_number}</span>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-            <h1 style={{ margin: 0 }}><code style={{ fontSize: 'inherit', background: 'var(--stone-50)', padding: '0.1rem 0.5rem', borderRadius: '6px', border: '1px solid var(--stone-200)' }}>{po.po_number}</code></h1>
-            {statusBadge(po.status)}
-          </div>
-
-          {/* PO Status Stepper */}
-          {(() => {
-            const steps = ['draft', 'sent', 'acknowledged', 'fulfilled'];
-            const stepLabels = { draft: 'Draft', sent: 'Sent', acknowledged: 'Acknowledged', fulfilled: 'Fulfilled' };
-            const stepTimestamps = {
-              draft: po.created_at,
-              sent: activity.find(a => a.action === 'sent' || a.action === 'edi_sent')?.created_at,
-              acknowledged: activity.find(a => a.action === 'acknowledged' || a.action === 'edi_acknowledged')?.created_at,
-              fulfilled: activity.find(a => a.action === 'fulfilled')?.created_at
-            };
-            const isCancelled = po.status === 'cancelled';
-            const currentIdx = isCancelled
-              ? (stepTimestamps.acknowledged ? 2 : stepTimestamps.sent ? 1 : 0)
-              : steps.indexOf(po.status);
-            const getStepState = (idx) => {
-              if (isCancelled) return idx <= currentIdx ? 'cancelled' : 'upcoming';
-              if (idx < currentIdx) return 'completed';
-              if (idx === currentIdx) return 'current';
-              return 'upcoming';
-            };
-
-            return (
-              <div className="form-card">
-                <h3>PO Status</h3>
-
-                {isCancelled && (
-                  <div className="stepper-cancelled-banner">Purchase Order Cancelled</div>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 32, marginBottom: 16 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 12px', background: sCol + '22', color: sCol, font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+                  ● {statusLabel[po.status] || po.status}
+                </span>
+                {isOrderLinked ? (
+                  <span style={{ padding: '5px 10px', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: ACCENT, border: '0.5px solid ' + ACCENT + '55', cursor: 'pointer' }} onClick={() => navigate('order-detail', po.order_id)}>
+                    ● Linked to {po.order_number}
+                  </span>
+                ) : (
+                  <span style={{ padding: '5px 10px', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: INK, border: '0.5px solid ' + INK + '33' }}>
+                    ○ Standalone PO
+                  </span>
                 )}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: editable ? GREEN : MUTED, background: editable ? '#e8f0e8' : INK + '0a' }}>
+                  {editable ? '✎ Adjustable' : '🔒 View only'}
+                </span>
+              </div>
+              <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 44, lineHeight: 1, letterSpacing: '-0.018em', margin: 0, color: INK }}>
+                Purchase order <em style={{ color: ACCENT, fontStyle: 'italic' }}>{po.po_number}</em>
+              </h1>
+              <div style={{ font: '400 14px/1.5 Inter, sans-serif', color: INK + 'b3', marginTop: 8 }}>
+                {po.vendor_name} · placed {new Date(po.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+            </div>
+            {/* Money block */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, auto)', gap: 24, padding: '16px 22px', background: WARM, textAlign: 'right', flexShrink: 0 }}>
+              {[
+                ['PO cost', '$' + subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 }), INK],
+                ['Lines', items.length, INK],
+                ['Resale value', retail > 0 ? '$' + retail.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—', GREEN],
+              ].map(([l, v, c]) => (
+                <div key={l}>
+                  <div style={{ ...monoLabel, fontSize: 10 }}>{l}</div>
+                  <div style={{ ...serifNum(28), color: c, marginTop: 6 }}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-                <div className="order-stepper">
-                  {steps.slice(1).map((step, idx) => {
-                    const prevState = getStepState(idx);
-                    const curState = getStepState(idx + 1);
-                    const connClass = (prevState === 'completed' && (curState === 'completed' || curState === 'current'))
-                      ? 'completed'
-                      : (prevState === 'cancelled' ? 'completed' : 'upcoming');
-                    const pct = 100 / (steps.length - 1);
-                    const leftPct = idx * pct;
-                    return (
-                      <div key={'conn-' + idx} className={'stepper-connector ' + connClass}
-                        style={{ left: 'calc(' + (leftPct + pct * 0.15) + '% + 18px)', width: 'calc(' + (pct * 0.7) + '% - 36px)' }} />
-                    );
-                  })}
-                  {steps.map((step, idx) => {
-                    const state = getStepState(idx);
-                    const ts = stepTimestamps[step];
-                    return (
-                      <div key={step} className={'stepper-step ' + state}>
-                        <div className="stepper-circle">
-                          {state === 'completed' ? '\u2713' : state === 'cancelled' ? '\u2717' : (idx + 1)}
-                        </div>
-                        <div className="stepper-label">{stepLabels[step]}</div>
-                        {ts && (state === 'completed' || state === 'current' || state === 'cancelled') && (
-                          <div className="stepper-timestamp">{new Date(ts).toLocaleDateString()}</div>
+          {/* Action bar (standalone editable) or Locked banner (order-attached) */}
+          {isOrderLinked ? (
+            <div style={{ display: 'flex', gap: 18, alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', background: WARM, border: '0.5px solid ' + ACCENT + '44', borderLeft: '3px solid ' + ACCENT, marginBottom: 22 }}>
+              <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                <span style={{ width: 34, height: 34, flexShrink: 0, background: PAPER, border: '0.5px solid ' + INK + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🔒</span>
+                <div>
+                  <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: ACCENT, marginBottom: 5 }}>
+                    View only · managed by order {po.order_number}
+                  </div>
+                  <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: INK + 'cc', maxWidth: 620 }}>
+                    This PO was generated from a customer order. Line items, quantities and pricing are driven by the order — edit them from the order, then re-issue. You can still receive against it or download the PDF.
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button style={{ padding: '9px 14px', background: INK, color: PAPER, font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', border: 'none' }} onClick={() => navigate('order-detail', po.order_id)}>Edit on order →</button>
+                <button style={{ padding: '9px 14px', border: '0.5px solid ' + INK + '55', color: INK, font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', background: 'transparent' }} onClick={async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + editId + '/pdf?preview=true'); setPoDocPreview({ url, po }); } catch(e) { alert('Failed to load PDF'); } }}>View PDF</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 22, alignItems: 'center', flexWrap: 'wrap', paddingBottom: 16, borderBottom: '0.5px solid ' + INK + '18' }}>
+              {isDraft && items.length > 0 && (
+                <button style={{ padding: '9px 14px', background: INK, color: PAPER, border: '0.5px solid ' + INK, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, font: '500 12px/1 Inter, sans-serif', letterSpacing: '0.04em' }} disabled={poUpdating} onClick={approveAndSend}>
+                  ⤓ {poUpdating ? 'Sending...' : 'Approve & send'}
+                </button>
+              )}
+              {isDraft && (
+                <button style={{ padding: '9px 14px', background: 'transparent', color: INK, border: '0.5px solid ' + INK + '33', cursor: 'pointer', font: '500 12px/1 Inter, sans-serif', letterSpacing: '0.04em' }} onClick={() => { setAddingItem(true); setAddItemMode('sku'); }}>
+                  + Add line
+                </button>
+              )}
+              {isSentOrLater && (
+                <button style={{ padding: '9px 14px', background: 'transparent', color: INK, border: '0.5px solid ' + INK + '33', cursor: 'pointer', font: '500 12px/1 Inter, sans-serif', letterSpacing: '0.04em' }} onClick={() => bulkUpdatePOItemStatus('received')}>
+                  ⎘ Mark all received
+                </button>
+              )}
+              <button style={{ padding: '9px 14px', background: 'transparent', color: INK, border: '0.5px solid ' + INK + '33', cursor: 'pointer', font: '500 12px/1 Inter, sans-serif', letterSpacing: '0.04em' }} onClick={async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + editId + '/pdf?preview=true'); setPoDocPreview({ url, po }); } catch(e) { alert('Failed to load PDF'); } }}>
+                View PDF
+              </button>
+            </div>
+          )}
+
+          {/* Snapshot band */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 1, background: INK + '18', border: '0.5px solid ' + INK + '18', marginBottom: 24 }}>
+            {[
+              { l: 'Vendor', v: po.vendor_name, sub: '—' },
+              { l: 'Status', v: (statusLabel[po.status] || po.status).split('·')[0].trim(), sub: po.approved_by_name ? 'Approved by ' + po.approved_by_name : '—', col: sCol },
+              { l: 'Created', v: new Date(po.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), sub: new Date(po.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) },
+              { l: 'Ship to', v: po.ship_to || 'Not set', sub: '—' },
+              { l: 'Received', v: receivedCount + ' of ' + items.length + ' lines', sub: receivedCount === items.length && items.length > 0 ? 'Complete' : 'Open', col: receivedCount === items.length && items.length > 0 ? GREEN : MUTED },
+            ].map(t => (
+              <div key={t.l} style={{ background: PAPER, padding: '14px 16px' }}>
+                <div style={{ ...monoLabel, fontSize: 10, letterSpacing: '0.08em' }}>{t.l}</div>
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 400, fontSize: 16, lineHeight: 1.2, letterSpacing: '-0.008em', color: t.col || INK, marginTop: 8 }}>{t.v}</div>
+                <div style={{ ...monoLabel, fontSize: 10, letterSpacing: '0.12em', marginTop: 4 }}>{t.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Two-column body */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 20 }}>
+            {/* Left column */}
+            <div style={{ display: 'grid', gap: 20 }}>
+              {/* Line items card */}
+              <PdCard title={'Line items · ' + items.length} action={editable ? '+ Add line' : (isOrderLinked ? 'Read-only' : null)} actionClick={editable ? () => { setAddingItem(true); setAddItemMode('sku'); } : null}>
+                {/* Add item form (editable only) */}
+                {editable && addingItem && (
+                  <div style={{ padding: '14px 20px', borderBottom: '0.5px solid ' + INK + '18', background: WARM + '80' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <button className={addItemMode === 'sku' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setAddItemMode('sku')}>SKU Search</button>
+                      <button className={addItemMode === 'manual' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setAddItemMode('manual')}>Manual Entry</button>
+                      <div style={{ flex: 1 }}></div>
+                      <button className="btn btn-sm btn-secondary" onClick={() => { setAddingItem(false); setSkuSearchResults([]); setAddItemSku(''); }}>Cancel</button>
+                    </div>
+                    {addItemMode === 'sku' ? (
+                      <div style={{ position: 'relative' }}>
+                        <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
+                          onBlur={() => setTimeout(() => { setSkuSearchResults([]); setSkuSearching(false); }, 200)}
+                          onChange={e => handleSkuSearch(e.target.value)}
+                          style={{ width: '100%', padding: '0.5rem', border: '0.5px solid ' + INK + '33', borderRadius: 0, background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                        {skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
+                          <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
+                        )}
+                        {!skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
+                          <div className="search-results"><div className="search-no-results">No results found</div></div>
+                        )}
+                        {skuSearchResults.length > 0 && (
+                          <div className="search-results">
+                            {skuSearchResults.map((r, i) => (
+                              <div key={i} className="search-result-item" onClick={() => selectSkuResult(r)}>
+                                {r.primary_image
+                                  ? <img className="sku-thumb" src={optimizeImg(r.primary_image, 96)} alt="" loading="lazy" />
+                                  : <div className="sku-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
+                                }
+                                <div className="sku-info">
+                                  <div className="sku-name">{r.product_name}{r.color ? ' — ' + r.color : ''}{r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}</div>
+                                  <div className="product-meta">{r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}{r.cost ? ' · Cost $' + parseFloat(r.cost).toFixed(2) + '/' + (r.sell_by === 'unit' ? 'ea' : 'sqft') : ''}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-
-                {isDraft && items.length > 0 && (
-                  <div className="stepper-actions">
-                    <button className="btn btn-primary" disabled={poUpdating} onClick={approveAndSend}>
-                      {poUpdating ? 'Sending...' : 'Approve & Send to Vendor'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* PO Info Card */}
-          <div className="form-card">
-            <h3>PO Information</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
-              <div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Vendor</div>
-                <div style={{ fontWeight: 500 }}>{po.vendor_name}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PO Number</div>
-                <div style={{ fontWeight: 500 }}><code style={{ fontSize: '0.875rem', background: 'var(--stone-50)', padding: '0.1rem 0.35rem', borderRadius: '4px', border: '1px solid var(--stone-200)' }}>{po.po_number}</code></div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</div>
-                <div>{statusBadge(po.status)}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Order</div>
-                <div>{po.order_number
-                  ? <span style={{ color: 'var(--gold)', cursor: 'pointer', fontWeight: 500 }} onClick={() => navigate('order-detail', po.order_id)}>{po.order_number}</span>
-                  : <span style={{ color: 'var(--stone-400)', fontStyle: 'italic' }}>Standalone</span>}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Created</div>
-                <div style={{ fontSize: '0.875rem' }}>{new Date(po.created_at).toLocaleString()}</div>
-              </div>
-              {po.approved_by_name && (
-                <div>
-                  <div style={{ fontSize: '0.6875rem', color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Approved By</div>
-                  <div style={{ fontSize: '0.875rem' }}>{po.approved_by_name}{po.approved_at ? ' on ' + new Date(po.approved_at).toLocaleDateString() : ''}</div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Line Items Card */}
-          <div className="form-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, paddingBottom: 0, borderBottom: 'none' }}>Line Items</h3>
-              {isDraft && !addingItem && (
-                <button className="btn btn-secondary btn-sm" onClick={() => { setAddingItem(true); setAddItemMode('sku'); }}>+ Add Item</button>
-              )}
-            </div>
-
-            {isDraft && addingItem && (
-              <div style={{ marginBottom: '1rem', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '8px' }}>
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                  <button className={addItemMode === 'sku' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setAddItemMode('sku')}>SKU Search</button>
-                  <button className={addItemMode === 'manual' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setAddItemMode('manual')}>Manual Entry</button>
-                  <div style={{ flex: 1 }}></div>
-                  <button className="btn btn-sm btn-secondary" onClick={() => { setAddingItem(false); setSkuSearchResults([]); setAddItemSku(''); }}>Cancel</button>
-                </div>
-
-                {addItemMode === 'sku' ? (
-                  <div style={{ position: 'relative' }}>
-                    <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
-                      onBlur={() => setTimeout(() => { setSkuSearchResults([]); setSkuSearching(false); }, 200)}
-                      onChange={e => handleSkuSearch(e.target.value)}
-                      style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)', borderRadius: '6px' }} />
-                    {skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
-                      <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
-                    )}
-                    {!skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
-                      <div className="search-results"><div className="search-no-results">No results found</div></div>
-                    )}
-                    {skuSearchResults.length > 0 && (
-                      <div className="search-results">
-                        {skuSearchResults.map((r, i) => (
-                          <div key={i} className="search-result-item" onClick={() => selectSkuResult(r)}>
-                            {r.primary_image
-                              ? <img className="sku-thumb" src={optimizeImg(r.primary_image, 96)} alt="" loading="lazy" />
-                              : <div className="sku-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
-                            }
-                            <div className="sku-info">
-                              <div className="sku-name">
-                                {r.product_name}{r.color ? ' — ' + r.color : ''}{r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}
-                              </div>
-                              <div className="product-meta">
-                                {r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
-                                {r.cost ? ' · Cost $' + parseFloat(r.cost).toFixed(2) + '/' + (r.sell_by === 'unit' ? 'ea' : 'sqft') : ''}
-                                {r.retail_price ? ' · Retail $' + parseFloat(r.retail_price).toFixed(2) : ''}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                    ) : (
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 2, minWidth: '120px' }}>
+                          <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Product Name *</label>
+                          <input type="text" maxLength={200} value={newPOItem.product_name} onChange={e => setNewPOItem({...newPOItem, product_name: e.target.value})} style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: '80px' }}>
+                          <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Vendor SKU</label>
+                          <input type="text" maxLength={100} value={newPOItem.vendor_sku} onChange={e => setNewPOItem({...newPOItem, vendor_sku: e.target.value})} style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                        </div>
+                        <div style={{ width: 60 }}>
+                          <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Qty *</label>
+                          <input type="number" min="1" value={newPOItem.qty} onChange={e => setNewPOItem({...newPOItem, qty: parseInt(e.target.value) || 1})} style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                        </div>
+                        <div style={{ width: 80 }}>
+                          <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Cost *</label>
+                          <input type="number" step="0.01" min="0" value={newPOItem.cost} onChange={e => setNewPOItem({...newPOItem, cost: e.target.value})} placeholder="0.00" style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                        </div>
+                        <button style={{ padding: '7px 14px', background: INK, color: PAPER, border: 'none', font: '500 12px/1 Inter, sans-serif', cursor: 'pointer' }} disabled={!newPOItem.product_name || !newPOItem.cost}
+                          onClick={() => { addPOItem(newPOItem); setNewPOItem({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'box' }); setAddingItem(false); }}>Add</button>
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 2, minWidth: '140px' }}>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Product Name *</label>
-                      <input type="text" maxLength={200} value={newPOItem.product_name} onChange={e => setNewPOItem({...newPOItem, product_name: e.target.value})}
-                        style={{ width: '100%', padding: '0.4rem 0.5rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '6px' }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: '100px' }}>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Vendor SKU</label>
-                      <input type="text" maxLength={100} value={newPOItem.vendor_sku} onChange={e => setNewPOItem({...newPOItem, vendor_sku: e.target.value})}
-                        style={{ width: '100%', padding: '0.4rem 0.5rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '6px' }} />
-                    </div>
-                    <div style={{ width: '70px' }}>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Qty *</label>
-                      <input type="number" min="1" value={newPOItem.qty} onChange={e => setNewPOItem({...newPOItem, qty: parseInt(e.target.value) || 1})}
-                        style={{ width: '100%', padding: '0.4rem 0.5rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '6px' }} />
-                    </div>
-                    <div style={{ width: '90px' }}>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Cost *</label>
-                      <input type="number" step="0.01" min="0" value={newPOItem.cost} onChange={e => setNewPOItem({...newPOItem, cost: e.target.value})}
-                        placeholder="0.00"
-                        style={{ width: '100%', padding: '0.4rem 0.5rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '6px' }} />
-                    </div>
-                    <div style={{ width: '80px' }}>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Sell By</label>
-                      <select value={newPOItem.sell_by} onChange={e => setNewPOItem({...newPOItem, sell_by: e.target.value})}
-                        style={{ width: '100%', padding: '0.4rem 0.3rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '6px' }}>
-                        <option value="box">Box</option>
-                        <option value="unit">unit</option>
-                      </select>
-                    </div>
-                    <button className="btn btn-primary btn-sm" disabled={!newPOItem.product_name || !newPOItem.cost}
-                      onClick={() => { addPOItem(newPOItem); setNewPOItem({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'box' }); setAddingItem(false); }}>
-                      Add
-                    </button>
-                  </div>
                 )}
-              </div>
-            )}
-
-            <div className="table-scroll-wrapper">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Vendor SKU</th>
-                  <th>Qty</th>
-                  <th>Retail Price</th>
-                  <th>Cost</th>
-                  <th>Margin</th>
-                  {isSentOrLater && <th>Status</th>}
-                  <th style={{ textAlign: 'right' }}>Subtotal</th>
-                  {isDraft && <th></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {items.map(item => {
-                  const costVal = parseFloat(item.cost);
-                  const retailVal = parseFloat(item.retail_price || 0);
-                  const margin = retailVal > 0 ? ((retailVal - costVal) / retailVal * 100) : 0;
+                {/* Column headers */}
+                <div style={{ padding: '10px 20px', display: 'grid', gridTemplateColumns: editable ? '1fr 100px 56px 84px 80px 22px' : '1fr 100px 56px 84px 80px', gap: 8, background: WARM, borderBottom: '0.5px solid ' + INK + '22', ...monoLabel, fontSize: 9, letterSpacing: '0.16em' }}>
+                  <span>Description</span><span>Vendor SKU</span>
+                  <span style={{ textAlign: 'right' }}>Qty</span>
+                  <span style={{ textAlign: 'right' }}>Cost</span>
+                  <span style={{ textAlign: 'right' }}>Line $</span>
+                  {editable && <span></span>}
+                </div>
+                {/* Line items */}
+                {items.map((item, i) => {
+                  const costVal = parseFloat(item.cost || 0);
+                  const lineTotal = costVal * (item.qty || 0);
                   return (
-                  <tr key={item.id}>
-                    <td data-label="Product" style={{ fontWeight: 500, fontSize: '0.8125rem' }}>{item.product_name}{item.description ? <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{item.description}</div> : null}</td>
-                    <td data-label="Vendor SKU" style={{ fontSize: '0.8125rem' }}>{item.vendor_sku || '—'}</td>
-                    <td data-label="Qty">{isDraft ? (
-                      <input type="number" min="1" defaultValue={item.qty}
-                        onBlur={e => { const v = parseInt(e.target.value); if (v && v !== item.qty) updatePOItem(item.id, { qty: v }); }}
-                        style={{ width: '60px', padding: '0.2rem 0.35rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '4px' }} />
-                    ) : item.qty}</td>
-                    <td data-label="Retail Price">{item.retail_price ? '$' + retailVal.toFixed(2) : '—'}</td>
-                    <td data-label="Cost">{isDraft ? (
-                      <input type="number" step="0.01" min="0" defaultValue={costVal.toFixed(2)}
-                        onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v) && v !== costVal) updatePOItem(item.id, { cost: v }); }}
-                        style={{ width: '80px', padding: '0.2rem 0.35rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '4px' }} />
-                    ) : '$' + costVal.toFixed(2)}</td>
-                    <td data-label="Margin" style={{ color: margin <= 0 ? 'var(--red)' : 'inherit', fontWeight: margin <= 0 ? 600 : 400 }}>
-                      {retailVal > 0 ? margin.toFixed(1) + '%' : '—'}
-                    </td>
-                    {isSentOrLater && (
-                      <td data-label="Status">
+                    <div key={item.id} style={{ padding: '14px 20px', display: 'grid', gridTemplateColumns: editable ? '1fr 100px 56px 84px 80px 22px' : '1fr 100px 56px 84px 80px', gap: 8, alignItems: 'center', borderBottom: i < items.length - 1 ? '0.5px solid ' + INK + '11' : 'none' }}>
+                      <div>
+                        <div style={{ font: '400 13px/1.3 Inter, sans-serif', color: INK }}>{item.product_name}</div>
+                        {item.description && <div style={{ ...monoLabel, fontSize: 9, marginTop: 2 }}>{item.description}</div>}
+                      </div>
+                      <div style={{ ...monoLabel, fontSize: 10, letterSpacing: '0.06em' }}>{item.vendor_sku || '—'}</div>
+                      <div style={{ textAlign: 'right' }}>
+                        {editable ? (
+                          <input type="number" min="1" defaultValue={item.qty}
+                            onBlur={e => { const v = parseInt(e.target.value); if (v && v !== item.qty) updatePOItem(item.id, { qty: v }); }}
+                            style={{ width: '100%', border: 'none', borderBottom: '1px solid ' + INK + '26', background: 'transparent', outline: 'none', padding: '2px 0', fontFamily: "'Cormorant Garamond', serif", fontSize: 14, color: INK, textAlign: 'right' }} />
+                        ) : (
+                          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 14, color: INK }}>{item.qty}</span>
+                        )}
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        {editable ? (
+                          <input type="number" step="0.01" min="0" defaultValue={costVal.toFixed(2)}
+                            onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v) && v !== costVal) updatePOItem(item.id, { cost: v }); }}
+                            style={{ width: '100%', border: 'none', borderBottom: '1px solid ' + INK + '26', background: 'transparent', outline: 'none', padding: '2px 0', fontFamily: "'Cormorant Garamond', serif", fontSize: 14, color: INK, textAlign: 'right' }} />
+                        ) : (
+                          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 14, color: INK }}>${costVal.toFixed(2)}</span>
+                        )}
+                      </div>
+                      <span style={{ textAlign: 'right', fontFamily: "'Cormorant Garamond', serif", fontSize: 14, color: INK }}>${lineTotal.toFixed(2)}</span>
+                      {editable && <span style={{ color: MUTED, fontFamily: "'Cormorant Garamond', serif", fontSize: 14, textAlign: 'right', cursor: 'pointer' }} onClick={() => deletePOItem(item.id)}>×</span>}
+                    </div>
+                  );
+                })}
+                {items.length === 0 && (
+                  <div style={{ padding: '24px 20px', textAlign: 'center', color: MUTED, font: '400 13px/1.4 Inter, sans-serif' }}>No items yet</div>
+                )}
+                {/* Subtotal */}
+                <div style={{ padding: '14px 20px', borderTop: '0.5px solid ' + INK + '22', display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', gap: 14 }}>
+                  <span style={{ ...monoLabel, fontSize: 10, letterSpacing: '0.16em' }}>Subtotal</span>
+                  <span style={{ ...serifNum(26), color: INK }}>${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+              </PdCard>
+
+              {/* Receiving card */}
+              {isSentOrLater && (
+                <PdCard title="Receiving" action="Mark all received" actionClick={() => bulkUpdatePOItemStatus('received')}>
+                  {items.map((item, i) => {
+                    const isReceived = item.status === 'received';
+                    const itemStatusCol = isReceived ? GREEN : (['shipped', 'ordered'].includes(item.status) ? AMBER : MUTED);
+                    return (
+                      <div key={item.id} style={{ padding: '13px 20px', display: 'grid', gridTemplateColumns: '1fr 120px 110px', gap: 14, alignItems: 'center', borderBottom: i < items.length - 1 ? '0.5px solid ' + INK + '11' : 'none' }}>
+                        <div>
+                          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13, lineHeight: 1.3, color: INK }}>{item.product_name}</div>
+                          <div style={{ height: 4, background: INK + '14', marginTop: 8, position: 'relative' }}>
+                            <div style={{ position: 'absolute', inset: 0, right: isReceived ? 0 : '100%', background: isReceived ? GREEN : AMBER }} />
+                          </div>
+                        </div>
+                        <span style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.08em', color: INK, textAlign: 'right' }}>
+                          {isReceived ? item.qty : 0} / {item.qty} {item.sell_by || 'box'}
+                        </span>
                         <select value={item.status || 'pending'} onChange={e => updatePOItemStatus(item.id, e.target.value)}
-                          style={{ fontSize: '0.75rem', padding: '0.2rem 0.35rem', border: '1px solid var(--stone-300)', borderRadius: '4px', background: 'white' }}>
+                          style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: itemStatusCol, textAlign: 'right', border: '0.5px solid ' + INK + '22', background: 'transparent', padding: '4px 6px', cursor: 'pointer' }}>
                           {['pending', 'ordered', 'shipped', 'received', 'cancelled'].map(s => (
                             <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
                           ))}
                         </select>
-                      </td>
-                    )}
-                    <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</td>
-                    {isDraft && (
-                      <td className="actions">
-                        <button className="btn btn-danger btn-sm" onClick={() => deletePOItem(item.id)}>Remove</button>
-                      </td>
-                    )}
-                  </tr>
-                  );
-                })}
-                {items.length === 0 && <tr><td colSpan={isSentOrLater ? 8 : (isDraft ? 8 : 7)} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--stone-400)' }}>No items yet</td></tr>}
-              </tbody>
-            </table>
-            </div>
-            <div style={{ textAlign: 'right', marginTop: '0.75rem', fontWeight: 600, fontSize: '0.9rem' }}>
-              PO Total: ${parseFloat(po.subtotal || 0).toFixed(2)}
-            </div>
+                      </div>
+                    );
+                  })}
+                </PdCard>
+              )}
 
-            {isSentOrLater && (
-              <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => bulkUpdatePOItemStatus('received')}>Mark All Received</button>
-              </div>
-            )}
-          </div>
-
-          {/* Notes */}
-          <div className="form-card">
-            <h3>Notes</h3>
-            <div style={{ fontSize: '0.8125rem', color: po.notes ? 'inherit' : 'var(--stone-400)' }}>
-              {po.notes || 'No notes'}
-            </div>
-          </div>
-
-          {/* Activity Log */}
-          <div className="form-card">
-            <h3>Activity Log</h3>
-            {activity.length > 0 ? (
-              <div style={{ fontSize: '0.8125rem' }}>
-                {activity.map((a, i) => (
-                  <div key={i} style={{ padding: '0.75rem 0 0.75rem 1.25rem', borderBottom: i < activity.length - 1 ? '1px solid var(--stone-100)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', borderLeft: '2px solid var(--gold-light)' }}>
-                    <div style={{ position: 'absolute', left: '-5px', top: '50%', transform: 'translateY(-50%)', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--gold)', border: '2px solid white' }}></div>
+              {/* Activity log */}
+              <PdCard title={'Activity · ' + activity.length}>
+                {activity.length > 0 ? activity.map((a, i) => (
+                  <div key={i} style={{ padding: '11px 20px', display: 'grid', gridTemplateColumns: '110px 60px 1fr', gap: 12, alignItems: 'flex-start', borderBottom: i < activity.length - 1 ? '0.5px solid ' + INK + '11' : 'none' }}>
+                    <span style={{ font: '500 10px/1.5 ui-monospace, monospace', letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase' }}>
+                      {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {new Date(a.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                    <span style={{ display: 'inline-block', padding: '2px 6px', font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: actionColor(a.action), border: '0.5px solid ' + actionColor(a.action) + '55', textAlign: 'center' }}>
+                      {actionLabel(a.action).split(' ')[0]}
+                    </span>
                     <div>
-                      <span style={{ fontWeight: 500 }}>{actionLabel(a.action)}</span>
-                      {a.performer_name && <span style={{ color: 'var(--stone-500)' }}> by {a.performer_name}</span>}
-                      {a.recipient_email && <span style={{ color: 'var(--stone-500)' }}> to {a.recipient_email}</span>}
-                      {a.revision > 0 && <span style={{ color: 'var(--stone-400)', fontSize: '0.75rem' }}> (Rev. {a.revision})</span>}
-                    </div>
-                    <div style={{ color: 'var(--stone-400)', fontSize: '0.75rem', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
-                      {new Date(a.created_at).toLocaleString()}
+                      <div style={{ font: '400 13px/1.4 Inter, sans-serif', color: INK }}>
+                        {actionLabel(a.action)}{a.recipient_email ? ' to ' + a.recipient_email : ''}
+                        {a.revision > 0 ? ' (Rev. ' + a.revision + ')' : ''}
+                      </div>
+                      {a.performer_name && <div style={{ ...monoLabel, fontSize: 9, marginTop: 2 }}>{a.performer_name}</div>}
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>No activity yet</div>
-            )}
-          </div>
+                )) : (
+                  <div style={{ padding: '20px', color: MUTED, font: '400 13px/1.4 Inter, sans-serif' }}>No activity yet</div>
+                )}
+              </PdCard>
+            </div>
 
-          {/* PDF Download */}
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button className="btn btn-secondary" onClick={() => repOpenDoc('/api/rep/purchase-orders/' + editId + '/pdf', true).catch(() => alert('Failed to load PDF'))}>Download PDF</button>
+            {/* Right column */}
+            <div style={{ display: 'grid', gap: 20, alignContent: 'start' }}>
+              {/* Vendor card */}
+              <PdCard title="Vendor">
+                <div style={{ padding: '18px 20px', display: 'grid', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr', gap: 12, alignItems: 'center' }}>
+                    <div style={{ width: 44, height: 44, background: INK, color: PAPER, display: 'flex', alignItems: 'center', justifyContent: 'center', font: '500 12px/1 ui-monospace, monospace', letterSpacing: '0.08em' }}>
+                      {(po.vendor_name || '??').substring(0, 3).toUpperCase()}
+                    </div>
+                    <div>
+                      <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, lineHeight: 1.1, color: INK, letterSpacing: '-0.012em' }}>{po.vendor_name}</span>
+                    </div>
+                  </div>
+                </div>
+              </PdCard>
+
+              {/* PO summary */}
+              <PdCard title="PO summary">
+                <div style={{ padding: '18px 20px', display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 8, borderBottom: '0.5px solid ' + INK + '22' }}>
+                    <span style={{ font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: INK }}>PO cost</span>
+                    <span style={{ ...serifNum(30), color: INK }}>${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  {retail > 0 && (
+                    <div style={{ marginTop: 10, padding: '12px 14px', background: WARM, display: 'grid', gap: 6 }}>
+                      <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: ACCENT }}>
+                        Resale margin{isOrderLinked ? ' · ' + po.order_number : ' · at list'}
+                      </div>
+                      {[['Resale value', '$' + retail.toFixed(2)], ['PO cost', '$' + subtotal.toFixed(2)]].map(([k, val]) => (
+                        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', font: '400 13px/1.3 Inter, sans-serif' }}>
+                          <span style={{ color: INK + 'b3' }}>{k}</span>
+                          <span style={{ color: INK, fontFamily: "'Cormorant Garamond', serif", fontSize: 14 }}>{val}</span>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '0.5px solid ' + INK + '33', font: '500 13px/1 Inter, sans-serif' }}>
+                        <span style={{ color: INK }}>Margin · {marginPct}%</span>
+                        <span style={{ color: GREEN, fontFamily: "'Cormorant Garamond', serif", fontSize: 14 }}>${margin.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </PdCard>
+
+              {/* Linked order card (attached only) */}
+              {isOrderLinked && (
+                <PdCard title="Linked order" action="Open order →" actionClick={() => navigate('order-detail', po.order_id)}>
+                  <div style={{ padding: '18px 20px', display: 'grid', gap: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: INK, letterSpacing: '-0.012em' }}>{po.order_number}</span>
+                    </div>
+                    <button style={{ padding: '10px 0', textAlign: 'center', background: INK, color: PAPER, font: '500 10px/1 Inter, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', border: 'none', width: '100%' }} onClick={() => navigate('order-detail', po.order_id)}>
+                      Open order {po.order_number} →
+                    </button>
+                  </div>
+                </PdCard>
+              )}
+
+              {/* Notes */}
+              <PdCard title="Notes to vendor">
+                <div style={{ padding: '14px 20px' }}>
+                  {po.notes ? (
+                    <div style={{ font: '400 13px/1.6 Inter, sans-serif', color: INK + 'cc', fontStyle: 'italic' }}>"{po.notes}"</div>
+                  ) : (
+                    <div style={{ font: '400 13px/1.6 Inter, sans-serif', color: MUTED }}>No notes</div>
+                  )}
+                  <div style={{ marginTop: 8, ...monoLabel, fontSize: 10, letterSpacing: '0.14em' }}>
+                    Printed on the PO PDF · sent in the vendor email body
+                  </div>
+                </div>
+              </PdCard>
+            </div>
           </div>
         </div>
-      );
+        {poDocPreview && (
+          <PODocumentViewer
+            url={poDocPreview.url}
+            po={poDocPreview.po}
+            onClose={() => setPoDocPreview(null)}
+            onSend={async () => {
+              await repFetch('/api/rep/purchase-orders/' + editId + '/approve', { method: 'POST' });
+              setPoDocPreview(null);
+              load();
+            }}
+          />
+        )}
+      </>);
     }
 
     // ========== Render ==========
