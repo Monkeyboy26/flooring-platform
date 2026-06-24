@@ -19417,6 +19417,27 @@
       );
     }
 
+    // ========== PO Detail design tokens & shared card ==========
+    const PD_INK = '#1c1917', PD_PAPER = '#ece5d8', PD_ACCENT = '#a87935', PD_MUTED = '#8a7e68', PD_WARM = '#d8cdb6';
+    const PD_GREEN = '#3a7a4e', PD_AMBER = '#a87935', PD_RED = '#c54731', PD_BLUE = '#5c6e94';
+    const pdMonoLabel = { font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: PD_MUTED };
+    const pdSerifNum = (size) => ({ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: size, letterSpacing: '-0.01em', lineHeight: 1 });
+
+    function PdCard({ title, action, actionClick, action2, children }) {
+      return (
+        <section style={{ background: PD_PAPER, border: '0.5px solid ' + PD_INK + '22' }}>
+          <header style={{ padding: '14px 20px', borderBottom: '0.5px solid ' + PD_INK + '18', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 style={{ font: '500 13px/1 Inter, sans-serif', letterSpacing: '0.04em', color: PD_INK, margin: 0 }}>{title}</h3>
+            <div style={{ display: 'flex', gap: 14 }}>
+              {action2 && <span style={{ ...pdMonoLabel, fontSize: 11, letterSpacing: '0.12em', cursor: 'default' }}>{action2}</span>}
+              {action && <span style={{ ...pdMonoLabel, fontSize: 11, letterSpacing: '0.12em', color: PD_ACCENT, cursor: actionClick ? 'pointer' : 'default' }} onClick={actionClick}>{action}</span>}
+            </div>
+          </header>
+          {children}
+        </section>
+      );
+    }
+
     // ========== RepPurchaseOrderDetailView ==========
     // Design: brass-charcoal palette, serif headlines, two modes
     //   • Standalone (order_id == null) → editable action bar, inline editing
@@ -19454,9 +19475,9 @@
       const isOrderLinked = po && !!po.order_number;
       const editable = isDraft && !isOrderLinked;
 
-      // Design palette
-      const INK = '#1c1917', PAPER = '#ece5d8', ACCENT = '#a87935', MUTED = '#8a7e68', WARM = '#d8cdb6';
-      const GREEN = '#3a7a4e', AMBER = '#a87935', RED = '#c54731', BLUE = '#5c6e94';
+      // Design palette (aliases for module-scope PD_ tokens)
+      const INK = PD_INK, PAPER = PD_PAPER, ACCENT = PD_ACCENT, MUTED = PD_MUTED, WARM = PD_WARM;
+      const GREEN = PD_GREEN, AMBER = PD_AMBER, RED = PD_RED, BLUE = PD_BLUE;
 
       const statusColor = { draft: MUTED, sent: AMBER, acknowledged: AMBER, fulfilled: GREEN, cancelled: RED };
       const statusLabel = { draft: 'Draft', sent: 'Sent · awaiting acknowledgement', acknowledged: 'Acknowledged', fulfilled: 'Fulfilled · complete', cancelled: 'Cancelled' };
@@ -19578,23 +19599,9 @@
       const marginPct = retail > 0 ? (margin / retail * 100).toFixed(1) : '0.0';
       const receivedCount = items.filter(it => it.status === 'received').length;
 
-      // Mono label style helper
-      const monoLabel = { font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: MUTED };
-      const serifNum = (size) => ({ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: size, letterSpacing: '-0.01em', lineHeight: 1 });
-
-      // Section card component matching the design
-      const PdCard = ({ title, action, actionClick, action2, children }) => (
-        <section style={{ background: PAPER, border: '0.5px solid ' + INK + '22' }}>
-          <header style={{ padding: '14px 20px', borderBottom: '0.5px solid ' + INK + '18', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ font: '500 13px/1 Inter, sans-serif', letterSpacing: '0.04em', color: INK, margin: 0 }}>{title}</h3>
-            <div style={{ display: 'flex', gap: 14 }}>
-              {action2 && <span style={{ ...monoLabel, fontSize: 11, letterSpacing: '0.12em', cursor: 'default' }}>{action2}</span>}
-              {action && <span style={{ ...monoLabel, fontSize: 11, letterSpacing: '0.12em', color: ACCENT, cursor: actionClick ? 'pointer' : 'default' }} onClick={actionClick}>{action}</span>}
-            </div>
-          </header>
-          {children}
-        </section>
-      );
+      // Aliases for module-scope style helpers
+      const monoLabel = pdMonoLabel;
+      const serifNum = pdSerifNum;
 
       if (loading) return <div className="loading">Loading purchase order...</div>;
       if (!po) return <div className="loading">Purchase order not found</div>;
