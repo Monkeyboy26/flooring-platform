@@ -58,6 +58,26 @@ const PIPELINES = {
       { type: 'script',  path: 'scripts/msi-link-accessories.cjs', label: 'Link MSI Accessories' },
     ]
   },
+
+  engfloors: {
+    label: 'Engineered Floors',
+    schedule: '0 2 * * *',
+    description: 'Import EDI 832 catalog (products, pricing, packaging), then poll web services for dealer cost and inventory',
+    steps: [
+      { type: 'scraper', sourceKey: 'engfloors-832',          label: 'EF EDI 832 Catalog Import' },
+      { type: 'scraper', sourceKey: 'engfloors-webservices',   label: 'EF Web Services (Cost + Inventory)' },
+    ]
+  },
+
+  emser: {
+    label: 'Emser Tile',
+    schedule: '0 5 * * *',
+    description: 'Import EDI 832 pricing/packaging, then enrich with catalog images, descriptions, and spec PDFs',
+    steps: [
+      { type: 'scraper', sourceKey: 'emser-832',     label: 'Emser EDI 832 Import' },
+      { type: 'scraper', sourceKey: 'emser-catalog',  label: 'Emser Catalog Enrichment' },
+    ]
+  },
 };
 
 function getAvailablePipelines() {
@@ -65,6 +85,7 @@ function getAvailablePipelines() {
     vendorCode: code,
     label: config.label,
     description: config.description,
+    schedule: config.schedule || null,
     stepCount: config.steps.length,
     steps: config.steps.map((s, i) => ({ index: i, type: s.type, label: s.label })),
   }));
