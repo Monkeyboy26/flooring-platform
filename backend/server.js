@@ -1971,6 +1971,11 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
           WHEN inv.qty_on_hand > 0 THEN 'low_stock'
           ELSE 'out_of_stock'
         END as stock_status,
+        CASE WHEN COALESCE(v.has_public_inventory, false) = true
+               AND inv.fresh_until > NOW()
+               AND inv.qty_on_hand > 0 AND inv.qty_on_hand <= 10
+             THEN inv.qty_on_hand ELSE NULL
+        END as low_stock_qty,
         COALESCE(vc.variant_count, 0) as variant_count,
         COALESCE(pp.popularity_score, 0) as popularity_score`;
 
@@ -4036,7 +4041,7 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
     let stockWarnings = [];
     if (skuIds.length > 0) {
       const stockResult = await pool.query(`
-        SELECT s.id as sku_id,
+        SELECT s.id as sku_id, COALESCE(p.display_name, p.name) as product_name,
           COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
           CASE
             WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
@@ -4050,9 +4055,15 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
         LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
         WHERE s.id = ANY($1)
       `, [skuIds]);
-      stockWarnings = stockResult.rows
-        .filter(r => r.stock_status === 'out_of_stock' && r.vendor_has_inventory)
-        .map(r => r.sku_id);
+      const oosItems = stockResult.rows.filter(r => r.stock_status === 'out_of_stock' && r.vendor_has_inventory);
+      if (oosItems.length > 0) {
+        const names = oosItems.map(r => r.product_name).join(', ');
+        return res.status(400).json({
+          error: `The following items are out of stock: ${names}. Please remove them to proceed.`,
+          out_of_stock_sku_ids: oosItems.map(r => r.sku_id)
+        });
+      }
+      stockWarnings = [];
     }
 
     // Calculate product shipping
@@ -8577,7 +8588,7 @@ async function runScraper(source, configOverride = null) {
 
 // ==================== Vendor Pipelines ====================
 
-const { getAvailablePipelines, getPipelineConfig } = await import('./pipelines/vendor-pipelines.js');
+const { PIPELINES, getAvailablePipelines, getPipelineConfig } = await import('./pipelines/vendor-pipelines.js');
 const activePipelineRuns = new Map(); // pipelineRunId → { abortController, childProcess? }
 
 async function runPipeline(vendorCode) {
@@ -11171,13 +11182,25 @@ app.get('/api/trade/quotes/:id/pdf', tradeAuth, async (req, res) => {
 // ==================== Packing Slip & Invoice Helpers ====================
 
 async function generateOrderPackingSlipHtml(orderId) {
-  const order = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+  const order = await pool.query(`
+    SELECT o.*,
+      sr.first_name || ' ' || sr.last_name as sales_rep_name
+    FROM orders o
+    LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+    WHERE o.id = $1
+  `, [orderId]);
   if (!order.rows.length) return null;
   const items = await pool.query(`
-    SELECT oi.*, p.sqft_per_box, sk.variant_name, sa_c.value as color
+    SELECT oi.*, p.sqft_per_box, p.weight_per_box_lbs, sk.variant_name, sk.internal_sku,
+      sa_c.value as color,
+      v.name as vendor_name,
+      c.name as category_name
     FROM order_items oi
     LEFT JOIN packaging p ON p.sku_id = oi.sku_id
     LEFT JOIN skus sk ON sk.id = oi.sku_id
+    LEFT JOIN products pr ON pr.id = oi.product_id
+    LEFT JOIN vendors v ON v.id = pr.vendor_id
+    LEFT JOIN categories c ON c.id = pr.category_id
     LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
       AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
     WHERE oi.order_id = $1 ORDER BY oi.id
@@ -11185,41 +11208,209 @@ async function generateOrderPackingSlipHtml(orderId) {
   const o = order.rows[0];
   const isPickup = o.delivery_method === 'pickup';
 
-  const shipTo = isPickup
-    ? `<p><strong>Roma Flooring Designs</strong><br/>1440 S. State College Blvd., Suite 6M<br/>Anaheim, CA 92806</p>`
-    : `<p><strong>${o.customer_name}</strong><br/>${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}</p>`;
+  // Design tokens (matching PO document)
+  const ink = '#1c1917';
+  const muted = '#8a7e68';
+  const accent = '#a87935';
+  const warm = '#d8cdb6';
+  const mono = "ui-monospace, monospace";
+  const serif = "'Cormorant Garamond', 'Times New Roman', serif";
+  const sans = "'Inter', system-ui, sans-serif";
 
-  return { html: `<!DOCTYPE html><html><head><style>${getDocumentBaseCSS()}</style></head><body>
-    <div class="page">
-      ${getDocumentHeader('Packing Slip')}
-      <div class="doc-banner">
-        <div class="doc-banner-left">
-          <div class="meta-group"><p class="meta-label">Order</p><p class="meta-value">${o.order_number}</p></div>
-          <div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${new Date(o.created_at).toLocaleDateString()}</p></div>
+  const fmtDate = (d) => {
+    if (!d) return '\u2014';
+    return new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
+  const shipDate = fmtDate(o.shipped_at || o.created_at);
+  const psNumber = `PS-${o.order_number}`;
+  const deliveryLabel = isPickup ? 'Will Call / Pickup' : (o.shipping_method || 'Standard Shipping');
+
+  // Ship-to address
+  const shipToName = isPickup ? 'Roma Flooring Designs' : (o.customer_name || '\u2014');
+  const shipToAddr = isPickup
+    ? '1440 S. State College Blvd, Suite 6M<br>Anaheim, CA 92806'
+    : `${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br>' + o.shipping_address_line2 : ''}<br>${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}`;
+
+  // Swatch color palette for placeholder boxes
+  const swatchColors = ['#c4b5a0', '#a89882', '#d6c8b4', '#b8a68e', '#e0d4c0', '#9c8c74', '#cbbfa9'];
+
+  // Compute totals
+  let totalUnits = 0;
+  let totalWeight = 0;
+  let totalCartons = 0;
+  let hasWeight = false;
+  items.rows.forEach(i => {
+    totalUnits += (i.num_boxes || 0);
+    totalCartons += (i.num_boxes || 0);
+    if (i.weight_per_box_lbs) {
+      totalWeight += parseFloat(i.weight_per_box_lbs) * (i.num_boxes || 0);
+      hasWeight = true;
+    }
+  });
+
+  const html = `<!DOCTYPE html><html><head>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{margin:0;padding:0;height:100%}
+    body{font-family:${sans};color:${ink};font-size:11px;-webkit-font-smoothing:antialiased}
+    </style>
+    </head><body>
+    <div style="width:100%;height:100%;background:#fff;color:${ink};font-family:${sans};padding:48px 56px 40px;box-sizing:border-box;display:grid;grid-template-rows:auto auto auto 1fr auto;gap:0;font-size:11px">
+
+      <!-- HEADER -->
+      <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid ${ink}22">
+        <div>
+          <div style="font:300 36px/1 ${serif};letter-spacing:-0.014em;color:${ink}">Roma</div>
+          <div style="margin-top:4px;font:500 8px/1 ${mono};letter-spacing:0.22em;text-transform:uppercase;color:${muted}">Flooring &middot; Surfaces &middot; Since 1999</div>
+          <div style="margin-top:14px;font:400 10px/1.5 ${sans};color:${ink}cc">
+            Roma Flooring Designs, Inc.<br>
+            1440 S. State College Blvd, Anaheim, CA 92806<br>
+            (714) 999-0009 &middot; orders@romaflooringdesigns.com<br>
+            CSLB #874621
+          </div>
+        </div>
+        <div style="text-align:right;min-width:240px">
+          <div style="font:500 9px/1 ${mono};letter-spacing:0.22em;text-transform:uppercase;color:${muted}">Packing slip</div>
+          <div style="font:300 30px/1 ${serif};letter-spacing:-0.014em;color:${ink};margin-top:6px">${psNumber}</div>
+          <div style="margin-top:12px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 ${sans};text-align:left">
+            <span style="color:${muted}">Order</span>
+            <span style="color:${ink};text-align:right">${o.order_number}</span>
+            <span style="color:${muted}">Ship date</span>
+            <span style="color:${ink};text-align:right">${shipDate}</span>
+            ${o.po_number ? `<span style="color:${muted}">Customer PO</span><span style="color:${ink};text-align:right">${o.po_number}</span>` : ''}
+            ${o.tracking_number ? `<span style="color:${muted}">Tracking</span><span style="color:${ink};text-align:right;font:500 9px/1.4 ${mono};letter-spacing:0.04em">${o.tracking_number}</span>` : ''}
+          </div>
         </div>
       </div>
-      <div class="info-row">
-        <div class="info-card"><h3>${isPickup ? 'Store Pickup' : 'Ship To'}</h3>${shipTo}</div>
+
+      <!-- INTRO BAND -->
+      <div style="display:grid;grid-template-columns:1fr auto;gap:24px;padding:14px 0;margin-bottom:4px;border-bottom:1px solid ${ink}11">
+        <div style="font:500 9px/1.4 ${sans};letter-spacing:0.06em;color:${ink}cc">
+          Please verify all items against invoice <strong style="color:${ink}">${o.order_number}</strong>. Report any discrepancies within 48 hours of receipt to orders@romaflooringdesigns.com or (714) 999-0009.
+        </div>
+        <div style="display:flex;align-items:center;gap:0;padding:8px 14px;border:1.5px solid ${accent};color:${accent};font:500 11px/1 ${mono};letter-spacing:0.32em;text-transform:uppercase;transform:rotate(-2deg)">Packing list</div>
       </div>
-      <table>
-        <thead><tr><th>Description</th><th class="text-right">Qty</th><th class="text-right">SqFt/Box</th><th class="text-right">Total SqFt</th></tr></thead>
-        <tbody>
-          ${items.rows.map(i => {
-            const isUnit = i.sell_by === 'unit';
-            const sqftPerBox = i.sqft_per_box ? parseFloat(i.sqft_per_box) : null;
-            const totalSqft = i.sqft_needed ? parseFloat(i.sqft_needed) : (sqftPerBox ? sqftPerBox * i.num_boxes : null);
-            return `<tr>
-              <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}${i.is_sample ? ' <span class="text-muted text-small">(Sample)</span>' : ''}</td>
-              <td class="text-right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
-              <td class="text-right">${isUnit ? '\u2014' : (sqftPerBox ? sqftPerBox.toFixed(2) : '\u2014')}</td>
-              <td class="text-right">${isUnit ? '\u2014' : (totalSqft ? totalSqft.toFixed(1) : '\u2014')}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-      ${getDocumentFooter()}
+
+      <!-- SHIP-FROM / SHIP-TO / DELIVERY -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:16px 0 20px;border-bottom:1px solid ${ink}22">
+        <div>
+          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Ship from</div>
+          <div style="font:500 11px/1.2 ${sans};color:${ink}">Roma Flooring Designs</div>
+          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">
+            1440 S. State College Blvd<br>Anaheim, CA 92806
+          </div>
+        </div>
+        <div>
+          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">${isPickup ? 'Pickup by' : 'Ship to'}</div>
+          <div style="font:500 11px/1.2 ${sans};color:${ink}">${shipToName}</div>
+          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">${shipToAddr}</div>
+          ${o.phone ? `<div style="font:400 10px/1.5 ${sans};color:${ink}99;margin-top:4px">${o.phone}</div>` : ''}
+        </div>
+        <div>
+          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Delivery</div>
+          <div style="font:500 11px/1.2 ${sans};color:${ink}">${o.shipping_carrier || '\u2014'}</div>
+          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">${deliveryLabel}</div>
+          ${o.sales_rep_name ? `<div style="font:400 10px/1.5 ${sans};color:${ink}99;margin-top:4px">Rep: ${o.sales_rep_name}</div>` : ''}
+          ${isPickup ? `<div style="margin-top:8px;padding:6px 10px;background:${warm};font:500 9px/1.4 ${mono};letter-spacing:0.14em;text-transform:uppercase;color:${ink};display:inline-block">&#9679; Pickup &middot; Mon&ndash;Fri &middot; 7a&ndash;4p PT</div>` : ''}
+        </div>
+      </div>
+
+      <!-- LINE ITEMS -->
+      <div style="padding-top:18px">
+        <div style="display:grid;grid-template-columns:32px 1fr 70px 60px 60px 44px 70px;gap:8px;padding:0 0 10px;border-bottom:1px solid ${ink}33;font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted}">
+          <span></span><span>Description</span>
+          <span style="text-align:right">Coverage</span>
+          <span style="text-align:right">Ordered</span>
+          <span style="text-align:right">Shipped</span>
+          <span style="text-align:right">B/O</span>
+          <span style="text-align:right">Cartons</span>
+        </div>
+        ${items.rows.map((i, idx) => {
+          const isUnit = i.sell_by === 'unit';
+          const sqftPerBox = i.sqft_per_box ? parseFloat(i.sqft_per_box) : null;
+          const totalSqft = i.sqft_needed ? parseFloat(i.sqft_needed) : (sqftPerBox ? sqftPerBox * i.num_boxes : null);
+          const itemWeight = i.weight_per_box_lbs ? (parseFloat(i.weight_per_box_lbs) * i.num_boxes).toFixed(1) : null;
+          const swatchColor = swatchColors[idx % swatchColors.length];
+          const desc = i.collection || i.product_name || '\u2014';
+          const detail = [i.color, i.variant_name].filter(Boolean).join(' \u00b7 ');
+          const skuCode = i.internal_sku || '';
+          const catVendor = [i.category_name, i.vendor_name].filter(Boolean).join(' \u00b7 ');
+          const isLast = idx === items.rows.length - 1;
+          return `<div style="display:grid;grid-template-columns:32px 1fr 70px 60px 60px 44px 70px;gap:8px;padding:12px 0;border-bottom:${isLast ? 'none' : `1px solid ${ink}11`};align-items:flex-start">
+            <div style="width:28px;height:28px;background:${swatchColor};flex-shrink:0;border:0.5px solid ${ink}22"></div>
+            <div>
+              <div style="font:500 11px/1.3 ${sans};color:${ink};letter-spacing:-0.004em">${desc}${i.is_sample ? ` <span style="font:400 9px/1 ${sans};color:${muted}">(Sample)</span>` : ''}</div>
+              ${detail ? `<div style="font:400 10px/1.4 ${sans};color:${ink}99;margin-top:2px">${detail}</div>` : ''}
+              ${skuCode ? `<div style="font:500 9px/1.4 ${mono};letter-spacing:0.08em;color:${muted};margin-top:2px">${skuCode}</div>` : ''}
+              ${catVendor ? `<div style="font:400 9px/1.4 ${sans};color:${ink}88;margin-top:2px">${catVendor}</div>` : ''}
+            </div>
+            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${ink}">${isUnit ? '\u2014' : (totalSqft ? totalSqft.toFixed(1) + ' sqft' : '\u2014')}</div>
+            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${ink}">${i.num_boxes}</div>
+            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${ink}">${i.num_boxes}</div>
+            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${muted}">0</div>
+            <div style="text-align:right">
+              <div style="font:400 11px/1.2 ${serif};color:${ink}">${i.num_boxes}</div>
+              ${itemWeight ? `<div style="font:400 9px/1.4 ${sans};color:${muted};margin-top:2px">${itemWeight} lbs</div>` : ''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <!-- FOOTER AREA -->
+      <div>
+        <div style="display:grid;grid-template-columns:1fr 220px;gap:28px;margin-top:12px">
+          <!-- Left: Handling notes + sign-off -->
+          <div style="padding-top:4px">
+            <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Handling notes</div>
+            <div style="font:400 9.5px/1.55 ${sans};color:${ink}cc">
+              ${o.notes ? o.notes : 'Handle with care. Inspect all cartons for damage before signing. Tile and stone are fragile \u2014 do not drop or stack improperly.'}
+            </div>
+            <div style="margin-top:20px">
+              <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:14px">Receiving sign-off</div>
+              <div style="margin-bottom:16px">
+                <div style="border-bottom:1px solid ${ink}66;padding-bottom:4px;min-width:200px;font:400 12px/1 ${serif};color:${muted}">&nbsp;</div>
+                <div style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted};margin-top:6px">Signature</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+                <div>
+                  <div style="border-bottom:1px solid ${ink}66;padding-bottom:4px;font:400 12px/1 ${serif};color:${muted}">&nbsp;</div>
+                  <div style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted};margin-top:6px">Date received</div>
+                </div>
+                <div>
+                  <div style="border-bottom:1px solid ${ink}66;padding-bottom:4px;font:400 12px/1 ${serif};color:${muted}">&nbsp;</div>
+                  <div style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted};margin-top:6px">Print name</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Right: Package totals -->
+          <div>
+            <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:10px">Package totals</div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Lines</span><span style="color:${ink}">${items.rows.length}</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Units shipped</span><span style="color:${ink}">${totalUnits}</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Backordered</span><span style="color:${muted}">0</span></div>
+            ${hasWeight ? `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Total weight</span><span style="color:${ink}">${totalWeight.toFixed(1)} lbs</span></div>` : ''}
+            <div style="margin-top:8px;padding-top:8px;border-top:1.5px solid ${ink};display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font:500 10px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${ink}">Total cartons</span>
+              <span style="font:300 26px/1 ${serif};letter-spacing:-0.012em;color:${ink}">${totalCartons}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- DOCUMENT FOOTER -->
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid ${ink}22;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 ${sans};color:${muted}">
+          <span>Roma Flooring Designs, Inc. &middot; 1440 S. State College Blvd &middot; Anaheim, CA 92806 &middot; CSLB #874621</span>
+          <span style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase">${psNumber} &middot; Page 1 / 1</span>
+        </div>
+      </div>
     </div>
-  </body></html>`, filename: `packing-slip-${o.order_number}.pdf` };
+  </body></html>`;
+
+  return { html, filename: `packing-slip-${o.order_number}.pdf` };
 }
 
 async function generateOrderInvoiceHtml(orderId) {
@@ -14500,6 +14691,7 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
     let query = `
       SELECT p.*, v.name as vendor_name, v.code as vendor_code,
         COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
+        COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         (SELECT COUNT(*)::int FROM skus s WHERE s.product_id = p.id AND s.status = 'active') as sku_count,
         (SELECT pr.retail_price FROM pricing pr
@@ -14675,7 +14867,8 @@ app.get('/api/rep/products/:id', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const product = await pool.query(`
-      SELECT p.*, v.name as vendor_name, c.name as category_name, c.slug as category_slug
+      SELECT p.*, v.name as vendor_name, COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
+        c.name as category_name, c.slug as category_slug
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN categories c ON c.id = p.category_id
@@ -14732,6 +14925,7 @@ app.get('/api/rep/skus/:skuId', repAuth, async (req, res) => {
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.variant_type,
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, p.description_short,
         v.name as vendor_name, v.id as vendor_id,
+        COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name,
         pr.retail_price, pr.cost, pr.map_price, pr.price_basis,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.boxes_per_pallet,
@@ -15729,12 +15923,12 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId/status', repAuth, async (r
   }
 });
 
-// Update cost/qty/dye_lot on a draft PO item
+// Update draft PO item fields
 app.put('/api/rep/purchase-orders/:poId/items/:itemId', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { poId, itemId } = req.params;
-    const { cost, qty, dye_lot } = req.body;
+    const { cost, qty, dye_lot, product_name, vendor_sku, description, sell_by, retail_price } = req.body;
 
     // Verify PO is draft
     const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
@@ -15761,6 +15955,15 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId', repAuth, async (req, res
     const sets = ['cost = $1', 'qty = $2', 'subtotal = $3'];
     const params = [newCost.toFixed(2), newQty, itemSubtotal.toFixed(2)];
     if (dye_lot !== undefined) { sets.push('dye_lot = $' + (params.length + 1)); params.push(dye_lot || null); }
+    if (product_name !== undefined) { sets.push('product_name = $' + (params.length + 1)); params.push(product_name); }
+    if (vendor_sku !== undefined) { sets.push('vendor_sku = $' + (params.length + 1)); params.push(vendor_sku || null); }
+    if (description !== undefined) { sets.push('description = $' + (params.length + 1)); params.push(description || null); }
+    if (sell_by !== undefined) { sets.push('sell_by = $' + (params.length + 1)); params.push(sell_by || 'box'); }
+    if (retail_price !== undefined) {
+      const rp = retail_price != null ? parseFloat(retail_price) : null;
+      sets.push('retail_price = $' + (params.length + 1));
+      params.push(rp != null && !isNaN(rp) ? rp.toFixed(2) : null);
+    }
     params.push(itemId);
     await client.query(
       `UPDATE purchase_order_items SET ${sets.join(', ')} WHERE id = $${params.length}`,
@@ -21419,6 +21622,21 @@ async function initScheduler() {
     for (const source of result.rows) {
       rescheduleSource(source);
     }
+
+    // Schedule pipelines that have a cron schedule defined
+    for (const [vendorCode, config] of Object.entries(PIPELINES)) {
+      if (config.schedule && cron.validate(config.schedule)) {
+        const task = cron.schedule(config.schedule, () => {
+          console.log(`[Scheduler] Scheduled pipeline starting for: ${config.label}`);
+          runPipeline(vendorCode).catch(err =>
+            console.error(`[Scheduler] Scheduled pipeline failed for ${config.label}:`, err.message)
+          );
+        });
+        scheduledTasks.set(`pipeline:${vendorCode}`, task);
+        console.log(`[Scheduler] Registered pipeline "${config.label}": ${config.schedule}`);
+      }
+    }
+
     console.log(`[Scheduler] Initialized ${scheduledTasks.size} scheduled scraper(s)`);
   } catch (err) {
     // Tables may not exist yet on first run

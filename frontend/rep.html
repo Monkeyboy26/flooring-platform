@@ -2395,6 +2395,15 @@
     .rc-page-num.active { background: var(--stone-900); color: white; border-color: var(--stone-900); }
     .rc-page-ellipsis { width: 2rem; text-align: center; color: var(--stone-400); font-size: 0.8rem; }
 
+    /* Slide-over animations */
+    @keyframes rcatFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes rcatSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+    /* Responsive: catalog filter rail + grid collapse */
+    @media (max-width: 1080px) {
+      .rc-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    }
+
     /* ===== End Rep Catalog Redesign ===== */
 
     /* Product detail media */
@@ -5261,6 +5270,25 @@
       return `${window.location.protocol}//${h}:3001`;
     })();
 
+    // ========== Stock Display Helper ==========
+    function stockDisplay(p) {
+      const MUTED = '#8a7e68';
+      if (!p.vendor_has_inventory && (p.stock_status === 'unknown' || p.stock_status === 'out_of_stock' || !p.stock_status)) {
+        return { l: 'No inv. data', c: MUTED };
+      }
+      if (p.stock_status === 'in_stock') return { l: 'In stock', c: '#3a7a4e' };
+      if (p.stock_status === 'low_stock') {
+        const qty = parseInt(p.qty_on_hand);
+        if (qty > 0) {
+          const lbl = p.sell_by === 'unit' ? 'Only ' + qty + ' left' : p.sell_by === 'box' ? 'Only ' + qty + ' boxes' : qty + ' on hand';
+          return { l: lbl, c: '#a87935' };
+        }
+        return { l: 'Low stock', c: '#a87935' };
+      }
+      if (p.stock_status === 'out_of_stock') return { l: 'Out of stock', c: '#c54731' };
+      return { l: 'Unknown', c: MUTED };
+    }
+
     // ========== Image Optimization Helper ==========
     function optimizeImg(url, width) {
       if (!url || typeof url !== 'string') return url;
@@ -7578,8 +7606,9 @@
       }
     }
 
-    // ========== RepQuickViewModal ==========
+    // ========== RepQuickViewModal (slide-over panel) ==========
     function RepQuickViewModal({ productId, products, showCost, navigate, onClose }) {
+      const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
       const [productData, setProductData] = useState(null);
       const [skuData, setSkuData] = useState(null);
       const [loading, setLoading] = useState(true);
@@ -7587,19 +7616,18 @@
       const [mainImgIdx, setMainImgIdx] = useState(0);
       const [lightbox, setLightbox] = useState(null);
       const [shareModal, setShareModal] = useState(null);
-      const [tableExpanded, setTableExpanded] = useState(false);
+      const [specsOpen, setSpecsOpen] = useState(true);
+      const [calcPrice, setCalcPrice] = useState(null);
+      const [coverSqft, setCoverSqft] = useState(200);
 
-      // Load product (gets all SKU IDs), then auto-load first SKU detail
       const loadProduct = useCallback((id) => {
         setLoading(true);
         setMainImgIdx(0);
         setSkuData(null);
-        setTableExpanded(false);
         repFetch('/api/rep/products/' + id)
           .then(d => {
             setProductData(d);
             setLoading(false);
-            // Auto-load first SKU via new endpoint
             const firstSkuId = d.skus && d.skus.length > 0 ? d.skus[0].id : null;
             if (firstSkuId) loadSku(firstSkuId);
           })
@@ -7610,22 +7638,17 @@
         setSkuLoading(true);
         setMainImgIdx(0);
         repFetch('/api/rep/skus/' + skuId)
-          .then(d => { setSkuData(d); setSkuLoading(false); })
+          .then(d => { setSkuData(d); setSkuLoading(false); setCalcPrice(null); })
           .catch(() => setSkuLoading(false));
       }, []);
 
       useEffect(() => { if (productId) loadProduct(productId); }, [productId, loadProduct]);
-
       useEffect(() => {
         const onKey = (e) => { if (e.key === 'Escape') onClose(); };
         document.addEventListener('keydown', onKey);
         document.body.style.overflow = 'hidden';
         return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
       }, [onClose]);
-
-      const curIdx = products.findIndex(p => p.id === productId);
-      const goPrev = () => { if (curIdx > 0) loadProduct(products[curIdx - 1].id); };
-      const goNext = () => { if (curIdx < products.length - 1) loadProduct(products[curIdx + 1].id); };
 
       const activeSku = skuData ? skuData.sku : {};
       const product = skuData ? skuData.product : (productData ? productData.product : null);
@@ -7634,7 +7657,6 @@
       const accessories = skuData ? (skuData.accessories || []) : [];
       const allSkus = productData ? (productData.skus || []) : [];
 
-      // Build variant pill list: current SKU + siblings
       const allVariants = useMemo(() => {
         if (!activeSku.sku_id) return [];
         const current = {
@@ -7645,188 +7667,337 @@
         return [current, ...siblings];
       }, [activeSku.sku_id, siblings, skuMedia]);
 
-      const marginClass = (pct) => pct >= 30 ? 'high' : pct >= 15 ? 'mid' : 'low';
-
-      // Use only SKU-specific media from the new endpoint (matches storefront)
       const displayMedia = skuMedia;
+      const mono = (c) => ({ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: c });
+      const sectionTitle = { font: '500 10px/1 var(--roma-sans)', letterSpacing: '0.16em', textTransform: 'uppercase', color: TH.ink, margin: '0 0 12px' };
+      const fmtMoney = (n) => '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const marginCol = (pct) => pct >= 30 ? '#3a7a4e' : pct >= 15 ? '#a87935' : '#c54731';
+
+      const retail = activeSku.retail_price ? parseFloat(activeSku.retail_price) : 0;
+      const cost = activeSku.cost ? parseFloat(activeSku.cost) : 0;
+      const mPct = activeSku.margin_pct || 0;
+      const unitLabel = activeSku.sell_by === 'unit' ? '/ea' : '/sqft';
+      const price = calcPrice !== null ? calcPrice : retail;
+      const calcMargin = price > 0 ? ((price - cost) / price) * 100 : 0;
+      const sqftPerBox = activeSku.sqft_per_box ? parseFloat(activeSku.sqft_per_box) : null;
+      const boxes = sqftPerBox ? Math.ceil((coverSqft * 1.1) / sqftPerBox) : 0;
+      const coverTotal = sqftPerBox ? boxes * sqftPerBox * price : 0;
+
+      const step = retail >= 100 ? 25 : 0.25;
+      const calcMin = +(cost * 1.05).toFixed(2) || 0.01;
+      const calcMax = +(retail * 1.4).toFixed(2) || 100;
+      const clampPrice = (v) => Math.max(calcMin, Math.min(calcMax, +v.toFixed(2)));
+
+      // Trade tier pricing
+      const tiers = retail > 0 ? [
+        { label: 'Retail', mult: 1.00 },
+        { label: 'Trade', mult: 0.85 },
+        { label: 'Contractor', mult: 0.78 },
+        { label: 'Builder', mult: 0.72 },
+      ].map(t => ({ ...t, price: retail * t.mult, margin: cost > 0 ? ((retail * t.mult - cost) / (retail * t.mult)) * 100 : 0 })) : [];
 
       return ReactDOM.createPortal(
-        React.createElement('div', { className: 'rc-qv-overlay', onClick: e => { if (e.target === e.currentTarget) onClose(); } },
-          curIdx > 0 && React.createElement('button', { className: 'rc-qv-nav prev', onClick: e => { e.stopPropagation(); goPrev(); } }, '\u2039'),
-          curIdx < products.length - 1 && React.createElement('button', { className: 'rc-qv-nav next', onClick: e => { e.stopPropagation(); goNext(); } }, '\u203A'),
-          React.createElement('div', { className: 'rc-qv', onClick: e => e.stopPropagation() },
-            React.createElement('button', { className: 'rc-qv-close', onClick: onClose }, '\u00D7'),
-            /* Gallery */
-            React.createElement('div', { className: 'rc-qv-gallery' },
-              React.createElement('div', { className: 'rc-qv-main-img' },
-                loading ? React.createElement('div', { className: 'loading' }, 'Loading...') :
-                displayMedia.length > 0 ? React.createElement('img', {
-                  src: optimizeImg(displayMedia[mainImgIdx] ? displayMedia[mainImgIdx].url : displayMedia[0].url, 800), alt: '',
-                  style: skuLoading ? { opacity: 0.5, transition: 'opacity 0.15s' } : { transition: 'opacity 0.15s' },
-                  onClick: () => setLightbox({ images: displayMedia.map(m => m.url), startIndex: mainImgIdx })
-                }) : React.createElement('div', { className: 'rc-no-img' }, 'No Image')
-              ),
-              displayMedia.length > 1 && React.createElement('div', { className: 'rc-qv-thumbs' },
-                displayMedia.map((m, i) => React.createElement('img', {
-                  key: m.id || i, src: optimizeImg(m.url, 120), alt: '',
-                  className: 'rc-qv-thumb' + (i === mainImgIdx ? ' active' : ''),
-                  onClick: () => setMainImgIdx(i)
-                }))
-              )
-            ),
-            /* Info */
-            React.createElement('div', { className: 'rc-qv-info' },
-              loading ? React.createElement('div', { className: 'loading' }, 'Loading...') : product ? React.createElement(React.Fragment, null,
-                React.createElement('div', { className: 'rc-qv-vendor' }, product.brand_name || product.vendor_name),
-                React.createElement('div', { className: 'rc-qv-title' }, product.name),
-                React.createElement('div', { className: 'rc-qv-meta' },
-                  [product.collection, product.category_name].filter(Boolean).join(' \u2022 '),
-                  activeSku.variant_name ? ' \u2014 ' + activeSku.variant_name : ''
-                ),
-                product.description_short && React.createElement('div', { className: 'rc-qv-desc' }, product.description_short),
+        <React.Fragment>
+          {/* Backdrop */}
+          <div onClick={onClose} style={{
+            position: 'fixed', inset: 0, background: 'rgba(28,25,23,0.4)',
+            backdropFilter: 'blur(1.5px)', zIndex: 1000, animation: 'rcatFadeIn .2s ease',
+          }} />
+          {/* Slide-over panel */}
+          <aside style={{
+            position: 'fixed', top: 0, right: 0, bottom: 0, width: 552,
+            maxWidth: '100vw', background: TH.paper, zIndex: 1001,
+            boxShadow: '-24px 0 70px rgba(28,25,23,0.25)',
+            display: 'flex', flexDirection: 'column',
+            animation: 'rcatSlideIn .28s cubic-bezier(.22,.61,.36,1)',
+          }}>
+            {/* Header */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+              padding: '16px 20px', borderBottom: '0.5px solid rgba(28,25,23,0.1)', flexShrink: 0,
+            }}>
+              <div>
+                <div style={mono(TH.accent)}>Quick view · spec + economics</div>
+                {activeSku.sku_id && <div style={{ ...mono(TH.muted), marginTop: 7 }}>SKU {activeSku.sku_id}</div>}
+              </div>
+              <button onClick={onClose} style={{
+                width: 30, height: 30, border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent',
+                color: TH.ink, cursor: 'pointer', font: '400 15px/1 var(--roma-sans)', flexShrink: 0,
+              }}>&times;</button>
+            </div>
 
-                /* Variant pills — only show when >1 variant */
-                allVariants.length > 1 && React.createElement('div', null,
-                  React.createElement('div', { className: 'rc-section-title' }, 'Colors / Variants'),
-                  React.createElement('div', { className: 'rc-variant-pills' },
-                    allVariants.map(v => React.createElement('div', {
-                      key: v.sku_id,
-                      style: { display: 'flex', flexDirection: 'column', alignItems: 'center' }
-                    },
-                      React.createElement('button', {
-                        className: 'rc-variant-pill' + (v.sku_id === activeSku.sku_id ? ' active' : ''),
-                        title: v.variant_name || 'Variant',
-                        onClick: () => { if (v.sku_id !== activeSku.sku_id) loadSku(v.sku_id); }
-                      },
-                        v.primary_image
-                          ? React.createElement('img', { src: optimizeImg(v.primary_image, 96), alt: v.variant_name || '' })
-                          : React.createElement('span', { className: 'rc-pill-init' }, (v.variant_name || '?').substring(0, 6))
-                      ),
-                      React.createElement('span', { className: 'rc-variant-pill-label' }, v.variant_name || '\u2014')
-                    ))
-                  )
-                ),
+            {/* Scrollable body */}
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {loading ? <div style={{ padding: 40, textAlign: 'center', color: TH.muted }}>Loading...</div> : !product ? <div style={{ padding: 40, textAlign: 'center', color: TH.muted }}>Product not found</div> : (
+                <React.Fragment>
+                  {/* Hero image */}
+                  <div style={{ position: 'relative', height: 224, background: 'var(--stone-100)', overflow: 'hidden' }}>
+                    {displayMedia.length > 0 ? (
+                      <img src={optimizeImg(displayMedia[mainImgIdx] ? displayMedia[mainImgIdx].url : displayMedia[0].url, 800)}
+                        alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: skuLoading ? 0.5 : 1, transition: 'opacity 0.15s', cursor: 'pointer' }}
+                        onClick={() => setLightbox({ images: displayMedia.map(m => m.url), startIndex: mainImgIdx })} />
+                    ) : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: TH.muted }}>No Image</div>}
+                    {/* Stock badge */}
+                    {activeSku.stock_status && (() => {
+                      const qvSk = stockDisplay(activeSku);
+                      const qtyStr = activeSku.qty_on_hand != null && activeSku.vendor_has_inventory ? ' \u00B7 ' + activeSku.qty_on_hand + (activeSku.sell_by === 'unit' ? ' units' : ' qty') : '';
+                      return <div style={{
+                        position: 'absolute', top: 12, left: 12, padding: '5px 9px', background: TH.paper,
+                        color: qvSk.c, ...mono(qvSk.c),
+                      }}>{'\u25CF'} {qvSk.l}{qtyStr}</div>;
+                    })()}
+                    {/* Margin badge */}
+                    {showCost && mPct > 0 && <div style={{
+                      position: 'absolute', top: 12, right: 12, padding: '5px 9px', background: marginCol(mPct), color: '#fff',
+                      ...mono('#fff'),
+                    }}>{mPct.toFixed(0)}% margin</div>}
+                  </div>
+                  {/* Thumbnails */}
+                  {displayMedia.length > 1 && <div style={{ display: 'flex', gap: 6, padding: '8px 20px', overflowX: 'auto', borderBottom: '0.5px solid rgba(28,25,23,0.1)' }}>
+                    {displayMedia.map((m, i) => <img key={m.id || i} src={optimizeImg(m.url, 80)} alt=""
+                      onClick={() => setMainImgIdx(i)}
+                      style={{ width: 44, height: 44, objectFit: 'cover', border: i === mainImgIdx ? '2px solid ' + TH.ink : '2px solid transparent', cursor: 'pointer', opacity: i === mainImgIdx ? 1 : 0.6, flexShrink: 0 }} />)}
+                  </div>}
 
-                /* Pricing card — uses activeSku */
-                showCost && React.createElement('div', null,
-                  React.createElement('div', { className: 'rc-section-title' }, 'Pricing'),
-                  React.createElement('div', { className: 'rc-pricing-card' },
-                    React.createElement('div', { className: 'rc-pricing-item' },
-                      React.createElement('label', null, 'Retail'),
-                      React.createElement('span', null, activeSku.retail_price ? '$' + parseFloat(activeSku.retail_price).toFixed(2) + (activeSku.sell_by === 'box' ? '/sqft' : '/ea') : '\u2014')
-                    ),
-                    React.createElement('div', { className: 'rc-pricing-item' },
-                      React.createElement('label', null, 'Cost'),
-                      React.createElement('span', null, activeSku.cost ? '$' + parseFloat(activeSku.cost).toFixed(2) : '\u2014')
-                    ),
-                    React.createElement('div', { className: 'rc-pricing-item' },
-                      React.createElement('label', null, 'Margin'),
-                      React.createElement('span', null, activeSku.retail_price ? React.createElement('span', { className: 'rc-margin-badge ' + marginClass(activeSku.margin_pct || 0) }, (activeSku.margin_pct || 0).toFixed(1) + '%') : '\u2014')
-                    ),
-                    React.createElement('div', { className: 'rc-pricing-item' },
-                      React.createElement('label', null, 'MAP'),
-                      React.createElement('span', null, activeSku.map_price ? '$' + parseFloat(activeSku.map_price).toFixed(2) : '\u2014')
-                    )
-                  )
-                ),
+                  <div style={{ padding: '20px', display: 'grid', gap: 22 }}>
+                    {/* Title block */}
+                    <div>
+                      <div style={mono(TH.muted)}>{[product.category_name, product.brand_name || product.vendor_name, product.collection].filter(Boolean).join(' · ')}</div>
+                      <div style={{ font: '400 26px/1.05 var(--roma-serif)', letterSpacing: '-0.012em', color: TH.ink, marginTop: 8 }}>{product.name}</div>
+                      <div style={{ font: '400 13px/1.4 var(--roma-sans)', color: TH.ink + '99', marginTop: 4 }}>{[activeSku.variant_name, activeSku.size_display].filter(Boolean).join(' · ')}</div>
+                      {product.description_short && <div style={{ font: '400 12px/1.5 var(--roma-sans)', color: TH.muted, marginTop: 6 }}>{product.description_short}</div>}
+                    </div>
 
-                /* Packaging specs — uses activeSku */
-                React.createElement('div', null,
-                  React.createElement('div', { className: 'rc-section-title' }, 'Packaging'),
-                  React.createElement('div', { className: 'rc-specs-grid' },
-                    React.createElement('div', { className: 'rc-spec' }, React.createElement('label', null, 'Sqft/Box'), React.createElement('span', null, activeSku.sqft_per_box ? parseFloat(activeSku.sqft_per_box).toFixed(1) : '\u2014')),
-                    React.createElement('div', { className: 'rc-spec' }, React.createElement('label', null, 'Pcs/Box'), React.createElement('span', null, activeSku.pieces_per_box || '\u2014')),
-                    React.createElement('div', { className: 'rc-spec' }, React.createElement('label', null, 'Weight'), React.createElement('span', null, activeSku.weight_per_box_lbs ? parseFloat(activeSku.weight_per_box_lbs).toFixed(1) + ' lbs' : '\u2014')),
-                    React.createElement('div', { className: 'rc-spec' }, React.createElement('label', null, 'Box/Pallet'), React.createElement('span', null, activeSku.boxes_per_pallet || '\u2014'))
-                  )
-                ),
+                    {/* Variant pills */}
+                    {allVariants.length > 1 && <div>
+                      <div style={mono(TH.muted)}>Colors / Variants</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                        {allVariants.map(v => <div key={v.sku_id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                          <button onClick={() => { if (v.sku_id !== activeSku.sku_id) loadSku(v.sku_id); }}
+                            style={{ width: 48, height: 48, padding: 0, cursor: 'pointer', overflow: 'hidden',
+                              border: v.sku_id === activeSku.sku_id ? '2px solid ' + TH.ink : '2px solid rgba(28,25,23,0.15)',
+                              background: 'var(--stone-100)', flexShrink: 0 }}>
+                            {v.primary_image ? <img src={optimizeImg(v.primary_image, 96)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              : <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', fontSize: '0.55rem', color: TH.muted }}>{(v.variant_name || '?').substring(0, 6)}</span>}
+                          </button>
+                          <span style={{ font: '400 10px/1 var(--roma-sans)', color: TH.muted, maxWidth: 48, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }}>{v.variant_name || '\u2014'}</span>
+                        </div>)}
+                      </div>
+                    </div>}
 
-                /* Matching Accessories */
-                accessories.length > 0 && React.createElement('div', null,
-                  React.createElement('div', { className: 'rc-section-title' }, 'Matching Accessories (' + accessories.length + ')'),
-                  React.createElement('div', { className: 'rc-accessories-list' },
-                    accessories.map(a => React.createElement('div', { key: a.sku_id, className: 'rc-accessory-card' },
-                      a.primary_image
-                        ? React.createElement('img', { src: optimizeImg(a.primary_image, 88), alt: a.variant_name || '' })
-                        : React.createElement('div', { style: { width: 44, height: 44, background: 'var(--stone-200)', borderRadius: 4, flexShrink: 0 } }),
-                      React.createElement('div', { className: 'rc-accessory-info' },
-                        React.createElement('div', { className: 'rc-accessory-name' }, a.accessory_label || a.variant_name || '\u2014'),
-                        React.createElement('div', { className: 'rc-accessory-meta' }, a.sell_by === 'box' ? 'per sqft' : 'per unit')
-                      ),
-                      React.createElement('div', { className: 'rc-accessory-prices' },
-                        React.createElement('div', { className: 'retail' }, a.retail_price ? '$' + parseFloat(a.retail_price).toFixed(2) : '\u2014'),
-                        showCost && a.cost && React.createElement('div', { className: 'cost' },
-                          'Cost $' + parseFloat(a.cost).toFixed(2),
-                          ' \u00B7 ', React.createElement('span', { className: 'rc-margin-badge ' + marginClass(a.margin_pct || 0) }, (a.margin_pct || 0).toFixed(1) + '%')
-                        )
-                      )
-                    ))
-                  )
-                ),
+                    {/* Pricing ledger */}
+                    {retail > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', border: '0.5px solid rgba(28,25,23,0.13)' }}>
+                      {[
+                        ['Retail', fmtMoney(retail) + unitLabel, TH.ink],
+                        showCost ? ['Your cost', fmtMoney(cost) + unitLabel, '#c54731'] : ['Unit', unitLabel.replace('/', ''), TH.muted],
+                        showCost && mPct > 0 ? ['Margin', mPct.toFixed(1) + '%', marginCol(mPct)] : ['SKUs', allSkus.length.toString(), TH.ink],
+                      ].map(([l, v, c], i) => (
+                        <div key={l} style={{ padding: 14, borderLeft: i ? '0.5px solid rgba(28,25,23,0.1)' : 'none' }}>
+                          <div style={mono(TH.muted)}>{l}</div>
+                          <div style={{ font: '400 22px/1.1 var(--roma-serif)', color: c, marginTop: 6, letterSpacing: '-0.01em' }}>{v}</div>
+                        </div>
+                      ))}
+                    </div>}
 
-                /* All Variants table — collapsed by default */
-                allSkus.length > 1 && React.createElement('div', null,
-                  React.createElement('div', {
-                    className: 'rc-expandable-header',
-                    onClick: () => setTableExpanded(!tableExpanded)
-                  },
-                    React.createElement('div', { className: 'rc-section-title', style: { marginBottom: 0 } }, 'All Variants (' + allSkus.length + ')'),
-                    React.createElement('span', { className: 'rc-expand-arrow' + (tableExpanded ? ' open' : '') }, '\u25BC')
-                  ),
-                  tableExpanded && React.createElement('div', { className: 'rc-sku-table-wrap' },
-                    React.createElement('table', { className: 'rc-sku-table' },
-                      React.createElement('thead', null,
-                        React.createElement('tr', null,
-                          React.createElement('th', null, 'Variant'),
-                          React.createElement('th', null, 'Retail'),
-                          showCost && React.createElement('th', null, 'Cost'),
-                          showCost && React.createElement('th', null, 'Margin'),
-                          React.createElement('th', null, 'Sqft/Box'),
-                          React.createElement('th', null, 'Stock'),
-                          React.createElement('th', null, 'Qty')
-                        )
-                      ),
-                      React.createElement('tbody', null,
-                        allSkus.map(s => React.createElement('tr', {
-                          key: s.id,
-                          style: s.id === activeSku.sku_id ? { background: 'var(--stone-100)' } : {},
-                          onClick: () => { if (s.id !== activeSku.sku_id) loadSku(s.id); },
-                          className: s.id === activeSku.sku_id ? '' : 'rc-table-clickable'
-                        },
-                          React.createElement('td', { style: { fontWeight: s.id === activeSku.sku_id ? 600 : 500 } }, s.variant_name || '\u2014'),
-                          React.createElement('td', null, s.retail_price ? '$' + parseFloat(s.retail_price).toFixed(2) : '\u2014'),
-                          showCost && React.createElement('td', null, s.cost ? '$' + parseFloat(s.cost).toFixed(2) : '\u2014'),
-                          showCost && React.createElement('td', null,
-                            s.retail_price ? React.createElement('span', {
-                              className: 'rc-margin-badge ' + marginClass(s.margin_pct || 0)
-                            }, (s.margin_pct || 0).toFixed(1) + '%') : '\u2014'
-                          ),
-                          React.createElement('td', null, s.sqft_per_box ? parseFloat(s.sqft_per_box).toFixed(1) : '\u2014'),
-                          React.createElement('td', null,
-                            s.stock_status === 'in_stock' ? React.createElement('span', { className: 'badge badge-active' }, 'In Stock') :
-                            s.stock_status === 'low_stock' ? React.createElement('span', { className: 'badge badge-pending' }, 'Low') :
-                            s.stock_status === 'out_of_stock' ? React.createElement('span', { className: 'badge badge-cancelled' }, 'Out') :
-                            React.createElement('span', { className: 'badge badge-draft' }, '\u2014')
-                          ),
-                          React.createElement('td', null, s.qty_on_hand != null ? s.qty_on_hand : '\u2014')
-                        ))
-                      )
-                    )
-                  )
-                ),
+                    {/* Coverage calculator */}
+                    {sqftPerBox && activeSku.sell_by !== 'unit' && <div style={{ background: TH.warm, padding: 16, border: '0.5px solid rgba(28,25,23,0.06)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+                        <h4 style={sectionTitle}>Coverage calculator</h4>
+                        <span style={mono(TH.muted)}>at {fmtMoney(price)}{unitLabel}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                        <span style={{ font: '400 12px/1 var(--roma-sans)', color: TH.muted }}>Area</span>
+                        <input type="number" value={coverSqft} onChange={e => setCoverSqft(Math.max(0, +e.target.value))}
+                          style={{ width: 80, padding: '8px 10px', border: '0.5px solid rgba(28,25,23,0.2)', background: TH.paper, color: TH.ink, font: '400 14px/1 var(--roma-sans)', outline: 'none' }} />
+                        <span style={{ font: '400 12px/1 var(--roma-sans)', color: TH.muted }}>sf · incl. 10% waste</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'rgba(28,25,23,0.1)', border: '0.5px solid rgba(28,25,23,0.1)' }}>
+                        {[['Boxes', boxes], ['Covers', (boxes * sqftPerBox).toFixed(0) + ' sf'], ['Est. total', fmtMoney(coverTotal)]].map(([l, v]) => (
+                          <div key={l} style={{ background: TH.paper, padding: '11px 12px' }}>
+                            <div style={mono(TH.muted)}>{l}</div>
+                            <div style={{ font: '400 19px/1.1 var(--roma-serif)', color: TH.ink, marginTop: 5 }}>{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted, marginTop: 9 }}>{sqftPerBox} sf / box · sold by full box</div>
+                    </div>}
 
-                /* Actions */
-                React.createElement('div', { className: 'rc-qv-actions' },
-                  React.createElement('button', { className: 'rc-action-btn primary', onClick: () => { onClose(); navigate('quote-create'); } }, '+ Create Quote'),
-                  React.createElement('button', { className: 'rc-action-btn', onClick: () => { onClose(); navigate('sample-create'); } }, '\u2709 Request Sample'),
-                  React.createElement('button', { className: 'rc-action-btn', onClick: () => setShareModal({ product, media: productData ? productData.media || [] : [] }) }, '\u21AA Share with Customer')
-                )
-              ) : React.createElement('div', { className: 'loading' }, 'Product not found')
-            )
-          ),
-          lightbox && React.createElement(ImageLightbox, { images: lightbox.images, startIndex: lightbox.startIndex, onClose: () => setLightbox(null) }),
-          shareModal && React.createElement(ShareProductModal, { product: shareModal.product, media: shareModal.media, onClose: () => setShareModal(null) })
-        ),
+                    {/* Customer tier pricing */}
+                    {showCost && tiers.length > 0 && <div>
+                      <h4 style={sectionTitle}>Customer pricing tiers</h4>
+                      <div style={{ border: '0.5px solid rgba(28,25,23,0.13)' }}>
+                        {tiers.map((t, i) => (
+                          <div key={t.label} style={{
+                            display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', alignItems: 'center',
+                            padding: '11px 14px', borderTop: i ? '0.5px solid rgba(28,25,23,0.08)' : 'none',
+                            background: t.label === 'Trade' ? TH.accent + '1f' : 'transparent',
+                          }}>
+                            <span style={{ font: '400 13px/1 var(--roma-sans)', color: TH.ink, display: 'flex', alignItems: 'center', gap: 7 }}>
+                              {t.label === 'Trade' && <span style={{ width: 6, height: 6, borderRadius: '50%', background: TH.accent }} />}
+                              {t.label}
+                            </span>
+                            <span style={{ font: '400 14px/1 var(--roma-serif)', color: TH.ink, textAlign: 'right' }}>{fmtMoney(t.price)}{unitLabel}</span>
+                            <span style={{ font: '500 11px/1 ui-monospace, monospace', color: marginCol(t.margin), textAlign: 'right' }}>{t.margin.toFixed(0)}% mgn</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>}
+
+                    {/* Packaging specs */}
+                    <div>
+                      <h4 style={sectionTitle}>Packaging &amp; specifications</h4>
+                      <div>
+                        {[
+                          ['Sqft / Box', sqftPerBox ? sqftPerBox.toFixed(1) : '\u2014'],
+                          ['Pieces / Box', activeSku.pieces_per_box || '\u2014'],
+                          ['Weight / Box', activeSku.weight_per_box_lbs ? parseFloat(activeSku.weight_per_box_lbs).toFixed(1) + ' lbs' : '\u2014'],
+                          ['Boxes / Pallet', activeSku.boxes_per_pallet || '\u2014'],
+                          ['Sell by', activeSku.sell_by === 'unit' ? 'Per unit' : activeSku.sell_by === 'box' ? 'Per sqft (full box)' : '\u2014'],
+                        ].map(([k, v]) => (
+                          <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '0.5px solid rgba(28,25,23,0.08)' }}>
+                            <span style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.muted }}>{k}</span>
+                            <span style={{ font: '400 13px/1.3 var(--roma-sans)', color: TH.ink, textAlign: 'right' }}>{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Accessories */}
+                    {accessories.length > 0 && <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+                        <h4 style={{ ...sectionTitle, margin: 0 }}>Accessories &mdash; complete the install</h4>
+                        <span style={mono(TH.muted)}>{accessories.length} suggested</span>
+                      </div>
+                      <div style={{ border: '0.5px solid rgba(28,25,23,0.13)' }}>
+                        {accessories.map((a, i) => (
+                          <div key={a.sku_id} style={{
+                            display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: 12, alignItems: 'center',
+                            padding: '11px 12px', borderTop: i ? '0.5px solid rgba(28,25,23,0.08)' : 'none',
+                          }}>
+                            {a.primary_image
+                              ? <img src={optimizeImg(a.primary_image, 80)} alt="" style={{ width: 40, height: 40, objectFit: 'cover', border: '0.5px solid rgba(28,25,23,0.06)' }} />
+                              : <div style={{ width: 40, height: 40, background: 'var(--stone-200)', border: '0.5px solid rgba(28,25,23,0.06)' }} />}
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ font: '400 14px/1.2 var(--roma-sans)', color: TH.ink }}>{a.accessory_label || a.variant_name || '\u2014'}</div>
+                              <div style={{ font: '400 11px/1.3 var(--roma-sans)', color: TH.muted, marginTop: 2 }}>{a.sell_by === 'box' ? 'per sqft' : 'per unit'}</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ font: '400 15px/1 var(--roma-serif)', color: TH.ink }}>{a.retail_price ? fmtMoney(a.retail_price) : '\u2014'}</div>
+                              {showCost && a.cost && <div style={{ font: '400 10px/1 var(--roma-sans)', color: TH.muted, marginTop: 3 }}>cost {fmtMoney(a.cost)}</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>}
+
+                    {/* Margin calculator */}
+                    {showCost && retail > 0 && cost > 0 && <div style={{ background: TH.warm, padding: 16, border: '0.5px solid rgba(28,25,23,0.06)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+                        <h4 style={sectionTitle}>Price &amp; margin calculator</h4>
+                        {price < retail && <span style={{ ...mono('#c54731'), color: '#c54731' }}>&minus;{(((retail - price) / retail) * 100).toFixed(0)}% off retail</span>}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                        <button onClick={() => setCalcPrice(clampPrice((calcPrice || retail) - step))}
+                          style={{ width: 38, height: 38, border: '0.5px solid rgba(28,25,23,0.27)', background: 'transparent', color: TH.ink, cursor: 'pointer', font: '400 20px/1 var(--roma-sans)', flexShrink: 0 }}>&minus;</button>
+                        <div style={{ flex: 1, textAlign: 'center' }}>
+                          <div style={{ font: '400 32px/1 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.01em' }}>{fmtMoney(price)}<span style={{ font: '400 13px/1 var(--roma-sans)', color: TH.muted }}>{unitLabel}</span></div>
+                        </div>
+                        <button onClick={() => setCalcPrice(clampPrice((calcPrice || retail) + step))}
+                          style={{ width: 38, height: 38, border: '0.5px solid rgba(28,25,23,0.27)', background: 'transparent', color: TH.ink, cursor: 'pointer', font: '400 20px/1 var(--roma-sans)', flexShrink: 0 }}>+</button>
+                      </div>
+                      <input type="range" min={calcMin} max={calcMax} step={step} value={price}
+                        onChange={e => setCalcPrice(clampPrice(+e.target.value))}
+                        style={{ width: '100%', accentColor: TH.accent, marginBottom: 14 }} />
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'rgba(28,25,23,0.1)', border: '0.5px solid rgba(28,25,23,0.1)' }}>
+                        <div style={{ background: TH.paper, padding: '12px 14px' }}>
+                          <div style={mono(TH.muted)}>Margin at this price</div>
+                          <div style={{ font: '400 26px/1 var(--roma-serif)', color: marginCol(calcMargin), marginTop: 6 }}>{calcMargin.toFixed(1)}%</div>
+                        </div>
+                        <div style={{ background: TH.paper, padding: '12px 14px' }}>
+                          <div style={mono(TH.muted)}>Profit {unitLabel}</div>
+                          <div style={{ font: '400 26px/1 var(--roma-serif)', color: TH.ink, marginTop: 6 }}>{fmtMoney(price - cost)}</div>
+                        </div>
+                      </div>
+                    </div>}
+
+                    {/* Sourcing */}
+                    <div>
+                      <h4 style={sectionTitle}>Sourcing &amp; lead time</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        {[
+                          ['Vendor', product.brand_name || product.vendor_name || '\u2014'],
+                          ['Collection', product.collection || '\u2014'],
+                          ['On hand', !activeSku.vendor_has_inventory ? 'Not tracked' : activeSku.qty_on_hand != null ? activeSku.qty_on_hand + (activeSku.sell_by === 'unit' ? ' units' : ' sqft') : '\u2014'],
+                          ['Lead time', !activeSku.vendor_has_inventory ? 'Call for availability' : activeSku.stock_status === 'out_of_stock' ? '3\u20134 wk' : activeSku.stock_status === 'low_stock' ? '1 wk reorder' : activeSku.stock_status === 'unknown' ? 'Check with vendor' : 'Stocked \u00B7 ships now'],
+                        ].map(([l, v]) => (
+                          <div key={l} style={{ padding: '12px 14px', border: '0.5px solid rgba(28,25,23,0.06)' }}>
+                            <div style={mono(TH.muted)}>{l}</div>
+                            <div style={{ font: '400 14px/1.3 var(--roma-sans)', color: TH.ink, marginTop: 5 }}>{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* All variants table */}
+                    {allSkus.length > 1 && <div>
+                      <div onClick={() => setSpecsOpen(!specsOpen)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}>
+                        <h4 style={{ ...sectionTitle, margin: 0 }}>All Variants ({allSkus.length})</h4>
+                        <span style={{ color: TH.muted, font: '400 11px/1 var(--roma-sans)', transform: specsOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>&#9662;</span>
+                      </div>
+                      {specsOpen && <div style={{ marginTop: 12, border: '0.5px solid rgba(28,25,23,0.13)', maxHeight: 200, overflowY: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                          <thead><tr style={{ background: TH.warm }}>
+                            <th style={{ textAlign: 'left', padding: '6px 8px', ...mono(TH.muted), position: 'sticky', top: 0, background: TH.warm }}>Variant</th>
+                            <th style={{ textAlign: 'right', padding: '6px 8px', ...mono(TH.muted), position: 'sticky', top: 0, background: TH.warm }}>Retail</th>
+                            {showCost && <th style={{ textAlign: 'right', padding: '6px 8px', ...mono(TH.muted), position: 'sticky', top: 0, background: TH.warm }}>Margin</th>}
+                            <th style={{ textAlign: 'right', padding: '6px 8px', ...mono(TH.muted), position: 'sticky', top: 0, background: TH.warm }}>Stock</th>
+                          </tr></thead>
+                          <tbody>
+                            {allSkus.map(s => <tr key={s.id}
+                              onClick={() => { if (s.id !== activeSku.sku_id) loadSku(s.id); }}
+                              style={{ cursor: 'pointer', background: s.id === activeSku.sku_id ? TH.accent + '14' : 'transparent', borderBottom: '0.5px solid rgba(28,25,23,0.06)' }}>
+                              <td style={{ padding: '8px', font: '400 12px/1.2 var(--roma-sans)', color: TH.ink, fontWeight: s.id === activeSku.sku_id ? 600 : 400 }}>{s.variant_name || '\u2014'}</td>
+                              <td style={{ padding: '8px', font: '400 13px/1 var(--roma-serif)', color: TH.ink, textAlign: 'right' }}>{s.retail_price ? '$' + parseFloat(s.retail_price).toFixed(2) : '\u2014'}</td>
+                              {showCost && <td style={{ padding: '8px', font: '500 11px/1 ui-monospace, monospace', color: marginCol(s.margin_pct || 0), textAlign: 'right' }}>{s.margin_pct ? s.margin_pct.toFixed(0) + '%' : '\u2014'}</td>}
+                              <td style={{ padding: '8px', textAlign: 'right' }}>
+                                {(() => {
+                                  const vs = stockDisplay({ ...s, vendor_has_inventory: product.vendor_has_inventory });
+                                  return <span style={mono(vs.c)}>{'\u25CF'} {vs.l}</span>;
+                                })()}
+                              </td>
+                            </tr>)}
+                          </tbody>
+                        </table>
+                      </div>}
+                    </div>}
+                  </div>
+                </React.Fragment>
+              )}
+            </div>
+
+            {/* Action bar */}
+            {product && <div style={{
+              flexShrink: 0, padding: '14px 20px', borderTop: '0.5px solid rgba(28,25,23,0.1)',
+              display: 'flex', gap: 8, background: TH.paper,
+            }}>
+              <a onClick={() => { onClose(); navigate('quote-create'); }} style={{
+                flex: 2, padding: '13px 8px', textAlign: 'center', background: TH.ink, color: TH.paper,
+                font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.08em', textTransform: 'uppercase',
+                cursor: 'pointer', textDecoration: 'none',
+              }}>+ Add to quote</a>
+              {['Sample', 'Share'].map(l => (
+                <a key={l} onClick={() => { if (l === 'Share') { setShareModal({ product, media: productData ? productData.media || [] : [] }); } else { onClose(); navigate('sample-create'); } }}
+                  style={{
+                  flex: 1, padding: '13px 8px', textAlign: 'center', background: 'transparent', color: TH.ink,
+                  border: '0.5px solid rgba(28,25,23,0.2)', font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.08em',
+                  textTransform: 'uppercase', cursor: 'pointer', textDecoration: 'none',
+                }}>{l}</a>
+              ))}
+            </div>}
+          </aside>
+          {lightbox && <ImageLightbox images={lightbox.images} startIndex={lightbox.startIndex} onClose={() => setLightbox(null)} />}
+          {shareModal && <ShareProductModal product={shareModal.product} media={shareModal.media} onClose={() => setShareModal(null)} />}
+        </React.Fragment>,
         document.body
       );
     }
@@ -7858,6 +8029,13 @@
 
     // ========== RepCatalogView ==========
     function RepCatalogView({ navigate, showCost, setShowCost }) {
+      const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
+      const mono = (c) => ({ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: c });
+      const fmtMoney = (n) => '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const marginCol = (pct) => pct >= 30 ? '#3a7a4e' : pct >= 15 ? '#a87935' : '#c54731';
+      const unitLabel = (sell_by) => sell_by === 'box' ? '/sqft' : sell_by === 'unit' ? '/ea' : '';
+
+      // --- State ---
       const [products, setProducts] = useState([]);
       const [loading, setLoading] = useState(true);
       const [search, setSearch] = useState('');
@@ -7876,14 +8054,17 @@
       const [total, setTotal] = useState(0);
       const [lastUpdated, setLastUpdated] = useState(null);
       const [viewMode, setViewMode] = useState('grid');
-      const [sortBy, setSortBy] = useState('name_asc');
+      const [sortBy, setSortBy] = useState('margin_desc');
       const [perPage, setPerPage] = useState(24);
       const [quickViewId, setQuickViewId] = useState(null);
       const [lightbox, setLightbox] = useState(null);
       const [shareModal, setShareModal] = useState(null);
       const searchTimer = useRef(null);
 
-      // Safety: clear any stuck overlay state on mount
+      // FilterRail collapsible state
+      const [railSections, setRailSections] = useState({ category: true, vendor: true, price: false, stock: true, collection: false });
+      const toggleRailSection = (key) => setRailSections(s => ({ ...s, [key]: !s[key] }));
+
       useEffect(() => {
         document.body.style.overflow = '';
         return () => { document.body.style.overflow = ''; };
@@ -7896,7 +8077,6 @@
         repFetch('/api/rep/filterable-attributes').then(d => setFilterableAttrs(d.attributes || [])).catch(() => {});
       }, []);
 
-      // Load collections — filtered when a vendor is selected
       useEffect(() => {
         const url = vendor ? API + '/api/collections?vendor=' + vendor : API + '/api/collections';
         fetch(url).then(r => r.json()).then(d => {
@@ -7932,16 +8112,8 @@
       useEffect(() => { const fn = () => load(); window.addEventListener('focus', fn); return () => window.removeEventListener('focus', fn); }, [load]);
 
       const totalPages = Math.ceil(total / perPage) || 1;
-
-      const stockBadge = (s) => {
-        if (s === 'in_stock') return React.createElement('span', { className: 'badge badge-active' }, 'In Stock');
-        if (s === 'low_stock') return React.createElement('span', { className: 'badge badge-pending' }, 'Low Stock');
-        if (s === 'out_of_stock') return React.createElement('span', { className: 'badge badge-cancelled' }, 'Out of Stock');
-        return React.createElement('span', { className: 'badge badge-draft' }, 'Unknown');
-      };
-
-      const marginClass = (pct) => pct >= 30 ? 'high' : pct >= 15 ? 'mid' : 'low';
-      const unitLabel = (sell_by) => sell_by === 'box' ? '/sqft' : sell_by === 'unit' ? '/ea' : '';
+      const startIdx = (page - 1) * perPage + 1;
+      const endIdx = Math.min(page * perPage, total);
 
       const handleShare = (p) => {
         repFetch('/api/rep/products/' + p.id).then(d => {
@@ -7954,234 +8126,487 @@
         setMinPrice(''); setMaxPrice(''); setAttrFilters({}); setPage(1);
       };
 
-      const activeFilterPills = [];
-      if (category) { const cat = categories.find(c => c.slug === category); activeFilterPills.push({ label: cat ? cat.name : category, clear: () => { setCategory(''); setPage(1); } }); }
-      if (vendor) { const v = vendors.find(x => String(x.id) === String(vendor)); activeFilterPills.push({ label: v ? v.name : 'Vendor', clear: () => { setVendor(''); setPage(1); } }); }
-      if (collection) { const col = collections.find(c => c.slug === collection); activeFilterPills.push({ label: col ? col.name : collection, clear: () => { setCollection(''); setPage(1); } }); }
-      if (stockStatus) { const labels = { in_stock: 'In Stock', low_stock: 'Low Stock', out_of_stock: 'Out of Stock' }; activeFilterPills.push({ label: labels[stockStatus] || stockStatus, clear: () => { setStockStatus(''); setPage(1); } }); }
-      if (minPrice) activeFilterPills.push({ label: 'Min $' + minPrice, clear: () => { setMinPrice(''); setPage(1); } });
-      if (maxPrice) activeFilterPills.push({ label: 'Max $' + maxPrice, clear: () => { setMaxPrice(''); setPage(1); } });
+      // Build active filter chips
+      const chips = [];
+      if (category) { const cat = (categories || []).flatMap(c => [c, ...(c.children || [])]).find(c => c.slug === category); chips.push({ key: 'cat', label: cat ? cat.name : category, clear: () => { setCategory(''); setPage(1); } }); }
+      if (vendor) { const v = vendors.find(x => String(x.id) === String(vendor)); chips.push({ key: 'vendor', label: v ? v.name : 'Vendor', clear: () => { setVendor(''); setPage(1); } }); }
+      if (collection) { const col = collections.find(c => c.slug === collection); chips.push({ key: 'coll', label: col ? col.name : collection, clear: () => { setCollection(''); setPage(1); } }); }
+      if (stockStatus) { const labels = { in_stock: 'In Stock', low_stock: 'Low Stock', out_of_stock: 'Out of Stock' }; chips.push({ key: 'stock', label: labels[stockStatus] || stockStatus, clear: () => { setStockStatus(''); setPage(1); } }); }
+      if (minPrice) chips.push({ key: 'minP', label: 'Min $' + minPrice, clear: () => { setMinPrice(''); setPage(1); } });
+      if (maxPrice) chips.push({ key: 'maxP', label: 'Max $' + maxPrice, clear: () => { setMaxPrice(''); setPage(1); } });
       Object.entries(attrFilters).forEach(([slug, val]) => {
-        if (val) { const attr = filterableAttrs.find(a => a.slug === slug); activeFilterPills.push({ label: (attr ? attr.name + ': ' : '') + val, clear: () => { setAttrFilters(prev => ({ ...prev, [slug]: '' })); setPage(1); } }); }
+        if (val) { const attr = filterableAttrs.find(a => a.slug === slug); chips.push({ key: slug, label: (attr ? attr.name + ': ' : '') + val, clear: () => { setAttrFilters(prev => ({ ...prev, [slug]: '' })); setPage(1); } }); }
       });
 
-      // Sort handler for table headers
       const handleSort = (field) => {
         if (sortBy === field + '_asc') setSortBy(field + '_desc');
         else setSortBy(field + '_asc');
         setPage(1);
       };
-      const sortArrow = (field) => {
-        if (sortBy === field + '_asc') return ' \u25B2';
-        if (sortBy === field + '_desc') return ' \u25BC';
-        return '';
-      };
 
-      // Grid card sub-component
-      const GridCard = ({ p }) => (
-        React.createElement('div', { className: 'rc-card', onClick: () => setQuickViewId(p.id) },
-          React.createElement('div', { className: 'rc-card-image' },
-            p.primary_image ?
-              React.createElement('img', { src: optimizeImg(p.primary_image, 500), alt: '', loading: 'lazy' }) :
-              React.createElement('div', { className: 'rc-no-img' }, 'No Image'),
-            React.createElement('span', { className: 'rc-vendor-badge' }, p.brand_name || p.vendor_name),
-            React.createElement('span', { className: 'rc-stock-dot ' + (p.stock_status || 'unknown'), title: (p.stock_status || 'unknown').replace('_', ' ') })
-          ),
-          React.createElement('div', { className: 'rc-card-body' },
-            React.createElement('div', { className: 'rc-card-name' }, p.name),
-            p.collection && React.createElement('div', { className: 'rc-card-collection' }, p.collection),
-            React.createElement('div', { className: 'rc-card-price-row' },
-              React.createElement('span', { className: 'rc-card-retail' },
-                p.price ? '$' + parseFloat(p.price).toFixed(2) : '\u2014',
-                p.price && React.createElement('span', null, unitLabel(p.sell_by))
-              ),
-              showCost && p.cost && React.createElement('span', { className: 'rc-card-cost' }, 'Cost $' + parseFloat(p.cost).toFixed(2)),
-              showCost && p.price && React.createElement('span', { className: 'rc-margin-badge ' + marginClass(p.margin_pct) }, p.margin_pct.toFixed(1) + '%')
-            ),
-            React.createElement('div', { className: 'rc-card-info' },
-              React.createElement('span', { className: 'rc-info-pill' }, p.sku_count + ' SKU' + (p.sku_count !== 1 ? 's' : '')),
-              React.createElement('span', { className: 'rc-info-pill' }, unitLabel(p.sell_by) || 'N/A')
-            ),
-            React.createElement('div', { className: 'rc-card-actions' },
-              React.createElement('button', { className: 'rc-action-btn primary', onClick: e => { e.stopPropagation(); navigate('quote-create'); } }, '+ Quote'),
-              React.createElement('button', { className: 'rc-action-icon', onClick: e => { e.stopPropagation(); navigate('sample-create'); }, title: 'Request Sample' }, '\u2709'),
-              React.createElement('button', { className: 'rc-action-icon', onClick: e => { e.stopPropagation(); handleShare(p); }, title: 'Share' }, '\u21AA')
-            )
-          )
-        )
-      );
-
-      // Flatten categories for the dropdown (children indented with spaces)
+      // Flatten categories
       const flatCats = [];
       (categories || []).forEach(c => {
-        flatCats.push({ slug: c.slug, name: c.name, depth: 0 });
-        if (c.children) c.children.forEach(ch => flatCats.push({ slug: ch.slug, name: '\u00A0\u00A0\u00A0' + ch.name, depth: 1 }));
+        flatCats.push({ slug: c.slug, name: c.name });
+        if (c.children) c.children.forEach(ch => flatCats.push({ slug: ch.slug, name: ch.name }));
       });
 
-      const startIdx = (page - 1) * perPage + 1;
-      const endIdx = Math.min(page * perPage, total);
+      // Price band presets
+      const priceBands = [
+        { label: 'Under $5', min: '', max: '5' },
+        { label: '$5 \u2013 $10', min: '5', max: '10' },
+        { label: '$10 \u2013 $20', min: '10', max: '20' },
+        { label: 'Over $20', min: '20', max: '' },
+      ];
+      const activeBand = priceBands.findIndex(b => b.min === minPrice && b.max === maxPrice);
+
+      // Filter presets
+      const applyPreset = (preset) => {
+        clearAllFilters();
+        if (preset === 'in_stock') { setStockStatus('in_stock'); setSortBy('margin_desc'); }
+        else if (preset === 'ready') { setStockStatus('in_stock'); }
+        else if (preset === 'tile_under_10') { setMaxPrice('10'); }
+        setPage(1);
+      };
+
+      // Sort options
+      const sortOptions = [
+        { value: 'margin_desc', label: 'Margin \u00B7 high \u2192 low' },
+        { value: 'margin_asc', label: 'Margin \u00B7 low \u2192 high' },
+        { value: 'price_desc', label: 'Price \u00B7 high \u2192 low' },
+        { value: 'price_asc', label: 'Price \u00B7 low \u2192 high' },
+        { value: 'name_asc', label: 'Name \u00B7 A \u2192 Z' },
+        { value: 'name_desc', label: 'Name \u00B7 Z \u2192 A' },
+        { value: 'newest', label: 'Newest first' },
+        { value: 'stock_desc', label: 'Stock level' },
+      ];
+
+      // --- Collapsible section helper ---
+      const RailSection = ({ id, title, count, children }) => {
+        const open = railSections[id];
+        return (
+          <div style={{ borderTop: '0.5px solid rgba(28,25,23,0.1)', padding: '14px 0' }}>
+            <button onClick={() => toggleRailSection(id)} style={{
+              width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', color: TH.ink }}>{title}</span>
+                {count > 0 && <span style={{ ...mono('#fff'), color: '#fff', background: TH.accent, padding: '2px 6px', fontSize: 9 }}>{count}</span>}
+              </span>
+              <span style={{ color: TH.muted, font: '400 11px/1 var(--roma-sans)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>&#9662;</span>
+            </button>
+            {open && <div style={{ marginTop: 12 }}>{children}</div>}
+          </div>
+        );
+      };
+
+      // --- CheckRow helper ---
+      const CheckRow = ({ label, on, onToggle }) => (
+        <label onClick={onToggle} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, cursor: 'pointer' }}>
+          <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ width: 13, height: 13, border: '1px solid ' + (on ? TH.accent : TH.ink + '44'), background: on ? TH.accent : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transform: 'translateY(2px)', color: '#fff', font: '400 9px/1 var(--roma-sans)' }}>{on ? '\u2713' : ''}</span>
+            <span style={{ font: '400 12px/1.3 var(--roma-sans)', color: on ? TH.ink : TH.ink + 'cc' }}>{label}</span>
+          </span>
+        </label>
+      );
 
       return (
-        React.createElement('div', null,
-          /* Header */
-          React.createElement('div', { className: 'content-header' },
-            React.createElement('h1', null, 'Product Catalog'),
-            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.75rem' } },
-              lastUpdated && React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--stone-400)' } }, 'Updated ' + lastUpdated.toLocaleTimeString()),
-              React.createElement('button', { className: 'btn btn-secondary btn-sm', onClick: load, disabled: loading, style: { padding: '0.25rem 0.6rem', fontSize: '0.75rem' } }, loading ? 'Refreshing...' : 'Refresh')
-            )
-          ),
+        <div>
+          {/* ── Header ── */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 24, marginBottom: 20 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <span style={mono(TH.accent)}>Catalog · SKU lookup</span>
+              </div>
+              <h1 style={{ font: '300 44px/1 var(--roma-serif)', letterSpacing: '-0.018em', margin: 0, color: TH.ink }}>
+                Product <em style={{ color: TH.accent, fontStyle: 'italic' }}>catalog</em>
+              </h1>
+              <p style={{ font: '400 13px/1.5 var(--roma-sans)', color: TH.ink + 'b3', margin: '6px 0 0' }}>
+                {total.toLocaleString()} products · {vendors.length} vendors · live cost &amp; margin · trade-tier pricing
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              <a onClick={() => navigate('quotes')} style={{ padding: '10px 14px', border: '0.5px solid ' + TH.ink + '66', color: TH.ink, cursor: 'pointer', textDecoration: 'none' }}>Open quote builder &rarr;</a>
+              <a onClick={() => navigate('quote-create')} style={{ padding: '10px 14px', background: TH.ink, color: TH.paper, cursor: 'pointer', textDecoration: 'none' }}>+ Add to quote</a>
+            </div>
+          </div>
 
-          /* Toolbar */
-          React.createElement('div', { className: 'rc-toolbar' },
-            React.createElement('div', { className: 'rc-toolbar-search' },
-              React.createElement('span', { className: 'rc-search-icon' }, '\uD83D\uDD0D'),
-              React.createElement('input', { type: 'text', placeholder: 'Search products, collections, vendors...', value: search,
-                onChange: e => { setSearch(e.target.value); setPage(1); }
-              }),
-              search && React.createElement('button', { className: 'rc-clear-search', onClick: () => { setSearch(''); setPage(1); } }, '\u00D7')
-            ),
-            React.createElement('select', { className: 'rc-sort-select', value: sortBy, onChange: e => { setSortBy(e.target.value); setPage(1); } },
-              React.createElement('option', { value: 'name_asc' }, 'Name A-Z'),
-              React.createElement('option', { value: 'name_desc' }, 'Name Z-A'),
-              React.createElement('option', { value: 'price_asc' }, 'Price: Low to High'),
-              React.createElement('option', { value: 'price_desc' }, 'Price: High to Low'),
-              React.createElement('option', { value: 'margin_desc' }, 'Margin: High to Low'),
-              React.createElement('option', { value: 'margin_asc' }, 'Margin: Low to High'),
-              React.createElement('option', { value: 'newest' }, 'Newest'),
-              React.createElement('option', { value: 'stock_desc' }, 'Stock Level')
-            ),
-            React.createElement('div', { className: 'view-toggle' },
-              React.createElement('button', { className: viewMode === 'grid' ? 'active' : '', onClick: () => setViewMode('grid') }, '\u25A6'),
-              React.createElement('button', { className: viewMode === 'table' ? 'active' : '', onClick: () => setViewMode('table') }, '\u2630')
-            ),
-            React.createElement('label', { className: 'cost-toggle', onClick: () => setShowCost(s => !s) },
-              React.createElement('div', { className: 'cost-toggle-track' + (showCost ? ' active' : '') }),
-              'Cost'
-            ),
-            React.createElement('span', { className: 'rc-result-count' }, total > 0 ? startIdx + '\u2013' + endIdx + ' of ' + total : '0 products'),
-            React.createElement('div', { className: 'rc-per-page' },
-              'Show: ',
-              React.createElement('select', { value: perPage, onChange: e => { setPerPage(parseInt(e.target.value)); setPage(1); } },
-                React.createElement('option', { value: 24 }, '24'),
-                React.createElement('option', { value: 48 }, '48'),
-                React.createElement('option', { value: 96 }, '96')
-              )
-            )
-          ),
+          {/* ── Toolbar ── */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+            {/* Search */}
+            <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid ' + TH.ink + '33', background: TH.paper, flex: 1, maxWidth: 440 }}>
+              <span style={{ padding: '9px 12px', color: TH.muted, font: '400 14px/1 var(--roma-sans)' }}>&#x2315;</span>
+              <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+                placeholder="Search SKU, vendor, name, collection\u2026 \u2318K"
+                style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', font: '400 13px/1 var(--roma-sans)', color: TH.ink, padding: '9px 8px 9px 0' }} />
+              {search && <span onClick={() => { setSearch(''); setPage(1); }} style={{ padding: '0 12px', cursor: 'pointer', color: TH.muted, font: '400 14px/1 var(--roma-sans)' }}>&times;</span>}
+            </div>
+            {/* Right toolbar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, font: '500 11px/1 var(--roma-sans)' }}>
+              <span style={mono(TH.muted)}>{total > 0 ? startIdx + '\u2013' + endIdx + ' of ' + total.toLocaleString() : '0 products'}</span>
+              <span style={{ width: 1, height: 18, background: TH.ink + '22' }} />
+              <span style={mono(TH.muted)}>Sort</span>
+              <select value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(1); }} style={{
+                padding: '7px 8px', border: '0.5px solid ' + TH.ink + '33', background: TH.paper, color: TH.ink,
+                font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase',
+                cursor: 'pointer', outline: 'none',
+              }}>
+                {sortOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              <span style={{ width: 1, height: 18, background: TH.ink + '22' }} />
+              {/* Cost toggle */}
+              <label onClick={() => setShowCost(s => !s)} style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer' }}>
+                <span style={{ width: 32, height: 18, background: showCost ? TH.accent : TH.ink + '33', borderRadius: 999, position: 'relative', transition: 'background .15s' }}>
+                  <span style={{ position: 'absolute', top: 2, left: showCost ? 16 : 2, width: 14, height: 14, borderRadius: '50%', background: TH.paper, transition: 'left .15s' }} />
+                </span>
+                <span style={mono(showCost ? TH.ink : TH.muted)}>{showCost ? '\u25CF Cost visible' : '\u25CB Cost hidden'}</span>
+              </label>
+              <span style={{ width: 1, height: 18, background: TH.ink + '22' }} />
+              {/* View mode switcher */}
+              <div style={{ display: 'flex', border: '0.5px solid ' + TH.ink + '33' }}>
+                {[['grid', 'Grid'], ['compact', 'Compact'], ['spec', 'Spec']].map(([v, l], i) => (
+                  <button key={v} onClick={() => setViewMode(v)} style={{
+                    padding: '7px 12px', background: viewMode === v ? TH.ink : 'transparent', color: viewMode === v ? TH.paper : TH.ink,
+                    border: 'none', borderLeft: i ? '0.5px solid ' + TH.ink + '22' : 'none', cursor: 'pointer',
+                    font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase',
+                  }}>{l}</button>
+                ))}
+              </div>
+              {/* Per page */}
+              <select value={perPage} onChange={e => { setPerPage(parseInt(e.target.value)); setPage(1); }} style={{
+                padding: '7px 8px', border: '0.5px solid ' + TH.ink + '33', background: TH.paper, color: TH.ink,
+                font: '500 10px/1 ui-monospace, monospace', cursor: 'pointer', outline: 'none',
+              }}>
+                {[24, 48, 96].map(n => <option key={n} value={n}>{n} / page</option>)}
+              </select>
+            </div>
+          </div>
 
-          /* Horizontal filter bar */
-          React.createElement('div', { className: 'rc-filter-bar' },
-            React.createElement('select', { value: vendor, onChange: e => { setVendor(e.target.value); setPage(1); } },
-              React.createElement('option', { value: '' }, 'All Vendors'),
-              vendors.map(v => React.createElement('option', { key: v.id, value: String(v.id) }, v.name))
-            ),
-            React.createElement('select', { value: category, onChange: e => { setCategory(e.target.value); setPage(1); } },
-              React.createElement('option', { value: '' }, 'All Categories'),
-              flatCats.map(c => React.createElement('option', { key: c.slug, value: c.slug }, c.name))
-            ),
-            React.createElement('select', { value: collection, onChange: e => { setCollection(e.target.value); setPage(1); } },
-              React.createElement('option', { value: '' }, 'All Collections'),
-              collections.map(c => React.createElement('option', { key: c.slug, value: c.slug }, c.name))
-            ),
-            React.createElement('select', { value: stockStatus, onChange: e => { setStockStatus(e.target.value); setPage(1); } },
-              React.createElement('option', { value: '' }, 'All Stock'),
-              React.createElement('option', { value: 'in_stock' }, 'In Stock'),
-              React.createElement('option', { value: 'low_stock' }, 'Low Stock'),
-              React.createElement('option', { value: 'out_of_stock' }, 'Out of Stock')
-            )
-          ),
+          {/* ── Active filter chips ── */}
+          {chips.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 18 }}>
+            <span style={{ ...mono(TH.muted), marginRight: 4 }}>Refined by</span>
+            {chips.map(c => (
+              <span key={c.key} onClick={c.clear} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 8px',
+                background: TH.accent + '1f', border: '0.5px solid ' + TH.accent + '66', cursor: 'pointer',
+                font: '400 11px/1 var(--roma-sans)', color: TH.ink,
+              }}>{c.label} <span style={{ color: TH.accent }}>&times;</span></span>
+            ))}
+            <a onClick={clearAllFilters} style={{
+              ...mono(TH.accent), color: TH.accent, marginLeft: 8, cursor: 'pointer', textDecoration: 'none',
+              borderBottom: '1px solid ' + TH.accent, paddingBottom: 2,
+            }}>Clear all</a>
+          </div>}
 
-          /* Active filter pills */
-          activeFilterPills.length > 0 && React.createElement('div', { className: 'rc-active-filters' },
-            activeFilterPills.map((pill, i) =>
-              React.createElement('span', { key: i, className: 'rc-fpill' },
-                pill.label,
-                React.createElement('button', { onClick: pill.clear }, '\u00D7')
-              )
-            ),
-            React.createElement('button', { className: 'rc-clear-all', onClick: clearAllFilters }, 'Clear All')
-          ),
+          {/* ── Main: FilterRail + Content ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '236px 1fr', gap: 28, marginTop: 4 }}>
 
-          /* Main content */
-          React.createElement('div', { className: 'rc-layout' },
-              loading ? React.createElement('div', { className: 'loading' }, 'Loading products...') :
+            {/* ── FilterRail sidebar ── */}
+            <aside style={{ display: 'flex', flexDirection: 'column' }}>
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 12 }}>
+                <h3 style={{ font: '400 19px/1 var(--roma-serif)', color: TH.ink, margin: 0 }}>Filters</h3>
+                <span style={mono(TH.muted)}>{total} match{total === 1 ? '' : 'es'}</span>
+              </div>
 
-              viewMode === 'grid' ?
-                React.createElement('div', null,
-                  React.createElement('div', { className: 'rc-grid' },
-                    products.map(p => React.createElement(GridCard, { key: p.id, p: p })),
-                    products.length === 0 && React.createElement('div', { style: { gridColumn: '1/-1', textAlign: 'center', padding: '2rem', color: 'var(--stone-400)' } }, 'No products found')
-                  )
-                ) :
+              {/* Saved presets */}
+              <div style={{ display: 'grid', gap: 6, marginBottom: 4 }}>
+                <span style={{ ...mono(TH.muted), marginBottom: 2 }}>Saved sets</span>
+                {[
+                  { label: 'High-margin \u00B7 in stock', preset: 'in_stock' },
+                  { label: 'Ready to quote', preset: 'ready' },
+                  { label: 'Tile under $10', preset: 'tile_under_10' },
+                ].map(p => (
+                  <button key={p.label} onClick={() => applyPreset(p.preset)} style={{
+                    textAlign: 'left', padding: '8px 10px', background: TH.warm, border: '0.5px solid ' + TH.ink + '1a',
+                    cursor: 'pointer', font: '400 12px/1.2 var(--roma-sans)', color: TH.ink,
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}>{p.label} <span style={{ color: TH.accent, font: '400 13px/1 var(--roma-sans)' }}>&rarr;</span></button>
+                ))}
+              </div>
 
-                /* Table view */
-                React.createElement('div', { className: 'rc-table-wrap' },
-                  React.createElement('table', { className: 'rc-table' },
-                    React.createElement('thead', null,
-                      React.createElement('tr', null,
-                        React.createElement('th', { style: { width: '56px' } }),
-                        React.createElement('th', { onClick: () => handleSort('name') }, 'Product', React.createElement('span', { className: 'rc-sort-arrow' }, sortArrow('name'))),
-                        React.createElement('th', null, 'Brand'),
-                        React.createElement('th', { onClick: () => handleSort('price') }, 'Retail', React.createElement('span', { className: 'rc-sort-arrow' }, sortArrow('price'))),
-                        showCost && React.createElement('th', null, 'Cost'),
-                        showCost && React.createElement('th', { onClick: () => handleSort('margin') }, 'Margin', React.createElement('span', { className: 'rc-sort-arrow' }, sortArrow('margin'))),
-                        React.createElement('th', null, 'Stock'),
-                        React.createElement('th', { style: { textAlign: 'center' } }, 'SKUs'),
-                        React.createElement('th', null, 'Actions')
-                      )
-                    ),
-                    React.createElement('tbody', null,
-                      products.map(p =>
-                        React.createElement('tr', { key: p.id, onClick: () => setQuickViewId(p.id) },
-                          React.createElement('td', null,
-                            p.primary_image ?
-                              React.createElement('img', { src: optimizeImg(p.primary_image, 100), alt: '', className: 'rc-table-thumb', loading: 'lazy' }) :
-                              React.createElement('div', { className: 'rc-table-thumb', style: { display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--stone-400)', fontSize: '0.55rem' } }, 'No img')
-                          ),
-                          React.createElement('td', null,
-                            React.createElement('div', { className: 'rc-table-name' }, p.name),
-                            p.collection && React.createElement('div', { className: 'rc-table-coll' }, p.collection)
-                          ),
-                          React.createElement('td', { style: { color: 'var(--stone-500)' } }, p.brand_name || p.vendor_name),
-                          React.createElement('td', { style: { fontWeight: 500 } }, p.price ? '$' + parseFloat(p.price).toFixed(2) : '\u2014', p.price && React.createElement('span', { style: { fontSize: '0.7rem', color: 'var(--stone-500)', marginLeft: '0.15rem' } }, unitLabel(p.sell_by))),
-                          showCost && React.createElement('td', { style: { color: 'var(--stone-500)' } }, p.cost ? '$' + parseFloat(p.cost).toFixed(2) : '\u2014'),
-                          showCost && React.createElement('td', null,
-                            p.price ? React.createElement('span', { className: 'rc-margin-badge ' + marginClass(p.margin_pct) }, p.margin_pct.toFixed(1) + '%') : '\u2014'
-                          ),
-                          React.createElement('td', null, stockBadge(p.stock_status)),
-                          React.createElement('td', { style: { textAlign: 'center' } }, p.sku_count || 0),
-                          React.createElement('td', { onClick: e => e.stopPropagation() },
-                            React.createElement('div', { className: 'rc-table-actions' },
-                              React.createElement('button', { className: 'rc-action-btn primary', onClick: () => navigate('quote-create') }, '+ Quote'),
-                              React.createElement('button', { className: 'rc-action-btn', onClick: () => navigate('sample-create') }, 'Sample'),
-                              React.createElement('button', { className: 'rc-action-btn', onClick: () => handleShare(p) }, 'Share')
-                            )
-                          )
-                        )
-                      ),
-                      products.length === 0 && React.createElement('tr', null,
-                        React.createElement('td', { colSpan: showCost ? 9 : 7, style: { textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' } }, 'No products found')
-                      )
-                    )
-                  )
-                ),
+              {/* Applied chips (in rail) */}
+              {chips.length > 0 && <div style={{ padding: '14px 0 4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 9 }}>
+                  <span style={mono(TH.muted)}>Applied &middot; {chips.length}</span>
+                  <a onClick={clearAllFilters} style={{ ...mono(TH.accent), color: TH.accent, cursor: 'pointer', textDecoration: 'none', borderBottom: '1px solid ' + TH.accent, paddingBottom: 1 }}>Clear all</a>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {chips.map(c => (
+                    <span key={c.key} onClick={c.clear} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 8px',
+                      background: TH.accent + '1f', border: '0.5px solid ' + TH.accent + '66', cursor: 'pointer',
+                      font: '400 11px/1 var(--roma-sans)', color: TH.ink,
+                    }}>{c.label} <span style={{ color: TH.accent }}>&times;</span></span>
+                  ))}
+                </div>
+              </div>}
 
-              /* Pagination */
-              React.createElement(RepPagination, { page, totalPages, onPageChange: setPage })
-          ),
+              {/* Category */}
+              <RailSection id="category" title="Category" count={category ? 1 : 0}>
+                <div style={{ display: 'grid', gap: 7 }}>
+                  {flatCats.map(c => <CheckRow key={c.slug} label={c.name} on={category === c.slug} onToggle={() => { setCategory(category === c.slug ? '' : c.slug); setPage(1); }} />)}
+                  {flatCats.length === 0 && <span style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted }}>Loading...</span>}
+                </div>
+              </RailSection>
 
-          /* Quick View Modal */
-          quickViewId && React.createElement(QuickViewErrorBoundary, { productId: quickViewId, onClose: () => setQuickViewId(null) },
-            React.createElement(RepQuickViewModal, { productId: quickViewId, products, showCost, navigate, onClose: () => setQuickViewId(null) })
-          ),
+              {/* Vendor */}
+              <RailSection id="vendor" title="Vendor" count={vendor ? 1 : 0}>
+                <div style={{ display: 'grid', gap: 7 }}>
+                  {vendors.map(v => <CheckRow key={v.id} label={v.name} on={String(vendor) === String(v.id)} onToggle={() => { setVendor(String(vendor) === String(v.id) ? '' : String(v.id)); setPage(1); }} />)}
+                  {vendors.length === 0 && <span style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted }}>Loading...</span>}
+                </div>
+              </RailSection>
 
-          /* Lightbox */
-          lightbox && React.createElement(ImageLightbox, { images: lightbox.images, startIndex: lightbox.startIndex, onClose: () => setLightbox(null) }),
+              {/* Price bands */}
+              <RailSection id="price" title="Price" count={(minPrice || maxPrice) ? 1 : 0}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {priceBands.map((b, i) => {
+                    const on = activeBand === i;
+                    return (
+                      <button key={b.label} onClick={() => {
+                        if (on) { setMinPrice(''); setMaxPrice(''); }
+                        else { setMinPrice(b.min); setMaxPrice(b.max); }
+                        setPage(1);
+                      }} style={{
+                        padding: '7px 11px', cursor: 'pointer',
+                        background: on ? TH.ink : 'transparent', color: on ? TH.paper : TH.ink,
+                        border: on ? 'none' : '0.5px solid ' + TH.ink + '33',
+                        font: '400 12px/1 var(--roma-sans)',
+                      }}>{b.label}</button>
+                    );
+                  })}
+                </div>
+              </RailSection>
 
-          /* Share Modal */
-          shareModal && React.createElement(ShareProductModal, { product: shareModal.product, media: shareModal.media, onClose: () => setShareModal(null) })
-        )
+              {/* Stock */}
+              <RailSection id="stock" title="Stock" count={stockStatus ? 1 : 0}>
+                <div style={{ display: 'flex', border: '0.5px solid ' + TH.ink + '33' }}>
+                  {[['in_stock', 'In stock'], ['low_stock', 'Low'], ['out_of_stock', 'Out']].map(([id, lbl], i) => {
+                    const on = stockStatus === id;
+                    return (
+                      <button key={id} onClick={() => { setStockStatus(on ? '' : id); setPage(1); }} style={{
+                        flex: 1, padding: '8px 6px', cursor: 'pointer', borderLeft: i ? '0.5px solid ' + TH.ink + '22' : 'none',
+                        background: on ? TH.ink : 'transparent', color: on ? TH.paper : TH.ink, border: 'none',
+                        font: '500 10px/1 var(--roma-sans)', letterSpacing: '0.04em', textTransform: 'uppercase',
+                      }}>{lbl}</button>
+                    );
+                  })}
+                </div>
+              </RailSection>
+
+              {/* Collection */}
+              <RailSection id="collection" title="Collection" count={collection ? 1 : 0}>
+                <div style={{ display: 'grid', gap: 7, maxHeight: 200, overflowY: 'auto' }}>
+                  {collections.map(c => <CheckRow key={c.slug} label={c.name} on={collection === c.slug} onToggle={() => { setCollection(collection === c.slug ? '' : c.slug); setPage(1); }} />)}
+                  {collections.length === 0 && <span style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted }}>Select a vendor first</span>}
+                </div>
+              </RailSection>
+
+              <a onClick={clearAllFilters} style={{ ...mono(TH.accent), color: TH.accent, cursor: 'pointer', textDecoration: 'none', borderBottom: '1px solid ' + TH.accent, paddingBottom: 2, marginTop: 8 }}>Clear all &middot; reset</a>
+            </aside>
+
+            {/* ── Content area ── */}
+            <div style={{ minWidth: 0 }}>
+              {loading ? <div style={{ padding: '60px 0', textAlign: 'center', font: '400 14px/1.5 var(--roma-sans)', color: TH.ink + '99' }}>Loading products...</div> :
+               products.length === 0 ? <div style={{ padding: '60px 0', textAlign: 'center', font: '400 14px/1.5 var(--roma-sans)', color: TH.ink + '99' }}>No products match these filters.</div> :
+
+              /* Grid view */
+              viewMode === 'grid' ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                  {products.map(p => {
+                    const price = p.price ? parseFloat(p.price) : 0;
+                    const cost = p.cost ? parseFloat(p.cost) : 0;
+                    const mPct = p.margin_pct || 0;
+                    const mc = marginCol(mPct);
+                    const unit = unitLabel(p.sell_by);
+                    const sk = stockDisplay(p);
+                    return (
+                      <div key={p.id} onClick={() => setQuickViewId(p.id)} style={{
+                        background: TH.paper, border: quickViewId === p.id ? '1.5px solid ' + TH.accent : '0.5px solid ' + TH.ink + '22',
+                        boxShadow: quickViewId === p.id ? '0 8px 24px ' + TH.ink + '1f' : 'none',
+                        display: 'flex', flexDirection: 'column', cursor: 'pointer', position: 'relative',
+                        transition: 'border-color .12s, box-shadow .12s',
+                      }}>
+                        {/* Image */}
+                        <div style={{ position: 'relative', height: 166, overflow: 'hidden', flexShrink: 0, background: 'var(--stone-100)' }}>
+                          {p.primary_image
+                            ? <img src={optimizeImg(p.primary_image, 500)} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: TH.muted, fontSize: '0.8rem' }}>No Image</div>}
+                          <div style={{ position: 'absolute', top: 10, left: 10, padding: '4px 8px', background: TH.paper, ...mono(sk.c), color: sk.c }}>{'\u25CF'} {sk.l}</div>
+                          {showCost && mPct > 0 && <div style={{ position: 'absolute', top: 10, right: 10, padding: '4px 8px', background: mc, ...mono('#fff'), color: '#fff' }}>{mPct.toFixed(0)}% margin</div>}
+                        </div>
+                        {/* Body */}
+                        <div style={{ padding: '12px 14px 8px', display: 'grid', gap: 4, flex: 1 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', ...mono(TH.muted), fontSize: 9 }}>
+                            <span>{p.category_name || ''} {'\u00B7'} {p.brand_name || p.vendor_name || ''}</span>
+                            <span>{p.sku_count} SKU{p.sku_count !== 1 ? 's' : ''}</span>
+                          </div>
+                          <div style={{ font: '400 16px/1.2 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em' }}>{p.name}</div>
+                          {p.collection && <div style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + '99' }}>{p.collection}</div>}
+                        </div>
+                        {/* Pricing footer */}
+                        {showCost && price > 0 ? (
+                          <div style={{ padding: '10px 14px', background: TH.warm, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, alignItems: 'baseline' }}>
+                            {[['Retail', fmtMoney(price), TH.ink], ['Cost', fmtMoney(cost), '#c54731'], ['Margin', mPct.toFixed(1) + '%', mc]].map(([l, v, c]) => (
+                              <div key={l}>
+                                <div style={mono(TH.muted)}>{l}</div>
+                                <div style={{ font: '400 15px/1.2 var(--roma-serif)', color: c, marginTop: 3 }}>{v}</div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ padding: '11px 14px', background: TH.warm, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            <div style={{ font: '400 18px/1 var(--roma-serif)', color: TH.ink }}>{price > 0 ? fmtMoney(price) : '\u2014'}<span style={{ font: '400 11px/1 var(--roma-sans)', color: TH.muted }}>{unit}</span></div>
+                          </div>
+                        )}
+                        {/* Actions */}
+                        <div style={{ padding: '8px 14px', display: 'flex', gap: 4, borderTop: '0.5px solid ' + TH.ink + '18' }}>
+                          {[
+                            { l: 'Quick view', primary: true, act: () => setQuickViewId(p.id) },
+                            { l: '+ Quote', primary: false, act: () => navigate('quote-create') },
+                            { l: 'Sample', primary: false, act: () => navigate('sample-create') },
+                            { l: 'Share', primary: false, act: () => handleShare(p) },
+                          ].map(b => (
+                            <a key={b.l} onClick={e => { e.stopPropagation(); b.act(); }} style={{
+                              flex: 1, padding: '6px 4px', textAlign: 'center',
+                              background: b.primary ? TH.ink : 'transparent', color: b.primary ? TH.paper : TH.ink,
+                              border: b.primary ? 'none' : '0.5px solid ' + TH.ink + '33',
+                              font: '500 10px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase',
+                              cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap',
+                            }}>{b.l}</a>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) :
+
+              /* Compact view */
+              viewMode === 'compact' ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                  {products.map(p => {
+                    const price = p.price ? parseFloat(p.price) : 0;
+                    const cost = p.cost ? parseFloat(p.cost) : 0;
+                    const mPct = p.margin_pct || 0;
+                    const mc = marginCol(mPct);
+                    const unit = unitLabel(p.sell_by);
+                    const sk = stockDisplay(p);
+                    return (
+                      <div key={p.id} onClick={() => setQuickViewId(p.id)} style={{
+                        background: TH.paper, border: quickViewId === p.id ? '1.5px solid ' + TH.accent : '0.5px solid ' + TH.ink + '22',
+                        boxShadow: quickViewId === p.id ? '0 8px 24px ' + TH.ink + '1f' : 'none',
+                        display: 'grid', gridTemplateColumns: '108px 1fr', cursor: 'pointer',
+                        transition: 'border-color .12s, box-shadow .12s', minHeight: 132,
+                      }}>
+                        <div style={{ position: 'relative', overflow: 'hidden', background: 'var(--stone-100)' }}>
+                          {p.primary_image
+                            ? <img src={optimizeImg(p.primary_image, 250)} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: TH.muted, fontSize: '0.7rem' }}>No img</div>}
+                        </div>
+                        <div style={{ padding: '11px 13px', display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                            <span style={mono(TH.muted)}>{p.brand_name || p.vendor_name}</span>
+                            <span style={{ ...mono(sk.c), color: sk.c }}>{'\u25CF'} {sk.l}</span>
+                          </div>
+                          <div style={{ font: '400 16px/1.15 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em' }}>{p.name}</div>
+                          <div style={{ font: '400 11px/1.3 var(--roma-sans)', color: TH.ink + '99' }}>{[p.collection, p.category_name].filter(Boolean).join(' \u00B7 ')}</div>
+                          <div style={{ flex: 1 }} />
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            <span style={{ font: '400 16px/1 var(--roma-serif)', color: TH.ink }}>{price > 0 ? fmtMoney(price) : '\u2014'}<span style={{ font: '400 10px/1 var(--roma-sans)', color: TH.muted }}>{unit}</span></span>
+                            {showCost && mPct > 0 && <span style={mono(mc)}>{fmtMoney(cost)} &middot; {mPct.toFixed(0)}%</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) :
+
+              /* Spec (table) view */
+              (() => {
+                const cols = showCost
+                  ? '52px minmax(180px,1.7fr) 0.9fr 1fr 0.9fr 0.7fr 0.7fr 1.1fr 0.8fr'
+                  : '52px minmax(180px,1.9fr) 1fr 1.1fr 1fr 0.8fr 0.9fr';
+                const heads = showCost
+                  ? [['', null], ['Product', 'name'], ['Vendor', null], ['Collection', null], ['Stock', null], ['Retail', 'price'], ['Cost', null], ['Margin', 'margin'], ['', null]]
+                  : [['', null], ['Product', 'name'], ['Vendor', null], ['Collection', null], ['Stock', null], ['Retail', 'price'], ['', null]];
+                return (
+                  <div style={{ border: '0.5px solid ' + TH.ink + '22', background: TH.paper }}>
+                    {/* Head */}
+                    <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, padding: '11px 16px', background: TH.warm, borderBottom: '0.5px solid ' + TH.ink + '22', alignItems: 'center' }}>
+                      {heads.map(([l, sortKey], i) => (
+                        <div key={i} onClick={() => sortKey && handleSort(sortKey)} style={{
+                          ...mono(TH.muted), cursor: sortKey ? 'pointer' : 'default',
+                          textAlign: i >= 5 && i < heads.length - 1 ? 'right' : 'left',
+                          color: sortKey && (sortBy === sortKey + '_asc' || sortBy === sortKey + '_desc') ? TH.ink : TH.muted,
+                        }}>{l}{sortKey && (sortBy === sortKey + '_desc' ? ' \u25BE' : sortBy === sortKey + '_asc' ? ' \u25B4' : ' \u21C5')}</div>
+                      ))}
+                    </div>
+                    {/* Rows */}
+                    {products.map((p, ri) => {
+                      const price = p.price ? parseFloat(p.price) : 0;
+                      const cost = p.cost ? parseFloat(p.cost) : 0;
+                      const mPct = p.margin_pct || 0;
+                      const mc = marginCol(mPct);
+                      const unit = unitLabel(p.sell_by);
+                      const sk = stockDisplay(p);
+                      return (
+                        <div key={p.id} onClick={() => setQuickViewId(p.id)} style={{
+                          display: 'grid', gridTemplateColumns: cols, gap: 12, padding: '12px 16px', alignItems: 'center',
+                          borderBottom: ri < products.length - 1 ? '0.5px solid ' + TH.ink + '12' : 'none', cursor: 'pointer',
+                          background: quickViewId === p.id ? TH.accent + '14' : 'transparent',
+                        }}>
+                          <div style={{ width: 52, height: 40, overflow: 'hidden', border: '0.5px solid ' + TH.ink + '1a', background: 'var(--stone-100)' }}>
+                            {p.primary_image ? <img src={optimizeImg(p.primary_image, 100)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ font: '400 15px/1.15 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                            <div style={{ ...mono(TH.muted), fontSize: 9, marginTop: 3 }}>{p.sku_count} SKU{p.sku_count !== 1 ? 's' : ''}</div>
+                          </div>
+                          <div style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + 'cc' }}>{p.brand_name || p.vendor_name}</div>
+                          <div style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + 'cc' }}>{p.collection || '\u2014'}</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span style={{ ...mono(sk.c), color: sk.c }}>{'\u25CF'} {sk.l}</span>
+                          </div>
+                          <div style={{ font: '400 15px/1 var(--roma-serif)', color: TH.ink, textAlign: 'right' }}>{price > 0 ? fmtMoney(price) : '\u2014'}<span style={{ font: '400 9px/1 var(--roma-sans)', color: TH.muted }}>{unit}</span></div>
+                          {showCost && <div style={{ font: '400 14px/1 var(--roma-serif)', color: '#c54731', textAlign: 'right' }}>{cost > 0 ? fmtMoney(cost) : '\u2014'}</div>}
+                          {showCost && (
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ font: '400 14px/1 var(--roma-serif)', color: mc, marginBottom: 5 }}>{mPct > 0 ? mPct.toFixed(1) + '%' : '\u2014'}</div>
+                              {mPct > 0 && <div style={{ height: 4, background: TH.ink + '12', width: '100%' }}>
+                                <div style={{ height: '100%', width: Math.min(mPct, 100) + '%', background: mc }} />
+                              </div>}
+                            </div>
+                          )}
+                          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                            <a onClick={() => setQuickViewId(p.id)} style={{ padding: '6px 10px', background: TH.ink, color: TH.paper, font: '500 10px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>View</a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+              {/* Pagination */}
+              {React.createElement(RepPagination, { page, totalPages, onPageChange: setPage })}
+            </div>
+          </div>
+
+          {/* Quick View */}
+          {quickViewId && React.createElement(QuickViewErrorBoundary, { productId: quickViewId, onClose: () => setQuickViewId(null) },
+            <RepQuickViewModal productId={quickViewId} products={products} showCost={showCost} navigate={navigate} onClose={() => setQuickViewId(null)} />
+          )}
+
+          {/* Lightbox */}
+          {lightbox && <ImageLightbox images={lightbox.images} startIndex={lightbox.startIndex} onClose={() => setLightbox(null)} />}
+
+          {/* Share Modal */}
+          {shareModal && <ShareProductModal product={shareModal.product} media={shareModal.media} onClose={() => setShareModal(null)} />}
+        </div>
       );
     }
 
@@ -8422,8 +8847,9 @@
               <h3>SKU inventory {'\u00b7'} {skus.length} total {'\u00b7'} {inStockCount} in stock</h3>
             </div>
             {skus.map((s, i) => {
-              const sColor = s.stock_status === 'in_stock' ? '#3a7a4e' : s.stock_status === 'low_stock' ? '#a87935' : '#c54731';
-              const sLabel = s.stock_status === 'in_stock' ? 'In stock' : s.stock_status === 'low_stock' ? 'Low stock' : 'Out of stock';
+              const detSk = stockDisplay({ ...s, vendor_has_inventory: product.vendor_has_inventory, sell_by: s.sell_by });
+              const sColor = detSk.c;
+              const sLabel = detSk.l;
               return (
                 <div key={s.id} style={{
                   padding: '12px 22px',
@@ -9538,7 +9964,8 @@
       const skuSearchCounter = useRef(0);
       const [addBoxes, setAddBoxes] = useState(1);
       const [showCustom, setShowCustom] = useState(false);
-      const [customItem, setCustomItem] = useState({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box' });
+      const [customItem, setCustomItem] = useState({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box', vendor_id: '' });
+      const [customVendors, setCustomVendors] = useState([]);
       const [editingKey, setEditingKey] = useState(null);
       const [editField, setEditField] = useState(null);
       const [editValue, setEditValue] = useState('');
@@ -9622,6 +10049,7 @@
         if (sellBy === 'roll') subtotal = unitPrice * (numBoxes / 9);
         else if (sellBy === 'unit' || sellBy === 'piece') subtotal = unitPrice * numBoxes;
         else subtotal = unitPrice * numBoxes;
+        const matchedVendor = customItem.vendor_id ? customVendors.find(v => String(v.id) === String(customItem.vendor_id)) : null;
         const newItem = {
           _key: Date.now(),
           sku_id: null,
@@ -9629,9 +10057,9 @@
           product_name: customItem.product_name.trim(),
           color: '',
           variant_name: '',
-          vendor_name: '',
+          vendor_name: matchedVendor ? matchedVendor.name : '',
           vendor_sku: '',
-          vendor_id: null,
+          vendor_id: customItem.vendor_id || null,
           unit_price: unitPrice,
           num_boxes: numBoxes,
           subtotal,
@@ -9641,7 +10069,7 @@
           cost: 0
         };
         setData(d => ({ ...d, items: [...(d.items || []), newItem] }));
-        setCustomItem({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box' });
+        setCustomItem({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box', vendor_id: '' });
         setShowCustom(false);
       };
 
@@ -9738,7 +10166,13 @@
         <div>
           <WizRepCard title="Line Items"
             actions={
-              <button className="rof-card-action" onClick={() => setShowCustom(!showCustom)}>
+              <button className="rof-card-action" onClick={() => {
+                const opening = !showCustom;
+                setShowCustom(opening);
+                if (opening && customVendors.length === 0) {
+                  repFetch('/api/rep/vendors').then(d => setCustomVendors(d.vendors || [])).catch(() => {});
+                }
+              }}>
                 {showCustom ? 'Cancel' : '+ Custom Item'}
               </button>
             }>
@@ -9788,47 +10222,60 @@
             {showCustom && (
               <div style={{ border: '0.5px solid rgba(28,25,23,0.1)', padding: '1rem', marginBottom: '0.75rem', background: 'rgba(28,25,23,0.02)' }}>
                 <div style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: '0.5rem' }}>Custom Item</div>
-                <div className="rof-field-row">
-                  <div className="rof-field">
-                    <label>Item Name *</label>
-                    <input type="text" maxLength={200} value={customItem.product_name}
-                      onChange={e => setCustomItem(c => ({ ...c, product_name: e.target.value }))}
-                      placeholder="e.g. Custom transition strip" />
+                <div style={{ display: 'grid', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '120px' }}>
+                      <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>Vendor *</label>
+                      <select value={customItem.vendor_id} onChange={e => setCustomItem(c => ({ ...c, vendor_id: e.target.value }))}
+                        style={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }}>
+                        <option value="">Select vendor...</option>
+                        {customVendors.map(v => (<option key={v.id} value={v.id}>{v.name}</option>))}
+                      </select>
+                    </div>
+                    <div style={{ flex: 2, minWidth: '120px' }}>
+                      <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>Product Name *</label>
+                      <input type="text" maxLength={200} value={customItem.product_name}
+                        onChange={e => setCustomItem(c => ({ ...c, product_name: e.target.value }))}
+                        placeholder="e.g. Custom transition strip"
+                        style={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ width: 80 }}>
+                      <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>Sell By</label>
+                      <select value={customItem.sell_by || 'box'} onChange={e => setCustomItem(c => ({ ...c, sell_by: e.target.value }))}
+                        style={{ width: '100%', padding: '6px 4px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 12px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }}>
+                        <option value="box">Box</option>
+                        <option value="unit">Unit</option>
+                        <option value="piece">Piece</option>
+                        <option value="roll">Roll</option>
+                      </select>
+                    </div>
                   </div>
-                  <div className="rof-field">
-                    <label>Description</label>
-                    <input type="text" maxLength={500} value={customItem.description}
-                      onChange={e => setCustomItem(c => ({ ...c, description: e.target.value }))}
-                      placeholder="Optional notes" />
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 2, minWidth: '120px' }}>
+                      <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>Description</label>
+                      <input type="text" maxLength={500} value={customItem.description}
+                        onChange={e => setCustomItem(c => ({ ...c, description: e.target.value }))}
+                        placeholder="Optional notes"
+                        style={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ width: 60 }}>
+                      <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>{(customItem.sell_by === 'unit' || customItem.sell_by === 'piece') ? 'Qty *' : customItem.sell_by === 'roll' ? 'SqFt *' : 'Boxes *'}</label>
+                      <input type="number" min="1" value={customItem.num_boxes}
+                        onChange={e => setCustomItem(c => ({ ...c, num_boxes: e.target.value }))}
+                        style={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ width: 80 }}>
+                      <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>Unit Price *</label>
+                      <input type="number" step="0.01" min="0" value={customItem.unit_price}
+                        onChange={e => setCustomItem(c => ({ ...c, unit_price: e.target.value }))}
+                        placeholder="0.00"
+                        style={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
+                    </div>
+                    <button style={{ padding: '7px 14px', background: '#1c1917', color: '#ece5d8', border: 'none', font: '500 12px/1 Inter, sans-serif', cursor: 'pointer' }}
+                      disabled={!customItem.vendor_id || !customItem.product_name.trim() || !customItem.unit_price}
+                      onClick={addCustom}>Add</button>
                   </div>
                 </div>
-                <div className="rof-field-row-3">
-                  <div className="rof-field">
-                    <label>Sold By</label>
-                    <select value={customItem.sell_by || 'box'} onChange={e => setCustomItem(c => ({ ...c, sell_by: e.target.value }))}>
-                      <option value="box">Box</option>
-                      <option value="unit">Per Unit</option>
-                      <option value="piece">Per Piece</option>
-                      <option value="roll">Roll</option>
-                    </select>
-                  </div>
-                  <div className="rof-field">
-                    <label>{(customItem.sell_by === 'unit' || customItem.sell_by === 'piece') ? 'Qty *' : customItem.sell_by === 'roll' ? 'SqFt *' : 'Boxes *'}</label>
-                    <input type="number" min="1" value={customItem.num_boxes}
-                      onChange={e => setCustomItem(c => ({ ...c, num_boxes: e.target.value }))} />
-                  </div>
-                  <div className="rof-field">
-                    <label>Unit Price *</label>
-                    <input type="number" step="0.01" min="0" value={customItem.unit_price}
-                      onChange={e => setCustomItem(c => ({ ...c, unit_price: e.target.value }))}
-                      placeholder="0.00" />
-                  </div>
-                </div>
-                <button className="rof-btn-light primary" onClick={addCustom}
-                  disabled={!customItem.product_name.trim() || !customItem.unit_price}
-                  style={{ marginTop: '0.25rem' }}>
-                  Add to Order
-                </button>
               </div>
             )}
 
@@ -19279,6 +19726,10 @@
       const [showCreate, setShowCreate] = useState(false);
       const [newVendorId, setNewVendorId] = useState('');
       const [newNotes, setNewNotes] = useState('');
+      const [newShipTo, setNewShipTo] = useState('Roma Anaheim Warehouse\n1440 S. State College Blvd\nAnaheim, CA 92806');
+      const [newExpectedDelivery, setNewExpectedDelivery] = useState('');
+      const [newRecipientEmail, setNewRecipientEmail] = useState('');
+      const [newCcEmails, setNewCcEmails] = useState('');
       const [creating, setCreating] = useState(false);
       const [tab, setTab] = useState('order');
 
@@ -19304,10 +19755,17 @@
         setCreating(true);
         try {
           const data = await repFetch('/api/rep/purchase-orders', {
-            method: 'POST', body: JSON.stringify({ vendor_id: newVendorId, notes: newNotes || null })
+            method: 'POST', body: JSON.stringify({
+              vendor_id: newVendorId, notes: newNotes || null,
+              ship_to: newShipTo || null, expected_delivery: newExpectedDelivery || null,
+              recipient_email: newRecipientEmail || null,
+              cc_emails: newCcEmails ? newCcEmails.split(',').map(e => e.trim()).filter(Boolean) : null
+            })
           });
           if (data.error) throw new Error(data.error);
           setShowCreate(false); setNewVendorId(''); setNewNotes('');
+          setNewShipTo('Roma Anaheim Warehouse\n1440 S. State College Blvd\nAnaheim, CA 92806');
+          setNewExpectedDelivery(''); setNewRecipientEmail(''); setNewCcEmails('');
           navigate('purchase-order-detail', data.purchase_order.id);
         } catch (err) { alert(err.message); }
         setCreating(false);
@@ -19399,6 +19857,28 @@
                     </select>
                   </div>
                   <div className="form-group">
+                    <label>Ship To</label>
+                    <textarea value={newShipTo} onChange={e => setNewShipTo(e.target.value)} placeholder="Ship-to address..."
+                      style={{ width: '100%', minHeight: '68px', padding: '0.5rem', border: '1px solid var(--stone-300)', borderRadius: '6px', fontFamily: 'Inter, sans-serif', resize: 'vertical', fontSize: '13px' }} />
+                  </div>
+                  <div className="form-group">
+                    <label>Expected Delivery</label>
+                    <input type="date" value={newExpectedDelivery} onChange={e => setNewExpectedDelivery(e.target.value)}
+                      style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-300)', borderRadius: '6px', fontFamily: 'Inter, sans-serif' }} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div className="form-group">
+                      <label>Recipient Email</label>
+                      <input type="email" value={newRecipientEmail} onChange={e => setNewRecipientEmail(e.target.value)} placeholder="vendor@example.com"
+                        style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-300)', borderRadius: '6px', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }} />
+                    </div>
+                    <div className="form-group">
+                      <label>CC Emails</label>
+                      <input type="text" value={newCcEmails} onChange={e => setNewCcEmails(e.target.value)} placeholder="a@co.com, b@co.com"
+                        style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-300)', borderRadius: '6px', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }} />
+                    </div>
+                  </div>
+                  <div className="form-group">
                     <label>Notes</label>
                     <textarea value={newNotes} onChange={e => setNewNotes(e.target.value)} placeholder="Optional notes..."
                       style={{ width: '100%', minHeight: '80px', padding: '0.5rem', border: '1px solid var(--stone-300)', borderRadius: '6px', fontFamily: 'Inter, sans-serif', resize: 'vertical' }} />
@@ -19455,7 +19935,7 @@
       const [skuSearching, setSkuSearching] = useState(false);
       const skuSearchTimer = useRef(null);
       const skuSearchCounter = useRef(0);
-      const [newPOItem, setNewPOItem] = useState({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'box' });
+      const [newPOItem, setNewPOItem] = useState({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'box', description: '', retail_price: '' });
       const [poDocPreview, setPoDocPreview] = useState(null);
 
       const load = async () => {
@@ -19481,6 +19961,15 @@
 
       const statusColor = { draft: MUTED, sent: AMBER, acknowledged: AMBER, fulfilled: GREEN, cancelled: RED };
       const statusLabel = { draft: 'Draft', sent: 'Sent · awaiting acknowledgement', acknowledged: 'Acknowledged', fulfilled: 'Fulfilled · complete', cancelled: 'Cancelled' };
+
+      const updatePO = async (updates) => {
+        try {
+          const data = await repFetch('/api/rep/purchase-orders/' + editId, {
+            method: 'PUT', body: JSON.stringify(updates)
+          });
+          if (data.purchase_order) setPO(prev => ({ ...prev, ...data.purchase_order }));
+        } catch (err) { alert(err.message); }
+      };
 
       const updatePOItem = async (itemId, updates) => {
         try {
@@ -19769,25 +20258,46 @@
                         )}
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                        <div style={{ flex: 2, minWidth: '120px' }}>
-                          <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Product Name *</label>
-                          <input type="text" maxLength={200} value={newPOItem.product_name} onChange={e => setNewPOItem({...newPOItem, product_name: e.target.value})} style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                      <div style={{ display: 'grid', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                          <div style={{ flex: 2, minWidth: '120px' }}>
+                            <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Product Name *</label>
+                            <input type="text" maxLength={200} value={newPOItem.product_name} onChange={e => setNewPOItem({...newPOItem, product_name: e.target.value})} style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: '80px' }}>
+                            <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Vendor SKU</label>
+                            <input type="text" maxLength={100} value={newPOItem.vendor_sku} onChange={e => setNewPOItem({...newPOItem, vendor_sku: e.target.value})} style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ width: 80 }}>
+                            <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Sell By</label>
+                            <select value={newPOItem.sell_by} onChange={e => setNewPOItem({...newPOItem, sell_by: e.target.value})} style={{ width: '100%', padding: '6px 4px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 12px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }}>
+                              <option value="box">Box</option>
+                              <option value="unit">Unit</option>
+                              <option value="sqft">Sqft</option>
+                              <option value="pallet">Pallet</option>
+                            </select>
+                          </div>
                         </div>
-                        <div style={{ flex: 1, minWidth: '80px' }}>
-                          <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Vendor SKU</label>
-                          <input type="text" maxLength={100} value={newPOItem.vendor_sku} onChange={e => setNewPOItem({...newPOItem, vendor_sku: e.target.value})} style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                          <div style={{ flex: 2, minWidth: '120px' }}>
+                            <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Description</label>
+                            <input type="text" maxLength={500} value={newPOItem.description} onChange={e => setNewPOItem({...newPOItem, description: e.target.value})} placeholder="Optional description" style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ width: 60 }}>
+                            <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Qty *</label>
+                            <input type="number" min="1" value={newPOItem.qty} onChange={e => setNewPOItem({...newPOItem, qty: parseInt(e.target.value) || 1})} style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ width: 80 }}>
+                            <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Cost *</label>
+                            <input type="number" step="0.01" min="0" value={newPOItem.cost} onChange={e => setNewPOItem({...newPOItem, cost: e.target.value})} placeholder="0.00" style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ width: 80 }}>
+                            <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Retail</label>
+                            <input type="number" step="0.01" min="0" value={newPOItem.retail_price} onChange={e => setNewPOItem({...newPOItem, retail_price: e.target.value})} placeholder="0.00" style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                          </div>
+                          <button style={{ padding: '7px 14px', background: INK, color: PAPER, border: 'none', font: '500 12px/1 Inter, sans-serif', cursor: 'pointer' }} disabled={!newPOItem.product_name || !newPOItem.cost}
+                            onClick={() => { addPOItem({ ...newPOItem, retail_price: newPOItem.retail_price || null }); setNewPOItem({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'box', description: '', retail_price: '' }); setAddingItem(false); }}>Add</button>
                         </div>
-                        <div style={{ width: 60 }}>
-                          <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Qty *</label>
-                          <input type="number" min="1" value={newPOItem.qty} onChange={e => setNewPOItem({...newPOItem, qty: parseInt(e.target.value) || 1})} style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
-                        </div>
-                        <div style={{ width: 80 }}>
-                          <label style={{ display: 'block', ...monoLabel, fontSize: 10, marginBottom: 4 }}>Cost *</label>
-                          <input type="number" step="0.01" min="0" value={newPOItem.cost} onChange={e => setNewPOItem({...newPOItem, cost: e.target.value})} placeholder="0.00" style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
-                        </div>
-                        <button style={{ padding: '7px 14px', background: INK, color: PAPER, border: 'none', font: '500 12px/1 Inter, sans-serif', cursor: 'pointer' }} disabled={!newPOItem.product_name || !newPOItem.cost}
-                          onClick={() => { addPOItem(newPOItem); setNewPOItem({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'box' }); setAddingItem(false); }}>Add</button>
                       </div>
                     )}
                   </div>
@@ -19809,6 +20319,13 @@
                       <div>
                         <div style={{ font: '400 13px/1.3 Inter, sans-serif', color: INK }}>{item.product_name}</div>
                         {item.description && <div style={{ ...monoLabel, fontSize: 9, marginTop: 2 }}>{item.description}</div>}
+                        {editable ? (
+                          <input type="text" defaultValue={item.dye_lot || ''} placeholder="Dye lot"
+                            onBlur={e => { const v = e.target.value; if (v !== (item.dye_lot || '')) updatePOItem(item.id, { dye_lot: v || null }); }}
+                            style={{ marginTop: 4, width: '120px', padding: '2px 4px', border: '0.5px solid ' + INK + '22', background: 'transparent', font: '400 10px/1 ui-monospace, monospace', color: MUTED, letterSpacing: '0.04em', outline: 'none' }} />
+                        ) : item.dye_lot ? (
+                          <div style={{ marginTop: 4, font: '400 10px/1 ui-monospace, monospace', color: MUTED, letterSpacing: '0.04em' }}>Lot: {item.dye_lot}</div>
+                        ) : null}
                       </div>
                       <div style={{ ...monoLabel, fontSize: 10, letterSpacing: '0.06em' }}>{item.vendor_sku || '—'}</div>
                       <div style={{ textAlign: 'right' }}>
@@ -19913,6 +20430,50 @@
                 </div>
               </PdCard>
 
+              {/* Shipping & delivery */}
+              <PdCard title="Shipping & delivery">
+                <div style={{ padding: '18px 20px', display: 'grid', gap: 14 }}>
+                  <div>
+                    <div style={{ ...monoLabel, fontSize: 9, marginBottom: 6 }}>Ship To</div>
+                    {editable ? (
+                      <textarea defaultValue={po.ship_to || ''} onBlur={e => { const v = e.target.value; if (v !== (po.ship_to || '')) updatePO({ ship_to: v }); }}
+                        style={{ width: '100%', minHeight: '54px', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1.4 Inter, sans-serif', color: INK, boxSizing: 'border-box', resize: 'vertical' }} />
+                    ) : (
+                      <div style={{ font: '400 13px/1.4 Inter, sans-serif', color: INK, whiteSpace: 'pre-line' }}>{po.ship_to || '—'}</div>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ ...monoLabel, fontSize: 9, marginBottom: 6 }}>Expected Delivery</div>
+                    {editable ? (
+                      <input type="date" defaultValue={po.expected_delivery ? po.expected_delivery.substring(0, 10) : ''} onBlur={e => { const v = e.target.value; if (v !== (po.expected_delivery || '').substring(0, 10)) updatePO({ expected_delivery: v || null }); }}
+                        style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                    ) : (
+                      <div style={{ font: '400 13px/1.4 Inter, sans-serif', color: INK }}>{po.expected_delivery ? new Date(po.expected_delivery).toLocaleDateString() : '—'}</div>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ ...monoLabel, fontSize: 9, marginBottom: 6 }}>Recipient Email</div>
+                    {editable ? (
+                      <input type="email" defaultValue={po.recipient_email || ''} onBlur={e => { const v = e.target.value; if (v !== (po.recipient_email || '')) updatePO({ recipient_email: v || null }); }}
+                        placeholder="vendor@example.com"
+                        style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                    ) : (
+                      <div style={{ font: '400 13px/1.4 Inter, sans-serif', color: INK }}>{po.recipient_email || '—'}</div>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ ...monoLabel, fontSize: 9, marginBottom: 6 }}>CC Emails</div>
+                    {editable ? (
+                      <input type="text" defaultValue={Array.isArray(po.cc_emails) ? po.cc_emails.join(', ') : (po.cc_emails || '')} onBlur={e => { const v = e.target.value; updatePO({ cc_emails: v ? v.split(',').map(s => s.trim()).filter(Boolean) : [] }); }}
+                        placeholder="a@co.com, b@co.com"
+                        style={{ width: '100%', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: INK, boxSizing: 'border-box' }} />
+                    ) : (
+                      <div style={{ font: '400 13px/1.4 Inter, sans-serif', color: INK }}>{Array.isArray(po.cc_emails) && po.cc_emails.length ? po.cc_emails.join(', ') : '—'}</div>
+                    )}
+                  </div>
+                </div>
+              </PdCard>
+
               {/* PO summary */}
               <PdCard title="PO summary">
                 <div style={{ padding: '18px 20px', display: 'grid', gap: 10 }}>
@@ -19957,7 +20518,11 @@
               {/* Notes */}
               <PdCard title="Notes to vendor">
                 <div style={{ padding: '14px 20px' }}>
-                  {po.notes ? (
+                  {editable ? (
+                    <textarea defaultValue={po.notes || ''} onBlur={e => { const v = e.target.value; if (v !== (po.notes || '')) updatePO({ notes: v || null }); }}
+                      placeholder="Add notes for the vendor..."
+                      style={{ width: '100%', minHeight: '68px', padding: '6px 8px', border: '0.5px solid ' + INK + '33', background: 'transparent', font: '400 13px/1.6 Inter, sans-serif', color: INK, boxSizing: 'border-box', resize: 'vertical' }} />
+                  ) : po.notes ? (
                     <div style={{ font: '400 13px/1.6 Inter, sans-serif', color: INK + 'cc', fontStyle: 'italic' }}>"{po.notes}"</div>
                   ) : (
                     <div style={{ font: '400 13px/1.6 Inter, sans-serif', color: MUTED }}>No notes</div>

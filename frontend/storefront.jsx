@@ -1015,16 +1015,28 @@
       return cleaned.trim();
     }
 
-    function StockBadge({ status, vendorHasInventory }) {
+    function StockBadge({ status, vendorHasInventory, qtyOnHand, qtyOnHandSqft, sellBy }) {
       if (vendorHasInventory === false && (status === 'unknown' || status === 'out_of_stock')) {
         return React.createElement('div', { className: 'pdp-stock-badge out-of-stock' },
           React.createElement('span', { className: 'pdp-stock-dot' }),
           'Call for availability'
         );
       }
+      let lowStockLabel = 'Low Stock \u2014 Order Soon';
+      if (status === 'low_stock' && qtyOnHand != null && qtyOnHand > 0) {
+        if (sellBy === 'unit') {
+          lowStockLabel = 'Only ' + qtyOnHand + ' left \u2014 Order Soon';
+        } else if (sellBy === 'box' && qtyOnHandSqft) {
+          lowStockLabel = 'Only ' + qtyOnHand + ' boxes left (' + Math.round(qtyOnHandSqft) + ' sqft) \u2014 Order Soon';
+        } else if (sellBy === 'roll') {
+          lowStockLabel = 'Only ' + (qtyOnHandSqft ? Math.round(qtyOnHandSqft) + ' sqft' : qtyOnHand + ' rolls') + ' left \u2014 Order Soon';
+        } else {
+          lowStockLabel = 'Only ' + qtyOnHand + ' left \u2014 Order Soon';
+        }
+      }
       const map = {
         in_stock: { label: 'In Stock', cls: 'in-stock' },
-        low_stock: { label: 'Low Stock \u2014 Order Soon', cls: 'low-stock' },
+        low_stock: { label: lowStockLabel, cls: 'low-stock' },
         out_of_stock: { label: 'Out of Stock', cls: 'out-of-stock' },
         discontinued: { label: 'Discontinued', cls: 'discontinued' },
       };
@@ -2435,9 +2447,9 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...item, session_id: sessionId.current })
         })
-          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-          .then(data => {
-            if (data.error) { showToast(data.error, 'error'); return; }
+          .then(r => r.json().then(data => ({ ok: r.ok, data })))
+          .then(({ ok, data }) => {
+            if (!ok || data.error) { showToast(data.error || 'Failed to add to cart', 'error'); return; }
             if (data.item) {
               setCart(prev => {
                 const existing = prev.findIndex(i => i.id === data.item.id);
@@ -4309,8 +4321,10 @@
         return () => { document.removeEventListener('keydown', handleKey); document.body.style.overflow = ''; };
       }, [media.length]);
 
+      const qvIsOutOfStock = activeSku.stock_status === 'out_of_stock' && activeSku.vendor_has_inventory !== false;
+
       const handleAdd = () => {
-        if (adding) return;
+        if (adding || qvIsOutOfStock) return;
         setAdding(true);
         if (isUnit) {
           addToCart({ sku_id: activeSku.sku_id, num_boxes: qty, sell_by: 'unit' });
@@ -4464,14 +4478,24 @@
                 <p className="qv-description">{activeSku.description_short}</p>
               )}
 
+              {activeSku.stock_status && activeSku.stock_status !== 'unknown' && (
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <StockBadge status={activeSku.stock_status} vendorHasInventory={activeSku.vendor_has_inventory} qtyOnHand={activeSku.qty_on_hand} qtyOnHandSqft={activeSku.qty_on_hand_sqft} sellBy={activeSku.sell_by} />
+                </div>
+              )}
+
               {isUnit ? (
                 <div className="quick-view-actions">
-                  <div className="qv-qty-stepper">
-                    <button onClick={() => setQty(q => Math.max(1, q - 1))}>&minus;</button>
-                    <div className="qv-qty-display">{qty}</div>
-                    <button onClick={() => setQty(q => q + 1)}>+</button>
-                  </div>
-                  <button className="qv-btn-primary" onClick={handleAdd}>Add to cart{qty > 1 ? ' \u00B7 $' + (effectivePrice * qty).toFixed(2) : ''}</button>
+                  {!qvIsOutOfStock && (
+                    <div className="qv-qty-stepper">
+                      <button onClick={() => setQty(q => Math.max(1, q - 1))}>&minus;</button>
+                      <div className="qv-qty-display">{qty}</div>
+                      <button onClick={() => setQty(q => q + 1)}>+</button>
+                    </div>
+                  )}
+                  <button className="qv-btn-primary" onClick={qvIsOutOfStock ? undefined : handleAdd} disabled={qvIsOutOfStock}>
+                    {qvIsOutOfStock ? 'Out of Stock' : ('Add to cart' + (qty > 1 ? ' \u00B7 $' + (effectivePrice * qty).toFixed(2) : ''))}
+                  </button>
                   <button className="qv-btn-secondary" onClick={() => { onViewDetail(activeSku.sku_id, activeSku.product_name); onClose(); }}>Order sample</button>
                 </div>
               ) : (
@@ -5937,7 +5961,10 @@
       const variantLabel = sku.variant_name || '';
       const vendorLabel = sku.brand_name || sku.vendor_name || '';
       const stockStatus = sku.stock_status || 'unknown';
-      const stockLabel = stockStatus === 'in_stock' ? 'In stock' : stockStatus === 'low_stock' ? 'Low stock' : stockStatus === 'out_of_stock' ? 'Out of stock' : '';
+      const lowStockQty = sku.low_stock_qty;
+      const stockLabel = stockStatus === 'in_stock' ? 'In stock'
+        : stockStatus === 'low_stock' ? (lowStockQty ? (sku.sell_by === 'unit' ? 'Only ' + lowStockQty + ' left' : sku.sell_by === 'box' ? 'Only ' + lowStockQty + ' boxes left' : 'Low stock') : 'Low stock')
+        : stockStatus === 'out_of_stock' ? 'Out of stock' : '';
       const stockClass = stockStatus === 'in_stock' ? 'sku-card-stock--in' : stockStatus === 'low_stock' ? 'sku-card-stock--low' : 'sku-card-stock--out';
       const hasVariants = sku.variant_count > 1;
       const variantImages = sku.variant_images || [];
@@ -6440,8 +6467,10 @@
         setAlertLoading(false);
       };
 
+      const isOutOfStock = sku && sku.stock_status === 'out_of_stock' && sku.vendor_has_inventory !== false;
+
       const handleAddToCart = () => {
-        if (!sku || addingToCart) return;
+        if (!sku || addingToCart || isOutOfStock) return;
         setAddingToCart(true);
         setTimeout(() => setAddingToCart(false), 1500);
         if (isCarpetSku) {
@@ -7990,7 +8019,7 @@
                 );
               })()}
 
-              <StockBadge status={sku.stock_status} vendorHasInventory={sku.vendor_has_inventory} />
+              <StockBadge status={sku.stock_status} vendorHasInventory={sku.vendor_has_inventory} qtyOnHand={sku.qty_on_hand} qtyOnHandSqft={sku.qty_on_hand_sqft} sellBy={sku.sell_by} />
 
               {/* Stock Alert — Notify Me */}
               {sku.stock_status === 'out_of_stock' && sku.vendor_has_inventory !== false && (
@@ -8082,7 +8111,7 @@
               )}
 
               {/* Carpet Calculator */}
-              {isCarpetSku && cutPrice > 0 && (
+              {isCarpetSku && cutPrice > 0 && !isOutOfStock && (
                 <div className="calculator-widget">
                   <h3>Carpet Calculator</h3>
                   {rollWidthFt > 0 && (
@@ -8179,14 +8208,14 @@
                     </div>
                   )}
                   <button className="pdp-btn pdp-btn-primary" style={{ marginTop: '1.25rem' }}
-                    onClick={handleAddToCart} disabled={carpetSqft <= 0}>
-                    Add to Cart {carpetSqft > 0 ? '\u2014 $' + carpetSubtotal.toFixed(2) : ''}
+                    onClick={handleAddToCart} disabled={carpetSqft <= 0 || isOutOfStock}>
+                    {isOutOfStock ? 'Out of Stock' : ('Add to Cart ' + (carpetSqft > 0 ? '\u2014 $' + carpetSubtotal.toFixed(2) : ''))}
                   </button>
                 </div>
               )}
 
               {/* Coverage Calculator (sqft-sold products — no box rounding) */}
-              {!isCarpetSku && isSoldPerSqft && effectivePrice > 0 && (
+              {!isCarpetSku && isSoldPerSqft && effectivePrice > 0 && !isOutOfStock && (
                 <div className="calculator-widget">
                   <h3>Coverage Calculator</h3>
                   <div className="calc-input-row">
@@ -8208,14 +8237,14 @@
                     </div>
                   )}
                   <button className="pdp-btn pdp-btn-primary" style={{ marginTop: '1.25rem' }}
-                    onClick={handleAddToCart} disabled={sqftCalcAmount <= 0}>
-                    Add to Cart {sqftCalcAmount > 0 ? '\u2014 $' + sqftCalcSubtotal.toFixed(2) : ''}
+                    onClick={handleAddToCart} disabled={sqftCalcAmount <= 0 || isOutOfStock}>
+                    {isOutOfStock ? 'Out of Stock' : ('Add to Cart ' + (sqftCalcAmount > 0 ? '\u2014 $' + sqftCalcSubtotal.toFixed(2) : ''))}
                   </button>
                 </div>
               )}
 
               {/* Coverage Calculator (box-based products) */}
-              {!isCarpetSku && hasBoxCalc && effectivePrice > 0 && (
+              {!isCarpetSku && hasBoxCalc && effectivePrice > 0 && !isOutOfStock && (
                 <div className="calculator-widget">
                   <h3>Coverage Calculator</h3>
                   <div className="calc-input-row">
@@ -8245,14 +8274,14 @@
                     </div>
                   )}
                   <button className="pdp-btn pdp-btn-primary" style={{ marginTop: '1.25rem' }}
-                    onClick={handleAddToCart} disabled={numBoxes <= 0}>
-                    Add to Cart {numBoxes > 0 ? '\u2014 $' + subtotal.toFixed(2) : ''}
+                    onClick={handleAddToCart} disabled={numBoxes <= 0 || isOutOfStock}>
+                    {isOutOfStock ? 'Out of Stock' : ('Add to Cart ' + (numBoxes > 0 ? '\u2014 $' + subtotal.toFixed(2) : ''))}
                   </button>
                 </div>
               )}
 
               {/* Sheet Vinyl Roll Calculator */}
-              {isSheetVinyl && effectivePrice > 0 && (
+              {isSheetVinyl && effectivePrice > 0 && !isOutOfStock && (
                 <div className="calculator-widget">
                   <h3>Roll Calculator</h3>
                   <div className="carpet-roll-width-header">
@@ -8329,8 +8358,8 @@
                     </div>
                   )}
                   <button className="pdp-btn pdp-btn-primary" style={{ marginTop: '1.25rem' }}
-                    onClick={handleAddToCart} disabled={sheetSqft <= 0}>
-                    Add to Cart {sheetSqft > 0 ? '\u2014 $' + sheetSubtotal.toFixed(2) : ''}
+                    onClick={handleAddToCart} disabled={sheetSqft <= 0 || isOutOfStock}>
+                    {isOutOfStock ? 'Out of Stock' : ('Add to Cart ' + (sheetSqft > 0 ? '\u2014 $' + sheetSubtotal.toFixed(2) : ''))}
                   </button>
                 </div>
               )}
@@ -8350,7 +8379,7 @@
                   </div>
                 </div>
               )}
-              {isPerUnit && !slabMissingSize && effectivePrice > 0 && (
+              {isPerUnit && !slabMissingSize && effectivePrice > 0 && !isOutOfStock && (
                 <div className="unit-add-to-cart">
                   <div className="unit-qty-row">
                     <span className="unit-qty-label">Quantity</span>
@@ -8362,8 +8391,8 @@
                     </div>
                   </div>
                   <button className="pdp-btn pdp-btn-primary"
-                    onClick={handleAddToCart} disabled={unitQty <= 0}>
-                    {effectivePrice > 0 ? 'Add to Cart \u2014 $' + unitSubtotal.toFixed(2) : 'Add to Cart'}
+                    onClick={handleAddToCart} disabled={unitQty <= 0 || isOutOfStock}>
+                    {isOutOfStock ? 'Out of Stock' : (effectivePrice > 0 ? 'Add to Cart \u2014 $' + unitSubtotal.toFixed(2) : 'Add to Cart')}
                   </button>
                 </div>
               )}
@@ -8717,6 +8746,7 @@
 
       const productItems = cart.filter(i => !i.is_sample);
       const sampleItems = cart.filter(i => i.is_sample);
+      const hasOutOfStock = productItems.some(i => i.stock_status === 'out_of_stock' && i.vendor_has_inventory);
       const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
       const sampleShipping = sampleItems.length > 0 ? 12 : 0;
       const productShipping = deliveryMethod === 'pickup' ? 0 : (selectedShippingOption ? selectedShippingOption.amount : 0);
@@ -8949,6 +8979,11 @@
                           {item.stock_status === 'in_stock' ? 'In stock' : item.stock_status === 'low_stock' ? 'Low stock' : 'Out of stock'}
                         </div>
                       )}
+                      {item.stock_status === 'out_of_stock' && item.vendor_has_inventory && !item.is_sample && (
+                        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '0.375rem', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', color: '#991b1b', marginTop: '0.375rem' }}>
+                          This item is out of stock — remove it to proceed
+                        </div>
+                      )}
 
                       {/* Pickup-only badge */}
                       {item.pickup_only && (
@@ -9147,7 +9182,9 @@
                 </div>
 
                 {/* CTA */}
-                <button className="ct-checkout-btn" onClick={goCheckout}>Checkout securely</button>
+                <button className="ct-checkout-btn" onClick={goCheckout} disabled={hasOutOfStock}>
+                  {hasOutOfStock ? 'Remove out-of-stock items to checkout' : 'Checkout securely'}
+                </button>
 
                 {/* Trust */}
                 <div className="ct-summary-trust">
@@ -9282,7 +9319,11 @@
               method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(piBody)
             });
             const piData = await piRes.json();
-            if (piData.error) { ev.complete('fail'); setError(piData.error); return; }
+            if (piData.error) {
+              ev.complete('fail'); setError(piData.error);
+              if (piData.out_of_stock_sku_ids) { setTimeout(() => { if (typeof goCart === 'function') goCart(); }, 3000); }
+              return;
+            }
 
             const { error: confirmError, paymentIntent } = await stripeInstance.confirmCardPayment(
               piData.clientSecret,
@@ -9344,7 +9385,11 @@
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(piBody)
           });
           const piData = await piRes.json();
-          if (piData.error) { setError(piData.error); setProcessing(false); return; }
+          if (piData.error) {
+            setError(piData.error); setProcessing(false);
+            if (piData.out_of_stock_sku_ids) { setTimeout(() => { if (typeof goCart === 'function') goCart(); }, 3000); }
+            return;
+          }
 
           const { error: stripeError, paymentIntent } = await stripeInstance.confirmCardPayment(
             piData.clientSecret, { payment_method: { card: cardRef.current, billing_details: { name: customerName, email: customerEmail } } }
@@ -9493,7 +9538,11 @@
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(piBody)
           });
           const piData = await piRes.json();
-          if (piData.error) { setError(piData.error); setProcessing(false); return; }
+          if (piData.error) {
+            setError(piData.error); setProcessing(false);
+            if (piData.out_of_stock_sku_ids) { setTimeout(() => { if (typeof goCart === 'function') goCart(); }, 3000); }
+            return;
+          }
 
           const { error: stripeError, paymentIntent } = await stripeInstance.confirmCardPayment(
             piData.clientSecret, { payment_method: { card: cardRef.current, billing_details: { name: customerName, email: customerEmail } } }
@@ -11098,8 +11147,15 @@
         else { const d = await resp.json(); showToast(d.error || 'Failed to accept quote', 'error'); }
       };
 
-      const downloadQuotePdf = (quoteId) => {
-        window.open(API + '/api/trade/quotes/' + quoteId + '/pdf?token=' + tradeToken, '_blank');
+      const downloadQuotePdf = async (quoteId) => {
+        try {
+          const r = await fetch(API + '/api/trade/quotes/' + quoteId + '/pdf', { headers: { 'X-Trade-Token': tradeToken } });
+          if (!r.ok) throw new Error('Failed to load PDF');
+          const blob = await r.blob();
+          const url = URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } catch (e) { console.error(e); }
       };
 
       const assignOrderProject = async (orderId, projectId) => {

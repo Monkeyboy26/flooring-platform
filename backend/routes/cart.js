@@ -76,6 +76,31 @@ export default function createCartRoutes(ctx) {
         }
       }
 
+      // Block out-of-stock items (skip for samples)
+      if (!is_sample && sku_id) {
+        const stockCheck = await pool.query(`
+          SELECT
+            COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
+            CASE
+              WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+              WHEN inv.qty_on_hand > 10 THEN 'in_stock'
+              WHEN inv.qty_on_hand > 0 THEN 'low_stock'
+              ELSE 'out_of_stock'
+            END as stock_status
+          FROM skus s
+          JOIN products p ON p.id = s.product_id
+          LEFT JOIN vendors v ON v.id = p.vendor_id
+          LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+          WHERE s.id = $1
+        `, [sku_id]);
+        if (stockCheck.rows.length) {
+          const { stock_status, vendor_has_inventory } = stockCheck.rows[0];
+          if (stock_status === 'out_of_stock' && vendor_has_inventory) {
+            return res.status(400).json({ error: 'This item is currently out of stock.' });
+          }
+        }
+      }
+
       // Server-side price validation: override client price with DB price
       let validatedUnitPrice = unit_price || 0;
       let validatedSubtotal = subtotal || 0;
@@ -85,6 +110,9 @@ export default function createCartRoutes(ctx) {
            FROM pricing pr
            LEFT JOIN packaging pk ON pk.sku_id = pr.sku_id
            WHERE pr.sku_id = $1`, [sku_id]);
+        if (!dbPrice.rows.length) {
+          return res.status(400).json({ error: 'This item is not yet available for purchase. Please call (714) 999-0009 for pricing.' });
+        }
         if (dbPrice.rows.length) {
           let dbRetail = parseFloat(dbPrice.rows[0].retail_price);
           const priceBasis = dbPrice.rows[0].price_basis;
