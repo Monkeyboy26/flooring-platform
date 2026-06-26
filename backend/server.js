@@ -8356,7 +8356,7 @@ app.delete('/api/admin/import/templates/:id', staffAuth, requireRole('admin', 'm
 
 // Scrapers that launch a Puppeteer browser (high memory — need concurrency limits)
 const BROWSER_SCRAPERS = new Set([
-  'msi', 'bed', 'tradepro-pricebooks', 'tradepro-inventory', 'bosphorus-inventory',
+  'msi', 'bed', 'tradepro-pricebooks', 'tradepro-inventory', 'daltile-inventory', 'bosphorus-inventory',
   'triwest-inventory',
   'triwest-provenza', 'triwest-paradigm', 'triwest-quickstep', 'triwest-armstrong',
   'triwest-metroflor', 'triwest-mirage', 'triwest-grandpacific',
@@ -9081,6 +9081,10 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
     },
     'tradepro-inventory': {
       label: 'TradePro Inventory Check', source_type: 'portal', base_url: 'https://www.tradeproexchange.com',
+      categories: []
+    },
+    'daltile-inventory': {
+      label: 'Daltile TradePro Inventory', source_type: 'portal', base_url: 'https://www.tradeproexchange.com',
       categories: []
     },
     'elysium': {
