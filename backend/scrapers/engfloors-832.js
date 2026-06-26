@@ -20,6 +20,7 @@ import {
   appendLog, addJobError,
   upsertProduct, upsertSku,
   upsertSkuAttribute, upsertPackaging, upsertPricing,
+  upsertMediaAsset,
 } from './base.js';
 
 // ---------------------------------------------------------------------------
@@ -736,7 +737,7 @@ export async function run(pool, job, source) {
   await appendLog(pool, job.id, `Grouped into ${productGroups.length} products`, { products_found: catalog.items.length });
 
   let productsCreated = 0, productsUpdated = 0, skusCreated = 0, skusUpdated = 0;
-  let pricingUpserted = 0, packagingUpserted = 0, attrsUpserted = 0;
+  let pricingUpserted = 0, packagingUpserted = 0, attrsUpserted = 0, imagesUpserted = 0;
 
   for (const group of productGroups) {
     const categoryId = resolveCatId(group.category);
@@ -848,6 +849,23 @@ export async function run(pool, job, source) {
         await upsertSkuAttribute(pool, skuId, 'width', `${widthMea.value}${widthMea.unit_of_measure || ''}`);
         attrsUpserted++;
       }
+
+      // Images from EDI MTX segments
+      if (item.images && item.images.length > 0) {
+        for (let imgIdx = 0; imgIdx < item.images.length; imgIdx++) {
+          const img = item.images[imgIdx];
+          if (!img.url || !/^https?:\/\//i.test(img.url)) continue;
+          const assetType = imgIdx === 0 ? 'primary' : 'alternate';
+          await upsertMediaAsset(pool, {
+            product_id: productId,
+            sku_id: skuId,
+            asset_type: assetType,
+            url: img.url,
+            sort_order: imgIdx,
+          });
+          imagesUpserted++;
+        }
+      }
     }
   }
 
@@ -889,7 +907,7 @@ export async function run(pool, job, source) {
     products_updated: productsUpdated,
     skus_created: skusCreated,
   });
-  await appendLog(pool, job.id, `  Pricing: ${pricingUpserted}, Packaging: ${packagingUpserted}, Attributes: ${attrsUpserted}`);
+  await appendLog(pool, job.id, `  Pricing: ${pricingUpserted}, Packaging: ${packagingUpserted}, Attributes: ${attrsUpserted}, Images: ${imagesUpserted}`);
 
   // ── Step 6: Mark file as processed ──
   if (downloadedFileName) {

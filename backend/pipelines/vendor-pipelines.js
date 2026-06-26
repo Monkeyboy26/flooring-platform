@@ -62,10 +62,11 @@ const PIPELINES = {
   engfloors: {
     label: 'Engineered Floors',
     schedule: '0 2 * * *',
-    description: 'Import EDI 832 catalog (products, pricing, packaging), then poll web services for dealer cost and inventory',
+    description: 'Import EDI 832 catalog (products, pricing, packaging), poll web services for dealer cost and inventory, then enrich missing images from website',
     steps: [
       { type: 'scraper', sourceKey: 'engfloors-832',          label: 'EF EDI 832 Catalog Import' },
       { type: 'scraper', sourceKey: 'engfloors-webservices',   label: 'EF Web Services (Cost + Inventory)' },
+      { type: 'script',  path: 'scrapers/ef-website.js',      label: 'EF Website Enrichment (Images + Specs)' },
     ]
   },
 
