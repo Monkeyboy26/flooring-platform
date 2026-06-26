@@ -8,7 +8,8 @@ INSERT INTO vendors (id, name, code, website) VALUES
 ('550e8400-e29b-41d4-a716-446655440006', 'Elysium Tile', 'ELY', 'http://elysiumtile.com'),
 ('550e8400-e29b-41d4-a716-446655440007', 'Arizona Tile', 'AZT', 'https://www.arizonatile.com'),
 ('550e8400-e29b-41d4-a716-446655440008', 'Tri-West', 'TW', 'https://www.triwestltd.com'),
-('550e8400-e29b-41d4-a716-446655440009', 'Roca USA', 'ROCA', 'https://rocatileusa.com')
+('550e8400-e29b-41d4-a716-446655440009', 'Roca USA', 'ROCA', 'https://rocatileusa.com'),
+('550e8400-e29b-41d4-a716-446655440010', 'Ottimo Ceramics', 'OTTIMO', 'https://ottimoceramics.com')
 ON CONFLICT DO NOTHING;
 
 -- Categories: 8 parents + 27 children (full MSI catalog)
@@ -70,7 +71,10 @@ INSERT INTO categories (id, parent_id, name, slug, sort_order) VALUES
 ('650e8400-e29b-41d4-a716-446655440115', '650e8400-e29b-41d4-a716-446655440110', 'Wall Base', 'wall-base', 5),
 ('650e8400-e29b-41d4-a716-446655440116', '650e8400-e29b-41d4-a716-446655440110', 'Rubber Flooring', 'rubber-flooring', 6),
 ('650e8400-e29b-41d4-a716-446655440117', '650e8400-e29b-41d4-a716-446655440110', 'Stair Treads & Nosing', 'stair-treads-nosing', 7),
-('650e8400-e29b-41d4-a716-446655440118', '650e8400-e29b-41d4-a716-446655440110', 'Tools & Trowels', 'tools-trowels', 8);
+('650e8400-e29b-41d4-a716-446655440118', '650e8400-e29b-41d4-a716-446655440110', 'Tools & Trowels', 'tools-trowels', 8),
+('650e8400-e29b-41d4-a716-446655440119', '650e8400-e29b-41d4-a716-446655440110', 'Trim & Accessories', 'trim-accessories', 9),
+-- ── Wall Panels ──
+('650e8400-e29b-41d4-a716-446655440120', NULL, 'Wall Panels', 'wall-panels', 12);
 
 -- Products: 8 products across categories, both vendors
 -- 3 Tile (Natural Stone + Porcelain)
@@ -950,7 +954,10 @@ INSERT INTO vendor_sources (vendor_id, source_type, name, base_url, config, scra
 ('550e8400-e29b-41d4-a716-446655440008', 'website', 'Flexco', 'https://www.flexcofloors.com', '{}', 'triwest-flexco', '0 4 1 * *', true),
 ('550e8400-e29b-41d4-a716-446655440008', 'website', 'Opulux', 'https://www.opuluxfloors.com', '{}', 'triwest-opulux', '0 4 1 * *', true),
 -- Roca USA — image & description enrichment from rocatileusa.com
-('550e8400-e29b-41d4-a716-446655440009', 'website', 'Roca USA', 'https://rocatileusa.com', '{}', 'roca', '0 4 1 * *', true)
+('550e8400-e29b-41d4-a716-446655440009', 'website', 'Roca USA', 'https://rocatileusa.com', '{}', 'roca', '0 4 1 * *', true),
+-- ── Ottimo Ceramics ──
+('550e8400-e29b-41d4-a716-446655440010', 'website', 'Ottimo Shopify Catalog', 'https://ottimoceramics.com', '{}', 'ottimo', '0 2 * * 0', true),
+('550e8400-e29b-41d4-a716-446655440010', 'website', 'Ottimo Stock Check', 'https://ottimostockcheck.netlify.app', '{}', 'ottimo-stockcheck', '0 6 * * *', true)
 ON CONFLICT DO NOTHING;
 
 -- ==================== Brands ====================
