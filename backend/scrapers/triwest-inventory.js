@@ -6,6 +6,8 @@ import {
 } from './triwest-search.js';
 
 const MAX_ERRORS = 30;
+const PER_MANUFACTURER_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes per manufacturer
+const MAX_CONSECUTIVE_EMPTY = 5; // abort if 5+ manufacturers in a row return 0 results
 
 /**
  * Tri-West DNav inventory scraper.
@@ -101,6 +103,8 @@ export async function run(pool, job, source) {
 
     await appendLog(pool, job.id, `Scanning ${mfgrCodes.length} manufacturers for inventory`);
 
+    let consecutiveEmpty = 0;
+
     for (let m = 0; m < mfgrCodes.length; m++) {
       const mfgr = mfgrCodes[m];
       const mfgrCode = mfgr.value;
@@ -108,7 +112,30 @@ export async function run(pool, job, source) {
 
       await appendLog(pool, job.id, `[${m + 1}/${mfgrCodes.length}] Inventory: ${brandName} (${mfgrCode})`);
 
-      const rows = await searchByManufacturer(page, mfgrCode, pool, job.id);
+      // Per-manufacturer timeout to prevent hanging on unresponsive pages
+      let rows;
+      try {
+        rows = await Promise.race([
+          searchByManufacturer(page, mfgrCode, pool, job.id),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Timed out after ${PER_MANUFACTURER_TIMEOUT_MS / 1000}s`)), PER_MANUFACTURER_TIMEOUT_MS)
+          ),
+        ]);
+      } catch (searchErr) {
+        await logError(`${brandName} (${mfgrCode}): ${searchErr.message}`);
+        rows = [];
+      }
+
+      if (rows.length === 0) {
+        consecutiveEmpty++;
+        if (consecutiveEmpty >= MAX_CONSECUTIVE_EMPTY) {
+          await appendLog(pool, job.id,
+            `${MAX_CONSECUTIVE_EMPTY} consecutive manufacturers returned 0 results — portal may be down, aborting`);
+          break;
+        }
+      } else {
+        consecutiveEmpty = 0;
+      }
 
       for (const row of rows) {
         if (!row.itemNumber) continue;

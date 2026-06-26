@@ -26,6 +26,7 @@ import {
   appendLog, addJobError,
   upsertProduct, upsertSku,
   upsertSkuAttribute, upsertPackaging, upsertPricing,
+  normalizeAttributeValue,
 } from './base.js';
 
 // ---------------------------------------------------------------------------
@@ -767,10 +768,31 @@ export async function run(pool, job, source) {
   const productGroups = groupIntoProducts(catalog.items);
   await appendLog(pool, job.id, `Grouped into ${productGroups.length} products`, { products_found: catalog.items.length });
 
+  // Pre-cache attribute IDs to avoid per-item lookups (~56K redundant queries)
+  const attrIdCache = new Map();
+  const attrRows = await pool.query('SELECT id, slug FROM attributes');
+  for (const row of attrRows.rows) attrIdCache.set(row.slug, row.id);
+
+  async function cachedUpsertAttr(skuId, slug, rawValue) {
+    const value = normalizeAttributeValue(slug, rawValue);
+    if (!value) return;
+    const attrId = attrIdCache.get(slug);
+    if (!attrId) return;
+    await pool.query(`
+      INSERT INTO sku_attributes (sku_id, attribute_id, value)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (sku_id, attribute_id) DO UPDATE SET value = EXCLUDED.value
+    `, [skuId, attrId, value]);
+  }
+
   let productsCreated = 0, productsUpdated = 0, skusCreated = 0, skusUpdated = 0;
   let pricingUpserted = 0, packagingUpserted = 0, attrsUpserted = 0;
+  let totalItems = 0;
+  let importErrors = 0;
 
-  for (const group of productGroups) {
+  for (let gi = 0; gi < productGroups.length; gi++) {
+   try {
+    const group = productGroups[gi];
     const categoryId = resolveCatId(group.category);
 
     const productRow = await upsertProduct(pool, {
@@ -784,6 +806,7 @@ export async function run(pool, job, source) {
     if (productRow.is_new) productsCreated++; else productsUpdated++;
 
     for (const item of group.items) {
+      totalItems++;
       const internalSku = makeInternalSku(item.vendor_sku, item.product_name);
       const vendorSku = item.vendor_sku || internalSku;
       const sellBy = item.sell_by || 'box';
@@ -803,27 +826,32 @@ export async function run(pool, job, source) {
       const skuId = skuRow.id;
       if (skuRow.is_new) skusCreated++; else skusUpdated++;
 
-      // Pricing
-      if (item.cost || item.retail_price) {
-        const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
-        const cost = item.cost || 0;
-        // If retail == cost (Emser 832 often has single price tier), apply 2x markup
-        const retail = (item.retail_price && item.retail_price !== cost)
-          ? item.retail_price
-          : Math.round(cost * 2 * 100) / 100;
-        await upsertPricing(pool, skuId, {
-          cost,
-          retail_price: retail,
-          price_basis: priceBasis,
-          cut_price: item.cut_price || null,
-          roll_price: item.roll_price || null,
-          cut_cost: item.cut_cost || null,
-          roll_cost: item.roll_cost || null,
-          roll_min_sqft: item.roll_min_sqft || null,
-          map_price: item.map_price || null,
-        });
-        pricingUpserted++;
-      }
+      // Re-activate SKUs that reappear in the 832 feed
+      await pool.query(
+        `UPDATE skus SET status = 'active', updated_at = NOW() WHERE id = $1 AND status != 'active'`,
+        [skuId]
+      );
+
+      // Pricing — always create a row so downstream scrapers can UPDATE
+      // without hitting the retail_price NOT NULL constraint.
+      const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
+      const cost = item.cost || 0;
+      // If retail == cost (Emser 832 often has single price tier), apply 2x markup
+      const retail = (item.retail_price && item.retail_price !== cost)
+        ? item.retail_price
+        : Math.round(cost * 2 * 100) / 100;
+      await upsertPricing(pool, skuId, {
+        cost,
+        retail_price: retail,
+        price_basis: priceBasis,
+        cut_price: item.cut_price || null,
+        roll_price: item.roll_price || null,
+        cut_cost: item.cut_cost || null,
+        roll_cost: item.roll_cost || null,
+        roll_min_sqft: item.roll_min_sqft || null,
+        map_price: item.map_price || null,
+      });
+      pricingUpserted++;
 
       // Packaging
       if (item.sqft_per_box || item.pieces_per_box || item.weight_per_box_lbs) {
@@ -840,43 +868,59 @@ export async function run(pool, job, source) {
         packagingUpserted++;
       }
 
-      // Attributes
-      if (item.color) { await upsertSkuAttribute(pool, skuId, 'color', item.color); attrsUpserted++; }
-      if (item.upc) { await upsertSkuAttribute(pool, skuId, 'upc', item.upc); attrsUpserted++; }
+      // Attributes (using cached attribute IDs — avoids per-call DB lookups)
+      if (item.color) { await cachedUpsertAttr(skuId, 'color', item.color); attrsUpserted++; }
+      if (item.upc) { await cachedUpsertAttr(skuId, 'upc', item.upc); attrsUpserted++; }
 
       const finishPid = item.descriptions.find(d => d.characteristic_label === 'finish');
-      if (finishPid) { await upsertSkuAttribute(pool, skuId, 'finish', finishPid.description); attrsUpserted++; }
+      if (finishPid) { await cachedUpsertAttr(skuId, 'finish', finishPid.description); attrsUpserted++; }
 
       const materialPid = item.descriptions.find(d => d.characteristic_label === 'material');
-      if (materialPid) { await upsertSkuAttribute(pool, skuId, 'material', materialPid.description); attrsUpserted++; }
+      if (materialPid) { await cachedUpsertAttr(skuId, 'material', materialPid.description); attrsUpserted++; }
 
       const thickMea = item.measurements.find(m => m.qualifier === 'TH');
-      if (thickMea) { await upsertSkuAttribute(pool, skuId, 'thickness', `${thickMea.value}${thickMea.unit_of_measure || ''}`); attrsUpserted++; }
+      if (thickMea) { await cachedUpsertAttr(skuId, 'thickness', `${thickMea.value}${thickMea.unit_of_measure || ''}`); attrsUpserted++; }
 
       const widthMea = item.measurements.find(m => m.qualifier === 'WD');
       const lengthMea = item.measurements.find(m => m.qualifier === 'LN');
       if (widthMea && lengthMea) {
-        await upsertSkuAttribute(pool, skuId, 'size', `${widthMea.value}x${lengthMea.value}${lengthMea.unit_of_measure || ''}`);
+        await cachedUpsertAttr(skuId, 'size', `${widthMea.value}x${lengthMea.value}${lengthMea.unit_of_measure || ''}`);
         attrsUpserted++;
       }
 
       const stylePid = item.descriptions.find(d => d.characteristic_label === 'style');
-      if (stylePid) { await upsertSkuAttribute(pool, skuId, 'style', stylePid.description); attrsUpserted++; }
+      if (stylePid) { await cachedUpsertAttr(skuId, 'style', stylePid.description); attrsUpserted++; }
 
       const patternPid = item.descriptions.find(d => d.characteristic_label === 'pattern');
-      if (patternPid) { await upsertSkuAttribute(pool, skuId, 'pattern', patternPid.description); attrsUpserted++; }
+      if (patternPid) { await cachedUpsertAttr(skuId, 'pattern', patternPid.description); attrsUpserted++; }
 
       const wearMea = item.measurements.find(m => m.qualifier === 'WL');
-      if (wearMea) { await upsertSkuAttribute(pool, skuId, 'wear_layer', `${wearMea.value}${wearMea.unit_of_measure || 'mil'}`); attrsUpserted++; }
+      if (wearMea) { await cachedUpsertAttr(skuId, 'wear_layer', `${wearMea.value}${wearMea.unit_of_measure || 'mil'}`); attrsUpserted++; }
 
       const weightMea = item.measurements.find(m => m.qualifier === 'WT');
-      if (weightMea) { await upsertSkuAttribute(pool, skuId, 'weight', `${weightMea.value}${weightMea.unit_of_measure || 'LB'}`); attrsUpserted++; }
+      if (weightMea) { await cachedUpsertAttr(skuId, 'weight', `${weightMea.value}${weightMea.unit_of_measure || 'LB'}`); attrsUpserted++; }
 
       if (widthMea && !lengthMea) {
-        await upsertSkuAttribute(pool, skuId, 'width', `${widthMea.value}${widthMea.unit_of_measure || ''}`);
+        await cachedUpsertAttr(skuId, 'width', `${widthMea.value}${widthMea.unit_of_measure || ''}`);
         attrsUpserted++;
       }
     }
+
+    if ((gi + 1) % 200 === 0) {
+      await appendLog(pool, job.id,
+        `Import progress: ${gi + 1}/${productGroups.length} products, ${totalItems} items, ` +
+        `${skusCreated} SKUs created, ${pricingUpserted} pricing, ${attrsUpserted} attrs`,
+        { products_found: catalog.items.length, products_created: productsCreated, skus_created: skusCreated }
+      );
+    }
+   } catch (groupErr) {
+      importErrors++;
+      await addJobError(pool, job.id, `Product group ${gi} (${productGroups[gi]?.baseName || '?'}): ${groupErr.message}`);
+      if (importErrors > 50) {
+        await appendLog(pool, job.id, `Too many import errors (${importErrors}), aborting...`);
+        break;
+      }
+   }
   }
 
   // ── Step 5b: Discontinuation detection ──

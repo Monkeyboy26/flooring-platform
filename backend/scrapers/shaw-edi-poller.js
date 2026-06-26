@@ -26,12 +26,34 @@ export async function run(pool, job, source) {
   let stats = { files_found: 0, processed: 0, errors: 0, skipped: 0, by_type: {} };
 
   try {
-    sftp = await createSftpConnection({
+    const sftpConfig = {
       sftp_host: ediConfig.sftp_host || config.sftp_host,
       sftp_port: ediConfig.sftp_port || config.sftp_port || 22,
       sftp_user: ediConfig.sftp_user || config.sftp_user,
       sftp_pass: ediConfig.sftp_pass || config.sftp_pass,
-    });
+    };
+
+    if (!sftpConfig.sftp_host) {
+      throw new Error('SFTP host not configured — check vendor_sources.config for sftp_host');
+    }
+
+    // Retry connection with backoff for transient DNS/network failures
+    const MAX_RETRIES = 3;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        sftp = await createSftpConnection(sftpConfig);
+        break;
+      } catch (connErr) {
+        const isTransient = /address lookup|ENOTFOUND|ETIMEDOUT|ECONNREFUSED|ECONNRESET|EAI_AGAIN/i.test(connErr.message);
+        if (isTransient && attempt < MAX_RETRIES) {
+          const waitSec = attempt * 15;
+          console.log(`[Shaw EDI Poller] Connection attempt ${attempt} failed (${connErr.message}), retrying in ${waitSec}s...`);
+          await new Promise(r => setTimeout(r, waitSec * 1000));
+        } else {
+          throw connErr;
+        }
+      }
+    }
 
     console.log(`[Shaw EDI Poller] Connected to SFTP, checking ${outboxDir}`);
 

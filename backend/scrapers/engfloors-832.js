@@ -771,22 +771,21 @@ export async function run(pool, job, source) {
       const skuId = skuRow.id;
       if (skuRow.is_new) skusCreated++; else skusUpdated++;
 
-      // Pricing
-      if (item.cost || item.retail_price) {
-        const priceBasis = sellBy === 'roll' ? 'per_sqyd' : sellBy === 'box' ? 'per_sqft' : 'per_unit';
-        await upsertPricing(pool, skuId, {
-          cost: item.cost || 0,
-          retail_price: item.retail_price || item.cost || 0,
-          price_basis: priceBasis,
-          cut_price: item.cut_price || null,
-          roll_price: item.roll_price || null,
-          cut_cost: item.cut_cost || null,
-          roll_cost: item.roll_cost || null,
-          roll_min_sqft: item.roll_min_sqft || null,
-          map_price: item.map_price || null,
-        });
-        pricingUpserted++;
-      }
+      // Pricing — always create a row so downstream scrapers (web services)
+      // can UPDATE dealer cost without hitting the retail_price NOT NULL constraint.
+      const priceBasis = sellBy === 'roll' ? 'per_sqyd' : sellBy === 'box' ? 'per_sqft' : 'per_unit';
+      await upsertPricing(pool, skuId, {
+        cost: item.cost || 0,
+        retail_price: item.retail_price || item.cost || 0,
+        price_basis: priceBasis,
+        cut_price: item.cut_price || null,
+        roll_price: item.roll_price || null,
+        cut_cost: item.cut_cost || null,
+        roll_cost: item.roll_cost || null,
+        roll_min_sqft: item.roll_min_sqft || null,
+        map_price: item.map_price || null,
+      });
+      pricingUpserted++;
 
       // Packaging
       if (item.sqft_per_box || item.pieces_per_box || item.weight_per_box_lbs || item.roll_width_ft) {

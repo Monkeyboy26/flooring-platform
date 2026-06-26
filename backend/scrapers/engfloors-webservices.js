@@ -218,9 +218,24 @@ export async function run(pool, job, source) {
     return;
   }
 
+  // ── Step 2b: Find SKUs that already have pricing rows ──
+  // The web services API only provides dealer cost, not retail_price.
+  // pricing.retail_price is NOT NULL, so we can only UPDATE existing rows
+  // (COALESCE preserves the existing retail_price). For SKUs without a
+  // pricing row we must skip the cost-only upsert.
+  const pricingResult = await pool.query(`
+    SELECT pr.sku_id FROM pricing pr
+    JOIN skus s ON pr.sku_id = s.id
+    JOIN products p ON s.product_id = p.id
+    WHERE p.vendor_id = $1
+  `, [vendorId]);
+  const skusWithPricing = new Set(pricingResult.rows.map(r => r.sku_id));
+  await appendLog(pool, job.id, `${skusWithPricing.size} of ${skus.length} SKUs have existing pricing rows`);
+
   // ── Step 3: Query PriceInquiry for each SKU ──
   let inventoryUpdated = 0, pricingUpdated = 0, errCount = 0;
   let inventoryDataFound = 0, pricingDataFound = 0, noDataCount = 0;
+  let pricingSkipped = 0;
   const batchSize = 100;
   let processed = 0;
 
@@ -291,36 +306,43 @@ export async function run(pool, job, source) {
         if (primaryPrice !== null) {
           pricingDataFound++;
 
-          // Determine price basis from sell_by
-          const isSqyd = sku.sell_by === 'roll';
-          const isUnit = sku.sell_by === 'unit';
-
-          if (isSqyd) {
-            // Broadloom carpet: cost is per SY, store as cut_cost / roll_cost
-            const pricingData = {
-              price_basis: 'per_sqyd',
-            };
-            if (cutPrice !== null) pricingData.cut_cost = parseFloat(cutPrice.toFixed(2));
-            if (rollPrice !== null) pricingData.roll_cost = parseFloat(rollPrice.toFixed(2));
-            if (rollMinSqft !== null) pricingData.roll_min_sqft = rollMinSqft;
-            // Also update base cost (per sqft) = per SY / 9
-            pricingData.cost = parseFloat(((cutPrice || rollPrice || primaryPrice) / 9).toFixed(4));
-            await upsertPricing(pool, sku.id, pricingData);
-          } else if (isUnit) {
-            // Transitions/accessories: price per unit
-            await upsertPricing(pool, sku.id, {
-              cost: parseFloat(primaryPrice.toFixed(2)),
-              price_basis: 'per_unit',
-            });
+          // Skip pricing upsert for SKUs without an existing pricing row —
+          // we only have dealer cost, not retail_price, and the pricing
+          // table requires retail_price NOT NULL on INSERT.
+          if (!skusWithPricing.has(sku.id)) {
+            pricingSkipped++;
           } else {
-            // Carpet tile / LVP: price per SY, convert to per sqft
-            const costPerSqft = parseFloat((primaryPrice / 9).toFixed(4));
-            await upsertPricing(pool, sku.id, {
-              cost: costPerSqft,
-              price_basis: 'per_sqft',
-            });
+            // Determine price basis from sell_by
+            const isSqyd = sku.sell_by === 'roll';
+            const isUnit = sku.sell_by === 'unit';
+
+            if (isSqyd) {
+              // Broadloom carpet: cost is per SY, store as cut_cost / roll_cost
+              const pricingData = {
+                price_basis: 'per_sqyd',
+              };
+              if (cutPrice !== null) pricingData.cut_cost = parseFloat(cutPrice.toFixed(2));
+              if (rollPrice !== null) pricingData.roll_cost = parseFloat(rollPrice.toFixed(2));
+              if (rollMinSqft !== null) pricingData.roll_min_sqft = rollMinSqft;
+              // Also update base cost (per sqft) = per SY / 9
+              pricingData.cost = parseFloat(((cutPrice || rollPrice || primaryPrice) / 9).toFixed(4));
+              await upsertPricing(pool, sku.id, pricingData);
+            } else if (isUnit) {
+              // Transitions/accessories: price per unit
+              await upsertPricing(pool, sku.id, {
+                cost: parseFloat(primaryPrice.toFixed(2)),
+                price_basis: 'per_unit',
+              });
+            } else {
+              // Carpet tile / LVP: price per SY, convert to per sqft
+              const costPerSqft = parseFloat((primaryPrice / 9).toFixed(4));
+              await upsertPricing(pool, sku.id, {
+                cost: costPerSqft,
+                price_basis: 'per_sqft',
+              });
+            }
+            pricingUpdated++;
           }
-          pricingUpdated++;
         }
       }
 
@@ -346,9 +368,10 @@ export async function run(pool, job, source) {
     `  SKUs checked: ${processed}`,
     `  Inventory found: ${inventoryDataFound} → ${inventoryUpdated} snapshots upserted`,
     `  Pricing found: ${pricingDataFound} → ${pricingUpdated} upserted`,
+    pricingSkipped ? `  Pricing skipped (no existing row): ${pricingSkipped}` : null,
     `  No data returned: ${noDataCount}`,
     `  Errors: ${errCount}`,
-  ].join('\n'), {
+  ].filter(Boolean).join('\n'), {
     products_found: processed,
     products_updated: inventoryUpdated + pricingUpdated,
     skus_created: 0,
