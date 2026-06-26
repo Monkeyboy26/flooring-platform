@@ -4,10 +4,25 @@ import path from 'path';
 import { pipeline } from 'stream/promises';
 
 export function launchBrowser() {
+  const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH
+    || (fs.existsSync('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+        ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+        : undefined);
   return puppeteer.launch({
     headless: 'new',
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    executablePath: chromePath,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--disable-translate',
+      '--no-first-run',
+      '--single-process',
+    ]
   });
 }
 
@@ -222,7 +237,8 @@ export function validatePackaging({ sqft_per_box, pieces_per_box, weight_per_box
 
   // Sanity: sqft_per_box should be reasonable (0.1 to 200)
   if (parsed.sqft_per_box != null && (parsed.sqft_per_box <= 0 || parsed.sqft_per_box > 200)) {
-    warnings.push(`Suspicious sqft_per_box: ${parsed.sqft_per_box}`);
+    warnings.push(`Rejected sqft_per_box: ${parsed.sqft_per_box} (outside 0.1–200 range)`);
+    parsed.sqft_per_box = null;
   }
 
   // Sanity: weight_per_box should be reasonable (0.1 to 200 lbs)
@@ -341,7 +357,17 @@ export async function upsertSku(pool, rawData, opts = {}) {
       updated_at = CURRENT_TIMESTAMP
     RETURNING id, (xmax = 0) AS is_new
   `, [product_id, vendor_sku, internal_sku, variant_name || null, sell_by || 'box', variant_type || null]);
-  return result.rows[0];
+
+  const row = result.rows[0];
+  // When a SKU moves to a new product, clean up orphaned media_assets from the old product
+  if (!row.is_new) {
+    await pool.query(`
+      DELETE FROM media_assets
+      WHERE sku_id = $1 AND product_id != $2
+    `, [row.id, product_id]);
+  }
+
+  return row;
 }
 
 /**
@@ -466,19 +492,22 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   }
 
   const { cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price } = cleaned;
+  // INSERT uses COALESCE($N, 0) for NOT NULL columns so partial upserts
+  // (e.g. cost-only) don't violate constraints on new rows.
+  // UPDATE uses COALESCE($N, pricing.col) so NULL params preserve existing values.
   await pool.query(`
     INSERT INTO pricing (sku_id, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    VALUES ($1, COALESCE($2, 0::numeric), COALESCE($3, 0::numeric), $4, $5, $6, $7, $8, $9, $10)
     ON CONFLICT (sku_id) DO UPDATE SET
-      cost = COALESCE(EXCLUDED.cost, pricing.cost),
-      retail_price = COALESCE(EXCLUDED.retail_price, pricing.retail_price),
-      price_basis = COALESCE(EXCLUDED.price_basis, pricing.price_basis),
-      cut_price = COALESCE(EXCLUDED.cut_price, pricing.cut_price),
-      roll_price = COALESCE(EXCLUDED.roll_price, pricing.roll_price),
-      cut_cost = COALESCE(EXCLUDED.cut_cost, pricing.cut_cost),
-      roll_cost = COALESCE(EXCLUDED.roll_cost, pricing.roll_cost),
-      roll_min_sqft = COALESCE(EXCLUDED.roll_min_sqft, pricing.roll_min_sqft),
-      map_price = COALESCE(EXCLUDED.map_price, pricing.map_price)
+      cost = COALESCE($2, pricing.cost),
+      retail_price = COALESCE($3, pricing.retail_price),
+      price_basis = COALESCE($4, pricing.price_basis),
+      cut_price = COALESCE($5, pricing.cut_price),
+      roll_price = COALESCE($6, pricing.roll_price),
+      cut_cost = COALESCE($7, pricing.cut_cost),
+      roll_cost = COALESCE($8, pricing.roll_cost),
+      roll_min_sqft = COALESCE($9, pricing.roll_min_sqft),
+      map_price = COALESCE($10, pricing.map_price)
   `, [sku_id, cost != null ? cost : null, retail_price != null ? retail_price : null, price_basis || 'per_sqft', cut_price || null, roll_price || null, cut_cost || null, roll_cost || null, roll_min_sqft || null, map_price || null]);
 }
 
@@ -831,6 +860,15 @@ export function preferProductShot(urls, colorHint, variantHints) {
     for (const kw of ACCESSORY_KEYWORDS) {
       if (filename.includes(kw)) { score -= 25; break; }
     }
+
+    // Penalize composite/multi-product images — filenames listing multiple colors
+    // separated by commas (URL-encoded %2c or literal) are shared collage images.
+    // Exclude European decimal commas (digit,digit like "37,5x75").
+    const decodedFilename = decodeURIComponent(filename);
+    const productCommas = (decodedFilename.match(/,(?!\d)/g) || []).length;
+    if (productCommas >= 1) score -= 15;
+    // "multi-finish" or "multi" prefix patterns also indicate composites
+    if (/\bmulti[- ]?(finish|color|product)/i.test(decodedFilename)) score -= 10;
 
     // Color-aware boost: if URL filename contains the color name, it's likely
     // the right product shot for this color (not a shared/wrong-color image)
