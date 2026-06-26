@@ -70,6 +70,16 @@ const PIPELINES = {
     ]
   },
 
+  shaw: {
+    label: 'Shaw Floors',
+    schedule: '0 3 * * *',
+    description: 'Import EDI 832 catalog (products, pricing, packaging), then enrich with Shaw Data API (images, specs, descriptions)',
+    steps: [
+      { type: 'scraper', sourceKey: 'shaw-832',       label: 'Shaw EDI 832 Catalog Import' },
+      { type: 'scraper', sourceKey: 'shaw-data-api',  label: 'Shaw Data API Enrichment' },
+    ]
+  },
+
   emser: {
     label: 'Emser Tile',
     schedule: '0 5 * * *',
