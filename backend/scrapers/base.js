@@ -514,16 +514,31 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
 /**
  * Upsert inventory snapshot by (sku_id, warehouse). Used for scraped warehouse stock.
  */
-export async function upsertInventorySnapshot(pool, sku_id, warehouse, { qty_on_hand_sqft, qty_in_transit_sqft }) {
+export async function upsertInventorySnapshot(pool, sku_id, warehouse, { qty_on_hand_sqft, qty_in_transit_sqft, qty_on_hand, qty_in_transit }) {
+  // Stock logic across the app reads qty_on_hand (boxes/units) — derive it from
+  // sqft via packaging when the caller only has square footage.
+  if (qty_on_hand == null || qty_in_transit == null) {
+    const pk = await pool.query('SELECT sqft_per_box FROM packaging WHERE sku_id = $1', [sku_id]);
+    const spb = pk.rows.length ? parseFloat(pk.rows[0].sqft_per_box) : null;
+    const toUnits = (sqft) => {
+      const v = sqft || 0;
+      if (spb > 0) return Math.floor(v / spb);
+      return v > 0 ? Math.round(v) : 0;
+    };
+    if (qty_on_hand == null) qty_on_hand = toUnits(qty_on_hand_sqft);
+    if (qty_in_transit == null) qty_in_transit = toUnits(qty_in_transit_sqft);
+  }
   await pool.query(`
-    INSERT INTO inventory_snapshots (sku_id, warehouse, qty_on_hand_sqft, qty_in_transit_sqft, snapshot_time, fresh_until)
-    VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '24 hours')
+    INSERT INTO inventory_snapshots (sku_id, warehouse, qty_on_hand, qty_in_transit, qty_on_hand_sqft, qty_in_transit_sqft, snapshot_time, fresh_until)
+    VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '24 hours')
     ON CONFLICT (sku_id, warehouse) DO UPDATE SET
+      qty_on_hand = EXCLUDED.qty_on_hand,
+      qty_in_transit = EXCLUDED.qty_in_transit,
       qty_on_hand_sqft = EXCLUDED.qty_on_hand_sqft,
       qty_in_transit_sqft = EXCLUDED.qty_in_transit_sqft,
       snapshot_time = CURRENT_TIMESTAMP,
       fresh_until = CURRENT_TIMESTAMP + INTERVAL '24 hours'
-  `, [sku_id, warehouse, qty_on_hand_sqft || 0, qty_in_transit_sqft || 0]);
+  `, [sku_id, warehouse, qty_on_hand, qty_in_transit, qty_on_hand_sqft || 0, qty_in_transit_sqft || 0]);
 }
 
 /**

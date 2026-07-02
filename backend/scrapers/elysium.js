@@ -1511,11 +1511,9 @@ async function runInventoryMode(pool, job, source, config) {
 
         if (!html.includes('product-title')) return;
 
-        // Discontinued check
-        if (/>\s*Discontinued\s*</i.test(html)) {
-          stats.skipped++;
-          return;
-        }
+        // No discontinued check: the site's nav now shows a "Discontinued"
+        // category link on every page, and regular category listings (which
+        // this crawl walks) already exclude discontinued products.
 
         const detail = parseDetailPage(html);
 
