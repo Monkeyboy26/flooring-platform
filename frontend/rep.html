@@ -19,6 +19,8 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
+      --roma-serif: 'Cormorant Garamond', serif;
+      --roma-sans: 'Inter', sans-serif;
       --stone-50: #fafaf9;
       --stone-100: #f5f5f4;
       --stone-200: #e7e5e4;
@@ -6945,7 +6947,7 @@
             </div>
             <div className="rep-topbar-search" onClick={() => setShowSearch(true)}>
               <span className="rep-topbar-search-icon">{'\u2315'}</span>
-              <input placeholder="Search customers, orders, SKUs, quotes\u2026" readOnly tabIndex={-1} />
+              <input placeholder="Search customers, orders, SKUs, quotes…" readOnly tabIndex={-1} />
               <span className="rep-topbar-search-kbd">{'\u2318'} K</span>
             </div>
             <div className="rep-topbar-right">
@@ -7252,7 +7254,7 @@
           <div className="sr-search-input-row">
             <span style={{ font: '400 20px/1 "Cormorant Garamond", serif', color: 'var(--gold, #c9a668)' }}>{'\u2315'}</span>
             <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
-              placeholder="Search customers, orders, SKUs, quotes\u2026" autoFocus />
+              placeholder="Search customers, orders, SKUs, quotes…" autoFocus />
             <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--brass-muted)', cursor: 'pointer' }}
               onClick={onOpenPalette}>
               {'\u2318'}K palette
@@ -7407,7 +7409,7 @@
             <div className="gs-input-row">
               <span style={{ font: '400 18px/1 "Cormorant Garamond", serif', color: 'var(--gold, #c9a668)' }}>{'\u2315'}</span>
               <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
-                placeholder="Search customers, orders, SKUs, quotes\u2026" autoFocus />
+                placeholder="Search customers, orders, SKUs, quotes…" autoFocus />
               <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--brass-muted)' }}>
                 esc to close
               </span>
@@ -8036,6 +8038,16 @@
       const fmtMoney = (n) => '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const marginCol = (pct) => pct >= 30 ? '#3a7a4e' : pct >= 15 ? '#a87935' : '#c54731';
       const unitLabel = (sell_by) => sell_by === 'box' ? '/sqft' : sell_by === 'unit' ? '/ea' : '';
+      // Variant suffix for card titles; hides noise ("Standard"/"Default", or echoes of the product name)
+      const skuVariantText = (p) => {
+        const t = p.variant_type === 'accessory' ? (p.accessory_label || p.variant_name) : p.variant_name;
+        if (!t) return '';
+        if (/^(standard|default)$/i.test(t.trim())) return '';
+        const name = (p.name || '').toLowerCase();
+        const tl = t.trim().toLowerCase();
+        if (name === tl || name.endsWith(' ' + tl) || name.endsWith('- ' + tl)) return '';
+        return t;
+      };
 
       // --- State ---
       const [products, setProducts] = useState([]);
@@ -8243,7 +8255,7 @@
             <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid ' + TH.ink + '33', background: TH.paper, flex: 1, maxWidth: 440 }}>
               <span style={{ padding: '9px 12px', color: TH.muted, font: '400 14px/1 var(--roma-sans)' }}>&#x2315;</span>
               <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-                placeholder="Search SKU, vendor, name, collection\u2026 \u2318K"
+                placeholder="Search SKU, vendor, name, collection… ⌘K"
                 style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', font: '400 13px/1 var(--roma-sans)', color: TH.ink, padding: '9px 8px 9px 0' }} />
               {search && <span onClick={() => { setSearch(''); setPage(1); }} style={{ padding: '0 12px', cursor: 'pointer', color: TH.muted, font: '400 14px/1 var(--roma-sans)' }}>&times;</span>}
             </div>
@@ -8426,7 +8438,7 @@
 
               /* Grid view */
               viewMode === 'grid' ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
                   {products.map(p => {
                     const price = p.price ? parseFloat(p.price) : 0;
                     const cost = p.cost ? parseFloat(p.cost) : 0;
@@ -8434,7 +8446,7 @@
                     const mc = marginCol(mPct);
                     const unit = unitLabel(p.sell_by);
                     const sk = stockDisplay(p);
-                    const variantText = p.variant_type === 'accessory' ? (p.accessory_label || p.variant_name) : p.variant_name;
+                    const variantText = skuVariantText(p);
                     return (
                       <div key={p.sku_id} onClick={() => setQuickView({ id: p.id, skuId: p.sku_id })} style={{
                         background: TH.paper, border: quickView && quickView.skuId === p.sku_id ? '1.5px solid ' + TH.accent : '0.5px solid ' + TH.ink + '22',
@@ -8452,9 +8464,9 @@
                         </div>
                         {/* Body */}
                         <div style={{ padding: '12px 14px 8px', display: 'grid', gap: 4, flex: 1 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', ...mono(TH.muted), fontSize: 9 }}>
-                            <span>{p.category_name || ''} {'\u00B7'} {p.brand_name || p.vendor_name || ''}</span>
-                            <span>{p.vendor_sku || p.internal_sku || ''}</span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, ...mono(TH.muted), fontSize: 9 }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.category_name || ''} {'\u00B7'} {p.brand_name || p.vendor_name || ''}</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0, maxWidth: '55%' }}>{p.vendor_sku || p.internal_sku || ''}</span>
                           </div>
                           <div style={{ font: '400 16px/1.2 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em' }}>{p.name}{variantText ? ' \u00B7 ' + variantText : ''}</div>
                           {(p.collection || p.variant_type === 'accessory' || p.accessory_count > 0) && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
@@ -8482,17 +8494,17 @@
                         {/* Actions */}
                         <div style={{ padding: '8px 14px', display: 'flex', gap: 4, borderTop: '0.5px solid ' + TH.ink + '18' }}>
                           {[
-                            { l: 'Quick view', primary: true, act: () => setQuickView({ id: p.id, skuId: p.sku_id }) },
-                            { l: '+ Quote', primary: false, act: () => navigate('quote-create') },
+                            { l: 'View', primary: true, act: () => setQuickView({ id: p.id, skuId: p.sku_id }) },
+                            { l: 'Quote', primary: false, act: () => navigate('quote-create') },
                             { l: 'Sample', primary: false, act: () => navigate('sample-create') },
                             { l: 'Share', primary: false, act: () => handleShare(p) },
                           ].map(b => (
                             <a key={b.l} onClick={e => { e.stopPropagation(); b.act(); }} style={{
-                              flex: 1, padding: '6px 4px', textAlign: 'center',
+                              flex: 1, minWidth: 0, padding: '6px 4px', textAlign: 'center',
                               background: b.primary ? TH.ink : 'transparent', color: b.primary ? TH.paper : TH.ink,
                               border: b.primary ? 'none' : '0.5px solid ' + TH.ink + '33',
                               font: '500 10px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase',
-                              cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap',
+                              cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                             }}>{b.l}</a>
                           ))}
                         </div>
@@ -8504,7 +8516,7 @@
 
               /* Compact view */
               viewMode === 'compact' ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))', gap: 12 }}>
                   {products.map(p => {
                     const price = p.price ? parseFloat(p.price) : 0;
                     const cost = p.cost ? parseFloat(p.cost) : 0;
@@ -8512,7 +8524,7 @@
                     const mc = marginCol(mPct);
                     const unit = unitLabel(p.sell_by);
                     const sk = stockDisplay(p);
-                    const variantText = p.variant_type === 'accessory' ? (p.accessory_label || p.variant_name) : p.variant_name;
+                    const variantText = skuVariantText(p);
                     return (
                       <div key={p.sku_id} onClick={() => setQuickView({ id: p.id, skuId: p.sku_id })} style={{
                         background: TH.paper, border: quickView && quickView.skuId === p.sku_id ? '1.5px solid ' + TH.accent : '0.5px solid ' + TH.ink + '22',
@@ -8577,7 +8589,7 @@
                       const mc = marginCol(mPct);
                       const unit = unitLabel(p.sell_by);
                       const sk = stockDisplay(p);
-                      const variantText = p.variant_type === 'accessory' ? (p.accessory_label || p.variant_name) : p.variant_name;
+                      const variantText = skuVariantText(p);
                       return (
                         <div key={p.sku_id} onClick={() => setQuickView({ id: p.id, skuId: p.sku_id })} style={{
                           display: 'grid', gridTemplateColumns: cols, gap: 12, padding: '12px 16px', alignItems: 'center',
