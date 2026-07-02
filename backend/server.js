@@ -14671,58 +14671,49 @@ app.get('/api/rep/global-search', repAuth, async (req, res) => {
 
 app.get('/api/rep/products', repAuth, async (req, res) => {
   try {
-    const { search, category, collection, vendor, stock_status, min_price, max_price, page: pageParam, limit: limitParam, sort } = req.query;
+    const { search, category, collection, vendor, stock_status, min_price, max_price, page: pageParam, limit: limitParam, sort, include_accessories } = req.query;
     const page = parseInt(pageParam) || 1;
     const limit = Math.min(parseInt(limitParam) || 30, 100);
     const offset = (page - 1) * limit;
 
     const sortClauses = {
-      name_asc: 'name ASC',
-      name_desc: 'name DESC',
+      name_asc: 'name ASC, variant_name ASC NULLS FIRST',
+      name_desc: 'name DESC, variant_name DESC NULLS LAST',
       price_asc: 'price::numeric ASC NULLS LAST',
       price_desc: 'price::numeric DESC NULLS LAST',
       newest: 'created_at DESC',
       stock_desc: 'qty_on_hand::numeric DESC NULLS LAST',
-      margin_asc: 'name ASC',
-      margin_desc: 'name ASC'
+      margin_asc: 'name ASC, variant_name ASC NULLS FIRST',
+      margin_desc: 'name ASC, variant_name ASC NULLS FIRST'
     };
-    const orderBy = sortClauses[sort] || 'name ASC';
+    const orderBy = sortClauses[sort] || 'name ASC, variant_name ASC NULLS FIRST';
 
+    // One row per active SKU (product context joined in)
     let query = `
       SELECT p.*, v.name as vendor_name, v.code as vendor_code,
         COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
-        (SELECT COUNT(*)::int FROM skus s WHERE s.product_id = p.id AND s.status = 'active') as sku_count,
-        (SELECT pr.retail_price FROM pricing pr
-         JOIN skus s ON s.id = pr.sku_id
-         WHERE s.product_id = p.id AND s.status = 'active' LIMIT 1) as price,
-        (SELECT pr.cost FROM pricing pr
-         JOIN skus s ON s.id = pr.sku_id
-         WHERE s.product_id = p.id AND s.status = 'active' LIMIT 1) as cost,
-        (SELECT pr.map_price FROM pricing pr
-         JOIN skus s ON s.id = pr.sku_id
-         WHERE s.product_id = p.id AND s.status = 'active' AND pr.map_price IS NOT NULL LIMIT 1) as map_price,
-        (SELECT s.sell_by FROM skus s
-         WHERE s.product_id = p.id AND s.status = 'active' LIMIT 1) as sell_by,
-        (SELECT s.vendor_sku FROM skus s
-         WHERE s.product_id = p.id AND s.status = 'active' LIMIT 1) as vendor_sku,
-        (SELECT pk.sqft_per_box FROM packaging pk
-         JOIN skus s ON s.id = pk.sku_id
-         WHERE s.product_id = p.id AND s.status = 'active' AND pk.sqft_per_box IS NOT NULL LIMIT 1) as sqft_per_box,
-        (SELECT pk.weight_per_box_lbs FROM packaging pk
-         JOIN skus s ON s.id = pk.sku_id
-         WHERE s.product_id = p.id AND s.status = 'active' AND pk.weight_per_box_lbs IS NOT NULL LIMIT 1) as weight_per_box,
-        (SELECT pk.pieces_per_box FROM packaging pk
-         JOIN skus s ON s.id = pk.sku_id
-         WHERE s.product_id = p.id AND s.status = 'active' AND pk.pieces_per_box IS NOT NULL LIMIT 1) as pieces_per_box,
-        (SELECT ma.url FROM media_assets ma
-         WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
-         ORDER BY CASE WHEN ma.sku_id IS NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image,
+        s.id as sku_id, s.variant_name, s.variant_type, s.accessory_label,
+        s.vendor_sku, s.internal_sku, s.sell_by,
+        (SELECT COUNT(*)::int FROM skus s2 WHERE s2.product_id = p.id AND s2.status = 'active' AND s2.is_sample = false) as sku_count,
+        pr.retail_price as price, pr.cost as cost, pr.map_price,
+        pk.sqft_per_box, pk.weight_per_box_lbs as weight_per_box, pk.pieces_per_box,
+        (SELECT COUNT(*)::int FROM sku_accessories sacc
+         JOIN skus acc ON acc.id = sacc.accessory_sku_id AND acc.status = 'active'
+         WHERE sacc.parent_sku_id = s.id) as accessory_count,
+        COALESCE(
+          (SELECT ma.url FROM media_assets ma
+           WHERE ma.sku_id = s.id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma
+           WHERE ma.sku_id = s.id AND ma.asset_type IN ('alternate','swatch')
+           ORDER BY CASE ma.asset_type WHEN 'alternate' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1),
+          (SELECT ma.url FROM media_assets ma
+           WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type = 'primary'
+           ORDER BY ma.sort_order LIMIT 1)
+        ) as primary_image,
         (SELECT COALESCE(SUM(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand ELSE 0 END), 0)
-         FROM skus s2
-         LEFT JOIN inventory_snapshots inv ON inv.sku_id = s2.id
-         WHERE s2.product_id = p.id AND s2.status = 'active'
+         FROM inventory_snapshots inv WHERE inv.sku_id = s.id
         ) as qty_on_hand,
         (SELECT CASE
            WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand END) IS NULL THEN 'unknown'
@@ -14730,22 +14721,27 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
            WHEN MAX(CASE WHEN inv.fresh_until > NOW() THEN inv.qty_on_hand ELSE 0 END) > 0 THEN 'low_stock'
            ELSE 'out_of_stock'
          END
-         FROM skus s2
-         LEFT JOIN inventory_snapshots inv ON inv.sku_id = s2.id
-         WHERE s2.product_id = p.id
+         FROM inventory_snapshots inv WHERE inv.sku_id = s.id
         ) as stock_status
-      FROM products p
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
-      WHERE p.status = 'active'
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      WHERE p.status = 'active' AND s.status = 'active' AND s.is_sample = false
     `;
     const params = [];
     let paramIndex = 1;
 
+    if (include_accessories !== 'true' && include_accessories !== '1') {
+      query += ` AND COALESCE(s.variant_type, '') != 'accessory'`;
+    }
+
     if (search) {
       params.push('%' + search + '%');
-      query += ` AND (p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR (p.collection || ' ' || p.name) ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex})`;
+      query += ` AND (p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR (p.collection || ' ' || p.name) ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex} OR s.variant_name ILIKE $${paramIndex} OR s.vendor_sku ILIKE $${paramIndex} OR s.internal_sku ILIKE $${paramIndex})`;
       paramIndex++;
     }
 
@@ -14784,9 +14780,8 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
           if (values.length > 0) {
             const placeholders = values.map((_, i) => `$${paramIndex + i}`).join(', ');
             query += `
-              AND p.id IN (
-                SELECT s.product_id FROM skus s
-                JOIN sku_attributes sa ON sa.sku_id = s.id
+              AND s.id IN (
+                SELECT sa.sku_id FROM sku_attributes sa
                 JOIN attributes a ON a.id = sa.attribute_id
                 WHERE a.slug = $${paramIndex + values.length} AND sa.value IN (${placeholders})
               )

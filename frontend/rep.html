@@ -7607,7 +7607,7 @@
     }
 
     // ========== RepQuickViewModal (slide-over panel) ==========
-    function RepQuickViewModal({ productId, products, showCost, navigate, onClose }) {
+    function RepQuickViewModal({ productId, initialSkuId, products, showCost, navigate, onClose }) {
       const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
       const [productData, setProductData] = useState(null);
       const [skuData, setSkuData] = useState(null);
@@ -7628,11 +7628,13 @@
           .then(d => {
             setProductData(d);
             setLoading(false);
-            const firstSkuId = d.skus && d.skus.length > 0 ? d.skus[0].id : null;
-            if (firstSkuId) loadSku(firstSkuId);
+            const skus = d.skus || [];
+            const firstSkuId = skus.length > 0 ? skus[0].id : null;
+            const targetSkuId = initialSkuId && skus.some(s => s.id === initialSkuId) ? initialSkuId : firstSkuId;
+            if (targetSkuId) loadSku(targetSkuId);
           })
           .catch(() => setLoading(false));
-      }, []);
+      }, [initialSkuId]);
 
       const loadSku = useCallback((skuId) => {
         setSkuLoading(true);
@@ -8056,13 +8058,14 @@
       const [viewMode, setViewMode] = useState('grid');
       const [sortBy, setSortBy] = useState('margin_desc');
       const [perPage, setPerPage] = useState(24);
-      const [quickViewId, setQuickViewId] = useState(null);
+      const [quickView, setQuickView] = useState(null); // { id: productId, skuId }
+      const [includeAccessories, setIncludeAccessories] = useState(false);
       const [lightbox, setLightbox] = useState(null);
       const [shareModal, setShareModal] = useState(null);
       const searchTimer = useRef(null);
 
       // FilterRail collapsible state
-      const [railSections, setRailSections] = useState({ category: true, vendor: true, price: false, stock: true, collection: false });
+      const [railSections, setRailSections] = useState({ category: true, vendor: true, price: false, stock: true, accessories: true, collection: false });
       const toggleRailSection = (key) => setRailSections(s => ({ ...s, [key]: !s[key] }));
 
       useEffect(() => {
@@ -8098,6 +8101,7 @@
         if (stockStatus) params.set('stock_status', stockStatus);
         if (minPrice) params.set('min_price', minPrice);
         if (maxPrice) params.set('max_price', maxPrice);
+        if (includeAccessories) params.set('include_accessories', '1');
         Object.entries(attrFilters).forEach(([slug, val]) => { if (val) params.set(slug, val); });
         params.set('page', page);
         params.set('limit', perPage);
@@ -8105,7 +8109,7 @@
         repFetch('/api/rep/products?' + params.toString())
           .then(d => { setProducts(d.products || []); setTotal(d.total || 0); setLastUpdated(new Date()); setLoading(false); })
           .catch(() => setLoading(false));
-      }, [search, category, vendor, collection, stockStatus, minPrice, maxPrice, attrFilters, page, perPage, sortBy]);
+      }, [search, category, vendor, collection, stockStatus, minPrice, maxPrice, includeAccessories, attrFilters, page, perPage, sortBy]);
 
       useEffect(load, [load]);
       useEffect(() => { const iv = setInterval(load, 120000); return () => clearInterval(iv); }, [load]);
@@ -8123,7 +8127,7 @@
 
       const clearAllFilters = () => {
         setCategory(''); setVendor(''); setCollection(''); setStockStatus('');
-        setMinPrice(''); setMaxPrice(''); setAttrFilters({}); setPage(1);
+        setMinPrice(''); setMaxPrice(''); setIncludeAccessories(false); setAttrFilters({}); setPage(1);
       };
 
       // Build active filter chips
@@ -8134,6 +8138,7 @@
       if (stockStatus) { const labels = { in_stock: 'In Stock', low_stock: 'Low Stock', out_of_stock: 'Out of Stock' }; chips.push({ key: 'stock', label: labels[stockStatus] || stockStatus, clear: () => { setStockStatus(''); setPage(1); } }); }
       if (minPrice) chips.push({ key: 'minP', label: 'Min $' + minPrice, clear: () => { setMinPrice(''); setPage(1); } });
       if (maxPrice) chips.push({ key: 'maxP', label: 'Max $' + maxPrice, clear: () => { setMaxPrice(''); setPage(1); } });
+      if (includeAccessories) chips.push({ key: 'acc', label: 'Incl. accessories', clear: () => { setIncludeAccessories(false); setPage(1); } });
       Object.entries(attrFilters).forEach(([slug, val]) => {
         if (val) { const attr = filterableAttrs.find(a => a.slug === slug); chips.push({ key: slug, label: (attr ? attr.name + ': ' : '') + val, clear: () => { setAttrFilters(prev => ({ ...prev, [slug]: '' })); setPage(1); } }); }
       });
@@ -8223,7 +8228,7 @@
                 Product <em style={{ color: TH.accent, fontStyle: 'italic' }}>catalog</em>
               </h1>
               <p style={{ font: '400 13px/1.5 var(--roma-sans)', color: TH.ink + 'b3', margin: '6px 0 0' }}>
-                {total.toLocaleString()} products · {vendors.length} vendors · live cost &amp; margin · trade-tier pricing
+                {total.toLocaleString()} SKUs · {vendors.length} vendors · live cost &amp; margin · trade-tier pricing
               </p>
             </div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
@@ -8244,7 +8249,7 @@
             </div>
             {/* Right toolbar */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, font: '500 11px/1 var(--roma-sans)' }}>
-              <span style={mono(TH.muted)}>{total > 0 ? startIdx + '\u2013' + endIdx + ' of ' + total.toLocaleString() : '0 products'}</span>
+              <span style={mono(TH.muted)}>{total > 0 ? startIdx + '\u2013' + endIdx + ' of ' + total.toLocaleString() : '0 SKUs'}</span>
               <span style={{ width: 1, height: 18, background: TH.ink + '22' }} />
               <span style={mono(TH.muted)}>Sort</span>
               <select value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(1); }} style={{
@@ -8396,6 +8401,13 @@
                 </div>
               </RailSection>
 
+              {/* Accessories */}
+              <RailSection id="accessories" title="Accessories" count={includeAccessories ? 1 : 0}>
+                <div style={{ display: 'grid', gap: 7 }}>
+                  <CheckRow label="Show trims, moldings & accessories" on={includeAccessories} onToggle={() => { setIncludeAccessories(v => !v); setPage(1); }} />
+                </div>
+              </RailSection>
+
               {/* Collection */}
               <RailSection id="collection" title="Collection" count={collection ? 1 : 0}>
                 <div style={{ display: 'grid', gap: 7, maxHeight: 200, overflowY: 'auto' }}>
@@ -8409,8 +8421,8 @@
 
             {/* ── Content area ── */}
             <div style={{ minWidth: 0 }}>
-              {loading ? <div style={{ padding: '60px 0', textAlign: 'center', font: '400 14px/1.5 var(--roma-sans)', color: TH.ink + '99' }}>Loading products...</div> :
-               products.length === 0 ? <div style={{ padding: '60px 0', textAlign: 'center', font: '400 14px/1.5 var(--roma-sans)', color: TH.ink + '99' }}>No products match these filters.</div> :
+              {loading ? <div style={{ padding: '60px 0', textAlign: 'center', font: '400 14px/1.5 var(--roma-sans)', color: TH.ink + '99' }}>Loading SKUs...</div> :
+               products.length === 0 ? <div style={{ padding: '60px 0', textAlign: 'center', font: '400 14px/1.5 var(--roma-sans)', color: TH.ink + '99' }}>No SKUs match these filters.</div> :
 
               /* Grid view */
               viewMode === 'grid' ? (
@@ -8422,10 +8434,11 @@
                     const mc = marginCol(mPct);
                     const unit = unitLabel(p.sell_by);
                     const sk = stockDisplay(p);
+                    const variantText = p.variant_type === 'accessory' ? (p.accessory_label || p.variant_name) : p.variant_name;
                     return (
-                      <div key={p.id} onClick={() => setQuickViewId(p.id)} style={{
-                        background: TH.paper, border: quickViewId === p.id ? '1.5px solid ' + TH.accent : '0.5px solid ' + TH.ink + '22',
-                        boxShadow: quickViewId === p.id ? '0 8px 24px ' + TH.ink + '1f' : 'none',
+                      <div key={p.sku_id} onClick={() => setQuickView({ id: p.id, skuId: p.sku_id })} style={{
+                        background: TH.paper, border: quickView && quickView.skuId === p.sku_id ? '1.5px solid ' + TH.accent : '0.5px solid ' + TH.ink + '22',
+                        boxShadow: quickView && quickView.skuId === p.sku_id ? '0 8px 24px ' + TH.ink + '1f' : 'none',
                         display: 'flex', flexDirection: 'column', cursor: 'pointer', position: 'relative',
                         transition: 'border-color .12s, box-shadow .12s',
                       }}>
@@ -8441,10 +8454,15 @@
                         <div style={{ padding: '12px 14px 8px', display: 'grid', gap: 4, flex: 1 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', ...mono(TH.muted), fontSize: 9 }}>
                             <span>{p.category_name || ''} {'\u00B7'} {p.brand_name || p.vendor_name || ''}</span>
-                            <span>{p.sku_count} SKU{p.sku_count !== 1 ? 's' : ''}</span>
+                            <span>{p.vendor_sku || p.internal_sku || ''}</span>
                           </div>
-                          <div style={{ font: '400 16px/1.2 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em' }}>{p.name}</div>
-                          {p.collection && <div style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + '99' }}>{p.collection}</div>}
+                          <div style={{ font: '400 16px/1.2 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em' }}>{p.name}{variantText ? ' \u00B7 ' + variantText : ''}</div>
+                          {(p.collection || p.variant_type === 'accessory' || p.accessory_count > 0) && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                            <span style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + '99' }}>{p.collection || ''}</span>
+                            {p.variant_type === 'accessory'
+                              ? <span style={{ ...mono(TH.accent), fontSize: 9, flexShrink: 0 }}>Accessory</span>
+                              : p.accessory_count > 0 ? <span style={{ ...mono(TH.accent), fontSize: 9, flexShrink: 0 }}>{'\u229E'} {p.accessory_count} accessor{p.accessory_count !== 1 ? 'ies' : 'y'}</span> : null}
+                          </div>}
                         </div>
                         {/* Pricing footer */}
                         {showCost && price > 0 ? (
@@ -8464,7 +8482,7 @@
                         {/* Actions */}
                         <div style={{ padding: '8px 14px', display: 'flex', gap: 4, borderTop: '0.5px solid ' + TH.ink + '18' }}>
                           {[
-                            { l: 'Quick view', primary: true, act: () => setQuickViewId(p.id) },
+                            { l: 'Quick view', primary: true, act: () => setQuickView({ id: p.id, skuId: p.sku_id }) },
                             { l: '+ Quote', primary: false, act: () => navigate('quote-create') },
                             { l: 'Sample', primary: false, act: () => navigate('sample-create') },
                             { l: 'Share', primary: false, act: () => handleShare(p) },
@@ -8494,10 +8512,11 @@
                     const mc = marginCol(mPct);
                     const unit = unitLabel(p.sell_by);
                     const sk = stockDisplay(p);
+                    const variantText = p.variant_type === 'accessory' ? (p.accessory_label || p.variant_name) : p.variant_name;
                     return (
-                      <div key={p.id} onClick={() => setQuickViewId(p.id)} style={{
-                        background: TH.paper, border: quickViewId === p.id ? '1.5px solid ' + TH.accent : '0.5px solid ' + TH.ink + '22',
-                        boxShadow: quickViewId === p.id ? '0 8px 24px ' + TH.ink + '1f' : 'none',
+                      <div key={p.sku_id} onClick={() => setQuickView({ id: p.id, skuId: p.sku_id })} style={{
+                        background: TH.paper, border: quickView && quickView.skuId === p.sku_id ? '1.5px solid ' + TH.accent : '0.5px solid ' + TH.ink + '22',
+                        boxShadow: quickView && quickView.skuId === p.sku_id ? '0 8px 24px ' + TH.ink + '1f' : 'none',
                         display: 'grid', gridTemplateColumns: '108px 1fr', cursor: 'pointer',
                         transition: 'border-color .12s, box-shadow .12s', minHeight: 132,
                       }}>
@@ -8511,8 +8530,13 @@
                             <span style={mono(TH.muted)}>{p.brand_name || p.vendor_name}</span>
                             <span style={{ ...mono(sk.c), color: sk.c }}>{'\u25CF'} {sk.l}</span>
                           </div>
-                          <div style={{ font: '400 16px/1.15 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em' }}>{p.name}</div>
-                          <div style={{ font: '400 11px/1.3 var(--roma-sans)', color: TH.ink + '99' }}>{[p.collection, p.category_name].filter(Boolean).join(' \u00B7 ')}</div>
+                          <div style={{ font: '400 16px/1.15 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em' }}>{p.name}{variantText ? ' \u00B7 ' + variantText : ''}</div>
+                          <div style={{ font: '400 11px/1.3 var(--roma-sans)', color: TH.ink + '99' }}>
+                            {[p.collection, p.category_name].filter(Boolean).join(' \u00B7 ')}
+                            {p.variant_type === 'accessory'
+                              ? <span style={{ ...mono(TH.accent), fontSize: 9, marginLeft: 8 }}>Accessory</span>
+                              : p.accessory_count > 0 ? <span style={{ ...mono(TH.accent), fontSize: 9, marginLeft: 8 }}>{p.accessory_count} accessor{p.accessory_count !== 1 ? 'ies' : 'y'}</span> : null}
+                          </div>
                           <div style={{ flex: 1 }} />
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                             <span style={{ font: '400 16px/1 var(--roma-serif)', color: TH.ink }}>{price > 0 ? fmtMoney(price) : '\u2014'}<span style={{ font: '400 10px/1 var(--roma-sans)', color: TH.muted }}>{unit}</span></span>
@@ -8553,18 +8577,22 @@
                       const mc = marginCol(mPct);
                       const unit = unitLabel(p.sell_by);
                       const sk = stockDisplay(p);
+                      const variantText = p.variant_type === 'accessory' ? (p.accessory_label || p.variant_name) : p.variant_name;
                       return (
-                        <div key={p.id} onClick={() => setQuickViewId(p.id)} style={{
+                        <div key={p.sku_id} onClick={() => setQuickView({ id: p.id, skuId: p.sku_id })} style={{
                           display: 'grid', gridTemplateColumns: cols, gap: 12, padding: '12px 16px', alignItems: 'center',
                           borderBottom: ri < products.length - 1 ? '0.5px solid ' + TH.ink + '12' : 'none', cursor: 'pointer',
-                          background: quickViewId === p.id ? TH.accent + '14' : 'transparent',
+                          background: quickView && quickView.skuId === p.sku_id ? TH.accent + '14' : 'transparent',
                         }}>
                           <div style={{ width: 52, height: 40, overflow: 'hidden', border: '0.5px solid ' + TH.ink + '1a', background: 'var(--stone-100)' }}>
                             {p.primary_image ? <img src={optimizeImg(p.primary_image, 100)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
                           </div>
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ font: '400 15px/1.15 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                            <div style={{ ...mono(TH.muted), fontSize: 9, marginTop: 3 }}>{p.sku_count} SKU{p.sku_count !== 1 ? 's' : ''}</div>
+                            <div style={{ font: '400 15px/1.15 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}{variantText ? ' · ' + variantText : ''}</div>
+                            <div style={{ ...mono(TH.muted), fontSize: 9, marginTop: 3 }}>
+                              {p.vendor_sku || p.internal_sku || '—'}
+                              {p.variant_type === 'accessory' ? ' · Accessory' : p.accessory_count > 0 ? ' · ' + p.accessory_count + ' accessor' + (p.accessory_count !== 1 ? 'ies' : 'y') : ''}
+                            </div>
                           </div>
                           <div style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + 'cc' }}>{p.brand_name || p.vendor_name}</div>
                           <div style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + 'cc' }}>{p.collection || '\u2014'}</div>
@@ -8582,7 +8610,7 @@
                             </div>
                           )}
                           <div onClick={e => e.stopPropagation()} style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
-                            <a onClick={() => setQuickViewId(p.id)} style={{ padding: '6px 10px', background: TH.ink, color: TH.paper, font: '500 10px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>View</a>
+                            <a onClick={() => setQuickView({ id: p.id, skuId: p.sku_id })} style={{ padding: '6px 10px', background: TH.ink, color: TH.paper, font: '500 10px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>View</a>
                           </div>
                         </div>
                       );
@@ -8597,8 +8625,8 @@
           </div>
 
           {/* Quick View */}
-          {quickViewId && React.createElement(QuickViewErrorBoundary, { productId: quickViewId, onClose: () => setQuickViewId(null) },
-            <RepQuickViewModal productId={quickViewId} products={products} showCost={showCost} navigate={navigate} onClose={() => setQuickViewId(null)} />
+          {quickView && React.createElement(QuickViewErrorBoundary, { productId: quickView.id, onClose: () => setQuickView(null) },
+            <RepQuickViewModal productId={quickView.id} initialSkuId={quickView.skuId} products={products} showCost={showCost} navigate={navigate} onClose={() => setQuickView(null)} />
           )}
 
           {/* Lightbox */}
