@@ -14741,7 +14741,15 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
 
     if (search) {
       params.push('%' + search + '%');
-      query += ` AND (p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR (p.collection || ' ' || p.name) ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex} OR s.variant_name ILIKE $${paramIndex} OR s.vendor_sku ILIKE $${paramIndex} OR s.internal_sku ILIKE $${paramIndex})`;
+      // Accessories also match on their parent product's name/collection (via sku_accessories)
+      query += ` AND (p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR (p.collection || ' ' || p.name) ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex} OR s.variant_name ILIKE $${paramIndex} OR s.vendor_sku ILIKE $${paramIndex} OR s.internal_sku ILIKE $${paramIndex}
+        OR (COALESCE(s.variant_type, '') = 'accessory' AND EXISTS (
+          SELECT 1 FROM sku_accessories sacc
+          JOIN skus ps ON ps.id = sacc.parent_sku_id AND ps.status = 'active'
+          JOIN products pp ON pp.id = ps.product_id AND pp.status = 'active'
+          WHERE sacc.accessory_sku_id = s.id
+            AND (pp.name ILIKE $${paramIndex} OR pp.collection ILIKE $${paramIndex} OR (pp.collection || ' ' || pp.name) ILIKE $${paramIndex})
+        )))`;
       paramIndex++;
     }
 
