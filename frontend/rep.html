@@ -8063,16 +8063,38 @@
       const fmtMoney = (n) => '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const [sku, setSku] = useState(null);
       const [loadErr, setLoadErr] = useState(false);
-      const [draftQuotes, setDraftQuotes] = useState([]);
-      const [draftsLoading, setDraftsLoading] = useState(true);
+      const [quoteSearch, setQuoteSearch] = useState('');
+      const [existingQuotes, setExistingQuotes] = useState([]);
+      const [quotesLoading, setQuotesLoading] = useState(true);
+      const quoteSearchTimer = useRef(null);
+      const quoteSearchCounter = useRef(0);
+
+      // Empty search shows recent drafts; a term searches all editable (draft/sent) quotes
+      const loadQuotes = (term) => {
+        setQuotesLoading(true);
+        const thisSearch = ++quoteSearchCounter.current;
+        const url = term ? '/api/rep/quotes?search=' + encodeURIComponent(term) : '/api/rep/quotes?status=draft';
+        repFetch(url)
+          .then(d => {
+            if (thisSearch !== quoteSearchCounter.current) return;
+            const editable = (d.quotes || []).filter(q => ['draft', 'sent'].includes(q.status));
+            setExistingQuotes(editable.slice(0, 6));
+            setQuotesLoading(false);
+          })
+          .catch(() => { if (thisSearch === quoteSearchCounter.current) setQuotesLoading(false); });
+      };
+
+      const onQuoteSearch = (v) => {
+        setQuoteSearch(v);
+        if (quoteSearchTimer.current) clearTimeout(quoteSearchTimer.current);
+        quoteSearchTimer.current = setTimeout(() => loadQuotes(v.trim()), 300);
+      };
 
       useEffect(() => {
         repFetch('/api/rep/skus/search?sku_id=' + skuId)
           .then(d => { const r = (d.results || [])[0]; if (r) setSku(r); else setLoadErr(true); })
           .catch(() => setLoadErr(true));
-        repFetch('/api/rep/quotes?status=draft')
-          .then(d => { setDraftQuotes((d.quotes || []).slice(0, 5)); setDraftsLoading(false); })
-          .catch(() => setDraftsLoading(false));
+        loadQuotes('');
       }, [skuId]);
 
       useEffect(() => {
@@ -8148,15 +8170,22 @@
                   </React.Fragment>}
             </div>
 
-            {/* Draft quotes */}
+            {/* Existing quotes */}
             {!loadErr && <div style={{ padding: '0 20px 18px' }}>
-              <div style={{ ...mono(TH.muted), marginBottom: 8 }}>Or add to a draft quote</div>
-              {draftsLoading
-                ? <div style={{ font: '400 12px/1.4 var(--roma-sans)', color: TH.muted }}>Loading drafts&hellip;</div>
-                : draftQuotes.length === 0
-                  ? <div style={{ font: '400 12px/1.4 var(--roma-sans)', color: TH.muted }}>No draft quotes yet.</div>
+              <div style={{ ...mono(TH.muted), marginBottom: 8 }}>Or add to an existing quote</div>
+              <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid ' + TH.ink + '33', background: TH.paper, marginBottom: 8 }}>
+                <span style={{ padding: '7px 10px', color: TH.muted, font: '400 13px/1 var(--roma-sans)' }}>&#x2315;</span>
+                <input value={quoteSearch} onChange={e => onQuoteSearch(e.target.value)}
+                  placeholder="Search quotes — number, customer, email…"
+                  style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', font: '400 12px/1 var(--roma-sans)', color: TH.ink, padding: '7px 8px 7px 0' }} />
+                {quoteSearch && <span onClick={() => onQuoteSearch('')} style={{ padding: '0 10px', cursor: 'pointer', color: TH.muted, font: '400 13px/1 var(--roma-sans)' }}>&times;</span>}
+              </div>
+              {quotesLoading
+                ? <div style={{ font: '400 12px/1.4 var(--roma-sans)', color: TH.muted }}>Loading quotes&hellip;</div>
+                : existingQuotes.length === 0
+                  ? <div style={{ font: '400 12px/1.4 var(--roma-sans)', color: TH.muted }}>{quoteSearch ? 'No editable quotes match "' + quoteSearch + '".' : 'No draft quotes yet — search to find sent quotes.'}</div>
                   : <div style={{ display: 'grid', gap: 6 }}>
-                      {draftQuotes.map(q => (
+                      {existingQuotes.map(q => (
                         <button key={q.id} onClick={() => go('quote', 'quote-edit', q.id, { quoteId: q.id })} disabled={!ready} style={{
                           display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10,
                           width: '100%', textAlign: 'left', padding: '10px 12px', cursor: ready ? 'pointer' : 'wait',
@@ -8167,7 +8196,8 @@
                             {q.customer_name && <span style={{ font: '400 12px/1.2 var(--roma-sans)', color: TH.ink + '99' }}> · {q.customer_name}</span>}
                           </span>
                           <span style={{ ...mono(TH.muted), fontSize: 9, flexShrink: 0 }}>
-                            {q.item_count} item{q.item_count !== 1 ? 's' : ''}{q.total ? ' · ' + fmtMoney(q.total) : ''}
+                            <span style={{ color: q.status === 'sent' ? TH.accent : TH.muted }}>{q.status}</span>
+                            {' · '}{q.item_count} item{q.item_count !== 1 ? 's' : ''}{q.total && parseFloat(q.total) > 0 ? ' · ' + fmtMoney(q.total) : ''}
                           </span>
                         </button>
                       ))}
