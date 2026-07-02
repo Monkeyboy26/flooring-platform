@@ -8007,6 +8007,7 @@
                     name: product ? product.name : '', variant: activeSku.variant_name,
                     image: skuMedia.length > 0 ? skuMedia[0].url : null,
                     price: activeSku.retail_price, sell_by: activeSku.sell_by, vendor_sku: activeSku.vendor_sku,
+                    vendor: product ? product.vendor_name : '', category: product ? product.category_name : '',
                   } });
                 } else { onClose(); navigate('quote-create'); }
               }} style={{
@@ -8057,17 +8058,127 @@
     }
 
     // ========== AddToTargetModal (choose where a catalog item goes) ==========
+    // Visual design imported from Claude Design project "Add to Chooser.html" (addto-chooser.jsx)
+    const ADDTO_TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
+    const addtoMoney = (n) => '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: parseFloat(n) >= 1000 ? 0 : 2, maximumFractionDigits: 2 });
+    const addtoRelTime = (d) => {
+      if (!d) return '';
+      const s = (Date.now() - new Date(d).getTime()) / 1000;
+      if (s < 3600) return Math.max(1, Math.floor(s / 60)) + 'm ago';
+      if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+      if (s < 604800) return Math.floor(s / 86400) + 'd ago';
+      return Math.floor(s / 604800) + 'w ago';
+    };
+
+    // CSS-drawn destination marks (no SVG)
+    function AddToDestMark({ type, color, image }) {
+      const line = { background: color, display: 'block' };
+      if (type === 'quote') {
+        return (
+          <div style={{ width: 17, height: 21, border: '1.25px solid ' + color, padding: '4px 3px', display: 'flex', flexDirection: 'column', gap: 2.5, justifyContent: 'flex-start', boxSizing: 'border-box' }}>
+            <span style={{ ...line, height: 1.25, width: '65%' }} />
+            <span style={{ ...line, height: 1.25, width: '100%' }} />
+            <span style={{ ...line, height: 1.25, width: '100%' }} />
+            <span style={{ ...line, height: 1.25, width: '45%' }} />
+          </div>
+        );
+      }
+      if (type === 'order') {
+        return (
+          <div style={{ width: 21, height: 19, border: '1.25px solid ' + color, position: 'relative', boxSizing: 'border-box' }}>
+            <span style={{ ...line, position: 'absolute', top: '33%', left: 0, right: 0, height: 1.25 }} />
+            <span style={{ ...line, position: 'absolute', top: 0, bottom: '67%', left: '50%', width: 1.25, transform: 'translateX(-50%)' }} />
+          </div>
+        );
+      }
+      // sample — two offset swatch squares, front one shows the item photo
+      return (
+        <div style={{ position: 'relative', width: 21, height: 21 }}>
+          <div style={{ position: 'absolute', top: 0, right: 0, width: 13, height: 13, border: '1.25px solid ' + color, opacity: 0.5, boxSizing: 'border-box' }} />
+          <div style={{ position: 'absolute', bottom: 0, left: 0, width: 14, height: 14, border: '1.25px solid ' + color, overflow: 'hidden', boxSizing: 'border-box', background: 'var(--stone-100)' }}>
+            {image && <img src={optimizeImg(image, 40)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+          </div>
+        </div>
+      );
+    }
+
+    function AddToDestRow({ mark, label, hint, primary, disabled, onClick, image }) {
+      const TH = ADDTO_TH;
+      const [hover, setHover] = useState(false);
+      const fg = primary ? TH.paper : TH.ink;
+      const lit = hover && !disabled;
+      return (
+        <button onClick={onClick} disabled={disabled}
+          onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 14, width: '100%', textAlign: 'left',
+            padding: '15px 18px', background: primary ? TH.ink : 'transparent', color: fg,
+            border: primary ? 'none' : '0.5px solid ' + TH.ink + '2e',
+            outline: lit ? '1.5px solid ' + TH.accent : '1.5px solid transparent',
+            outlineOffset: -1.5, cursor: disabled ? 'wait' : 'pointer', opacity: disabled ? 0.55 : 1,
+            transition: 'outline-color .12s, transform .12s',
+            transform: lit ? 'translateX(2px)' : 'none',
+          }}>
+          <span style={{
+            width: 38, height: 38, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '0.5px solid ' + (primary ? TH.paper + '3a' : TH.ink + '22'), background: primary ? TH.paper + '12' : TH.paper + '80',
+          }}>
+            <AddToDestMark type={mark} color={fg} image={mark === 'sample' ? image : null} />
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', font: '500 13.5px/1.2 var(--roma-sans)', letterSpacing: '0.01em' }}>{label}</span>
+            <span style={{ display: 'block', font: '400 11px/1.3 var(--roma-sans)', color: primary ? TH.paper + 'aa' : TH.muted, marginTop: 2 }}>{hint}</span>
+          </span>
+          <span style={{ font: '400 16px/1 var(--roma-sans)', color: lit ? TH.accent : (primary ? TH.paper + '99' : TH.muted), transition: 'color .12s', flexShrink: 0 }}>&rarr;</span>
+        </button>
+      );
+    }
+
+    function AddToQuoteRow({ q, disabled, onClick }) {
+      const TH = ADDTO_TH;
+      const [hover, setHover] = useState(false);
+      const sent = q.status === 'sent';
+      return (
+        <button onClick={onClick} disabled={disabled}
+          onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+          style={{
+            display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
+            padding: '11px 14px', background: hover && !disabled ? TH.warm : 'transparent', border: 'none',
+            borderBottom: '0.5px solid ' + TH.ink + '12', cursor: disabled ? 'wait' : 'pointer',
+            opacity: disabled ? 0.55 : 1, transition: 'background .1s',
+          }}>
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ font: '400 16px/1 var(--roma-serif)', color: TH.ink }}>{q.quote_number}</span>
+              <span style={{
+                font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase',
+                color: sent ? TH.accent : TH.muted, border: '0.5px solid ' + (sent ? TH.accent + '88' : TH.ink + '2e'), padding: '2.5px 5px',
+              }}>{q.status}</span>
+            </span>
+            <span style={{ display: 'block', font: '400 12px/1.2 var(--roma-sans)', color: TH.ink + 'b0', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {[q.customer_name, addtoRelTime(q.updated_at)].filter(Boolean).join(' · ') || '—'}
+            </span>
+          </span>
+          <span style={{ textAlign: 'right', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <span style={{ display: 'block', font: '400 15px/1 var(--roma-serif)', color: TH.ink }}>{q.total && parseFloat(q.total) > 0 ? addtoMoney(q.total) : '—'}</span>
+            <span style={{ display: 'block', font: '500 8.5px/1 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted, marginTop: 4 }}>{q.item_count} item{q.item_count !== 1 ? 's' : ''}</span>
+          </span>
+        </button>
+      );
+    }
+
     function AddToTargetModal({ skuId, summary, navigate, onClose }) {
-      const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
-      const mono = (c) => ({ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: c });
-      const fmtMoney = (n) => '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const TH = ADDTO_TH;
+      const monoLabel = (extra) => ({ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: TH.muted, ...(extra || {}) });
       const [sku, setSku] = useState(null);
       const [loadErr, setLoadErr] = useState(false);
+      const [done, setDone] = useState(null); // { title, sub }
       const [quoteSearch, setQuoteSearch] = useState('');
       const [existingQuotes, setExistingQuotes] = useState([]);
       const [quotesLoading, setQuotesLoading] = useState(true);
       const quoteSearchTimer = useRef(null);
       const quoteSearchCounter = useRef(0);
+      const goTimer = useRef(null);
 
       // Empty search shows recent drafts; a term searches all editable (draft/sent) quotes
       const loadQuotes = (term) => {
@@ -8100,111 +8211,133 @@
       useEffect(() => {
         const onKey = (e) => { if (e.key === 'Escape') onClose(); };
         document.addEventListener('keydown', onKey);
-        return () => document.removeEventListener('keydown', onKey);
+        return () => {
+          document.removeEventListener('keydown', onKey);
+          if (goTimer.current) clearTimeout(goTimer.current);
+        };
       }, [onClose]);
 
-      const go = (target, view, id, extra) => {
-        if (!sku) return;
-        stashPendingAdd(target, sku, extra);
-        onClose();
-        navigate(view, id);
+      // Show the confirmation beat, then hand off and navigate
+      const go = (target, view, id, extra, title, sub) => {
+        if (!sku || done) return;
+        setDone({ title, sub });
+        goTimer.current = setTimeout(() => {
+          stashPendingAdd(target, sku, extra);
+          onClose();
+          navigate(view, id);
+        }, 850);
       };
 
       const price = summary && summary.price ? parseFloat(summary.price) : 0;
-      const unit = summary && summary.sell_by === 'unit' ? '/ea' : '/sqft';
-      const ready = !!sku;
+      const unit = summary && summary.sell_by === 'unit' ? 'ea' : 'sqft';
+      const ready = !!sku && !done;
+      const q = quoteSearch.trim();
 
-      const optionRow = (label, sub, onClick, primary) => (
-        <button key={label} onClick={onClick} disabled={!ready} style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12,
-          width: '100%', textAlign: 'left', padding: '13px 16px', cursor: ready ? 'pointer' : 'wait',
-          background: primary ? TH.ink : 'transparent', color: primary ? TH.paper : TH.ink,
-          border: primary ? 'none' : '0.5px solid ' + TH.ink + '2e', opacity: ready ? 1 : 0.55,
-        }}>
-          <span style={{ font: '500 12px/1.2 var(--roma-sans)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{label}</span>
-          {sub && <span style={{ ...mono(primary ? TH.paper : TH.muted), color: primary ? TH.paper + 'cc' : TH.muted, fontSize: 9 }}>{sub}</span>}
-        </button>
-      );
+      const dests = [
+        { mark: 'quote', label: 'New quote', hint: 'Start a quote with this line already added', primary: true,
+          act: () => go('quote', 'quote-create', undefined, undefined, 'Added to a new quote', 'Opening the quote builder…') },
+        { mark: 'order', label: 'New order', hint: 'Begin an order — running total updates live', primary: false,
+          act: () => go('order', 'order-create', undefined, undefined, 'Added to a new order', 'Opening the order wizard…') },
+        { mark: 'sample', label: 'Sample request', hint: 'Send a physical sample · max 5 per request', primary: false,
+          act: () => go('sample', 'sample-create', undefined, undefined, 'Added to sample request', 'Opening the sample form…') },
+      ];
 
       return ReactDOM.createPortal(
-        <React.Fragment>
-          <div onClick={onClose} style={{
-            position: 'fixed', inset: 0, background: 'rgba(28,25,23,0.45)',
-            backdropFilter: 'blur(1.5px)', zIndex: 1300, animation: 'rcatFadeIn .15s ease',
-          }} />
-          <div style={{
-            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-            width: 420, maxWidth: 'calc(100vw - 32px)', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto',
-            background: TH.paper, zIndex: 1301, boxShadow: '0 24px 70px rgba(28,25,23,0.35)',
+        <div onClick={onClose} style={{
+          position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: TH.ink + '5c', backdropFilter: 'blur(3px)', padding: 24, animation: 'rcatFadeIn .15s ease',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            width: 460, maxWidth: '100%', maxHeight: '92vh', background: TH.paper, color: TH.ink,
+            border: '0.5px solid ' + TH.ink + '33', boxShadow: '0 30px 80px ' + TH.ink + '55',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'rofPop .22s cubic-bezier(.22,.61,.36,1)',
           }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid ' + TH.ink + '1a' }}>
-              <span style={mono(TH.accent)}>Add to&hellip;</span>
-              <span onClick={onClose} style={{ cursor: 'pointer', color: TH.muted, font: '400 16px/1 var(--roma-sans)', padding: '0 2px' }}>&times;</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px 13px', borderBottom: '0.5px solid ' + TH.ink + '1a', flexShrink: 0 }}>
+              <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: TH.accent }}>Add to&hellip;</span>
+              <button onClick={onClose} style={{ width: 26, height: 26, border: '0.5px solid ' + TH.ink + '2e', background: 'transparent', color: TH.ink, cursor: 'pointer', font: '400 13px/1 var(--roma-sans)', padding: 0 }}>&#x2715;</button>
             </div>
 
-            {/* Item summary */}
-            {summary && <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '14px 20px', background: TH.warm + '66' }}>
-              <div style={{ width: 52, height: 52, flexShrink: 0, overflow: 'hidden', background: 'var(--stone-100)', border: '0.5px solid ' + TH.ink + '1a' }}>
-                {summary.image ? <img src={optimizeImg(summary.image, 120)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : null}
+            {done ? (
+              /* success state */
+              <div style={{ padding: '48px 30px 52px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{ width: 46, height: 46, borderRadius: '50%', border: '1.5px solid ' + TH.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, color: TH.accent, font: '400 22px/1 var(--roma-sans)', animation: 'rofPopCheck .3s ease' }}>&#x2713;</div>
+                <div style={{ font: '400 23px/1.15 var(--roma-serif)', letterSpacing: '-0.01em' }}>{done.title}</div>
+                <div style={{ font: '400 12.5px/1.4 var(--roma-sans)', color: TH.muted, marginTop: 2 }}>{done.sub}</div>
+                {summary && <div style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + 'cc', marginTop: 18, padding: '9px 14px', background: TH.warm, border: '0.5px solid ' + TH.ink + '1a', maxWidth: '90%' }}>
+                  {summary.name}{summary.variant ? <span style={{ color: TH.muted }}> · {summary.variant}</span> : null}
+                </div>}
               </div>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ font: '400 15px/1.2 var(--roma-serif)', color: TH.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {summary.name}{summary.variant ? ' · ' + summary.variant : ''}
-                </div>
-                <div style={{ ...mono(TH.muted), fontSize: 9, marginTop: 4, display: 'flex', gap: 10 }}>
-                  {summary.vendor_sku && <span>{summary.vendor_sku}</span>}
-                  {price > 0 && <span>{fmtMoney(price)}{unit}</span>}
-                </div>
-              </div>
-            </div>}
+            ) : loadErr ? (
+              <div style={{ padding: '32px 24px', font: '400 12.5px/1.5 var(--roma-sans)', color: '#c54731' }}>Could not load this SKU. Close and try again.</div>
+            ) : (
+              <div style={{ overflowY: 'auto', flex: 1 }}>
+                {/* Item confirmation strip */}
+                {summary && <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 22px', background: TH.warm, borderBottom: '0.5px solid ' + TH.ink + '1a' }}>
+                  <div style={{ width: 52, height: 52, flexShrink: 0, border: '0.5px solid ' + TH.ink + '22', overflow: 'hidden', background: 'var(--stone-100)' }}>
+                    {summary.image ? <img src={optimizeImg(summary.image, 120)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : null}
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    {(summary.vendor || summary.category) && <div style={{ font: '500 8.5px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: TH.muted, marginBottom: 5 }}>{[summary.vendor, summary.category].filter(Boolean).join(' · ')}</div>}
+                    <div style={{ font: '400 19px/1.1 var(--roma-serif)', letterSpacing: '-0.01em', color: TH.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{summary.name}</div>
+                    {summary.variant && <div style={{ font: '400 11.5px/1.2 var(--roma-sans)', color: TH.ink + '99', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{summary.variant}</div>}
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    {price > 0 && <div style={{ font: '400 20px/1 var(--roma-serif)', color: TH.ink }}>{addtoMoney(price)}</div>}
+                    <div style={{ font: '500 8.5px/1 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted, marginTop: 4 }}>{price > 0 ? '/' + unit + ' · ' : ''}{summary.vendor_sku || ''}</div>
+                  </div>
+                </div>}
 
-            {/* Options */}
-            <div style={{ display: 'grid', gap: 8, padding: '16px 20px' }}>
-              {loadErr
-                ? <div style={{ font: '400 12px/1.5 var(--roma-sans)', color: '#c54731' }}>Could not load this SKU. Close and try again.</div>
-                : <React.Fragment>
-                    {optionRow('New quote', 'Quote builder', () => go('quote', 'quote-create'), true)}
-                    {optionRow('New order', 'Order wizard', () => go('order', 'order-create'), false)}
-                    {optionRow('Sample request', 'Max 5 items', () => go('sample', 'sample-create'), false)}
-                  </React.Fragment>}
-            </div>
+                {/* Destinations */}
+                <div style={{ padding: '20px 22px 8px' }}>
+                  <div style={{ ...monoLabel({ marginBottom: 11 }) }}>Create new</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {dests.map(d => <AddToDestRow key={d.label} mark={d.mark} label={d.label} hint={d.hint} primary={d.primary} disabled={!ready} onClick={d.act} image={summary ? summary.image : null} />)}
+                  </div>
+                </div>
 
-            {/* Existing quotes */}
-            {!loadErr && <div style={{ padding: '0 20px 18px' }}>
-              <div style={{ ...mono(TH.muted), marginBottom: 8 }}>Or add to an existing quote</div>
-              <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid ' + TH.ink + '33', background: TH.paper, marginBottom: 8 }}>
-                <span style={{ padding: '7px 10px', color: TH.muted, font: '400 13px/1 var(--roma-sans)' }}>&#x2315;</span>
-                <input value={quoteSearch} onChange={e => onQuoteSearch(e.target.value)}
-                  placeholder="Search quotes — number, customer, email…"
-                  style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', font: '400 12px/1 var(--roma-sans)', color: TH.ink, padding: '7px 8px 7px 0' }} />
-                {quoteSearch && <span onClick={() => onQuoteSearch('')} style={{ padding: '0 10px', cursor: 'pointer', color: TH.muted, font: '400 13px/1 var(--roma-sans)' }}>&times;</span>}
-              </div>
-              {quotesLoading
-                ? <div style={{ font: '400 12px/1.4 var(--roma-sans)', color: TH.muted }}>Loading quotes&hellip;</div>
-                : existingQuotes.length === 0
-                  ? <div style={{ font: '400 12px/1.4 var(--roma-sans)', color: TH.muted }}>{quoteSearch ? 'No editable quotes match "' + quoteSearch + '".' : 'No draft quotes yet — search to find sent quotes.'}</div>
-                  : <div style={{ display: 'grid', gap: 6 }}>
-                      {existingQuotes.map(q => (
-                        <button key={q.id} onClick={() => go('quote', 'quote-edit', q.id, { quoteId: q.id })} disabled={!ready} style={{
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10,
-                          width: '100%', textAlign: 'left', padding: '10px 12px', cursor: ready ? 'pointer' : 'wait',
-                          background: TH.warm, border: '0.5px solid ' + TH.ink + '1a', opacity: ready ? 1 : 0.55,
-                        }}>
-                          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <span style={{ font: '500 12px/1.2 var(--roma-sans)', color: TH.ink }}>{q.quote_number}</span>
-                            {q.customer_name && <span style={{ font: '400 12px/1.2 var(--roma-sans)', color: TH.ink + '99' }}> · {q.customer_name}</span>}
-                          </span>
-                          <span style={{ ...mono(TH.muted), fontSize: 9, flexShrink: 0 }}>
-                            <span style={{ color: q.status === 'sent' ? TH.accent : TH.muted }}>{q.status}</span>
-                            {' · '}{q.item_count} item{q.item_count !== 1 ? 's' : ''}{q.total && parseFloat(q.total) > 0 ? ' · ' + fmtMoney(q.total) : ''}
-                          </span>
-                        </button>
+                {/* Divider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 22px 6px' }}>
+                  <span style={{ flex: 1, height: 0.5, background: TH.ink + '22' }} />
+                  <span style={monoLabel()}>Or add to existing</span>
+                  <span style={{ flex: 1, height: 0.5, background: TH.ink + '22' }} />
+                </div>
+
+                {/* Search */}
+                <div style={{ padding: '8px 22px 0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid ' + TH.ink + '33', background: TH.paper }}>
+                    <span style={{ padding: '0 10px', color: TH.muted, font: '400 14px/1 var(--roma-sans)' }}>&#x2315;</span>
+                    <input value={quoteSearch} onChange={e => onQuoteSearch(e.target.value)}
+                      placeholder="Search quotes — number, customer, email…"
+                      style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', font: '400 12.5px/1 var(--roma-sans)', color: TH.ink, padding: '10px 8px 10px 0' }} />
+                    {quoteSearch && <span onClick={() => onQuoteSearch('')} style={{ padding: '0 12px', cursor: 'pointer', color: TH.muted, font: '400 14px/1 var(--roma-sans)' }}>&times;</span>}
+                  </div>
+                </div>
+
+                {/* Quotes list */}
+                <div style={{ padding: '10px 22px 20px' }}>
+                  {!q && existingQuotes.length > 0 && <div style={{ font: '500 8.5px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: TH.muted, margin: '2px 2px 8px' }}>Recent · editable</div>}
+                  {quotesLoading ? (
+                    <div style={{ padding: '22px 12px', textAlign: 'center', font: '400 12.5px/1.5 var(--roma-sans)', color: TH.muted, border: '0.5px dashed ' + TH.ink + '2a' }}>Loading quotes&hellip;</div>
+                  ) : existingQuotes.length > 0 ? (
+                    <div style={{ border: '0.5px solid ' + TH.ink + '1f' }}>
+                      {existingQuotes.map(qt => (
+                        <AddToQuoteRow key={qt.id} q={qt} disabled={!ready}
+                          onClick={() => go('quote', 'quote-edit', qt.id, { quoteId: qt.id },
+                            'Added to ' + qt.quote_number,
+                            qt.customer_name ? 'Opening ' + qt.customer_name + '’s quote…' : 'Opening the quote…')} />
                       ))}
-                    </div>}
-            </div>}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '22px 12px', textAlign: 'center', font: '400 12.5px/1.5 var(--roma-sans)', color: TH.muted, border: '0.5px dashed ' + TH.ink + '2a' }}>
+                      {q ? 'No editable quotes match “' + quoteSearch + '”.' : 'No draft quotes yet — search to find one.'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        </React.Fragment>,
+        </div>,
         document.body
       );
     }
@@ -8321,6 +8454,7 @@
         summary: {
           name: p.name, variant: variantText !== undefined ? variantText : p.variant_name,
           image: p.primary_image, price: p.price, sell_by: p.sell_by, vendor_sku: p.vendor_sku || p.internal_sku,
+          vendor: p.brand_name || p.vendor_name, category: p.category_name,
         },
       });
 
