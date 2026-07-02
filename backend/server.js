@@ -14547,6 +14547,32 @@ app.get('/api/rep/vendors', repAuth, async (req, res) => {
 // SKU search for add-item (rep)
 app.get('/api/rep/skus/search', repAuth, async (req, res) => {
   try {
+    // Exact lookup by SKU id — same row shape as text search; used by the catalog "Add to…" hand-off
+    if (req.query.sku_id) {
+      const result = await pool.query(`
+        SELECT
+          s.id as sku_id, s.product_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
+          COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
+          v.name as vendor_name, COALESCE(br.name, v.name) as brand_name,
+          pr.retail_price, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
+          pk.sqft_per_box, pk.roll_width_ft,
+          sa_c.value as color,
+          COALESCE(
+            (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, sort_order LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type IN ('primary','alternate') ORDER BY CASE asset_type WHEN 'primary' THEN 0 ELSE 1 END, sort_order LIMIT 1)
+          ) as primary_image
+        FROM skus s
+        JOIN products p ON p.id = s.product_id
+        LEFT JOIN vendors v ON v.id = p.vendor_id
+        LEFT JOIN brands br ON br.id = p.brand_id
+        LEFT JOIN pricing pr ON pr.sku_id = s.id
+        LEFT JOIN packaging pk ON pk.sku_id = s.id
+        LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = s.id
+          AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+        WHERE s.id = $1 AND s.status = 'active'
+      `, [req.query.sku_id]);
+      return res.json({ results: result.rows });
+    }
     const results = await searchSkus(pool, req.query.q);
     res.json({ results });
   } catch (err) {

@@ -5292,6 +5292,22 @@
       return { l: 'Unknown', c: MUTED };
     }
 
+    // ========== Pending "Add to…" hand-off (catalog → quote/order/sample forms) ==========
+    function stashPendingAdd(target, sku, extra) {
+      try { sessionStorage.setItem('rep_pending_add', JSON.stringify({ target, sku, ts: Date.now(), ...(extra || {}) })); } catch (e) {}
+    }
+    function consumePendingAdd(target) {
+      try {
+        const raw = sessionStorage.getItem('rep_pending_add');
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        if (data.target !== target) return null;
+        sessionStorage.removeItem('rep_pending_add');
+        if (data.ts && Date.now() - data.ts > 10 * 60 * 1000) return null; // stale hand-off
+        return data;
+      } catch (e) { return null; }
+    }
+
     // ========== Image Optimization Helper ==========
     function optimizeImg(url, width) {
       if (!url || typeof url !== 'string') return url;
@@ -7610,7 +7626,7 @@
     }
 
     // ========== RepQuickViewModal (slide-over panel) ==========
-    function RepQuickViewModal({ productId, initialSkuId, products, showCost, navigate, onClose }) {
+    function RepQuickViewModal({ productId, initialSkuId, products, showCost, navigate, onClose, onAddTo }) {
       const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
       const [productData, setProductData] = useState(null);
       const [skuData, setSkuData] = useState(null);
@@ -7985,11 +8001,19 @@
               flexShrink: 0, padding: '14px 20px', borderTop: '0.5px solid rgba(28,25,23,0.1)',
               display: 'flex', gap: 8, background: TH.paper,
             }}>
-              <a onClick={() => { onClose(); navigate('quote-create'); }} style={{
+              <a onClick={() => {
+                if (onAddTo && activeSku.sku_id) {
+                  onAddTo({ skuId: activeSku.sku_id, summary: {
+                    name: product ? product.name : '', variant: activeSku.variant_name,
+                    image: skuMedia.length > 0 ? skuMedia[0].url : null,
+                    price: activeSku.retail_price, sell_by: activeSku.sell_by, vendor_sku: activeSku.vendor_sku,
+                  } });
+                } else { onClose(); navigate('quote-create'); }
+              }} style={{
                 flex: 2, padding: '13px 8px', textAlign: 'center', background: TH.ink, color: TH.paper,
                 font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.08em', textTransform: 'uppercase',
                 cursor: 'pointer', textDecoration: 'none',
-              }}>+ Add to quote</a>
+              }}>+ Add to&hellip;</a>
               {['Sample', 'Share'].map(l => (
                 <a key={l} onClick={() => { if (l === 'Share') { setShareModal({ product, media: productData ? productData.media || [] : [] }); } else { onClose(); navigate('sample-create'); } }}
                   style={{
@@ -8029,6 +8053,129 @@
           ),
           React.createElement('button', { className: 'rc-page-btn', disabled: page >= totalPages, onClick: () => onPageChange(page + 1) }, 'Next \u2192')
         )
+      );
+    }
+
+    // ========== AddToTargetModal (choose where a catalog item goes) ==========
+    function AddToTargetModal({ skuId, summary, navigate, onClose }) {
+      const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
+      const mono = (c) => ({ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: c });
+      const fmtMoney = (n) => '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const [sku, setSku] = useState(null);
+      const [loadErr, setLoadErr] = useState(false);
+      const [draftQuotes, setDraftQuotes] = useState([]);
+      const [draftsLoading, setDraftsLoading] = useState(true);
+
+      useEffect(() => {
+        repFetch('/api/rep/skus/search?sku_id=' + skuId)
+          .then(d => { const r = (d.results || [])[0]; if (r) setSku(r); else setLoadErr(true); })
+          .catch(() => setLoadErr(true));
+        repFetch('/api/rep/quotes?status=draft')
+          .then(d => { setDraftQuotes((d.quotes || []).slice(0, 5)); setDraftsLoading(false); })
+          .catch(() => setDraftsLoading(false));
+      }, [skuId]);
+
+      useEffect(() => {
+        const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+      }, [onClose]);
+
+      const go = (target, view, id, extra) => {
+        if (!sku) return;
+        stashPendingAdd(target, sku, extra);
+        onClose();
+        navigate(view, id);
+      };
+
+      const price = summary && summary.price ? parseFloat(summary.price) : 0;
+      const unit = summary && summary.sell_by === 'unit' ? '/ea' : '/sqft';
+      const ready = !!sku;
+
+      const optionRow = (label, sub, onClick, primary) => (
+        <button key={label} onClick={onClick} disabled={!ready} style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12,
+          width: '100%', textAlign: 'left', padding: '13px 16px', cursor: ready ? 'pointer' : 'wait',
+          background: primary ? TH.ink : 'transparent', color: primary ? TH.paper : TH.ink,
+          border: primary ? 'none' : '0.5px solid ' + TH.ink + '2e', opacity: ready ? 1 : 0.55,
+        }}>
+          <span style={{ font: '500 12px/1.2 var(--roma-sans)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{label}</span>
+          {sub && <span style={{ ...mono(primary ? TH.paper : TH.muted), color: primary ? TH.paper + 'cc' : TH.muted, fontSize: 9 }}>{sub}</span>}
+        </button>
+      );
+
+      return ReactDOM.createPortal(
+        <React.Fragment>
+          <div onClick={onClose} style={{
+            position: 'fixed', inset: 0, background: 'rgba(28,25,23,0.45)',
+            backdropFilter: 'blur(1.5px)', zIndex: 1300, animation: 'rcatFadeIn .15s ease',
+          }} />
+          <div style={{
+            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            width: 420, maxWidth: 'calc(100vw - 32px)', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto',
+            background: TH.paper, zIndex: 1301, boxShadow: '0 24px 70px rgba(28,25,23,0.35)',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '0.5px solid ' + TH.ink + '1a' }}>
+              <span style={mono(TH.accent)}>Add to&hellip;</span>
+              <span onClick={onClose} style={{ cursor: 'pointer', color: TH.muted, font: '400 16px/1 var(--roma-sans)', padding: '0 2px' }}>&times;</span>
+            </div>
+
+            {/* Item summary */}
+            {summary && <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '14px 20px', background: TH.warm + '66' }}>
+              <div style={{ width: 52, height: 52, flexShrink: 0, overflow: 'hidden', background: 'var(--stone-100)', border: '0.5px solid ' + TH.ink + '1a' }}>
+                {summary.image ? <img src={optimizeImg(summary.image, 120)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : null}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ font: '400 15px/1.2 var(--roma-serif)', color: TH.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {summary.name}{summary.variant ? ' · ' + summary.variant : ''}
+                </div>
+                <div style={{ ...mono(TH.muted), fontSize: 9, marginTop: 4, display: 'flex', gap: 10 }}>
+                  {summary.vendor_sku && <span>{summary.vendor_sku}</span>}
+                  {price > 0 && <span>{fmtMoney(price)}{unit}</span>}
+                </div>
+              </div>
+            </div>}
+
+            {/* Options */}
+            <div style={{ display: 'grid', gap: 8, padding: '16px 20px' }}>
+              {loadErr
+                ? <div style={{ font: '400 12px/1.5 var(--roma-sans)', color: '#c54731' }}>Could not load this SKU. Close and try again.</div>
+                : <React.Fragment>
+                    {optionRow('New quote', 'Quote builder', () => go('quote', 'quote-create'), true)}
+                    {optionRow('New order', 'Order wizard', () => go('order', 'order-create'), false)}
+                    {optionRow('Sample request', 'Max 5 items', () => go('sample', 'sample-create'), false)}
+                  </React.Fragment>}
+            </div>
+
+            {/* Draft quotes */}
+            {!loadErr && <div style={{ padding: '0 20px 18px' }}>
+              <div style={{ ...mono(TH.muted), marginBottom: 8 }}>Or add to a draft quote</div>
+              {draftsLoading
+                ? <div style={{ font: '400 12px/1.4 var(--roma-sans)', color: TH.muted }}>Loading drafts&hellip;</div>
+                : draftQuotes.length === 0
+                  ? <div style={{ font: '400 12px/1.4 var(--roma-sans)', color: TH.muted }}>No draft quotes yet.</div>
+                  : <div style={{ display: 'grid', gap: 6 }}>
+                      {draftQuotes.map(q => (
+                        <button key={q.id} onClick={() => go('quote', 'quote-edit', q.id, { quoteId: q.id })} disabled={!ready} style={{
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10,
+                          width: '100%', textAlign: 'left', padding: '10px 12px', cursor: ready ? 'pointer' : 'wait',
+                          background: TH.warm, border: '0.5px solid ' + TH.ink + '1a', opacity: ready ? 1 : 0.55,
+                        }}>
+                          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ font: '500 12px/1.2 var(--roma-sans)', color: TH.ink }}>{q.quote_number}</span>
+                            {q.customer_name && <span style={{ font: '400 12px/1.2 var(--roma-sans)', color: TH.ink + '99' }}> · {q.customer_name}</span>}
+                          </span>
+                          <span style={{ ...mono(TH.muted), fontSize: 9, flexShrink: 0 }}>
+                            {q.item_count} item{q.item_count !== 1 ? 's' : ''}{q.total ? ' · ' + fmtMoney(q.total) : ''}
+                          </span>
+                        </button>
+                      ))}
+                    </div>}
+            </div>}
+          </div>
+        </React.Fragment>,
+        document.body
       );
     }
 
@@ -8072,6 +8219,7 @@
       const [sortBy, setSortBy] = useState('margin_desc');
       const [perPage, setPerPage] = useState(24);
       const [quickView, setQuickView] = useState(null); // { id: productId, skuId }
+      const [addTo, setAddTo] = useState(null); // { skuId, summary }
       const [includeAccessories, setIncludeAccessories] = useState(false);
       const [lightbox, setLightbox] = useState(null);
       const [shareModal, setShareModal] = useState(null);
@@ -8137,6 +8285,14 @@
           setShareModal({ product: d.product, media: d.media });
         }).catch(() => { setShareModal({ product: p, media: [] }); });
       };
+
+      const openAddTo = (p, variantText) => setAddTo({
+        skuId: p.sku_id,
+        summary: {
+          name: p.name, variant: variantText !== undefined ? variantText : p.variant_name,
+          image: p.primary_image, price: p.price, sell_by: p.sell_by, vendor_sku: p.vendor_sku || p.internal_sku,
+        },
+      });
 
       const clearAllFilters = () => {
         setCategory(''); setVendor(''); setCollection(''); setStockStatus('');
@@ -8496,7 +8652,7 @@
                         <div style={{ padding: '8px 14px', display: 'flex', gap: 4, borderTop: '0.5px solid ' + TH.ink + '18' }}>
                           {[
                             { l: 'View', primary: true, act: () => setQuickView({ id: p.id, skuId: p.sku_id }) },
-                            { l: 'Quote', primary: false, act: () => navigate('quote-create') },
+                            { l: 'Add', primary: false, act: () => openAddTo(p, variantText) },
                             { l: 'Sample', primary: false, act: () => navigate('sample-create') },
                             { l: 'Share', primary: false, act: () => handleShare(p) },
                           ].map(b => (
@@ -8639,7 +8795,7 @@
 
           {/* Quick View */}
           {quickView && React.createElement(QuickViewErrorBoundary, { productId: quickView.id, onClose: () => setQuickView(null) },
-            <RepQuickViewModal productId={quickView.id} initialSkuId={quickView.skuId} products={products} showCost={showCost} navigate={navigate} onClose={() => setQuickView(null)} />
+            <RepQuickViewModal productId={quickView.id} initialSkuId={quickView.skuId} products={products} showCost={showCost} navigate={navigate} onClose={() => setQuickView(null)} onAddTo={setAddTo} />
           )}
 
           {/* Lightbox */}
@@ -8647,6 +8803,9 @@
 
           {/* Share Modal */}
           {shareModal && <ShareProductModal product={shareModal.product} media={shareModal.media} onClose={() => setShareModal(null)} />}
+
+          {/* Add to… chooser */}
+          {addTo && <AddToTargetModal skuId={addTo.skuId} summary={addTo.summary} navigate={navigate} onClose={() => setAddTo(null)} />}
         </div>
       );
     }
@@ -10080,6 +10239,14 @@
         setSkuResults([]);
         setAddBoxes(1);
       };
+
+      // Consume item handed off from the catalog "Add to…" chooser
+      useEffect(() => {
+        const pending = consumePendingAdd('order');
+        if (pending && pending.sku && !items.find(i => i.sku_id === pending.sku.sku_id)) {
+          addSkuItem(pending.sku);
+        }
+      }, []);
 
       const addCustom = () => {
         const numBoxes = parseInt(customItem.num_boxes) || 1;
@@ -12624,6 +12791,12 @@
         setSkuSearch('');
         setSkuResults([]);
       };
+
+      // Consume item handed off from the catalog "Add to…" chooser
+      useEffect(() => {
+        const pending = consumePendingAdd('sample');
+        if (pending && pending.sku) addProduct(pending.sku);
+      }, []);
 
       const removeItem = (key) => setItems(prev => prev.filter(i => i._key !== key));
 
@@ -16898,6 +17071,7 @@
             const data = await repFetch('/api/rep/skus/search?q=' + encodeURIComponent(term));
             setSearchResults((data.results || []).map(r => ({
               sku_id: r.sku_id,
+              product_id: r.product_id,
               product_name: r.product_name,
               collection: r.collection,
               variant_name: r.variant_name,
@@ -16940,6 +17114,7 @@
 
         const newItem = {
           sku_id: sku.sku_id,
+          product_id: sku.product_id || null,
           product_name: productName,
           collection: sku.collection || '',
           sqft_needed: defaultSqft,
@@ -16970,6 +17145,26 @@
         }
         } catch (err) { alert('Failed to add product: ' + (err.message || 'Unknown error')); }
       };
+
+      // Consume item handed off from the catalog "Add to…" chooser.
+      // addProductToQuote expects the mapped search-result shape (price, not retail_price).
+      useEffect(() => {
+        const pending = consumePendingAdd('quote');
+        if (!pending || !pending.sku) return;
+        const targetId = pending.quoteId ? String(pending.quoteId) : null;
+        if (targetId ? String(editId || '') === targetId : !editId) {
+          const r = pending.sku;
+          addProductToQuote({
+            sku_id: r.sku_id, product_id: r.product_id, product_name: r.product_name, collection: r.collection,
+            variant_name: r.variant_name, color: r.color, vendor_name: r.vendor_name,
+            vendor_sku: r.vendor_sku, internal_sku: r.internal_sku,
+            price: r.retail_price, sqft_per_box: r.sqft_per_box, sell_by: r.sell_by || 'box',
+            vendor_id: r.vendor_id, price_basis: r.price_basis || 'per_sqft',
+            cut_price: r.cut_price, roll_price: r.roll_price, roll_width_ft: r.roll_width_ft,
+            primary_image: r.primary_image || null, vendor_cost: r.vendor_cost || null,
+          });
+        }
+      }, []);
 
       const addCustomItemToQuote = async () => {
         if (!customItem.product_name || !customItem.unit_price) return;
