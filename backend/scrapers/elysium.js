@@ -554,6 +554,15 @@ async function createProductsFromCsv(pool, productsMap, vendor_id, categoryLooku
           });
         }
 
+        // Pricing (CSV cost + MSRP)
+        if (row.cost > 0) {
+          await upsertPricing(pool, sku.id, {
+            cost: row.cost,
+            retail_price: row.msrp || Math.round(row.cost * 2 * 100) / 100,
+            price_basis: row.priceBasis || 'per_sqft',
+          });
+        }
+
         // SKU Attributes
         if (row._colorName) await upsertSkuAttribute(pool, sku.id, 'color', row._colorName);
         if (row._finish) await upsertSkuAttribute(pool, sku.id, 'finish', row._finish);
@@ -589,6 +598,7 @@ async function createProductsFromCsv(pool, productsMap, vendor_id, categoryLooku
 async function attachTrimAccessories(pool, productsMap, productMap, trimRows, vendor_id, categoryLookup, job) {
   let attached = 0;
   let standalone = 0;
+  const standaloneProductIds = [];
 
   for (const row of trimRows) {
     try {
@@ -632,6 +642,15 @@ async function attachTrimAccessories(pool, productsMap, productMap, trimRows, ve
           await upsertPackaging(pool, sku.id, {
             pieces_per_box: row.piecesPerBox,
             sqft_per_box: row.sqftPerBox,
+          });
+        }
+
+        // Pricing (CSV cost + MSRP)
+        if (row.cost > 0) {
+          await upsertPricing(pool, sku.id, {
+            cost: row.cost,
+            retail_price: row.msrp || Math.round(row.cost * 2 * 100) / 100,
+            price_basis: row.priceBasis || 'per_unit',
           });
         }
 
@@ -684,6 +703,16 @@ async function attachTrimAccessories(pool, productsMap, productMap, trimRows, ve
           });
         }
 
+        // Pricing (CSV cost + MSRP)
+        if (row.cost > 0) {
+          await upsertPricing(pool, sku.id, {
+            cost: row.cost,
+            retail_price: row.msrp || Math.round(row.cost * 2 * 100) / 100,
+            price_basis: row.priceBasis || 'per_unit',
+          });
+        }
+
+        standaloneProductIds.push(product.id);
         standalone++;
         await appendLog(pool, job.id, `WARN: Trim ${row.itemCode} (${row.itemName}) — no parent found, created standalone`);
       }
@@ -692,7 +721,7 @@ async function attachTrimAccessories(pool, productsMap, productMap, trimRows, ve
     }
   }
 
-  return { attached, standalone };
+  return { attached, standalone, standaloneProductIds };
 }
 
 /**
@@ -788,6 +817,15 @@ async function attachMosaicAccessories(pool, productsMap, productMap, matchedMos
         await upsertPackaging(pool, sku.id, {
           pieces_per_box: row.piecesPerBox,
           sqft_per_box: row.sqftPerBox,
+        });
+      }
+
+      // Pricing (CSV cost + MSRP)
+      if (row.cost > 0) {
+        await upsertPricing(pool, sku.id, {
+          cost: row.cost,
+          retail_price: row.msrp || Math.round(row.cost * 2 * 100) / 100,
+          price_basis: row.priceBasis || 'per_unit',
         });
       }
 
@@ -968,6 +1006,16 @@ async function enrichFromWebsite(pool, cookies, enrichmentList, productMap, job,
             boxes_per_pallet: pkg.boxesPerPallet || null,
             sqft_per_pallet: pkg.sqftPerPallet || null,
             weight_per_pallet_lbs: pkg.weightPerPallet || null,
+          });
+        }
+
+        // ── Pricing (live site price is authoritative; overwrites the CSV seed) ──
+        if (detail.pricing.retailPerSqft) {
+          const elyCost = detail.pricing.retailPerSqft;
+          await upsertPricing(pool, item.skuId, {
+            cost: elyCost,
+            retail_price: Math.round(elyCost * 2 * 100) / 100,
+            price_basis: 'per_sqft',
           });
         }
 
@@ -1409,7 +1457,14 @@ export async function run(pool, job, source) {
   // Activate Products
   // ════════════════════════════════════════════
 
-  const touchedProductIds = [...productMap.values()].map(d => d.productId);
+  // Include standalone trims and orphan mosaics — they are created as their own
+  // products and must be activated too, or they (and any SKUs re-parented onto
+  // them) disappear from the catalog.
+  const touchedProductIds = [...new Set([
+    ...[...productMap.values()].map(d => d.productId),
+    ...(trimStats.standaloneProductIds || []),
+    ...(mosaicStats.orphanEnrichItems || []).map(o => o.productId),
+  ])];
   if (touchedProductIds.length > 0) {
     const activateResult = await pool.query(
       `UPDATE products SET status = 'active', updated_at = CURRENT_TIMESTAMP
