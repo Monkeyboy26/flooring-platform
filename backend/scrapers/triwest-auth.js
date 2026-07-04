@@ -67,10 +67,13 @@ export async function triwestLogin(pool, jobId) {
 
     // Navigate to DNav portal
     await appendLog(pool, jobId, `Navigating to DNav portal: ${PORTAL_BASE}`);
+    // networkidle2 stopped settling on this portal (long-lived connections) —
+    // wait for DOM, then give the page a bounded chance to go quiet.
     await page.goto(PORTAL_BASE, {
-      waitUntil: 'networkidle2',
-      timeout: 30000,
+      waitUntil: 'domcontentloaded',
+      timeout: 45000,
     });
+    await page.waitForNetworkIdle({ idleTime: 500, timeout: 15000 }).catch(() => {});
 
     await delay(2000);
 
