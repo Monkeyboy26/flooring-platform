@@ -410,7 +410,10 @@ app.get('/api/products/:id', optionalTradeAuth, async (req, res) => {
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
-      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
       WHERE s.product_id = $1
       ORDER BY s.created_at
     `, [id]);
@@ -747,7 +750,10 @@ app.get('/api/storefront/featured', async (req, res) => {
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
-      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
       LEFT JOIN sku_images si ON si.sku_id = s.id
       LEFT JOIN sku_lifestyle_images sli ON sli.sku_id = s.id
       LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
@@ -815,7 +821,10 @@ app.get('/api/storefront/featured', async (req, res) => {
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
-      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
       LEFT JOIN sku_images si ON si.sku_id = s.id
       LEFT JOIN sku_lifestyle_images sli ON sli.sku_id = s.id
       LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
@@ -894,7 +903,10 @@ app.get('/api/storefront/featured', async (req, res) => {
           LEFT JOIN categories c ON c.id = p.category_id
           LEFT JOIN pricing pr ON pr.sku_id = s.id
           LEFT JOIN packaging pk ON pk.sku_id = s.id
-          LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+          LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
           LEFT JOIN sku_images si ON si.sku_id = s.id
           LEFT JOIN sku_lifestyle_images sli ON sli.sku_id = s.id
           LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
@@ -1987,7 +1999,10 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
-      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
       LEFT JOIN sku_images si ON si.sku_id = s.id
       LEFT JOIN sku_lifestyle_images sli ON sli.sku_id = s.id
       LEFT JOIN sku_alt_images sai ON sai.sku_id = s.id
@@ -2288,7 +2303,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
-      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
       WHERE s.id = $1 AND p.status = 'active'
     `, [skuId]);
 
@@ -2451,7 +2469,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       FROM skus s
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
-      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
       WHERE s.product_id = $1 AND s.id != $2 AND s.is_sample = false AND s.status = 'active'
         AND (COALESCE(s.variant_type, '') NOT IN ('accessory') OR $3 = 'accessory')
       ORDER BY s.variant_name
@@ -2508,7 +2529,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         FROM skus s
         LEFT JOIN pricing pr ON pr.sku_id = s.id
         LEFT JOIN packaging pk ON pk.sku_id = s.id
-        LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+        LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
         WHERE s.product_id = $1 AND s.id != $2 AND s.status = 'active'
           AND s.variant_type = 'accessory'
           AND NOT EXISTS (
@@ -2563,7 +2587,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
           LEFT JOIN pricing pr ON pr.sku_id = s.id
           LEFT JOIN packaging pk ON pk.sku_id = s.id
-          LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+          LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
           WHERE LOWER(p.collection) = LOWER($1)
             AND p.vendor_id = $2
             AND p.category_id != $3
@@ -2642,7 +2669,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
           LEFT JOIN pricing pr ON pr.sku_id = s.id
           LEFT JOIN packaging pk ON pk.sku_id = s.id
-          LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+          LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
           WHERE LOWER(p.collection) = LOWER($1)
             AND p.vendor_id = $2
             AND p.category_id != $3
@@ -2704,7 +2734,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       JOIN skus s ON s.id = sa.accessory_sku_id
       JOIN products p_acc ON p_acc.id = s.product_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
-      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
       WHERE sa.parent_sku_id = $1 AND s.status = 'active'
         AND (
           -- Accessory color must match parent color (or either has no color attr)
@@ -2772,7 +2805,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           LEFT JOIN categories c ON c.id = p.category_id
           LEFT JOIN pricing pr ON pr.sku_id = s.id
           LEFT JOIN packaging pk ON pk.sku_id = s.id
-          LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+          LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
           WHERE p.vendor_id = $1 AND s.status = 'active' AND s.is_sample = false
             AND s.product_id != $2
             AND c.name IN ('Transitions & Moldings','Wall Base','Installation & Sundries','Adhesives & Sealants','Underlayment')
@@ -4052,7 +4088,10 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
         FROM skus s
         JOIN products p ON p.id = s.product_id
         LEFT JOIN vendors v ON v.id = p.vendor_id
-        LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+        LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
         WHERE s.id = ANY($1)
       `, [skuIds]);
       const oosItems = stockResult.rows.filter(r => r.stock_status === 'out_of_stock' && r.vendor_has_inventory);
@@ -8375,7 +8414,7 @@ const BROWSER_SCRAPERS = new Set([
   'triwest-ahf', 'triwest-flexco', 'triwest-shaw', 'triwest-stanton',
   'triwest-bruce', 'triwest-congoleum', 'triwest-kraus',
   'triwest-tec',
-  'triwest-babool', 'triwest-elysium', 'triwest-forester', 'triwest-hardwoodsspecialty',
+  'triwest-babool', 'triwest-forester', 'triwest-hardwoodsspecialty',
   'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit',
   'triwest-californiaclassics',
 ]);
@@ -8388,7 +8427,7 @@ const ENRICHMENT_SCRAPERS = new Set([
   'triwest-ahf', 'triwest-flexco', 'triwest-shaw', 'triwest-stanton',
   'triwest-bruce', 'triwest-congoleum', 'triwest-kraus', 'triwest-sika',
   'triwest-tec',
-  'triwest-babool', 'triwest-elysium', 'triwest-forester', 'triwest-hardwoodsspecialty',
+  'triwest-babool', 'triwest-forester', 'triwest-hardwoodsspecialty',
   'triwest-jmcork', 'triwest-rcglobal', 'triwest-summit',
   'triwest-californiaclassics',
   'lowes-mapei',
@@ -9099,16 +9138,8 @@ app.get('/api/admin/scrapers', staffAuth, requireRole('admin', 'manager'), async
       categories: []
     },
     'elysium': {
-      label: 'Elysium Tile Catalog', source_type: 'portal', base_url: 'http://elysiumtile.com',
-      categories: ['Mosaic', 'Porcelain Tile', 'SPC Vinyl', 'Marble Slab', 'Thin Porcelain Slab 6mm', 'Quartz, Quartzite, Granite', 'Ceramic Tile', 'Marble Tile']
-    },
-    'elysium-inventory': {
-      label: 'Elysium Tile Inventory', source_type: 'portal', base_url: 'http://elysiumtile.com',
-      categories: []
-    },
-    'elysium-pricelist': {
-      label: 'Elysium Tile Price List (PDF)', source_type: 'portal', base_url: 'http://elysiumtile.com',
-      categories: []
+      label: 'Elysium Tile (daily: price + inventory, weekly deep catalog)', source_type: 'portal', base_url: 'http://elysiumtile.com',
+      categories: ['Mosaic', 'Porcelain Tile', 'SPC Vinyl', 'Ceramic Tile', 'Marble Tile', 'Marble Slab', 'Thin Porcelain Slab 6mm']
     },
     'arizona': {
       label: 'Arizona Tile Catalog', source_type: 'website', base_url: 'https://www.arizonatile.com',
@@ -14971,7 +15002,10 @@ app.get('/api/rep/skus/:skuId', repAuth, async (req, res) => {
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
-      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
       WHERE s.id = $1 AND p.status = 'active'
     `, [skuId]);
 
@@ -15053,7 +15087,10 @@ app.get('/api/rep/skus/:skuId', repAuth, async (req, res) => {
       FROM skus s
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
-      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
       WHERE s.product_id = $1 AND s.id != $2 AND s.is_sample = false AND s.status = 'active'
         AND COALESCE(s.variant_type, '') != 'accessory'
       ORDER BY s.variant_name
@@ -15104,7 +15141,10 @@ app.get('/api/rep/skus/:skuId', repAuth, async (req, res) => {
       FROM sku_accessories sa
       JOIN skus s ON s.id = sa.accessory_sku_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
-      LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+      LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
       WHERE sa.parent_sku_id = $1 AND s.status = 'active'
         AND (
           EXISTS (
@@ -15159,7 +15199,10 @@ app.get('/api/rep/skus/:skuId', repAuth, async (req, res) => {
         JOIN products p ON p.id = s.product_id AND p.status = 'active'
         LEFT JOIN categories c ON c.id = p.category_id
         LEFT JOIN pricing pr ON pr.sku_id = s.id
-        LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+        LEFT JOIN LATERAL (
+        SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+      ) inv ON TRUE
         WHERE p.vendor_id = $1 AND s.status = 'active' AND s.is_sample = false
           AND s.product_id != $2
           AND c.name IN ('Transitions & Moldings','Wall Base','Installation & Sundries','Adhesives & Sealants','Underlayment')
