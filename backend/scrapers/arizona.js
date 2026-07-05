@@ -293,22 +293,27 @@ function resolveSellBy(pimSlug, accessory, parsedSoldBy) {
 }
 
 // Derive sell_by + cost + price_basis from a price-list entry.
-// Sheet/each items that ship in full boxes (mosaics, stack panels, deco tile)
-// sell by the box at per-sqft pricing — cost converts from per-piece to per-sqft
-// via Sf/Pc. True per-piece items (trim — no box coverage) and slabs keep the
-// vendor's unit.
+// Mosaics, ledger/stack panels, and trim are sold per sheet/piece — always,
+// even when they ship in boxes (business rule: customers can buy single
+// sheets). SF-priced entries in per-piece categories convert to a per-sheet
+// price via Sf/Pc so unit pricing is never left on a per-sqft basis; slabs
+// (no piece coverage) keep per-sqft pricing for the inquire flow.
 function planFromPriceList(plEntry, catSlug) {
   const perPiece = plEntry.unit === 'EA' || plEntry.unit === 'SHT';
-  const boxable = plEntry.sfPerPc > 0 && plEntry.sfPerBox > 0;
-  if (boxable) {
-    return {
-      sellBy: 'box',
-      cost: perPiece ? Math.round((plEntry.netPrice / plEntry.sfPerPc) * 100) / 100 : plEntry.netPrice,
-      priceBasis: 'per_sqft',
-    };
+  if (perPiece) {
+    return { sellBy: 'unit', cost: plEntry.netPrice, priceBasis: 'per_unit' };
   }
-  const sellBy = (perPiece || (catSlug && UNIT_CATEGORIES.has(catSlug))) ? 'unit' : 'box';
-  return { sellBy, cost: plEntry.netPrice, priceBasis: perPiece ? 'per_unit' : 'per_sqft' };
+  if (catSlug && UNIT_CATEGORIES.has(catSlug)) {
+    if (plEntry.sfPerPc > 0) {
+      return {
+        sellBy: 'unit',
+        cost: Math.round(plEntry.netPrice * plEntry.sfPerPc * 100) / 100,
+        priceBasis: 'per_unit',
+      };
+    }
+    return { sellBy: 'unit', cost: plEntry.netPrice, priceBasis: 'per_sqft' };
+  }
+  return { sellBy: 'box', cost: plEntry.netPrice, priceBasis: 'per_sqft' };
 }
 
 function isAccessory(title, description) {
@@ -603,8 +608,13 @@ export async function run(pool, job, source) {
     await appendLog(pool, job.id, 'Phase 3: Updating inventory + pricing for existing SKUs...');
 
     // Build internal_sku → sku record lookup for all AZT- SKUs
-    const existingSkus = await pool.query(`SELECT id, internal_sku, sell_by FROM skus WHERE internal_sku LIKE 'AZT-%'`);
-    const skuLookup = new Map(existingSkus.rows.map(r => [r.internal_sku, { id: r.id, sell_by: r.sell_by }]));
+    const existingSkus = await pool.query(`
+      SELECT s.id, s.internal_sku, s.sell_by, c.slug AS cat_slug
+      FROM skus s
+      LEFT JOIN products p ON p.id = s.product_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE s.internal_sku LIKE 'AZT-%'`);
+    const skuLookup = new Map(existingSkus.rows.map(r => [r.internal_sku, { id: r.id, sell_by: r.sell_by, cat_slug: r.cat_slug }]));
     await appendLog(pool, job.id, `Found ${skuLookup.size} existing AZT- SKUs in DB`);
 
     let processIdx = 0;
@@ -630,7 +640,7 @@ export async function run(pool, job, source) {
               : null;
 
             if (plEntry) {
-              const plan = planFromPriceList(plEntry, null);
+              const plan = planFromPriceList(plEntry, skuRec.cat_slug);
               // Keep sell_by in sync with price list unit so price suffix matches
               if (skuRec.sell_by !== plan.sellBy) {
                 await pool.query('UPDATE skus SET sell_by = $1, updated_at = NOW() WHERE id = $2', [plan.sellBy, skuId]);
@@ -661,7 +671,7 @@ export async function run(pool, job, source) {
           const plEntry = priceList ? priceList.lookup(collectionName, null, null, null) : null;
 
           if (plEntry) {
-            const plan = planFromPriceList(plEntry, null);
+            const plan = planFromPriceList(plEntry, skuRec.cat_slug);
             if (skuRec.sell_by !== plan.sellBy) {
               await pool.query('UPDATE skus SET sell_by = $1, updated_at = NOW() WHERE id = $2', [plan.sellBy, skuId]);
             }
