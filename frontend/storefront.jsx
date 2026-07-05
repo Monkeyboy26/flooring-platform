@@ -2507,18 +2507,29 @@
         fetchSkus({ cat: selectedCategory, coll: selectedCollection, search: searchQuery, activeFilters: filters, page: currentPage });
       };
 
-      const handleCustomerLogin = (token, cust) => {
-        localStorage.setItem('customer_token', token);
+      const handleCustomerLogin = (token, cust, remember) => {
+        if (remember === false) {
+          sessionStorage.setItem('customer_token', token);
+          localStorage.removeItem('customer_token');
+        } else {
+          localStorage.setItem('customer_token', token);
+        }
         setCustomerToken(token);
         setCustomer(cust);
         setShowAuthModal(false);
         syncWishlistOnLogin(token);
+        if (view === 'signin' || view === 'signup' || view === 'set-password' || view === 'reset-password') {
+          setView('account');
+          history.pushState({ view: 'account' }, '', '/account');
+          window.scrollTo(0, 0);
+        }
       };
 
       const handleCustomerLogout = () => {
-        const t = localStorage.getItem('customer_token');
+        const t = localStorage.getItem('customer_token') || sessionStorage.getItem('customer_token');
         if (t) fetch(API + '/api/customer/logout', { method: 'POST', headers: { 'X-Customer-Token': t } }).catch(() => {});
         localStorage.removeItem('customer_token');
+        sessionStorage.removeItem('customer_token');
         setCustomerToken(null);
         setCustomer(null);
       };
@@ -2675,6 +2686,13 @@
           fetchSkus({ cat: null, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1, sort: sortVal || sortBy });
           fetchFacets({ cat: null, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
           history.pushState({ view: 'browse' }, '', path);
+          window.scrollTo(0, 0);
+          return;
+        }
+        if (path === '/signin' || path === '/signup' || path === '/forgot-password') {
+          const viewName = path.slice(1);
+          setView(viewName);
+          history.pushState({ view: viewName }, '', path);
           window.scrollTo(0, 0);
           return;
         }
@@ -2963,12 +2981,12 @@
         }
 
         // Restore customer session
-        const savedCustToken = localStorage.getItem('customer_token');
+        const savedCustToken = localStorage.getItem('customer_token') || sessionStorage.getItem('customer_token');
         if (savedCustToken) {
           fetch(API + '/api/customer/me', { headers: { 'X-Customer-Token': savedCustToken } })
             .then(r => { if (!r.ok) throw new Error(); return r.json(); })
             .then(data => { setCustomer(data.customer); setCustomerToken(savedCustToken); })
-            .catch(() => { localStorage.removeItem('customer_token'); setCustomerToken(null); });
+            .catch(() => { localStorage.removeItem('customer_token'); sessionStorage.removeItem('customer_token'); setCustomerToken(null); });
         }
 
         // Fetch featured SKUs for homepage (best-sellers with newest fallback)
@@ -3000,6 +3018,8 @@
           setView('cart');
         } else if (path === '/checkout' || path === '/shop/checkout') {
           setView('checkout');
+        } else if (path === '/account' && sp.get('action') === 'set-password' && sp.get('token')) {
+          setView('set-password');
         } else if (path === '/account' || path === '/shop/account') {
           setView('account');
         } else if (path === '/wishlist' || path === '/shop/wishlist') {
@@ -3023,6 +3043,12 @@
           setView('visit-recap');
         } else if (path === '/reset-password') {
           setView('reset-password');
+        } else if (path === '/signin') {
+          setView('signin');
+        } else if (path === '/signup') {
+          setView('signup');
+        } else if (path === '/forgot-password') {
+          setView('forgot-password');
         } else if (path === '/installation') {
           setView('installation');
         } else if (path === '/inspiration') {
@@ -3160,6 +3186,9 @@
           'trade-dashboard': { title: 'Trade Dashboard | Roma Flooring Designs', description: 'Manage your trade account.', url: SITE_URL + '/trade/dashboard' },
           'bulk-order': { title: 'Bulk Order | Roma Flooring Designs', description: 'Place a bulk order.', url: SITE_URL + '/trade/bulk-order' },
           'reset-password': { title: 'Reset Password | Roma Flooring Designs', description: 'Reset your password.', url: SITE_URL + '/reset-password' },
+          signin: { title: 'Sign In | Roma Flooring Designs', description: 'Sign in to your Roma Flooring Designs account.', url: SITE_URL + '/signin' },
+          signup: { title: 'Create Account | Roma Flooring Designs', description: 'Create your Roma Flooring Designs account.', url: SITE_URL + '/signup' },
+          'forgot-password': { title: 'Forgot Password | Roma Flooring Designs', description: 'Reset your Roma Flooring Designs password.', url: SITE_URL + '/forgot-password' },
         };
 
         // Dynamic SEO for filtered browse views
@@ -3224,7 +3253,8 @@
         // Lock body scroll when cart drawer is open
       }, [view, selectedCategory, selectedCollection, categories, currentPage]);
 
-      const isCheckoutFlow = view === 'checkout' || view === 'confirmation';
+      const isAuthPage = view === 'signin' || view === 'signup' || view === 'forgot-password' || view === 'set-password';
+      const isCheckoutFlow = view === 'checkout' || view === 'confirmation' || isAuthPage;
 
       return (
         <>
@@ -3237,7 +3267,7 @@
             onTradeClick={tradeCustomer ? goTradeDashboard : goTrade}
             onTradeLogout={handleTradeLogout}
             customer={customer}
-            onAccountClick={customer ? goAccount : () => { setAuthModalMode('login'); setShowAuthModal(true); }}
+            onAccountClick={customer ? goAccount : () => navigate('/signin')}
             onCustomerLogout={handleCustomerLogout}
             wishlistCount={wishlist.length}
             goWishlist={goWishlist}
@@ -3389,7 +3419,23 @@
           )}
 
           {view === 'reset-password' && (
-            <ResetPasswordPage goHome={goHome} openLogin={() => { setAuthModalMode('login'); setShowAuthModal(true); }} />
+            <ResetPasswordPage goHome={goHome} onLogin={handleCustomerLogin} openLogin={() => { setAuthModalMode('login'); setShowAuthModal(true); }} />
+          )}
+
+          {view === 'set-password' && (
+            <SetPasswordPage onLogin={handleCustomerLogin} goHome={goHome} navigate={navigate} />
+          )}
+
+          {view === 'signin' && (
+            <SignInFullPage onLogin={handleCustomerLogin} goHome={goHome} navigate={navigate} />
+          )}
+
+          {view === 'signup' && (
+            <SignUpFullPage onLogin={handleCustomerLogin} goHome={goHome} navigate={navigate} />
+          )}
+
+          {view === 'forgot-password' && (
+            <ForgotPasswordFullPage goHome={goHome} navigate={navigate} />
           )}
 
           {view === 'installation' && (
@@ -3467,7 +3513,7 @@
               {cart.length > 0 && <span className="mobile-bottom-nav-badge">{cart.length}</span>}
               Cart
             </button>
-            <button className={'mobile-bottom-nav-item' + (view === 'account' ? ' active' : '')} onClick={customer ? goAccount : () => { setAuthModalMode('login'); setShowAuthModal(true); }}>
+            <button className={'mobile-bottom-nav-item' + (view === 'account' ? ' active' : '')} onClick={customer ? goAccount : () => navigate('/signin')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               Account
             </button>
@@ -6420,7 +6466,8 @@
       // Slab with per-sqft pricing but no known dimensions — can't compute piece price
       const slabMissingSize = isPerUnit && sku && (sku.price_basis === 'sqft' || sku.price_basis === 'per_sqft') && !(parseFloat(sku.sqft_per_box) > 0);
       // Use "sheet" for individually-sold tiles (small coverage, no pieces_per_box)
-      const isSlabUnit = sku && sku.sell_by === 'unit' && sqftPerBox >= 4;
+      // A slab is a single piece — a multi-piece box is sheet goods (mosaic/panel), not a slab
+      const isSlabUnit = sku && sku.sell_by === 'unit' && sqftPerBox >= 4 && !(parseInt(sku.pieces_per_box) > 1);
       const isSheetUnit = !isSlabUnit && hasBoxCalc && sqftPerBox < 4 && !sku.pieces_per_box;
       const boxLabel = isSlabUnit ? 'slab' : isSheetUnit ? 'sheet' : 'box';
       const boxLabelPlural = isSlabUnit ? 'slabs' : isSheetUnit ? 'sheets' : 'boxes';
@@ -12264,6 +12311,446 @@
 
     // ==================== Customer Auth Modal ====================
 
+    // ── Google Sign-In Button ──
+    function GoogleSignInButton({ onCredentialResponse }) {
+      const containerRef = useRef(null);
+      const [ready, setReady] = useState(false);
+      const [clientId, setClientId] = useState(null);
+      useEffect(() => {
+        fetch(API + "/api/config/google-client-id").then(r => r.json()).then(data => {
+          if (data.clientId) setClientId(data.clientId);
+        }).catch(() => {});
+      }, []);
+      useEffect(() => {
+        if (!clientId || !containerRef.current) return;
+        const tryInit = () => {
+          if (typeof google === "undefined" || !google.accounts || !google.accounts.id) return false;
+          try {
+            google.accounts.id.initialize({
+              client_id: clientId,
+              callback: (response) => { if (response.credential) onCredentialResponse(response.credential); },
+              auto_select: false,
+              context: "signin"
+            });
+            google.accounts.id.renderButton(containerRef.current, {
+              type: "standard",
+              theme: "outline",
+              size: "large",
+              text: "continue_with",
+              shape: "rectangular",
+              width: containerRef.current.offsetWidth || 340
+            });
+            setReady(true);
+          } catch (e) { console.warn("Google Sign-In init error:", e); }
+          return true;
+        };
+        if (tryInit()) return;
+        const interval = setInterval(() => { if (tryInit()) clearInterval(interval); }, 200);
+        const timeout = setTimeout(() => clearInterval(interval), 8000);
+        return () => { clearInterval(interval); clearTimeout(timeout); };
+      }, [clientId]);
+      if (!clientId) return null;
+      return /* @__PURE__ */ React.createElement("div", { className: "google-signin-container", ref: containerRef, style: ready ? {} : { minHeight: 44 } });
+    }
+
+    function useGoogleAuth(onLogin) {
+      const [googleError, setGoogleError] = useState("");
+      const [googleLoading, setGoogleLoading] = useState(false);
+      const handleGoogleCredential = async (credential) => {
+        setGoogleError("");
+        setGoogleLoading(true);
+        try {
+          const res = await fetch(API + "/api/customer/auth/google", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ credential })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.error) {
+            setGoogleError(data.error || "Google sign-in failed.");
+            setGoogleLoading(false);
+            return;
+          }
+          onLogin(data.token, data.customer, true);
+        } catch (e) {
+          setGoogleError("Google sign-in failed. Please try again.");
+          setGoogleLoading(false);
+        }
+      };
+      return { handleGoogleCredential, googleError, googleLoading };
+    }
+
+    // ── Full-page auth shell (two-column: form left, editorial right) ──
+    function AuthPageShell({ children, panelKind, panelTone, panelImage, panelEyebrow, panelHeadline, panelSub, panelAttribution, goHome }) {
+      const bgStyle = panelImage
+        ? { backgroundImage: 'url(' + panelImage + ')', backgroundSize: 'cover', backgroundPosition: 'center' }
+        : materialFace(panelKind, panelTone);
+      return /* @__PURE__ */ React.createElement("div", { className: "auth-page" },
+        /* @__PURE__ */ React.createElement("div", { className: "auth-form-col" },
+          /* @__PURE__ */ React.createElement("div", { className: "auth-header" },
+            /* @__PURE__ */ React.createElement("a", { className: "auth-header-logo", onClick: goHome }, "Roma"),
+            /* @__PURE__ */ React.createElement("span", { className: "auth-header-tagline" }, "Anaheim, CA \xb7 Since 1999")
+          ),
+          /* @__PURE__ */ React.createElement("div", { className: "auth-form-col-inner" }, children),
+          /* @__PURE__ */ React.createElement("div", { className: "auth-footer" },
+            /* @__PURE__ */ React.createElement("span", null, "\xa9 2026 Roma Flooring Designs"),
+            /* @__PURE__ */ React.createElement("span", { className: "auth-footer-links" },
+              /* @__PURE__ */ React.createElement("a", null, "Privacy"),
+              /* @__PURE__ */ React.createElement("a", null, "Terms"),
+              /* @__PURE__ */ React.createElement("a", null, "Help")
+            )
+          )
+        ),
+        /* @__PURE__ */ React.createElement("div", { className: "auth-panel" },
+          /* @__PURE__ */ React.createElement("div", { className: "auth-panel-bg", style: bgStyle }),
+          /* @__PURE__ */ React.createElement("div", { className: "auth-panel-overlay" }),
+          /* @__PURE__ */ React.createElement("div", { className: "auth-panel-eyebrow" }, panelEyebrow),
+          /* @__PURE__ */ React.createElement("div", { className: "auth-panel-content" },
+            /* @__PURE__ */ React.createElement("h2", { className: "auth-panel-headline" }, panelHeadline),
+            panelSub && /* @__PURE__ */ React.createElement("p", { className: "auth-panel-sub" }, panelSub),
+            panelAttribution && /* @__PURE__ */ React.createElement("div", { className: "auth-panel-attribution" }, panelAttribution)
+          )
+        )
+      );
+    }
+
+    // ── Sign In Full Page ──
+    function SignInFullPage({ onLogin, goHome, navigate }) {
+      const [email, setEmail] = useState("");
+      const [password, setPassword] = useState("");
+      const [remember, setRemember] = useState(true);
+      const [error, setError] = useState("");
+      const [loading, setLoading] = useState(false);
+      const { handleGoogleCredential, googleError, googleLoading } = useGoogleAuth(onLogin);
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError("");
+        setLoading(true);
+        try {
+          const res = await fetch(API + "/api/customer/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.error) {
+            if (data.error === "password_not_set") {
+              setError("__password_not_set__");
+            } else {
+              setError(data.error || "Invalid email or password.");
+            }
+            setLoading(false);
+            return;
+          }
+          onLogin(data.token, data.customer, remember);
+        } catch (e2) { setError("Unable to sign in. Please try again."); setLoading(false); }
+      };
+      return /* @__PURE__ */ React.createElement(AuthPageShell, {
+        goHome,
+        panelImage: "https://images.unsplash.com/photo-1659362549741-c32157cc71f4?q=80&w=1471&auto=format&fit=crop",
+        panelEyebrow: "Colonnata \xb7 Massa-Carrara, Italy",
+        panelHeadline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Two and a half thousand SKUs, ", /* @__PURE__ */ React.createElement("em", null, "one cart"), "."),
+        panelSub: "Sign in to pick up your saved quote, track your slab, or message your rep. Your account moves with you \u2014 phone, laptop, showroom."
+      },
+        /* @__PURE__ */ React.createElement("div", null,
+          /* @__PURE__ */ React.createElement("div", { className: "auth-eyebrow" }, "Welcome back"),
+          /* @__PURE__ */ React.createElement("h1", { className: "auth-title" }, "Sign in")
+        ),
+        error && (error === "__password_not_set__" ? /* @__PURE__ */ React.createElement("div", { className: "auth-error" },
+          "Your account was created in our showroom. ",
+          /* @__PURE__ */ React.createElement("a", { style: { fontWeight: 600, textDecoration: "underline", cursor: "pointer" }, onClick: () => navigate("/signup") }, "Create a password"),
+          " to get started, or check your email for a welcome link."
+        ) : /* @__PURE__ */ React.createElement("div", { className: "auth-error" }, error)),
+        /* @__PURE__ */ React.createElement(GoogleSignInButton, { onCredentialResponse: handleGoogleCredential }),
+        googleError && /* @__PURE__ */ React.createElement("div", { className: "auth-error" }, googleError),
+        googleLoading && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: "0.8125rem", color: "var(--stone-500)" } }, "Signing in with Google\u2026"),
+        /* @__PURE__ */ React.createElement("div", { className: "auth-divider" },
+          /* @__PURE__ */ React.createElement("span", { className: "auth-divider-line" }),
+          "or sign in with email",
+          /* @__PURE__ */ React.createElement("span", { className: "auth-divider-line" })
+        ),
+        /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, style: { display: "grid", gap: 18 } },
+          /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Email"),
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field-row" },
+              /* @__PURE__ */ React.createElement("input", { type: "email", value: email, onChange: (e) => setEmail(e.target.value), placeholder: "you@example.com", required: true, autoComplete: "email" })
+            )
+          ),
+          /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Password"),
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field-row" },
+              /* @__PURE__ */ React.createElement("input", { type: "password", value: password, onChange: (e) => setPassword(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", required: true, autoComplete: "current-password" }),
+              /* @__PURE__ */ React.createElement("a", { className: "auth-field-right", onClick: () => navigate("/forgot-password") }, "Forgot? \u2192")
+            )
+          ),
+          /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gap: 14 } },
+            /* @__PURE__ */ React.createElement("label", { className: "auth-checkbox", onClick: (e) => { e.preventDefault(); setRemember(!remember); } },
+              /* @__PURE__ */ React.createElement("span", { className: "auth-checkbox-box" + (remember ? " checked" : "") },
+                remember && /* @__PURE__ */ React.createElement("span", { className: "auth-checkbox-check" }, "\u2713")
+              ),
+              "Keep me signed in on this device"
+            ),
+            /* @__PURE__ */ React.createElement("button", { type: "submit", className: "auth-cta", disabled: loading }, loading ? "Signing in\u2026" : "Sign in \u2192")
+          )
+        ),
+        /* @__PURE__ */ React.createElement("div", { className: "auth-link-row" },
+          /* @__PURE__ */ React.createElement("span", null, "New to Roma?"),
+          /* @__PURE__ */ React.createElement("a", { className: "auth-link", onClick: () => navigate("/signup") }, "Create an account \u2192")
+        )
+      );
+    }
+
+    // ── Sign Up Full Page ──
+    function SignUpFullPage({ onLogin, goHome, navigate }) {
+      const [path, setPath] = useState("homeowner");
+      const [firstName, setFirstName] = useState("");
+      const [lastName, setLastName] = useState("");
+      const [email, setEmail] = useState("");
+      const [password, setPassword] = useState("");
+      const [newsletter, setNewsletter] = useState(false);
+      const [error, setError] = useState("");
+      const [loading, setLoading] = useState(false);
+      const { handleGoogleCredential, googleError, googleLoading } = useGoogleAuth(onLogin);
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError("");
+        if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) { setError("Password must be at least 8 characters with 1 uppercase letter and 1 number."); return; }
+        setLoading(true);
+        try {
+          const res = await fetch(API + "/api/customer/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, newsletter })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.error) { setError(data.error || "Registration failed."); setLoading(false); return; }
+          onLogin(data.token, data.customer, true);
+        } catch (e2) { setError("Unable to create account. Please try again."); setLoading(false); }
+      };
+      return /* @__PURE__ */ React.createElement(AuthPageShell, {
+        goHome,
+        panelImage: "https://plus.unsplash.com/premium_photo-1661902468735-eabf780f8ff6?q=80&w=1471&auto=format&fit=crop",
+        panelEyebrow: "Marble \xb7 Luxury Bath",
+        panelHeadline: /* @__PURE__ */ React.createElement(React.Fragment, null, "One account, ", /* @__PURE__ */ React.createElement("em", null, "two paths"), "."),
+        panelSub: "If you\u2019re shopping for your own home, you\u2019ll be checking out in under a minute. If you\u2019re putting materials in other people\u2019s houses, the trade path unlocks pricing, a dedicated project manager, and the spec library."
+      },
+        /* @__PURE__ */ React.createElement("div", null,
+          /* @__PURE__ */ React.createElement("div", { className: "auth-eyebrow" }, "Create your account"),
+          /* @__PURE__ */ React.createElement("h1", { className: "auth-title" }, "Pick a path")
+        ),
+        error && /* @__PURE__ */ React.createElement("div", { className: "auth-error" }, error),
+        /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gap: 10 } },
+          /* @__PURE__ */ React.createElement("label", { className: "auth-path-option" + (path === "homeowner" ? " selected" : ""), onClick: () => setPath("homeowner") },
+            /* @__PURE__ */ React.createElement("span", { className: "auth-path-radio" },
+              path === "homeowner" && /* @__PURE__ */ React.createElement("span", { className: "auth-path-radio-dot" })
+            ),
+            /* @__PURE__ */ React.createElement("div", null,
+              /* @__PURE__ */ React.createElement("div", { className: "auth-path-title" }, "Homeowner"),
+              /* @__PURE__ */ React.createElement("div", { className: "auth-path-sub" }, "Shopping for your own home. 30-second sign-up.")
+            ),
+            /* @__PURE__ */ React.createElement("span", { className: "auth-path-tag", style: { color: "var(--gold)", borderColor: "rgba(168,121,53,0.33)" } }, "Fast")
+          ),
+          /* @__PURE__ */ React.createElement("label", { className: "auth-path-option" + (path === "trade" ? " selected" : ""), onClick: () => setPath("trade") },
+            /* @__PURE__ */ React.createElement("span", { className: "auth-path-radio" },
+              path === "trade" && /* @__PURE__ */ React.createElement("span", { className: "auth-path-radio-dot" })
+            ),
+            /* @__PURE__ */ React.createElement("div", null,
+              /* @__PURE__ */ React.createElement("div", { className: "auth-path-title" }, "Trade pro"),
+              /* @__PURE__ */ React.createElement("div", { className: "auth-path-sub" }, "Designer, contractor, builder, installer. Goes through application.")
+            ),
+            /* @__PURE__ */ React.createElement("span", { className: "auth-path-tag", style: { color: "var(--warm-muted)", borderColor: "rgba(138,126,104,0.33)" } }, "Apply")
+          )
+        ),
+        path === "homeowner" ? /* @__PURE__ */ React.createElement(React.Fragment, null,
+          /* @__PURE__ */ React.createElement(GoogleSignInButton, { onCredentialResponse: handleGoogleCredential }),
+          googleError && /* @__PURE__ */ React.createElement("div", { className: "auth-error" }, googleError),
+          googleLoading && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: "0.8125rem", color: "var(--stone-500)" } }, "Signing in with Google\u2026"),
+          /* @__PURE__ */ React.createElement("div", { className: "auth-divider" },
+            /* @__PURE__ */ React.createElement("span", { className: "auth-divider-line" }),
+            "or sign up with email",
+            /* @__PURE__ */ React.createElement("span", { className: "auth-divider-line" })
+          ),
+          /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, style: { display: "grid", gap: 18 } },
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field-2col" },
+              /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+                /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "First name"),
+                /* @__PURE__ */ React.createElement("input", { type: "text", value: firstName, onChange: (e) => setFirstName(e.target.value), placeholder: "First", required: true, autoComplete: "given-name" })
+              ),
+              /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+                /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Last name"),
+                /* @__PURE__ */ React.createElement("input", { type: "text", value: lastName, onChange: (e) => setLastName(e.target.value), placeholder: "Last", required: true, autoComplete: "family-name" })
+              )
+            ),
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+              /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Email"),
+              /* @__PURE__ */ React.createElement("input", { type: "email", value: email, onChange: (e) => setEmail(e.target.value), placeholder: "you@example.com", required: true, autoComplete: "email" })
+            ),
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+              /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Password"),
+              /* @__PURE__ */ React.createElement("div", { className: "auth-field-row" },
+                /* @__PURE__ */ React.createElement("input", { type: "password", value: password, onChange: (e) => setPassword(e.target.value), required: true, autoComplete: "new-password" }),
+                /* @__PURE__ */ React.createElement("span", { className: "auth-field-hint" }, "8+ chars, 1 uppercase, 1 number")
+              )
+            ),
+            /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gap: 14 } },
+              /* @__PURE__ */ React.createElement("label", { className: "auth-checkbox", onClick: (e) => { e.preventDefault(); setNewsletter(!newsletter); } },
+                /* @__PURE__ */ React.createElement("span", { className: "auth-checkbox-box" + (newsletter ? " checked" : "") },
+                  newsletter && /* @__PURE__ */ React.createElement("span", { className: "auth-checkbox-check" }, "\u2713")
+                ),
+                /* @__PURE__ */ React.createElement("span", null, "Send me Roma\u2019s monthly field guide \u2014 install math, new arrivals, showroom notes. No daily emails. Unsubscribe whenever.")
+              ),
+              /* @__PURE__ */ React.createElement("button", { type: "submit", className: "auth-cta", disabled: loading }, loading ? "Creating account\u2026" : "Create my account \u2192"),
+              /* @__PURE__ */ React.createElement("div", { className: "auth-terms" },
+                "By signing up you agree to Roma\u2019s ", /* @__PURE__ */ React.createElement("a", null, "Terms of service"),
+                " and acknowledge our ", /* @__PURE__ */ React.createElement("a", null, "privacy practices"), "."
+              )
+            )
+          )
+        ) : /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gap: 18, paddingTop: 12, borderTop: "0.5px solid rgba(28,25,23,0.13)" } },
+          /* @__PURE__ */ React.createElement("p", { className: "auth-subtitle" }, "The trade application takes about 5 minutes. You\u2019ll need your business license and a brief description of your work."),
+          /* @__PURE__ */ React.createElement("button", { type: "button", className: "auth-cta", onClick: () => navigate("/trade") }, "Start trade application \u2192")
+        ),
+        /* @__PURE__ */ React.createElement("div", { className: "auth-link-row" },
+          /* @__PURE__ */ React.createElement("span", null, "Already have an account?"),
+          /* @__PURE__ */ React.createElement("a", { className: "auth-link", onClick: () => navigate("/signin") }, "Sign in \u2192")
+        )
+      );
+    }
+
+    // ── Set Password Page (welcome email flow) ──
+    function SetPasswordPage({ onLogin, goHome, navigate }) {
+      const [newPassword, setNewPassword] = useState("");
+      const [confirmPassword, setConfirmPassword] = useState("");
+      const [error, setError] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [expired, setExpired] = useState(false);
+      const token = new URLSearchParams(window.location.search).get("token");
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError("");
+        if (newPassword !== confirmPassword) { setError("Passwords do not match."); return; }
+        if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+          setError("Password must be at least 8 characters with 1 uppercase letter and 1 number.");
+          return;
+        }
+        setLoading(true);
+        try {
+          const resp = await fetch(API + "/api/customer/reset-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token, new_password: newPassword })
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) {
+            if (resp.status === 400 && /expired|invalid/i.test(data.error || "")) {
+              setExpired(true);
+            } else {
+              setError(data.error || "Something went wrong.");
+            }
+            setLoading(false);
+            return;
+          }
+          window.history.replaceState({}, "", "/account");
+          if (data.token && data.customer) {
+            onLogin(data.token, data.customer, true);
+          }
+        } catch (e2) { setError("Something went wrong. Please try again."); setLoading(false); }
+      };
+      return /* @__PURE__ */ React.createElement(AuthPageShell, {
+        goHome,
+        panelImage: "https://images.unsplash.com/photo-1659362549741-c32157cc71f4?q=80&w=1471&auto=format&fit=crop",
+        panelEyebrow: "Colonnata \xb7 Massa-Carrara, Italy",
+        panelHeadline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your order is in. ", /* @__PURE__ */ React.createElement("em", null, "Now make it yours"), "."),
+        panelSub: "Set a password to track your order, view invoices, reorder materials, and message your rep \u2014 all from one account."
+      },
+        /* @__PURE__ */ React.createElement("div", null,
+          /* @__PURE__ */ React.createElement("div", { className: "auth-eyebrow" }, "Welcome to Roma"),
+          /* @__PURE__ */ React.createElement("h1", { className: "auth-title" }, "Set your password")
+        ),
+        /* @__PURE__ */ React.createElement("p", { className: "auth-subtitle" }, "Your account was created when you visited our showroom. Set a password to view your orders and manage your account online."),
+        error && /* @__PURE__ */ React.createElement("div", { className: "auth-error" }, error),
+        expired ? /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gap: 18 } },
+          /* @__PURE__ */ React.createElement("div", { className: "auth-error" }, "This link has expired. You can create a password by signing up with the same email address used for your order."),
+          /* @__PURE__ */ React.createElement("button", { type: "button", className: "auth-cta", onClick: () => navigate("/signup") }, "Create account \u2192")
+        ) : /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, style: { display: "grid", gap: 18 } },
+          /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "New password"),
+            /* @__PURE__ */ React.createElement("input", { type: "password", value: newPassword, onChange: (e) => setNewPassword(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", required: true, autoComplete: "new-password" })
+          ),
+          /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Confirm password"),
+            /* @__PURE__ */ React.createElement("input", { type: "password", value: confirmPassword, onChange: (e) => setConfirmPassword(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", required: true, autoComplete: "new-password" })
+          ),
+          /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.75rem", color: "var(--stone-500)", margin: 0 } }, "8+ characters, 1 uppercase letter, 1 number"),
+          /* @__PURE__ */ React.createElement("button", { type: "submit", className: "auth-cta", disabled: loading }, loading ? "Setting password\u2026" : "Set password \u2192")
+        ),
+        /* @__PURE__ */ React.createElement("div", { className: "auth-link-row" },
+          /* @__PURE__ */ React.createElement("span", null, "Already have a password?"),
+          /* @__PURE__ */ React.createElement("a", { className: "auth-link", onClick: () => navigate("/signin") }, "Sign in \u2192")
+        )
+      );
+    }
+
+    // ── Forgot Password Full Page ──
+    function ForgotPasswordFullPage({ goHome, navigate }) {
+      const [email, setEmail] = useState("");
+      const [error, setError] = useState("");
+      const [sent, setSent] = useState(false);
+      const [loading, setLoading] = useState(false);
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError("");
+        setLoading(true);
+        try {
+          const res = await fetch(API + "/api/customer/forgot-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.error) { setError(data.error || "Unable to send reset email."); setLoading(false); return; }
+          setSent(true);
+          setLoading(false);
+        } catch (e2) { setError("Unable to send reset email. Please try again."); setLoading(false); }
+      };
+      return /* @__PURE__ */ React.createElement(AuthPageShell, {
+        goHome,
+        panelImage: "https://images.unsplash.com/photo-1661107259637-4e1c55462428?q=80&w=1471&auto=format&fit=crop",
+        panelEyebrow: "Stone Tile \xb7 Modern Bath",
+        panelHeadline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Locked out? ", /* @__PURE__ */ React.createElement("em", null, "We\u2019ll send a link"), "."),
+        panelSub: "Your cart, quotes, and project files stay safe in the meantime. The reset link expires in 30 minutes \u2014 if you don\u2019t see it, check the spam folder or write to Sales@romaflooringdesigns.com."
+      },
+        /* @__PURE__ */ React.createElement("div", null,
+          /* @__PURE__ */ React.createElement("div", { className: "auth-eyebrow" }, "Reset password"),
+          /* @__PURE__ */ React.createElement("h1", { className: "auth-title" }, "Forgot it?", /* @__PURE__ */ React.createElement("br", null), "Happens.")
+        ),
+        /* @__PURE__ */ React.createElement("p", { className: "auth-subtitle" }, "Enter the email on your Roma account. We\u2019ll send a reset link that\u2019s good for 30 minutes."),
+        error && /* @__PURE__ */ React.createElement("div", { className: "auth-error" }, error),
+        /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, style: { display: "grid", gap: 18 } },
+          /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Account email"),
+            /* @__PURE__ */ React.createElement("input", { type: "email", value: email, onChange: (e) => setEmail(e.target.value), placeholder: "you@example.com", required: true, autoComplete: "email" })
+          ),
+          /* @__PURE__ */ React.createElement("button", { type: "submit", className: "auth-cta", disabled: loading || sent }, loading ? "Sending\u2026" : "Send reset link \u2192")
+        ),
+        sent && /* @__PURE__ */ React.createElement("div", { className: "auth-confirm-banner" },
+          /* @__PURE__ */ React.createElement("span", { className: "auth-confirm-icon" }, "\u2713"),
+          /* @__PURE__ */ React.createElement("div", null,
+            /* @__PURE__ */ React.createElement("div", { className: "auth-confirm-title" }, "Reset link sent to " + email),
+            /* @__PURE__ */ React.createElement("div", { className: "auth-confirm-sub" }, "Check your inbox. Didn\u2019t arrive within 5 minutes? ",
+              /* @__PURE__ */ React.createElement("a", { onClick: () => { setSent(false); setLoading(false); } }, "Resend"),
+              " or check spam."
+            )
+          )
+        ),
+        /* @__PURE__ */ React.createElement("div", { className: "auth-link-row" },
+          /* @__PURE__ */ React.createElement("a", { className: "auth-link", onClick: () => navigate("/signin") }, "\u2190 Back to sign in"),
+          /* @__PURE__ */ React.createElement("a", { className: "auth-link", onClick: () => window.location.href = "mailto:Sales@romaflooringdesigns.com" }, "Write to support \u2192")
+        )
+      );
+    }
+
+
     function CustomerAuthModal({ onClose, onLogin, initialMode }) {
       const [mode, setMode] = useState(initialMode || 'login');
       const [email, setEmail] = useState('');
@@ -12273,6 +12760,7 @@
       const [error, setError] = useState('');
       const [success, setSuccess] = useState('');
       const [loading, setLoading] = useState(false);
+      const { handleGoogleCredential, googleError, googleLoading } = useGoogleAuth(onLogin);
       useEffect(() => { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = ''; }; }, []);
 
       const handleLogin = async (e) => {
@@ -12345,6 +12833,18 @@
               </>
             ) : (
               <>
+                {mode === 'login' && (
+                  <>
+                    <GoogleSignInButton onCredentialResponse={handleGoogleCredential} />
+                    {googleError && <div className="checkout-error">{googleError}</div>}
+                    {googleLoading && <div style={{ textAlign: 'center', fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Signing in with Google…</div>}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '1rem 0', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>
+                      <span style={{ flex: 1, borderBottom: '1px solid var(--stone-200)' }} />
+                      or
+                      <span style={{ flex: 1, borderBottom: '1px solid var(--stone-200)' }} />
+                    </div>
+                  </>
+                )}
                 <form onSubmit={mode === 'login' ? handleLogin : handleRegister}>
                   {error && <div className="checkout-error">{error}</div>}
                   {mode === 'register' && (
@@ -13034,7 +13534,7 @@
 
     // ==================== Reset Password Page ====================
 
-    function ResetPasswordPage({ goHome, openLogin }) {
+    function ResetPasswordPage({ goHome, openLogin, onLogin }) {
       const [newPassword, setNewPassword] = useState('');
       const [confirmPassword, setConfirmPassword] = useState('');
       const [error, setError] = useState('');
@@ -13054,10 +13554,14 @@
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token, new_password: newPassword })
           });
-          const data = await resp.json();
-          if (!resp.ok) { setError(data.error); setLoading(false); return; }
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) { setError(data.error || 'Something went wrong.'); setLoading(false); return; }
           setSuccess(true);
           window.history.replaceState({}, '', window.location.pathname);
+          if (data.token && data.customer && onLogin) {
+            onLogin(data.token, data.customer, true);
+            return;
+          }
         } catch(e) { setError('Something went wrong.'); }
         setLoading(false);
       };

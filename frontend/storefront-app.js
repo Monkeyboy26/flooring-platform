@@ -1022,7 +1022,7 @@
     }
     return cleaned.trim();
   }
-  function StockBadge({ status, vendorHasInventory }) {
+  function StockBadge({ status, vendorHasInventory, qtyOnHand, qtyOnHandSqft, sellBy }) {
     if (vendorHasInventory === false && (status === "unknown" || status === "out_of_stock")) {
       return React.createElement(
         "div",
@@ -1031,9 +1031,21 @@
         "Call for availability"
       );
     }
+    let lowStockLabel = "Low Stock \u2014 Order Soon";
+    if (status === "low_stock" && qtyOnHand != null && qtyOnHand > 0) {
+      if (sellBy === "unit") {
+        lowStockLabel = "Only " + qtyOnHand + " left \u2014 Order Soon";
+      } else if (sellBy === "box" && qtyOnHandSqft) {
+        lowStockLabel = "Only " + qtyOnHand + " boxes left (" + Math.round(qtyOnHandSqft) + " sqft) \u2014 Order Soon";
+      } else if (sellBy === "roll") {
+        lowStockLabel = "Only " + (qtyOnHandSqft ? Math.round(qtyOnHandSqft) + " sqft" : qtyOnHand + " rolls") + " left \u2014 Order Soon";
+      } else {
+        lowStockLabel = "Only " + qtyOnHand + " left \u2014 Order Soon";
+      }
+    }
     const map = {
       in_stock: { label: "In Stock", cls: "in-stock" },
-      low_stock: { label: "Low Stock \u2014 Order Soon", cls: "low-stock" },
+      low_stock: { label: lowStockLabel, cls: "low-stock" },
       out_of_stock: { label: "Out of Stock", cls: "out-of-stock" },
       discontinued: { label: "Discontinued", cls: "discontinued" }
     };
@@ -1869,12 +1881,9 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...item, session_id: sessionId.current })
-      }).then((r) => {
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        return r.json();
-      }).then((data) => {
-        if (data.error) {
-          showToast(data.error, "error");
+      }).then((r) => r.json().then((data) => ({ ok: r.ok, data }))).then(({ ok, data }) => {
+        if (!ok || data.error) {
+          showToast(data.error || "Failed to add to cart", "error");
           return;
         }
         if (data.item) {
@@ -2404,8 +2413,6 @@
       const sp = new URLSearchParams(window.location.search);
       if (sp.get("reset_token")) {
         setView("reset-password");
-      } else if (path === "/account" && sp.get("action") === "set-password" && sp.get("token")) {
-        setView("set-password");
       } else if (path === "/" || path === "") {
         setView("home");
       } else if (path.startsWith("/shop/sku/")) {
@@ -2416,6 +2423,8 @@
         setView("cart");
       } else if (path === "/checkout" || path === "/shop/checkout") {
         setView("checkout");
+      } else if (path === "/account" && sp.get("action") === "set-password" && sp.get("token")) {
+        setView("set-password");
       } else if (path === "/account" || path === "/shop/account") {
         setView("account");
       } else if (path === "/wishlist" || path === "/shop/wishlist") {
@@ -2437,14 +2446,14 @@
       } else if (path.startsWith("/visit/")) {
         setVisitRecapToken(path.replace("/visit/", ""));
         setView("visit-recap");
+      } else if (path === "/reset-password") {
+        setView("reset-password");
       } else if (path === "/signin") {
         setView("signin");
       } else if (path === "/signup") {
         setView("signup");
       } else if (path === "/forgot-password") {
         setView("forgot-password");
-      } else if (path === "/reset-password") {
-        setView("reset-password");
       } else if (path === "/installation") {
         setView("installation");
       } else if (path === "/inspiration") {
@@ -2970,7 +2979,8 @@
   };
   function MegaPanel({ panelId, categories, onCategorySelect, onTradeClick, navigate, shopColumns, onEnter, onClose }) {
     if (panelId === "shop") {
-      return /* @__PURE__ */ React.createElement("div", { className: "mega-panel", onMouseEnter: onEnter, onMouseLeave: onClose }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-inner" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-grid mega-panel-grid--shop" }, shopColumns.map((col) => /* @__PURE__ */ React.createElement("div", { key: col.title, className: "mega-panel-col" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-col-title" }, col.title), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-items" }, col.items.map((item) => /* @__PURE__ */ React.createElement("button", { key: item.slug, className: `mega-panel-link${item.isViewAll ? " mega-panel-view-all" : ""}`, onClick: () => onCategorySelect(item.slug) }, item.name, !item.isViewAll && item.count > 0 && /* @__PURE__ */ React.createElement("span", { className: "mega-panel-link-meta" }, item.count)))))))));
+      const colCount2 = Math.min(shopColumns.length, 4) + 1;
+      return /* @__PURE__ */ React.createElement("div", { className: "mega-panel", onMouseEnter: onEnter, onMouseLeave: onClose }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-inner" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-grid", style: { gridTemplateColumns: `repeat(${colCount2}, 1fr)` } }, shopColumns.slice(0, 4).map((col) => /* @__PURE__ */ React.createElement("div", { key: col.title, className: "mega-panel-col" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-col-title" }, col.title), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-items" }, col.items.map((item) => /* @__PURE__ */ React.createElement("button", { key: item.slug, className: `mega-panel-link${item.isViewAll ? " mega-panel-view-all" : ""}`, onClick: () => onCategorySelect(item.slug) }, item.name, !item.isViewAll && item.count > 0 && /* @__PURE__ */ React.createElement("span", { className: "mega-panel-link-meta" }, item.count)))))), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-eyebrow" }, "Featured"), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-card", onClick: () => navigate("/shop?sort=newest") }, /* @__PURE__ */ React.createElement("img", { src: "/uploads/homepage/hero.jpg", alt: "New Arrivals", loading: "lazy", decoding: "async" }), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-title" }, "New Arrivals"), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-meta" }, "Latest collections"), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-cta" }, "View \u2192")))))));
     }
     const panel = MEGA_PANELS[panelId];
     if (!panel) return null;
@@ -3252,7 +3262,7 @@
       const cols = [];
       parentCats.forEach((cat) => {
         const children = (cat.children || []).filter((ch) => ch.product_count > 0).sort((a, b) => b.product_count - a.product_count);
-        const items = children.map((ch) => ({ name: ch.name, slug: ch.slug, count: ch.product_count || 0 }));
+        const items = children.slice(0, 8).map((ch) => ({ name: ch.name, slug: ch.slug, count: ch.product_count || 0 }));
         items.push({ name: "View All", slug: cat.slug, count: cat.product_count || 0, isViewAll: true });
         cols.push({ title: cat.name, items });
       });
@@ -3442,8 +3452,9 @@
         document.body.style.overflow = "";
       };
     }, [media.length]);
+    const qvIsOutOfStock = activeSku.stock_status === "out_of_stock" && activeSku.vendor_has_inventory !== false;
     const handleAdd = () => {
-      if (adding) return;
+      if (adding || qvIsOutOfStock) return;
       setAdding(true);
       if (isUnit) {
         addToCart({ sku_id: activeSku.sku_id, num_boxes: qty, sell_by: "unit" });
@@ -3492,7 +3503,7 @@
         onClick: () => !sib._isCurrent && handleVariantClick(sib)
       },
       sib.primary_image ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(sib.primary_image, 120), alt: sib.variant_name, decoding: "async", width: 44, height: 44 }) : /* @__PURE__ */ React.createElement("div", { className: "qv-swatch-placeholder" }, formatVariantName(sib.variant_name))
-    )))), activeSku.description_short && /* @__PURE__ */ React.createElement("p", { className: "qv-description" }, activeSku.description_short), isUnit ? /* @__PURE__ */ React.createElement("div", { className: "quick-view-actions" }, /* @__PURE__ */ React.createElement("div", { className: "qv-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement("div", { className: "qv-qty-display" }, qty), /* @__PURE__ */ React.createElement("button", { onClick: () => setQty((q) => q + 1) }, "+")), /* @__PURE__ */ React.createElement("button", { className: "qv-btn-primary", onClick: handleAdd }, "Add to cart", qty > 1 ? " \xB7 $" + (effectivePrice * qty).toFixed(2) : ""), /* @__PURE__ */ React.createElement("button", { className: "qv-btn-secondary", onClick: () => {
+    )))), activeSku.description_short && /* @__PURE__ */ React.createElement("p", { className: "qv-description" }, activeSku.description_short), activeSku.stock_status && activeSku.stock_status !== "unknown" && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "0.75rem" } }, /* @__PURE__ */ React.createElement(StockBadge, { status: activeSku.stock_status, vendorHasInventory: activeSku.vendor_has_inventory, qtyOnHand: activeSku.qty_on_hand, qtyOnHandSqft: activeSku.qty_on_hand_sqft, sellBy: activeSku.sell_by })), isUnit ? /* @__PURE__ */ React.createElement("div", { className: "quick-view-actions" }, !qvIsOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "qv-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement("div", { className: "qv-qty-display" }, qty), /* @__PURE__ */ React.createElement("button", { onClick: () => setQty((q) => q + 1) }, "+")), /* @__PURE__ */ React.createElement("button", { className: "qv-btn-primary", onClick: qvIsOutOfStock ? void 0 : handleAdd, disabled: qvIsOutOfStock }, qvIsOutOfStock ? "Out of Stock" : "Add to cart" + (qty > 1 ? " \xB7 $" + (effectivePrice * qty).toFixed(2) : "")), /* @__PURE__ */ React.createElement("button", { className: "qv-btn-secondary", onClick: () => {
       onViewDetail(activeSku.sku_id, activeSku.product_name);
       onClose();
     } }, "Order sample")) : /* @__PURE__ */ React.createElement("div", { className: "quick-view-actions qv-sqft-actions" }, /* @__PURE__ */ React.createElement("button", { className: "qv-btn-primary", onClick: () => {
@@ -4179,7 +4190,8 @@
     const variantLabel = sku.variant_name || "";
     const vendorLabel = sku.brand_name || sku.vendor_name || "";
     const stockStatus = sku.stock_status || "unknown";
-    const stockLabel = stockStatus === "in_stock" ? "In stock" : stockStatus === "low_stock" ? "Low stock" : stockStatus === "out_of_stock" ? "Out of stock" : "";
+    const lowStockQty = sku.low_stock_qty;
+    const stockLabel = stockStatus === "in_stock" ? "In stock" : stockStatus === "low_stock" ? lowStockQty ? sku.sell_by === "unit" ? "Only " + lowStockQty + " left" : sku.sell_by === "box" ? "Only " + lowStockQty + " boxes left" : "Low stock" : "Low stock" : stockStatus === "out_of_stock" ? "Out of stock" : "";
     const stockClass = stockStatus === "in_stock" ? "sku-card-stock--in" : stockStatus === "low_stock" ? "sku-card-stock--low" : "sku-card-stock--out";
     const hasVariants = sku.variant_count > 1;
     const variantImages = sku.variant_images || [];
@@ -4537,7 +4549,7 @@
     const sheetSubtotal = sheetSqft * effectivePrice;
     const sheetNeedsSeam = isSheetVinyl && sheetMode === "dimensions" && sheetRollWidthFt > 0 && (parseFloat(roomWidth) || 0) > sheetRollWidthFt;
     const slabMissingSize = isPerUnit && sku && (sku.price_basis === "sqft" || sku.price_basis === "per_sqft") && !(parseFloat(sku.sqft_per_box) > 0);
-    const isSlabUnit = sku && sku.sell_by === "unit" && sqftPerBox >= 4;
+    const isSlabUnit = sku && sku.sell_by === "unit" && sqftPerBox >= 4 && !(parseInt(sku.pieces_per_box) > 1);
     const isSheetUnit = !isSlabUnit && hasBoxCalc && sqftPerBox < 4 && !sku.pieces_per_box;
     const boxLabel = isSlabUnit ? "slab" : isSheetUnit ? "sheet" : "box";
     const boxLabelPlural = isSlabUnit ? "slabs" : isSheetUnit ? "sheets" : "boxes";
@@ -4588,8 +4600,9 @@
       }
       setAlertLoading(false);
     };
+    const isOutOfStock = sku && sku.stock_status === "out_of_stock" && sku.vendor_has_inventory !== false;
     const handleAddToCart = () => {
-      if (!sku || addingToCart) return;
+      if (!sku || addingToCart || isOutOfStock) return;
       setAddingToCart(true);
       setTimeout(() => setAddingToCart(false), 1500);
       if (isCarpetSku) {
@@ -5653,7 +5666,7 @@
           } }, displayVal(val));
         })));
       }));
-    })(), /* @__PURE__ */ React.createElement(StockBadge, { status: sku.stock_status, vendorHasInventory: sku.vendor_has_inventory }), sku.stock_status === "out_of_stock" && sku.vendor_has_inventory !== false && /* @__PURE__ */ React.createElement("div", { className: "stock-alert-box" }, alertSuccess || alertSubscribed ? /* @__PURE__ */ React.createElement("div", { className: "stock-alert-success" }, /* @__PURE__ */ React.createElement("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "#166534", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("path", { d: "M20 6L9 17l-5-5" })), "We'll notify you when this item is back in stock") : customer ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "Get notified when this item is back in stock"), /* @__PURE__ */ React.createElement("button", { className: "stock-alert-btn", onClick: handleStockAlertSubmit, disabled: alertLoading }, alertLoading ? "Subscribing..." : "Notify Me When Available")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "Get notified when this item is back in stock"), /* @__PURE__ */ React.createElement("div", { className: "stock-alert-form" }, /* @__PURE__ */ React.createElement("input", { type: "email", placeholder: "Enter your email", value: alertEmail, onChange: (e) => setAlertEmail(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "stock-alert-btn", onClick: handleStockAlertSubmit, disabled: alertLoading || !alertEmail }, alertLoading ? "Subscribing..." : "Notify Me")))), !isCarpetSku && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "packaging-info" }, /* @__PURE__ */ React.createElement("div", { className: "pdp-pkg-cell" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-label" }, isSlabUnit ? "Slab Size" : "Coverage"), /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-value" }, sqftPerBox, " sqft", isSlabUnit ? "" : "/" + boxLabel)), !isSlabUnit && sku.pieces_per_box && /* @__PURE__ */ React.createElement("div", { className: "pdp-pkg-cell" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-label" }, "Pieces"), /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-value" }, sku.pieces_per_box, "/", boxLabel)), sku.weight_per_box_lbs && /* @__PURE__ */ React.createElement("div", { className: "pdp-pkg-cell" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-label" }, "Weight"), /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-value" }, parseFloat(sku.weight_per_box_lbs).toFixed(1), " lbs")), !isSlabUnit && sku.boxes_per_pallet && /* @__PURE__ */ React.createElement("div", { className: "pdp-pkg-cell" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-label" }, "Pallet"), /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-value" }, sku.boxes_per_pallet, " ", boxLabelPlural, sku.sqft_per_pallet ? " (" + parseFloat(sku.sqft_per_pallet).toLocaleString() + " sqft)" : ""))), isCarpetSku && (rollWidthFt > 0 || rollLengthFt > 0 || sku.sqft_per_pallet || sku.weight_per_pallet_lbs) && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info" }, /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-grid" }, rollWidthFt > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Width"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, rollWidthFt, " ft")), rollLengthFt > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Length"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, rollLengthFt, " ft")), sku.sqft_per_pallet && parseFloat(sku.sqft_per_pallet) > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Area"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, parseFloat(sku.sqft_per_pallet).toLocaleString(), " sqft")), sku.weight_per_pallet_lbs && parseFloat(sku.weight_per_pallet_lbs) > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Weight"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, parseFloat(sku.weight_per_pallet_lbs).toLocaleString(), " lbs")))), isCarpetSku && cutPrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Carpet Calculator"), rollWidthFt > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-width-header" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 20, height: 20 } }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "9", x2: "21", y2: "9" })), rollWidthFt, "' Wide Roll"), /* @__PURE__ */ React.createElement("div", { className: "calc-mode-tabs" }, rollWidthFt > 0 && /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "linear" ? " active" : ""), onClick: () => setCarpetInputMode("linear") }, "Linear Feet"), /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "dimensions" ? " active" : ""), onClick: () => setCarpetInputMode("dimensions") }, "Room Size"), /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "sqft" ? " active" : ""), onClick: () => setCarpetInputMode("sqft") }, "Enter Sqft")), carpetInputMode === "linear" ? /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Linear Feet Needed"), /* @__PURE__ */ React.createElement(
+    })(), /* @__PURE__ */ React.createElement(StockBadge, { status: sku.stock_status, vendorHasInventory: sku.vendor_has_inventory, qtyOnHand: sku.qty_on_hand, qtyOnHandSqft: sku.qty_on_hand_sqft, sellBy: sku.sell_by }), sku.stock_status === "out_of_stock" && sku.vendor_has_inventory !== false && /* @__PURE__ */ React.createElement("div", { className: "stock-alert-box" }, alertSuccess || alertSubscribed ? /* @__PURE__ */ React.createElement("div", { className: "stock-alert-success" }, /* @__PURE__ */ React.createElement("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "#166534", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("path", { d: "M20 6L9 17l-5-5" })), "We'll notify you when this item is back in stock") : customer ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "Get notified when this item is back in stock"), /* @__PURE__ */ React.createElement("button", { className: "stock-alert-btn", onClick: handleStockAlertSubmit, disabled: alertLoading }, alertLoading ? "Subscribing..." : "Notify Me When Available")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "Get notified when this item is back in stock"), /* @__PURE__ */ React.createElement("div", { className: "stock-alert-form" }, /* @__PURE__ */ React.createElement("input", { type: "email", placeholder: "Enter your email", value: alertEmail, onChange: (e) => setAlertEmail(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "stock-alert-btn", onClick: handleStockAlertSubmit, disabled: alertLoading || !alertEmail }, alertLoading ? "Subscribing..." : "Notify Me")))), !isCarpetSku && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "packaging-info" }, /* @__PURE__ */ React.createElement("div", { className: "pdp-pkg-cell" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-label" }, isSlabUnit ? "Slab Size" : "Coverage"), /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-value" }, sqftPerBox, " sqft", isSlabUnit ? "" : "/" + boxLabel)), !isSlabUnit && sku.pieces_per_box && /* @__PURE__ */ React.createElement("div", { className: "pdp-pkg-cell" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-label" }, "Pieces"), /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-value" }, sku.pieces_per_box, "/", boxLabel)), sku.weight_per_box_lbs && /* @__PURE__ */ React.createElement("div", { className: "pdp-pkg-cell" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-label" }, "Weight"), /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-value" }, parseFloat(sku.weight_per_box_lbs).toFixed(1), " lbs")), !isSlabUnit && sku.boxes_per_pallet && /* @__PURE__ */ React.createElement("div", { className: "pdp-pkg-cell" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-label" }, "Pallet"), /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-value" }, sku.boxes_per_pallet, " ", boxLabelPlural, sku.sqft_per_pallet ? " (" + parseFloat(sku.sqft_per_pallet).toLocaleString() + " sqft)" : ""))), isCarpetSku && (rollWidthFt > 0 || rollLengthFt > 0 || sku.sqft_per_pallet || sku.weight_per_pallet_lbs) && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info" }, /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-grid" }, rollWidthFt > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Width"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, rollWidthFt, " ft")), rollLengthFt > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Length"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, rollLengthFt, " ft")), sku.sqft_per_pallet && parseFloat(sku.sqft_per_pallet) > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Area"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, parseFloat(sku.sqft_per_pallet).toLocaleString(), " sqft")), sku.weight_per_pallet_lbs && parseFloat(sku.weight_per_pallet_lbs) > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Weight"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, parseFloat(sku.weight_per_pallet_lbs).toLocaleString(), " lbs")))), isCarpetSku && cutPrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Carpet Calculator"), rollWidthFt > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-width-header" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 20, height: 20 } }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "9", x2: "21", y2: "9" })), rollWidthFt, "' Wide Roll"), /* @__PURE__ */ React.createElement("div", { className: "calc-mode-tabs" }, rollWidthFt > 0 && /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "linear" ? " active" : ""), onClick: () => setCarpetInputMode("linear") }, "Linear Feet"), /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "dimensions" ? " active" : ""), onClick: () => setCarpetInputMode("dimensions") }, "Room Size"), /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "sqft" ? " active" : ""), onClick: () => setCarpetInputMode("sqft") }, "Enter Sqft")), carpetInputMode === "linear" ? /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Linear Feet Needed"), /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "calc-input",
@@ -5703,11 +5716,10 @@
         className: "pdp-btn pdp-btn-primary",
         style: { marginTop: "1.25rem" },
         onClick: handleAddToCart,
-        disabled: carpetSqft <= 0
+        disabled: carpetSqft <= 0 || isOutOfStock
       },
-      "Add to Cart ",
-      carpetSqft > 0 ? "\u2014 $" + carpetSubtotal.toFixed(2) : ""
-    )), !isCarpetSku && isSoldPerSqft && effectivePrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Coverage Calculator"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Square Feet Needed"), /* @__PURE__ */ React.createElement(
+      isOutOfStock ? "Out of Stock" : "Add to Cart " + (carpetSqft > 0 ? "\u2014 $" + carpetSubtotal.toFixed(2) : "")
+    )), !isCarpetSku && isSoldPerSqft && effectivePrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Coverage Calculator"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Square Feet Needed"), /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "calc-input",
@@ -5724,11 +5736,10 @@
         className: "pdp-btn pdp-btn-primary",
         style: { marginTop: "1.25rem" },
         onClick: handleAddToCart,
-        disabled: sqftCalcAmount <= 0
+        disabled: sqftCalcAmount <= 0 || isOutOfStock
       },
-      "Add to Cart ",
-      sqftCalcAmount > 0 ? "\u2014 $" + sqftCalcSubtotal.toFixed(2) : ""
-    )), !isCarpetSku && hasBoxCalc && effectivePrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Coverage Calculator"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group" }, /* @__PURE__ */ React.createElement("label", null, "Square Feet Needed"), /* @__PURE__ */ React.createElement(
+      isOutOfStock ? "Out of Stock" : "Add to Cart " + (sqftCalcAmount > 0 ? "\u2014 $" + sqftCalcSubtotal.toFixed(2) : "")
+    )), !isCarpetSku && hasBoxCalc && effectivePrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Coverage Calculator"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group" }, /* @__PURE__ */ React.createElement("label", null, "Square Feet Needed"), /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "calc-input",
@@ -5756,11 +5767,10 @@
         className: "pdp-btn pdp-btn-primary",
         style: { marginTop: "1.25rem" },
         onClick: handleAddToCart,
-        disabled: numBoxes <= 0
+        disabled: numBoxes <= 0 || isOutOfStock
       },
-      "Add to Cart ",
-      numBoxes > 0 ? "\u2014 $" + subtotal.toFixed(2) : ""
-    )), isSheetVinyl && effectivePrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Roll Calculator"), /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-width-header" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "9", x2: "21", y2: "9" })), sheetRollWidthFt, "' Wide Roll"), /* @__PURE__ */ React.createElement("div", { className: "calc-mode-tabs" }, /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "linear" ? " active" : ""), onClick: () => setCarpetInputMode("linear") }, "Linear Feet"), /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "dimensions" ? " active" : ""), onClick: () => setCarpetInputMode("dimensions") }, "Room Size"), /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "sqft" ? " active" : ""), onClick: () => setCarpetInputMode("sqft") }, "Enter Sqft")), sheetMode === "linear" ? /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Linear Feet Needed"), /* @__PURE__ */ React.createElement(
+      isOutOfStock ? "Out of Stock" : "Add to Cart " + (numBoxes > 0 ? "\u2014 $" + subtotal.toFixed(2) : "")
+    )), isSheetVinyl && effectivePrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Roll Calculator"), /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-width-header" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "9", x2: "21", y2: "9" })), sheetRollWidthFt, "' Wide Roll"), /* @__PURE__ */ React.createElement("div", { className: "calc-mode-tabs" }, /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "linear" ? " active" : ""), onClick: () => setCarpetInputMode("linear") }, "Linear Feet"), /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "dimensions" ? " active" : ""), onClick: () => setCarpetInputMode("dimensions") }, "Room Size"), /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "sqft" ? " active" : ""), onClick: () => setCarpetInputMode("sqft") }, "Enter Sqft")), sheetMode === "linear" ? /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Linear Feet Needed"), /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "calc-input",
@@ -5810,11 +5820,10 @@
         className: "pdp-btn pdp-btn-primary",
         style: { marginTop: "1.25rem" },
         onClick: handleAddToCart,
-        disabled: sheetSqft <= 0
+        disabled: sheetSqft <= 0 || isOutOfStock
       },
-      "Add to Cart ",
-      sheetSqft > 0 ? "\u2014 $" + sheetSubtotal.toFixed(2) : ""
-    )), isPerUnit && (slabMissingSize || effectivePrice <= 0) && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { style: { background: "var(--cream-warm)", border: "0.5px solid rgba(21,18,15,0.07)", borderRadius: 4, padding: "1.5rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 0.375rem", fontFamily: "var(--font-heading)", fontSize: "1.125rem", fontWeight: 300, color: "var(--stone-900)" } }, "Slab \u2014 Please Inquire"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.8125rem", color: "var(--stone-500)", lineHeight: 1.5 } }, "Contact us to confirm slab dimensions and availability."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "pdp-btn pdp-btn-ghost", style: { marginTop: "1rem", textDecoration: "none" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009"))), isPerUnit && !slabMissingSize && effectivePrice > 0 && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-row" }, /* @__PURE__ */ React.createElement("span", { className: "unit-qty-label" }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement(
+      isOutOfStock ? "Out of Stock" : "Add to Cart " + (sheetSqft > 0 ? "\u2014 $" + sheetSubtotal.toFixed(2) : "")
+    )), isPerUnit && (slabMissingSize || effectivePrice <= 0) && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { style: { background: "var(--cream-warm)", border: "0.5px solid rgba(21,18,15,0.07)", borderRadius: 4, padding: "1.5rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 0.375rem", fontFamily: "var(--font-heading)", fontSize: "1.125rem", fontWeight: 300, color: "var(--stone-900)" } }, "Slab \u2014 Please Inquire"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.8125rem", color: "var(--stone-500)", lineHeight: 1.5 } }, "Contact us to confirm slab dimensions and availability."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "pdp-btn pdp-btn-ghost", style: { marginTop: "1rem", textDecoration: "none" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009"))), isPerUnit && !slabMissingSize && effectivePrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-row" }, /* @__PURE__ */ React.createElement("span", { className: "unit-qty-label" }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "number",
@@ -5828,9 +5837,9 @@
       {
         className: "pdp-btn pdp-btn-primary",
         onClick: handleAddToCart,
-        disabled: unitQty <= 0
+        disabled: unitQty <= 0 || isOutOfStock
       },
-      effectivePrice > 0 ? "Add to Cart \u2014 $" + unitSubtotal.toFixed(2) : "Add to Cart"
+      isOutOfStock ? "Out of Stock" : effectivePrice > 0 ? "Add to Cart \u2014 $" + unitSubtotal.toFixed(2) : "Add to Cart"
     )), !isCarpetSku && !isPerUnit && !isSoldPerSqft && (effectivePrice <= 0 || sqftPerBox <= 0 && !isSheetVinyl) && /* @__PURE__ */ React.createElement("div", { style: { background: "var(--cream-warm)", border: "0.5px solid rgba(21,18,15,0.07)", borderRadius: 4, padding: "1.5rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 0.375rem", fontFamily: "var(--font-heading)", fontSize: "1.125rem", fontWeight: 300, color: "var(--stone-900)" } }, "Call for Price & Stock"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.8125rem", color: "var(--stone-500)", lineHeight: 1.5 } }, "Contact us for current pricing, stock availability, and lead times."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "pdp-btn pdp-btn-ghost", style: { marginTop: "1rem", textDecoration: "none" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009")), accessorySiblings.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "accessories-section-sf" }, /* @__PURE__ */ React.createElement("h3", null, "Matching Accessories"), /* @__PURE__ */ React.createElement("div", { className: "accessories-subtitle-sf" }, /^bath/i.test(sku.category_slug || "") || /vanitie|mirror|cabinet/i.test(sku.category_name || "") ? "Complete your bathroom with matching pieces" : "Complete your installation with coordinating trim and transitions"), accessorySiblings.map((acc) => {
       const accPrice = parseFloat(acc.sale_price || acc.retail_price) || 0;
       const accQty = accessoryQtys[acc.sku_id] || 1;
@@ -5922,6 +5931,7 @@
     const promoSubtotalRef = useRef(null);
     const productItems = cart.filter((i) => !i.is_sample);
     const sampleItems = cart.filter((i) => i.is_sample);
+    const hasOutOfStock = productItems.some((i) => i.stock_status === "out_of_stock" && i.vendor_has_inventory);
     const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
     const sampleShipping = sampleItems.length > 0 ? 12 : 0;
     const productShipping = deliveryMethod === "pickup" ? 0 : selectedShippingOption ? selectedShippingOption.amount : 0;
@@ -6044,7 +6054,7 @@
       const subtotal = parseFloat(item.subtotal || 0);
       const canStepper = !item.is_sample && item.sell_by !== "sqft" && !item.price_tier;
       const priceSuf = item.sell_by === "unit" ? "/ea" : item.sell_by === "roll" ? "/sqyd" : "/sqft";
-      return /* @__PURE__ */ React.createElement("div", { key: item.id, className: "ct-line" + (isLast ? " ct-line-last" : "") }, /* @__PURE__ */ React.createElement("div", { className: "ct-line-thumb" }, item.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(item.primary_image, 200), alt: "", onLoad: handleProductImgLoad, loading: "lazy", decoding: "async" }) : /* @__PURE__ */ React.createElement("div", { className: "ct-line-thumb-placeholder" }), item.is_sample && /* @__PURE__ */ React.createElement("span", { className: "ct-line-sample-badge" }, "Sample")), /* @__PURE__ */ React.createElement("div", { className: "ct-line-info" }, /* @__PURE__ */ React.createElement("div", { className: "ct-line-cat" }, item.category_name || ""), /* @__PURE__ */ React.createElement("h3", { className: "ct-line-name" }, fullProductName(item) || "Product"), item.variant_name && /* @__PURE__ */ React.createElement("div", { className: "ct-line-variant" }, item.variant_name), item.stock_status && item.stock_status !== "unknown" && /* @__PURE__ */ React.createElement("div", { className: "ct-line-stock" + (item.stock_status === "in_stock" ? " in-stock" : item.stock_status === "low_stock" ? " low-stock" : " out-stock") }, item.stock_status === "in_stock" ? "In stock" : item.stock_status === "low_stock" ? "Low stock" : "Out of stock"), item.pickup_only && /* @__PURE__ */ React.createElement("div", { className: "ct-line-pickup-badge" }, "Pickup only"), /* @__PURE__ */ React.createElement("div", { className: "ct-line-actions" }, /* @__PURE__ */ React.createElement("a", { className: "ct-line-action-remove", onClick: () => removeFromCart(item.id) }, "Remove"))), /* @__PURE__ */ React.createElement("div", { className: "ct-line-right" }, canStepper && /* @__PURE__ */ React.createElement("div", { className: "ct-qty-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "ct-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { className: "ct-qty-btn", onClick: () => handleQtyChange(item, -1), "aria-label": "Decrease quantity" }, "\u2212"), /* @__PURE__ */ React.createElement("span", { className: "ct-qty-value" }, boxes, " ", item.sell_by === "unit" ? boxes === 1 ? "unit" : "units" : boxes === 1 ? "box" : "boxes"), /* @__PURE__ */ React.createElement("button", { className: "ct-qty-btn", onClick: () => handleQtyChange(item, 1), "aria-label": "Increase quantity" }, "+")), item.sell_by !== "unit" && sqft > 0 && /* @__PURE__ */ React.createElement("div", { className: "ct-qty-coverage" }, sqft.toFixed(1), " sf coverage")), !canStepper && !item.is_sample && /* @__PURE__ */ React.createElement("div", { className: "ct-qty-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "ct-qty-static" }, item.sell_by === "sqft" || item.price_tier ? `${sqft.toFixed(0)} sqft` : `${boxes} ${item.sell_by === "unit" ? "unit" : "box"}${boxes !== 1 ? item.sell_by === "unit" ? "s" : "es" : ""}`)), !item.is_sample && /* @__PURE__ */ React.createElement("div", { className: "ct-line-unit-price" }, /* @__PURE__ */ React.createElement("span", null, "Unit price"), /* @__PURE__ */ React.createElement("span", { className: "ct-line-unit-price-value" }, "$", unitPrice.toFixed(2), /* @__PURE__ */ React.createElement("span", { className: "ct-line-unit-price-suffix" }, priceSuf))), item.price_tier && /* @__PURE__ */ React.createElement("div", { className: "ct-line-price-tier" }, item.price_tier === "roll" ? "Roll price" : "Cut price"), /* @__PURE__ */ React.createElement("div", { className: "ct-line-subtotal" }, /* @__PURE__ */ React.createElement("span", { className: "ct-line-subtotal-label" }, "Subtotal"), /* @__PURE__ */ React.createElement("span", { className: "ct-line-subtotal-value" }, item.is_sample ? "Free" : "$" + subtotal.toFixed(2)))));
+      return /* @__PURE__ */ React.createElement("div", { key: item.id, className: "ct-line" + (isLast ? " ct-line-last" : "") }, /* @__PURE__ */ React.createElement("div", { className: "ct-line-thumb" }, item.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(item.primary_image, 200), alt: "", onLoad: handleProductImgLoad, loading: "lazy", decoding: "async" }) : /* @__PURE__ */ React.createElement("div", { className: "ct-line-thumb-placeholder" }), item.is_sample && /* @__PURE__ */ React.createElement("span", { className: "ct-line-sample-badge" }, "Sample")), /* @__PURE__ */ React.createElement("div", { className: "ct-line-info" }, /* @__PURE__ */ React.createElement("div", { className: "ct-line-cat" }, item.category_name || ""), /* @__PURE__ */ React.createElement("h3", { className: "ct-line-name" }, fullProductName(item) || "Product"), item.variant_name && /* @__PURE__ */ React.createElement("div", { className: "ct-line-variant" }, item.variant_name), item.stock_status && item.stock_status !== "unknown" && /* @__PURE__ */ React.createElement("div", { className: "ct-line-stock" + (item.stock_status === "in_stock" ? " in-stock" : item.stock_status === "low_stock" ? " low-stock" : " out-stock") }, item.stock_status === "in_stock" ? "In stock" : item.stock_status === "low_stock" ? "Low stock" : "Out of stock"), item.stock_status === "out_of_stock" && item.vendor_has_inventory && !item.is_sample && /* @__PURE__ */ React.createElement("div", { style: { background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "0.375rem", padding: "0.5rem 0.75rem", fontSize: "0.8125rem", color: "#991b1b", marginTop: "0.375rem" } }, "This item is out of stock \u2014 remove it to proceed"), item.pickup_only && /* @__PURE__ */ React.createElement("div", { className: "ct-line-pickup-badge" }, "Pickup only"), /* @__PURE__ */ React.createElement("div", { className: "ct-line-actions" }, /* @__PURE__ */ React.createElement("a", { className: "ct-line-action-remove", onClick: () => removeFromCart(item.id) }, "Remove"))), /* @__PURE__ */ React.createElement("div", { className: "ct-line-right" }, canStepper && /* @__PURE__ */ React.createElement("div", { className: "ct-qty-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "ct-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { className: "ct-qty-btn", onClick: () => handleQtyChange(item, -1), "aria-label": "Decrease quantity" }, "\u2212"), /* @__PURE__ */ React.createElement("span", { className: "ct-qty-value" }, boxes, " ", item.sell_by === "unit" ? boxes === 1 ? "unit" : "units" : boxes === 1 ? "box" : "boxes"), /* @__PURE__ */ React.createElement("button", { className: "ct-qty-btn", onClick: () => handleQtyChange(item, 1), "aria-label": "Increase quantity" }, "+")), item.sell_by !== "unit" && sqft > 0 && /* @__PURE__ */ React.createElement("div", { className: "ct-qty-coverage" }, sqft.toFixed(1), " sf coverage")), !canStepper && !item.is_sample && /* @__PURE__ */ React.createElement("div", { className: "ct-qty-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "ct-qty-static" }, item.sell_by === "sqft" || item.price_tier ? `${sqft.toFixed(0)} sqft` : `${boxes} ${item.sell_by === "unit" ? "unit" : "box"}${boxes !== 1 ? item.sell_by === "unit" ? "s" : "es" : ""}`)), !item.is_sample && /* @__PURE__ */ React.createElement("div", { className: "ct-line-unit-price" }, /* @__PURE__ */ React.createElement("span", null, "Unit price"), /* @__PURE__ */ React.createElement("span", { className: "ct-line-unit-price-value" }, "$", unitPrice.toFixed(2), /* @__PURE__ */ React.createElement("span", { className: "ct-line-unit-price-suffix" }, priceSuf))), item.price_tier && /* @__PURE__ */ React.createElement("div", { className: "ct-line-price-tier" }, item.price_tier === "roll" ? "Roll price" : "Cut price"), /* @__PURE__ */ React.createElement("div", { className: "ct-line-subtotal" }, /* @__PURE__ */ React.createElement("span", { className: "ct-line-subtotal-label" }, "Subtotal"), /* @__PURE__ */ React.createElement("span", { className: "ct-line-subtotal-value" }, item.is_sample ? "Free" : "$" + subtotal.toFixed(2)))));
     }), /* @__PURE__ */ React.createElement("div", { className: "ct-promo-row" }, /* @__PURE__ */ React.createElement("div", { className: "ct-promo-input-wrap" }, promoResult ? /* @__PURE__ */ React.createElement("div", { className: "ct-promo-applied" }, /* @__PURE__ */ React.createElement("span", { className: "ct-promo-code-pill" }, promoResult.code), /* @__PURE__ */ React.createElement("span", { className: "ct-promo-discount" }, "-$", promoDiscount.toFixed(2)), /* @__PURE__ */ React.createElement("a", { className: "ct-promo-remove", onClick: (e) => {
       e.preventDefault();
       removePromo();
@@ -6116,11 +6126,11 @@
       ),
       /* @__PURE__ */ React.createElement("div", { className: "ct-shipping-opt-info" }, /* @__PURE__ */ React.createElement("span", { className: "ct-shipping-opt-carrier" }, opt.carrier), opt.transit_days && /* @__PURE__ */ React.createElement("span", { className: "ct-shipping-opt-days" }, opt.transit_days, " day", opt.transit_days !== 1 ? "s" : "")),
       /* @__PURE__ */ React.createElement("span", { className: "ct-shipping-opt-price" }, "$", parseFloat(opt.amount).toFixed(2))
-    ))), shippingEstimate && shippingEstimate.options && shippingEstimate.options.length > 0 && shippingEstimate.options[0].amount === 0 && shippingEstimate.method === null && /* @__PURE__ */ React.createElement("div", { className: "ct-summary-line", style: { marginTop: 8 } }, /* @__PURE__ */ React.createElement("span", null, "Shipping"), /* @__PURE__ */ React.createElement("span", null, "$0.00")), shippingEstimate && shippingEstimate.weight_lbs > 0 && /* @__PURE__ */ React.createElement("div", { className: "ct-shipping-weight" }, "Est. weight: ", shippingEstimate.weight_lbs, " lbs"), shippingEstimate && shippingEstimate.method === "ltl_freight" && /* @__PURE__ */ React.createElement("label", { className: "ct-liftgate-toggle" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: liftgateEnabled, onChange: (e) => {
+    ))), shippingEstimate && shippingEstimate.options && shippingEstimate.options.length > 0 && shippingEstimate.options[0].amount === 0 && shippingEstimate.method === null && /* @__PURE__ */ React.createElement("div", { className: "ct-summary-line", style: { marginTop: 8 } }, /* @__PURE__ */ React.createElement("span", null, "Shipping"), /* @__PURE__ */ React.createElement("span", null, "$0.00")), shippingEstimate && shippingEstimate.weight_lbs > 0 && /* @__PURE__ */ React.createElement("div", { className: "ct-shipping-weight" }, "Est. weight: ", shippingEstimate.weight_lbs, " lbs", shippingEstimate.weight_estimated ? " *" : ""), shippingEstimate && shippingEstimate.weight_estimated && /* @__PURE__ */ React.createElement("div", { className: "ct-shipping-weight", style: { fontSize: "0.75rem", color: "var(--stone-500)", marginTop: 2 } }, "* Some item weights estimated. Final shipping may vary."), shippingEstimate && shippingEstimate.method === "ltl_freight" && /* @__PURE__ */ React.createElement("label", { className: "ct-liftgate-toggle" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: liftgateEnabled, onChange: (e) => {
       setLiftgateEnabled(e.target.checked);
       setShippingEstimate(null);
       setSelectedShippingOption(null);
-    } }), "Liftgate delivery (residential)")), deliveryMethod === "pickup" && /* @__PURE__ */ React.createElement("div", { className: "ct-summary-line", style: { marginTop: 8 } }, /* @__PURE__ */ React.createElement("span", null, "Shipping"), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--gold)" } }, "Free"))), /* @__PURE__ */ React.createElement("div", { className: "ct-summary-total" }, /* @__PURE__ */ React.createElement("span", { className: "ct-summary-total-label" }, selectedShippingOption ? "Estimated total" : "Subtotal"), /* @__PURE__ */ React.createElement("span", { className: "ct-summary-total-value" }, "$", cartTotal.toLocaleString(void 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))), /* @__PURE__ */ React.createElement("button", { className: "ct-checkout-btn", onClick: goCheckout }, "Checkout securely"), /* @__PURE__ */ React.createElement("div", { className: "ct-summary-trust" }, /* @__PURE__ */ React.createElement("div", null, "Secure checkout \xB7 Stripe"), /* @__PURE__ */ React.createElement("div", null, "(714) 999-0009"))))));
+    } }), "Liftgate delivery (residential)")), deliveryMethod === "pickup" && /* @__PURE__ */ React.createElement("div", { className: "ct-summary-line", style: { marginTop: 8 } }, /* @__PURE__ */ React.createElement("span", null, "Shipping"), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--gold)" } }, "Free"))), /* @__PURE__ */ React.createElement("div", { className: "ct-summary-total" }, /* @__PURE__ */ React.createElement("span", { className: "ct-summary-total-label" }, selectedShippingOption ? "Estimated total" : "Subtotal"), /* @__PURE__ */ React.createElement("span", { className: "ct-summary-total-value" }, "$", cartTotal.toLocaleString(void 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))), /* @__PURE__ */ React.createElement("button", { className: "ct-checkout-btn", onClick: goCheckout, disabled: hasOutOfStock }, hasOutOfStock ? "Remove out-of-stock items to checkout" : "Checkout securely"), /* @__PURE__ */ React.createElement("div", { className: "ct-summary-trust" }, /* @__PURE__ */ React.createElement("div", null, "Secure checkout \xB7 Stripe"), /* @__PURE__ */ React.createElement("div", null, "(714) 999-0009"))))));
   }
   function CheckoutPage({ cart, sessionId, goCart, handleOrderComplete, deliveryMethod, setDeliveryMethod, liftgateEnabled, tradeCustomer, tradeToken, customer, customerToken, onCustomerLogin, appliedPromoCode, setAppliedPromoCode }) {
     const [customerName, setCustomerName] = useState(tradeCustomer ? tradeCustomer.contact_name : customer ? customer.first_name + " " + customer.last_name : "");
@@ -6242,6 +6252,11 @@
           if (piData.error) {
             ev.complete("fail");
             setError(piData.error);
+            if (piData.out_of_stock_sku_ids) {
+              setTimeout(() => {
+                if (typeof goCart === "function") goCart();
+              }, 3e3);
+            }
             return;
           }
           const { error: confirmError, paymentIntent } = await stripeInstance.confirmCardPayment(
@@ -6328,6 +6343,11 @@
         if (piData.error) {
           setError(piData.error);
           setProcessing(false);
+          if (piData.out_of_stock_sku_ids) {
+            setTimeout(() => {
+              if (typeof goCart === "function") goCart();
+            }, 3e3);
+          }
           return;
         }
         const { error: stripeError, paymentIntent } = await stripeInstance.confirmCardPayment(
@@ -6514,6 +6534,11 @@
         if (piData.error) {
           setError(piData.error);
           setProcessing(false);
+          if (piData.out_of_stock_sku_ids) {
+            setTimeout(() => {
+              if (typeof goCart === "function") goCart();
+            }, 3e3);
+          }
           return;
         }
         const { error: stripeError, paymentIntent } = await stripeInstance.confirmCardPayment(
@@ -7125,7 +7150,7 @@
         transform: expandedVisit === v.id ? "rotate(180deg)" : "rotate(0)",
         transition: "transform 0.2s"
       } }, /* @__PURE__ */ React.createElement("polyline", { points: "6 9 12 15 18 9" }))
-    ), expandedVisit === v.id && visitDetail && /* @__PURE__ */ React.createElement("div", { style: { padding: "1.25rem", borderTop: "1px solid var(--stone-200)", background: "var(--stone-50)" } }, v.message && /* @__PURE__ */ React.createElement("div", { style: { background: "#dbeafe", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem", color: "#1e40af", fontStyle: "italic" } }, '"', v.message, '"'), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "0.8125rem", fontWeight: 500, marginBottom: "0.5rem" } }, "Recommended Products"), visitDetail.items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.id, style: { display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0", borderBottom: "1px solid var(--stone-100)", fontSize: "0.8125rem" } }, item.primary_image && /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(item.primary_image, 100), alt: item.product_name, style: { width: 48, height: 48, objectFit: "cover", border: "1px solid var(--stone-200)" }, loading: "lazy" }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 500 } }, item.product_name), item.collection && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.75rem", color: "var(--stone-500)" } }, item.collection), item.variant_name && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.75rem", color: "var(--stone-500)" } }, item.variant_name)), skuListPrice(item) && /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 500, whiteSpace: "nowrap" } }, "$", displayPrice(item, skuListPrice(item)).toFixed(2), priceSuffix(item)), item.rep_note && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "0.75rem", color: "var(--stone-500)", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, title: item.rep_note }, item.rep_note))))))))), tab === "profile" && /* @__PURE__ */ React.createElement("div", null, profileMsg && /* @__PURE__ */ React.createElement("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem" } }, profileMsg), profileError && /* @__PURE__ */ React.createElement("div", { style: { background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem" } }, profileError), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" } }, /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "First Name"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, value: firstName, onChange: (e) => setFirstName(e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Last Name"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, value: lastName, onChange: (e) => setLastName(e.target.value) }))), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Email"), /* @__PURE__ */ React.createElement("input", { style: { ...inputStyle, background: "var(--stone-100)", color: "var(--stone-500)" }, value: customer.email, readOnly: true })), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Phone"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, type: "tel", value: phone, onChange: (e) => setPhone(formatPhone(e.target.value)), placeholder: "(555) 123-4567" })), /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "1rem", fontWeight: 500, marginTop: "1.5rem", marginBottom: "1rem" } }, "Saved Address"), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Address Line 1"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, value: addressLine1, onChange: (e) => setAddressLine1(e.target.value), placeholder: "123 Main Street" })), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Address Line 2"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, value: addressLine2, onChange: (e) => setAddressLine2(e.target.value), placeholder: "Apt, Suite, Unit" })), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "0.75rem" } }, /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "City"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, value: city, onChange: (e) => setCity(e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "State"), /* @__PURE__ */ React.createElement("select", { style: { ...inputStyle, padding: "0.65rem 0.5rem" }, value: addrState, onChange: (e) => setAddrState(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Select"), US_STATES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s, value: s }, s)))), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "ZIP"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, value: zip, onChange: (e) => setZip(e.target.value) }))), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: saveProfile, disabled: saving, style: { marginBottom: "2.5rem" } }, saving ? "Saving..." : "Save Changes"), customer.created_via === "google" && customer.password_set === false ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "1rem", fontWeight: 500, marginBottom: "1rem", paddingTop: "1.5rem", borderTop: "1px solid var(--stone-200)" } }, "Password"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.8125rem", color: "var(--stone-600)", marginBottom: "1rem", lineHeight: 1.5 } }, "You signed in with Google. If you\u2019d like to also sign in with email and password, you can set one up."), /* @__PURE__ */ React.createElement("a", { href: "/forgot-password", style: { color: "var(--gold)", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer" } }, "Set a password \u2192")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "1rem", fontWeight: 500, marginBottom: "1rem", paddingTop: "1.5rem", borderTop: "1px solid var(--stone-200)" } }, "Change Password"), pwMsg && /* @__PURE__ */ React.createElement("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem" } }, pwMsg), pwError && /* @__PURE__ */ React.createElement("div", { style: { background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem" } }, pwError), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Current Password"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, type: "password", value: currentPw, onChange: (e) => setCurrentPw(e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" } }, /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "New Password"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, type: "password", value: newPw, onChange: (e) => setNewPw(e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Confirm New Password"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, type: "password", value: confirmPw, onChange: (e) => setConfirmPw(e.target.value) }))), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.75rem", color: "var(--stone-500)", marginBottom: "1rem" } }, "8+ characters, 1 uppercase letter, 1 number"), /* @__PURE__  */ React.createElement("button", { className: "btn", onClick: changePassword, disabled: pwSaving }, pwSaving ? "Updating..." : "Update Password"))));
+    ), expandedVisit === v.id && visitDetail && /* @__PURE__ */ React.createElement("div", { style: { padding: "1.25rem", borderTop: "1px solid var(--stone-200)", background: "var(--stone-50)" } }, v.message && /* @__PURE__ */ React.createElement("div", { style: { background: "#dbeafe", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem", color: "#1e40af", fontStyle: "italic" } }, '"', v.message, '"'), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "0.8125rem", fontWeight: 500, marginBottom: "0.5rem" } }, "Recommended Products"), visitDetail.items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.id, style: { display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0", borderBottom: "1px solid var(--stone-100)", fontSize: "0.8125rem" } }, item.primary_image && /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(item.primary_image, 100), alt: item.product_name, style: { width: 48, height: 48, objectFit: "cover", border: "1px solid var(--stone-200)" }, loading: "lazy" }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 500 } }, item.product_name), item.collection && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.75rem", color: "var(--stone-500)" } }, item.collection), item.variant_name && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.75rem", color: "var(--stone-500)" } }, item.variant_name)), skuListPrice(item) && /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 500, whiteSpace: "nowrap" } }, "$", displayPrice(item, skuListPrice(item)).toFixed(2), priceSuffix(item)), item.rep_note && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "0.75rem", color: "var(--stone-500)", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, title: item.rep_note }, item.rep_note))))))))), tab === "profile" && /* @__PURE__ */ React.createElement("div", null, profileMsg && /* @__PURE__ */ React.createElement("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem" } }, profileMsg), profileError && /* @__PURE__ */ React.createElement("div", { style: { background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem" } }, profileError), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" } }, /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "First Name"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, value: firstName, onChange: (e) => setFirstName(e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Last Name"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, value: lastName, onChange: (e) => setLastName(e.target.value) }))), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Email"), /* @__PURE__ */ React.createElement("input", { style: { ...inputStyle, background: "var(--stone-100)", color: "var(--stone-500)" }, value: customer.email, readOnly: true })), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Phone"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, type: "tel", value: phone, onChange: (e) => setPhone(formatPhone(e.target.value)), placeholder: "(555) 123-4567" })), /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "1rem", fontWeight: 500, marginTop: "1.5rem", marginBottom: "1rem" } }, "Saved Address"), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Address Line 1"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, value: addressLine1, onChange: (e) => setAddressLine1(e.target.value), placeholder: "123 Main Street" })), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Address Line 2"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, value: addressLine2, onChange: (e) => setAddressLine2(e.target.value), placeholder: "Apt, Suite, Unit" })), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "0.75rem" } }, /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "City"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, value: city, onChange: (e) => setCity(e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "State"), /* @__PURE__ */ React.createElement("select", { style: { ...inputStyle, padding: "0.65rem 0.5rem" }, value: addrState, onChange: (e) => setAddrState(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Select"), US_STATES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s, value: s }, s)))), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "ZIP"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, value: zip, onChange: (e) => setZip(e.target.value) }))), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: saveProfile, disabled: saving, style: { marginBottom: "2.5rem" } }, saving ? "Saving..." : "Save Changes"), /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "1rem", fontWeight: 500, marginBottom: "1rem", paddingTop: "1.5rem", borderTop: "1px solid var(--stone-200)" } }, "Change Password"), pwMsg && /* @__PURE__ */ React.createElement("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem" } }, pwMsg), pwError && /* @__PURE__ */ React.createElement("div", { style: { background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem" } }, pwError), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Current Password"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, type: "password", value: currentPw, onChange: (e) => setCurrentPw(e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" } }, /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "New Password"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, type: "password", value: newPw, onChange: (e) => setNewPw(e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: fieldStyle }, /* @__PURE__ */ React.createElement("label", { style: labelStyle }, "Confirm New Password"), /* @__PURE__ */ React.createElement("input", { style: inputStyle, type: "password", value: confirmPw, onChange: (e) => setConfirmPw(e.target.value) }))), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.75rem", color: "var(--stone-500)", marginBottom: "1rem" } }, "8+ characters, 1 uppercase letter, 1 number"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: changePassword, disabled: pwSaving }, pwSaving ? "Updating..." : "Update Password")));
   }
   function WishlistPage({ wishlist, toggleWishlist: toggleWishlist2, onSkuClick, goBrowse, recentlyViewed, goHome }) {
     const [skus, setSkus] = useState([]);
@@ -7337,8 +7362,17 @@
         showToast(d.error || "Failed to accept quote", "error");
       }
     };
-    const downloadQuotePdf = (quoteId) => {
-      window.open(API + "/api/trade/quotes/" + quoteId + "/pdf?token=" + tradeToken, "_blank");
+    const downloadQuotePdf = async (quoteId) => {
+      try {
+        const r = await fetch(API + "/api/trade/quotes/" + quoteId + "/pdf", { headers: { "X-Trade-Token": tradeToken } });
+        if (!r.ok) throw new Error("Failed to load PDF");
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        setTimeout(() => URL.revokeObjectURL(url), 6e4);
+      } catch (e) {
+        console.error(e);
+      }
     };
     const assignOrderProject = async (orderId, projectId) => {
       await fetch(API + "/api/trade/orders/" + orderId + "/project", {
@@ -7860,29 +7894,15 @@
       )
     ))), /* @__PURE__ */ React.createElement("div", { className: "trade-field", style: { marginTop: "0.5rem" } }, /* @__PURE__ */ React.createElement("label", null, "Contractor License # (optional)"), /* @__PURE__ */ React.createElement("input", { type: "text", value: contractorLicense, onChange: (e) => setContractorLicense(e.target.value), placeholder: "e.g. 830966" })), /* @__PURE__ */ React.createElement("div", { className: "trade-btn-row" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "trade-btn-secondary", onClick: () => setStep(1) }, "Back"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goStep3, disabled: loading }, loading ? "Setting up..." : "Continue"))), step === 3 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.8125rem", color: "var(--stone-500)", marginBottom: "1rem", lineHeight: 1.5 } }, "Add a payment method for your $99/year trade membership. You won't be charged until approved."), /* @__PURE__ */ React.createElement("div", { style: { border: "1px solid var(--stone-300)", padding: "1rem", marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("div", { id: "trade-card-element" })), /* @__PURE__ */ React.createElement("div", { className: "trade-btn-row" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "trade-btn-secondary", onClick: () => setStep(2) }, "Back"), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: handleFullRegister, disabled: loading }, loading ? "Submitting..." : "Submit Application"))))));
   }
-  // ── Material texture CSS gradient generator ──
-  function materialFace(kind, tone) {
-    const T = tone || {};
-    const A = T.a || '#c8b094';
-    const B = T.b || '#7a6850';
-    const C = T.c || '#3a3127';
-    switch (kind) {
-      case 'wood': return { background: `repeating-linear-gradient(92deg, ${A} 0 7px, ${B} 7px 9px, ${A} 9px 22px, ${C}55 22px 23px, ${A} 23px 41px, ${B} 41px 43px), linear-gradient(180deg, ${A}, ${B})`, backgroundBlendMode: 'multiply' };
-      case 'marble': return { background: `radial-gradient(120% 80% at 30% 20%, ${A} 0%, ${A} 30%, ${B}88 55%, ${A} 70%), radial-gradient(80% 60% at 70% 80%, ${C}55, transparent 60%), linear-gradient(135deg, ${A}, ${B}44)` };
-      case 'stone': return { background: `radial-gradient(40% 60% at 25% 30%, ${A}, ${B} 80%), radial-gradient(30% 30% at 70% 60%, ${A}88, transparent), radial-gradient(20% 20% at 50% 80%, ${C}55, transparent), ${B}` };
-      default: return { background: A };
-    }
-  }
-
-  // ── Google Sign-In Button ──
   function GoogleSignInButton({ onCredentialResponse }) {
     const containerRef = useRef(null);
     const [ready, setReady] = useState(false);
     const [clientId, setClientId] = useState(null);
     useEffect(() => {
-      fetch(API + "/api/config/google-client-id").then(r => r.json()).then(data => {
+      fetch(API + "/api/config/google-client-id").then((r) => r.json()).then((data) => {
         if (data.clientId) setClientId(data.clientId);
-      }).catch(() => {});
+      }).catch(() => {
+      });
     }, []);
     useEffect(() => {
       if (!clientId || !containerRef.current) return;
@@ -7891,7 +7911,9 @@
         try {
           google.accounts.id.initialize({
             client_id: clientId,
-            callback: (response) => { if (response.credential) onCredentialResponse(response.credential); },
+            callback: (response) => {
+              if (response.credential) onCredentialResponse(response.credential);
+            },
             auto_select: false,
             context: "signin"
           });
@@ -7904,18 +7926,24 @@
             width: containerRef.current.offsetWidth || 340
           });
           setReady(true);
-        } catch (e) { console.warn("Google Sign-In init error:", e); }
+        } catch (e) {
+          console.warn("Google Sign-In init error:", e);
+        }
         return true;
       };
       if (tryInit()) return;
-      const interval = setInterval(() => { if (tryInit()) clearInterval(interval); }, 200);
-      const timeout = setTimeout(() => clearInterval(interval), 8000);
-      return () => { clearInterval(interval); clearTimeout(timeout); };
+      const interval = setInterval(() => {
+        if (tryInit()) clearInterval(interval);
+      }, 200);
+      const timeout = setTimeout(() => clearInterval(interval), 8e3);
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
     }, [clientId]);
     if (!clientId) return null;
     return /* @__PURE__ */ React.createElement("div", { className: "google-signin-container", ref: containerRef, style: ready ? {} : { minHeight: 44 } });
   }
-
   function useGoogleAuth(onLogin) {
     const [googleError, setGoogleError] = useState("");
     const [googleLoading, setGoogleLoading] = useState(false);
@@ -7942,33 +7970,43 @@
     };
     return { handleGoogleCredential, googleError, googleLoading };
   }
-
-  // ── Full-page auth shell (two-column: form left, editorial right) ──
   function AuthPageShell({ children, panelKind, panelTone, panelImage, panelEyebrow, panelHeadline, panelSub, panelAttribution, goHome }) {
-    const bgStyle = panelImage
-      ? { backgroundImage: 'url(' + panelImage + ')', backgroundSize: 'cover', backgroundPosition: 'center' }
-      : materialFace(panelKind, panelTone);
-    return /* @__PURE__ */ React.createElement("div", { className: "auth-page" },
-      /* @__PURE__ */ React.createElement("div", { className: "auth-form-col" },
-        /* @__PURE__ */ React.createElement("div", { className: "auth-header" },
+    const bgStyle = panelImage ? { backgroundImage: "url(" + panelImage + ")", backgroundSize: "cover", backgroundPosition: "center" } : materialFace(panelKind, panelTone);
+    return /* @__PURE__ */ React.createElement(
+      "div",
+      { className: "auth-page" },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { className: "auth-form-col" },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { className: "auth-header" },
           /* @__PURE__ */ React.createElement("a", { className: "auth-header-logo", onClick: goHome }, "Roma"),
-          /* @__PURE__ */ React.createElement("span", { className: "auth-header-tagline" }, "Anaheim, CA \xb7 Since 1999")
+          /* @__PURE__ */ React.createElement("span", { className: "auth-header-tagline" }, "Anaheim, CA \xB7 Since 1999")
         ),
         /* @__PURE__ */ React.createElement("div", { className: "auth-form-col-inner" }, children),
-        /* @__PURE__ */ React.createElement("div", { className: "auth-footer" },
-          /* @__PURE__ */ React.createElement("span", null, "\xa9 2026 Roma Flooring Designs"),
-          /* @__PURE__ */ React.createElement("span", { className: "auth-footer-links" },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { className: "auth-footer" },
+          /* @__PURE__ */ React.createElement("span", null, "\xA9 2026 Roma Flooring Designs"),
+          /* @__PURE__ */ React.createElement(
+            "span",
+            { className: "auth-footer-links" },
             /* @__PURE__ */ React.createElement("a", null, "Privacy"),
             /* @__PURE__ */ React.createElement("a", null, "Terms"),
             /* @__PURE__ */ React.createElement("a", null, "Help")
           )
         )
       ),
-      /* @__PURE__ */ React.createElement("div", { className: "auth-panel" },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { className: "auth-panel" },
         /* @__PURE__ */ React.createElement("div", { className: "auth-panel-bg", style: bgStyle }),
         /* @__PURE__ */ React.createElement("div", { className: "auth-panel-overlay" }),
         /* @__PURE__ */ React.createElement("div", { className: "auth-panel-eyebrow" }, panelEyebrow),
-        /* @__PURE__ */ React.createElement("div", { className: "auth-panel-content" },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { className: "auth-panel-content" },
           /* @__PURE__ */ React.createElement("h2", { className: "auth-panel-headline" }, panelHeadline),
           panelSub && /* @__PURE__ */ React.createElement("p", { className: "auth-panel-sub" }, panelSub),
           panelAttribution && /* @__PURE__ */ React.createElement("div", { className: "auth-panel-attribution" }, panelAttribution)
@@ -7976,8 +8014,6 @@
       )
     );
   }
-
-  // ── Sign In Full Page ──
   function SignInFullPage({ onLogin, goHome, navigate }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -8006,20 +8042,29 @@
           return;
         }
         onLogin(data.token, data.customer, remember);
-      } catch (e2) { setError("Unable to sign in. Please try again."); setLoading(false); }
+      } catch (e2) {
+        setError("Unable to sign in. Please try again.");
+        setLoading(false);
+      }
     };
-    return /* @__PURE__ */ React.createElement(AuthPageShell, {
-      goHome,
-      panelImage: "https://images.unsplash.com/photo-1659362549741-c32157cc71f4?q=80&w=1471&auto=format&fit=crop",
-      panelEyebrow: "Colonnata \xb7 Massa-Carrara, Italy",
-      panelHeadline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Two and a half thousand SKUs, ", /* @__PURE__ */ React.createElement("em", null, "one cart"), "."),
-      panelSub: "Sign in to pick up your saved quote, track your slab, or message your rep. Your account moves with you \u2014 phone, laptop, showroom."
-    },
-      /* @__PURE__ */ React.createElement("div", null,
+    return /* @__PURE__ */ React.createElement(
+      AuthPageShell,
+      {
+        goHome,
+        panelImage: "https://images.unsplash.com/photo-1659362549741-c32157cc71f4?q=80&w=1471&auto=format&fit=crop",
+        panelEyebrow: "Colonnata \xB7 Massa-Carrara, Italy",
+        panelHeadline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Two and a half thousand SKUs, ", /* @__PURE__ */ React.createElement("em", null, "one cart"), "."),
+        panelSub: "Sign in to pick up your saved quote, track your slab, or message your rep. Your account moves with you \u2014 phone, laptop, showroom."
+      },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        null,
         /* @__PURE__ */ React.createElement("div", { className: "auth-eyebrow" }, "Welcome back"),
         /* @__PURE__ */ React.createElement("h1", { className: "auth-title" }, "Sign in")
       ),
-      error && (error === "__password_not_set__" ? /* @__PURE__ */ React.createElement("div", { className: "auth-error" },
+      error && (error === "__password_not_set__" ? /* @__PURE__ */ React.createElement(
+        "div",
+        { className: "auth-error" },
         "Your account was created in our showroom. ",
         /* @__PURE__ */ React.createElement("a", { style: { fontWeight: 600, textDecoration: "underline", cursor: "pointer" }, onClick: () => navigate("/signup") }, "Create a password"),
         " to get started, or check your email for a welcome link."
@@ -8027,28 +8072,49 @@
       /* @__PURE__ */ React.createElement(GoogleSignInButton, { onCredentialResponse: handleGoogleCredential }),
       googleError && /* @__PURE__ */ React.createElement("div", { className: "auth-error" }, googleError),
       googleLoading && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: "0.8125rem", color: "var(--stone-500)" } }, "Signing in with Google\u2026"),
-      /* @__PURE__ */ React.createElement("div", { className: "auth-divider" },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { className: "auth-divider" },
         /* @__PURE__ */ React.createElement("span", { className: "auth-divider-line" }),
         "or sign in with email",
         /* @__PURE__ */ React.createElement("span", { className: "auth-divider-line" })
       ),
-      /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, style: { display: "grid", gap: 18 } },
-        /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+      /* @__PURE__ */ React.createElement(
+        "form",
+        { onSubmit: handleSubmit, style: { display: "grid", gap: 18 } },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { className: "auth-field" },
           /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Email"),
-          /* @__PURE__ */ React.createElement("div", { className: "auth-field-row" },
+          /* @__PURE__ */ React.createElement(
+            "div",
+            { className: "auth-field-row" },
             /* @__PURE__ */ React.createElement("input", { type: "email", value: email, onChange: (e) => setEmail(e.target.value), placeholder: "you@example.com", required: true, autoComplete: "email" })
           )
         ),
-        /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { className: "auth-field" },
           /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Password"),
-          /* @__PURE__ */ React.createElement("div", { className: "auth-field-row" },
+          /* @__PURE__ */ React.createElement(
+            "div",
+            { className: "auth-field-row" },
             /* @__PURE__ */ React.createElement("input", { type: "password", value: password, onChange: (e) => setPassword(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", required: true, autoComplete: "current-password" }),
             /* @__PURE__ */ React.createElement("a", { className: "auth-field-right", onClick: () => navigate("/forgot-password") }, "Forgot? \u2192")
           )
         ),
-        /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gap: 14 } },
-          /* @__PURE__ */ React.createElement("label", { className: "auth-checkbox", onClick: (e) => { e.preventDefault(); setRemember(!remember); } },
-            /* @__PURE__ */ React.createElement("span", { className: "auth-checkbox-box" + (remember ? " checked" : "") },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { style: { display: "grid", gap: 14 } },
+          /* @__PURE__ */ React.createElement(
+            "label",
+            { className: "auth-checkbox", onClick: (e) => {
+              e.preventDefault();
+              setRemember(!remember);
+            } },
+            /* @__PURE__ */ React.createElement(
+              "span",
+              { className: "auth-checkbox-box" + (remember ? " checked" : "") },
               remember && /* @__PURE__ */ React.createElement("span", { className: "auth-checkbox-check" }, "\u2713")
             ),
             "Keep me signed in on this device"
@@ -8056,14 +8122,14 @@
           /* @__PURE__ */ React.createElement("button", { type: "submit", className: "auth-cta", disabled: loading }, loading ? "Signing in\u2026" : "Sign in \u2192")
         )
       ),
-      /* @__PURE__ */ React.createElement("div", { className: "auth-link-row" },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { className: "auth-link-row" },
         /* @__PURE__ */ React.createElement("span", null, "New to Roma?"),
         /* @__PURE__ */ React.createElement("a", { className: "auth-link", onClick: () => navigate("/signup") }, "Create an account \u2192")
       )
     );
   }
-
-  // ── Sign Up Full Page ──
   function SignUpFullPage({ onLogin, goHome, navigate }) {
     const [path, setPath] = useState("homeowner");
     const [firstName, setFirstName] = useState("");
@@ -8077,7 +8143,10 @@
     const handleSubmit = async (e) => {
       e.preventDefault();
       setError("");
-      if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) { setError("Password must be at least 8 characters with 1 uppercase letter and 1 number."); return; }
+      if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+        setError("Password must be at least 8 characters with 1 uppercase letter and 1 number.");
+        return;
+      }
       setLoading(true);
       try {
         const res = await fetch(API + "/api/customer/register", {
@@ -8086,101 +8155,160 @@
           body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, newsletter })
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.error) { setError(data.error || "Registration failed."); setLoading(false); return; }
+        if (!res.ok || data.error) {
+          setError(data.error || "Registration failed.");
+          setLoading(false);
+          return;
+        }
         onLogin(data.token, data.customer, true);
-      } catch (e2) { setError("Unable to create account. Please try again."); setLoading(false); }
+      } catch (e2) {
+        setError("Unable to create account. Please try again.");
+        setLoading(false);
+      }
     };
-    return /* @__PURE__ */ React.createElement(AuthPageShell, {
-      goHome,
-      panelImage: "https://plus.unsplash.com/premium_photo-1661902468735-eabf780f8ff6?q=80&w=1471&auto=format&fit=crop",
-      panelEyebrow: "Marble \xb7 Luxury Bath",
-      panelHeadline: /* @__PURE__ */ React.createElement(React.Fragment, null, "One account, ", /* @__PURE__ */ React.createElement("em", null, "two paths"), "."),
-      panelSub: "If you\u2019re shopping for your own home, you\u2019ll be checking out in under a minute. If you\u2019re putting materials in other people\u2019s houses, the trade path unlocks pricing, a dedicated project manager, and the spec library."
-    },
-      /* @__PURE__ */ React.createElement("div", null,
+    return /* @__PURE__ */ React.createElement(
+      AuthPageShell,
+      {
+        goHome,
+        panelImage: "https://plus.unsplash.com/premium_photo-1661902468735-eabf780f8ff6?q=80&w=1471&auto=format&fit=crop",
+        panelEyebrow: "Marble \xB7 Luxury Bath",
+        panelHeadline: /* @__PURE__ */ React.createElement(React.Fragment, null, "One account, ", /* @__PURE__ */ React.createElement("em", null, "two paths"), "."),
+        panelSub: "If you\u2019re shopping for your own home, you\u2019ll be checking out in under a minute. If you\u2019re putting materials in other people\u2019s houses, the trade path unlocks pricing, a dedicated project manager, and the spec library."
+      },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        null,
         /* @__PURE__ */ React.createElement("div", { className: "auth-eyebrow" }, "Create your account"),
         /* @__PURE__ */ React.createElement("h1", { className: "auth-title" }, "Pick a path")
       ),
       error && /* @__PURE__ */ React.createElement("div", { className: "auth-error" }, error),
-      /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gap: 10 } },
-        /* @__PURE__ */ React.createElement("label", { className: "auth-path-option" + (path === "homeowner" ? " selected" : ""), onClick: () => setPath("homeowner") },
-          /* @__PURE__ */ React.createElement("span", { className: "auth-path-radio" },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { style: { display: "grid", gap: 10 } },
+        /* @__PURE__ */ React.createElement(
+          "label",
+          { className: "auth-path-option" + (path === "homeowner" ? " selected" : ""), onClick: () => setPath("homeowner") },
+          /* @__PURE__ */ React.createElement(
+            "span",
+            { className: "auth-path-radio" },
             path === "homeowner" && /* @__PURE__ */ React.createElement("span", { className: "auth-path-radio-dot" })
           ),
-          /* @__PURE__ */ React.createElement("div", null,
+          /* @__PURE__ */ React.createElement(
+            "div",
+            null,
             /* @__PURE__ */ React.createElement("div", { className: "auth-path-title" }, "Homeowner"),
             /* @__PURE__ */ React.createElement("div", { className: "auth-path-sub" }, "Shopping for your own home. 30-second sign-up.")
           ),
           /* @__PURE__ */ React.createElement("span", { className: "auth-path-tag", style: { color: "var(--gold)", borderColor: "rgba(168,121,53,0.33)" } }, "Fast")
         ),
-        /* @__PURE__ */ React.createElement("label", { className: "auth-path-option" + (path === "trade" ? " selected" : ""), onClick: () => setPath("trade") },
-          /* @__PURE__ */ React.createElement("span", { className: "auth-path-radio" },
+        /* @__PURE__ */ React.createElement(
+          "label",
+          { className: "auth-path-option" + (path === "trade" ? " selected" : ""), onClick: () => setPath("trade") },
+          /* @__PURE__ */ React.createElement(
+            "span",
+            { className: "auth-path-radio" },
             path === "trade" && /* @__PURE__ */ React.createElement("span", { className: "auth-path-radio-dot" })
           ),
-          /* @__PURE__ */ React.createElement("div", null,
+          /* @__PURE__ */ React.createElement(
+            "div",
+            null,
             /* @__PURE__ */ React.createElement("div", { className: "auth-path-title" }, "Trade pro"),
             /* @__PURE__ */ React.createElement("div", { className: "auth-path-sub" }, "Designer, contractor, builder, installer. Goes through application.")
           ),
           /* @__PURE__ */ React.createElement("span", { className: "auth-path-tag", style: { color: "var(--warm-muted)", borderColor: "rgba(138,126,104,0.33)" } }, "Apply")
         )
       ),
-      path === "homeowner" ? /* @__PURE__ */ React.createElement(React.Fragment, null,
+      path === "homeowner" ? /* @__PURE__ */ React.createElement(
+        React.Fragment,
+        null,
         /* @__PURE__ */ React.createElement(GoogleSignInButton, { onCredentialResponse: handleGoogleCredential }),
         googleError && /* @__PURE__ */ React.createElement("div", { className: "auth-error" }, googleError),
         googleLoading && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: "0.8125rem", color: "var(--stone-500)" } }, "Signing in with Google\u2026"),
-        /* @__PURE__ */ React.createElement("div", { className: "auth-divider" },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { className: "auth-divider" },
           /* @__PURE__ */ React.createElement("span", { className: "auth-divider-line" }),
           "or sign up with email",
           /* @__PURE__ */ React.createElement("span", { className: "auth-divider-line" })
         ),
-        /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, style: { display: "grid", gap: 18 } },
-          /* @__PURE__ */ React.createElement("div", { className: "auth-field-2col" },
-            /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+        /* @__PURE__ */ React.createElement(
+          "form",
+          { onSubmit: handleSubmit, style: { display: "grid", gap: 18 } },
+          /* @__PURE__ */ React.createElement(
+            "div",
+            { className: "auth-field-2col" },
+            /* @__PURE__ */ React.createElement(
+              "div",
+              { className: "auth-field" },
               /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "First name"),
               /* @__PURE__ */ React.createElement("input", { type: "text", value: firstName, onChange: (e) => setFirstName(e.target.value), placeholder: "First", required: true, autoComplete: "given-name" })
             ),
-            /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+            /* @__PURE__ */ React.createElement(
+              "div",
+              { className: "auth-field" },
               /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Last name"),
               /* @__PURE__ */ React.createElement("input", { type: "text", value: lastName, onChange: (e) => setLastName(e.target.value), placeholder: "Last", required: true, autoComplete: "family-name" })
             )
           ),
-          /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+          /* @__PURE__ */ React.createElement(
+            "div",
+            { className: "auth-field" },
             /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Email"),
             /* @__PURE__ */ React.createElement("input", { type: "email", value: email, onChange: (e) => setEmail(e.target.value), placeholder: "you@example.com", required: true, autoComplete: "email" })
           ),
-          /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+          /* @__PURE__ */ React.createElement(
+            "div",
+            { className: "auth-field" },
             /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Password"),
-            /* @__PURE__ */ React.createElement("div", { className: "auth-field-row" },
+            /* @__PURE__ */ React.createElement(
+              "div",
+              { className: "auth-field-row" },
               /* @__PURE__ */ React.createElement("input", { type: "password", value: password, onChange: (e) => setPassword(e.target.value), required: true, autoComplete: "new-password" }),
               /* @__PURE__ */ React.createElement("span", { className: "auth-field-hint" }, "8+ chars, 1 uppercase, 1 number")
             )
           ),
-          /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gap: 14 } },
-            /* @__PURE__ */ React.createElement("label", { className: "auth-checkbox", onClick: (e) => { e.preventDefault(); setNewsletter(!newsletter); } },
-              /* @__PURE__ */ React.createElement("span", { className: "auth-checkbox-box" + (newsletter ? " checked" : "") },
+          /* @__PURE__ */ React.createElement(
+            "div",
+            { style: { display: "grid", gap: 14 } },
+            /* @__PURE__ */ React.createElement(
+              "label",
+              { className: "auth-checkbox", onClick: (e) => {
+                e.preventDefault();
+                setNewsletter(!newsletter);
+              } },
+              /* @__PURE__ */ React.createElement(
+                "span",
+                { className: "auth-checkbox-box" + (newsletter ? " checked" : "") },
                 newsletter && /* @__PURE__ */ React.createElement("span", { className: "auth-checkbox-check" }, "\u2713")
               ),
               /* @__PURE__ */ React.createElement("span", null, "Send me Roma\u2019s monthly field guide \u2014 install math, new arrivals, showroom notes. No daily emails. Unsubscribe whenever.")
             ),
             /* @__PURE__ */ React.createElement("button", { type: "submit", className: "auth-cta", disabled: loading }, loading ? "Creating account\u2026" : "Create my account \u2192"),
-            /* @__PURE__ */ React.createElement("div", { className: "auth-terms" },
-              "By signing up you agree to Roma\u2019s ", /* @__PURE__ */ React.createElement("a", null, "Terms of service"),
-              " and acknowledge our ", /* @__PURE__ */ React.createElement("a", null, "privacy practices"), "."
+            /* @__PURE__ */ React.createElement(
+              "div",
+              { className: "auth-terms" },
+              "By signing up you agree to Roma\u2019s ",
+              /* @__PURE__ */ React.createElement("a", null, "Terms of service"),
+              " and acknowledge our ",
+              /* @__PURE__ */ React.createElement("a", null, "privacy practices"),
+              "."
             )
           )
         )
-      ) : /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gap: 18, paddingTop: 12, borderTop: "0.5px solid rgba(28,25,23,0.13)" } },
+      ) : /* @__PURE__ */ React.createElement(
+        "div",
+        { style: { display: "grid", gap: 18, paddingTop: 12, borderTop: "0.5px solid rgba(28,25,23,0.13)" } },
         /* @__PURE__ */ React.createElement("p", { className: "auth-subtitle" }, "The trade application takes about 5 minutes. You\u2019ll need your business license and a brief description of your work."),
         /* @__PURE__ */ React.createElement("button", { type: "button", className: "auth-cta", onClick: () => navigate("/trade") }, "Start trade application \u2192")
       ),
-      /* @__PURE__ */ React.createElement("div", { className: "auth-link-row" },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { className: "auth-link-row" },
         /* @__PURE__ */ React.createElement("span", null, "Already have an account?"),
         /* @__PURE__ */ React.createElement("a", { className: "auth-link", onClick: () => navigate("/signin") }, "Sign in \u2192")
       )
     );
   }
-
-  // ── Set Password Page (welcome email flow) ──
   function SetPasswordPage({ onLogin, goHome, navigate }) {
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -8191,7 +8319,10 @@
     const handleSubmit = async (e) => {
       e.preventDefault();
       setError("");
-      if (newPassword !== confirmPassword) { setError("Passwords do not match."); return; }
+      if (newPassword !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
       if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
         setError("Password must be at least 8 characters with 1 uppercase letter and 1 number.");
         return;
@@ -8217,44 +8348,59 @@
         if (data.token && data.customer) {
           onLogin(data.token, data.customer, true);
         }
-      } catch (e2) { setError("Something went wrong. Please try again."); setLoading(false); }
+      } catch (e2) {
+        setError("Something went wrong. Please try again.");
+        setLoading(false);
+      }
     };
-    return /* @__PURE__ */ React.createElement(AuthPageShell, {
-      goHome,
-      panelImage: "https://images.unsplash.com/photo-1659362549741-c32157cc71f4?q=80&w=1471&auto=format&fit=crop",
-      panelEyebrow: "Colonnata \xb7 Massa-Carrara, Italy",
-      panelHeadline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your order is in. ", /* @__PURE__ */ React.createElement("em", null, "Now make it yours"), "."),
-      panelSub: "Set a password to track your order, view invoices, reorder materials, and message your rep \u2014 all from one account."
-    },
-      /* @__PURE__ */ React.createElement("div", null,
+    return /* @__PURE__ */ React.createElement(
+      AuthPageShell,
+      {
+        goHome,
+        panelImage: "https://images.unsplash.com/photo-1659362549741-c32157cc71f4?q=80&w=1471&auto=format&fit=crop",
+        panelEyebrow: "Colonnata \xB7 Massa-Carrara, Italy",
+        panelHeadline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your order is in. ", /* @__PURE__ */ React.createElement("em", null, "Now make it yours"), "."),
+        panelSub: "Set a password to track your order, view invoices, reorder materials, and message your rep \u2014 all from one account."
+      },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        null,
         /* @__PURE__ */ React.createElement("div", { className: "auth-eyebrow" }, "Welcome to Roma"),
         /* @__PURE__ */ React.createElement("h1", { className: "auth-title" }, "Set your password")
       ),
       /* @__PURE__ */ React.createElement("p", { className: "auth-subtitle" }, "Your account was created when you visited our showroom. Set a password to view your orders and manage your account online."),
       error && /* @__PURE__ */ React.createElement("div", { className: "auth-error" }, error),
-      expired ? /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gap: 18 } },
+      expired ? /* @__PURE__ */ React.createElement(
+        "div",
+        { style: { display: "grid", gap: 18 } },
         /* @__PURE__ */ React.createElement("div", { className: "auth-error" }, "This link has expired. You can create a password by signing up with the same email address used for your order."),
         /* @__PURE__ */ React.createElement("button", { type: "button", className: "auth-cta", onClick: () => navigate("/signup") }, "Create account \u2192")
-      ) : /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, style: { display: "grid", gap: 18 } },
-        /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+      ) : /* @__PURE__ */ React.createElement(
+        "form",
+        { onSubmit: handleSubmit, style: { display: "grid", gap: 18 } },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { className: "auth-field" },
           /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "New password"),
           /* @__PURE__ */ React.createElement("input", { type: "password", value: newPassword, onChange: (e) => setNewPassword(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", required: true, autoComplete: "new-password" })
         ),
-        /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { className: "auth-field" },
           /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Confirm password"),
           /* @__PURE__ */ React.createElement("input", { type: "password", value: confirmPassword, onChange: (e) => setConfirmPassword(e.target.value), placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", required: true, autoComplete: "new-password" })
         ),
         /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.75rem", color: "var(--stone-500)", margin: 0 } }, "8+ characters, 1 uppercase letter, 1 number"),
         /* @__PURE__ */ React.createElement("button", { type: "submit", className: "auth-cta", disabled: loading }, loading ? "Setting password\u2026" : "Set password \u2192")
       ),
-      /* @__PURE__ */ React.createElement("div", { className: "auth-link-row" },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { className: "auth-link-row" },
         /* @__PURE__ */ React.createElement("span", null, "Already have a password?"),
         /* @__PURE__ */ React.createElement("a", { className: "auth-link", onClick: () => navigate("/signin") }, "Sign in \u2192")
       )
     );
   }
-
-  // ── Forgot Password Full Page ──
   function ForgotPasswordFullPage({ goHome, navigate }) {
     const [email, setEmail] = useState("");
     const [error, setError] = useState("");
@@ -8271,48 +8417,74 @@
           body: JSON.stringify({ email })
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.error) { setError(data.error || "Unable to send reset email."); setLoading(false); return; }
+        if (!res.ok || data.error) {
+          setError(data.error || "Unable to send reset email.");
+          setLoading(false);
+          return;
+        }
         setSent(true);
         setLoading(false);
-      } catch (e2) { setError("Unable to send reset email. Please try again."); setLoading(false); }
+      } catch (e2) {
+        setError("Unable to send reset email. Please try again.");
+        setLoading(false);
+      }
     };
-    return /* @__PURE__ */ React.createElement(AuthPageShell, {
-      goHome,
-      panelImage: "https://images.unsplash.com/photo-1661107259637-4e1c55462428?q=80&w=1471&auto=format&fit=crop",
-      panelEyebrow: "Stone Tile \xb7 Modern Bath",
-      panelHeadline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Locked out? ", /* @__PURE__ */ React.createElement("em", null, "We\u2019ll send a link"), "."),
-      panelSub: "Your cart, quotes, and project files stay safe in the meantime. The reset link expires in 30 minutes \u2014 if you don\u2019t see it, check the spam folder or write to Sales@romaflooringdesigns.com."
-    },
-      /* @__PURE__ */ React.createElement("div", null,
+    return /* @__PURE__ */ React.createElement(
+      AuthPageShell,
+      {
+        goHome,
+        panelImage: "https://images.unsplash.com/photo-1661107259637-4e1c55462428?q=80&w=1471&auto=format&fit=crop",
+        panelEyebrow: "Stone Tile \xB7 Modern Bath",
+        panelHeadline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Locked out? ", /* @__PURE__ */ React.createElement("em", null, "We\u2019ll send a link"), "."),
+        panelSub: "Your cart, quotes, and project files stay safe in the meantime. The reset link expires in 30 minutes \u2014 if you don\u2019t see it, check the spam folder or write to Sales@romaflooringdesigns.com."
+      },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        null,
         /* @__PURE__ */ React.createElement("div", { className: "auth-eyebrow" }, "Reset password"),
         /* @__PURE__ */ React.createElement("h1", { className: "auth-title" }, "Forgot it?", /* @__PURE__ */ React.createElement("br", null), "Happens.")
       ),
       /* @__PURE__ */ React.createElement("p", { className: "auth-subtitle" }, "Enter the email on your Roma account. We\u2019ll send a reset link that\u2019s good for 30 minutes."),
       error && /* @__PURE__ */ React.createElement("div", { className: "auth-error" }, error),
-      /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, style: { display: "grid", gap: 18 } },
-        /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+      /* @__PURE__ */ React.createElement(
+        "form",
+        { onSubmit: handleSubmit, style: { display: "grid", gap: 18 } },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { className: "auth-field" },
           /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Account email"),
           /* @__PURE__ */ React.createElement("input", { type: "email", value: email, onChange: (e) => setEmail(e.target.value), placeholder: "you@example.com", required: true, autoComplete: "email" })
         ),
         /* @__PURE__ */ React.createElement("button", { type: "submit", className: "auth-cta", disabled: loading || sent }, loading ? "Sending\u2026" : "Send reset link \u2192")
       ),
-      sent && /* @__PURE__ */ React.createElement("div", { className: "auth-confirm-banner" },
+      sent && /* @__PURE__ */ React.createElement(
+        "div",
+        { className: "auth-confirm-banner" },
         /* @__PURE__ */ React.createElement("span", { className: "auth-confirm-icon" }, "\u2713"),
-        /* @__PURE__ */ React.createElement("div", null,
+        /* @__PURE__ */ React.createElement(
+          "div",
+          null,
           /* @__PURE__ */ React.createElement("div", { className: "auth-confirm-title" }, "Reset link sent to " + email),
-          /* @__PURE__ */ React.createElement("div", { className: "auth-confirm-sub" }, "Check your inbox. Didn\u2019t arrive within 5 minutes? ",
-            /* @__PURE__ */ React.createElement("a", { onClick: () => { setSent(false); setLoading(false); } }, "Resend"),
+          /* @__PURE__ */ React.createElement(
+            "div",
+            { className: "auth-confirm-sub" },
+            "Check your inbox. Didn\u2019t arrive within 5 minutes? ",
+            /* @__PURE__ */ React.createElement("a", { onClick: () => {
+              setSent(false);
+              setLoading(false);
+            } }, "Resend"),
             " or check spam."
           )
         )
       ),
-      /* @__PURE__ */ React.createElement("div", { className: "auth-link-row" },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { className: "auth-link-row" },
         /* @__PURE__ */ React.createElement("a", { className: "auth-link", onClick: () => navigate("/signin") }, "\u2190 Back to sign in"),
         /* @__PURE__ */ React.createElement("a", { className: "auth-link", onClick: () => window.location.href = "mailto:Sales@romaflooringdesigns.com" }, "Write to support \u2192")
       )
     );
   }
-
   function CustomerAuthModal({ onClose, onLogin, initialMode }) {
     const [mode, setMode] = useState(initialMode || "login");
     const [email, setEmail] = useState("");
@@ -8651,12 +8823,12 @@
           setLoading(false);
           return;
         }
+        setSuccess(true);
         window.history.replaceState({}, "", window.location.pathname);
         if (data.token && data.customer && onLogin) {
           onLogin(data.token, data.customer, true);
           return;
         }
-        setSuccess(true);
       } catch (e2) {
         setError("Something went wrong.");
       }

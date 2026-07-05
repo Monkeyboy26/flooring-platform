@@ -4,7 +4,7 @@ import {
   upsertInventorySnapshot,
   appendLog, addJobError,
   downloadImage, upsertMediaAsset, resolveImageExtension,
-  deslugify, buildVariantName, preferProductShot, filterImageUrls,
+  deslugify, buildVariantName, filterImageUrls,
   isLifestyleUrl
 } from './base.js';
 import { BASE_URL } from './arizona-auth.js';
@@ -39,6 +39,8 @@ function reParamWidenUrl(url) {
   u = u.replace(/[?&]position=[a-z]+/gi, '');
   // Ensure quality param
   if (!/[?&]quality=/.test(u)) u += '&quality=80';
+  // Strip x.app portal tracking param — causes intermittent 404/placeholder from CDN
+  u = u.replace(/[?&]x\.app=[^&]*/gi, '');
   // Clean up dangling ampersands
   u = u.replace(/[&]+/g, '&').replace(/\?&/, '?').replace(/&$/, '');
   return u;
@@ -56,18 +58,23 @@ function normalizeWidenUrls(urls) {
 
 /**
  * Filter out Widen CDN placeholder images ("Preview Not Available").
- * Placeholders are ~8,016 bytes (caught by filename filter in normalizeWidenUrls).
- * Minimal product shots (single tile on white) compress to 6-8KB at 765×765.
- * Uses HEAD requests to check Content-Length, rejects ≤ 4,000 bytes.
+ * The CDN returns HTTP 404 with `x-widen-error: resource unavailable` and an
+ * 8,016-byte PNG placeholder for missing/removed assets.  Also rejects images
+ * ≤ 4,000 bytes (corrupted or blank thumbnails).
  */
+const WIDEN_PLACEHOLDER_BYTES = 8016; // "Preview Not Available" PNG placeholder size
+
 async function filterWidenPlaceholders(urls) {
   if (!urls || urls.length === 0) return [];
   const checks = await Promise.allSettled(urls.map(async (url) => {
     if (!url.includes('.widen.net')) return { url, ok: true };
     try {
       const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return { url, ok: false };
       const len = parseInt(res.headers.get('content-length') || '0', 10);
-      return { url, ok: len > 4000 };
+      // Reject small/corrupt images AND the known 8,016-byte placeholder
+      if (len > 0 && len <= WIDEN_PLACEHOLDER_BYTES) return { url, ok: false };
+      return { url, ok: true };
     } catch { return { url, ok: false }; }
   }));
   return checks
@@ -283,6 +290,25 @@ function resolveSellBy(pimSlug, accessory, parsedSoldBy) {
   if (accessory) return 'unit';
   if (pimSlug && UNIT_CATEGORIES.has(pimSlug)) return 'unit';
   return parsedSoldBy || 'box';
+}
+
+// Derive sell_by + cost + price_basis from a price-list entry.
+// Sheet/each items that ship in full boxes (mosaics, stack panels, deco tile)
+// sell by the box at per-sqft pricing — cost converts from per-piece to per-sqft
+// via Sf/Pc. True per-piece items (trim — no box coverage) and slabs keep the
+// vendor's unit.
+function planFromPriceList(plEntry, catSlug) {
+  const perPiece = plEntry.unit === 'EA' || plEntry.unit === 'SHT';
+  const boxable = plEntry.sfPerPc > 0 && plEntry.sfPerBox > 0;
+  if (boxable) {
+    return {
+      sellBy: 'box',
+      cost: perPiece ? Math.round((plEntry.netPrice / plEntry.sfPerPc) * 100) / 100 : plEntry.netPrice,
+      priceBasis: 'per_sqft',
+    };
+  }
+  const sellBy = (perPiece || (catSlug && UNIT_CATEGORIES.has(catSlug))) ? 'unit' : 'box';
+  return { sellBy, cost: plEntry.netPrice, priceBasis: perPiece ? 'per_unit' : 'per_sqft' };
 }
 
 function isAccessory(title, description) {
@@ -604,16 +630,15 @@ export async function run(pool, job, source) {
               : null;
 
             if (plEntry) {
-              const cost = plEntry.netPrice;
-              const sellBy = (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'unit' : 'box';
+              const plan = planFromPriceList(plEntry, null);
               // Keep sell_by in sync with price list unit so price suffix matches
-              if (skuRec.sell_by !== sellBy) {
-                await pool.query('UPDATE skus SET sell_by = $1, updated_at = NOW() WHERE id = $2', [sellBy, skuId]);
+              if (skuRec.sell_by !== plan.sellBy) {
+                await pool.query('UPDATE skus SET sell_by = $1, updated_at = NOW() WHERE id = $2', [plan.sellBy, skuId]);
               }
               await upsertPricing(pool, skuId, {
-                cost,
-                retail_price: Math.round(cost * 2 * 100) / 100,
-                price_basis: sellBy === 'unit' ? 'per_unit' : 'per_sqft',
+                cost: plan.cost,
+                retail_price: Math.round(plan.cost * 2 * 100) / 100,
+                price_basis: plan.priceBasis,
               });
               stats.pricingUpdated++;
             }
@@ -636,15 +661,14 @@ export async function run(pool, job, source) {
           const plEntry = priceList ? priceList.lookup(collectionName, null, null, null) : null;
 
           if (plEntry) {
-            const cost = plEntry.netPrice;
-            const sellBy = (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'unit' : 'box';
-            if (skuRec.sell_by !== sellBy) {
-              await pool.query('UPDATE skus SET sell_by = $1, updated_at = NOW() WHERE id = $2', [sellBy, skuId]);
+            const plan = planFromPriceList(plEntry, null);
+            if (skuRec.sell_by !== plan.sellBy) {
+              await pool.query('UPDATE skus SET sell_by = $1, updated_at = NOW() WHERE id = $2', [plan.sellBy, skuId]);
             }
             await upsertPricing(pool, skuId, {
-              cost,
-              retail_price: Math.round(cost * 2 * 100) / 100,
-              price_basis: sellBy === 'unit' ? 'per_unit' : 'per_sqft',
+              cost: plan.cost,
+              retail_price: Math.round(plan.cost * 2 * 100) / 100,
+              price_basis: plan.priceBasis,
             });
             stats.pricingUpdated++;
           }
@@ -971,16 +995,16 @@ export async function run(pool, job, source) {
               if (cvImg) productPrimaryCandidates.push(reParamWidenUrl(cvImg));
             }
             // Deduplicate and filter placeholders
-            productPrimaryCandidates = [...new Set(productPrimaryCandidates)]
-              .filter(u => !/coming-soon/i.test(u));
+            productPrimaryCandidates = await filterWidenPlaceholders(
+              filterImageUrls([...new Set(productPrimaryCandidates)]
+                .filter(u => !/coming-soon/i.test(u)))
+            );
             // For mosaics, prefer non-field-tile images; keep field-tile as last resort
             if (isMosaicCtx) {
               const mosaicOnly = productPrimaryCandidates.filter(u => !isFieldTileUrl(u));
               if (mosaicOnly.length > 0) productPrimaryCandidates = mosaicOnly;
             }
-            // Sort to prefer product shots over lifestyle images
-            productPrimaryCandidates = preferProductShot(productPrimaryCandidates, effectiveName);
-            // Sibling propagation: if best candidate is lifestyle, use color group's product shot
+            // Sibling propagation: if first candidate is lifestyle, use color group's product shot
             if (colorBestProductShot && productPrimaryCandidates.length > 0 && isLifestyleUrl(productPrimaryCandidates[0], effectiveName)) {
               productPrimaryCandidates.unshift(colorBestProductShot);
             } else if (colorBestProductShot && productPrimaryCandidates.length === 0) {
@@ -1029,14 +1053,8 @@ export async function run(pool, job, source) {
                 : null;
 
               // Determine sell_by from price list unit or fallback
-              let sellBy;
-              if (plEntry) {
-                const unit = plEntry.unit;
-                if (unit === 'EA' || unit === 'SHT' || UNIT_CATEGORIES.has(effectiveCatSlug)) sellBy = 'unit';
-                else sellBy = 'box';
-              } else {
-                sellBy = resolveSellBy(effectiveCatSlug, accessory, detail.soldBy);
-              }
+              const plPlan = plEntry ? planFromPriceList(plEntry, effectiveCatSlug) : null;
+              const sellBy = plPlan ? plPlan.sellBy : resolveSellBy(effectiveCatSlug, accessory, detail.soldBy);
 
               const sku = await upsertSku(pool, {
                 product_id: product.id,
@@ -1049,12 +1067,11 @@ export async function run(pool, job, source) {
               if (sku.is_new) stats.skusCreated++;
 
               // ── Pricing: price list only (no WC fallback — "Call for Price" if no match) ──
-              if (plEntry) {
-                const cost = plEntry.netPrice;
+              if (plPlan) {
                 await upsertPricing(pool, sku.id, {
-                  cost,
-                  retail_price: Math.round(cost * 2 * 100) / 100,
-                  price_basis: (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'per_unit' : 'per_sqft',
+                  cost: plPlan.cost,
+                  retail_price: Math.round(plPlan.cost * 2 * 100) / 100,
+                  price_basis: plPlan.priceBasis,
                 });
                 stats.priceListHits++;
               } else {
@@ -1123,15 +1140,9 @@ export async function run(pool, job, source) {
 
               // If gallery is empty, fall back to variation.image (skip placeholders)
               if (allVarImages.length === 0 && varImage && !/coming-soon/i.test(varImage)) {
-                allVarImages.push(reParamWidenUrl(varImage));
+                const fallback = await filterWidenPlaceholders([reParamWidenUrl(varImage)]);
+                if (fallback.length > 0) allVarImages.push(fallback[0]);
               }
-
-              // Sort product shots before lifestyle images so primary is a clean product shot
-              allVarImages = preferProductShot(allVarImages, effectiveName, {
-                productName: effectiveName,
-                size: v.attributes?.attribute_pa_size || '',
-                finish: v.attributes?.attribute_pa_finishes || '',
-              });
 
               // Sibling propagation: if primary is a lifestyle image but a sibling variant
               // in the same color group has a product shot, use that instead
@@ -1144,7 +1155,7 @@ export async function run(pool, job, source) {
               for (let gi = 0; gi < allVarImages.length && gi < MAX_GALLERY_IMAGES; gi++) {
                 const imgUrl = allVarImages[gi];
                 const isLife = isLifestyleUrl(imgUrl);
-                const assetType = gi === 0 ? 'primary'
+                const assetType = gi === 0 && !isLife ? 'primary'
                   : (isLife || gi > 2) ? 'lifestyle'
                   : 'alternate';
                 await upsertMediaAsset(pool, {
@@ -1176,16 +1187,15 @@ export async function run(pool, job, source) {
           else stats.updated++;
           touchedProductIds.push(product.id);
 
-          // Product-level primary image (sorted by preferProductShot, placeholders removed)
+          // Product-level primary image (filtered, vendor gallery order preserved)
           const simpleFiltered = await filterWidenPlaceholders(filterImageUrls(normalizeWidenUrls(galleryFlat)));
-          const simpleSorted = preferProductShot(simpleFiltered, apiProduct.title);
-          if (simpleSorted.length > 0) {
+          if (simpleFiltered.length > 0) {
             await upsertMediaAsset(pool, {
               product_id: product.id,
               sku_id: null,
               asset_type: 'primary',
-              url: simpleSorted[0],
-              original_url: simpleSorted[0],
+              url: simpleFiltered[0],
+              original_url: simpleFiltered[0],
               sort_order: 0,
             });
             stats.imagesSet++;
@@ -1206,24 +1216,23 @@ export async function run(pool, job, source) {
           if (gaugeEntries.length > 1) {
             for (const entry of gaugeEntries) {
               const gauge = entry.normalizedGauge; // e.g. "2CM", "3CM"
-              const entrySellBy = (entry.unit === 'EA' || entry.unit === 'SHT' || UNIT_CATEGORIES.has(pimCatSlug)) ? 'unit' : 'box';
+              const entryPlan = planFromPriceList(entry, pimCatSlug);
 
               const sku = await upsertSku(pool, {
                 product_id: product.id,
                 vendor_sku: `${apiProduct.wpId}-${gauge}`,
                 internal_sku: `AZT-${apiProduct.wpId}-${gauge}`,
                 variant_name: gauge,
-                sell_by: entrySellBy,
+                sell_by: entryPlan.sellBy,
                 ...(accessory && { variant_type: 'accessory' }),
               });
               if (sku.is_new) stats.skusCreated++;
 
               // Pricing per gauge
-              const cost = entry.netPrice;
               await upsertPricing(pool, sku.id, {
-                cost,
-                retail_price: Math.round(cost * 2 * 100) / 100,
-                price_basis: (entry.unit === 'EA' || entry.unit === 'SHT') ? 'per_unit' : 'per_sqft',
+                cost: entryPlan.cost,
+                retail_price: Math.round(entryPlan.cost * 2 * 100) / 100,
+                price_basis: entryPlan.priceBasis,
               });
               stats.priceListHits++;
 
@@ -1239,9 +1248,9 @@ export async function run(pool, job, source) {
               await upsertSkuAttribute(pool, sku.id, 'thickness', gauge);
             }
             // Images at product level only (sku_id: null) — API falls back to product-level media
-            if (simpleSorted.length > 0) {
-              for (let gi = 0; gi < simpleSorted.length; gi++) {
-                const imgUrl = simpleSorted[gi];
+            if (simpleFiltered.length > 0) {
+              for (let gi = 0; gi < simpleFiltered.length; gi++) {
+                const imgUrl = simpleFiltered[gi];
                 const isLife = isLifestyleUrl(imgUrl);
                 let assetType;
                 if (gi === 0) assetType = 'primary';
@@ -1261,14 +1270,8 @@ export async function run(pool, job, source) {
             }
           } else {
             // Single SKU path (non-slab, or slab with only one gauge)
-            let sellBy;
-            if (plEntry) {
-              const unit = plEntry.unit;
-              if (unit === 'EA' || unit === 'SHT' || UNIT_CATEGORIES.has(pimCatSlug)) sellBy = 'unit';
-              else sellBy = 'box';
-            } else {
-              sellBy = resolveSellBy(pimCatSlug, accessory, detail.soldBy);
-            }
+            const plPlan = plEntry ? planFromPriceList(plEntry, pimCatSlug) : null;
+            const sellBy = plPlan ? plPlan.sellBy : resolveSellBy(pimCatSlug, accessory, detail.soldBy);
 
             const sku = await upsertSku(pool, {
               product_id: product.id,
@@ -1281,12 +1284,11 @@ export async function run(pool, job, source) {
             if (sku.is_new) stats.skusCreated++;
 
             // ── Pricing: price list only (no WC fallback — "Call for Price" if no match) ──
-            if (plEntry) {
-              const cost = plEntry.netPrice;
+            if (plPlan) {
               await upsertPricing(pool, sku.id, {
-                cost,
-                retail_price: Math.round(cost * 2 * 100) / 100,
-                price_basis: (plEntry.unit === 'EA' || plEntry.unit === 'SHT') ? 'per_unit' : 'per_sqft',
+                cost: plPlan.cost,
+                retail_price: Math.round(plPlan.cost * 2 * 100) / 100,
+                price_basis: plPlan.priceBasis,
               });
               stats.priceListHits++;
             } else {
@@ -1327,10 +1329,10 @@ export async function run(pool, job, source) {
             // ── All spec attributes ──
             await upsertAllSpecAttributes(pool, sku.id, detail.specs, detail.technicalSpecs);
 
-            // ── Images (sorted by preferProductShot, filtered by filterImageUrls) ──
-            if (simpleSorted.length > 0) {
-              for (let gi = 0; gi < simpleSorted.length; gi++) {
-                const imgUrl = simpleSorted[gi];
+            // ── Images (vendor gallery order preserved, filtered by filterImageUrls) ──
+            if (simpleFiltered.length > 0) {
+              for (let gi = 0; gi < simpleFiltered.length; gi++) {
+                const imgUrl = simpleFiltered[gi];
                 const isLife = isLifestyleUrl(imgUrl);
                 let assetType;
                 if (gi === 0) assetType = 'primary';
@@ -1432,10 +1434,11 @@ export async function run(pool, job, source) {
       await appendLog(pool, job.id, `Promoted ${promoted}/${missingPrimary.rows.length} SKUs missing primary image`);
     }
 
-    // ── Phase 5: Audit primary images — flag likely non-product-shots ──
+    // ── Phase 5: Audit & fix primary images — demote lifestyle primaries ──
     await appendLog(pool, job.id, 'Phase 5: Auditing primary images...');
     const primaryRows = await pool.query(`
-      SELECT ma.url, s.internal_sku, p.name as product_name, p.collection
+      SELECT ma.id as media_id, ma.url, ma.product_id, ma.sku_id,
+             s.internal_sku, p.name as product_name, p.collection
       FROM media_assets ma
       JOIN skus s ON s.id = ma.sku_id
       JOIN products p ON p.id = ma.product_id
@@ -1445,26 +1448,55 @@ export async function run(pool, job, source) {
 
     const suspects = [];
     for (const row of primaryRows.rows) {
-      const filename = row.url.split('/').pop().split('?')[0];
       if (isLifestyleUrl(row.url, row.product_name)) {
-        suspects.push({
-          sku: row.internal_sku,
-          product: `${row.collection} – ${row.product_name}`,
-          filename,
-        });
+        suspects.push(row);
       }
     }
 
     if (suspects.length > 0) {
       await appendLog(pool, job.id,
-        `Primary image audit: ${suspects.length}/${primaryRows.rows.length} have lifestyle primary`
+        `Primary image audit: ${suspects.length}/${primaryRows.rows.length} have lifestyle primary — fixing...`
       );
-      for (const s of suspects.slice(0, 50)) {
-        await appendLog(pool, job.id, `  ${s.sku} (${s.product}): ${s.filename}`);
+      let fixed = 0, keptAsOnly = 0;
+      for (const s of suspects) {
+        // Check if there's a non-lifestyle alternate we can promote
+        const alt = await pool.query(`
+          SELECT id, url FROM media_assets
+          WHERE sku_id = $1 AND asset_type IN ('alternate', 'lifestyle')
+            AND id != $2
+          ORDER BY sort_order
+        `, [s.sku_id, s.media_id]);
+
+        const goodAlt = alt.rows.find(r => !isLifestyleUrl(r.url, s.product_name));
+        if (goodAlt) {
+          // Swap asset_type AND sort_order to avoid unique constraint violations
+          // on (product_id, sku_id, asset_type, sort_order)
+          await pool.query(`
+            WITH old_primary AS (
+              SELECT id, asset_type, sort_order FROM media_assets WHERE id = $1
+            ), new_primary AS (
+              SELECT id, asset_type, sort_order FROM media_assets WHERE id = $2
+            )
+            UPDATE media_assets SET
+              asset_type = CASE id
+                WHEN $1 THEN (SELECT asset_type FROM new_primary)
+                WHEN $2 THEN (SELECT asset_type FROM old_primary)
+              END,
+              sort_order = CASE id
+                WHEN $1 THEN (SELECT sort_order FROM new_primary)
+                WHEN $2 THEN (SELECT sort_order FROM old_primary)
+              END
+            WHERE id IN ($1, $2)
+          `, [s.media_id, goodAlt.id]);
+          fixed++;
+        } else {
+          // No product shot available — keep lifestyle as primary (better than nothing)
+          keptAsOnly++;
+        }
       }
-      if (suspects.length > 50) {
-        await appendLog(pool, job.id, `  ... and ${suspects.length - 50} more`);
-      }
+      await appendLog(pool, job.id,
+        `Primary image audit: fixed ${fixed}, kept ${keptAsOnly} (no product shot available)`
+      );
     } else {
       await appendLog(pool, job.id, `Primary image audit: all ${primaryRows.rows.length} primaries are product shots`);
     }
