@@ -1,60 +1,38 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import {
   delay, upsertProduct, upsertSku,
   upsertSkuAttribute, upsertPackaging, upsertPricing,
   upsertInventorySnapshot,
   appendLog, addJobError, upsertMediaAsset,
-  buildVariantName, preferProductShot, isLifestyleUrl,
-  saveSkuImages, saveProductImages, filterImageUrls,
+  buildVariantName, isLifestyleUrl,
+  saveSkuImages, saveProductImages,
 } from './base.js';
 import { elysiumLogin, elysiumFetch, BASE_URL } from './elysium-auth.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ──────────────────────────────────────────────
 // Constants
 // ──────────────────────────────────────────────
 
-const DEFAULT_CSV_PATH = path.resolve(__dirname, '../data/elysium-pricelist.csv');
-
 const DEFAULT_CONFIG = {
-  csvPath: DEFAULT_CSV_PATH,
-  mode: 'full',         // 'full' | 'inventory'
-  delayMs: 1500,
-  batchSize: 3,
-  skipEnrichment: false,
+  delayMs: 2000,        // delay between detail-page batches — keep well under the portal's rate limit
+  batchSize: 2,         // concurrent detail page fetches
+  deepDay: 0,           // day of week (0 = Sunday) for full re-enrichment of existing SKUs
+  deep: false,          // force full enrichment for every SKU this run
+  maxDeactivate: 600,   // safety cap: skip absence-based deactivation above this count
 };
 
-// Max gallery images per SKU
 const MAX_GALLERY_IMAGES = 8;
 
-// ── Type Classification ──
-
-const TYPE_CATEGORY_MAP = {
-  'porcelain tile': 'porcelain-tile',
-  'ceramic tile':   'ceramic-tile',
-  'spc':            'lvp-plank',
-  'paver':          'pavers',
-  // slab, quartzite, quartz, granite, marble — skipped (not carried)
-  'mosaic':         'mosaic-tile',
-  'porcelain mosaic': 'mosaic-tile',
-  'ceramic mosaic': 'mosaic-tile',
-};
-
-const TRIM_TYPES = new Set([
-  'porcelain trim', 'ceramic trim', 'spct', 'porcelain deco',
-]);
-
-const MOSAIC_TYPES = new Set([
-  'mosaic', 'porcelain mosaic', 'ceramic mosaic',
-]);
-
-// Types to skip entirely (not carried by Roma Flooring)
-const SKIP_TYPES = new Set([
-  'slab', 'quartzite', 'quartz', 'granite', 'marble', 'marble slab',
-]);
+// Site categories crawled daily. `carried: false` categories (slabs) only get
+// price/inventory updates on existing SKUs — no new products are created.
+const CATEGORY_SOURCES = [
+  { name: 'Mosaic',                  type: 'Mosaic',                  slug: 'mosaic-tile',    carried: true },
+  { name: 'Porcelain Tile',          type: 'Porcelain+Tile',          slug: 'porcelain-tile', carried: true },
+  { name: 'SPC Vinyl',               type: 'SPC+Vinyl',               slug: 'lvp-plank',      carried: true },
+  { name: 'Ceramic Tile',            type: 'Ceramic+Tile',            slug: 'ceramic-tile',   carried: true },
+  { name: 'Marble Tile',             type: 'Marble+Tile',             slug: 'natural-stone',  carried: true },
+  { name: 'Marble Slab',             type: 'Marble+Slab',             slug: null,             carried: false },
+  { name: 'Thin Porcelain Slab 6mm', type: 'Thin+Porcelain+Slab+6mm', slug: null,             carried: false },
+];
 
 // Collections that are wood-look porcelain → category 'wood-look-tile' instead of 'porcelain-tile'
 const WOOD_LOOK_COLLECTIONS = new Set([
@@ -83,7 +61,6 @@ const FINISH_WORDS = [
   'Silk', 'Glossy', 'Leather',
 ];
 
-// Build regex: match one finish word at end, potentially repeated
 const FINISH_RE = new RegExp(
   `\\s+(${FINISH_WORDS.map(escapeRegex).join('|')})\\s*$`, 'i'
 );
@@ -179,17 +156,12 @@ function scoreElysiumImages(urls, colorHint, productName) {
   }
 
   // Sort clean images: prefer low trailing file numbers (product shots)
-  // If an image has no trailing number, keep it in its original relative position
-  // among images without numbers.
   clean.sort((a, b) => {
     const numA = getTrailingNumber(a);
     const numB = getTrailingNumber(b);
-    // Both have numbers: lower number wins
     if (numA !== null && numB !== null) return numA - numB;
-    // Only one has a number: numbered files come first (they're catalog images)
     if (numA !== null) return -1;
     if (numB !== null) return 1;
-    // Neither has a number: preserve original gallery order
     return 0;
   });
 
@@ -222,109 +194,7 @@ function stripTags(str) {
 }
 
 // ──────────────────────────────────────────────
-// A1. Parse CSV
-// ──────────────────────────────────────────────
-
-/**
- * Load and parse the Elysium CSV price list.
- * Returns array of structured row objects.
- */
-function loadCsvPriceList(csvPath) {
-  const raw = fs.readFileSync(csvPath, 'utf-8');
-  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-
-  // Find the header line
-  const headerIdx = lines.findIndex(l => l.startsWith('Item Code,'));
-  if (headerIdx < 0) throw new Error('CSV header line not found');
-
-  const rows = [];
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    const line = lines[i];
-    // Simple CSV split — the Elysium CSV has no embedded commas in quoted fields
-    const cols = line.split(',');
-    if (cols.length < 7) continue;
-
-    const itemCode = cols[0].trim();
-    const itemName = cols[1].trim();
-    const collection = cols[2].trim();
-    const priceStr = cols[3].trim();
-    const per = cols[4].trim().toLowerCase();
-    const type = cols[5].trim().toLowerCase();
-    const sizeRaw = cols[6].trim();
-    const packagingStr = cols[7] ? cols[7].trim() : '';
-    const sfPerPc = cols[8] ? cols[8].trim() : '';
-    const saleStr = cols[9] ? cols[9].trim() : '';
-    const msrpStr = cols[10] ? cols[10].trim() : '';
-    const poolRatedStr = cols[11] ? cols[11].trim() : '';
-
-    if (!itemCode || !itemName) continue;
-    if (type === 'type') continue; // header row duplicate
-
-    // Parse price
-    const cost = parseFloat(priceStr) || 0;
-    const msrp = parseFloat(msrpStr) || (cost > 0 ? cost * 2 : 0);
-
-    // Parse packaging: "6pc / 15.5sf" → { piecesPerBox: 6, sqftPerBox: 15.5 }
-    let piecesPerBox = null;
-    let sqftPerBox = null;
-    const pkgMatch = packagingStr.match(/(\d+)pc\s*\/\s*([\d.]+)sf/i);
-    if (pkgMatch) {
-      piecesPerBox = parseInt(pkgMatch[1]) || null;
-      sqftPerBox = parseFloat(pkgMatch[2]) || null;
-    }
-
-    // Parse sf/pc (square feet per piece, for sheet-sold mosaics)
-    const sqftPerPiece = parseFloat(sfPerPc) || null;
-
-    // Normalize size: strip quotes/inch marks
-    const sizeNormalized = sizeRaw
-      .replace(/["″'']/g, '')
-      .replace(/\s*[xX×]\s*/g, ' x ')
-      .trim();
-
-    // Map per → sell_by and price_basis
-    let sellBy = 'box';
-    let priceBasis = 'per_sqft';
-    if (per === 'sh' || per === 'pc' || per === 'set') {
-      sellBy = 'unit';
-      priceBasis = 'per_unit';
-    }
-
-    rows.push({
-      itemCode,
-      itemName,
-      collection,
-      cost,
-      per,
-      type,
-      sizeRaw: sizeNormalized,
-      piecesPerBox,
-      sqftPerBox,
-      sqftPerPiece,
-      sellBy,
-      priceBasis,
-      msrp,
-      onSale: saleStr.toLowerCase() === 'yes',
-      poolRated: poolRatedStr.toLowerCase() === 'yes',
-    });
-  }
-
-  return rows;
-}
-
-// ──────────────────────────────────────────────
-// A2. Type Classification
-// ──────────────────────────────────────────────
-
-function classifyCsvType(type) {
-  const isTrim = TRIM_TYPES.has(type);
-  const isMosaic = MOSAIC_TYPES.has(type);
-  const categorySlug = TYPE_CATEGORY_MAP[type] || null;
-  return { isTrim, isMosaic, categorySlug };
-}
-
-// ──────────────────────────────────────────────
-// A3. Name Parsing
+// Item name parsing
 // ──────────────────────────────────────────────
 
 /**
@@ -332,8 +202,10 @@ function classifyCsvType(type) {
  *
  * Strategy: strip trailing size, strip collection prefix, extract accessory keyword,
  * extract mosaic label, extract trailing finish words, remainder = color name.
+ * Accessory keywords and mosaic labels are always attempted — they self-identify
+ * trims and mosaic variants regardless of which listing category they came from.
  */
-function parseItemName(itemName, collection, type) {
+function parseItemName(itemName, collection) {
   let name = itemName;
 
   // 1. Strip trailing size
@@ -345,40 +217,33 @@ function parseItemName(itemName, collection, type) {
     name = name.replace(re, '');
   }
 
-  // 3. Extract accessory keyword (for trims)
+  // 3. Extract accessory keyword (self-identifies trims)
   let accessoryKeyword = null;
-  const isTrim = TRIM_TYPES.has(type);
-  if (isTrim) {
-    for (const kw of ACCESSORY_KEYWORDS) {
-      const kwRe = new RegExp(`\\s+${escapeRegex(kw)}\\s*$`, 'i');
-      if (kwRe.test(name)) {
-        accessoryKeyword = kw;
-        name = name.replace(kwRe, '').trim();
-        break;
-      }
-      // Also try in the middle of the name (before finish)
-      const kwMidRe = new RegExp(`\\s+${escapeRegex(kw)}(?=\\s|$)`, 'i');
-      if (kwMidRe.test(name)) {
-        accessoryKeyword = kw;
-        name = name.replace(kwMidRe, ' ').trim();
-        break;
-      }
+  for (const kw of ACCESSORY_KEYWORDS) {
+    const kwRe = new RegExp(`\\s+${escapeRegex(kw)}\\s*$`, 'i');
+    if (kwRe.test(name)) {
+      accessoryKeyword = kw;
+      name = name.replace(kwRe, '').trim();
+      break;
+    }
+    // Also try in the middle of the name (before finish)
+    const kwMidRe = new RegExp(`\\s+${escapeRegex(kw)}(?=\\s|$)`, 'i');
+    if (kwMidRe.test(name)) {
+      accessoryKeyword = kw;
+      name = name.replace(kwMidRe, ' ').trim();
+      break;
     }
   }
 
-  // 4. Extract mosaic label
+  // 4. Extract mosaic label ("Mosaic 2 x 2" or trailing "Mosaic")
   let mosaicLabel = null;
-  const isMosaic = MOSAIC_TYPES.has(type);
-  if (isMosaic) {
-    // "Mosaic 2 x 2" or just "Mosaic"
-    const mosaicMatch = name.match(/\s+Mosaic(?:\s+(\d+\.?\d*\s*x\s*\d+\.?\d*))?\s*$/i);
-    if (mosaicMatch) {
-      mosaicLabel = mosaicMatch[1] ? `Mosaic ${mosaicMatch[1].trim()}` : 'Mosaic';
-      name = name.replace(mosaicMatch[0], '').trim();
-    }
+  const mosaicMatch = name.match(/\s+Mosaic(?:\s+(\d+\.?\d*\s*x\s*\d+\.?\d*))?\s*$/i);
+  if (mosaicMatch) {
+    mosaicLabel = mosaicMatch[1] ? `Mosaic ${mosaicMatch[1].trim()}` : 'Mosaic';
+    name = name.replace(mosaicMatch[0], '').trim();
   }
 
-  // 5. Strip parenthetical codes first (e.g., "(HAO210)", "(Silica Free)")
+  // 5. Strip parenthetical codes (e.g., "(HAO210)", "(Silica Free)")
   name = name.replace(/\s*\([^)]+\)\s*$/, '').trim();
 
   // 6. Strip paver/slab qualifiers that aren't finishes
@@ -386,7 +251,7 @@ function parseItemName(itemName, collection, type) {
   name = name.replace(/\s+3cm\s*$/i, '').trim();
   name = name.replace(/\s+6MM\s*$/i, '').trim();
 
-  // 7. Extract trailing finish words (may be multiple, e.g. "Matte Bullnose" → only finish left)
+  // 7. Extract trailing finish words (may be multiple)
   const finishes = [];
   let m;
   while ((m = name.match(FINISH_RE)) !== null) {
@@ -402,683 +267,9 @@ function parseItemName(itemName, collection, type) {
 }
 
 // ──────────────────────────────────────────────
-// A4. Product Grouping
+// Detail page parser
 // ──────────────────────────────────────────────
 
-/**
- * Group CSV rows into product groups, separating trims and mosaics.
- *
- * Groups field tiles by collection + color ONLY — finish becomes part of
- * the variant name so "Ivory Matte 12x24" and "Ivory Polished 24x48"
- * live under one product "Ivory" with variant pills for each size+finish.
- *
- * Returns { products: Map, trimRows: [], mosaicRows: [] }
- * products Map key: "collection|colorName" (lowercase)
- * products Map value: { collection, colorName, categorySlug, skus: CsvRow[] }
- */
-function buildProductGroups(csvRows) {
-  const products = new Map();
-  const trimRows = [];
-  const mosaicRows = [];
-
-  let skippedCount = 0;
-  for (const row of csvRows) {
-    if (SKIP_TYPES.has(row.type)) { skippedCount++; continue; }
-    const { isTrim, isMosaic, categorySlug } = classifyCsvType(row.type);
-    const { colorName, finish, accessoryKeyword, mosaicLabel } = parseItemName(
-      row.itemName, row.collection, row.type
-    );
-
-    // Attach parsed fields to row for later use
-    row._colorName = colorName;
-    row._finish = finish;
-    row._accessoryKeyword = accessoryKeyword;
-    row._mosaicLabel = mosaicLabel;
-    row._categorySlug = categorySlug;
-
-    if (isTrim) {
-      trimRows.push(row);
-      continue;
-    }
-
-    if (isMosaic) {
-      mosaicRows.push(row);
-      continue;
-    }
-
-    // Override category for wood-look porcelain collections
-    let finalCategorySlug = categorySlug;
-    if (categorySlug === 'porcelain-tile' &&
-        WOOD_LOOK_COLLECTIONS.has((row.collection || '').toLowerCase())) {
-      finalCategorySlug = 'wood-look-tile';
-    }
-
-    // Field tile / slab / SPC / stone → group by collection + color (finish is per-SKU)
-    const key = `${(row.collection || '').toLowerCase()}|${colorName.toLowerCase()}`;
-    if (!products.has(key)) {
-      products.set(key, {
-        collection: row.collection,
-        colorName,
-        categorySlug: finalCategorySlug,
-        skus: [],
-      });
-    }
-    products.get(key).skus.push(row);
-  }
-
-  return { products, trimRows, mosaicRows, skippedCount };
-}
-
-/**
- * Match mosaics to parent field tile products.
- * Returns { matched: [{row, parentKey}], orphans: [] }
- */
-function matchMosaicsToParents(mosaicRows, productsMap) {
-  const matched = [];
-  const orphans = [];
-
-  for (const row of mosaicRows) {
-    const coll = (row.collection || '').toLowerCase();
-    const color = row._colorName.toLowerCase();
-
-    // Direct match: collection + color
-    const parentKey = `${coll}|${color}`;
-    if (productsMap.has(parentKey)) {
-      matched.push({ row, parentKey });
-    } else {
-      orphans.push(row);
-    }
-  }
-
-  return { matched, orphans };
-}
-
-// ──────────────────────────────────────────────
-// A5. Create Products/SKUs from CSV
-// ──────────────────────────────────────────────
-
-/**
- * Upsert products and SKUs from grouped CSV data.
- * Returns productMap: Map<productKey, { productId, skuIds: Map<itemCode, skuId> }>
- */
-async function createProductsFromCsv(pool, productsMap, vendor_id, categoryLookup, job) {
-  const productMap = new Map();
-  let groupIdx = 0;
-  const total = productsMap.size;
-
-  for (const [key, group] of productsMap) {
-    try {
-      const { collection, colorName, categorySlug, skus } = group;
-      const categoryId = categorySlug ? (categoryLookup.get(categorySlug) || null) : null;
-
-      // Product name: just the color (finish lives on each SKU variant)
-      const productName = colorName;
-
-      const product = await upsertProduct(pool, {
-        vendor_id,
-        name: productName,
-        collection: collection || '',
-        category_id: categoryId,
-      });
-
-      const skuIds = new Map();
-
-      for (const row of skus) {
-        const internalSku = `ELY-${row.itemCode}`;
-
-        // variant_name = size + finish (e.g., "12 x 24, Matte")
-        const variantName = buildVariantName(row.sizeRaw, row._finish);
-
-        const sku = await upsertSku(pool, {
-          product_id: product.id,
-          vendor_sku: row.itemCode,
-          internal_sku: internalSku,
-          variant_name: variantName,
-          sell_by: row.sellBy,
-        });
-
-        skuIds.set(row.itemCode, sku.id);
-
-        // Pricing
-        await upsertPricing(pool, sku.id, {
-          cost: row.cost,
-          retail_price: row.msrp,
-          price_basis: row.priceBasis,
-        });
-
-        // Packaging
-        if (row.piecesPerBox || row.sqftPerBox) {
-          await upsertPackaging(pool, sku.id, {
-            pieces_per_box: row.piecesPerBox,
-            sqft_per_box: row.sqftPerBox,
-          });
-        }
-
-        // Pricing (CSV cost + MSRP)
-        if (row.cost > 0) {
-          await upsertPricing(pool, sku.id, {
-            cost: row.cost,
-            retail_price: row.msrp || Math.round(row.cost * 2 * 100) / 100,
-            price_basis: row.priceBasis || 'per_sqft',
-          });
-        }
-
-        // SKU Attributes
-        if (row._colorName) await upsertSkuAttribute(pool, sku.id, 'color', row._colorName);
-        if (row._finish) await upsertSkuAttribute(pool, sku.id, 'finish', row._finish);
-        if (row.sizeRaw) await upsertSkuAttribute(pool, sku.id, 'size', row.sizeRaw);
-        if (row.type) await upsertSkuAttribute(pool, sku.id, 'material', row.type);
-        if (row.poolRated) await upsertSkuAttribute(pool, sku.id, 'pool_rated', 'Yes');
-      }
-
-      productMap.set(key, { productId: product.id, skuIds, productName, collection });
-    } catch (err) {
-      await addJobError(pool, job.id, `Product group ${key}: ${err.message}`);
-    }
-
-    groupIdx++;
-    if (groupIdx % 100 === 0 || groupIdx === total) {
-      await appendLog(pool, job.id, `CSV product upsert: ${groupIdx}/${total}`, {
-        products_created: groupIdx,
-      });
-    }
-  }
-
-  return productMap;
-}
-
-// ──────────────────────────────────────────────
-// A6. Attach Accessories
-// ──────────────────────────────────────────────
-
-/**
- * Attach trim rows as accessories to parent products.
- * Returns stats { attached, standalone }.
- */
-async function attachTrimAccessories(pool, productsMap, productMap, trimRows, vendor_id, categoryLookup, job) {
-  let attached = 0;
-  let standalone = 0;
-  const standaloneProductIds = [];
-
-  for (const row of trimRows) {
-    try {
-      const coll = (row.collection || '').toLowerCase();
-      const color = row._colorName.toLowerCase();
-
-      // Direct match: collection + color
-      const parentKey = `${coll}|${color}`;
-      let parentData = productMap.get(parentKey);
-
-      if (parentData) {
-        // Create as accessory SKU under parent product
-        const internalSku = `ELY-${row.itemCode}`;
-        const accLabel = row._accessoryKeyword || 'Trim';
-        const variantName = accLabel + (row.sizeRaw ? ` ${row.sizeRaw}` : '');
-
-        const sku = await upsertSku(pool, {
-          product_id: parentData.productId,
-          vendor_sku: row.itemCode,
-          internal_sku: internalSku,
-          variant_name: variantName,
-          sell_by: row.sellBy,
-          variant_type: 'accessory',
-        });
-
-        // Set accessory_label
-        await pool.query(
-          'UPDATE skus SET accessory_label = $1 WHERE id = $2',
-          [accLabel, sku.id]
-        );
-
-        // Pricing
-        await upsertPricing(pool, sku.id, {
-          cost: row.cost,
-          retail_price: row.msrp,
-          price_basis: row.priceBasis,
-        });
-
-        // Packaging
-        if (row.piecesPerBox || row.sqftPerBox) {
-          await upsertPackaging(pool, sku.id, {
-            pieces_per_box: row.piecesPerBox,
-            sqft_per_box: row.sqftPerBox,
-          });
-        }
-
-        // Pricing (CSV cost + MSRP)
-        if (row.cost > 0) {
-          await upsertPricing(pool, sku.id, {
-            cost: row.cost,
-            retail_price: row.msrp || Math.round(row.cost * 2 * 100) / 100,
-            price_basis: row.priceBasis || 'per_unit',
-          });
-        }
-
-        // Link to all parent SKUs via sku_accessories
-        for (const [, parentSkuId] of parentData.skuIds) {
-          await pool.query(`
-            INSERT INTO sku_accessories (parent_sku_id, accessory_sku_id, sort_order)
-            VALUES ($1, $2, 0)
-            ON CONFLICT (parent_sku_id, accessory_sku_id) DO NOTHING
-          `, [parentSkuId, sku.id]);
-        }
-
-        attached++;
-      } else {
-        // No parent found — create as standalone product
-        const { categorySlug } = classifyCsvType(row.type);
-        // SPCT = SPC transition pieces (quarter round, reducer, etc.) → transitions-moldings
-        // Other trims → porcelain-tile fallback
-        const catSlug = categorySlug || (row.type === 'spct' ? 'transitions-moldings' : 'porcelain-tile');
-        const categoryId = categoryLookup.get(catSlug) || null;
-        const product = await upsertProduct(pool, {
-          vendor_id,
-          name: row._colorName,
-          collection: row.collection || '',
-          category_id: categoryId,
-        });
-
-        const internalSku = `ELY-${row.itemCode}`;
-        const accLabel = row._accessoryKeyword || 'Trim';
-        const variantName = accLabel + (row.sizeRaw ? ` ${row.sizeRaw}` : '');
-
-        const sku = await upsertSku(pool, {
-          product_id: product.id,
-          vendor_sku: row.itemCode,
-          internal_sku: internalSku,
-          variant_name: variantName,
-          sell_by: row.sellBy,
-        });
-
-        await upsertPricing(pool, sku.id, {
-          cost: row.cost,
-          retail_price: row.msrp,
-          price_basis: row.priceBasis,
-        });
-
-        if (row.piecesPerBox || row.sqftPerBox) {
-          await upsertPackaging(pool, sku.id, {
-            pieces_per_box: row.piecesPerBox,
-            sqft_per_box: row.sqftPerBox,
-          });
-        }
-
-        // Pricing (CSV cost + MSRP)
-        if (row.cost > 0) {
-          await upsertPricing(pool, sku.id, {
-            cost: row.cost,
-            retail_price: row.msrp || Math.round(row.cost * 2 * 100) / 100,
-            price_basis: row.priceBasis || 'per_unit',
-          });
-        }
-
-        standaloneProductIds.push(product.id);
-        standalone++;
-        await appendLog(pool, job.id, `WARN: Trim ${row.itemCode} (${row.itemName}) — no parent found, created standalone`);
-      }
-    } catch (err) {
-      await addJobError(pool, job.id, `Trim ${row.itemCode}: ${err.message}`);
-    }
-  }
-
-  return { attached, standalone, standaloneProductIds };
-}
-
-/**
- * Attach matched mosaics as accessories, create orphans as standalone products.
- */
-async function attachMosaicAccessories(pool, productsMap, productMap, matchedMosaics, orphanMosaics, vendor_id, categoryLookup, job) {
-  let attached = 0;
-  let orphanCreated = 0;
-
-  // Matched mosaics → accessory under parent
-  for (const { row, parentKey } of matchedMosaics) {
-    try {
-      const parentData = productMap.get(parentKey);
-      if (!parentData) continue;
-
-      const internalSku = `ELY-${row.itemCode}`;
-      const accLabel = row._mosaicLabel || 'Mosaic';
-      const variantName = accLabel + (row.sizeRaw ? ` ${row.sizeRaw}` : '');
-
-      const sku = await upsertSku(pool, {
-        product_id: parentData.productId,
-        vendor_sku: row.itemCode,
-        internal_sku: internalSku,
-        variant_name: variantName,
-        sell_by: row.sellBy,
-        variant_type: 'accessory',
-      });
-
-      await pool.query(
-        'UPDATE skus SET accessory_label = $1 WHERE id = $2',
-        [accLabel, sku.id]
-      );
-
-      await upsertPricing(pool, sku.id, {
-        cost: row.cost,
-        retail_price: row.msrp,
-        price_basis: row.priceBasis,
-      });
-
-      if (row.piecesPerBox || row.sqftPerBox) {
-        await upsertPackaging(pool, sku.id, {
-          pieces_per_box: row.piecesPerBox,
-          sqft_per_box: row.sqftPerBox,
-        });
-      }
-
-      // Link to all parent SKUs
-      for (const [, parentSkuId] of parentData.skuIds) {
-        await pool.query(`
-          INSERT INTO sku_accessories (parent_sku_id, accessory_sku_id, sort_order)
-          VALUES ($1, $2, 0)
-          ON CONFLICT (parent_sku_id, accessory_sku_id) DO NOTHING
-        `, [parentSkuId, sku.id]);
-      }
-
-      attached++;
-    } catch (err) {
-      await addJobError(pool, job.id, `Mosaic acc ${row.itemCode}: ${err.message}`);
-    }
-  }
-
-  // Orphan mosaics → standalone products
-  const orphanEnrichItems = [];
-  for (const row of orphanMosaics) {
-    try {
-      const categoryId = categoryLookup.get('mosaic-tile') || null;
-
-      const product = await upsertProduct(pool, {
-        vendor_id,
-        name: row._colorName,
-        collection: row.collection || '',
-        category_id: categoryId,
-      });
-
-      const internalSku = `ELY-${row.itemCode}`;
-      const variantName = row.sizeRaw || null;
-
-      const sku = await upsertSku(pool, {
-        product_id: product.id,
-        vendor_sku: row.itemCode,
-        internal_sku: internalSku,
-        variant_name: variantName,
-        sell_by: row.sellBy,
-      });
-
-      await upsertPricing(pool, sku.id, {
-        cost: row.cost,
-        retail_price: row.msrp,
-        price_basis: row.priceBasis,
-      });
-
-      if (row.piecesPerBox || row.sqftPerBox) {
-        await upsertPackaging(pool, sku.id, {
-          pieces_per_box: row.piecesPerBox,
-          sqft_per_box: row.sqftPerBox,
-        });
-      }
-
-      // Pricing (CSV cost + MSRP)
-      if (row.cost > 0) {
-        await upsertPricing(pool, sku.id, {
-          cost: row.cost,
-          retail_price: row.msrp || Math.round(row.cost * 2 * 100) / 100,
-          price_basis: row.priceBasis || 'per_unit',
-        });
-      }
-
-      // Store mosaic-specific attributes
-      if (row._colorName) await upsertSkuAttribute(pool, sku.id, 'color', row._colorName);
-      if (row._finish) await upsertSkuAttribute(pool, sku.id, 'finish', row._finish);
-      if (row.sizeRaw) await upsertSkuAttribute(pool, sku.id, 'size', row.sizeRaw);
-      if (row.type) await upsertSkuAttribute(pool, sku.id, 'material', row.type);
-
-      // Collect for enrichment
-      orphanEnrichItems.push({
-        itemName: row.itemName,
-        itemCode: row.itemCode,
-        productId: product.id,
-        skuId: sku.id,
-        colorName: row._colorName,
-        collection: row.collection,
-        productKey: `orphan-mosaic-${row.itemCode}`,
-      });
-
-      orphanCreated++;
-    } catch (err) {
-      await addJobError(pool, job.id, `Mosaic orphan ${row.itemCode}: ${err.message}`);
-    }
-  }
-
-  return { attached, orphanCreated, orphanEnrichItems };
-}
-
-// ──────────────────────────────────────────────
-// Phase B: Website Enrichment
-// ──────────────────────────────────────────────
-
-/**
- * Build a list of items to enrich from the website.
- * Includes field tiles, orphan mosaics, and standalone trims.
- * Each size variant has its own Elysium detail page.
- *
- * @param {Map} productsMap - field tile product groups
- * @param {Map} productMap - product/SKU ID lookup
- * @param {Array} extraItems - additional {itemName, itemCode, productId, skuId, colorName, collection} entries
- */
-function buildEnrichmentList(productsMap, productMap, extraItems = []) {
-  const list = [];
-
-  for (const [key, group] of productsMap) {
-    const data = productMap.get(key);
-    if (!data) continue;
-
-    // Each SKU (size variant) has its own detail page on Elysium
-    for (const row of group.skus) {
-      const skuId = data.skuIds.get(row.itemCode);
-      if (!skuId) continue;
-      list.push({
-        itemName: row.itemName,
-        itemCode: row.itemCode,
-        productId: data.productId,
-        skuId,
-        colorName: row._colorName,
-        collection: row.collection,
-        productKey: key,
-      });
-    }
-  }
-
-  // Add orphan mosaics, standalone trims, etc.
-  for (const item of extraItems) {
-    list.push(item);
-  }
-
-  return list;
-}
-
-/**
- * Enrich products from website detail pages.
- * Fetches images, descriptions, specs, catalog PDFs.
- * Detects and marks discontinued products.
- */
-async function enrichFromWebsite(pool, cookies, enrichmentList, productMap, job, config) {
-  const batchSize = config.batchSize || 3;
-  const delayMs = config.delayMs || 1500;
-
-  // Track which products already have product-level images saved
-  const productImagesSaved = new Set();
-  // Track discontinued products
-  const discontinuedProductIds = new Set();
-
-  let fetchIdx = 0;
-  const total = enrichmentList.length;
-
-  await appendLog(pool, job.id, `Phase B: Enriching ${total} SKUs from website (batch ${batchSize})...`);
-
-  for (let batchStart = 0; batchStart < total; batchStart += batchSize) {
-    const batch = enrichmentList.slice(batchStart, batchStart + batchSize);
-
-    const batchPromises = batch.map(async (item) => {
-      try {
-        // Construct URL from item name
-        const encodedName = item.itemName.replace(/ /g, '+');
-        const detailUrl = `/product?id=${encodedName}`;
-
-        const resp = await elysiumFetch(detailUrl, cookies, {
-          signal: AbortSignal.timeout(30000),
-        });
-        const html = await resp.text();
-
-        if (!html.includes('product-title')) return;
-
-        // Discontinued check
-        const productTitleIdx = html.indexOf('product-title');
-        if (productTitleIdx > 0) {
-          const productInfoEnd = html.indexOf('<form action="/cart.php"');
-          const productArea = productInfoEnd > productTitleIdx
-            ? html.substring(productTitleIdx, productInfoEnd)
-            : html.substring(productTitleIdx, productTitleIdx + 2000);
-          if (/>\s*Discontinued\s*<\/(?:h[1-6]|div|span|p)/i.test(productArea) ||
-              /Discontinued on \d{4}/i.test(productArea) ||
-              /class="[^"]*discontinued/i.test(productArea)) {
-            // Mark product as discontinued
-            discontinuedProductIds.add(item.productId);
-            await pool.query(
-              `UPDATE products SET status = 'discontinued', updated_at = NOW() WHERE id = $1`,
-              [item.productId]
-            );
-            await pool.query(
-              `UPDATE skus SET status = 'inactive', updated_at = NOW() WHERE product_id = $1`,
-              [item.productId]
-            );
-            return;
-          }
-        }
-
-        const detail = parseDetailPage(html);
-
-        // ── Description (product-level, save once) ──
-        if (detail.description && !productImagesSaved.has(`desc-${item.productId}`)) {
-          await pool.query(
-            `UPDATE products SET description_long = COALESCE(description_long, $1),
-             description_short = COALESCE(description_short, $2),
-             updated_at = NOW() WHERE id = $3`,
-            [detail.description, detail.description.slice(0, 255), item.productId]
-          );
-          productImagesSaved.add(`desc-${item.productId}`);
-        }
-
-        // ── Catalog PDF (product-level, save once) ──
-        if (detail.catalogPdf && !productImagesSaved.has(`pdf-${item.productId}`)) {
-          const pdfUrl = detail.catalogPdf.startsWith('http')
-            ? detail.catalogPdf
-            : `${BASE_URL}${detail.catalogPdf}`;
-          await upsertMediaAsset(pool, {
-            product_id: item.productId,
-            sku_id: null,
-            asset_type: 'spec_pdf',
-            url: pdfUrl,
-            original_url: pdfUrl,
-            sort_order: 99,
-          });
-          productImagesSaved.add(`pdf-${item.productId}`);
-        }
-
-        // ── Specs / Technical Specs as SKU attributes ──
-        if (detail.specs.thickness) await upsertSkuAttribute(pool, item.skuId, 'thickness', detail.specs.thickness);
-        if (detail.specs.countryOfOrigin) await upsertSkuAttribute(pool, item.skuId, 'country', detail.specs.countryOfOrigin);
-        if (detail.specs.edge) await upsertSkuAttribute(pool, item.skuId, 'edge', detail.specs.edge);
-        if (detail.specs.look) await upsertSkuAttribute(pool, item.skuId, 'look', detail.specs.look);
-        if (detail.technicalSpecs.application) await upsertSkuAttribute(pool, item.skuId, 'application', detail.technicalSpecs.application);
-        if (detail.technicalSpecs.peiRating) await upsertSkuAttribute(pool, item.skuId, 'pei_rating', detail.technicalSpecs.peiRating);
-        if (detail.technicalSpecs.shadeVariation) await upsertSkuAttribute(pool, item.skuId, 'shade_variation', detail.technicalSpecs.shadeVariation);
-        if (detail.technicalSpecs.waterAbsorption) await upsertSkuAttribute(pool, item.skuId, 'water_absorption', detail.technicalSpecs.waterAbsorption);
-        if (detail.technicalSpecs.dcof) await upsertSkuAttribute(pool, item.skuId, 'dcof', detail.technicalSpecs.dcof);
-
-        // ── Packaging supplement (weight, pallet data from website) ──
-        if (detail.packaging && Object.keys(detail.packaging).length > 0) {
-          const pkg = detail.packaging;
-          await upsertPackaging(pool, item.skuId, {
-            weight_per_box_lbs: pkg.weightPerBox || null,
-            boxes_per_pallet: pkg.boxesPerPallet || null,
-            sqft_per_pallet: pkg.sqftPerPallet || null,
-            weight_per_pallet_lbs: pkg.weightPerPallet || null,
-          });
-        }
-
-        // ── Pricing (live site price is authoritative; overwrites the CSV seed) ──
-        if (detail.pricing.retailPerSqft) {
-          const elyCost = detail.pricing.retailPerSqft;
-          await upsertPricing(pool, item.skuId, {
-            cost: elyCost,
-            retail_price: Math.round(elyCost * 2 * 100) / 100,
-            price_basis: 'per_sqft',
-          });
-        }
-
-        // ── Inventory (CA warehouse) ──
-        if (detail.inventory.caSqft != null) {
-          await upsertInventorySnapshot(pool, item.skuId, 'CA', {
-            qty_on_hand_sqft: detail.inventory.caSqft,
-            qty_in_transit_sqft: detail.inventory.caInTransitSqft || 0,
-          });
-        }
-
-        // ── Images ──
-        const gallery = detail.galleryImages;
-        if (gallery.length > 0) {
-          // Collect image URLs, preferring /1000/ versions
-          const varUrls = gallery.map(img => {
-            const u = img.url1000 || img.url750;
-            return u.startsWith('http') ? u : `${BASE_URL}${u}`;
-          });
-
-          // Elysium-specific image sorting: their gallery often puts room scenes first.
-          // Score each image to prefer product-only shots.
-          const productName = `${item.colorName} ${item.collection || ''}`;
-          const sortedUrls = scoreElysiumImages(varUrls, item.colorName, productName);
-
-          // Save SKU-level images
-          await saveSkuImages(pool, item.productId, item.skuId, sortedUrls.slice(0, MAX_GALLERY_IMAGES), { productName });
-
-          // Product-level primary image (save once per product, from first enriched SKU)
-          if (!productImagesSaved.has(`img-${item.productId}`) && sortedUrls.length > 0) {
-            await saveProductImages(pool, item.productId, sortedUrls.slice(0, 4), { productName });
-            productImagesSaved.add(`img-${item.productId}`);
-          }
-        }
-      } catch (err) {
-        // Non-fatal: log and continue
-        if (fetchIdx < 10) {
-          await appendLog(pool, job.id, `WARN enrich ${item.itemCode}: ${err.message}`);
-        }
-      }
-    });
-
-    await Promise.all(batchPromises);
-    fetchIdx += batch.length;
-
-    if (fetchIdx % 150 < batchSize || fetchIdx === total) {
-      await appendLog(pool, job.id, `Enrich progress: ${fetchIdx}/${total} SKUs`);
-    }
-
-    await delay(delayMs);
-  }
-
-  return { discontinuedCount: discontinuedProductIds.size };
-}
-
-// ──────────────────────────────────────────────
-// Detail Page Parser (reused from original)
-// ──────────────────────────────────────────────
-
-/**
- * Parse a product detail page (authenticated).
- * Extracts images, description, specs, packaging, inventory, pricing, catalog PDF.
- */
 function parseDetailPage(html) {
   const result = {
     title: null,
@@ -1093,7 +284,7 @@ function parseDetailPage(html) {
     technicalSpecs: {},
     packaging: {},
     inventory: { caSqft: null, caInTransitSqft: 0 },
-    pricing: { retailPerSqft: null },
+    pricing: { price: null, per: null },
     soldBy: null,
   };
 
@@ -1222,18 +413,22 @@ function parseDetailPage(html) {
     }
   }
 
-  // ── Pricing ──
-  const priceMatch = html.match(/\$([\d.]+)\s*Per SqFt/i);
+  // ── Pricing ("$4.80 Per SqFt", "$17.28 Per Sheet", "$12.25 Per Piece") ──
+  const priceMatch = html.match(/\$([\d.,]+)\s*Per\s+(SqFt|Sheet|Piece|Pc|Set|Each)\b/i);
   if (priceMatch) {
-    result.pricing.retailPerSqft = parseFloat(priceMatch[1]) || null;
+    result.pricing.price = parseFloat(priceMatch[1].replace(/,/g, '')) || null;
+    result.pricing.per = priceMatch[2].toLowerCase() === 'sqft' ? 'sqft' : 'unit';
   }
 
   // ── Sold By ──
   const soldByMatch = html.match(/Product Sold By ([^<\n]+)/i);
   if (soldByMatch) {
     const raw = soldByMatch[1].trim().toLowerCase();
-    if (raw.includes('piece')) result.soldBy = 'unit';
-    else result.soldBy = 'box';
+    if (raw.includes('piece') || raw.includes('sheet') || raw.includes('set') || raw.includes('each')) {
+      result.soldBy = 'unit';
+    } else {
+      result.soldBy = 'box';
+    }
   }
 
   // ── Gallery images from id="img_N" tags ──
@@ -1277,7 +472,7 @@ function parseDetailPage(html) {
 }
 
 // ──────────────────────────────────────────────
-// Listing page parser (reused for inventory mode)
+// Listing page parser
 // ──────────────────────────────────────────────
 
 const LISTING_SIZE_RE = /^(.+?)\s+(\d+\.?\d*\s*x\s*\d+\.?\d*(?:\s*x\s*\d+\.?\d*)?)$/i;
@@ -1320,212 +515,55 @@ function parseListingPage(html, listingCategory) {
 }
 
 // ──────────────────────────────────────────────
-// Main run() function
+// Main run() — unified daily site-first pipeline
 // ──────────────────────────────────────────────
 
 /**
- * Elysium Tile scraper — CSV-first with website enrichment.
+ * Elysium Tile scraper — unified daily job, site-first (no price list).
  *
- * Modes (set via source.config.mode):
- *   'full'      — (default) CSV import + website enrichment
- *   'inventory' — Lightweight pass: fetches detail pages, updates inventory/pricing for existing SKUs
+ * Every run (daily):
+ *   - Crawls the regular category listings (which exclude discontinued items).
+ *   - Fetches every product detail page.
+ *   - Always updates pricing + CA inventory.
+ *   - Fully enriches (specs, packaging, images, description) any SKU that is
+ *     new to the DB, and ALL SKUs on the weekly deep day (Sunday by default).
+ *   - Activates seen products/SKUs; deactivates active SKUs no longer listed
+ *     (guarded: only when every category crawled cleanly, with a hard cap).
  *
- * Config options:
- *   csvPath: path to CSV price list (defaults to backend/data/elysium-pricelist.csv)
- *   skipEnrichment: true to skip Phase B (CSV-only import)
- *   delayMs: delay between batches (default 1500)
- *   batchSize: concurrent detail page fetches (default 3)
+ * Config: delayMs, batchSize, deepDay (0-6), deep (force full), maxDeactivate.
  */
 export async function run(pool, job, source) {
   const config = { ...DEFAULT_CONFIG, ...(source.config || {}) };
   const vendor_id = source.vendor_id;
-  const isInventoryMode = config.mode === 'inventory';
-
-  await appendLog(pool, job.id, `Mode: ${isInventoryMode ? 'INVENTORY' : 'FULL'}`);
-
-  // ── Inventory mode: unchanged legacy flow ──
-  if (isInventoryMode) {
-    await runInventoryMode(pool, job, source, config);
-    return;
-  }
-
-  // ── Full mode: CSV-first pipeline ──
+  const deepAll = config.deep === true || new Date().getDay() === config.deepDay;
 
   const stats = {
-    csvRows: 0, products: 0, skus: 0,
-    trimsAttached: 0, trimsStandalone: 0,
-    mosaicsAttached: 0, mosaicOrphans: 0,
-    enriched: 0, discontinued: 0, errors: 0,
+    entries: 0, skusSeen: 0, skusCreated: 0, deepEnriched: 0,
+    priced: 0, inventoried: 0, accessories: 0,
+    activatedProducts: 0, reactivatedSkus: 0, deactivatedSkus: 0,
+    errors: 0,
   };
 
-  // Ensure required attributes exist
-  const requiredAttrs = [
-    { name: 'Edge', slug: 'edge', display_order: 11 },
-    { name: 'Look', slug: 'look', display_order: 12 },
-    { name: 'Water Absorption', slug: 'water_absorption', display_order: 13 },
-    { name: 'DCOF', slug: 'dcof', display_order: 14 },
-    { name: 'Pool Rated', slug: 'pool_rated', display_order: 15 },
-  ];
-  for (const attr of requiredAttrs) {
-    await pool.query(`
-      INSERT INTO attributes (name, slug, display_order)
-      VALUES ($1, $2, $3) ON CONFLICT (slug) DO NOTHING
-    `, [attr.name, attr.slug, attr.display_order]);
-  }
+  await appendLog(pool, job.id, `Unified daily run — mode: ${deepAll ? 'DEEP (full enrichment)' : 'LIGHT (price/inventory + new items)'}`);
 
-  // Build category lookup
+  // Category lookup
   const categoryLookup = new Map();
   try {
     const catRows = await pool.query('SELECT id, slug FROM categories WHERE is_active = true');
     for (const row of catRows.rows) categoryLookup.set(row.slug, row.id);
   } catch {}
 
-  // ════════════════════════════════════════════
-  // Phase A: CSV Import
-  // ════════════════════════════════════════════
-
-  await appendLog(pool, job.id, `Phase A: Loading CSV from ${config.csvPath}...`);
-
-  let csvRows;
-  try {
-    csvRows = loadCsvPriceList(config.csvPath);
-  } catch (err) {
-    await addJobError(pool, job.id, `CSV load failed: ${err.message}`);
-    throw err;
-  }
-  stats.csvRows = csvRows.length;
-  await appendLog(pool, job.id, `Parsed ${csvRows.length} CSV rows`, { products_found: csvRows.length });
-
-  // A4: Group products, separate trims/mosaics
-  const { products: productsMap, trimRows, mosaicRows, skippedCount } = buildProductGroups(csvRows);
-  await appendLog(pool, job.id,
-    `Grouped: ${productsMap.size} products, ${trimRows.length} trims, ${mosaicRows.length} mosaics` +
-    (skippedCount ? `, ${skippedCount} skipped` : '')
-  );
-
-  // A4b: Match mosaics to parents
-  const { matched: matchedMosaics, orphans: orphanMosaics } = matchMosaicsToParents(mosaicRows, productsMap);
-  await appendLog(pool, job.id,
-    `Mosaics: ${matchedMosaics.length} matched to parents, ${orphanMosaics.length} orphans`
-  );
-
-  // A5: Create products and SKUs from CSV
-  await appendLog(pool, job.id, 'Creating products and SKUs from CSV...');
-  const productMap = await createProductsFromCsv(pool, productsMap, vendor_id, categoryLookup, job);
-  stats.products = productMap.size;
-  // Count total SKUs
-  for (const [, data] of productMap) stats.skus += data.skuIds.size;
-
-  await appendLog(pool, job.id, `Created ${stats.products} products, ${stats.skus} SKUs`);
-
-  // A6: Attach trims as accessories
-  await appendLog(pool, job.id, `Attaching ${trimRows.length} trims as accessories...`);
-  const trimStats = await attachTrimAccessories(pool, productsMap, productMap, trimRows, vendor_id, categoryLookup, job);
-  stats.trimsAttached = trimStats.attached;
-  stats.trimsStandalone = trimStats.standalone;
-  await appendLog(pool, job.id, `Trims: ${trimStats.attached} attached, ${trimStats.standalone} standalone`);
-
-  // A6b: Attach mosaics as accessories + create orphans
-  await appendLog(pool, job.id, `Attaching ${matchedMosaics.length} mosaics, creating ${orphanMosaics.length} orphans...`);
-  const mosaicStats = await attachMosaicAccessories(pool, productsMap, productMap, matchedMosaics, orphanMosaics, vendor_id, categoryLookup, job);
-  stats.mosaicsAttached = mosaicStats.attached;
-  stats.mosaicOrphans = mosaicStats.orphanCreated;
-  await appendLog(pool, job.id, `Mosaics: ${mosaicStats.attached} attached, ${mosaicStats.orphanCreated} orphans created`);
-
-  // ════════════════════════════════════════════
-  // Phase B: Website Enrichment
-  // ════════════════════════════════════════════
-
-  if (!config.skipEnrichment) {
-    await appendLog(pool, job.id, 'Phase B: Website enrichment...');
-
-    // Login
-    const cookies = await elysiumLogin(pool, job.id);
-
-    // Build enrichment list (field tiles + orphan mosaics)
-    const orphanItems = mosaicStats.orphanEnrichItems || [];
-    const enrichmentList = buildEnrichmentList(productsMap, productMap, orphanItems);
-    await appendLog(pool, job.id, `Enrichment list: ${enrichmentList.length} SKUs (${orphanItems.length} orphan mosaics)`);
-
-    const enrichResult = await enrichFromWebsite(pool, cookies, enrichmentList, productMap, job, config);
-    stats.discontinued = enrichResult.discontinuedCount;
-  } else {
-    await appendLog(pool, job.id, 'Phase B: SKIPPED (skipEnrichment = true)');
-  }
-
-  // ════════════════════════════════════════════
-  // Activate Products
-  // ════════════════════════════════════════════
-
-  // Include standalone trims and orphan mosaics — they are created as their own
-  // products and must be activated too, or they (and any SKUs re-parented onto
-  // them) disappear from the catalog.
-  const touchedProductIds = [...new Set([
-    ...[...productMap.values()].map(d => d.productId),
-    ...(trimStats.standaloneProductIds || []),
-    ...(mosaicStats.orphanEnrichItems || []).map(o => o.productId),
-  ])];
-  if (touchedProductIds.length > 0) {
-    const activateResult = await pool.query(
-      `UPDATE products SET status = 'active', updated_at = CURRENT_TIMESTAMP
-       WHERE id = ANY($1) AND status = 'draft'`,
-      [touchedProductIds]
-    );
-    await appendLog(pool, job.id, `Activated ${activateResult.rowCount} products`);
-  }
-
-  // ════════════════════════════════════════════
-  // Summary
-  // ════════════════════════════════════════════
-
-  await appendLog(pool, job.id,
-    `Scrape complete. CSV rows: ${stats.csvRows}, Products: ${stats.products}, SKUs: ${stats.skus}, ` +
-    `Trims attached: ${stats.trimsAttached} (${stats.trimsStandalone} standalone), ` +
-    `Mosaics attached: ${stats.mosaicsAttached} (${stats.mosaicOrphans} orphans), ` +
-    `Discontinued: ${stats.discontinued}`,
-    {
-      products_found: stats.csvRows,
-      products_created: stats.products,
-      skus_created: stats.skus,
-    }
-  );
-}
-
-// ──────────────────────────────────────────────
-// Inventory Mode (unchanged from original)
-// ──────────────────────────────────────────────
-
-const INVENTORY_CATEGORIES = [
-  { name: 'Mosaic', type: 'Mosaic' },
-  { name: 'Porcelain Tile', type: 'Porcelain+Tile' },
-  { name: 'SPC Vinyl', type: 'SPC+Vinyl' },
-  { name: 'Marble Slab', type: 'Marble+Slab' },
-  { name: 'Thin Porcelain Slab 6mm', type: 'Thin+Porcelain+Slab+6mm' },
-  { name: 'Ceramic Tile', type: 'Ceramic+Tile' },
-  { name: 'Marble Tile', type: 'Marble+Tile' },
-];
-
-async function runInventoryMode(pool, job, source, config) {
-  const stats = {
-    found: 0, inventoryUpdated: 0, pricingUpdated: 0, skipped: 0, errors: 0,
-  };
-
   const cookies = await elysiumLogin(pool, job.id);
 
-  // Build internal_sku → sku_id lookup
-  const existingSkus = await pool.query(`SELECT id, internal_sku FROM skus WHERE internal_sku LIKE 'ELY-%'`);
-  const skuLookup = new Map(existingSkus.rows.map(r => [r.internal_sku, r.id]));
-  await appendLog(pool, job.id, `Found ${skuLookup.size} existing ELY- SKUs in DB`);
-
-  // Collect listing entries
-  const allEntries = [];
+  // ── 1. Crawl category listings ──
+  const entries = [];
   const seenUrls = new Set();
+  let listingFailures = 0;
 
-  for (const cat of INVENTORY_CATEGORIES) {
+  for (const cat of CATEGORY_SOURCES) {
     try {
       let page = 1;
       let hasMore = true;
-
       while (hasMore) {
         const listUrl = `/category?type=${cat.type}&order_by=name&page=${page}`;
         const resp = await elysiumFetch(listUrl, cookies);
@@ -1535,7 +573,7 @@ async function runInventoryMode(pool, job, source, config) {
         for (const entry of cardEntries) {
           if (seenUrls.has(entry.url)) continue;
           seenUrls.add(entry.url);
-          allEntries.push(entry);
+          entries.push(entry);
         }
 
         const nextPageRegex = new RegExp(`page=(${page + 1})`, 'g');
@@ -1544,31 +582,37 @@ async function runInventoryMode(pool, job, source, config) {
         await delay(Math.floor(config.delayMs * 0.7));
       }
     } catch (err) {
-      await addJobError(pool, job.id, `Category ${cat.name}: ${err.message}`);
+      listingFailures++;
       stats.errors++;
+      await addJobError(pool, job.id, `Category ${cat.name}: ${err.message}`);
     }
   }
 
-  stats.found = allEntries.length;
-  await appendLog(pool, job.id, `Inventory: ${allEntries.length} entries found`);
+  stats.entries = entries.length;
+  await appendLog(pool, job.id, `Listings: ${entries.length} products across ${CATEGORY_SOURCES.length - listingFailures}/${CATEGORY_SOURCES.length} categories`, { products_found: entries.length });
 
-  // Fetch detail pages and update inventory/pricing
-  const batchSize = 5;
-  for (let batchStart = 0; batchStart < allEntries.length; batchStart += batchSize) {
-    const batch = allEntries.slice(batchStart, batchStart + batchSize);
+  // ── 2. Existing SKU map (internal_sku → sku row) ──
+  const existingRows = await pool.query(`
+    SELECT s.id, s.internal_sku, s.product_id
+    FROM skus s
+    JOIN products p ON p.id = s.product_id
+    WHERE p.vendor_id = $1 AND s.internal_sku IS NOT NULL
+  `, [vendor_id]);
+  const skuMap = new Map(existingRows.rows.map(r => [r.internal_sku, r]));
+  await appendLog(pool, job.id, `Found ${skuMap.size} existing Elysium SKUs in DB`);
 
-    const batchPromises = batch.map(async (entry) => {
-      try {
-        const resp = await elysiumFetch(entry.url, cookies, {
-          signal: AbortSignal.timeout(30000),
-        });
+  const catBySite = new Map(CATEGORY_SOURCES.map(c => [c.name, c]));
+
+  // ── 3. Process every entry ──
+  const seenSkuIds = [];
+  const touchedProductIds = new Set();
+  const accessoryProductIds = new Set();
+  const productLevelDone = new Set(); // `${kind}-${productId}` for once-per-product writes
+
+  const processEntry = async (entry) => {
+        const resp = await elysiumFetch(entry.url, cookies, { signal: AbortSignal.timeout(30000) });
         const html = await resp.text();
-
         if (!html.includes('product-title')) return;
-
-        // No discontinued check: the site's nav now shows a "Discontinued"
-        // category link on every page, and regular category listings (which
-        // this crawl walks) already exclude discontinued products.
 
         const detail = parseDetailPage(html);
 
@@ -1577,44 +621,258 @@ async function runInventoryMode(pool, job, source, config) {
           ? `ELY-${itemCode}`
           : `ELY-${entry.fullName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 25)}`;
 
-        const skuId = skuLookup.get(internalSku);
-        if (!skuId) return;
+        const existing = skuMap.get(internalSku);
+        const catSrc = catBySite.get(entry.listingCategory) || { carried: false, slug: null, name: entry.listingCategory };
+        if (!existing && !catSrc.carried) return; // don't create products for non-carried categories
 
+        const deep = deepAll || !existing;
+
+        // ── Name parsing / grouping ──
+        const collection = detail.collection || null;
+        const { colorName, finish, accessoryKeyword, mosaicLabel } = parseItemName(entry.fullName, collection);
+
+        let categorySlug = catSrc.slug;
+        if (categorySlug === 'porcelain-tile' && WOOD_LOOK_COLLECTIONS.has((collection || '').toLowerCase())) {
+          categorySlug = 'wood-look-tile';
+        }
+        const categoryId = categorySlug ? (categoryLookup.get(categorySlug) || null) : null;
+
+        const productName = (collection && !colorName.toLowerCase().startsWith(collection.toLowerCase()))
+          ? `${collection} ${colorName}`
+          : colorName;
+
+        const product = await upsertProduct(pool, {
+          vendor_id,
+          name: productName,
+          collection: collection || '',
+          category_id: categoryId,
+        });
+
+        // ── SKU ──
+        const variantName = accessoryKeyword
+          ? `${accessoryKeyword}${entry.size ? ' ' + entry.size : ''}`
+          : buildVariantName(entry.size, finish, mosaicLabel);
+        const sellBy = detail.soldBy || (mosaicLabel ? 'unit' : 'box');
+
+        const sku = await upsertSku(pool, {
+          product_id: product.id,
+          vendor_sku: itemCode || null,
+          internal_sku: internalSku,
+          variant_name: variantName,
+          sell_by: sellBy,
+          variant_type: accessoryKeyword ? 'accessory' : null,
+        });
+        if (sku.is_new) stats.skusCreated++;
+        if (accessoryKeyword) {
+          await pool.query('UPDATE skus SET accessory_label = $1 WHERE id = $2', [accessoryKeyword, sku.id]);
+          accessoryProductIds.add(product.id);
+        }
+
+        seenSkuIds.push(sku.id);
+        touchedProductIds.add(product.id);
+        skuMap.set(internalSku, { id: sku.id, internal_sku: internalSku, product_id: product.id });
+
+        // ── Always: pricing + inventory ──
+        if (detail.pricing.price) {
+          await upsertPricing(pool, sku.id, {
+            cost: detail.pricing.price,
+            retail_price: Math.round(detail.pricing.price * 2 * 100) / 100,
+            price_basis: detail.pricing.per === 'sqft' ? 'per_sqft' : 'per_unit',
+          });
+          stats.priced++;
+        }
         if (detail.inventory.caSqft != null) {
-          await upsertInventorySnapshot(pool, skuId, 'CA', {
+          await upsertInventorySnapshot(pool, sku.id, 'CA', {
             qty_on_hand_sqft: detail.inventory.caSqft,
             qty_in_transit_sqft: detail.inventory.caInTransitSqft || 0,
           });
-          stats.inventoryUpdated++;
+          stats.inventoried++;
         }
 
-        if (detail.pricing.retailPerSqft) {
-          const elyCost = detail.pricing.retailPerSqft;
-          await upsertPricing(pool, skuId, {
-            cost: elyCost,
-            retail_price: Math.round(elyCost * 2 * 100) / 100,
-            price_basis: 'per_sqft',
+        if (!deep) return;
+
+        // ── Deep enrichment: packaging, attributes, description, PDF, images ──
+        stats.deepEnriched++;
+
+        if (Object.keys(detail.packaging).length > 0) {
+          const pkg = detail.packaging;
+          await upsertPackaging(pool, sku.id, {
+            pieces_per_box: pkg.piecesPerBox || null,
+            sqft_per_box: pkg.sqftPerBox || null,
+            weight_per_box_lbs: pkg.weightPerBox || null,
+            boxes_per_pallet: pkg.boxesPerPallet || null,
+            sqft_per_pallet: pkg.sqftPerPallet || null,
+            weight_per_pallet_lbs: pkg.weightPerPallet || null,
           });
-          stats.pricingUpdated++;
         }
+
+        if (colorName) await upsertSkuAttribute(pool, sku.id, 'color', colorName);
+        if (finish) await upsertSkuAttribute(pool, sku.id, 'finish', finish);
+        if (entry.size) await upsertSkuAttribute(pool, sku.id, 'size', entry.size);
+        await upsertSkuAttribute(pool, sku.id, 'material', catSrc.name.toLowerCase());
+        if (detail.specs.thickness) await upsertSkuAttribute(pool, sku.id, 'thickness', detail.specs.thickness);
+        if (detail.specs.countryOfOrigin) await upsertSkuAttribute(pool, sku.id, 'country', detail.specs.countryOfOrigin);
+        if (detail.specs.edge) await upsertSkuAttribute(pool, sku.id, 'edge', detail.specs.edge);
+        if (detail.specs.look) await upsertSkuAttribute(pool, sku.id, 'look', detail.specs.look);
+        if (detail.technicalSpecs.application) await upsertSkuAttribute(pool, sku.id, 'application', detail.technicalSpecs.application);
+        if (detail.technicalSpecs.peiRating) await upsertSkuAttribute(pool, sku.id, 'pei_rating', detail.technicalSpecs.peiRating);
+        if (detail.technicalSpecs.shadeVariation) await upsertSkuAttribute(pool, sku.id, 'shade_variation', detail.technicalSpecs.shadeVariation);
+        if (detail.technicalSpecs.waterAbsorption) await upsertSkuAttribute(pool, sku.id, 'water_absorption', detail.technicalSpecs.waterAbsorption);
+        if (detail.technicalSpecs.dcof) await upsertSkuAttribute(pool, sku.id, 'dcof', detail.technicalSpecs.dcof);
+
+        if (detail.description && !productLevelDone.has(`desc-${product.id}`)) {
+          await pool.query(
+            `UPDATE products SET description_long = COALESCE(description_long, $1),
+             description_short = COALESCE(description_short, $2),
+             updated_at = NOW() WHERE id = $3`,
+            [detail.description, detail.description.slice(0, 255), product.id]
+          );
+          productLevelDone.add(`desc-${product.id}`);
+        }
+
+        if (detail.catalogPdf && !productLevelDone.has(`pdf-${product.id}`)) {
+          const pdfUrl = detail.catalogPdf.startsWith('http') ? detail.catalogPdf : `${BASE_URL}${detail.catalogPdf}`;
+          await upsertMediaAsset(pool, {
+            product_id: product.id,
+            sku_id: null,
+            asset_type: 'spec_pdf',
+            url: pdfUrl,
+            original_url: pdfUrl,
+            sort_order: 99,
+          });
+          productLevelDone.add(`pdf-${product.id}`);
+        }
+
+        const gallery = detail.galleryImages;
+        if (gallery.length > 0) {
+          const varUrls = gallery.map(img => {
+            const u = img.url1000 || img.url750;
+            return u.startsWith('http') ? u : `${BASE_URL}${u}`;
+          });
+          const sortedUrls = scoreElysiumImages(varUrls, colorName, productName);
+          await saveSkuImages(pool, product.id, sku.id, sortedUrls.slice(0, MAX_GALLERY_IMAGES), { productName });
+          if (!productLevelDone.has(`img-${product.id}`)) {
+            await saveProductImages(pool, product.id, sortedUrls.slice(0, 4), { productName });
+            productLevelDone.add(`img-${product.id}`);
+          }
+        }
+  };
+
+  let processed = 0;
+  for (let batchStart = 0; batchStart < entries.length; batchStart += config.batchSize) {
+    const batch = entries.slice(batchStart, batchStart + config.batchSize);
+
+    await Promise.all(batch.map(async (entry) => {
+      // Cheap skip: non-carried categories (slabs) whose SKU isn't in the DB —
+      // no reason to fetch pages we'd discard, and these pages are the ones
+      // that hang the portal.
+      const catSrc0 = catBySite.get(entry.listingCategory);
+      if (catSrc0 && !catSrc0.carried && entry.itemCode && !skuMap.has(`ELY-${entry.itemCode}`)) return;
+
+      // Hard per-entry timeout: fetch-level abort signals have not been enough
+      // to prevent permanent hangs (three runs stalled in the same zone) — a
+      // race guarantees the batch always settles.
+      let hardTimer;
+      try {
+        await Promise.race([
+          processEntry(entry),
+          new Promise((_, reject) => { hardTimer = setTimeout(() => reject(new Error('entry hard-timeout (90s)')), 90000); }),
+        ]);
       } catch (err) {
         stats.errors++;
+        if (stats.errors <= 10) {
+          await addJobError(pool, job.id, `Entry ${entry.fullName}: ${err.message}`);
+        }
+      } finally {
+        clearTimeout(hardTimer);
       }
-    });
+    }));
 
-    await Promise.all(batchPromises);
-
-    if ((batchStart + batchSize) % 200 < batchSize) {
-      await appendLog(pool, job.id, `Inventory progress: ${Math.min(batchStart + batchSize, allEntries.length)}/${allEntries.length}`);
+    processed = Math.min(batchStart + config.batchSize, entries.length);
+    if (processed % 150 < config.batchSize || processed === entries.length) {
+      await appendLog(pool, job.id, `Progress: ${processed}/${entries.length}`);
     }
+    await delay(config.delayMs);
+  }
 
-    await delay(Math.floor(config.delayMs * 0.7));
+  stats.skusSeen = seenSkuIds.length;
+
+  // ── 4. Link accessory SKUs to their non-accessory siblings ──
+  if (accessoryProductIds.size > 0) {
+    const linkResult = await pool.query(`
+      INSERT INTO sku_accessories (parent_sku_id, accessory_sku_id, sort_order)
+      SELECT parent.id, acc.id, 0
+      FROM skus parent
+      JOIN skus acc ON acc.product_id = parent.product_id
+      WHERE parent.product_id = ANY($1::uuid[])
+        AND COALESCE(parent.variant_type, '') != 'accessory'
+        AND acc.variant_type = 'accessory'
+        AND parent.is_sample = false
+      ON CONFLICT (parent_sku_id, accessory_sku_id) DO NOTHING
+    `, [[...accessoryProductIds]]);
+    stats.accessories = linkResult.rowCount;
+  }
+
+  // ── 5. Activate everything seen this run ──
+  if (seenSkuIds.length > 0) {
+    const reactivate = await pool.query(
+      `UPDATE skus SET status = 'active', updated_at = NOW() WHERE id = ANY($1::uuid[]) AND status != 'active'`,
+      [seenSkuIds]
+    );
+    stats.reactivatedSkus = reactivate.rowCount;
+  }
+  if (touchedProductIds.size > 0) {
+    const activate = await pool.query(
+      `UPDATE products SET status = 'active', updated_at = NOW() WHERE id = ANY($1::uuid[]) AND status != 'active'`,
+      [[...touchedProductIds]]
+    );
+    stats.activatedProducts = activate.rowCount;
+  }
+
+  // ── 6. Absence-based deactivation (guarded) ──
+  // Regular listings exclude discontinued items, so an active SKU we didn't see
+  // is discontinued. Only runs when every category crawled cleanly AND detail
+  // fetches were healthy — a flaky night shrinks the "seen" set and would
+  // otherwise deactivate live products. Also hard-capped.
+  const errorRate = entries.length > 0 ? stats.errors / entries.length : 1;
+  if (errorRate > 0.05) {
+    await appendLog(pool, job.id, `Deactivation skipped — error rate ${(errorRate * 100).toFixed(1)}% exceeds 5%`);
+  } else if (listingFailures === 0 && entries.length >= 1500) {
+    const candidates = await pool.query(`
+      SELECT COUNT(*)::int AS n
+      FROM skus s JOIN products p ON p.id = s.product_id
+      WHERE p.vendor_id = $1 AND s.status = 'active' AND s.is_sample = false
+        AND NOT (s.id = ANY($2::uuid[]))
+    `, [vendor_id, seenSkuIds]);
+    const n = candidates.rows[0].n;
+
+    if (n > config.maxDeactivate) {
+      await appendLog(pool, job.id, `WARN: ${n} unlisted SKUs exceeds maxDeactivate (${config.maxDeactivate}) — skipping deactivation`);
+    } else if (n > 0) {
+      const deact = await pool.query(`
+        UPDATE skus s SET status = 'inactive', updated_at = NOW()
+        FROM products p
+        WHERE p.id = s.product_id AND p.vendor_id = $1
+          AND s.status = 'active' AND s.is_sample = false
+          AND NOT (s.id = ANY($2::uuid[]))
+      `, [vendor_id, seenSkuIds]);
+      stats.deactivatedSkus = deact.rowCount;
+
+      await pool.query(`
+        UPDATE products p SET status = 'inactive', updated_at = NOW()
+        WHERE p.vendor_id = $1 AND p.status = 'active'
+          AND NOT EXISTS (SELECT 1 FROM skus s WHERE s.product_id = p.id AND s.status = 'active')
+      `, [vendor_id]);
+    }
+  } else if (listingFailures > 0) {
+    await appendLog(pool, job.id, 'Deactivation skipped — one or more category crawls failed');
   }
 
   await appendLog(pool, job.id,
-    `Inventory scrape complete. Entries: ${stats.found}, ` +
-    `Inventory updated: ${stats.inventoryUpdated}, Pricing updated: ${stats.pricingUpdated}, ` +
-    `Skipped: ${stats.skipped}, Errors: ${stats.errors}`,
-    { products_found: stats.found }
+    `Run complete. Entries: ${stats.entries}, SKUs seen: ${stats.skusSeen} (${stats.skusCreated} new), ` +
+    `Deep enriched: ${stats.deepEnriched}, Priced: ${stats.priced}, Inventory: ${stats.inventoried}, ` +
+    `Accessory links: ${stats.accessories}, Activated products: ${stats.activatedProducts}, ` +
+    `Reactivated SKUs: ${stats.reactivatedSkus}, Deactivated SKUs: ${stats.deactivatedSkus}, Errors: ${stats.errors}`,
+    { products_found: stats.entries, skus_created: stats.skusCreated }
   );
 }
