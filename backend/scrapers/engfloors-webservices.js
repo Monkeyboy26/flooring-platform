@@ -51,9 +51,15 @@ const DEFAULT_CONFIG = {
 // HTTP helpers
 // ---------------------------------------------------------------------------
 
-function httpsGet(url, timeoutMs = 15000) {
+function httpsGet(url, timeoutMs = 15000, deadlineMs = 30000) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
+    // Hard deadline: the `timeout` option below only fires on socket *idle*,
+    // so a server that trickles bytes (or never ends the response) would hang
+    // the request forever. Destroy unconditionally after deadlineMs.
+    const deadline = setTimeout(() => {
+      req.destroy(new Error(`Request deadline exceeded (${deadlineMs}ms)`));
+    }, deadlineMs);
     const req = https.get({
       hostname: u.hostname,
       path: u.pathname + u.search,
@@ -62,10 +68,10 @@ function httpsGet(url, timeoutMs = 15000) {
     }, (res) => {
       let data = '';
       res.on('data', (c) => (data += c));
-      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+      res.on('end', () => { clearTimeout(deadline); resolve({ status: res.statusCode, body: data }); });
     });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
+    req.on('error', (err) => { clearTimeout(deadline); reject(err); });
+    req.on('timeout', () => { req.destroy(new Error('Request timeout')); });
   });
 }
 
