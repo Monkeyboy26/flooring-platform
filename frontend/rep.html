@@ -5273,6 +5273,17 @@
       return `${window.location.protocol}//${h}:3001`;
     })();
 
+    // ========== CA Sales Tax Estimate ==========
+    // Mirrors backend lib/helpers.js calculateSalesTax: zip-prefix rate table
+    // fetched from the API, 7.25% fallback. Tax applies to the pre-discount
+    // subtotal (same basis the backend uses at order creation).
+    let CA_TAX_RATES = null;
+    fetch(API + '/api/tax-rates').then(r => r.ok ? r.json() : null).then(d => { CA_TAX_RATES = d; }).catch(() => {});
+    function caTaxRate(zip) {
+      if (!zip || !zip.startsWith('9')) return 0;
+      return (CA_TAX_RATES && CA_TAX_RATES[zip.substring(0, 3)]) || 0.0725;
+    }
+
     // ========== Stock Display Helper ==========
     function fmtQty(n) {
       if (n >= 10000) {
@@ -9659,9 +9670,10 @@
       const discount = data.promoResult ? data.promoResult.discount_amount : 0;
       const taxableSub = Math.max(0, itemsSubtotal - discount);
       const destZip = data.deliveryMethod === 'pickup' ? '92806' : (data.shippingAddress && data.shippingAddress.zip ? data.shippingAddress.zip : '92806');
-      const taxRate = destZip && destZip.startsWith('9') ? 0.0725 : 0;
-      const estTax = parseFloat((taxableSub * taxRate).toFixed(2));
-      const total = taxableSub + estTax;
+      const taxRate = caTaxRate(destZip);
+      const estTax = parseFloat((itemsSubtotal * taxRate).toFixed(2));
+      const modalShipping = data.deliveryMethod === 'shipping' ? (parseFloat(data.estShipping) || 0) : 0;
+      const total = taxableSub + estTax + modalShipping;
 
       const paymentMethods = data.paymentMethods || [];
 
@@ -10974,13 +10986,13 @@
       const itemsSubtotal = (data.items || []).reduce((sum, i) => sum + (i.subtotal || 0), 0);
       const discount = data.promoResult ? data.promoResult.discount_amount : 0;
       const taxableSubtotal = Math.max(0, itemsSubtotal - discount);
-      // Estimate CA tax — 7.25% default, use destination zip if available
+      // Estimate CA tax with the backend's zip-prefix rate table
       const destZip = data.deliveryMethod === 'pickup'
         ? '92806'
         : (data.shippingAddress && data.shippingAddress.zip ? data.shippingAddress.zip : '92806');
-      const taxRate = destZip && destZip.startsWith('9') ? 0.0725 : 0;
-      const estTax = parseFloat((taxableSubtotal * taxRate).toFixed(2));
-      const estShipping = data.deliveryMethod === 'shipping' ? (data.estShipping || 0) : 0;
+      const taxRate = caTaxRate(destZip);
+      const estTax = parseFloat((itemsSubtotal * taxRate).toFixed(2));
+      const estShipping = data.deliveryMethod === 'shipping' ? (parseFloat(data.estShipping) || 0) : 0;
       const total = taxableSubtotal + estTax + estShipping;
       const paymentCollected = (data.paymentMethods || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 
@@ -11139,9 +11151,10 @@
       const discount = data.promoResult ? data.promoResult.discount_amount : 0;
       const taxableSubtotal = Math.max(0, itemsSubtotal - discount);
       const destZip = data.deliveryMethod === 'pickup' ? '92806' : (data.shippingAddress && data.shippingAddress.zip ? data.shippingAddress.zip : '92806');
-      const taxRate = destZip && destZip.startsWith('9') ? 0.0725 : 0;
-      const estTax = parseFloat((taxableSubtotal * taxRate).toFixed(2));
-      const total = taxableSubtotal + estTax;
+      const taxRate = caTaxRate(destZip);
+      const estTax = parseFloat((itemsSubtotal * taxRate).toFixed(2));
+      const estShipping = data.deliveryMethod === 'shipping' ? (parseFloat(data.estShipping) || 0) : 0;
+      const total = taxableSubtotal + estTax + estShipping;
       const paymentMethods = data.paymentMethods || [];
       const collectedAmount = paymentMethods.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
       const remaining = total - collectedAmount;
@@ -11767,9 +11780,10 @@
       const discountAmt = data.promoResult ? data.promoResult.discount_amount : 0;
       const taxableSub = Math.max(0, itemsSubtotal - discountAmt);
       const wizDestZip = data.deliveryMethod === 'pickup' ? '92806' : (data.shippingAddress && data.shippingAddress.zip ? data.shippingAddress.zip : '92806');
-      const wizTaxRate = wizDestZip && wizDestZip.startsWith('9') ? 0.0725 : 0;
-      const wizEstTax = parseFloat((taxableSub * wizTaxRate).toFixed(2));
-      const total = taxableSub + wizEstTax;
+      const wizTaxRate = caTaxRate(wizDestZip);
+      const wizEstTax = parseFloat((itemsSubtotal * wizTaxRate).toFixed(2));
+      const wizShipping = data.deliveryMethod === 'shipping' ? (parseFloat(data.estShipping) || 0) : 0;
+      const total = taxableSub + wizEstTax + wizShipping;
       const collectedAmount = (data.paymentMethods || []).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
       const step2Valid = (data.paymentMethods || []).length > 0 && collectedAmount >= total - 0.01;
 

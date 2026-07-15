@@ -1,7 +1,7 @@
 import { createRequire } from 'module';
 
 const __require = createRequire(import.meta.url);
-const CA_TAX_RATES = __require('../data/ca-tax-rates.json');
+export const CA_TAX_RATES = __require('../data/ca-tax-rates.json');
 
 export function calculateSalesTax(subtotal, shippingZip, isTaxExempt) {
   if (isTaxExempt) return { rate: 0, amount: 0 };

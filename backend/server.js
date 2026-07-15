@@ -21,7 +21,7 @@ import { spawn } from 'child_process';
 import sharp from 'sharp';
 import { pool } from './db.js';
 import { createAuthMiddleware } from './lib/auth.js';
-import { calculateSalesTax, isPickupOnly, getNextBusinessDay } from './lib/helpers.js';
+import { calculateSalesTax, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } from './lib/helpers.js';
 import { recalculateBalance, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { createCustomerHelpers } from './lib/customerHelpers.js';
@@ -3387,6 +3387,13 @@ app.post('/api/calculate', async (req, res) => {
 
 // Cart routes — extracted to routes/cart.js
 app.use(createCartRoutes({ pool, calculateSalesTax, isPickupOnly }));
+
+// CA sales-tax table (zip prefix → rate) so frontends estimate with the same
+// rates calculateSalesTax applies at order creation
+app.get('/api/tax-rates', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.json(CA_TAX_RATES);
+});
 
 // ==================== Shipping API ====================
 
