@@ -13248,143 +13248,268 @@
         setSaving(false);
       };
 
+      const scLabel = { display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--rod-muted)', marginBottom: 7 };
+      const scField = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '0.5px solid rgba(28,25,23,0.3)', background: 'rgba(255,255,255,0.35)', color: 'var(--rod-ink)', font: '400 14px/1.3 Inter, sans-serif', outline: 'none' };
+
       return (
         <div>
-          <div className="content-header">
-            <h1>New Sample Request</h1>
-            <button className="btn btn-secondary" onClick={() => navigate('samples')}>Back to Samples</button>
+          {/* Breadcrumb */}
+          <div className="rod-breadcrumb">
+            <div className="rod-breadcrumb-trail">
+              <a onClick={() => navigate('dashboard')}>Workspace</a>
+              <span className="rod-breadcrumb-sep"></span>
+              <a onClick={() => navigate('samples')}>Samples</a>
+              <span className="rod-breadcrumb-sep"></span>
+              <span className="rod-current">New request</span>
+            </div>
           </div>
 
-          <div className="form-card">
-            <h3>Customer Information</h3>
-            <div className="form-grid">
-              <div className="form-group">
-                <label>Customer Name *</label>
-                <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Full name" required />
+          {/* Header */}
+          <div className="rod-header">
+            <div className="rod-header-left">
+              <div className="rod-status-pill" style={{ background: 'rgba(168,121,53,0.12)', color: 'var(--rod-accent)' }}>
+                ● Draft · not saved
               </div>
-              <div className="form-group">
-                <label>Email *</label>
-                <input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="customer@email.com" required />
+              <h1>New <em>sample request</em></h1>
+              <div className="rod-header-subtitle">
+                Up to 5 free samples · in-store pickup is free · $12 flat-rate shipping
               </div>
-              <div className="form-group">
-                <label>Phone *</label>
-                <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="(555) 123-4567" required />
+            </div>
+            <div className="rod-header-money">
+              <div>
+                <div className="rod-header-money-label">Samples</div>
+                <div className="rod-header-money-value">{items.length}<span style={{ font: '400 15px/1 "Cormorant Garamond", serif', color: 'var(--rod-muted)' }}> / 5</span></div>
+              </div>
+              <div>
+                <div className="rod-header-money-label">Shipping</div>
+                <div className="rod-header-money-value" style={deliveryMethod === 'pickup' ? { color: 'var(--rod-green)' } : undefined}>
+                  {deliveryMethod === 'pickup' ? 'Free' : '$12.00'}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="form-card">
-            <h3>Delivery Method</h3>
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem' }}>
-                <input type="radio" name="sr-delivery" value="pickup" checked={deliveryMethod === 'pickup'}
-                  onChange={() => setDeliveryMethod('pickup')} style={{ accentColor: 'var(--gold)' }} />
-                In-Store Pickup <span style={{ color: '#15803d', fontWeight: 600 }}>(Free)</span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem' }}>
-                <input type="radio" name="sr-delivery" value="shipping" checked={deliveryMethod === 'shipping'}
-                  onChange={() => setDeliveryMethod('shipping')} style={{ accentColor: 'var(--gold)' }} />
-                Ship to Customer <span style={{ color: 'var(--stone-500)', fontSize: '0.8125rem' }}>($12 flat rate)</span>
-              </label>
-            </div>
-            {deliveryMethod === 'pickup' && (
-              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: '#166534' }}>
-                Customer will pick up samples at the showroom. No shipping charge.
-              </div>
-            )}
-            {deliveryMethod === 'shipping' && (
-              <div className="form-grid" style={{ marginTop: '0.5rem' }}>
-                <div className="form-group full">
-                  <label>Address Line 1 *</label>
-                  <input value={addrLine1} onChange={e => setAddrLine1(e.target.value)} placeholder="Street address" required />
+          <div className="rod-body">
+            {/* Left column */}
+            <div className="rod-col">
+              {/* Customer */}
+              <div className="rod-card">
+                <div className="rod-card-header">
+                  <span className="rod-card-title">Customer</span>
+                  <div className="rod-card-actions">
+                    <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>Drives the vendor request &amp; notifications</span>
+                  </div>
                 </div>
-                <div className="form-group full">
-                  <label>Address Line 2</label>
-                  <input value={addrLine2} onChange={e => setAddrLine2(e.target.value)} placeholder="Apt, suite, unit..." />
-                </div>
-                <div className="form-group">
-                  <label>City *</label>
-                  <input value={addrCity} onChange={e => setAddrCity(e.target.value)} placeholder="City" required />
-                </div>
-                <div className="form-group">
-                  <label>State *</label>
-                  <input value={addrState} onChange={e => setAddrState(e.target.value)} placeholder="CA" maxLength={2} required />
-                </div>
-                <div className="form-group">
-                  <label>ZIP *</label>
-                  <input value={addrZip} onChange={e => setAddrZip(e.target.value)} placeholder="90210" maxLength={10} required />
+                <div className="rod-card-body-padded">
+                  <div className="resp-grid-3" style={{ gap: 14 }}>
+                    <div>
+                      <label style={scLabel}>Name *</label>
+                      <input style={scField} value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Full name" required />
+                    </div>
+                    <div>
+                      <label style={scLabel}>Email *</label>
+                      <input style={scField} type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="customer@email.com" required />
+                    </div>
+                    <div>
+                      <label style={scLabel}>Phone *</label>
+                      <input style={scField} value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="(555) 123-4567" required />
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
 
-          <div className="form-card">
-            <h3>Products (max 5)</h3>
-            <div className="form-group" style={{ position: 'relative' }}>
-              <label>Search Products</label>
-              <input value={skuSearch} onBlur={() => setTimeout(() => { setSkuResults([]); setSkuSearching(false); }, 200)} onChange={e => searchSku(e.target.value)} placeholder="Search by product name, SKU, or collection..." />
-              {skuSearching && skuResults.length === 0 && skuSearch.length >= 2 && (
-                <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
-              )}
-              {!skuSearching && skuResults.length === 0 && skuSearch.length >= 2 && (
-                <div className="search-results"><div className="search-no-results">No results found</div></div>
-              )}
-              {skuResults.length > 0 && (
-                <div className="search-results">
-                  {skuResults.map(r => (
-                    <div key={r.sku_id} className="search-result-item" onClick={() => addProduct(r)}>
-                      {r.primary_image
-                        ? <img className="sku-thumb" src={optimizeImg(r.primary_image, 96)} alt="" loading="lazy" />
-                        : <div className="sku-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
-                      }
-                      <div className="sku-info">
-                        <div className="sku-name">{r.product_name}{r.variant_name ? ' \u2014 ' + r.variant_name : ''}</div>
-                        <div className="product-meta">
-                          {r.collection || ''}{r.vendor_name ? ' \u00b7 ' + r.vendor_name : ''}{r.internal_sku ? ' \u00b7 ' + r.internal_sku : ''}
-                        </div>
+              {/* Samples */}
+              <div className="rod-card">
+                <div className="rod-card-header">
+                  <span className="rod-card-title">Samples · {items.length} of 5</span>
+                  <div className="rod-card-actions">
+                    <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-green)' }}>● Free samples</span>
+                  </div>
+                </div>
+                <div style={{ padding: '14px 20px', borderBottom: '0.5px solid var(--rod-border)' }}>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 12, top: 10, font: '400 15px/1 "Cormorant Garamond", serif', color: 'var(--rod-muted)' }}>⌕</span>
+                    <input style={{ ...scField, paddingLeft: 34 }} value={skuSearch}
+                      onBlur={() => setTimeout(() => { setSkuResults([]); setSkuSearching(false); }, 200)}
+                      onChange={e => searchSku(e.target.value)}
+                      placeholder="Search by product name, SKU, or collection…" />
+                    {skuSearching && skuResults.length === 0 && skuSearch.length >= 2 && (
+                      <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
+                    )}
+                    {!skuSearching && skuResults.length === 0 && skuSearch.length >= 2 && (
+                      <div className="search-results"><div className="search-no-results">No results found</div></div>
+                    )}
+                    {skuResults.length > 0 && (
+                      <div className="search-results">
+                        {skuResults.map(r => (
+                          <div key={r.sku_id} className="search-result-item" onClick={() => addProduct(r)}>
+                            {r.primary_image
+                              ? <img className="sku-thumb" src={optimizeImg(r.primary_image, 96)} alt="" loading="lazy" />
+                              : <div className="sku-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
+                            }
+                            <div className="sku-info">
+                              <div className="sku-name">{r.product_name}{r.variant_name ? ' — ' + r.variant_name : ''}</div>
+                              <div className="product-meta">
+                                {r.collection || ''}{r.vendor_name ? ' · ' + r.vendor_name : ''}{r.internal_sku ? ' · ' + r.internal_sku : ''}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {items.length === 0 && (
+                  <div style={{ padding: '36px 20px', textAlign: 'center', color: 'var(--rod-muted)', font: '400 13px/1.5 Inter, sans-serif' }}>
+                    Nothing selected yet.<br />Search the catalog above — each request carries up to 5 free samples.
+                  </div>
+                )}
+
+                {items.map((item, i) => (
+                  <div key={item._key} style={{
+                    padding: '12px 20px', display: 'grid', gridTemplateColumns: '44px 1fr auto 24px', gap: 14, alignItems: 'center',
+                    borderBottom: i < items.length - 1 ? '0.5px solid rgba(28,25,23,0.06)' : 'none',
+                  }}>
+                    <div style={{ width: 44, height: 40, background: 'var(--rod-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-muted)' }}>◫</div>
+                    <div>
+                      <div className="rod-line-item-name">{item.product_name}{item.variant_name ? ' — ' + item.variant_name : ''}</div>
+                      <div className="rod-line-item-meta">{item.collection || ''}{item.vendor_name ? ' · ' + item.vendor_name : ''}</div>
+                    </div>
+                    <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-green)' }}>Free</span>
+                    <button onClick={() => removeItem(item._key)} aria-label="Remove sample" style={{ width: 24, height: 24, border: 'none', background: 'transparent', color: 'var(--rod-muted)', cursor: 'pointer', font: '400 16px/1 Inter, sans-serif', padding: 0 }}>×</button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Delivery */}
+              <div className="rod-card">
+                <div className="rod-card-header">
+                  <span className="rod-card-title">How is the customer receiving the samples?</span>
+                </div>
+                <div style={{ padding: '14px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {[
+                    { id: 'pickup', icon: '◫', label: 'In-store pickup', sub: 'Customer collects at the Anaheim showroom', cost: 'Free', on: deliveryMethod === 'pickup' },
+                    { id: 'shipping', icon: '⤿', label: 'Ship to customer', sub: 'USPS / parcel to the address below', cost: '$12 flat rate', on: deliveryMethod === 'shipping' },
+                  ].map(opt => (
+                    <button key={opt.id} onClick={() => setDeliveryMethod(opt.id)} style={{
+                      padding: 16, background: opt.on ? 'var(--rod-warm)' : 'transparent',
+                      border: '0.5px solid ' + (opt.on ? 'var(--rod-ink)' : 'rgba(28,25,23,0.2)'),
+                      cursor: 'pointer', textAlign: 'left',
+                      display: 'grid', gridTemplateColumns: '40px 1fr 18px', gap: 12, alignItems: 'flex-start',
+                    }}>
+                      <span style={{ width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 19px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)', border: '0.5px solid rgba(28,25,23,0.2)' }}>{opt.icon}</span>
+                      <span>
+                        <span style={{ display: 'block', font: '400 16px/1.2 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>{opt.label}</span>
+                        <span style={{ display: 'block', font: '400 12px/1.5 Inter, sans-serif', color: 'rgba(28,25,23,0.7)', marginTop: 3 }}>{opt.sub}</span>
+                        <span style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: opt.on ? 'var(--rod-accent)' : 'var(--rod-muted)', marginTop: 7 }}>● {opt.cost}</span>
+                      </span>
+                      <span style={{ width: 15, height: 15, borderRadius: '50%', marginTop: 3, border: '1px solid ' + (opt.on ? 'var(--rod-ink)' : 'rgba(28,25,23,0.35)'), background: opt.on ? 'var(--rod-ink)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {opt.on && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ece5d8' }} />}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {deliveryMethod === 'shipping' && (
+                  <div style={{ padding: '4px 20px 18px', display: 'grid', gap: 14 }}>
+                    <div>
+                      <label style={scLabel}>Address line 1 *</label>
+                      <input style={scField} value={addrLine1} onChange={e => setAddrLine1(e.target.value)} placeholder="Street address" required />
+                    </div>
+                    <div>
+                      <label style={scLabel}>Address line 2</label>
+                      <input style={scField} value={addrLine2} onChange={e => setAddrLine2(e.target.value)} placeholder="Apt, suite, unit…" />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 14 }}>
+                      <div>
+                        <label style={scLabel}>City *</label>
+                        <input style={scField} value={addrCity} onChange={e => setAddrCity(e.target.value)} placeholder="City" required />
+                      </div>
+                      <div>
+                        <label style={scLabel}>State *</label>
+                        <input style={scField} value={addrState} onChange={e => setAddrState(e.target.value)} placeholder="CA" maxLength={2} required />
+                      </div>
+                      <div>
+                        <label style={scLabel}>ZIP *</label>
+                        <input style={scField} value={addrZip} onChange={e => setAddrZip(e.target.value)} placeholder="90210" maxLength={10} required />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {deliveryMethod === 'pickup' && (
+                  <div style={{ padding: '12px 20px', background: 'var(--rod-warm)', borderTop: '0.5px solid var(--rod-border)', font: '500 10px/1.5 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>
+                    ● Will-call at 1440 S State College Blvd #6M, Anaheim · no shipping charge
+                  </div>
+                )}
+              </div>
+
+              {/* Notes */}
+              <div className="rod-card">
+                <div className="rod-card-header">
+                  <span className="rod-card-title">Internal notes</span>
+                </div>
+                <div className="rod-card-body-padded">
+                  <textarea style={{ ...scField, resize: 'vertical', fontFamily: 'inherit' }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any special instructions or notes…" rows="3" />
+                </div>
+              </div>
+            </div>
+
+            {/* Right rail */}
+            <div className="rod-col" style={{ position: 'sticky', top: 24 }}>
+              <div className="rod-card">
+                <div className="rod-card-header">
+                  <span className="rod-card-title">Request so far</span>
+                </div>
+                <div className="rod-card-body-padded" style={{ display: 'grid', gap: 12 }}>
+                  <div style={{ paddingBottom: 10, borderBottom: '0.5px solid rgba(28,25,23,0.08)' }}>
+                    <div style={{ font: '400 15px/1.3 Inter, sans-serif', color: customerName.trim() ? 'var(--rod-ink)' : 'var(--rod-muted)' }}>
+                      {customerName.trim() || 'No customer yet'}
+                    </div>
+                    {customerEmail.trim() && <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--rod-muted)', marginTop: 3 }}>{customerEmail.trim()}</div>}
+                  </div>
+                  {[
+                    ['Samples', items.length + ' of 5'],
+                    ['Delivery', deliveryMethod === 'pickup' ? 'In-store pickup' : 'Ship to customer'],
+                    ['Shipping fee', deliveryMethod === 'pickup' ? 'Free' : '$12.00 flat rate'],
+                  ].map(([l, v]) => (
+                    <div key={l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 6, borderBottom: '0.5px solid rgba(28,25,23,0.06)', font: '400 13px/1.3 Inter, sans-serif' }}>
+                      <span style={{ color: 'var(--rod-muted)' }}>{l}</span>
+                      <span style={{ font: '400 14px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>{v}</span>
+                    </div>
+                  ))}
+                  <button className="rod-btn rod-btn-primary" disabled={saving} onClick={submitRequest}
+                    style={{ width: '100%', justifyContent: 'center', padding: '12px 0', marginTop: 4, background: 'var(--rod-ink)', color: '#fff', border: '0.5px solid var(--rod-ink)', cursor: saving ? 'default' : 'pointer', font: '500 12px/1 Inter, sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'flex', alignItems: 'center' }}>
+                    {saving ? 'Creating…' : 'Create sample request →'}
+                  </button>
+                  <button onClick={() => navigate('samples')}
+                    style={{ width: '100%', padding: '10px 0', background: 'transparent', color: 'var(--rod-ink)', border: '0.5px solid rgba(28,25,23,0.25)', cursor: 'pointer', font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              <div className="rod-card">
+                <div className="rod-card-header">
+                  <span className="rod-card-title">What happens next</span>
+                </div>
+                <div style={{ padding: '6px 0' }}>
+                  {[
+                    ['01', 'Vendors get an email request', 'One per vendor · grouped automatically'],
+                    ['02', 'Samples marked ready', 'Track per-sample readiness on the request'],
+                    ['03', deliveryMethod === 'pickup' ? 'Customer notified for pickup' : 'Shipped with tracking', deliveryMethod === 'pickup' ? 'Will-call at the showroom' : '$12 flat rate · collected up front'],
+                    ['04', 'Delivered · follow up', 'Turn the samples into a quote'],
+                  ].map(([n, l, d], i, arr) => (
+                    <div key={n} style={{ padding: '10px 20px', display: 'grid', gridTemplateColumns: '26px 1fr', gap: 12, alignItems: 'flex-start', borderBottom: i < arr.length - 1 ? '0.5px solid rgba(28,25,23,0.06)' : 'none' }}>
+                      <span style={{ font: '500 10px/1.6 ui-monospace, monospace', letterSpacing: '0.1em', color: 'var(--rod-muted)' }}>{n}</span>
+                      <div>
+                        <div style={{ font: '400 13px/1.3 Inter, sans-serif', color: 'var(--rod-ink)' }}>{l}</div>
+                        <div style={{ font: '500 9px/1.5 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--rod-muted)', marginTop: 2 }}>{d}</div>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-
-            {items.length === 0 && (
-              <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem', border: '1px dashed var(--stone-200)' }}>
-                Search and add products for the sample request
               </div>
-            )}
-
-            {items.map(item => (
-              <div key={item._key} className="visit-product-card">
-                <div className="visit-product-info">
-                  <div className="vp-name">{item.product_name}{item.variant_name ? ' \u2014 ' + item.variant_name : ''}</div>
-                  <div className="vp-collection">{item.collection || ''}{item.vendor_name ? ' \u00b7 ' + item.vendor_name : ''}</div>
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#15803d', marginTop: '0.25rem' }}>Free Sample</div>
-                </div>
-                <button className="btn btn-sm" onClick={() => removeItem(item._key)}
-                  style={{ color: 'var(--red)', background: 'var(--red-light)', border: 'none', padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem' }}>Remove</button>
-              </div>
-            ))}
-          </div>
-
-          <div className="form-card">
-            <h3>Notes</h3>
-            <div className="form-group full">
-              <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any special instructions or notes..." rows="3" />
             </div>
-          </div>
-
-          {deliveryMethod === 'shipping' && (
-            <div style={{ background: '#fefce8', border: '1px solid #fde68a', padding: '0.75rem 1rem', marginBottom: '1.5rem', fontSize: '0.8125rem', color: '#854d0e' }}>
-              Samples are free. Flat-rate $12 shipping applies.
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-            <button className="btn btn-primary" disabled={saving} onClick={submitRequest}>
-              {saving ? 'Submitting...' : 'Submit Sample Request'}
-            </button>
           </div>
         </div>
       );
@@ -13587,268 +13712,167 @@
       else if (cityLine) addressParts.push(cityLine);
       else if (sr.shipping_zip) addressParts.push(sr.shipping_zip);
 
+      const activeItems = items.filter(i => i.status !== 'cancelled');
+      const readyCount = activeItems.filter(i => i.status === 'ready').length;
+      const cancelledCount = items.length - activeItems.length;
+      const isPickup = sr.delivery_method === 'pickup';
+      const isShipping = !isPickup;
+      const isOpen = sr.status === 'requested';
+
+      // Workflow steps (same logic as before, rendered in the right rail)
+      const steps = [];
+      if (isShipping) {
+        steps.push({
+          label: 'Shipping payment collected',
+          done: !!sr.shipping_payment_collected,
+          detail: sr.shipping_payment_collected
+            ? (sr.shipping_payment_collected_at ? 'Collected ' + new Date(sr.shipping_payment_collected_at).toLocaleDateString() : 'Collected')
+            : '$12 flat rate',
+          action: !sr.shipping_payment_collected ? 'collect_payment' : 'uncollect_payment'
+        });
+      }
+      const vendorsTotal = new Set(activeItems.map(i => i.vendor_id || 'unknown')).size;
+      const vendorsNotified = new Set(activeItems.filter(i => i.vendor_notified_at).map(i => i.vendor_id || 'unknown')).size;
+      steps.push({
+        label: 'Vendor emails sent',
+        done: activeItems.length > 0 && vendorsNotified === vendorsTotal,
+        detail: vendorsTotal > 0 ? vendorsNotified + ' of ' + vendorsTotal + ' vendor' + (vendorsTotal !== 1 ? 's' : '') + ' notified' : 'No items'
+      });
+      steps.push({
+        label: 'All samples ready',
+        done: activeItems.length > 0 && readyCount === activeItems.length,
+        detail: activeItems.length > 0 ? readyCount + ' of ' + activeItems.length + ' ready' : 'No items'
+      });
+      const isFinalStep = sr.status === 'shipped' || sr.status === 'delivered';
+      steps.push({
+        label: isShipping ? 'Order shipped' : 'Ready for pickup',
+        done: isFinalStep,
+        detail: isFinalStep
+          ? (sr.shipped_at ? new Date(sr.shipped_at).toLocaleDateString() : (sr.status === 'delivered' ? 'Delivered' : 'Shipped'))
+          : null
+      });
+      const completedCount = steps.filter(s => s.done).length;
+
+      // Vendor groups
+      const vendorMap = {};
+      items.forEach(item => {
+        const vid = item.vendor_id || 'unknown';
+        if (!vendorMap[vid]) {
+          vendorMap[vid] = { vendor_id: item.vendor_id, vendor_name: item.vendor_name || 'Unknown Vendor', vendor_email: item.vendor_email || null, items: [] };
+        }
+        vendorMap[vid].items.push(item);
+      });
+      const vendorGroups = Object.values(vendorMap);
+
+      const pill = sr.status === 'requested' ? { bg: 'rgba(168,121,53,0.12)', c: 'var(--rod-accent)', l: 'Requested' }
+        : sr.status === 'shipped' ? { bg: 'rgba(58,122,78,0.12)', c: 'var(--rod-green)', l: isPickup ? 'Ready for pickup' : 'In transit' }
+        : sr.status === 'delivered' ? { bg: 'rgba(58,122,78,0.12)', c: 'var(--rod-green)', l: isPickup ? 'Picked up' : 'Delivered' }
+        : { bg: 'rgba(197,71,49,0.12)', c: 'var(--rod-red)', l: 'Cancelled' };
+
+      const sdMono = { font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-muted)' };
+      const sdBadge = (bg, c) => ({ padding: '3px 8px', display: 'inline-block', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', whiteSpace: 'nowrap', background: bg, color: c });
+      const sdSmallBtn = { padding: '6px 11px', background: 'transparent', color: 'var(--rod-ink)', border: '0.5px solid rgba(28,25,23,0.25)', cursor: 'pointer', font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.04em' };
+      const sdField = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '0.5px solid rgba(28,25,23,0.3)', background: 'rgba(255,255,255,0.35)', color: 'var(--rod-ink)', font: '400 14px/1.3 Inter, sans-serif', outline: 'none' };
+      const fmtTs = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase().replace(' ', '') : null;
+
       return (
         <div>
-          <div className="content-header">
-            <h1>Sample Request {sr.request_number}</h1>
-            <button className="btn btn-secondary" onClick={() => navigate('samples')}>Back to Samples</button>
+          {/* Breadcrumb */}
+          <div className="rod-breadcrumb">
+            <div className="rod-breadcrumb-trail">
+              <a onClick={() => navigate('dashboard')}>Workspace</a>
+              <span className="rod-breadcrumb-sep"></span>
+              <a onClick={() => navigate('samples')}>Samples</a>
+              <span className="rod-breadcrumb-sep"></span>
+              <span className="rod-current">{sr.request_number}</span>
+            </div>
           </div>
 
-          <div className="resp-grid-2" style={{ gap: '1.5rem', marginBottom: '1.5rem' }}>
-            <div className="form-card">
-              <h3>Customer</h3>
-              <div style={{ fontSize: '0.875rem', lineHeight: 1.8 }}>
-                <div><strong>{sr.customer_name}</strong></div>
-                {sr.customer_email && <div style={{ color: 'var(--stone-500)' }}>{sr.customer_email}</div>}
-                {sr.customer_phone && <div style={{ color: 'var(--stone-500)' }}>{sr.customer_phone}</div>}
-              </div>
-              <div style={{ marginTop: '1rem' }}>
-                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-400)', marginBottom: '0.25rem' }}>Delivery</div>
-                {sr.delivery_method === 'pickup' ? (
-                  <div style={{ fontSize: '0.875rem', color: '#15803d', fontWeight: 500 }}>In-Store Pickup (Free)</div>
-                ) : (
-                  addressParts.length > 0
-                    ? addressParts.map((l, i) => <div key={i} style={{ fontSize: '0.875rem', color: 'var(--stone-600)' }}>{l}</div>)
-                    : <div style={{ fontSize: '0.875rem', color: 'var(--stone-500)' }}>Shipping ($12 flat rate)</div>
-                )}
+          {/* Header */}
+          <div className="rod-header">
+            <div className="rod-header-left">
+              <div className="rod-status-pill" style={{ background: pill.bg, color: pill.c }}>● {pill.l}</div>
+              <h1>Sample request <em>{sr.request_number}</em></h1>
+              <div className="rod-header-subtitle">
+                {sr.customer_name} · {isPickup ? 'In-store pickup' : 'Shipping'} · requested {fmtTs(sr.created_at)}
               </div>
             </div>
-
-            <div className="form-card">
-              <h3>Status</h3>
-              <div style={{ marginBottom: '1rem' }}>
-                <span className={'badge badge-' + sr.status} style={{ fontSize: '0.875rem', padding: '0.35rem 0.75rem' }}>{sr.status}</span>
+            <div className="rod-header-money">
+              <div>
+                <div className="rod-header-money-label">Samples</div>
+                <div className="rod-header-money-value">{activeItems.length}</div>
               </div>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', lineHeight: 2 }}>
-                <div>Created: {new Date(sr.created_at).toLocaleString()}</div>
-                {sr.shipped_at && <div>Shipped: {new Date(sr.shipped_at).toLocaleString()}</div>}
-                {sr.delivered_at && <div>Delivered: {new Date(sr.delivered_at).toLocaleString()}</div>}
-                {sr.cancelled_at && <div>Cancelled: {new Date(sr.cancelled_at).toLocaleString()}</div>}
-              </div>
-              {sr.tracking_number && (
-                <div style={{ marginTop: '0.75rem' }}>
-                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-400)', marginBottom: '0.25rem' }}>Tracking</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: '0.9375rem', fontWeight: 500, color: 'var(--stone-800)' }}>{sr.tracking_number}</div>
+              <div>
+                <div className="rod-header-money-label">Ready</div>
+                <div className="rod-header-money-value" style={activeItems.length > 0 && readyCount === activeItems.length ? { color: 'var(--rod-green)' } : undefined}>
+                  {readyCount}<span style={{ font: '400 15px/1 "Cormorant Garamond", serif', color: 'var(--rod-muted)' }}> / {activeItems.length}</span>
                 </div>
-              )}
+              </div>
+              <div>
+                <div className="rod-header-money-label">Shipping</div>
+                <div className="rod-header-money-value" style={isPickup ? { color: 'var(--rod-green)' } : undefined}>{isPickup ? 'Free' : '$12.00'}</div>
+              </div>
             </div>
           </div>
 
-          {/* Actions — hidden when delivered or cancelled */}
-          {sr.status !== 'delivered' && sr.status !== 'cancelled' && (
-          <div className="form-card" style={{ marginBottom: '1.5rem' }}>
-            <h3>Actions</h3>
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              {sr.status === 'requested' && !showTrackingInput && (
-                <button className="btn btn-primary" disabled={acting} onClick={() => setShowTrackingInput(true)}>Mark Shipped</button>
-              )}
-              {showTrackingInput && (
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input
-                    placeholder="Tracking number (optional)"
-                    value={trackingInput} onChange={e => setTrackingInput(e.target.value)}
-                    style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem', maxWidth: 240, width: '100%' }}
-                  />
-                  <button className="btn btn-primary" disabled={acting} onClick={markShipped}>
-                    {acting ? 'Shipping...' : 'Confirm Ship'}
-                  </button>
-                  <button className="btn btn-secondary" onClick={() => setShowTrackingInput(false)}>Cancel</button>
-                </div>
-              )}
-              {sr.status === 'shipped' && (
-                <button className="btn btn-primary" disabled={acting} onClick={markDelivered}>
-                  {acting ? 'Updating...' : 'Mark Delivered'}
-                </button>
-              )}
-              {(sr.status === 'requested' || sr.status === 'shipped') && (
-                <button className="btn btn-secondary" disabled={acting} onClick={cancelRequest}
-                  style={{ color: 'var(--red)', borderColor: 'var(--red)' }}>Cancel Request</button>
-              )}
-              {sr.status === 'requested' && (
-                <button className="btn btn-secondary" disabled={acting} onClick={deleteRequest}
-                  style={{ color: 'var(--red)', borderColor: 'var(--red)' }}>Delete</button>
-              )}
+          {/* Action bar */}
+          <div className="rod-action-bar">
+            {isOpen && !showTrackingInput && (
+              <button className="rod-btn rod-btn-primary" disabled={acting} onClick={() => setShowTrackingInput(true)}>
+                {isPickup ? '◫ Mark ready for pickup' : '⤿ Mark shipped'}
+              </button>
+            )}
+            {sr.status === 'shipped' && (
+              <button className="rod-btn rod-btn-primary" disabled={acting} onClick={markDelivered}>
+                {acting ? 'Updating…' : (isPickup ? '✓ Mark picked up' : '✓ Mark delivered')}
+              </button>
+            )}
+            {(isOpen || sr.status === 'shipped') && (
+              <button className="rod-btn rod-btn-danger" disabled={acting} onClick={cancelRequest}>Cancel request</button>
+            )}
+            {isOpen && (
+              <button className="rod-btn rod-btn-danger" disabled={acting} onClick={deleteRequest}>Delete</button>
+            )}
+            <div className="rod-action-bar-right">
+              {items.length} sample{items.length !== 1 ? 's' : ''}{cancelledCount > 0 ? ' · ' + cancelledCount + ' cancelled' : ''} · {vendorGroups.length} vendor{vendorGroups.length !== 1 ? 's' : ''}
             </div>
           </div>
-          )}
 
-          {/* Notes */}
-          {sr.notes && (
-            <div className="form-card" style={{ marginBottom: '1.5rem' }}>
-              <h3>Notes</h3>
-              <p style={{ fontSize: '0.875rem', color: 'var(--stone-600)', margin: 0, whiteSpace: 'pre-wrap' }}>{sr.notes}</p>
+          {/* Inline ship confirmation */}
+          {showTrackingInput && (
+            <div style={{ marginBottom: 20, padding: '14px 20px', background: 'var(--rod-warm)', border: '0.5px solid var(--rod-border)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={sdMono}>{isPickup ? 'Confirm ready · notifies the customer' : 'Confirm shipment'}</span>
+              {!isPickup && (
+                <input style={{ ...sdField, width: 260 }} placeholder="Tracking number (optional)"
+                  value={trackingInput} onChange={e => setTrackingInput(e.target.value)} />
+              )}
+              <button className="rod-btn rod-btn-primary" disabled={acting} onClick={markShipped}>
+                {acting ? 'Saving…' : (isPickup ? 'Confirm ready →' : 'Confirm ship →')}
+              </button>
+              <button className="rod-btn" onClick={() => setShowTrackingInput(false)}>Cancel</button>
             </div>
           )}
 
-          {/* Workflow Checklist */}
-          {(() => {
-            const activeItems = items.filter(i => i.status !== 'cancelled');
-            const isShipping = sr.delivery_method !== 'pickup';
-
-            // Compute steps
-            const steps = [];
-
-            // 1. Shipping payment collected (only for shipping orders)
-            if (isShipping) {
-              steps.push({
-                label: 'Shipping payment collected',
-                done: !!sr.shipping_payment_collected,
-                detail: sr.shipping_payment_collected
-                  ? (sr.shipping_payment_collected_at ? 'Collected ' + new Date(sr.shipping_payment_collected_at).toLocaleDateString() : 'Collected')
-                  : null,
-                action: !sr.shipping_payment_collected ? 'collect_payment' : (sr.shipping_payment_collected ? 'uncollect_payment' : null)
-              });
-            }
-
-            // 2. Vendor emails sent
-            const vendorsTotal = new Set(activeItems.map(i => i.vendor_id || 'unknown')).size;
-            const vendorsNotified = new Set(activeItems.filter(i => i.vendor_notified_at).map(i => i.vendor_id || 'unknown')).size;
-            steps.push({
-              label: 'Vendor emails sent',
-              done: activeItems.length > 0 && vendorsNotified === vendorsTotal,
-              detail: vendorsTotal > 0 ? `${vendorsNotified} of ${vendorsTotal} vendor${vendorsTotal !== 1 ? 's' : ''} notified` : 'No items'
-            });
-
-            // 3. All samples ready
-            const readyCount = activeItems.filter(i => i.status === 'ready').length;
-            steps.push({
-              label: 'All samples ready',
-              done: activeItems.length > 0 && readyCount === activeItems.length,
-              detail: activeItems.length > 0 ? `${readyCount} of ${activeItems.length} ready` : 'No items'
-            });
-
-            // 4. Order shipped / Ready for pickup
-            const isFinalStep = sr.status === 'shipped' || sr.status === 'delivered';
-            steps.push({
-              label: isShipping ? 'Order shipped' : 'Ready for pickup',
-              done: isFinalStep,
-              detail: isFinalStep
-                ? (sr.shipped_at ? new Date(sr.shipped_at).toLocaleDateString() : (sr.status === 'delivered' ? 'Delivered' : 'Shipped'))
-                : null
-            });
-
-            const completedCount = steps.filter(s => s.done).length;
-            const totalSteps = steps.length;
-            const pct = totalSteps > 0 ? (completedCount / totalSteps * 100) : 0;
-
-            return (
-              <div className="form-card" style={{ marginBottom: '1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h3 style={{ margin: 0 }}>Workflow Checklist</h3>
-                  <span style={{ fontSize: '0.8125rem', color: pct === 100 ? '#15803d' : 'var(--stone-500)', fontWeight: 500 }}>
-                    {completedCount} of {totalSteps} steps complete
-                  </span>
-                </div>
-
-                {/* Progress bar */}
-                <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.25rem' }}>
-                  {steps.map((_, i) => (
-                    <div key={i} style={{
-                      flex: 1, height: 6, borderRadius: 3,
-                      background: i < completedCount ? '#15803d' : 'var(--stone-200)',
-                      transition: 'background 0.3s'
-                    }} />
-                  ))}
-                </div>
-
-                {/* Steps */}
-                {steps.map((step, i) => (
-                  <div key={i} style={{
-                    display: 'flex', alignItems: 'center', gap: '0.75rem',
-                    padding: '0.5rem 0',
-                    borderBottom: i < steps.length - 1 ? '1px solid var(--stone-100)' : 'none'
-                  }}>
-                    {/* Check icon */}
-                    <div style={{
-                      width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: step.done ? '#dcfce7' : 'var(--stone-100)',
-                      color: step.done ? '#15803d' : 'var(--stone-400)',
-                      fontSize: '0.75rem', fontWeight: 700,
-                      border: step.done ? '2px solid #15803d' : '2px solid var(--stone-300)'
-                    }}>
-                      {step.done ? '\u2713' : (i + 1)}
+          <div className="rod-body">
+            {/* Left column */}
+            <div className="rod-col">
+              {/* Add samples + selection (only while open) */}
+              {isOpen && (
+                <div className="rod-card">
+                  <div className="rod-card-header">
+                    <span className="rod-card-title">Add samples · {activeItems.length} of 5 used</span>
+                    <div className="rod-card-actions">
+                      <a className="rod-card-action" onClick={() => setSelectedItems(new Set(items.filter(i => i.status !== 'cancelled').map(i => i.id)))}>Select all</a>
+                      {selectedItems.size > 0 && <a className="rod-card-action" onClick={() => setSelectedItems(new Set())}>Clear</a>}
                     </div>
-                    {/* Label + detail */}
-                    <div style={{ flex: 1 }}>
-                      <div style={{
-                        fontSize: '0.875rem', fontWeight: 500,
-                        color: step.done ? '#15803d' : 'var(--stone-700)'
-                      }}>
-                        {step.label}
-                      </div>
-                      {step.detail && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.125rem' }}>
-                          {step.detail}
-                        </div>
-                      )}
-                    </div>
-                    {/* Action button */}
-                    {step.action === 'collect_payment' && (
-                      <button
-                        className="btn btn-primary"
-                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
-                        disabled={paymentActing}
-                        onClick={() => markPaymentCollected(true)}
-                      >
-                        {paymentActing ? 'Saving...' : 'Mark as Collected'}
-                      </button>
-                    )}
-                    {step.action === 'uncollect_payment' && (
-                      <button
-                        className="btn btn-secondary"
-                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', color: 'var(--stone-500)' }}
-                        disabled={paymentActing}
-                        onClick={() => markPaymentCollected(false)}
-                      >
-                        Undo
-                      </button>
-                    )}
                   </div>
-                ))}
-              </div>
-            );
-          })()}
-
-          {/* Samples section */}
-          {(() => {
-            const activeItems = items.filter(i => i.status !== 'cancelled');
-            const cancelledCount = items.length - activeItems.length;
-            const readyCount = activeItems.filter(i => i.status === 'ready').length;
-            const total = activeItems.length;
-            return (
-              <>
-              {/* Header row: title + readiness bar */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: sr.status === 'requested' ? '0' : '1rem', flexWrap: 'wrap' }}>
-                <h3 style={{ margin: 0 }}>Samples ({items.length})</h3>
-                {total > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div style={{ width: 100, height: 6, background: 'var(--stone-200)', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ width: (readyCount / total * 100) + '%', height: '100%', background: readyCount === total ? '#15803d' : '#d97706', borderRadius: 3, transition: 'width 0.3s' }} />
-                    </div>
-                    <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', whiteSpace: 'nowrap' }}>{readyCount} of {total} ready</span>
-                  </div>
-                )}
-                {cancelledCount > 0 && (
-                  <span style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: 500 }}>{cancelledCount} cancelled</span>
-                )}
-              </div>
-
-              {/* Actions bar: add sample search + selection actions (only when open) */}
-              {sr.status === 'requested' && (
-                <div style={{ padding: '0.75rem 0', marginBottom: '0.5rem', borderBottom: '1px solid var(--stone-100)' }}>
-                  {/* Add sample search */}
-                  {total < 5 ? (
-                    <div style={{ marginBottom: '0.75rem' }}>
+                  <div className="rod-card-body-padded">
+                    {activeItems.length < 5 ? (
                       <div style={{ position: 'relative' }}>
-                        <input
-                          type="text"
-                          placeholder="Search to add a sample..."
-                          value={addSkuSearch}
+                        <span style={{ position: 'absolute', left: 12, top: 10, font: '400 15px/1 "Cormorant Garamond", serif', color: 'var(--rod-muted)' }}>⌕</span>
+                        <input style={{ ...sdField, paddingLeft: 34 }} placeholder="Search to add a sample…" value={addSkuSearch}
                           onBlur={() => setTimeout(() => { setAddSkuResults([]); setAddSkuSearching(false); }, 200)}
-                          onChange={e => searchSkuToAdd(e.target.value)}
-                          style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem', boxSizing: 'border-box' }}
-                        />
+                          onChange={e => searchSkuToAdd(e.target.value)} />
                         {addSkuSearching && addSkuResults.length === 0 && addSkuSearch.length >= 2 && (
                           <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
                         )}
@@ -13864,283 +13888,280 @@
                                   : <div className="sku-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
                                 }
                                 <div className="sku-info">
-                                  <div className="sku-name">{r.product_name}{r.variant_name ? ' \u2014 ' + r.variant_name : ''}</div>
-                                  <div className="product-meta">
-                                    {r.vendor_name}{r.collection ? ' \u00b7 ' + r.collection : ''}
-                                  </div>
+                                  <div className="sku-name">{r.product_name}{r.variant_name ? ' — ' + r.variant_name : ''}</div>
+                                  <div className="product-meta">{r.vendor_name}{r.collection ? ' · ' + r.collection : ''}</div>
                                 </div>
                                 <button className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', flexShrink: 0 }} disabled={addingItem}>
-                                  {addingItem ? '...' : 'Add'}
+                                  {addingItem ? '…' : 'Add'}
                                 </button>
                               </div>
                             ))}
                           </div>
                         )}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', marginTop: '0.25rem' }}>
-                        {total} of 5 samples used
+                    ) : (
+                      <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-muted)' }}>
+                        Maximum 5 samples reached. Cancel an item to add a new one.
                       </div>
-                    </div>
-                  ) : (
-                    <p style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', margin: '0 0 0.75rem' }}>
-                      Maximum 5 samples reached. Cancel an item to add a new one.
-                    </p>
-                  )}
-
-                  {/* Selection actions */}
-                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <button
-                      className="btn btn-secondary"
-                      disabled={!selectedItems.size || cancellingItems}
-                      onClick={cancelSelectedItems}
-                      style={{ color: 'var(--red)', borderColor: 'var(--red)' }}
-                    >
-                      {cancellingItems ? 'Cancelling...' : `Cancel Selected (${selectedItems.size})`}
-                    </button>
-                    {selectedItems.size > 0 && (
-                      <button className="btn btn-secondary" style={{ fontSize: '0.8125rem' }} onClick={() => setSelectedItems(new Set())}>
-                        Clear Selection
-                      </button>
                     )}
-                    <button className="btn btn-secondary" style={{ fontSize: '0.8125rem' }} onClick={() => {
-                      const cancellable = items.filter(i => i.status !== 'cancelled').map(i => i.id);
-                      setSelectedItems(new Set(cancellable));
-                    }}>
-                      Select All
-                    </button>
+                    {selectedItems.size > 0 && (
+                      <div style={{ marginTop: 12, display: 'flex', gap: 10, alignItems: 'center' }}>
+                        <button className="rod-btn rod-btn-danger" style={{ padding: '8px 12px' }} disabled={cancellingItems} onClick={cancelSelectedItems}>
+                          {cancellingItems ? 'Cancelling…' : 'Cancel selected (' + selectedItems.size + ')'}
+                        </button>
+                        <span style={sdMono}>Cancelled samples stay on the record</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
-              </>
-            );
-          })()}
 
-          {/* Vendor-grouped items */}
-          {(() => {
-            // Group items by vendor
-            const vendorMap = {};
-            items.forEach(item => {
-              const vid = item.vendor_id || 'unknown';
-              if (!vendorMap[vid]) {
-                vendorMap[vid] = {
-                  vendor_id: item.vendor_id,
-                  vendor_name: item.vendor_name || 'Unknown Vendor',
-                  vendor_email: item.vendor_email || null,
-                  items: []
-                };
-              }
-              vendorMap[vid].items.push(item);
-            });
-            const vendorGroups = Object.values(vendorMap);
-
-            const isPickup = sr.delivery_method === 'pickup';
-            const customerAddr = [sr.shipping_address_line1, sr.shipping_address_line2].filter(Boolean);
-            const customerCityLine = [sr.shipping_city, sr.shipping_state].filter(Boolean).join(', ');
-            if (sr.shipping_zip && customerCityLine) customerAddr.push(customerCityLine + ' ' + sr.shipping_zip);
-            else if (customerCityLine) customerAddr.push(customerCityLine);
-            else if (sr.shipping_zip) customerAddr.push(sr.shipping_zip);
-
-            return vendorGroups.map(group => {
-              const vid = group.vendor_id || 'unknown';
-              const shipTo = vendorShipTo[vid] || 'store';
-              const sendResult = vendorSendResults[vid];
-              const isSending = sendingVendorId === vid;
-
-              return (
-                <div key={vid} className="form-card" style={{ marginBottom: '1.25rem' }}>
-                  {/* Vendor header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                        <h3 style={{ margin: 0 }}>{group.vendor_name}</h3>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)', background: 'var(--stone-100)', padding: '0.15rem 0.5rem', borderRadius: '0.25rem' }}>
-                          {group.items.length} sample{group.items.length !== 1 ? 's' : ''}
-                        </span>
+              {/* Vendor groups */}
+              {vendorGroups.map(group => {
+                const vid = group.vendor_id || 'unknown';
+                const shipTo = vendorShipTo[vid] || 'store';
+                const sendResult = vendorSendResults[vid];
+                const isSending = sendingVendorId === vid;
+                const notifiedItem = group.items.find(i => i.vendor_notified_at);
+                return (
+                  <div key={vid} className="rod-card">
+                    <div className="rod-card-header">
+                      <span className="rod-card-title">
+                        {group.vendor_name} · {group.items.length} sample{group.items.length !== 1 ? 's' : ''}
+                      </span>
+                      <div className="rod-card-actions" style={{ alignItems: 'center' }}>
+                        {sendResult && sendResult.sent && <span style={sdBadge('rgba(58,122,78,0.12)', 'var(--rod-green)')}>✓ Sent</span>}
+                        {sendResult && !sendResult.sent && <span style={sdBadge('rgba(197,71,49,0.12)', 'var(--rod-red)')}>Failed: {sendResult.error}</span>}
+                        {!sendResult && notifiedItem && <span style={sdBadge('rgba(58,122,78,0.12)', 'var(--rod-green)')}>✓ Sent {new Date(notifiedItem.vendor_notified_at).toLocaleDateString()}</span>}
+                        <button className="rod-btn rod-btn-primary" style={{ padding: '7px 12px' }}
+                          disabled={!group.vendor_email || isSending || !group.vendor_id}
+                          onClick={() => sendToVendor(group.vendor_id, group.vendor_name)}>
+                          {isSending ? 'Sending…' : 'Send to vendor →'}
+                        </button>
                       </div>
-                      {group.vendor_email ? (
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{group.vendor_email}</div>
-                      ) : (
-                        <div style={{ fontSize: '0.8125rem', color: '#dc2626', fontStyle: 'italic' }}>No email configured</div>
-                      )}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {/* Show persisted "Sent" badge from DB or session result */}
-                      {(() => {
-                        const notifiedItem = group.items.find(i => i.vendor_notified_at);
-                        if (sendResult && sendResult.sent) {
-                          return (
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#15803d', background: '#dcfce7', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>
-                              &#10003; Sent
-                            </span>
-                          );
-                        }
-                        if (sendResult && !sendResult.sent) {
-                          return (
-                            <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#dc2626', background: '#fee2e2', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>
-                              Failed: {sendResult.error}
-                            </span>
-                          );
-                        }
-                        if (notifiedItem) {
-                          return (
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#15803d', background: '#dcfce7', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>
-                              &#10003; Sent {new Date(notifiedItem.vendor_notified_at).toLocaleDateString()}
-                            </span>
-                          );
-                        }
-                        return null;
-                      })()}
-                      <button
-                        className="btn btn-primary"
-                        style={{ fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }}
-                        disabled={!group.vendor_email || isSending || !group.vendor_id}
-                        onClick={() => sendToVendor(group.vendor_id, group.vendor_name)}
-                      >
-                        {isSending ? 'Sending...' : 'Send to Vendor'}
-                      </button>
+
+                    {/* Ship-to strip */}
+                    <div style={{ padding: '11px 20px', background: 'var(--rod-warm)', borderBottom: '0.5px solid var(--rod-border)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={sdMono}>Ship to</span>
+                      {isPickup ? (
+                        <span style={{ font: '400 12.5px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }}>
+                          Roma Flooring Designs · 1440 S State College Blvd #6M, Anaheim, CA 92806
+                          <span style={{ color: 'var(--rod-muted)' }}> · pickup orders always ship to store</span>
+                        </span>
+                      ) : (
+                        <React.Fragment>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            {[['store', 'Store'], ['customer', 'Customer']].map(([id, label]) => {
+                              const on = shipTo === id;
+                              return (
+                                <button key={id} onClick={() => setVendorShipTo(prev => ({ ...prev, [vid]: id }))} style={{
+                                  padding: '5px 11px', cursor: 'pointer',
+                                  font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase',
+                                  border: '0.5px solid ' + (on ? 'var(--rod-ink)' : 'rgba(28,25,23,0.25)'),
+                                  background: on ? 'var(--rod-ink)' : 'transparent',
+                                  color: on ? '#ece5d8' : 'var(--rod-muted)',
+                                }}>{label}</button>
+                              );
+                            })}
+                          </div>
+                          <span style={{ font: '400 12.5px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }}>
+                            {shipTo === 'store'
+                              ? 'Roma Flooring Designs · 1440 S State College Blvd #6M, Anaheim, CA 92806'
+                              : sr.customer_name + (addressParts.length ? ' · ' + addressParts.join(', ') : '')}
+                            {shipTo === 'customer' && !addressParts.length && <span style={{ color: 'var(--rod-red)' }}> · no customer address on file</span>}
+                          </span>
+                        </React.Fragment>
+                      )}
+                      {!group.vendor_email && <span style={{ ...sdMono, color: 'var(--rod-red)', marginLeft: 'auto' }}>No vendor email configured</span>}
+                    </div>
+
+                    {/* Items */}
+                    {group.items.map((item, idx) => {
+                      const isCancelled = item.status === 'cancelled';
+                      return (
+                        <div key={item.id} style={{ padding: '12px 20px', borderBottom: idx < group.items.length - 1 ? '0.5px solid rgba(28,25,23,0.06)' : 'none', opacity: isCancelled ? 0.55 : 1 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: (isOpen && !isCancelled ? '18px ' : '') + '52px 1fr auto', gap: 12, alignItems: 'center' }}>
+                            {isOpen && !isCancelled && (
+                              <input type="checkbox" style={{ margin: 0 }} checked={selectedItems.has(item.id)} onChange={() => toggleSelectItem(item.id)} aria-label={'Select sample ' + item.product_name} />
+                            )}
+                            {item.primary_image
+                              ? <img className="rod-line-item-thumb" src={optimizeImg(item.primary_image, 120)} alt={item.product_name} loading="lazy" />
+                              : <div style={{ width: 48, height: 44, background: 'var(--rod-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-muted)' }}>◫</div>}
+                            <div>
+                              <div className="rod-line-item-name" style={isCancelled ? { textDecoration: 'line-through', color: 'var(--rod-muted)' } : undefined}>
+                                {item.product_name}{item.variant_name ? ' — ' + item.variant_name : ''}
+                              </div>
+                              <div className="rod-line-item-meta">
+                                {item.collection || ''}{item.vendor_sku ? (item.collection ? ' · ' : '') + item.vendor_sku : ''}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              {isCancelled
+                                ? <span style={sdBadge('rgba(197,71,49,0.12)', 'var(--rod-red)')}>Cancelled</span>
+                                : item.status === 'ready'
+                                ? <span style={sdBadge('rgba(58,122,78,0.12)', 'var(--rod-green)')}>✓ Ready</span>
+                                : <span style={sdBadge('rgba(28,25,23,0.07)', 'var(--rod-muted)')}>Pending</span>}
+                              {isOpen && !isCancelled && (
+                                <button style={sdSmallBtn} onClick={() => toggleItemReady(item.id, item.status)}>
+                                  {item.status === 'ready' ? 'Undo' : 'Mark ready'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {/* Per-item notes */}
+                          {!isCancelled && (
+                            <div style={{ marginTop: 8, marginLeft: (isOpen ? 30 : 0) + 64 }}>
+                              {editingNoteId === item.id ? (
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                                  <textarea value={noteDraft} onChange={e => setNoteDraft(e.target.value)} placeholder="Add a note for this sample…" rows={2}
+                                    style={{ ...sdField, flex: 1, resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }} />
+                                  <button style={{ ...sdSmallBtn, background: 'var(--rod-ink)', color: '#fff', borderColor: 'var(--rod-ink)' }} onClick={() => saveItemNote(item.id)}>Save</button>
+                                  <button style={sdSmallBtn} onClick={() => setEditingNoteId(null)}>Cancel</button>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                                  {item.notes
+                                    ? <p style={{ margin: 0, font: '400 12.5px/1.5 Inter, sans-serif', color: 'rgba(28,25,23,0.7)', whiteSpace: 'pre-wrap', flex: 1 }}>{item.notes}</p>
+                                    : <span style={{ ...sdMono, flex: 1, textTransform: 'none', letterSpacing: '0.04em' }}>No notes</span>}
+                                  {isOpen && (
+                                    <a className="rod-card-action" onClick={() => { setEditingNoteId(item.id); setNoteDraft(item.notes || ''); }}>
+                                      {item.notes ? 'Edit note' : '+ Add note'}
+                                    </a>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+
+              {vendorGroups.length === 0 && (
+                <div className="rod-card">
+                  <div style={{ padding: '36px 20px', textAlign: 'center', color: 'var(--rod-muted)', font: '400 13px/1.5 Inter, sans-serif' }}>
+                    No samples on this request yet.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right column */}
+            <div className="rod-col">
+              {/* Customer */}
+              <div className="rod-card">
+                <div className="rod-card-header">
+                  <span className="rod-card-title">Customer</span>
+                </div>
+                <div className="rod-card-body-padded">
+                  <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr', gap: 12, alignItems: 'center', paddingBottom: 12, borderBottom: '0.5px solid rgba(28,25,23,0.08)' }}>
+                    <div style={{ width: 40, height: 40, background: 'var(--rod-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>
+                      {(sr.customer_name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ font: '400 15px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{sr.customer_name}</div>
+                      <div style={{ ...sdMono, marginTop: 3, textTransform: 'none', letterSpacing: '0.04em' }}>
+                        {[sr.customer_email, sr.customer_phone].filter(Boolean).join(' · ') || '—'}
+                      </div>
                     </div>
                   </div>
-
-                  {/* Ship-to selector */}
-                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.75rem 1rem', marginBottom: '1rem' }}>
-                    <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-400)', marginBottom: '0.5rem', fontWeight: 500 }}>Ship To</div>
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ ...sdMono, marginBottom: 6 }}>Delivery</div>
                     {isPickup ? (
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                          <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--stone-700)' }}>Roma Flooring Designs (Store)</span>
-                          <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', fontStyle: 'italic' }}>Pickup orders always ship to store</span>
-                        </div>
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>1440 S. State College Blvd #6M, Anaheim, CA 92806</div>
-                      </div>
+                      <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-green)' }}>In-store pickup · Anaheim showroom · free</div>
+                    ) : addressParts.length > 0 ? (
+                      addressParts.map((l, i) => <div key={i} style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-ink)' }}>{l}</div>)
                     ) : (
-                      <div>
-                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                          <button
-                            className={shipTo === 'store' ? 'btn btn-primary' : 'btn btn-secondary'}
-                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
-                            onClick={() => setVendorShipTo(prev => ({ ...prev, [vid]: 'store' }))}
-                          >
-                            Ship to Store
-                          </button>
-                          <button
-                            className={shipTo === 'customer' ? 'btn btn-primary' : 'btn btn-secondary'}
-                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
-                            onClick={() => setVendorShipTo(prev => ({ ...prev, [vid]: 'customer' }))}
-                          >
-                            Ship to Customer
-                          </button>
-                        </div>
-                        {shipTo === 'store' ? (
-                          <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
-                            <strong style={{ color: 'var(--stone-700)' }}>Roma Flooring Designs</strong><br/>
-                            1440 S. State College Blvd #6M, Anaheim, CA 92806
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
-                            <strong style={{ color: 'var(--stone-700)' }}>{sr.customer_name}</strong><br/>
-                            {customerAddr.length > 0 ? customerAddr.join(', ') : (
-                              <span style={{ color: '#d97706', fontStyle: 'italic' }}>No customer address on file</span>
-                            )}
-                          </div>
-                        )}
+                      <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-muted)' }}>Shipping · $12 flat rate</div>
+                    )}
+                    {sr.tracking_number && (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ ...sdMono, marginBottom: 4 }}>Tracking</div>
+                        <div style={{ font: '500 13px/1.3 ui-monospace, monospace', color: 'var(--rod-ink)' }}>{sr.tracking_number}</div>
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
 
-                  {/* Items for this vendor */}
-                  {group.items.map(item => {
-                    const isCancelled = item.status === 'cancelled';
-                    return (
-                    <div key={item.id} style={{ borderBottom: '1px solid var(--stone-100)', paddingBottom: '0.75rem', marginBottom: '0.75rem', opacity: isCancelled ? 0.5 : 1 }}>
-                      <div className="visit-product-card" style={{ marginBottom: 0 }}>
-                        {/* Checkbox for selection */}
-                        {sr.status === 'requested' && !isCancelled && (
-                          <input
-                            type="checkbox"
-                            checked={selectedItems.has(item.id)}
-                            onChange={() => toggleSelectItem(item.id)}
-                            style={{ width: 18, height: 18, accentColor: 'var(--gold)', flexShrink: 0, cursor: 'pointer' }}
-                          />
-                        )}
-                        {item.primary_image && (
-                          <img src={optimizeImg(item.primary_image, 120)} alt={item.product_name}
-                            style={{ width: 80, height: 80, objectFit: 'cover', border: '1px solid var(--stone-200)', flexShrink: 0 }} loading="lazy" />
-                        )}
-                        <div className="visit-product-info" style={{ flex: 1 }}>
-                          <div className="vp-name" style={isCancelled ? { textDecoration: 'line-through', color: 'var(--stone-400)' } : {}}>
-                            {item.product_name}{item.variant_name ? ' \u2014 ' + item.variant_name : ''}
-                          </div>
-                          {item.collection && <div className="vp-collection">{item.collection}</div>}
-                          {item.vendor_sku && <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', marginTop: '0.125rem' }}>SKU: {item.vendor_sku}</div>}
-                          {!isCancelled && <div style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#15803d', marginTop: '0.25rem' }}>Free Sample</div>}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                          {isCancelled ? (
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#dc2626', background: '#fee2e2', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>
-                              Cancelled
-                            </span>
-                          ) : item.status === 'ready' ? (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, color: '#15803d', background: '#dcfce7', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>
-                              &#10003; Ready
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--stone-500)', background: 'var(--stone-100)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>
-                              Pending
-                            </span>
-                          )}
-                          {sr.status === 'requested' && !isCancelled && (
-                            <button
-                              className="btn btn-secondary"
-                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                              onClick={() => toggleItemReady(item.id, item.status)}
-                            >
-                              {item.status === 'ready' ? 'Undo' : 'Mark Ready'}
-                            </button>
-                          )}
-                        </div>
+              {/* Workflow */}
+              <div className="rod-card">
+                <div className="rod-card-header">
+                  <span className="rod-card-title">Workflow</span>
+                  <div className="rod-card-actions">
+                    <span style={{ ...sdMono, color: completedCount === steps.length ? 'var(--rod-green)' : 'var(--rod-muted)' }}>
+                      {completedCount} of {steps.length} complete
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 3, padding: '12px 20px 0' }}>
+                  {steps.map((s, i) => (
+                    <div key={i} style={{ flex: 1, height: 3, background: i < completedCount ? 'var(--rod-green)' : 'rgba(28,25,23,0.12)', transition: 'background 0.3s' }} />
+                  ))}
+                </div>
+                <div style={{ padding: '8px 0 6px' }}>
+                  {steps.map((step, i) => (
+                    <div key={i} style={{ padding: '10px 20px', display: 'grid', gridTemplateColumns: '20px 1fr auto', gap: 12, alignItems: 'center', borderBottom: i < steps.length - 1 ? '0.5px solid rgba(28,25,23,0.06)' : 'none' }}>
+                      <span style={{
+                        width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        font: '500 10px/1 Inter, sans-serif', flexShrink: 0,
+                        background: step.done ? 'var(--rod-green)' : 'transparent',
+                        color: step.done ? '#fff' : 'var(--rod-muted)',
+                        border: step.done ? 'none' : '1.5px solid rgba(28,25,23,0.25)',
+                      }}>{step.done ? '✓' : i + 1}</span>
+                      <div>
+                        <div style={{ font: '400 13px/1.3 Inter, sans-serif', color: 'var(--rod-ink)' }}>{step.label}</div>
+                        {step.detail && <div style={{ ...sdMono, marginTop: 3, fontSize: 9 }}>{step.detail}</div>}
                       </div>
-                      {/* Per-item notes */}
-                      {!isCancelled && (
-                      <div style={{ marginLeft: (sr.status === 'requested' ? 26 : 0) + (item.primary_image ? 92 : 0), marginTop: '0.5rem' }}>
-                        {editingNoteId === item.id ? (
-                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-                            <textarea
-                              value={noteDraft}
-                              onChange={e => setNoteDraft(e.target.value)}
-                              placeholder="Add a note for this sample..."
-                              rows={2}
-                              style={{ flex: 1, padding: '0.375rem 0.5rem', border: '1px solid var(--stone-300)', borderRadius: '0.25rem', fontSize: '0.8125rem', resize: 'vertical', fontFamily: 'inherit' }}
-                            />
-                            <button className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} onClick={() => saveItemNote(item.id)}>Save</button>
-                            <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }} onClick={() => setEditingNoteId(null)}>Cancel</button>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                            {item.notes ? (
-                              <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--stone-600)', whiteSpace: 'pre-wrap', flex: 1 }}>{item.notes}</p>
-                            ) : (
-                              <span style={{ fontSize: '0.8125rem', color: 'var(--stone-400)', fontStyle: 'italic', flex: 1 }}>No notes</span>
-                            )}
-                            {sr.status === 'requested' && (
-                              <button
-                                className="btn btn-secondary"
-                                style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', whiteSpace: 'nowrap' }}
-                                onClick={() => { setEditingNoteId(item.id); setNoteDraft(item.notes || ''); }}
-                              >
-                                {item.notes ? 'Edit Note' : 'Add Note'}
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      {step.action === 'collect_payment' && (
+                        <button style={{ ...sdSmallBtn, background: 'var(--rod-ink)', color: '#fff', borderColor: 'var(--rod-ink)' }} disabled={paymentActing} onClick={() => markPaymentCollected(true)}>
+                          {paymentActing ? 'Saving…' : 'Mark collected'}
+                        </button>
+                      )}
+                      {step.action === 'uncollect_payment' && (
+                        <button style={sdSmallBtn} disabled={paymentActing} onClick={() => markPaymentCollected(false)}>Undo</button>
                       )}
                     </div>
-                    );
-                  })}
+                  ))}
                 </div>
-              );
-            });
-          })()}
+              </div>
+
+              {/* Timeline */}
+              <div className="rod-card">
+                <div className="rod-card-header">
+                  <span className="rod-card-title">Timeline</span>
+                </div>
+                <div style={{ padding: '6px 0' }}>
+                  {[
+                    ['Created', sr.created_at, 'var(--rod-ink)'],
+                    ['Shipped', sr.shipped_at, 'var(--rod-green)'],
+                    ['Delivered', sr.delivered_at, 'var(--rod-green)'],
+                    ['Cancelled', sr.cancelled_at, 'var(--rod-red)'],
+                  ].filter(([, d]) => d).map(([l, d, c], i, arr) => (
+                    <div key={l} style={{ padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: i < arr.length - 1 ? '0.5px solid rgba(28,25,23,0.06)' : 'none' }}>
+                      <span style={{ ...sdMono, color: c }}>● {l}</span>
+                      <span style={{ font: '400 12.5px/1.3 Inter, sans-serif', color: 'rgba(28,25,23,0.7)' }}>{fmtTs(d)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Request notes */}
+              {sr.notes && (
+                <div className="rod-card">
+                  <div className="rod-card-header">
+                    <span className="rod-card-title">Request notes</span>
+                  </div>
+                  <div className="rod-card-body-padded">
+                    <p style={{ margin: 0, font: '400 13px/1.6 Inter, sans-serif', color: 'rgba(28,25,23,0.8)', whiteSpace: 'pre-wrap' }}>{sr.notes}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       );
     }
