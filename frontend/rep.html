@@ -930,6 +930,36 @@
       .ql-table-head > :nth-child(7), .ql-table-row > :nth-child(7) { display: none; }
     }
 
+    /* ── Sample requests list (sl-*) ── */
+    .sl-table-wrap { background: #ece5d8; border: 0.5px solid rgba(28,25,23,0.14); }
+    .sl-table-head {
+      padding: 10px 22px; border-bottom: 0.5px solid rgba(28,25,23,0.07);
+      display: grid; grid-template-columns: 18px 8px 110px 1.4fr 70px 1fr 1.2fr 60px 80px 24px;
+      gap: 12px; align-items: center;
+      font: 500 10px/1 ui-monospace, monospace; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--brass-muted);
+    }
+    .sl-table-row {
+      padding: 12px 22px; border-bottom: 0.5px solid rgba(28,25,23,0.07);
+      display: grid; grid-template-columns: 18px 8px 110px 1.4fr 70px 1fr 1.2fr 60px 80px 24px;
+      gap: 12px; align-items: center; cursor: pointer;
+    }
+    .sl-table-row:last-child { border-bottom: none; }
+    .sl-table-row:hover { background: rgba(28,25,23,0.02); }
+    .sl-table-row:focus-visible { outline: 2px solid var(--gold, #c9a668); outline-offset: -2px; }
+    .sl-table-row.selected { background: var(--brass-warm, #d8cdb6); }
+    .sl-id { font: 500 11px/1 ui-monospace, monospace; letter-spacing: 0.06em; color: var(--stone-900); }
+    .sl-cust-name { font: 400 14px/1.2 'Inter', sans-serif; color: var(--stone-900); }
+    .sl-cust-sub { font: 500 9px/1.3 ui-monospace, monospace; letter-spacing: 0.1em; color: var(--brass-muted); text-transform: uppercase; margin-top: 3px; word-break: break-all; }
+    .sl-items { font: 400 13px/1.3 'Cormorant Garamond', serif; color: var(--stone-900); }
+    .sl-method { font: 500 10px/1.3 ui-monospace, monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--stone-900); }
+    .sl-method-sub { font: 400 11px/1.4 'Inter', sans-serif; color: rgba(28,25,23,0.6); margin-top: 3px; }
+    @media (max-width: 1200px) {
+      .sl-table-head, .sl-table-row { grid-template-columns: 18px 8px 100px 1fr 1.2fr 50px 70px 20px; }
+      .sl-table-head > :nth-child(5), .sl-table-row > :nth-child(5) { display: none; }
+      .sl-table-head > :nth-child(6), .sl-table-row > :nth-child(6) { display: none; }
+    }
+
     /* ── Customers list (cl-*) ── */
     .cl-table-wrap { background: #ece5d8; border: 0.5px solid rgba(28,25,23,0.14); }
     .cl-table-head {
@@ -12874,64 +12904,246 @@
 
       useEffect(load, [load]);
 
-      if (loading) return <div className="loading">Loading sample requests...</div>;
+      // Saved view definitions \u2014 filter the loaded requests client-side
+      const viewFilters = {
+        'open': r => r.status === 'requested',
+        'transit': r => r.status === 'shipped',
+        'delivered': r => r.status === 'delivered',
+        'cancelled': r => r.status === 'cancelled',
+        'all': () => true,
+      };
+
+      const filtered = useMemo(() => {
+        const fn = viewFilters[activeView] || (() => true);
+        return requests.filter(fn);
+      }, [requests, activeView]);
+
+      const viewCounts = useMemo(() => ({
+        'open': requests.filter(viewFilters['open']).length,
+        'transit': requests.filter(viewFilters['transit']).length,
+        'delivered': requests.filter(viewFilters['delivered']).length,
+        'cancelled': requests.filter(viewFilters['cancelled']).length,
+        'all': requests.length,
+      }), [requests]);
+
+      const totalPages = Math.ceil(filtered.length / perPage);
+      const pageRequests = filtered.slice((page - 1) * perPage, page * perPage);
+
+      const toggleSelect = (id) => {
+        setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+      };
+      const toggleAll = () => {
+        if (selected.size === pageRequests.length) setSelected(new Set());
+        else setSelected(new Set(pageRequests.map(r => r.id)));
+      };
+
+      const getAge = (d) => {
+        if (!d) return '\u2014';
+        const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+        if (days === 0) return 'today';
+        return days + 'd';
+      };
+      const fmtDay = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+
+      const getStatus = (r) => {
+        const pickup = r.delivery_method === 'pickup';
+        if (r.status === 'requested') return {
+          label: 'Requested', tone: '#a87935',
+          step: pickup ? 'Prepare for pickup' : 'Needs shipment',
+        };
+        if (r.status === 'shipped') return pickup
+          ? { label: 'Ready for pickup', tone: '#3a7a4e', step: 'Customer notified' }
+          : { label: 'In transit', tone: '#3a7a4e', step: r.tracking_number ? 'Trk ' + r.tracking_number : 'Shipped ' + fmtDay(r.shipped_at) };
+        if (r.status === 'delivered') return {
+          label: pickup ? 'Picked up' : 'Delivered', tone: 'var(--brass-muted)',
+          step: r.delivered_at ? fmtDay(r.delivered_at) : 'Closed',
+        };
+        if (r.status === 'cancelled') return {
+          label: 'Cancelled', tone: '#c54731',
+          step: r.cancelled_at ? fmtDay(r.cancelled_at) : '',
+        };
+        return { label: r.status, tone: 'var(--brass-muted)', step: '' };
+      };
+
+      // Flag: requested requests get amber, red once they sit 3+ days
+      const getFlagColor = (r) => {
+        if (r.status !== 'requested') return 'transparent';
+        const days = Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86400000);
+        return days >= 3 ? '#c54731' : '#a87935';
+      };
+
+      const VIEWS = [
+        { key: 'open', label: 'To fulfill', tone: '#c54731' },
+        { key: 'transit', label: 'In transit' },
+        { key: 'delivered', label: 'Delivered' },
+        { key: 'cancelled', label: 'Cancelled' },
+        { key: 'all', label: 'All mine' },
+      ];
+
+      const STATUSES = [
+        { value: '', label: 'Status: Any' },
+        { value: 'requested', label: 'Requested' },
+        { value: 'shipped', label: 'Shipped' },
+        { value: 'delivered', label: 'Delivered' },
+        { value: 'cancelled', label: 'Cancelled' },
+      ];
+
+      const totalSamples = filtered.reduce((s, r) => s + (r.item_count || 0), 0);
 
       return (
         <div>
-          <div className="content-header">
-            <h1>Sample Requests</h1>
-            <button className="btn btn-primary" onClick={() => navigate('sample-create')}>+ New Sample Request</button>
+          {/* Header */}
+          <div className="ol-header">
+            <div>
+              <div className="ol-header-label">
+                {'\u25cf'} Sample requests {'\u00b7'} {requests.filter(r => r.status === 'requested' || r.status === 'shipped').length} active {'\u00b7'} {requests.length} total
+              </div>
+              <h1><em>Samples</em></h1>
+            </div>
+            <div className="ol-header-actions">
+              <button className="ol-header-btn primary" onClick={() => navigate('sample-create')}>+ New sample request</button>
+            </div>
           </div>
 
-          <div className="filter-bar" style={{ marginBottom: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <input
-              type="text" placeholder="Search name, email, SR#..."
-              value={search} onChange={e => setSearch(e.target.value)}
-              style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem', width: 220 }}
-            />
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="">All Statuses</option>
-              <option value="requested">Requested</option>
-              <option value="shipped">Shipped</option>
-              <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-            <span className="filter-count">{requests.length} requests</span>
+          {/* Saved views */}
+          <div className="ol-saved-views">
+            {VIEWS.map(v => (
+              <button key={v.key} className={'ol-view-tab' + (activeView === v.key ? ' active' : '')}
+                onClick={() => { setActiveView(v.key); setPage(1); setSelected(new Set()); }}>
+                {v.label}
+                <span className="ol-tab-count" style={v.tone && viewCounts[v.key] > 0 ? { background: v.tone + '1a', color: v.tone } : undefined}>
+                  {viewCounts[v.key]}
+                </span>
+              </button>
+            ))}
           </div>
 
-          <div className="form-card" style={{ padding: 0 }}>
-            <div className="table-scroll-wrapper"><table className="rep-table">
-              <thead>
-                <tr>
-                  <th>SR#</th>
-                  <th>Customer</th>
-                  <th>Email</th>
-                  <th>Items</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requests.map(r => (
-                  <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => navigate('sample-detail', r.id)}>
-                    <td data-label="SR#" style={{ fontWeight: 500, fontSize: '0.8125rem' }}>{r.request_number}</td>
-                    <td data-label="Customer" style={{ fontWeight: 500 }}>{r.customer_name}</td>
-                    <td data-label="Email" style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{r.customer_email || '\u2014'}</td>
-                    <td data-label="Items">{r.item_count}</td>
-                    <td data-label="Status"><span className={'badge badge-' + r.status}>{r.status}</span></td>
-                    <td data-label="Created" style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(r.created_at).toLocaleDateString()}</td>
-                    <td data-label="" className="actions">
-                      <button className="btn btn-sm btn-secondary" onClick={e => { e.stopPropagation(); navigate('sample-detail', r.id); }}>View</button>
-                    </td>
-                  </tr>
-                ))}
-                {requests.length === 0 && (
-                  <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No sample requests found</td></tr>
-                )}
-              </tbody>
-            </table></div>
+          {/* Filter bar */}
+          <div className="ol-filter-bar">
+            <div className="ol-filter-chips">
+              <select className="ol-chip" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
+                style={{ appearance: 'auto', paddingRight: 24 }}>
+                {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+              {statusFilter && (
+                <span className="ol-chip active" onClick={() => setStatusFilter('')}>
+                  <span className="ol-chip-label">Status:</span> {statusFilter}
+                  <span className="ol-chip-remove">{'\u00d7'}</span>
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 10, top: 7, font: '400 14px/1 "Cormorant Garamond", serif', color: 'var(--brass-muted)' }}>{'\u2315'}</span>
+                <input className="ol-search-inline" placeholder="Search samples, customers" aria-label="Search sample requests"
+                  value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+              </div>
+              <span className="ol-meta">{filtered.length} rows</span>
+            </div>
           </div>
+
+          {/* Bulk bar */}
+          {selected.size > 0 && (
+            <div className="ol-bulk-bar">
+              <div className="ol-bulk-label">{'\u25cf'} {selected.size} request{selected.size !== 1 ? 's' : ''} selected</div>
+              <div className="ol-bulk-actions">
+                <button className="ol-bulk-btn" onClick={() => setSelected(new Set())}>{'\u2715'} Clear</button>
+              </div>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="gs-loading" style={{ padding: '40px 22px', background: '#ece5d8', border: '0.5px solid rgba(28,25,23,0.14)' }}>Loading sample requests{'\u2026'}</div>
+          ) : (
+            <div className="sl-table-wrap">
+              {/* Table header */}
+              <div className="sl-table-head">
+                <input type="checkbox" style={{ margin: 0 }} aria-label="Select all sample requests on page"
+                  checked={pageRequests.length > 0 && selected.size === pageRequests.length}
+                  onChange={toggleAll} />
+                <span />
+                <span>Request</span>
+                <span>Customer</span>
+                <span>Items</span>
+                <span>Method</span>
+                <span>State {'\u00b7'} step</span>
+                <span style={{ textAlign: 'right' }}>Age</span>
+                <span>Date</span>
+                <span />
+              </div>
+
+              {/* Rows */}
+              {pageRequests.map(r => {
+                const st = getStatus(r);
+                const isSel = selected.has(r.id);
+                const pickup = r.delivery_method === 'pickup';
+                return (
+                  <div key={r.id} className={'sl-table-row' + (isSel ? ' selected' : '')}
+                    role="button" tabIndex={0}
+                    onClick={() => navigate('sample-detail', r.id)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('sample-detail', r.id); } }}>
+                    <input type="checkbox" style={{ margin: 0 }} checked={isSel} aria-label={'Select sample request ' + r.request_number}
+                      onChange={() => toggleSelect(r.id)} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} />
+                    <span className="ol-flag" style={{ background: getFlagColor(r) }} />
+                    <span className="sl-id">{r.request_number}</span>
+                    <div>
+                      <div className="sl-cust-name">{r.customer_name}</div>
+                      {r.customer_email && <div className="sl-cust-sub">{r.customer_email}</div>}
+                    </div>
+                    <span className="sl-items">{r.item_count} item{r.item_count !== 1 ? 's' : ''}</span>
+                    <div>
+                      <div className="sl-method">{pickup ? 'Pickup' : 'Shipping'}</div>
+                      <div className="sl-method-sub">
+                        {pickup ? 'Anaheim showroom' : [r.shipping_city, r.shipping_state].filter(Boolean).join(', ') || '\u2014'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="ol-state-label" style={{ color: st.tone }}>{'\u25cf'} {st.label}</div>
+                      {st.step && <div className="ol-state-step">{st.step}</div>}
+                    </div>
+                    <span className="ol-age">{getAge(r.created_at)}</span>
+                    <span className="ol-install">{fmtDay(r.created_at)}</span>
+                    <span style={{ font: '400 14px/1 "Cormorant Garamond", serif', color: 'var(--brass-muted)', textAlign: 'right' }}>{'\u2192'}</span>
+                  </div>
+                );
+              })}
+
+              {pageRequests.length === 0 && (
+                <div style={{ padding: '40px 22px', textAlign: 'center' }}>
+                  <div style={{ color: 'var(--brass-muted)', font: '400 13px/1.4 Inter, sans-serif', marginBottom: 14 }}>
+                    No sample requests match this view.
+                  </div>
+                  <button className="ol-header-btn" onClick={() => navigate('sample-create')}>+ New sample request</button>
+                </div>
+              )}
+
+              {/* Footer */}
+              {filtered.length > 0 && (
+                <div className="ol-footer">
+                  <span>
+                    Showing {Math.min((page - 1) * perPage + 1, filtered.length)}{'\u2013'}{Math.min(page * perPage, filtered.length)} of {filtered.length}
+                  </span>
+                  <span>{totalSamples} sample{totalSamples !== 1 ? 's' : ''} across {filtered.length} request{filtered.length !== 1 ? 's' : ''}</span>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="ol-pagination">
+                  <span className="ol-meta">Page {page} of {totalPages}</span>
+                  <div className="ol-page-btns">
+                    <button className="ol-page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{'\u2190'}</button>
+                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
+                      <button key={p} className={'ol-page-btn' + (page === p ? ' active' : '')}
+                        onClick={() => setPage(p)}>{p}</button>
+                    ))}
+                    {totalPages > 5 && <span className="ol-meta" style={{ padding: '4px 6px' }}>{'\u00b7\u00b7\u00b7'}</span>}
+                    <button className="ol-page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{'\u2192'}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       );
     }
