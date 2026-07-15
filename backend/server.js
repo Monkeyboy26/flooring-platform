@@ -12944,12 +12944,15 @@ app.put('/api/rep/sample-requests/:id/payment-status', repAuth, async (req, res)
     const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
 
-    const { collected } = req.body;
+    const { collected, method, stripe_payment_intent_id } = req.body;
     if (typeof collected !== 'boolean') return res.status(400).json({ error: 'collected must be true or false' });
+    if (method != null && !['card', 'terminal', 'cash', 'check'].includes(method)) {
+      return res.status(400).json({ error: 'Invalid payment method' });
+    }
 
     await pool.query(
-      'UPDATE sample_requests SET shipping_payment_collected = $1, shipping_payment_collected_at = $2 WHERE id = $3',
-      [collected, collected ? new Date() : null, req.params.id]
+      'UPDATE sample_requests SET shipping_payment_collected = $1, shipping_payment_collected_at = $2, shipping_payment_method = $3, shipping_payment_intent_id = $4 WHERE id = $5',
+      [collected, collected ? new Date() : null, collected ? method || null : null, collected ? stripe_payment_intent_id || null : null, req.params.id]
     );
 
     const updated = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);

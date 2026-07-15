@@ -930,7 +930,9 @@ CREATE TABLE IF NOT EXISTS sample_requests (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   stripe_checkout_session_id TEXT,
   shipping_payment_collected BOOLEAN DEFAULT false,
-  shipping_payment_collected_at TIMESTAMP
+  shipping_payment_collected_at TIMESTAMP,
+  shipping_payment_method VARCHAR(20),
+  shipping_payment_intent_id TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sample_requests_rep ON sample_requests(rep_id);
 CREATE INDEX IF NOT EXISTS idx_sample_requests_status ON sample_requests(status);

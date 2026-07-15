@@ -7159,7 +7159,7 @@
               {view === 'visit-detail' && <RepVisitDetailView navigate={navigate} editId={editId} />}
               {view === 'samples' && <RepSampleRequestsListView navigate={navigate} />}
               {view === 'sample-create' && <RepSampleRequestCreateView navigate={navigate} />}
-              {view === 'sample-detail' && <RepSampleRequestDetailView navigate={navigate} editId={editId} />}
+              {view === 'sample-detail' && <RepSampleRequestDetailView navigate={navigate} editId={editId} terminalRef={terminalRef} terminalStatus={terminalStatus} connectReader={connectReader} />}
               {view === 'notifications' && <RepNotificationsListView navigate={navigate} />}
               {view === 'cash-drawer' && <RepCashDrawerView navigate={navigate} />}
               {view === 'purchase-orders' && <RepPurchaseOrdersListView navigate={navigate} />}
@@ -13516,7 +13516,7 @@
     }
 
     // ========== RepSampleRequestDetailView ==========
-    function RepSampleRequestDetailView({ navigate, editId }) {
+    function RepSampleRequestDetailView({ navigate, editId, terminalRef, terminalStatus, connectReader }) {
       const [sr, setSr] = useState(null);
       const [items, setItems] = useState([]);
       const [loading, setLoading] = useState(true);
@@ -13608,14 +13608,15 @@
       };
 
       const [paymentActing, setPaymentActing] = useState(false);
+      const [showPayModal, setShowPayModal] = useState(false);
 
-      const markPaymentCollected = async (collected) => {
+      const markPaymentCollected = async (collected, method, stripePaymentIntentId) => {
         setPaymentActing(true);
         try {
           await repFetch('/api/rep/sample-requests/' + editId + '/payment-status', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ collected })
+            body: JSON.stringify({ collected, method: method || null, stripe_payment_intent_id: stripePaymentIntentId || null })
           });
           load();
         } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
@@ -13726,7 +13727,7 @@
           label: 'Shipping payment collected',
           done: !!sr.shipping_payment_collected,
           detail: sr.shipping_payment_collected
-            ? (sr.shipping_payment_collected_at ? 'Collected ' + new Date(sr.shipping_payment_collected_at).toLocaleDateString() : 'Collected')
+            ? ['Collected', sr.shipping_payment_method, sr.shipping_payment_collected_at ? new Date(sr.shipping_payment_collected_at).toLocaleDateString() : null].filter(Boolean).join(' · ')
             : '$12 flat rate',
           action: !sr.shipping_payment_collected ? 'collect_payment' : 'uncollect_payment'
         });
@@ -14117,9 +14118,14 @@
                         {step.detail && <div style={{ ...sdMono, marginTop: 3, fontSize: 9 }}>{step.detail}</div>}
                       </div>
                       {step.action === 'collect_payment' && (
-                        <button style={{ ...sdSmallBtn, background: 'var(--rod-ink)', color: '#fff', borderColor: 'var(--rod-ink)' }} disabled={paymentActing} onClick={() => markPaymentCollected(true)}>
-                          {paymentActing ? 'Saving…' : 'Mark collected'}
-                        </button>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button style={{ ...sdSmallBtn, background: 'var(--rod-ink)', color: '#fff', borderColor: 'var(--rod-ink)' }} disabled={paymentActing} onClick={() => setShowPayModal(true)}>
+                            {'Card $12 →'}
+                          </button>
+                          <button style={sdSmallBtn} disabled={paymentActing} onClick={() => markPaymentCollected(true, 'cash')}>
+                            {paymentActing ? 'Saving…' : 'Cash'}
+                          </button>
+                        </div>
                       )}
                       {step.action === 'uncollect_payment' && (
                         <button style={sdSmallBtn} disabled={paymentActing} onClick={() => markPaymentCollected(false)}>Undo</button>
@@ -14162,6 +14168,22 @@
               )}
             </div>
           </div>
+
+          {/* Shipping fee card charge */}
+          {showPayModal && (
+            <RofPayCardModal
+              amount={12}
+              customerName={sr.customer_name}
+              orderNumber={sr.request_number}
+              tenderIdx={1}
+              tenderCount={1}
+              onSuccess={(piId) => { setShowPayModal(false); markPaymentCollected(true, 'card', piId); }}
+              onCancel={() => setShowPayModal(false)}
+              terminalRef={terminalRef}
+              terminalStatus={terminalStatus}
+              connectReader={connectReader}
+            />
+          )}
         </div>
       );
     }
