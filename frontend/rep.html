@@ -9347,7 +9347,71 @@
       const [declineReason, setDeclineReason] = useState('');
       const [chargeError, setChargeError] = useState('');
 
+      // Card on file
+      const [savedCards, setSavedCards] = useState(null); // null = loading
+      const [stripeCustomerId, setStripeCustomerId] = useState(null);
+      const [selectedPm, setSelectedPm] = useState(null);
+      // New card (Stripe Elements)
+      const [cardComplete, setCardComplete] = useState(false);
+      const [cardError, setCardError] = useState('');
+      const [saveNewCard, setSaveNewCard] = useState(true);
+      const cardElRef = useRef(null);
+      const mountRef = useRef(null);
+      // Which input tab initiated the charge (for retry + receipt)
+      const lastInputTab = useRef('newcard');
+
       useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
+      // Look up the customer's saved cards
+      useEffect(() => {
+        let cancelled = false;
+        if (!customerEmail) {
+          setSavedCards([]);
+          setPhase(p => p === 'ready' ? 'newcard' : p);
+          return;
+        }
+        repFetch('/api/rep/customers/payment-methods?email=' + encodeURIComponent(customerEmail))
+          .then(d => {
+            if (cancelled) return;
+            setSavedCards(d.cards || []);
+            setStripeCustomerId(d.stripe_customer_id || null);
+            if (d.cards && d.cards.length) setSelectedPm(d.cards[0].id);
+            else setPhase(p => p === 'ready' ? 'newcard' : p);
+          })
+          .catch(() => {
+            if (cancelled) return;
+            setSavedCards([]);
+            setPhase(p => p === 'ready' ? 'newcard' : p);
+          });
+        return () => { cancelled = true; };
+      }, [customerEmail]);
+
+      // Mount the Stripe card element while the New card tab is open
+      useEffect(() => {
+        if (phase !== 'newcard' || !stripeInstance || !mountRef.current) return;
+        const elements = stripeInstance.elements();
+        const card = elements.create('card', {
+          disableLink: true,
+          style: {
+            base: {
+              fontSize: '15px',
+              fontFamily: "'Inter', sans-serif",
+              color: '#1c1917',
+              '::placeholder': { color: '#8a7e68' }
+            },
+            invalid: { color: '#b3402e' }
+          },
+          hidePostalCode: false
+        });
+        card.mount(mountRef.current);
+        card.on('change', (event) => {
+          setCardComplete(event.complete);
+          setCardError(event.error ? event.error.message : '');
+          if (event.brand && event.brand !== 'unknown') setCardBrand(event.brand.toUpperCase());
+        });
+        cardElRef.current = card;
+        return () => { card.destroy(); cardElRef.current = null; setCardComplete(false); };
+      }, [phase]);
 
       const payMoney = (n) => '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -9357,26 +9421,80 @@
         { l: 'Capturing funds', m: 'auth \u2192 capture' },
       ];
 
-      // Charge via ManualCardEntry (Stripe Elements)
-      const chargeNewCard = async () => {
+      const chargeDescription = orderNumber ? 'Charge for ' + orderNumber : 'In-store card charge';
+
+      // Charge the selected saved card (off-session, confirmed server-side)
+      const chargeSaved = async () => {
+        const card = (savedCards || []).find(c => c.id === selectedPm);
+        if (!card || !stripeCustomerId) return;
+        lastInputTab.current = 'ready';
+        setCardBrand((card.brand || 'card').toUpperCase());
+        setCardLast4(card.last4 || '');
         setPhase('processing');
         setProcStep(0);
         setChargeError('');
-        timers.current.push(setTimeout(() => setProcStep(1), 900));
-
+        timers.current.push(setTimeout(() => setProcStep(1), 700));
         try {
+          const r = await repFetch('/api/rep/card/charge-saved', {
+            method: 'POST',
+            body: JSON.stringify({
+              amount: parseFloat(amount),
+              description: chargeDescription,
+              stripe_customer_id: stripeCustomerId,
+              payment_method_id: card.id
+            })
+          });
+          setProcStep(2);
+          if (r.brand) setCardBrand(r.brand.toUpperCase());
+          if (r.last4) setCardLast4(r.last4);
+          setPiId(r.payment_intent_id);
+          setPhase('approved');
+        } catch (err) {
+          setDeclineReason(err.message || 'Charge failed');
+          setPhase('declined');
+        }
+      };
+
+      // Charge a keyed card via Stripe Elements. The element is tokenized
+      // before leaving this screen (it unmounts on phase change), then the
+      // intent is confirmed with the resulting payment method id.
+      const chargeNewCard = async () => {
+        if (!stripeInstance || !cardElRef.current || !cardComplete) return;
+        lastInputTab.current = 'newcard';
+        setChargeError('');
+        let pmId;
+        try {
+          const pmResult = await stripeInstance.createPaymentMethod({ type: 'card', card: cardElRef.current });
+          if (pmResult.error) { setCardError(pmResult.error.message); return; }
+          pmId = pmResult.paymentMethod.id;
+          if (pmResult.paymentMethod.card) {
+            setCardBrand((pmResult.paymentMethod.card.brand || 'card').toUpperCase());
+            setCardLast4(pmResult.paymentMethod.card.last4 || '');
+          }
+        } catch (err) {
+          setCardError(err.message || 'Card tokenization failed');
+          return;
+        }
+        setPhase('processing');
+        setProcStep(0);
+        try {
+          const wantSave = !!(saveNewCard && customerEmail);
           const r = await repFetch('/api/rep/card/create-payment-intent', {
             method: 'POST',
-            body: JSON.stringify({ amount: parseFloat(amount), customer_name: customerName })
+            body: JSON.stringify({
+              amount: parseFloat(amount),
+              order_description: chargeDescription,
+              customer_email: wantSave ? customerEmail : undefined,
+              save_card: wantSave
+            })
           });
           if (!r.client_secret) throw new Error(r.error || 'Failed to create payment');
           setProcStep(1);
-          timers.current.push(setTimeout(() => setProcStep(2), 500));
-          timers.current.push(setTimeout(() => {
-            setPiId(r.payment_intent_id || 'pi_simulated');
-            setAuthCode(Math.random().toString(36).substring(2, 8).toUpperCase());
-            setPhase('approved');
-          }, 1200));
+          const result = await stripeInstance.confirmCardPayment(r.client_secret, { payment_method: pmId });
+          if (result.error) throw new Error(result.error.message);
+          setProcStep(2);
+          setPiId(result.paymentIntent.id);
+          setPhase('approved');
         } catch (err) {
           setDeclineReason(err.message || 'Payment failed');
           setPhase('declined');
@@ -9389,6 +9507,7 @@
           connectReader();
           return;
         }
+        lastInputTab.current = 'terminal';
         setPhase('processing');
         setProcStep(0);
         setChargeError('');
@@ -9420,6 +9539,7 @@
 
       const handleCharge = () => {
         if (phase === 'terminal') { chargeTerminal(); return; }
+        if (phase === 'ready') { chargeSaved(); return; }
         chargeNewCard();
       };
 
@@ -9479,10 +9599,10 @@
       // Approved screen
       if (phase === 'approved') {
         const rows = [
-          ['Auth code', authCode || '04XQ27'],
-          ['Network', (cardBrand || 'VISA') + ' \u2022\u2022\u2022\u2022 ' + (cardLast4 || '****')],
-          ['AVS / CVC', 'Match \u00b7 Match'],
-          ['Transaction', piId ? piId.slice(0, 18) : 'txn_captured'],
+          ['Method', lastInputTab.current === 'ready' ? 'Card on file' : lastInputTab.current === 'terminal' ? 'Terminal' : 'Keyed entry'],
+          ['Network', (cardBrand || 'CARD') + ' \u2022\u2022\u2022\u2022 ' + (cardLast4 || '****')],
+          ['Status', 'Captured'],
+          ['Transaction', piId ? piId.slice(0, 24) : '\u2014'],
         ];
         return (
           <div className="rof-overlay">
@@ -9535,7 +9655,7 @@
               </div>
               <div style={{ padding: '14px 24px', borderTop: '0.5px solid rgba(28,25,23,0.09)', display: 'flex', gap: 8, alignItems: 'center' }}>
                 <button onClick={onCancel} style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', cursor: 'pointer', background: 'none', border: 'none', marginRight: 'auto' }}>{'\u2190'} Back</button>
-                <button onClick={() => setPhase('ready')} style={{ padding: '12px 22px', background: '#1c1917', color: '#ece5d8', font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', border: 'none' }}>{'\u21bb'} Try again</button>
+                <button onClick={() => setPhase(lastInputTab.current === 'ready' && savedCards && savedCards.length ? 'ready' : lastInputTab.current === 'terminal' ? 'terminal' : 'newcard')} style={{ padding: '12px 22px', background: '#1c1917', color: '#ece5d8', font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', border: 'none' }}>{'\u21bb'} Try again</button>
               </div>
             </div>
           </div>
@@ -9581,58 +9701,95 @@
             {/* Tab content */}
             <div style={{ padding: '20px 24px' }}>
               {phase === 'ready' && (
-                <div style={{ display: 'grid', gap: 16 }}>
-                  {/* Stored card visual */}
-                  <div style={{ position: 'relative', padding: '18px 20px', borderRadius: 10, background: 'linear-gradient(135deg, #2b2723 0%, #3a342d 100%)', color: '#f0ead9', boxShadow: '0 8px 22px rgba(28,25,23,0.2)', overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ width: 30, height: 22, borderRadius: 4, background: 'linear-gradient(135deg,#d8b878,#b8923f)' }} />
-                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '3px 7px', borderRadius: 3, background: '#1a1f71', color: '#fff', font: '700 11px/1 Inter, sans-serif', letterSpacing: '0.06em', fontStyle: 'italic' }}>VISA</span>
+                <div style={{ display: 'grid', gap: 14 }}>
+                  {savedCards === null && (
+                    <div style={{ padding: '28px 0', textAlign: 'center', font: '500 10px/1.4 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68' }}>
+                      Checking for cards on file{'\u2026'}
                     </div>
-                    <div style={{ font: '400 19px/1 "Cormorant Garamond", serif', letterSpacing: '0.14em', marginTop: 18 }}>
-                      {'\u2022\u2022\u2022\u2022'}{'  '}{'\u2022\u2022\u2022\u2022'}{'  '}{'\u2022\u2022\u2022\u2022'}{'  '}4242
+                  )}
+                  {savedCards && savedCards.length === 0 && (
+                    <div style={{ padding: '22px 16px', textAlign: 'center', border: '0.5px dashed rgba(28,25,23,0.3)' }}>
+                      <div style={{ font: '400 15px/1.3 "Cormorant Garamond", serif', color: '#1c1917' }}>No card on file{customerEmail ? '' : ' \u2014 no customer email'}</div>
+                      <div style={{ font: '400 12px/1.5 Inter, sans-serif', color: '#8a7e68', marginTop: 6 }}>
+                        {customerEmail
+                          ? 'Charge a new card with \u201CSave card\u201D checked and it will appear here next time.'
+                          : 'Select a customer with an email to use saved cards.'}
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: 'rgba(240,234,217,0.67)', textTransform: 'uppercase' }}>
-                      <span>{customerName}</span><span>Exp 09 / 27</span>
-                    </div>
-                    <div style={{ position: 'absolute', top: 14, right: 70, font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.14em', color: '#a87935', textTransform: 'uppercase' }}>Default</div>
-                  </div>
-                  {/* CVC re-confirm */}
-                  <label style={{ display: 'grid', gap: 7 }}>
-                    <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68' }}>Confirm CVC</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <input value={cvc} onChange={e => setCvc(e.target.value)} placeholder={'\u2022\u2022\u2022'} maxLength={4} style={{ width: 88, padding: '11px 13px', border: '0.5px solid rgba(28,25,23,0.2)', background: '#ece5d8', color: '#1c1917', font: '400 15px/1 ui-monospace, monospace', letterSpacing: '0.2em', outline: 'none', borderRadius: 4 }} />
-                      <span style={{ font: '400 11px/1.4 Inter, sans-serif', color: '#8a7e68' }}>3-digit code {'\u00b7'} keeps the charge low-risk</span>
-                    </div>
-                  </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.1em', color: '#8a7e68', textTransform: 'uppercase' }}>
-                    {'\uD83D\uDD12'} PCI-compliant {'\u00b7'} card data tokenized by Stripe {'\u00b7'} never touches Roma
-                  </div>
+                  )}
+                  {savedCards && savedCards.length > 0 && (() => {
+                    const sel = savedCards.find(c => c.id === selectedPm) || savedCards[0];
+                    const expStr = String(sel.exp_month).padStart(2, '0') + ' / ' + String(sel.exp_year).slice(-2);
+                    return (
+                      <React.Fragment>
+                        {/* Selected card visual */}
+                        <div style={{ position: 'relative', padding: '18px 20px', borderRadius: 10, background: 'linear-gradient(135deg, #2b2723 0%, #3a342d 100%)', color: '#f0ead9', boxShadow: '0 8px 22px rgba(28,25,23,0.2)', overflow: 'hidden' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div style={{ width: 30, height: 22, borderRadius: 4, background: 'linear-gradient(135deg,#d8b878,#b8923f)' }} />
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '3px 7px', borderRadius: 3, background: '#1a1f71', color: '#fff', font: '700 11px/1 Inter, sans-serif', letterSpacing: '0.06em', fontStyle: 'italic' }}>{(sel.brand || 'CARD').toUpperCase()}</span>
+                          </div>
+                          <div style={{ font: '400 19px/1 "Cormorant Garamond", serif', letterSpacing: '0.14em', marginTop: 18 }}>
+                            {'\u2022\u2022\u2022\u2022'}{'  '}{'\u2022\u2022\u2022\u2022'}{'  '}{'\u2022\u2022\u2022\u2022'}{'  '}{sel.last4}
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: 'rgba(240,234,217,0.67)', textTransform: 'uppercase' }}>
+                            <span>{customerName}</span><span>Exp {expStr}</span>
+                          </div>
+                          {savedCards[0].id === sel.id && (
+                            <div style={{ position: 'absolute', top: 14, right: 70, font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.14em', color: '#a87935', textTransform: 'uppercase' }}>Default</div>
+                          )}
+                        </div>
+                        {/* Card picker when multiple on file */}
+                        {savedCards.length > 1 && (
+                          <div style={{ display: 'grid', gap: 6 }}>
+                            {savedCards.map((c, i) => {
+                              const on = c.id === sel.id;
+                              return (
+                                <button key={c.id} onClick={() => setSelectedPm(c.id)} style={{ padding: '10px 13px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textAlign: 'left', background: on ? '#d8cdb6' : 'transparent', border: '0.5px solid ' + (on ? '#1c1917' : 'rgba(28,25,23,0.2)') }}>
+                                  <span style={{ width: 13, height: 13, borderRadius: '50%', flexShrink: 0, border: '1px solid ' + (on ? '#1c1917' : 'rgba(28,25,23,0.35)'), background: on ? '#1c1917' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {on && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ece5d8' }} />}
+                                  </span>
+                                  <span style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#1c1917' }}>
+                                    {(c.brand || 'card').toUpperCase()} {'\u2022\u2022\u2022\u2022'} {c.last4}
+                                  </span>
+                                  <span style={{ marginLeft: 'auto', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.1em', color: '#8a7e68', textTransform: 'uppercase' }}>
+                                    {String(c.exp_month).padStart(2, '0')}/{String(c.exp_year).slice(-2)}{i === 0 ? ' \u00b7 default' : ''}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.1em', color: '#8a7e68', textTransform: 'uppercase' }}>
+                          {'\uD83D\uDD12'} Charged off-session {'\u00b7'} card data held by Stripe {'\u00b7'} never touches Roma
+                        </div>
+                      </React.Fragment>
+                    );
+                  })()}
                 </div>
               )}
 
               {phase === 'newcard' && (
                 <div style={{ display: 'grid', gap: 14 }}>
                   <label>
-                    <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 7, display: 'block' }}>Card number</span>
-                    <div style={{ position: 'relative' }}>
-                      <input value={cardNumber} onChange={e => setCardNumber(e.target.value)} placeholder="1234 1234 1234 1234" style={{ padding: '12px 13px', border: '0.5px solid rgba(28,25,23,0.2)', background: '#ece5d8', color: '#1c1917', font: '400 14px/1 ui-monospace, monospace', outline: 'none', borderRadius: 4, width: '100%' }} />
-                      <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '3px 7px', borderRadius: 3, background: '#1a1f71', color: '#fff', font: '700 11px/1 Inter, sans-serif', letterSpacing: '0.06em', fontStyle: 'italic' }}>VISA</span>
+                    <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 7, display: 'block' }}>Card details</span>
+                    <div style={{ padding: '13px', border: '0.5px solid rgba(28,25,23,0.25)', background: '#f6f1e7', borderRadius: 4 }}>
+                      <div ref={mountRef}></div>
                     </div>
                   </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                    <label>
-                      <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 7, display: 'block' }}>Expiry</span>
-                      <input value={newExpiry} onChange={e => setNewExpiry(e.target.value)} placeholder="MM / YY" style={{ padding: '12px 13px', border: '0.5px solid rgba(28,25,23,0.2)', background: '#ece5d8', color: '#1c1917', font: '400 14px/1 ui-monospace, monospace', outline: 'none', borderRadius: 4, width: '100%' }} />
+                  {!stripeInstance && (
+                    <div style={{ font: '400 12px/1.4 Inter, sans-serif', color: '#b3402e' }}>Stripe failed to load \u2014 refresh and try again, or use the terminal.</div>
+                  )}
+                  {cardError && (
+                    <div style={{ font: '400 12px/1.4 Inter, sans-serif', color: '#b3402e' }}>{cardError}</div>
+                  )}
+                  {customerEmail && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                      <span onClick={e => { e.preventDefault(); setSaveNewCard(v => !v); }} style={{ width: 16, height: 16, borderRadius: 3, flexShrink: 0, background: saveNewCard ? '#a87935' : 'transparent', border: saveNewCard ? 'none' : '1px solid rgba(28,25,23,0.35)', color: '#ece5d8', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '500 10px/1 Inter, sans-serif' }}>{saveNewCard ? '\u2713' : ''}</span>
+                      <span onClick={e => { e.preventDefault(); setSaveNewCard(v => !v); }} style={{ font: '400 12px/1.4 Inter, sans-serif', color: 'rgba(28,25,23,0.8)' }}>
+                        Save card to {customerEmail} for future charges
+                      </span>
                     </label>
-                    <label>
-                      <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 7, display: 'block' }}>CVC</span>
-                      <input value={newCvc} onChange={e => setNewCvc(e.target.value)} placeholder={'\u2022\u2022\u2022'} style={{ padding: '12px 13px', border: '0.5px solid rgba(28,25,23,0.2)', background: '#ece5d8', color: '#1c1917', font: '400 14px/1 ui-monospace, monospace', outline: 'none', borderRadius: 4, width: '100%' }} />
-                    </label>
-                    <label>
-                      <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 7, display: 'block' }}>ZIP</span>
-                      <input value={newZip} onChange={e => setNewZip(e.target.value)} placeholder="92806" style={{ padding: '12px 13px', border: '0.5px solid rgba(28,25,23,0.2)', background: '#ece5d8', color: '#1c1917', font: '400 14px/1 ui-monospace, monospace', outline: 'none', borderRadius: 4, width: '100%' }} />
-                    </label>
-                  </div>
+                  )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.1em', color: '#8a7e68', textTransform: 'uppercase' }}>
                     {'\uD83D\uDD12'} PCI-compliant {'\u00b7'} card data tokenized by Stripe {'\u00b7'} never touches Roma
                   </div>
@@ -9668,9 +9825,14 @@
                 <button onClick={() => { if (terminalStatus !== 'connected') connectReader(); }} style={{ padding: '12px 18px', border: '0.5px solid rgba(28,25,23,0.2)', color: '#1c1917', font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', background: 'transparent' }}>
                   {terminalStatus === 'connected' ? 'Cancel read' : 'Connect reader'}
                 </button>
-              ) : (
-                <button onClick={handleCharge} style={{ padding: '12px 22px', background: '#a87935', color: '#ece5d8', font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', border: 'none' }}>Charge {payMoney(amount)} {'\u2192'}</button>
-              )}
+              ) : (() => {
+                const chargeDisabled = phase === 'ready'
+                  ? !(savedCards && savedCards.length && selectedPm)
+                  : !(stripeInstance && cardComplete);
+                return (
+                  <button onClick={handleCharge} disabled={chargeDisabled} style={{ padding: '12px 22px', background: '#a87935', color: '#ece5d8', font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: chargeDisabled ? 'default' : 'pointer', border: 'none', opacity: chargeDisabled ? 0.45 : 1 }}>Charge {payMoney(amount)} {'\u2192'}</button>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -11443,6 +11605,7 @@
             <RofPayCardModal
               amount={remaining > 0 ? remaining : total}
               customerName={customerName}
+              customerEmail={customerEmail}
               orderNumber={null}
               tenderIdx={paymentMethods.filter(p => p.method === 'card').length + 1}
               tenderCount={paymentMethods.length + 1}
@@ -14174,6 +14337,7 @@
             <RofPayCardModal
               amount={12}
               customerName={sr.customer_name}
+              customerEmail={sr.customer_email}
               orderNumber={sr.request_number}
               tenderIdx={1}
               tenderCount={1}

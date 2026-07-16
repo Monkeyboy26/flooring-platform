@@ -13144,9 +13144,101 @@ app.post('/api/rep/terminal/create-payment-intent', repAuth, async (req, res) =>
 });
 
 // Manual card entry (mobile) — creates a PI for Stripe Elements confirmation
+// Resolve (or create) the Stripe customer for a Roma customer email.
+// Trade customers first — they save a card at signup — then retail accounts.
+// Returns null when there is no local account row to persist the id on.
+async function resolveStripeCustomerForEmail(email) {
+  const normalized = (email || '').toLowerCase().trim();
+  if (!normalized) return null;
+  let row = null;
+  const tc = await pool.query('SELECT id, stripe_customer_id FROM trade_customers WHERE LOWER(email) = $1 LIMIT 1', [normalized]);
+  if (tc.rows.length) row = { table: 'trade_customers', ...tc.rows[0] };
+  if (!row || !row.stripe_customer_id) {
+    const c = await pool.query('SELECT id, stripe_customer_id FROM customers WHERE LOWER(email) = $1 LIMIT 1', [normalized]);
+    if (c.rows.length && (!row || c.rows[0].stripe_customer_id)) row = { table: 'customers', ...c.rows[0] };
+  }
+  if (!row) return null;
+  if (row.stripe_customer_id) return row.stripe_customer_id;
+  const stripeCustomer = await stripe.customers.create({ email: normalized });
+  const table = row.table === 'trade_customers' ? 'trade_customers' : 'customers';
+  await pool.query(`UPDATE ${table} SET stripe_customer_id = $1 WHERE id = $2`, [stripeCustomer.id, row.id]);
+  return stripeCustomer.id;
+}
+
+// List a customer's saved cards (card on file) by email
+app.get('/api/rep/customers/payment-methods', repAuth, async (req, res) => {
+  try {
+    const email = (req.query.email || '').toLowerCase().trim();
+    if (!email) return res.json({ stripe_customer_id: null, cards: [] });
+
+    let stripeCustomerId = null;
+    const tc = await pool.query('SELECT stripe_customer_id FROM trade_customers WHERE LOWER(email) = $1 AND stripe_customer_id IS NOT NULL LIMIT 1', [email]);
+    if (tc.rows.length) stripeCustomerId = tc.rows[0].stripe_customer_id;
+    if (!stripeCustomerId) {
+      const c = await pool.query('SELECT stripe_customer_id FROM customers WHERE LOWER(email) = $1 AND stripe_customer_id IS NOT NULL LIMIT 1', [email]);
+      if (c.rows.length) stripeCustomerId = c.rows[0].stripe_customer_id;
+    }
+    if (!stripeCustomerId) return res.json({ stripe_customer_id: null, cards: [] });
+
+    const pms = await stripe.paymentMethods.list({ customer: stripeCustomerId, type: 'card' });
+    const cards = pms.data.map(pm => ({
+      id: pm.id,
+      brand: pm.card.brand,
+      last4: pm.card.last4,
+      exp_month: pm.card.exp_month,
+      exp_year: pm.card.exp_year,
+    }));
+    res.json({ stripe_customer_id: stripeCustomerId, cards });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Charge a saved card (card on file) off-session
+app.post('/api/rep/card/charge-saved', repAuth, async (req, res) => {
+  try {
+    const { amount, description, stripe_customer_id, payment_method_id } = req.body;
+    if (!amount || amount <= 0) return res.status(400).json({ error: 'A positive amount is required' });
+    if (amount > 50000) return res.status(400).json({ error: 'Amount exceeds maximum of $50,000' });
+    if (!stripe_customer_id || !payment_method_id) {
+      return res.status(400).json({ error: 'Customer and payment method are required' });
+    }
+    const amountCents = Math.round(amount * 100);
+    try {
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amountCents,
+        currency: 'usd',
+        customer: stripe_customer_id,
+        payment_method: payment_method_id,
+        off_session: true,
+        confirm: true,
+        description: description || 'Card on file charge',
+        expand: ['latest_charge'],
+      });
+      const charge = (paymentIntent.latest_charge && typeof paymentIntent.latest_charge === 'object')
+        ? paymentIntent.latest_charge
+        : (paymentIntent.charges && paymentIntent.charges.data && paymentIntent.charges.data[0]);
+      const cardDetails = charge && charge.payment_method_details && charge.payment_method_details.card;
+      res.json({
+        payment_intent_id: paymentIntent.id,
+        status: paymentIntent.status,
+        brand: cardDetails ? cardDetails.brand : null,
+        last4: cardDetails ? cardDetails.last4 : null,
+      });
+    } catch (err) {
+      if (err.type === 'StripeCardError' || err.code === 'authentication_required') {
+        return res.status(402).json({ error: err.message || 'Card declined', decline_code: err.decline_code || err.code });
+      }
+      throw err;
+    }
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.post('/api/rep/card/create-payment-intent', repAuth, async (req, res) => {
   try {
-    const { amount, order_description } = req.body;
+    const { amount, order_description, customer_email, save_card } = req.body;
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: 'A positive amount is required' });
     }
@@ -13159,8 +13251,22 @@ app.post('/api/rep/card/create-payment-intent', repAuth, async (req, res) => {
       currency: 'usd',
       payment_method_types: ['card'],
       description: order_description || 'In-store manual card entry',
-    });
-    res.json({ client_secret: paymentIntent.client_secret, payment_intent_id: paymentIntent.id });
+    };
+    // Attach the charge to the customer's Stripe record so the card is
+    // saved for future card-on-file charges
+    if (save_card && customer_email) {
+      try {
+        const stripeCustomerId = await resolveStripeCustomerForEmail(customer_email);
+        if (stripeCustomerId) {
+          piParams.customer = stripeCustomerId;
+          piParams.setup_future_usage = 'off_session';
+        }
+      } catch (e) {
+        console.error('Failed to resolve Stripe customer for card save:', e.message);
+      }
+    }
+    const paymentIntent = await stripe.paymentIntents.create(piParams);
+    res.json({ client_secret: paymentIntent.client_secret, payment_intent_id: paymentIntent.id, card_will_save: !!piParams.customer });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
