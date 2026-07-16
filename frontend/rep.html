@@ -4549,6 +4549,37 @@
       width: 600px;
     }
 
+    /* Step 01b — Browse catalog popup */
+    .rof-cat-launch {
+      width: 100%; padding: 14px 16px; cursor: pointer; text-align: left;
+      border: 0.5px solid #1c1917; background: #1c1917; color: #ece5d8;
+      display: grid; grid-template-columns: 40px 1fr auto; gap: 14px; align-items: center;
+      margin-bottom: 0.75rem; transition: background 0.12s;
+    }
+    .rof-cat-launch:hover { background: #2e2a26; }
+    .rof-cat-launch-icon {
+      width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+      border: 0.5px solid rgba(236,229,216,0.27); font: 400 20px/1 var(--roma-serif);
+    }
+    .rof-cat-launch-title { display: block; font: 400 17px/1.15 var(--roma-serif); letter-spacing: -0.01em; }
+    .rof-cat-launch-sub { display: block; font: 500 9px/1.4 ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(236,229,216,0.67); margin-top: 4px; }
+    .rof-cat-launch-cta { padding: 7px 14px; border: 0.5px solid rgba(236,229,216,0.33); font: 500 10px/1 ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
+    .rof-cat-dialog {
+      width: 1264px; max-width: calc(100% - 16px); height: min(872px, calc(100vh - 40px));
+      background: #ece5d8; color: #1c1917;
+      box-shadow: 0 40px 120px rgba(28,25,23,0.4), 0 0 0 0.5px #1c1917;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .rof-cat-body { flex: 1; display: grid; grid-template-columns: 1fr 344px; min-height: 0; }
+    .rof-cat-grid { overflow-y: auto; padding: 18px 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-content: start; }
+    .rof-cat-tray { border-left: 0.5px solid rgba(28,25,23,0.12); background: #d8cdb6; display: flex; flex-direction: column; min-height: 0; }
+    @media (max-width: 1180px) { .rof-cat-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 860px) {
+      .rof-cat-body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+      .rof-cat-tray { border-left: none; border-top: 0.5px solid rgba(28,25,23,0.22); max-height: 42%; }
+      .rof-cat-header-chip { display: none; }
+    }
+
     /* Responsive */
     @media (max-width: 960px) {
       .rof-body { grid-template-columns: 1fr; }
@@ -10544,6 +10575,611 @@
     }
 
     // --- RofItemsSection ---
+    // --- RofCatalogModal — Step 01b "Browse catalog" popup ---
+    // Full catalog browser launched from the Items section: filter/search live
+    // SKUs, set quantities, expand a product for its companion accessories, add
+    // off-catalog custom lines, and drop the whole selection into the order in
+    // one action.
+    function rofCatKind(p) {
+      const cat = (p.category_name || p.collection || '').toLowerCase();
+      if (/wood|hardwood|bamboo/.test(cat)) return 'wood';
+      if (/marble/.test(cat)) return 'marble';
+      if (/tile|porcelain|ceramic/.test(cat)) return 'tile';
+      if (/stone|travertine|slate/.test(cat)) return 'stone';
+      if (/lvp|vinyl|laminate|spc/.test(cat)) return 'lvp';
+      if (/quartz/.test(cat)) return 'quartz';
+      if (/carpet/.test(cat)) return 'carpet';
+      return 'tile';
+    }
+    // Extended (retail) price for a catalog row at qty — mirrors addSkuItem math
+    function rofCatExt(p, qty, price) {
+      const sellBy = p.sell_by || 'box';
+      if (sellBy === 'unit' || sellBy === 'piece') return price * qty;
+      const spb = parseFloat(p.sqft_per_box || 0);
+      if (!spb) return price * qty;
+      if (p.price_basis === 'per_sqyd') return price * (spb * qty / 9);
+      return price * spb * qty;
+    }
+
+    function RofCatalogModal({ data, showCost, orderNumber, onClose, onAdd, contextLabel }) {
+      const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
+      const mono = (c) => ({ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: c });
+      const fmtMoney = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      const customer = data.customer;
+      const customerName = customer ? customer.name : (data.newCustomerName || 'Walk-in');
+      const discount = customer && customer.type === 'trade' ? parseFloat(customer.discount_percent || 0) : 0;
+
+      const [mode, setMode] = useState('catalog');   // 'catalog' | 'custom'
+      const [query, setQuery] = useState('');
+      const [vendorId, setVendorId] = useState('');
+      const [products, setProducts] = useState([]);
+      const [total, setTotal] = useState(0);
+      const [loading, setLoading] = useState(true);
+      const fetchTimer = useRef(null);
+      const fetchCounter = useRef(0);
+
+      const [added, setAdded] = useState({});       // sku_id -> { item, qty }
+      const [accAdded, setAccAdded] = useState({}); // acc sku_id -> { acc, parent, qty }
+      const [expanded, setExpanded] = useState(null);
+      const [accCache, setAccCache] = useState({}); // parent sku_id -> accessories[] | 'loading'
+      const [customList, setCustomList] = useState([]);
+      const [customVendors, setCustomVendors] = useState([]);
+
+      // Esc to close + lock page scroll behind the dialog
+      useEffect(() => {
+        const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', onKey);
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
+      }, []);
+
+      // Vendors drive both the filter pills and the custom-line vendor picker
+      useEffect(() => {
+        repFetch('/api/rep/vendors').then(d => setCustomVendors(d.vendors || [])).catch(() => {});
+      }, []);
+
+      // Debounced product load
+      useEffect(() => {
+        const thisFetch = ++fetchCounter.current;
+        setLoading(true);
+        if (fetchTimer.current) clearTimeout(fetchTimer.current);
+        fetchTimer.current = setTimeout(() => {
+          const params = new URLSearchParams();
+          if (query.trim()) params.set('search', query.trim());
+          if (vendorId) params.set('vendor', vendorId);
+          params.set('limit', 48);
+          params.set('sort', 'margin_desc');
+          repFetch('/api/rep/products?' + params.toString())
+            .then(d => {
+              if (thisFetch !== fetchCounter.current) return;
+              setProducts(d.products || []); setTotal(d.total || 0); setLoading(false);
+            })
+            .catch(() => { if (thisFetch === fetchCounter.current) setLoading(false); });
+        }, query.trim() ? 250 : 0);
+        return () => clearTimeout(fetchTimer.current);
+      }, [query, vendorId]);
+
+      const setQty = (p, qty) => setAdded(a => {
+        const n = { ...a };
+        if (qty <= 0) delete n[p.sku_id]; else n[p.sku_id] = { item: p, qty };
+        return n;
+      });
+      const bumpQty = (p, delta) => {
+        const cur = added[p.sku_id] ? added[p.sku_id].qty : 0;
+        setQty(p, Math.max(0, cur + delta));
+      };
+
+      const toggleExpand = (p) => {
+        const skuId = p.sku_id;
+        setExpanded(e => e === skuId ? null : skuId);
+        if (!accCache[skuId]) {
+          setAccCache(c => ({ ...c, [skuId]: 'loading' }));
+          repFetch('/api/rep/skus/' + skuId)
+            .then(d => setAccCache(c => ({ ...c, [skuId]: d.accessories || [] })))
+            .catch(() => setAccCache(c => ({ ...c, [skuId]: [] })));
+        }
+      };
+      const toggleAcc = (acc, parent) => setAccAdded(a => {
+        const n = { ...a };
+        if (n[acc.sku_id]) delete n[acc.sku_id]; else n[acc.sku_id] = { acc, parent, qty: 1 };
+        return n;
+      });
+
+      const lineList = Object.values(added);
+      const accList = Object.values(accAdded);
+      const itemCount = lineList.length + accList.length + customList.length;
+      const catalogRetail =
+        lineList.reduce((t, { item, qty }) => t + rofCatExt(item, qty, parseFloat(item.price || 0)), 0) +
+        accList.reduce((t, { acc, qty }) => t + parseFloat(acc.retail_price || 0) * qty, 0);
+      const customSubtotal = customList.reduce((t, c) => t + c.subtotal, 0);
+      const retailSubtotal = catalogRetail + customSubtotal;
+      const discountedTotal = catalogRetail * (1 - discount / 100) + customSubtotal;
+
+
+      const confirm = () => {
+        if (itemCount === 0) return;
+        onAdd({ lines: lineList, accessories: accList, customs: customList });
+        onClose();
+      };
+
+      return (
+        <div className="rof-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+          <div className="rof-cat-dialog rof-pop">
+
+            {/* ── Header ── */}
+            <div style={{ padding: '18px 24px', borderBottom: '0.5px solid rgba(28,25,23,0.12)', display: 'flex', alignItems: 'center', gap: 20, flexShrink: 0 }}>
+              <div style={{ flexShrink: 0 }}>
+                <div style={{ ...mono(TH.accent), fontSize: 10, letterSpacing: '0.18em', marginBottom: 8 }}>
+                  {contextLabel || <React.Fragment>Add to order {'·'} {orderNumber || 'New order'}</React.Fragment>}
+                </div>
+                <div style={{ font: '300 28px/1 var(--roma-serif)', letterSpacing: '-0.015em', color: TH.ink }}>
+                  Product <em style={{ color: TH.accent }}>catalog</em>
+                </div>
+              </div>
+              {/* Customer pricing chip */}
+              <div className="rof-cat-header-chip" style={{ padding: '8px 14px', border: '0.5px solid rgba(28,25,23,0.13)', background: TH.warm, display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
+                <span style={{ ...mono(TH.muted), fontSize: 9 }}>Pricing for</span>
+                <span style={{ font: '400 13px/1 var(--roma-sans)', color: TH.ink }}>
+                  {customerName}{' · '}
+                  <span style={{ color: TH.accent }}>{discount > 0 ? 'Trade −' + discount.toFixed(0) + '%' : 'Retail'}</span>
+                </span>
+              </div>
+              {/* Search */}
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', border: '0.5px solid rgba(28,25,23,0.2)', background: TH.paper, minWidth: 120 }}>
+                <span style={{ padding: '11px 14px', color: TH.muted, font: '400 15px/1 var(--roma-sans)' }}>{'⌕'}</span>
+                <input autoFocus value={query} onChange={e => setQuery(e.target.value)}
+                  placeholder="Search SKU, material, vendor, collection… or scan a barcode"
+                  style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', font: '400 14px/1 var(--roma-sans)', color: TH.ink, padding: '11px 0', minWidth: 0 }} />
+                {query && <span onClick={() => setQuery('')} style={{ padding: '0 12px', cursor: 'pointer', color: TH.muted, font: '400 15px/1 var(--roma-sans)' }}>{'×'}</span>}
+              </div>
+              <button onClick={onClose} style={{ width: 34, height: 34, flexShrink: 0, border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', color: TH.ink, cursor: 'pointer', font: '400 16px/1 var(--roma-sans)' }}>{'✕'}</button>
+            </div>
+
+            {/* ── Tab strip ── */}
+            <div style={{ padding: '0 24px', borderBottom: '0.5px solid rgba(28,25,23,0.1)', flexShrink: 0, display: 'flex', gap: 0, alignItems: 'stretch' }}>
+              {[['catalog', '▦', 'Catalog'], ['custom', '✎', 'Custom item']].map(([id, icon, label]) => {
+                const on = mode === id;
+                return (
+                  <button key={id} onClick={() => setMode(id)} style={{
+                    padding: '13px 20px', cursor: 'pointer', background: 'transparent', border: 'none',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: on ? TH.ink : TH.muted,
+                    borderBottom: on ? '2px solid ' + TH.accent : '2px solid transparent', marginBottom: -0.5,
+                  }}>
+                    <span style={{ font: '400 14px/1 var(--roma-serif)' }}>{icon}</span>{label}
+                  </button>
+                );
+              })}
+              <span style={{ marginLeft: 'auto', alignSelf: 'center', ...mono(TH.muted), fontSize: 9, lineHeight: 1.4, letterSpacing: '0.12em' }}>
+                {mode === 'catalog' ? 'From stocked SKUs' : 'Off-catalog · manual line'}
+              </span>
+            </div>
+
+            {/* ── Vendor pills (catalog only) ── */}
+            {mode === 'catalog' && (
+              <div style={{ padding: '12px 24px', borderBottom: '0.5px solid rgba(28,25,23,0.1)', flexShrink: 0, display: 'flex', gap: 14, alignItems: 'center' }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', gap: 7, alignItems: 'center', overflowX: 'auto', scrollbarWidth: 'thin', paddingBottom: 2 }}>
+                  {[{ id: '', name: 'All vendors' }].concat(customVendors).map(v => {
+                    const on = String(v.id || '') === vendorId;
+                    return (
+                      <button key={v.id || 'all'} onClick={() => setVendorId(String(v.id || ''))} style={{
+                        padding: '7px 13px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+                        background: on ? TH.ink : 'transparent', color: on ? TH.paper : TH.ink,
+                        border: on ? '0.5px solid ' + TH.ink : '0.5px solid rgba(28,25,23,0.16)',
+                        font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.02em',
+                      }}>{v.name}</button>
+                    );
+                  })}
+                </div>
+                <span style={{ flexShrink: 0, ...mono(TH.muted), fontSize: 10 }}>
+                  {loading ? 'Loading…' : total.toLocaleString() + (total === 1 ? ' result' : ' results') + (showCost ? ' · cost & margin visible' : '')}
+                </span>
+              </div>
+            )}
+
+            {/* ── Body: grid/form + order tray ── */}
+            <div className="rof-cat-body">
+              {mode === 'catalog' ? (
+                <div className="rof-cat-grid">
+                  {loading && products.length === 0 && (
+                    <div style={{ gridColumn: '1 / -1', padding: '60px 0', textAlign: 'center', color: TH.muted, font: '400 15px/1.5 var(--roma-sans)' }}>Loading SKUs…</div>
+                  )}
+                  {products.map(p => (
+                    <RofCatCard key={p.sku_id} p={p} showCost={showCost}
+                      qty={added[p.sku_id] ? added[p.sku_id].qty : 0}
+                      onBump={(d) => bumpQty(p, d)}
+                      onSet={(v) => setQty(p, v)}
+                      expanded={expanded === p.sku_id}
+                      onToggleExpand={() => toggleExpand(p)}
+                      accessories={accCache[p.sku_id]}
+                      accAdded={accAdded}
+                      onToggleAcc={(acc) => toggleAcc(acc, p)}
+                    />
+                  ))}
+                  {!loading && products.length === 0 && (
+                    <div style={{ gridColumn: '1 / -1', padding: '60px 0', textAlign: 'center', color: TH.muted, font: '400 15px/1.5 var(--roma-sans)' }}>
+                      No products match{query.trim() ? ' “' + query.trim() + '”' : ' these filters'}.<br />Try another term or clear the category filter.
+                    </div>
+                  )}
+                  {!loading && total > products.length && (
+                    <div style={{ gridColumn: '1 / -1', padding: '10px 0 2px', textAlign: 'center', ...mono(TH.muted), fontSize: 9, lineHeight: 1.5 }}>
+                      Showing {products.length} of {total.toLocaleString()} {'·'} refine the search to narrow down
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <RofCatCustomForm showCost={showCost} vendors={customVendors}
+                  onAdd={(line) => setCustomList(l => [...l, line])} />
+              )}
+
+              {/* Order draft tray */}
+              <RofCatTray discount={discount}
+                lineList={lineList} accList={accList} customList={customList}
+                itemCount={itemCount} retailSubtotal={retailSubtotal} discountedTotal={discountedTotal}
+                onRemoveItem={(skuId) => setAdded(a => { const n = { ...a }; delete n[skuId]; return n; })}
+                onRemoveAcc={(skuId) => setAccAdded(a => { const n = { ...a }; delete n[skuId]; return n; })}
+                onRemoveCustom={(cid) => setCustomList(l => l.filter(c => c._cid !== cid))}
+                onClose={onClose} onConfirm={confirm}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- Product card inside the catalog popup ---
+    function RofCatCard({ p, showCost, qty, onBump, onSet, expanded, onToggleExpand, accessories, accAdded, onToggleAcc }) {
+      const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
+      const mono = (c) => ({ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: c });
+      const fmtMoney = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const marginColor = (pct) => pct >= 30 ? '#3a7a4e' : pct >= 15 ? '#a87935' : '#c54731';
+
+      const price = p.price ? parseFloat(p.price) : 0;
+      const mPct = p.margin_pct || 0;
+      const sk = stockDisplay(p);
+      const active = qty > 0;
+      const isUnit = p.sell_by === 'unit' || p.sell_by === 'piece';
+      const qtyUnit = isUnit ? 'units' : 'boxes';
+      const priceUnit = isUnit ? '/ea' : p.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft';
+      const hasAcc = (p.accessory_count || 0) > 0;
+      const accLoading = accessories === 'loading' || accessories === undefined;
+      const accList = Array.isArray(accessories) ? accessories : [];
+      const accCount = accList.filter(a => accAdded[a.sku_id]).length;
+      const stepBtn = { width: 32, height: 34, border: 'none', background: 'transparent', color: TH.ink, cursor: 'pointer', font: '400 17px/1 var(--roma-sans)' };
+
+      return (
+        <div style={{
+          border: active ? '1.5px solid ' + TH.accent : '0.5px solid rgba(28,25,23,0.13)',
+          background: TH.paper, display: 'flex', flexDirection: 'column',
+          boxShadow: active ? '0 6px 20px rgba(28,25,23,0.08)' : 'none', transition: 'border-color .12s, box-shadow .12s',
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '96px 1fr' }}>
+            {/* Swatch / photo */}
+            <div style={{ position: 'relative', minHeight: 96, overflow: 'hidden', background: 'var(--stone-100)' }}>
+              {p.primary_image
+                ? <img src={optimizeImg(p.primary_image, 200)} alt="" loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <div style={{ position: 'absolute', inset: 0, ...materialFace(rofCatKind(p)) }} />}
+              <div style={{ position: 'absolute', top: 6, left: 6, padding: '3px 6px', background: TH.paper, ...mono(sk.c), fontSize: 8, letterSpacing: '0.1em' }}>{'●'} {sk.l}</div>
+            </div>
+            {/* Body */}
+            <div style={{ padding: '11px 13px', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ ...mono(TH.muted), fontSize: 9, lineHeight: 1.3, letterSpacing: '0.12em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {[p.category_name, p.brand_name || p.vendor_name].filter(Boolean).join(' · ')}
+                </span>
+                {showCost && mPct > 0 && (
+                  <span style={{ padding: '2px 6px', background: marginColor(mPct), color: '#fff', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.08em', whiteSpace: 'nowrap', flexShrink: 0 }}>{mPct.toFixed(0)}%</span>
+                )}
+              </div>
+              <div style={{ font: '400 17px/1.15 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em' }}>{p.display_name || p.name}</div>
+              <div style={{ font: '400 12px/1.3 var(--roma-sans)', color: 'rgba(28,25,23,0.6)' }}>
+                {[p.variant_name, p.collection].filter(Boolean).join(' · ') || (p.vendor_sku || p.internal_sku || '')}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 2, gap: 8 }}>
+                <span style={{ ...mono(sk.q ? sk.c : TH.muted), fontSize: 9, letterSpacing: '0.1em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sk.q ? sk.q + ' avail' : (p.vendor_sku || p.internal_sku || '')}</span>
+                <span style={{ font: '400 16px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>
+                  {price > 0 ? fmtMoney(price) : '—'}
+                  {price > 0 && <span style={{ font: '400 10px/1 var(--roma-sans)', color: TH.muted }}>{priceUnit}</span>}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div style={{ padding: '10px 13px', borderTop: '0.5px solid rgba(28,25,23,0.08)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid rgba(28,25,23,0.2)' }}>
+              <button onClick={() => onBump(-1)} style={stepBtn}>{'−'}</button>
+              <input value={qty} onChange={e => onSet(Math.max(0, parseInt(e.target.value) || 0))} style={{
+                width: 52, textAlign: 'center', border: 'none', borderLeft: '0.5px solid rgba(28,25,23,0.13)', borderRight: '0.5px solid rgba(28,25,23,0.13)',
+                background: 'transparent', outline: 'none', font: '400 15px/1 var(--roma-serif)', color: TH.ink, padding: '7px 0',
+              }} />
+              <button onClick={() => onBump(1)} style={stepBtn}>+</button>
+            </div>
+            <span style={{ ...mono(TH.muted), fontSize: 9, letterSpacing: '0.12em' }}>
+              {qtyUnit}{!isUnit && parseFloat(p.sqft_per_box || 0) > 0 && qty > 0 ? ' · ≈' + Math.round(parseFloat(p.sqft_per_box) * qty) + ' sf' : ''}
+            </span>
+            <button onClick={() => onBump(1)} style={{
+              marginLeft: 'auto', padding: '8px 16px', cursor: 'pointer',
+              background: active ? TH.accent : TH.ink, color: TH.paper, border: 'none',
+              font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase',
+            }}>{active ? '✓ Added' : '+ Add'}</button>
+          </div>
+
+          {/* Accessories toggle */}
+          {hasAcc && (
+            <button onClick={onToggleExpand} style={{
+              padding: '9px 13px', borderTop: '0.5px solid rgba(28,25,23,0.08)', background: expanded ? TH.warm : 'transparent',
+              cursor: 'pointer', border: 'none', borderTopStyle: 'solid', borderTopWidth: '0.5px', borderTopColor: 'rgba(28,25,23,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+              font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: accCount ? TH.accent : TH.muted,
+            }}>
+              <span>{accCount ? '✓ ' + accCount + ' accessor' + (accCount !== 1 ? 'ies' : 'y') + ' added' : '+ ' + p.accessory_count + ' accessor' + (p.accessory_count !== 1 ? 'ies' : 'y')} {'·'} complete the install</span>
+              <span style={{ transition: 'transform .15s', transform: expanded ? 'rotate(180deg)' : 'none' }}>{'⌄'}</span>
+            </button>
+          )}
+
+          {/* Accessories list */}
+          {hasAcc && expanded && (
+            <div className="rof-pop" style={{ borderTop: '0.5px solid rgba(28,25,23,0.08)', background: 'rgba(216,205,182,0.5)' }}>
+              {accLoading && (
+                <div style={{ padding: '14px 13px', ...mono(TH.muted), fontSize: 9, lineHeight: 1.4 }}>Loading accessories…</div>
+              )}
+              {!accLoading && accList.length === 0 && (
+                <div style={{ padding: '14px 13px', ...mono(TH.muted), fontSize: 9, lineHeight: 1.4 }}>No color-matched accessories for this SKU.</div>
+              )}
+              {!accLoading && accList.map((a, i) => {
+                const on = !!accAdded[a.sku_id];
+                const aPrice = parseFloat(a.retail_price || 0);
+                const aUnit = (a.sell_by === 'unit' || a.sell_by === 'piece') ? '/ea' : '/sqft';
+                return (
+                  <div key={a.sku_id} style={{
+                    display: 'grid', gridTemplateColumns: '30px 1fr auto 30px', gap: 10, alignItems: 'center',
+                    padding: '9px 13px', borderTop: i ? '0.5px solid rgba(28,25,23,0.06)' : 'none',
+                    background: on ? 'rgba(168,121,53,0.08)' : 'transparent',
+                  }}>
+                    {a.primary_image
+                      ? <img src={optimizeImg(a.primary_image, 80)} alt="" loading="lazy" style={{ width: 30, height: 30, objectFit: 'cover', border: '0.5px solid rgba(28,25,23,0.1)' }} />
+                      : <div style={{ width: 30, height: 30, ...materialFace(rofCatKind(p)), border: '0.5px solid rgba(28,25,23,0.1)' }} />}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ font: '400 12.5px/1.2 var(--roma-sans)', color: TH.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.accessory_label || a.variant_name}</div>
+                      <div style={{ font: '400 10px/1.3 var(--roma-sans)', color: TH.muted, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {[a.variant_name && a.variant_name !== (a.accessory_label || '') ? a.variant_name : null, a.vendor_sku].filter(Boolean).join(' · ')}
+                      </div>
+                    </div>
+                    <span style={{ font: '400 13px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>
+                      {aPrice > 0 ? fmtMoney(aPrice) : '—'}
+                      {aPrice > 0 && <span style={{ font: '400 9px/1 var(--roma-sans)', color: TH.muted }}>{aUnit}</span>}
+                    </span>
+                    <button onClick={() => onToggleAcc(a)} style={{
+                      width: 28, height: 28, flexShrink: 0, cursor: 'pointer',
+                      background: on ? TH.accent : 'transparent', color: on ? '#fff' : TH.ink,
+                      border: on ? 'none' : '0.5px solid rgba(28,25,23,0.2)', font: '400 15px/1 var(--roma-sans)',
+                    }}>{on ? '✓' : '+'}</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // --- Custom item form inside the catalog popup ---
+    function RofCatCustomForm({ showCost, vendors, onAdd }) {
+      const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
+      const fmtMoney = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const blank = { product_name: '', vendor_id: '', sell_by: 'unit', num_boxes: 1, unit_price: '', cost: '', description: '' };
+      const [f, setF] = useState(blank);
+      const set = (k, v) => setF(prev => ({ ...prev, [k]: v }));
+
+      const price = parseFloat(f.unit_price) || 0;
+      const cost = parseFloat(f.cost) || 0;
+      const qty = parseInt(f.num_boxes) || 0;
+      const ext = f.sell_by === 'roll' ? price * (qty / 9) : price * qty;
+      const margin = price > 0 && cost > 0 ? ((price - cost) / price) * 100 : null;
+      const valid = f.product_name.trim() && f.vendor_id && price > 0 && qty > 0;
+
+      const submit = () => {
+        if (!valid) return;
+        const vendor = vendors.find(v => String(v.id) === String(f.vendor_id));
+        onAdd({
+          _cid: Date.now() + Math.random(),
+          product_name: f.product_name.trim(),
+          vendor_id: f.vendor_id,
+          vendor_name: vendor ? vendor.name : '',
+          sell_by: f.sell_by,
+          num_boxes: qty,
+          unit_price: price,
+          cost,
+          description: f.description.trim(),
+          subtotal: ext,
+        });
+        setF(blank);
+      };
+
+      const lbl = { font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: TH.muted, marginBottom: 7, display: 'block' };
+      const field = { width: '100%', padding: '10px 12px', border: '0.5px solid rgba(28,25,23,0.2)', background: TH.paper, color: TH.ink, font: '400 14px/1.2 var(--roma-sans)', outline: 'none', boxSizing: 'border-box' };
+
+      return (
+        <div style={{ overflowY: 'auto', padding: '22px 28px' }}>
+          <div style={{ maxWidth: 620 }}>
+            <div style={{ font: '400 20px/1.2 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.01em', marginBottom: 4 }}>
+              Add a <em style={{ color: TH.accent }}>custom</em> line
+            </div>
+            <p style={{ font: '400 12.5px/1.5 var(--roma-sans)', color: TH.muted, margin: '0 0 22px' }}>
+              For anything off-catalog {'—'} special-order material, a freight or labor charge, a one-off cut. Priced manually; it flows onto the order like any other line. Custom items do not generate POs.
+            </p>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={lbl}>Description *</label>
+              <input maxLength={200} value={f.product_name} onChange={e => set('product_name', e.target.value)}
+                placeholder="e.g. Special-order Nero Marquina slab · book-matched pair" style={field} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+              <div>
+                <label style={lbl}>Vendor / source *</label>
+                <select value={f.vendor_id} onChange={e => set('vendor_id', e.target.value)} style={{ ...field, cursor: 'pointer' }}>
+                  <option value="">Select vendor…</option>
+                  {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Internal note</label>
+                <input maxLength={500} value={f.description} onChange={e => set('description', e.target.value)}
+                  placeholder="Lead time, PO reference, cut sheet… (optional)" style={field} />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: showCost ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap: 14, marginBottom: 18 }}>
+              <div>
+                <label style={lbl}>Sell by</label>
+                <select value={f.sell_by} onChange={e => set('sell_by', e.target.value)} style={{ ...field, cursor: 'pointer' }}>
+                  {[['unit', 'Unit'], ['piece', 'Piece'], ['box', 'Box'], ['roll', 'Roll · sqft']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>{f.sell_by === 'roll' ? 'SqFt *' : 'Quantity *'}</label>
+                <input type="number" min="1" value={f.num_boxes} onChange={e => set('num_boxes', e.target.value)} style={field} />
+              </div>
+              <div>
+                <label style={lbl}>Unit price *</label>
+                <input type="number" min="0" step="0.01" value={f.unit_price} onChange={e => set('unit_price', e.target.value)} placeholder="0.00" style={field} />
+              </div>
+              {showCost && (
+                <div>
+                  <label style={lbl}>Your cost</label>
+                  <input type="number" min="0" step="0.01" value={f.cost} onChange={e => set('cost', e.target.value)} placeholder="0.00" style={field} />
+                </div>
+              )}
+            </div>
+
+            {/* Live line preview */}
+            <div style={{ display: 'flex', alignItems: 'stretch', border: '0.5px solid rgba(28,25,23,0.13)', marginBottom: 18 }}>
+              {[
+                ['Ext. price', ext > 0 ? fmtMoney(ext) : '—', TH.ink],
+                ...(showCost ? [['Margin', margin != null ? margin.toFixed(0) + '%' : '— add cost', margin != null ? (margin >= 30 ? '#3a7a4e' : margin >= 15 ? '#a87935' : '#c54731') : TH.muted]] : []),
+                ['Line', (qty || 0) + ' ' + (f.sell_by === 'roll' ? 'sqft' : f.sell_by) + ' × ' + (price ? fmtMoney(price) : '$0.00'), TH.muted],
+              ].map(([l, v, c], i) => (
+                <div key={l} style={{ flex: 1, padding: '13px 16px', borderLeft: i ? '0.5px solid rgba(28,25,23,0.1)' : 'none' }}>
+                  <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: TH.muted }}>{l}</div>
+                  <div style={{ font: '400 18px/1.1 var(--roma-serif)', color: c, marginTop: 6, letterSpacing: '-0.01em' }}>{v}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={submit} disabled={!valid} style={{
+                padding: '13px 24px', cursor: valid ? 'pointer' : 'not-allowed',
+                background: valid ? TH.ink : 'rgba(28,25,23,0.2)', color: TH.paper, border: 'none',
+                font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.08em', textTransform: 'uppercase',
+              }}>+ Add custom line</button>
+              <button onClick={() => setF(blank)} style={{
+                padding: '13px 20px', cursor: 'pointer', background: 'transparent', color: TH.ink,
+                border: '0.5px solid rgba(28,25,23,0.2)', font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase',
+              }}>Clear</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- Order draft tray inside the catalog popup ---
+    function RofCatTray({ discount, lineList, accList, customList, itemCount, retailSubtotal, discountedTotal, onRemoveItem, onRemoveAcc, onRemoveCustom, onClose, onConfirm }) {
+      const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
+      const mono = (c) => ({ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: c });
+      const fmtMoney = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const empty = itemCount === 0;
+      const xBtn = { width: 18, height: 18, border: 'none', background: 'transparent', color: TH.muted, cursor: 'pointer', font: '400 16px/1 var(--roma-sans)', padding: 0 };
+
+      return (
+        <div className="rof-cat-tray">
+          <div style={{ padding: '16px 20px 12px', borderBottom: '0.5px solid rgba(28,25,23,0.1)', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span style={{ ...mono(TH.ink), letterSpacing: '0.16em' }}>Adding to order</span>
+            <span style={mono(TH.muted)}>{itemCount} {itemCount === 1 ? 'line' : 'lines'}</span>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: empty ? 0 : '8px 0' }}>
+            {empty && (
+              <div style={{ padding: '48px 24px', textAlign: 'center', color: TH.muted, font: '400 13px/1.6 var(--roma-sans)' }}>
+                Nothing selected yet.<br />Set a quantity on any product {'—'} accessories tuck in underneath it.
+              </div>
+            )}
+            {lineList.map(({ item, qty }) => (
+              <div key={item.sku_id} style={{ padding: '10px 20px', display: 'grid', gridTemplateColumns: '30px 1fr auto 18px', gap: 10, alignItems: 'center' }}>
+                {item.primary_image
+                  ? <img src={optimizeImg(item.primary_image, 80)} alt="" loading="lazy" style={{ width: 30, height: 30, objectFit: 'cover', border: '0.5px solid rgba(28,25,23,0.1)' }} />
+                  : <div style={{ width: 30, height: 30, ...materialFace(rofCatKind(item)), border: '0.5px solid rgba(28,25,23,0.1)' }} />}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ font: '400 13px/1.2 var(--roma-sans)', color: TH.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.display_name || item.name}</div>
+                  <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>
+                    {qty} {(item.sell_by === 'unit' || item.sell_by === 'piece') ? 'units' : 'bx'} {'×'} {fmtMoney(item.price)}
+                  </div>
+                </div>
+                <span style={{ font: '400 13px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>{fmtMoney(rofCatExt(item, qty, parseFloat(item.price || 0)))}</span>
+                <button onClick={() => onRemoveItem(item.sku_id)} style={xBtn}>{'×'}</button>
+              </div>
+            ))}
+            {accList.length > 0 && (
+              <div style={{ padding: '6px 20px 4px', ...mono(TH.muted), fontSize: 9, marginTop: 4 }}>Accessories</div>
+            )}
+            {accList.map(({ acc, qty }) => (
+              <div key={acc.sku_id} style={{ padding: '8px 20px', display: 'grid', gridTemplateColumns: '30px 1fr auto 18px', gap: 10, alignItems: 'center' }}>
+                {acc.primary_image
+                  ? <img src={optimizeImg(acc.primary_image, 80)} alt="" loading="lazy" style={{ width: 30, height: 30, objectFit: 'cover', border: '0.5px solid rgba(28,25,23,0.1)' }} />
+                  : <div style={{ width: 30, height: 30, background: TH.paper, border: '0.5px solid rgba(28,25,23,0.1)' }} />}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ font: '400 12px/1.2 var(--roma-sans)', color: 'rgba(28,25,23,0.87)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{acc.accessory_label || acc.variant_name}</div>
+                  <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>{qty} {'×'} {fmtMoney(acc.retail_price)}</div>
+                </div>
+                <span style={{ font: '400 12px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>{fmtMoney(parseFloat(acc.retail_price || 0) * qty)}</span>
+                <button onClick={() => onRemoveAcc(acc.sku_id)} style={xBtn}>{'×'}</button>
+              </div>
+            ))}
+            {customList.length > 0 && (
+              <div style={{ padding: '6px 20px 4px', ...mono(TH.muted), fontSize: 9, marginTop: 4 }}>Custom lines</div>
+            )}
+            {customList.map(c => (
+              <div key={c._cid} style={{ padding: '8px 20px', display: 'grid', gridTemplateColumns: '30px 1fr auto 18px', gap: 10, alignItems: 'center' }}>
+                <div style={{ width: 30, height: 30, border: '0.5px dashed rgba(28,25,23,0.27)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 13px/1 var(--roma-serif)', color: TH.muted }}>{'✎'}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ font: '400 12.5px/1.2 var(--roma-sans)', color: TH.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.product_name}</div>
+                  <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>{c.num_boxes} {c.sell_by === 'roll' ? 'sqft' : c.sell_by} {'×'} {fmtMoney(c.unit_price)}</div>
+                </div>
+                <span style={{ font: '400 13px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>{fmtMoney(c.subtotal)}</span>
+                <button onClick={() => onRemoveCustom(c._cid)} style={xBtn}>{'×'}</button>
+              </div>
+            ))}
+          </div>
+
+          {/* Totals + actions */}
+          <div style={{ flexShrink: 0, borderTop: '0.5px solid rgba(28,25,23,0.13)', padding: '14px 20px', background: TH.paper }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', font: '400 12px/1 var(--roma-sans)', color: TH.muted, marginBottom: 7 }}>
+              <span>Retail subtotal</span><span>{fmtMoney(retailSubtotal)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+              <span style={{ font: '400 13px/1 var(--roma-sans)', color: TH.ink }}>
+                {discount > 0 ? <>Trade price <span style={{ font: '500 9px/1 ui-monospace, monospace', color: TH.accent }}>{'−'}{discount.toFixed(0)}%</span></> : 'Total'}
+              </span>
+              <span style={{ font: '400 22px/1 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.01em' }}>{fmtMoney(discountedTotal)}</span>
+            </div>
+            <button disabled={empty} onClick={onConfirm} style={{
+              width: '100%', padding: '13px 0', marginBottom: 8, cursor: empty ? 'not-allowed' : 'pointer',
+              background: empty ? 'rgba(28,25,23,0.2)' : TH.ink, color: TH.paper, border: 'none',
+              font: '500 12px/1 var(--roma-sans)', letterSpacing: '0.08em', textTransform: 'uppercase',
+            }}>{empty ? 'Select items to add' : 'Add ' + itemCount + ' ' + (itemCount === 1 ? 'line' : 'lines') + ' to order →'}</button>
+            <button onClick={onClose} style={{
+              width: '100%', padding: '11px 0', cursor: 'pointer', background: 'transparent', color: TH.ink,
+              border: '0.5px solid rgba(28,25,23,0.2)', font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase',
+            }}>Cancel</button>
+          </div>
+        </div>
+      );
+    }
+
     function RofItemsSection({ data, setData, showCost }) {
       const [skuSearch, setSkuSearch] = useState('');
       const [skuResults, setSkuResults] = useState([]);
@@ -10560,6 +11196,7 @@
       const [promoCode, setPromoCode] = useState(data.promoCode || '');
       const [promoError, setPromoError] = useState('');
       const [promoLoading, setPromoLoading] = useState(false);
+      const [catalogOpen, setCatalogOpen] = useState(false);
 
       const items = data.items || [];
       const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'roll' ? 'sqft' : 'boxes';
@@ -10669,6 +11306,103 @@
         setShowCustom(false);
       };
 
+      // Bulk add from the "Browse catalog" popup (Step 01b) — converts catalog
+      // rows, accessory rows, and custom lines into the order item shape
+      const addFromCatalog = ({ lines, accessories, customs }) => {
+        const discount = data.customer && data.customer.type === 'trade' ? parseFloat(data.customer.discount_percent || 0) : 0;
+        setData(d => {
+          const newItems = [...(d.items || [])];
+          let key = Date.now();
+          for (const { item: p, qty } of lines) {
+            const retailPrice = parseFloat(p.price || 0);
+            const unitPrice = discount > 0 ? retailPrice * (1 - discount / 100) : retailPrice;
+            const sqftPerBox = parseFloat(p.sqft_per_box || 0);
+            const sqftNeeded = sqftPerBox ? sqftPerBox * qty : null;
+            const sellBy = p.sell_by || 'box';
+            const isUnit = sellBy === 'unit' || sellBy === 'piece';
+            const isCarpet = p.price_basis === 'per_sqyd';
+            let subtotal;
+            if (isUnit) subtotal = unitPrice * qty;
+            else if (isCarpet && sqftNeeded) subtotal = unitPrice * (sqftNeeded / 9);
+            else if (sqftNeeded) subtotal = unitPrice * sqftNeeded;
+            else subtotal = unitPrice * qty;
+            newItems.push({
+              _key: key++,
+              sku_id: p.sku_id,
+              collection: p.collection || '',
+              product_name: p.display_name || p.name || '',
+              color: '',
+              variant_name: p.variant_name || '',
+              vendor_id: p.vendor_id,
+              vendor_name: p.brand_name || p.vendor_name,
+              vendor_sku: p.vendor_sku || p.internal_sku || '',
+              retail_price: retailPrice,
+              unit_price: unitPrice,
+              num_boxes: qty,
+              subtotal,
+              sqft_per_box: sqftPerBox,
+              sqft_needed: sqftNeeded,
+              _sqft_per_box: sqftPerBox,
+              is_sample: false,
+              sell_by: sellBy,
+              price_basis: p.price_basis || null,
+              cost: parseFloat(p.cost || 0),
+              vendor_cost: p.cost || null,
+              category_name: p.category_name || '',
+              primary_image: p.primary_image || null
+            });
+          }
+          for (const { acc, parent, qty } of accessories) {
+            const retailPrice = parseFloat(acc.retail_price || 0);
+            const unitPrice = discount > 0 ? retailPrice * (1 - discount / 100) : retailPrice;
+            newItems.push({
+              _key: key++,
+              sku_id: acc.sku_id,
+              collection: '',
+              product_name: acc.accessory_label || acc.variant_name || '',
+              color: '',
+              variant_name: acc.variant_name && acc.variant_name !== acc.accessory_label ? acc.variant_name : '',
+              vendor_id: parent.vendor_id,
+              vendor_name: parent.brand_name || parent.vendor_name,
+              vendor_sku: acc.vendor_sku || '',
+              retail_price: retailPrice,
+              unit_price: unitPrice,
+              num_boxes: qty,
+              subtotal: unitPrice * qty,
+              sqft_per_box: 0,
+              sqft_needed: null,
+              is_sample: false,
+              sell_by: acc.sell_by || 'unit',
+              cost: parseFloat(acc.cost || 0),
+              vendor_cost: acc.cost || null,
+              category_name: '',
+              primary_image: acc.primary_image || null
+            });
+          }
+          for (const c of customs) {
+            newItems.push({
+              _key: key++,
+              sku_id: null,
+              collection: '',
+              product_name: c.product_name,
+              color: '',
+              variant_name: '',
+              vendor_id: c.vendor_id || null,
+              vendor_name: c.vendor_name || '',
+              vendor_sku: '',
+              unit_price: c.unit_price,
+              num_boxes: c.num_boxes,
+              subtotal: c.subtotal,
+              description: c.description || null,
+              sell_by: c.sell_by,
+              is_custom: true,
+              cost: c.cost || 0
+            });
+          }
+          return { ...d, items: newItems, promoResult: null, promoCode: '' };
+        });
+      };
+
       const removeItem = (key) => {
         setData(d => ({ ...d, items: (d.items || []).filter(i => i._key !== key), promoResult: null, promoCode: '' }));
       };
@@ -10773,10 +11507,20 @@
               </button>
             }>
 
-            {/* Search bar */}
+            {/* Catalog launcher — Step 01b popup */}
+            <button className="rof-cat-launch" onClick={() => setCatalogOpen(true)}>
+              <span className="rof-cat-launch-icon">{'⊞'}</span>
+              <span>
+                <span className="rof-cat-launch-title">Browse the full catalog</span>
+                <span className="rof-cat-launch-sub">Filter by vendor, set quantities &amp; add accessories in one pass</span>
+              </span>
+              <span className="rof-cat-launch-cta">Open catalog {'→'}</span>
+            </button>
+
+            {/* Quick add search bar */}
             <div style={{ display: 'flex', gap: '0.625rem', marginBottom: '0.75rem' }}>
               <div className="rof-search-wrap" style={{ flex: 1, minWidth: 0 }}>
-                <input type="text" value={skuSearch} placeholder="Search SKU or product name..."
+                <input type="text" value={skuSearch} placeholder="Quick add — search SKU or product name..."
                   onBlur={() => setTimeout(() => { setSkuResults([]); setSkuSearching(false); }, 200)}
                   onChange={e => searchSku(e.target.value)}
                   style={{ width: '100%', padding: '0.5625rem 0.75rem', border: '0.5px solid rgba(28,25,23,0.18)', background: '#ece5d8', font: '400 0.8125rem/1.4 Inter, sans-serif' }} />
@@ -10993,6 +11737,17 @@
             )}
             {promoError && <div style={{ color: 'var(--red)', fontSize: '0.75rem', marginTop: '0.375rem' }}>{promoError}</div>}
           </WizRepCard>
+
+          {/* Step 01b — Browse catalog popup */}
+          {catalogOpen && (
+            <RofCatalogModal
+              data={data}
+              showCost={showCost}
+              orderNumber={data.createdOrder ? (data.createdOrder.order_number || 'R-' + data.createdOrder.id) : null}
+              onClose={() => setCatalogOpen(false)}
+              onAdd={addFromCatalog}
+            />
+          )}
         </div>
       );
     }
@@ -13365,6 +14120,34 @@
         setSkuResults([]);
       };
 
+      // Catalog browser popup (same as the order flow)
+      const [catalogOpen, setCatalogOpen] = useState(false);
+      const addFromCatalog = ({ lines, accessories, customs }) => {
+        const incoming = [
+          ...(lines || []).map(({ item }) => ({
+            product_id: item.id || null, sku_id: item.sku_id,
+            product_name: item.display_name || item.name || '', collection: item.collection || '',
+            variant_name: item.variant_name || '', vendor_name: item.brand_name || item.vendor_name || ''
+          })),
+          ...(accessories || []).map(({ acc }) => ({
+            product_id: acc.product_id || null, sku_id: acc.sku_id,
+            product_name: acc.display_name || acc.name || acc.product_name || '', collection: acc.collection || '',
+            variant_name: acc.variant_name || '', vendor_name: acc.brand_name || acc.vendor_name || ''
+          })),
+        ];
+        let skipped = (customs || []).length; // custom lines can't be sampled
+        setItems(prev => {
+          const next = [...prev];
+          let key = Date.now();
+          for (const it of incoming) {
+            if (next.length >= 5 || next.find(x => x.sku_id === it.sku_id)) { skipped++; continue; }
+            next.push({ _key: key++, ...it });
+          }
+          return next;
+        });
+        if (skipped) setTimeout(() => alert(skipped + ' selection' + (skipped !== 1 ? 's' : '') + ' skipped — 5-sample limit, duplicates, or custom lines'), 50);
+      };
+
       // Consume item handed off from the catalog "Add to…" chooser
       useEffect(() => {
         const pending = consumePendingAdd('sample');
@@ -13489,13 +14272,23 @@
                     <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-green)' }}>● Free samples</span>
                   </div>
                 </div>
+                <div style={{ padding: '14px 20px 0' }}>
+                  <button onClick={() => setCatalogOpen(true)} style={{ width: '100%', padding: '14px 16px', cursor: 'pointer', textAlign: 'left', border: '0.5px solid var(--rod-ink)', background: 'var(--rod-ink)', color: '#ece5d8', display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: 14, alignItems: 'center' }}>
+                    <span style={{ width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '0.5px solid rgba(236,229,216,0.27)', font: '400 20px/1 "Cormorant Garamond", serif' }}>{'▦'}</span>
+                    <span>
+                      <span style={{ display: 'block', font: '400 17px/1.15 "Cormorant Garamond", serif', letterSpacing: '-0.01em' }}>Browse the full catalog</span>
+                      <span style={{ display: 'block', font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(236,229,216,0.67)', marginTop: 4 }}>Filter by vendor {'·'} pick up to 5 free samples {'·'} accessories too</span>
+                    </span>
+                    <span style={{ padding: '7px 14px', border: '0.5px solid rgba(236,229,216,0.33)', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Open catalog {'→'}</span>
+                  </button>
+                </div>
                 <div style={{ padding: '14px 20px', borderBottom: '0.5px solid var(--rod-border)' }}>
                   <div style={{ position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 12, top: 10, font: '400 15px/1 "Cormorant Garamond", serif', color: 'var(--rod-muted)' }}>⌕</span>
                     <input style={{ ...scField, paddingLeft: 34 }} value={skuSearch}
                       onBlur={() => setTimeout(() => { setSkuResults([]); setSkuSearching(false); }, 200)}
                       onChange={e => searchSku(e.target.value)}
-                      placeholder="Search by product name, SKU, or collection…" />
+                      placeholder="Quick add — search by product name, SKU, or collection…" />
                     {skuSearching && skuResults.length === 0 && skuSearch.length >= 2 && (
                       <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
                     )}
@@ -13674,6 +14467,17 @@
               </div>
             </div>
           </div>
+
+          {/* Catalog browser popup */}
+          {catalogOpen && (
+            <RofCatalogModal
+              data={{ customer: null, newCustomerName: customerName.trim() || 'Sample request' }}
+              showCost={false}
+              contextLabel={'Add samples · new request'}
+              onClose={() => setCatalogOpen(false)}
+              onAdd={addFromCatalog}
+            />
+          )}
         </div>
       );
     }
@@ -13821,6 +14625,35 @@
           setAddSkuResults([]);
           load();
         } catch (err) { alert('Error: ' + (err.message || 'Failed to add item')); }
+        setAddingItem(false);
+      };
+
+      // Catalog browser popup (same as the order flow)
+      const [catalogOpen, setCatalogOpen] = useState(false);
+      const addFromCatalog = async ({ lines, accessories, customs }) => {
+        const incoming = [
+          ...(lines || []).map(({ item }) => ({ product_id: item.id || null, sku_id: item.sku_id })),
+          ...(accessories || []).map(({ acc }) => ({ product_id: acc.product_id || null, sku_id: acc.sku_id })),
+        ];
+        const active = items.filter(i => i.status !== 'cancelled');
+        const existing = new Set(active.map(i => i.sku_id));
+        const room = Math.max(0, 5 - active.length);
+        const fresh = incoming.filter(i => i.sku_id && !existing.has(i.sku_id)).slice(0, room);
+        const skipped = incoming.length - fresh.length + (customs || []).length;
+        if (!fresh.length) {
+          alert('Nothing added — 5-sample limit reached, duplicates, or custom lines');
+          return;
+        }
+        setAddingItem(true);
+        try {
+          await repFetch('/api/rep/sample-requests/' + editId + '/add-items', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: fresh })
+          });
+          load();
+          if (skipped) setTimeout(() => alert(skipped + ' selection' + (skipped !== 1 ? 's' : '') + ' skipped — 5-sample limit, duplicates, or custom lines'), 50);
+        } catch (err) { alert('Error: ' + (err.message || 'Failed to add items')); }
         setAddingItem(false);
       };
 
@@ -14031,10 +14864,19 @@
                     </div>
                   </div>
                   <div className="rod-card-body-padded">
+                    {activeItems.length < 5 && (
+                      <button onClick={() => setCatalogOpen(true)} style={{ width: '100%', marginBottom: 12, padding: '12px 14px', cursor: 'pointer', textAlign: 'left', border: '0.5px solid var(--rod-ink)', background: 'var(--rod-ink)', color: '#ece5d8', display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+                        <span>
+                          <span style={{ display: 'block', font: '400 15px/1.15 "Cormorant Garamond", serif', letterSpacing: '-0.01em' }}>{'▦'} Browse the full catalog</span>
+                          <span style={{ display: 'block', font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(236,229,216,0.67)', marginTop: 3 }}>Filter by vendor {'·'} accessories too</span>
+                        </span>
+                        <span style={{ padding: '6px 12px', border: '0.5px solid rgba(236,229,216,0.33)', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Open catalog {'→'}</span>
+                      </button>
+                    )}
                     {activeItems.length < 5 ? (
                       <div style={{ position: 'relative' }}>
                         <span style={{ position: 'absolute', left: 12, top: 10, font: '400 15px/1 "Cormorant Garamond", serif', color: 'var(--rod-muted)' }}>⌕</span>
-                        <input style={{ ...sdField, paddingLeft: 34 }} placeholder="Search to add a sample…" value={addSkuSearch}
+                        <input style={{ ...sdField, paddingLeft: 34 }} placeholder="Quick add — search for a sample…" value={addSkuSearch}
                           onBlur={() => setTimeout(() => { setAddSkuResults([]); setAddSkuSearching(false); }, 200)}
                           onChange={e => searchSkuToAdd(e.target.value)} />
                         {addSkuSearching && addSkuResults.length === 0 && addSkuSearch.length >= 2 && (
@@ -14331,6 +15173,17 @@
               )}
             </div>
           </div>
+
+          {/* Catalog browser popup */}
+          {catalogOpen && isOpen && (
+            <RofCatalogModal
+              data={{ customer: null, newCustomerName: sr.customer_name }}
+              showCost={false}
+              contextLabel={'Add samples · ' + sr.request_number}
+              onClose={() => setCatalogOpen(false)}
+              onAdd={addFromCatalog}
+            />
+          )}
 
           {/* Shipping fee card charge */}
           {showPayModal && (
@@ -15739,11 +16592,49 @@
         }
       };
 
+      const [catalogOpen, setCatalogOpen] = useState(false);
+
       const loadOrderActivity = useCallback(() => {
         repFetch('/api/rep/orders/' + editId + '/activity')
           .then(data => setOrderActivity(data.activity || []))
           .catch(() => {});
       }, [editId]);
+
+      // Bulk add from the "Browse catalog" popup — posts each selection through
+      // the same add-item endpoint the inline form uses
+      const addFromCatalog = async ({ lines, accessories, customs }) => {
+        try {
+          let last = null;
+          const post = (body) => repFetch('/api/rep/orders/' + editId + '/add-item', { method: 'POST', body: JSON.stringify(body) });
+          for (const { item: p, qty } of lines) {
+            const sellBy = p.sell_by || 'box';
+            const isUnit = sellBy === 'unit' || sellBy === 'piece';
+            const isCarpet = p.price_basis === 'per_sqyd';
+            const spb = parseFloat(p.sqft_per_box || 0);
+            let body;
+            if (isUnit) body = { sku_id: p.sku_id, num_boxes: qty };
+            else if (isCarpet) body = { sku_id: p.sku_id, sqft_needed: spb > 0 ? spb * qty : 9 * qty, num_boxes: 1 };
+            else if (spb > 0) body = { sku_id: p.sku_id, num_boxes: qty, sqft_needed: spb * qty };
+            else body = { sku_id: p.sku_id, num_boxes: qty };
+            last = await post(body);
+          }
+          for (const { acc, qty } of accessories) {
+            last = await post({ sku_id: acc.sku_id, num_boxes: qty });
+          }
+          for (const c of customs) {
+            last = await post({
+              product_name: c.product_name, unit_price: c.unit_price, vendor_id: c.vendor_id,
+              description: c.description || null, sell_by: c.sell_by, num_boxes: c.num_boxes
+            });
+          }
+          if (last) {
+            if (last.order) setOrder(last.order);
+            if (last.items) setItems(last.items);
+            if (last.balance) setBalanceInfo(last.balance);
+          }
+          loadPOs();
+        } catch (err) { alert('Failed to add items: ' + (err.message || 'Unknown error')); }
+      };
 
       const loadPOs = useCallback(() => {
         if (!editId) return;
@@ -17143,6 +18034,52 @@
 
             </div>
           </div>
+
+          {/* Sticky action bar — same as the order wizard + quote workspace */}
+          <div className="rof-action-bar">
+            <div className="rof-action-left">
+              <span>
+                <span style={{ display: 'block', font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.47)' }}>
+                  {order.order_number} · {statusLabels[order.status] || order.status}
+                </span>
+                <span className="rof-action-total" style={{ display: 'block', marginTop: 4 }}>
+                  ${parseFloat(order.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </span>
+              <span style={{ font: '500 9px/1.5 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.6)' }}>
+                {[
+                  order.customer_name,
+                  items.length + ' line' + (items.length !== 1 ? 's' : ''),
+                  isPickup ? 'Pickup' : 'Shipping',
+                  balanceInfo && balanceInfo.balance > 0
+                    ? 'Balance $' + balanceInfo.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : 'Paid in full',
+                ].filter(Boolean).join(' · ')}
+              </span>
+            </div>
+            <button className="rof-btn" onClick={() => navigate('orders')}>Close</button>
+            {order.status === 'cancelled' && !order.stripe_refund_id && (
+              <button className="rof-btn" onClick={() => { if (confirm('Reopen this order? It will return to Pending status.')) updateStatus('pending'); }} disabled={updating}>
+                Reopen
+              </button>
+            )}
+            {!showTrackingForm && nextStatus && (
+              <button className="rof-btn rof-btn-primary" onClick={() => { if (nextStatus === 'shipped' && order.delivery_method === 'shipping') window.scrollTo({ top: 0, behavior: 'smooth' }); updateStatus(nextStatus); }} disabled={updating}>
+                {updating ? 'Updating…' : 'Mark ' + (statusLabels[nextStatus] || nextStatus)}
+              </button>
+            )}
+          </div>
+
+          {/* Browse catalog popup — same as the order flow */}
+          {catalogOpen && ['pending', 'confirmed'].includes(order.status) && (
+            <RofCatalogModal
+              data={{ customer: null, newCustomerName: order.customer_name }}
+              showCost={showCost}
+              contextLabel={'Add to order · ' + order.order_number}
+              onClose={() => setCatalogOpen(false)}
+              onAdd={addFromCatalog}
+            />
+          )}
 
           {/* F. Modals (unchanged) */}
           {showPaymentRequestModal && (
