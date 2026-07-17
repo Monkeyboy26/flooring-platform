@@ -6623,6 +6623,25 @@
       }, 400);
       return () => clearTimeout(taxDebounce.current);
     }, [zip, isPickup, sessionId]);
+    useEffect(() => {
+      if (!appliedPromoCode || !sessionId) {
+        setPromoInfo(null);
+        return;
+      }
+      let cancelled = false;
+      fetch(API + "/api/promo-codes/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: appliedPromoCode, session_id: sessionId, customer_email: customerEmail || void 0 })
+      }).then((r) => r.ok ? r.json() : { valid: false }).then((d) => {
+        if (!cancelled) setPromoInfo(d && d.valid ? d : null);
+      }).catch(() => {
+        if (!cancelled) setPromoInfo(null);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [appliedPromoCode, sessionId, productSubtotal]);
     const handleSubmit = async (e) => {
       e.preventDefault();
       setError("");

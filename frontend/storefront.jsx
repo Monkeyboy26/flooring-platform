@@ -9712,6 +9712,21 @@
         return () => clearTimeout(taxDebounce.current);
       }, [zip, isPickup, sessionId]);
 
+      // Resolve the applied promo (entered on the cart page) so we can show the
+      // discount and tax the post-discount base — matching what's charged.
+      useEffect(() => {
+        if (!appliedPromoCode || !sessionId) { setPromoInfo(null); return; }
+        let cancelled = false;
+        fetch(API + '/api/promo-codes/validate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: appliedPromoCode, session_id: sessionId, customer_email: customerEmail || undefined })
+        })
+          .then(r => r.ok ? r.json() : { valid: false })
+          .then(d => { if (!cancelled) setPromoInfo(d && d.valid ? d : null); })
+          .catch(() => { if (!cancelled) setPromoInfo(null); });
+        return () => { cancelled = true; };
+      }, [appliedPromoCode, sessionId, productSubtotal]);
+
       const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
