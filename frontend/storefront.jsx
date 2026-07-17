@@ -6982,6 +6982,23 @@
                 )}
               </div>
 
+              {/* Klarna Pay-in-4 badge — illustrative installment on the smallest purchasable unit */}
+              {(() => {
+                const effUnit = tradePrice || salePrice || retailPrice || 0;
+                const isBoxPriced = !isPerUnit && sqftPerBox > 0 && !isCarpet(sku);
+                const klarnaBase = isCarpet(sku)
+                  ? (parseFloat(sku.cut_price) || 0)
+                  : (isBoxPriced ? effUnit * sqftPerBox : effUnit);
+                if (!(klarnaBase >= 35)) return null;
+                const unitLabel = isCarpet(sku) ? 'sq yd' : (isBoxPriced ? boxLabel : 'item');
+                return (
+                  <div className="pdp-klarna">
+                    <span className="pdp-klarna-icon">Klarna.</span>
+                    <span className="pdp-klarna-text">4 interest-free payments of <strong>${(klarnaBase / 4).toFixed(2)}</strong> per {unitLabel}. No fees.</span>
+                  </div>
+                );
+              })()}
+
               {/* Carpet Details Band */}
               {isCarpetSku && (() => {
                 const attrMap = {};

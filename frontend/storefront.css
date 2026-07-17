@@ -1013,6 +1013,10 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .pdp-price-badge.sale { background: var(--color-rose-dark); color: white; }
 .pdp-price-per-box { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.6875rem; font-weight: 500; letter-spacing: 0.1em; color: var(--stone-500); }
 .pdp-price-roll-badge { font-size: 0.75rem; font-weight: 500; color: #4a7c3e; padding: 0.25rem 0.5rem; background: rgba(74,124,62,0.06); border-radius: 2px; width: fit-content; }
+.pdp-klarna { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; padding: 0.5rem 0.625rem; background: rgba(255,179,199,0.16); border: 0.5px solid rgba(255,179,199,0.55); border-radius: 4px; width: fit-content; max-width: 100%; }
+.pdp-klarna-icon { flex-shrink: 0; font-weight: 700; font-size: 0.8125rem; letter-spacing: -0.01em; color: #0b051d; background: #ffb3c7; padding: 0.125rem 0.4rem; border-radius: 3px; }
+.pdp-klarna-text { font-size: 0.75rem; color: var(--stone-600); line-height: 1.35; }
+.pdp-klarna-text strong { font-weight: 600; color: var(--stone-800); }
 
 /* Variant Selectors */
 .variant-selectors { margin: 0; display: flex; flex-direction: column; gap: 1.375rem; }
