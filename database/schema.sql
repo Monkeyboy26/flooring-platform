@@ -211,6 +211,9 @@ CREATE INDEX idx_skus_product ON skus(product_id);
 CREATE INDEX idx_cart_items_session ON cart_items(session_id);
 CREATE INDEX idx_sku_attributes_attr ON sku_attributes(attribute_id);
 CREATE INDEX idx_orders_session ON orders(session_id);
+-- One order per Stripe payment intent (prevents duplicate orders from
+-- double-submitted or retried checkouts)
+CREATE UNIQUE INDEX orders_stripe_payment_intent_id_unique ON orders (stripe_payment_intent_id) WHERE stripe_payment_intent_id IS NOT NULL;
 CREATE INDEX idx_order_items_order ON order_items(order_id);
 CREATE INDEX idx_import_templates_vendor ON import_mapping_templates(vendor_id);
 

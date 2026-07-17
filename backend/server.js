@@ -4575,6 +4575,19 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       return res.status(400).json({ error: 'Payment has not been completed' });
     }
 
+    // Idempotency: if this payment intent already produced an order, return
+    // that order instead of creating a duplicate (double-submit or retry
+    // after a dropped response)
+    const existingOrder = await pool.query('SELECT * FROM orders WHERE stripe_payment_intent_id = $1 LIMIT 1', [payment_intent_id]);
+    if (existingOrder.rows.length) {
+      const existingItems = await pool.query(`
+        SELECT oi.*,
+          (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
+        FROM order_items oi WHERE oi.order_id = $1
+      `, [existingOrder.rows[0].id]);
+      return res.json({ order: { ...existingOrder.rows[0], items: existingItems.rows }, sample_request: null, already_placed: true });
+    }
+
     // Get cart items
     const cartResult = await client.query(`
       SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id
@@ -4647,6 +4660,18 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     const { rate: taxRate, amount: taxAmount } = calculateSalesTax(productSubtotal, destZip, is_tax_exempt);
 
     const total = productSubtotal + shippingCost + sampleShipping + taxAmount - discountAmount;
+
+    // The intent was authorized for a specific amount — refuse to book an
+    // order whose recomputed total no longer matches (cart, promo, or
+    // shipping changed between payment and placement)
+    const expectedCents = Math.round(total * 100);
+    if (paymentIntent.amount !== expectedCents) {
+      console.error(`place-order amount mismatch: PI ${payment_intent_id} authorized ${paymentIntent.amount}c, order total ${expectedCents}c`);
+      return res.status(409).json({
+        error: 'Your payment was authorized for a different amount than the current order total (the cart may have changed). Please call (714) 999-0009 to complete this order — you have not been charged twice.',
+      });
+    }
+
     const tradeCustomerId = req.tradeCustomer ? req.tradeCustomer.id : null;
     const existingCustomerId = req.customer ? req.customer.id : null;
 
@@ -4910,6 +4935,21 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     setImmediate(() => notifyAllActiveReps(pool, 'new_order', repNotifTitle, repNotifBody, 'order', order.id));
   } catch (err) {
     await client.query('ROLLBACK');
+    // Unique-violation on stripe_payment_intent_id: a concurrent request for
+    // the same payment already placed the order — return it idempotently
+    if (err.code === '23505' && err.constraint === 'orders_stripe_payment_intent_id_unique') {
+      try {
+        const dup = await pool.query('SELECT * FROM orders WHERE stripe_payment_intent_id = $1 LIMIT 1', [req.body.payment_intent_id]);
+        if (dup.rows.length) {
+          const dupItems = await pool.query(`
+            SELECT oi.*,
+              (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
+            FROM order_items oi WHERE oi.order_id = $1
+          `, [dup.rows[0].id]);
+          return res.json({ order: { ...dup.rows[0], items: dupItems.rows }, sample_request: null, already_placed: true });
+        }
+      } catch (e2) { console.error(e2); }
+    }
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
