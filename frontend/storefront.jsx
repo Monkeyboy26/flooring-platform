@@ -14153,6 +14153,9 @@
       const [visible, setVisible] = useState(false);
       useEffect(() => {
         try { if (!localStorage.getItem('cookie_consent')) setVisible(true); } catch (e) {}
+        const reopen = () => setVisible(true);
+        window.addEventListener('open-cookie-preferences', reopen);
+        return () => window.removeEventListener('open-cookie-preferences', reopen);
       }, []);
       const choose = (choice) => {
         try {
@@ -14306,6 +14309,8 @@
               <a href="/privacy" onClick={e => { e.preventDefault(); navigate('/privacy'); }}>Privacy</a>
               <span>|</span>
               <a href="/terms" onClick={e => { e.preventDefault(); navigate('/terms'); }}>Terms</a>
+              <span>|</span>
+              <a href="#" onClick={e => { e.preventDefault(); try { window.dispatchEvent(new Event('open-cookie-preferences')); } catch (err) {} }}>Cookie preferences</a>
               <span>|</span>
               <a href="#" onClick={e => e.preventDefault()}>Accessibility</a>
             </div>

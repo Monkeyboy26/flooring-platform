@@ -9339,6 +9339,9 @@
         if (!localStorage.getItem("cookie_consent")) setVisible(true);
       } catch (e) {
       }
+      const reopen = () => setVisible(true);
+      window.addEventListener("open-cookie-preferences", reopen);
+      return () => window.removeEventListener("open-cookie-preferences", reopen);
     }, []);
     const choose = (choice) => {
       try {
@@ -9474,7 +9477,13 @@
     } }, "Privacy"), /* @__PURE__ */ React.createElement("span", null, "|"), /* @__PURE__ */ React.createElement("a", { href: "/terms", onClick: (e) => {
       e.preventDefault();
       navigate("/terms");
-    } }, "Terms"), /* @__PURE__ */ React.createElement("span", null, "|"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => e.preventDefault() }, "Accessibility"))));
+    } }, "Terms"), /* @__PURE__ */ React.createElement("span", null, "|"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+      e.preventDefault();
+      try {
+        window.dispatchEvent(new Event("open-cookie-preferences"));
+      } catch (err) {
+      }
+    } }, "Cookie preferences"), /* @__PURE__ */ React.createElement("span", null, "|"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => e.preventDefault() }, "Accessibility"))));
   }
   ReactDOM.createRoot(document.getElementById("root")).render(/* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(StorefrontApp, null)));
 })();
