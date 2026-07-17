@@ -9309,41 +9309,51 @@
       const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'];
 
       useEffect(() => {
-        if (cartEmpty || cardMounted.current || !stripeInstance) return;
-        const el = document.getElementById('card-element');
-        if (!el) return;
-        const elements = stripeInstance.elements();
-        const card = elements.create('card', {
-          style: { base: { fontFamily: "'Inter', sans-serif", fontSize: '15px', color: '#292524', '::placeholder': { color: '#57534e' } } }
+        if (cartEmpty || cardMounted.current) return;
+        let cancelled = false;
+        // Wait for Stripe.js — it loads async and can finish after this mounts
+        ensureStripe().then(stripe => {
+          if (cancelled || !stripe || cardMounted.current) return;
+          const el = document.getElementById('card-element');
+          if (!el) return;
+          const elements = stripe.elements();
+          const card = elements.create('card', {
+            style: { base: { fontFamily: "'Inter', sans-serif", fontSize: '15px', color: '#292524', '::placeholder': { color: '#57534e' } } }
+          });
+          card.mount(el);
+          cardRef.current = card;
+          cardMounted.current = true;
         });
-        card.mount(el);
-        cardRef.current = card;
-        cardMounted.current = true;
-        return () => { if (cardRef.current) { cardRef.current.unmount(); cardMounted.current = false; } };
+        return () => { cancelled = true; if (cardRef.current) { cardRef.current.unmount(); cardRef.current = null; cardMounted.current = false; } };
       }, [cartEmpty]);
 
       // Apple Pay / Google Pay via Payment Request API
       useEffect(() => {
-        if (!stripeInstance) return;
-        const pr = stripeInstance.paymentRequest({
-          country: 'US',
-          currency: 'usd',
-          total: { label: 'Roma Flooring Designs', amount: Math.round(cartTotal * 100) || 100 },
-          requestPayerName: true,
-          requestPayerEmail: true,
-          requestPayerPhone: true,
+        let cancelled = false;
+        ensureStripe().then(stripe => {
+          if (cancelled || !stripe) return;
+          const pr = stripe.paymentRequest({
+            country: 'US',
+            currency: 'usd',
+            total: { label: 'Roma Flooring Designs', amount: Math.round(cartTotal * 100) || 100 },
+            requestPayerName: true,
+            requestPayerEmail: true,
+            requestPayerPhone: true,
+          });
+          pr.canMakePayment().then(result => {
+            if (cancelled) return;
+            if (result) {
+              setWalletAvailable(true);
+              setWalletMode('native');
+              paymentRequestRef.current = pr;
+            } else if (isLocalDev) {
+              // Simulated wallet button for localhost dev testing
+              setWalletAvailable(true);
+              setWalletMode('simulated');
+            }
+          });
         });
-        pr.canMakePayment().then(result => {
-          if (result) {
-            setWalletAvailable(true);
-            setWalletMode('native');
-            paymentRequestRef.current = pr;
-          } else if (isLocalDev) {
-            // Simulated wallet button for localhost dev testing
-            setWalletAvailable(true);
-            setWalletMode('simulated');
-          }
-        });
+        return () => { cancelled = true; };
       }, []);
 
       // Mount native Payment Request Button when available
@@ -10111,8 +10121,8 @@
               {items.map((item, idx) => (
                 <div key={idx} className="conf-item">
                   <div className="conf-item-thumb">
-                    {item.image_url ? (
-                      <img src={item.image_url} alt="" />
+                    {item.primary_image ? (
+                      <img src={optimizeImg(item.primary_image, 144)} alt="" decoding="async" loading="lazy" />
                     ) : (
                       <div style={{ width: '100%', height: '100%', background: 'var(--stone-200)' }} />
                     )}

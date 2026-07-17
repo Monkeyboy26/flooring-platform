@@ -6189,43 +6189,56 @@
     const cartTotal = productSubtotal + sampleShipping + taxEstimate.amount;
     const US_STATES = ["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC"];
     useEffect(() => {
-      if (cartEmpty || cardMounted.current || !stripeInstance) return;
-      const el = document.getElementById("card-element");
-      if (!el) return;
-      const elements = stripeInstance.elements();
-      const card = elements.create("card", {
-        style: { base: { fontFamily: "'Inter', sans-serif", fontSize: "15px", color: "#292524", "::placeholder": { color: "#57534e" } } }
+      if (cartEmpty || cardMounted.current) return;
+      let cancelled = false;
+      ensureStripe().then((stripe) => {
+        if (cancelled || !stripe || cardMounted.current) return;
+        const el = document.getElementById("card-element");
+        if (!el) return;
+        const elements = stripe.elements();
+        const card = elements.create("card", {
+          style: { base: { fontFamily: "'Inter', sans-serif", fontSize: "15px", color: "#292524", "::placeholder": { color: "#57534e" } } }
+        });
+        card.mount(el);
+        cardRef.current = card;
+        cardMounted.current = true;
       });
-      card.mount(el);
-      cardRef.current = card;
-      cardMounted.current = true;
       return () => {
+        cancelled = true;
         if (cardRef.current) {
           cardRef.current.unmount();
+          cardRef.current = null;
           cardMounted.current = false;
         }
       };
     }, [cartEmpty]);
     useEffect(() => {
-      if (!stripeInstance) return;
-      const pr = stripeInstance.paymentRequest({
-        country: "US",
-        currency: "usd",
-        total: { label: "Roma Flooring Designs", amount: Math.round(cartTotal * 100) || 100 },
-        requestPayerName: true,
-        requestPayerEmail: true,
-        requestPayerPhone: true
+      let cancelled = false;
+      ensureStripe().then((stripe) => {
+        if (cancelled || !stripe) return;
+        const pr = stripe.paymentRequest({
+          country: "US",
+          currency: "usd",
+          total: { label: "Roma Flooring Designs", amount: Math.round(cartTotal * 100) || 100 },
+          requestPayerName: true,
+          requestPayerEmail: true,
+          requestPayerPhone: true
+        });
+        pr.canMakePayment().then((result) => {
+          if (cancelled) return;
+          if (result) {
+            setWalletAvailable(true);
+            setWalletMode("native");
+            paymentRequestRef.current = pr;
+          } else if (isLocalDev) {
+            setWalletAvailable(true);
+            setWalletMode("simulated");
+          }
+        });
       });
-      pr.canMakePayment().then((result) => {
-        if (result) {
-          setWalletAvailable(true);
-          setWalletMode("native");
-          paymentRequestRef.current = pr;
-        } else if (isLocalDev) {
-          setWalletAvailable(true);
-          setWalletMode("simulated");
-        }
-      });
+      return () => {
+        cancelled = true;
+      };
     }, []);
     useEffect(() => {
       if (walletMode !== "native" || !paymentRequestRef.current || !stripeInstance) return;
@@ -6692,7 +6705,7 @@
     const items = order ? order.items || [] : [];
     const sampleItems = sampleRequest ? sampleRequest.items || [] : [];
     const orderTotal = order ? parseFloat(order.total || 0) : 0;
-    return /* @__PURE__ */ React.createElement("div", { className: "conf-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "conf-hero" }, /* @__PURE__ */ React.createElement("div", { className: "conf-check" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" }))), /* @__PURE__ */ React.createElement("h1", null, "Thank You"), order && /* @__PURE__ */ React.createElement("div", { className: "conf-order-num" }, "Order ", order.order_number), /* @__PURE__ */ React.createElement("div", { className: "conf-hero-sub" }, "Your order has been placed. We\u2019ll send a confirmation to your email with tracking details once your order ships.")), items.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "conf-items" }, /* @__PURE__ */ React.createElement("div", { className: "conf-items-header" }, "Items ordered"), items.map((item, idx) => /* @__PURE__ */ React.createElement("div", { key: idx, className: "conf-item" }, /* @__PURE__ */ React.createElement("div", { className: "conf-item-thumb" }, item.image_url ? /* @__PURE__ */ React.createElement("img", { src: item.image_url, alt: "" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-200)" } })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "conf-item-name" }, item.product_name || "Product"), /* @__PURE__ */ React.createElement("div", { className: "conf-item-detail" }, item.sell_by === "unit" ? `Qty ${item.num_boxes}` : `${item.num_boxes} box${parseInt(item.num_boxes) !== 1 ? "es" : ""}`)), /* @__PURE__ */ React.createElement("div", { className: "conf-item-price" }, "$" + parseFloat(item.subtotal || 0).toFixed(2)))), /* @__PURE__ */ React.createElement("div", { className: "conf-item-total-row" }, /* @__PURE__ */ React.createElement("span", { className: "conf-item-total-label" }, "Total paid"), /* @__PURE__ */ React.createElement("span", { className: "conf-item-total-amount" }, "$", orderTotal.toFixed(2)))), sampleRequest && /* @__PURE__ */ React.createElement("div", { className: "conf-samples" }, /* @__PURE__ */ React.createElement("div", { className: "conf-samples-header" }, /* @__PURE__ */ React.createElement("span", { className: "conf-samples-badge" }, "Samples"), /* @__PURE__ */ React.createElement("span", { className: "conf-samples-title" }, "Request #", sampleRequest.request_number)), sampleItems.map((item, idx) => /* @__PURE__ */ React.createElement("div", { key: idx, className: "conf-sample-item" }, /* @__PURE__ */ React.createElement("span", null, item.product_name || "Product", item.variant_name ? " \u2014 " + item.variant_name : ""), /* @__PURE__ */ React.createElement("span", { className: "conf-sample-free" }, "Free"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--warm-muted)", marginTop: "0.75rem" } }, "Samples ship separately within 2-3 business days.")), /* @__PURE__ */ React.createElement("div", { className: "conf-details" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Delivery"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, order && order.delivery_method === "pickup" ? "Showroom Pickup" : "Freight"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, order && order.delivery_method === "pickup" ? "1440 S. State College Blvd., Suite 6M, Anaheim, CA 92806" : order && order.shipping_address ? `${order.shipping_address.line1}, ${order.shipping_address.city}, ${order.shipping_address.state} ${order.shipping_address.zip}` : "Address on file"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text", style: { marginTop: "0.5rem" } }, order && order.delivery_method === "pickup" ? "Ready in 3-5 business days" : "Delivery scheduled after confirmation")), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Payment"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, "Card ending in ****"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, "Total charged: $", orderTotal.toFixed(2)), order && order.tax_amount > 0 && /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, "Includes $", parseFloat(order.tax_amount).toFixed(2), " tax")), order && order.measure_requested && /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Installation quote"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, "Requested"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, order.preferred_measure_date ? (/* @__PURE__ */ new Date(order.preferred_measure_date + "T12:00:00")).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) : "Date to be confirmed", order.preferred_measure_time && ` \u2014 ${order.preferred_measure_time.charAt(0).toUpperCase() + order.preferred_measure_time.slice(1)}`), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text", style: { marginTop: "0.5rem" } }, "We'll confirm your appointment within 24 hours.")), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Your contact"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, "Lia Romano"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, "Project Manager", /* @__PURE__ */ React.createElement("br", null), "lia@romaflooringdesigns.com", /* @__PURE__ */ React.createElement("br", null), "(714) 999-0009"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text", style: { marginTop: "0.5rem", fontStyle: "italic" } }, `"We'll be in touch within 24 hours."`))), /* @__PURE__ */ React.createElement("div", { className: "conf-cta" }, /* @__PURE__ */ React.createElement("button", { className: "conf-cta-btn", onClick: goBrowse }, "Continue Shopping")));
+    return /* @__PURE__ */ React.createElement("div", { className: "conf-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "conf-hero" }, /* @__PURE__ */ React.createElement("div", { className: "conf-check" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" }))), /* @__PURE__ */ React.createElement("h1", null, "Thank You"), order && /* @__PURE__ */ React.createElement("div", { className: "conf-order-num" }, "Order ", order.order_number), /* @__PURE__ */ React.createElement("div", { className: "conf-hero-sub" }, "Your order has been placed. We\u2019ll send a confirmation to your email with tracking details once your order ships.")), items.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "conf-items" }, /* @__PURE__ */ React.createElement("div", { className: "conf-items-header" }, "Items ordered"), items.map((item, idx) => /* @__PURE__ */ React.createElement("div", { key: idx, className: "conf-item" }, /* @__PURE__ */ React.createElement("div", { className: "conf-item-thumb" }, item.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(item.primary_image, 144), alt: "", decoding: "async", loading: "lazy" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-200)" } })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "conf-item-name" }, item.product_name || "Product"), /* @__PURE__ */ React.createElement("div", { className: "conf-item-detail" }, item.sell_by === "unit" ? `Qty ${item.num_boxes}` : `${item.num_boxes} box${parseInt(item.num_boxes) !== 1 ? "es" : ""}`)), /* @__PURE__ */ React.createElement("div", { className: "conf-item-price" }, "$" + parseFloat(item.subtotal || 0).toFixed(2)))), /* @__PURE__ */ React.createElement("div", { className: "conf-item-total-row" }, /* @__PURE__ */ React.createElement("span", { className: "conf-item-total-label" }, "Total paid"), /* @__PURE__ */ React.createElement("span", { className: "conf-item-total-amount" }, "$", orderTotal.toFixed(2)))), sampleRequest && /* @__PURE__ */ React.createElement("div", { className: "conf-samples" }, /* @__PURE__ */ React.createElement("div", { className: "conf-samples-header" }, /* @__PURE__ */ React.createElement("span", { className: "conf-samples-badge" }, "Samples"), /* @__PURE__ */ React.createElement("span", { className: "conf-samples-title" }, "Request #", sampleRequest.request_number)), sampleItems.map((item, idx) => /* @__PURE__ */ React.createElement("div", { key: idx, className: "conf-sample-item" }, /* @__PURE__ */ React.createElement("span", null, item.product_name || "Product", item.variant_name ? " \u2014 " + item.variant_name : ""), /* @__PURE__ */ React.createElement("span", { className: "conf-sample-free" }, "Free"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--warm-muted)", marginTop: "0.75rem" } }, "Samples ship separately within 2-3 business days.")), /* @__PURE__ */ React.createElement("div", { className: "conf-details" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Delivery"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, order && order.delivery_method === "pickup" ? "Showroom Pickup" : "Freight"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, order && order.delivery_method === "pickup" ? "1440 S. State College Blvd., Suite 6M, Anaheim, CA 92806" : order && order.shipping_address ? `${order.shipping_address.line1}, ${order.shipping_address.city}, ${order.shipping_address.state} ${order.shipping_address.zip}` : "Address on file"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text", style: { marginTop: "0.5rem" } }, order && order.delivery_method === "pickup" ? "Ready in 3-5 business days" : "Delivery scheduled after confirmation")), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Payment"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, "Card ending in ****"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, "Total charged: $", orderTotal.toFixed(2)), order && order.tax_amount > 0 && /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, "Includes $", parseFloat(order.tax_amount).toFixed(2), " tax")), order && order.measure_requested && /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Installation quote"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, "Requested"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, order.preferred_measure_date ? (/* @__PURE__ */ new Date(order.preferred_measure_date + "T12:00:00")).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) : "Date to be confirmed", order.preferred_measure_time && ` \u2014 ${order.preferred_measure_time.charAt(0).toUpperCase() + order.preferred_measure_time.slice(1)}`), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text", style: { marginTop: "0.5rem" } }, "We'll confirm your appointment within 24 hours.")), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Your contact"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, "Lia Romano"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, "Project Manager", /* @__PURE__ */ React.createElement("br", null), "lia@romaflooringdesigns.com", /* @__PURE__ */ React.createElement("br", null), "(714) 999-0009"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text", style: { marginTop: "0.5rem", fontStyle: "italic" } }, `"We'll be in touch within 24 hours."`))), /* @__PURE__ */ React.createElement("div", { className: "conf-cta" }, /* @__PURE__ */ React.createElement("button", { className: "conf-cta-btn", onClick: goBrowse }, "Continue Shopping")));
   }
   function PaymentMethodsSection({ customerToken, customer }) {
     const [cards, setCards] = useState(null);

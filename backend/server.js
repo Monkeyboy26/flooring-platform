@@ -4862,7 +4862,11 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     await client.query('COMMIT');
 
     // Return order with items (include customer token if account was created)
-    const orderItems = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+    const orderItems = await pool.query(`
+      SELECT oi.*,
+        (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
+      FROM order_items oi WHERE oi.order_id = $1
+    `, [order.id]);
     const response = { order: { ...order, items: orderItems.rows }, sample_request: sampleRequest || null };
     if (isBankTransfer && bankInstructions) {
       response.bank_instructions = bankInstructions;
