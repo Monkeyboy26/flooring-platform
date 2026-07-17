@@ -2730,6 +2730,13 @@
           goCabinets();
           return;
         }
+        if (path === '/terms' || path === '/privacy') {
+          const viewName = path.slice(1);
+          setView(viewName);
+          history.pushState({ view: viewName }, '', path);
+          window.scrollTo(0, 0);
+          return;
+        }
         // Service page placeholders
         const servicePages = {
           '/design-services': 'Design Services',
@@ -3110,6 +3117,10 @@
           setView('sale');
         } else if (path === '/cabinets') {
           setView('cabinets');
+        } else if (path === '/terms') {
+          setView('terms');
+        } else if (path === '/privacy') {
+          setView('privacy');
         } else if (['/design-services', '/about'].includes(path)) {
           const titles = { '/design-services': 'Design Services', '/about': 'About Us' };
           setComingSoonTitle(titles[path]);
@@ -3524,6 +3535,9 @@
               <button className="btn" onClick={goHome}>Back to Home</button>
             </div>
           )}
+
+          {view === 'terms' && <LegalPage kind="terms" goHome={goHome} navigate={navigate} />}
+          {view === 'privacy' && <LegalPage kind="privacy" goHome={goHome} navigate={navigate} />}
 
           {/* Cart Drawer */}
           <CartDrawer
@@ -10222,7 +10236,9 @@
                   {processing ? 'Processing...' : `Place Order \u2014 $${cartTotal.toFixed(2)}`}
                 </button>
                 <div className="co-terms">
-                  By placing this order you agree to Roma's terms of service and privacy policy.
+                  By placing this order you agree to Roma's{' '}
+                  <a href="/terms" target="_blank" rel="noopener">terms of service</a> and{' '}
+                  <a href="/privacy" target="_blank" rel="noopener">privacy policy</a>.
                 </div>
               </div>
 
@@ -10302,8 +10318,8 @@
           <div className="co-footer">
             <span>&copy; {new Date().getFullYear()} Roma Flooring Designs</span>
             <div className="co-footer-links">
-              <a href="#">Terms</a>
-              <a href="#">Privacy</a>
+              <a href="/terms" target="_blank" rel="noopener">Terms</a>
+              <a href="/privacy" target="_blank" rel="noopener">Privacy</a>
               <a href="#">Returns</a>
             </div>
           </div>
@@ -12783,8 +12799,8 @@
           /* @__PURE__ */ React.createElement("div", { className: "auth-footer" },
             /* @__PURE__ */ React.createElement("span", null, "\xa9 2026 Roma Flooring Designs"),
             /* @__PURE__ */ React.createElement("span", { className: "auth-footer-links" },
-              /* @__PURE__ */ React.createElement("a", null, "Privacy"),
-              /* @__PURE__ */ React.createElement("a", null, "Terms"),
+              /* @__PURE__ */ React.createElement("a", { href: "/privacy", target: "_blank", rel: "noopener" }, "Privacy"),
+              /* @__PURE__ */ React.createElement("a", { href: "/terms", target: "_blank", rel: "noopener" }, "Terms"),
               /* @__PURE__ */ React.createElement("a", null, "Help")
             )
           )
@@ -12989,8 +13005,8 @@
               ),
               /* @__PURE__ */ React.createElement("button", { type: "submit", className: "auth-cta", disabled: loading }, loading ? "Creating account\u2026" : "Create my account \u2192"),
               /* @__PURE__ */ React.createElement("div", { className: "auth-terms" },
-                "By signing up you agree to Roma\u2019s ", /* @__PURE__ */ React.createElement("a", null, "Terms of service"),
-                " and acknowledge our ", /* @__PURE__ */ React.createElement("a", null, "privacy practices"), "."
+                "By signing up you agree to Roma\u2019s ", /* @__PURE__ */ React.createElement("a", { href: "/terms", target: "_blank", rel: "noopener" }, "Terms of service"),
+                " and acknowledge our ", /* @__PURE__ */ React.createElement("a", { href: "/privacy", target: "_blank", rel: "noopener" }, "privacy practices"), "."
               )
             )
           )
@@ -14043,6 +14059,63 @@
       );
     }
 
+    // ==================== Legal Pages (Terms / Privacy) ====================
+    // Scaffold with placeholder copy. The prose below is a starting structure —
+    // it MUST be replaced with counsel-approved language before relying on it.
+    function LegalPage({ kind, goHome, navigate }) {
+      const isTerms = kind === 'terms';
+      const title = isTerms ? 'Terms of Service' : 'Privacy Policy';
+      const termsSections = [
+        { h: '1. Agreement to Terms', p: 'By accessing or purchasing from Roma Flooring Designs, you agree to these Terms of Service. If you do not agree, please do not use this site or place an order.' },
+        { h: '2. Products & Pricing', p: 'Flooring is sold by the square foot and accessories by the unit; coverage is rounded up to full cartons or boxes. Prices, availability, and specifications may change without notice. We make every effort to display colors and finishes accurately, but on-screen representations may vary from the physical product — order a sample before committing to a full order.' },
+        { h: '3. Orders & Payment', p: 'Placing an order is an offer to purchase. We may accept, decline, or limit any order. Payment is processed securely through our payment providers; by paying with Klarna or a card you also agree to that provider’s terms. Applicable California sales tax is calculated at checkout.' },
+        { h: '4. Shipping, Freight & Pickup', p: 'Freight-shipped orders are quoted based on destination and scheduled after the order is placed. Showroom pickup is available at our Anaheim location. Title and risk of loss pass to you upon delivery or pickup.' },
+        { h: '5. Returns & Cancellations', p: 'Return eligibility, restocking fees, and cancellation windows are described in your order documentation. Special-order, cut, and clearance items may be non-returnable. Contact us before returning any product.' },
+        { h: '6. Warranties', p: 'Products carry the manufacturer’s warranty, where applicable. Except as expressly stated, products are provided “as is” and Roma Flooring Designs disclaims all other warranties to the fullest extent permitted by law.' },
+        { h: '7. Limitation of Liability', p: 'To the maximum extent permitted by law, Roma Flooring Designs is not liable for indirect, incidental, or consequential damages arising from the use of this site or the products purchased.' },
+        { h: '8. Contact', p: 'Questions about these Terms? Contact us using the details below.' },
+      ];
+      const privacySections = [
+        { h: '1. Information We Collect', p: 'We collect information you provide when you create an account, place an order, request a sample, or contact us — such as your name, email, phone, shipping address, and order history. Payment card details are handled by our payment processors and are not stored on our servers.' },
+        { h: '2. How We Use Your Information', p: 'We use your information to process and deliver orders, provide customer and trade support, send order and account notifications, and improve our products and services.' },
+        { h: '3. Sharing', p: 'We share information only as needed to run the business — for example with shipping carriers, payment processors, and vendors fulfilling your order. We do not sell your personal information.' },
+        { h: '4. Cookies & Analytics', p: 'We use cookies and similar technologies to keep your cart and session working and to understand how the site is used. You can control cookies through your browser settings.' },
+        { h: '5. Data Security & Retention', p: 'We use industry-standard safeguards, including encryption in transit, to protect your information, and retain it only as long as needed for the purposes above or as required by law.' },
+        { h: '6. Your Choices', p: 'You may access or update your account information, or request deletion, by contacting us. California residents may have additional rights regarding their personal information.' },
+        { h: '7. Contact', p: 'Questions about your privacy? Contact us using the details below.' },
+      ];
+      const sections = isTerms ? termsSections : privacySections;
+      return (
+        <div style={{ maxWidth: 760, margin: '3.5rem auto 5rem', padding: '0 2rem' }}>
+          <div style={{ fontSize: '0.6875rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>
+            Roma Flooring Designs
+          </div>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: '2.75rem', lineHeight: 1.1, margin: '0 0 0.5rem' }}>{title}</h1>
+          <div style={{ color: 'var(--stone-500)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Effective date: to be finalized</div>
+          <div style={{ padding: '0.75rem 1rem', background: 'rgba(196,170,108,0.12)', border: '0.5px solid rgba(196,170,108,0.5)', borderRadius: 4, fontSize: '0.8125rem', color: 'var(--stone-600)', lineHeight: 1.5, marginBottom: '2rem' }}>
+            <strong>Placeholder — pending legal review.</strong> This is draft language provided as a starting structure and is not yet legally binding. Replace it with counsel-approved copy before launch.
+          </div>
+          {sections.map((s, i) => (
+            <section key={i} style={{ marginBottom: '1.75rem' }}>
+              <h2 style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '1.0625rem', margin: '0 0 0.5rem', color: 'var(--stone-800)' }}>{s.h}</h2>
+              <p style={{ color: 'var(--stone-600)', fontSize: '0.9375rem', lineHeight: 1.65, margin: 0 }}>{s.p}</p>
+            </section>
+          ))}
+          <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '0.5px solid rgba(28,25,23,0.13)', color: 'var(--stone-600)', fontSize: '0.875rem', lineHeight: 1.7 }}>
+            <div style={{ fontWeight: 600, color: 'var(--stone-800)' }}>Roma Flooring Designs</div>
+            <div>1440 South State College Blvd #6M, Anaheim, CA 92806</div>
+            <div>License #830966 &middot; (714) 999-0009</div>
+          </div>
+          <div style={{ marginTop: '2rem', display: 'flex', gap: '1.25rem', fontSize: '0.875rem' }}>
+            <a href={isTerms ? '/privacy' : '/terms'} onClick={e => { e.preventDefault(); navigate(isTerms ? '/privacy' : '/terms'); }} style={{ color: 'var(--stone-700)', textDecoration: 'underline' }}>
+              {isTerms ? 'Privacy Policy' : 'Terms of Service'}
+            </a>
+            <a href="/" onClick={e => { e.preventDefault(); goHome(); }} style={{ color: 'var(--stone-700)', textDecoration: 'underline' }}>Back to home</a>
+          </div>
+        </div>
+      );
+    }
+
     // ==================== Footer (Redesigned) ====================
 
     function SiteFooter({ goHome, goBrowse, goCollections, goTrade, onInstallClick, navigate }) {
@@ -14086,9 +14159,9 @@
           <div className="footer-bottom">
             &copy; 2026 Roma Flooring Designs. All rights reserved. License #830966
             <div className="footer-bottom-links">
-              <a href="#" onClick={e => e.preventDefault()}>Privacy</a>
+              <a href="/privacy" onClick={e => { e.preventDefault(); navigate('/privacy'); }}>Privacy</a>
               <span>|</span>
-              <a href="#" onClick={e => e.preventDefault()}>Terms</a>
+              <a href="/terms" onClick={e => { e.preventDefault(); navigate('/terms'); }}>Terms</a>
               <span>|</span>
               <a href="#" onClick={e => e.preventDefault()}>Accessibility</a>
             </div>

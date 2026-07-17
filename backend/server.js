@@ -4154,9 +4154,11 @@ app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req
       promoCodeStr = promoResult.promo.code;
     }
 
-    // Calculate sales tax
+    // Calculate sales tax — CA lets retailer discounts (promo codes) reduce the
+    // taxable receipts, so tax the post-discount merchandise subtotal.
     const destZip = (delivery_method === 'pickup') ? SHIP_FROM.zip : (destination ? destination.zip : null);
-    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(productSubtotal, destZip, false);
+    const taxableSubtotal = Math.max(0, productSubtotal - discountAmount);
+    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(taxableSubtotal, destZip, false);
 
     const total = productSubtotal + shippingCost + sampleShipping + taxAmount - discountAmount;
 
@@ -4318,9 +4320,11 @@ app.post('/api/checkout/create-bank-transfer-intent', async (req, res) => {
       promoCodeStr = promoResult.promo.code;
     }
 
-    // Calculate sales tax
+    // Calculate sales tax — CA lets retailer discounts (promo codes) reduce the
+    // taxable receipts, so tax the post-discount merchandise subtotal.
     const destZip = (delivery_method === 'pickup') ? SHIP_FROM.zip : (destination ? destination.zip : null);
-    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(productSubtotal, destZip, false);
+    const taxableSubtotal = Math.max(0, productSubtotal - discountAmount);
+    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(taxableSubtotal, destZip, false);
 
     const total = productSubtotal + shippingCost + sampleShipping + taxAmount - discountAmount;
 
@@ -4734,9 +4738,11 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       promoCodeStr = promoResult.promo.code;
     }
 
-    // Calculate sales tax
+    // Calculate sales tax — CA lets retailer discounts (promo codes) reduce the
+    // taxable receipts, so tax the post-discount merchandise subtotal.
     const destZip = isPickup ? SHIP_FROM.zip : (shipping ? shipping.zip : null);
-    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(productSubtotal, destZip, is_tax_exempt);
+    const taxableSubtotal = Math.max(0, productSubtotal - discountAmount);
+    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(taxableSubtotal, destZip, is_tax_exempt);
 
     const total = productSubtotal + shippingCost + sampleShipping + taxAmount - discountAmount;
 
@@ -13736,10 +13742,12 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       promoCodeStr = promoResult.promo.code;
     }
 
-    // Calculate sales tax
+    // Calculate sales tax — CA lets retailer discounts (promo codes) reduce the
+    // taxable receipts, so tax the post-discount merchandise subtotal.
     const destZip = isPickup ? SHIP_FROM.zip : (shipping_address ? shipping_address.zip : SHIP_FROM.zip);
-    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(subtotal, destZip, false);
-    const total = Math.max(0, subtotal + taxAmount - discountAmount);
+    const taxableSubtotal = Math.max(0, subtotal - discountAmount);
+    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(taxableSubtotal, destZip, false);
+    const total = Math.max(0, subtotal + taxAmount + shippingCost - discountAmount);
     if (total <= 0 && !['cash', 'check', 'offline'].includes(payment_method)) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Order total must be greater than zero for this payment method' });
