@@ -1757,6 +1757,11 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .co-wallet-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .co-divider { display: flex; align-items: center; gap: 1rem; margin: 1rem 0; font-size: 0.75rem; color: var(--warm-muted); letter-spacing: 0.1em; text-transform: uppercase; }
 .co-divider::before, .co-divider::after { content: ''; flex: 1; height: 0.5px; background: rgba(28,25,23,0.2); }
+.co-klarna-btn { width: 100%; height: 3rem; background: #ffb3c7; color: #0b051d; border: none; border-radius: 4px; font-family: var(--font-body); font-size: 0.9375rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; transition: filter 0.15s; }
+.co-klarna-btn:hover:not(:disabled) { filter: brightness(0.96); }
+.co-klarna-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.co-klarna-word { font-weight: 700; letter-spacing: -0.01em; }
+.co-klarna-note { margin-top: 0.5rem; font-size: 0.75rem; color: var(--warm-muted); line-height: 1.4; }
 
 /* Checkout spinner */
 .co-spinner { width: 1.125rem; height: 1.125rem; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }

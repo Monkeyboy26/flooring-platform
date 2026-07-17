@@ -4592,12 +4592,19 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       }
     }
 
-    // Verify payment succeeded (bank_transfer uses requires_action until funds arrive)
+    // Verify payment succeeded. Bank transfer sits in requires_action until
+    // funds arrive; Klarna authorizes to 'processing' before settling but
+    // guarantees payment to the merchant, so we fulfill on authorization.
     const isBankTransfer = reqPaymentMethod === 'bank_transfer';
+    const isKlarna = reqPaymentMethod === 'klarna';
     const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
     if (isBankTransfer) {
       if (paymentIntent.status !== 'requires_action' && paymentIntent.status !== 'succeeded') {
         return res.status(400).json({ error: 'Bank transfer payment intent is not in the expected state' });
+      }
+    } else if (isKlarna) {
+      if (paymentIntent.status !== 'succeeded' && paymentIntent.status !== 'processing') {
+        return res.status(400).json({ error: 'Klarna payment was not authorized' });
       }
     } else if (paymentIntent.status !== 'succeeded') {
       return res.status(400).json({ error: 'Payment has not been completed' });

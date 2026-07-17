@@ -2287,6 +2287,8 @@
 
       // Order
       const [completedOrder, setCompletedOrder] = useState(null);
+      const [klarnaFinalizing, setKlarnaFinalizing] = useState(false);
+      const [klarnaError, setKlarnaError] = useState('');
 
       // Toast notifications
       const [toasts, setToasts] = useState([]);
@@ -2827,6 +2829,38 @@
         }).catch(() => {});
       };
 
+      // Finalize a Klarna order after the redirect back from Klarna. The
+      // order payload was stashed before redirecting (React state is lost
+      // across the redirect); we place the order once Klarna authorizes.
+      const finalizeKlarnaOrder = async (paymentIntentId, redirectStatus) => {
+        const raw = sessionStorage.getItem('klarna_pending');
+        sessionStorage.removeItem('klarna_pending');
+        history.replaceState({ view: 'checkout' }, '', '/checkout');
+        if (redirectStatus === 'failed' || !raw) {
+          setView('checkout');
+          setKlarnaError("Your Klarna payment wasn't completed. You can try again or choose another payment method.");
+          return;
+        }
+        setView('checkout');
+        setKlarnaFinalizing(true);
+        try {
+          const stash = JSON.parse(raw);
+          const orderBody = { ...stash.orderBody, payment_intent_id: paymentIntentId, payment_method: 'klarna' };
+          const headers = { 'Content-Type': 'application/json' };
+          if (tradeToken) headers['X-Trade-Token'] = tradeToken;
+          if (customerToken) headers['X-Customer-Token'] = customerToken;
+          const res = await fetch(API + '/api/checkout/place-order', { method: 'POST', headers, body: JSON.stringify(orderBody) });
+          const data = await res.json();
+          if (data.error) { setKlarnaError(data.error); setKlarnaFinalizing(false); return; }
+          if (data.customer_token && data.customer) handleCustomerLogin(data.customer_token, data.customer);
+          setKlarnaFinalizing(false);
+          handleOrderComplete({ order: data.order, sample_request: data.sample_request || null });
+        } catch (e) {
+          setKlarnaError("We couldn't finalize your Klarna order. If you were charged, please call (714) 999-0009 — no order was created.");
+          setKlarnaFinalizing(false);
+        }
+      };
+
       // ---- Filter Handlers ----
       const handleCategorySelect = (slug) => {
         setSelectedCategory(slug);
@@ -3022,7 +3056,10 @@
         const path = rawPath.length > 1 && rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath;
         const sp = new URLSearchParams(window.location.search);
 
-        if (sp.get('reset_token')) {
+        if (sp.get('payment_intent') && sp.get('redirect_status') && sessionStorage.getItem('klarna_pending')) {
+          // Returned from Klarna's hosted authorization page
+          finalizeKlarnaOrder(sp.get('payment_intent'), sp.get('redirect_status'));
+        } else if (sp.get('reset_token')) {
           setView('reset-password');
         } else if (path === '/' || path === '') {
           setView('home');
@@ -3376,13 +3413,21 @@
               goHome={goHome} />
           )}
 
-          {view === 'checkout' && (
+          {view === 'checkout' && klarnaFinalizing && (
+            <div style={{ maxWidth: 480, margin: '6rem auto', padding: '0 1.5rem', textAlign: 'center' }}>
+              <div className="spinner" style={{ margin: '0 auto 1.5rem' }} />
+              <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.75rem', fontWeight: 400, marginBottom: '0.5rem' }}>Completing your order</h2>
+              <p style={{ color: 'var(--stone-600)', fontSize: '0.9375rem' }}>Confirming your Klarna payment — just a moment.</p>
+            </div>
+          )}
+          {view === 'checkout' && !klarnaFinalizing && (
             <CheckoutPage cart={cart} sessionId={sessionId.current}
               goCart={goCart} handleOrderComplete={handleOrderComplete}
               deliveryMethod={deliveryMethod} setDeliveryMethod={setDeliveryMethod} liftgateEnabled={liftgateEnabled}
               tradeCustomer={tradeCustomer} tradeToken={tradeToken}
               customer={customer} customerToken={customerToken}
               onCustomerLogin={handleCustomerLogin}
+              klarnaError={klarnaError} clearKlarnaError={() => setKlarnaError('')}
               appliedPromoCode={appliedPromoCode} setAppliedPromoCode={setAppliedPromoCode} />
           )}
 
@@ -9263,7 +9308,7 @@
 
     // ==================== Checkout Page ====================
 
-    function CheckoutPage({ cart, sessionId, goCart, handleOrderComplete, deliveryMethod, setDeliveryMethod, liftgateEnabled, tradeCustomer, tradeToken, customer, customerToken, onCustomerLogin, appliedPromoCode, setAppliedPromoCode }) {
+    function CheckoutPage({ cart, sessionId, goCart, handleOrderComplete, deliveryMethod, setDeliveryMethod, liftgateEnabled, tradeCustomer, tradeToken, customer, customerToken, onCustomerLogin, klarnaError, clearKlarnaError, appliedPromoCode, setAppliedPromoCode }) {
       const [customerName, setCustomerName] = useState(tradeCustomer ? tradeCustomer.contact_name : (customer ? (customer.first_name + ' ' + customer.last_name) : ''));
       const [customerEmail, setCustomerEmail] = useState(tradeCustomer ? tradeCustomer.email : (customer ? customer.email : ''));
       const [phone, setPhone] = useState(customer ? (customer.phone || '') : '');
@@ -9609,6 +9654,11 @@
           .catch(() => setSavedCards([]));
       }, [customerToken]);
 
+      // Surface a Klarna-return error (set at the app level after redirect)
+      useEffect(() => {
+        if (klarnaError) { setError(klarnaError); if (clearKlarnaError) clearKlarnaError(); }
+      }, []);
+
       // Fetch tax estimate when ZIP changes
       useEffect(() => {
         const taxZip = isPickup ? '92806' : zip;
@@ -9723,6 +9773,65 @@
           handleOrderComplete({ order: orderData.order, sample_request: orderData.sample_request || null });
         } catch (err) {
           setError(err.message || 'Something went wrong. Please try again.');
+          setProcessing(false);
+        }
+      };
+
+      // Pay with Klarna — redirects to Klarna's hosted flow, then returns to
+      // /checkout where the app finalizes the order (see finalizeKlarnaOrder)
+      const handleKlarnaPay = async () => {
+        setError('');
+        const nameParts = customerName.trim().split(/\s+/);
+        if (nameParts.length < 2 || nameParts[0].length < 2 || nameParts[1].length < 1) { setError('Please enter your full name (first and last).'); return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(customerEmail)) { setError('Please enter a valid email address.'); return; }
+        if (phone.replace(/\D/g, '').length < 10) { setError('Please enter a valid 10-digit phone number.'); return; }
+        if (!isPickup) {
+          if (!line1.trim()) { setError('Please enter a street address.'); return; }
+          if (!city.trim()) { setError('Please enter a city.'); return; }
+          if (!state) { setError('Please select a state.'); return; }
+          if (!/^\d{5}(-\d{4})?$/.test(zip.trim())) { setError('Please enter a valid ZIP code.'); return; }
+        }
+        setProcessing(true);
+        try {
+          const stripe = await ensureStripe();
+          if (!stripe) { setError('Payment system is still loading — please try again in a moment.'); setProcessing(false); return; }
+          const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
+          if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
+          const piHeaders = { 'Content-Type': 'application/json' };
+          if (customerToken) piHeaders['X-Customer-Token'] = customerToken;
+          const piRes = await fetch(API + '/api/checkout/create-payment-intent', { method: 'POST', headers: piHeaders, body: JSON.stringify(piBody) });
+          const piData = await piRes.json();
+          if (piData.error) {
+            setError(piData.error); setProcessing(false);
+            if (piData.out_of_stock_sku_ids) { setTimeout(() => { if (typeof goCart === 'function') goCart(); }, 3000); }
+            return;
+          }
+          // Stash the order details — React state is lost across the redirect
+          const orderBody = {
+            session_id: sessionId, customer_name: customerName, customer_email: customerEmail, phone,
+            delivery_method: deliveryMethod,
+            shipping: isPickup ? null : { line1, line2, city, state, zip },
+            residential: true, liftgate: liftgateEnabled,
+            create_account: createAccount || undefined,
+            account_password: createAccount ? accountPassword : undefined,
+            notes: orderNotes || undefined,
+            measure_requested: measureRequested || undefined,
+            preferred_measure_date: measureRequested && preferredDate ? preferredDate : undefined,
+            preferred_measure_time: measureRequested && preferredTime ? preferredTime : undefined,
+          };
+          sessionStorage.setItem('klarna_pending', JSON.stringify({ orderBody, ts: Date.now() }));
+          const billingAddress = isPickup
+            ? { country: 'US', postal_code: '92806' }
+            : { country: 'US', line1, line2: line2 || undefined, city, state, postal_code: zip };
+          const { error: kErr } = await stripe.confirmKlarnaPayment(piData.clientSecret, {
+            payment_method: { billing_details: { name: customerName, email: customerEmail, phone, address: billingAddress } },
+            return_url: window.location.origin + '/checkout',
+          });
+          // Reaches here only if the redirect didn't happen (validation error)
+          if (kErr) { setError(kErr.message); sessionStorage.removeItem('klarna_pending'); setProcessing(false); }
+        } catch (err) {
+          setError('Klarna could not be started. Please try again or pay by card.');
+          sessionStorage.removeItem('klarna_pending');
           setProcessing(false);
         }
       };
@@ -10066,6 +10175,11 @@
                       </label>
                     ) : null}
                   </div>
+                  <div className="co-divider">or</div>
+                  <button type="button" className="co-klarna-btn" onClick={handleKlarnaPay} disabled={processing}>
+                    Pay with <span className="co-klarna-word">Klarna.</span>
+                  </button>
+                  <div className="co-klarna-note">Split into 4 interest-free payments. You'll finish on Klarna, then come right back.</div>
                 </div>
 
                 {/* Step 06 — Order notes */}
@@ -10272,6 +10386,7 @@
               <div className="conf-detail-title">
                 {order && order.card_last4
                   ? (order.card_brand ? order.card_brand.charAt(0).toUpperCase() + order.card_brand.slice(1) + ' ' : 'Card ') + 'ending in ' + order.card_last4
+                  : order && order.payment_method === 'klarna' ? 'Klarna'
                   : order && order.payment_method === 'bank_transfer' ? 'Bank transfer' : 'Card payment'}
               </div>
               <div className="conf-detail-text">
