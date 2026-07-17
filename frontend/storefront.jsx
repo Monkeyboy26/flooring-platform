@@ -1059,15 +1059,31 @@
     }
 
     let stripeInstance = null;
-    (async () => {
-      if (typeof Stripe === 'undefined') return;
-      try {
-        const r = await fetch((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001' : '') + '/api/config/stripe-key');
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const data = await r.json();
-        if (data.key) stripeInstance = Stripe(data.key);
-      } catch (e) { console.warn('Failed to load Stripe key:', e); }
-    })();
+    let _stripeInitPromise = null;
+    // Stripe.js loads async and can finish after this bundle executes, so
+    // initialization waits for it instead of bailing on a lost race.
+    function ensureStripe() {
+      if (stripeInstance) return Promise.resolve(stripeInstance);
+      if (_stripeInitPromise) return _stripeInitPromise;
+      _stripeInitPromise = (async () => {
+        for (let i = 0; i < 100 && typeof Stripe === 'undefined'; i++) {
+          await new Promise(r => setTimeout(r, 100));
+        }
+        if (typeof Stripe === 'undefined') { _stripeInitPromise = null; return null; }
+        try {
+          const r = await fetch((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001' : '') + '/api/config/stripe-key');
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const data = await r.json();
+          if (data.key) stripeInstance = Stripe(data.key);
+        } catch (e) {
+          console.warn('Failed to load Stripe key:', e);
+          _stripeInitPromise = null;
+        }
+        return stripeInstance;
+      })();
+      return _stripeInitPromise;
+    }
+    ensureStripe();
 
     // ==================== Google Places Loader ====================
     let _placesPromise = null;
@@ -9258,6 +9274,7 @@
       const [zip, setZip] = useState(customer ? (customer.zip || '') : '');
       const [error, setError] = useState('');
       const [processing, setProcessing] = useState(false);
+      const [saveCard, setSaveCard] = useState(true);
       const [taxEstimate, setTaxEstimate] = useState({ rate: 0, amount: 0 });
       const cardRef = useRef(null);
       const cardMounted = useRef(false);
@@ -9428,8 +9445,11 @@
         try {
           const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
           if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
+          if (customerToken && saveCard) piBody.save_card = true;
+          const piHeaders = { 'Content-Type': 'application/json' };
+          if (customerToken) piHeaders['X-Customer-Token'] = customerToken;
           const piRes = await fetch(API + '/api/checkout/create-payment-intent', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(piBody)
+            method: 'POST', headers: piHeaders, body: JSON.stringify(piBody)
           });
           const piData = await piRes.json();
           if (piData.error) {
@@ -9581,8 +9601,11 @@
         try {
           const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
           if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
+          if (customerToken && saveCard) piBody.save_card = true;
+          const piHeaders = { 'Content-Type': 'application/json' };
+          if (customerToken) piHeaders['X-Customer-Token'] = customerToken;
           const piRes = await fetch(API + '/api/checkout/create-payment-intent', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(piBody)
+            method: 'POST', headers: piHeaders, body: JSON.stringify(piBody)
           });
           const piData = await piRes.json();
           if (piData.error) {
@@ -9942,9 +9965,11 @@
                       <div className="co-field-label">Card number</div>
                       <div id="card-element"></div>
                     </div>
-                    <label className="co-save-card">
-                      <input type="checkbox" defaultChecked /> Save card for future orders
-                    </label>
+                    {customerToken ? (
+                      <label className="co-save-card">
+                        <input type="checkbox" checked={saveCard} onChange={e => setSaveCard(e.target.checked)} /> Save card for future orders
+                      </label>
+                    ) : null}
                   </div>
                 </div>
 
@@ -10192,6 +10217,131 @@
     }
 
     // ==================== Account Page ====================
+
+    // ==================== Saved Payment Methods (account) ====================
+    function PaymentMethodsSection({ customerToken, customer }) {
+      const [cards, setCards] = useState(null);
+      const [showAdd, setShowAdd] = useState(false);
+      const [cardComplete, setCardComplete] = useState(false);
+      const [cardError, setCardError] = useState('');
+      const [savingCard, setSavingCard] = useState(false);
+      const [removing, setRemoving] = useState(null);
+      const [msg, setMsg] = useState('');
+      const cardElRef = useRef(null);
+      const mountRef = useRef(null);
+      const authHeaders = { 'X-Customer-Token': customerToken };
+
+      const loadCards = () => {
+        fetch(API + '/api/customer/payment-methods', { headers: authHeaders })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(data => setCards(data.cards || []))
+          .catch(() => setCards([]));
+      };
+      useEffect(loadCards, []);
+
+      // Mount the Stripe card element while the add form is open
+      useEffect(() => {
+        if (!showAdd || !mountRef.current) return;
+        let cancelled = false;
+        let card = null;
+        ensureStripe().then(stripe => {
+          if (cancelled || !stripe || !mountRef.current) return;
+          const elements = stripe.elements();
+          card = elements.create('card', {
+            style: { base: { fontSize: '15px', fontFamily: 'Inter, sans-serif', color: '#292524', '::placeholder': { color: '#a8a29e' } }, invalid: { color: '#dc2626' } }
+          });
+          card.mount(mountRef.current);
+          card.on('change', ev => { setCardComplete(ev.complete); setCardError(ev.error ? ev.error.message : ''); });
+          cardElRef.current = card;
+        });
+        return () => { cancelled = true; if (card) card.destroy(); cardElRef.current = null; setCardComplete(false); };
+      }, [showAdd]);
+
+      const saveNewCard = async () => {
+        if (!stripeInstance || !cardElRef.current || !cardComplete) return;
+        setSavingCard(true); setCardError(''); setMsg('');
+        try {
+          const r = await fetch(API + '/api/customer/payment-methods/setup-intent', {
+            method: 'POST', headers: { ...authHeaders, 'Content-Type': 'application/json' }
+          });
+          const data = await r.json();
+          if (!data.client_secret) throw new Error(data.error || 'Could not start card setup');
+          const result = await stripeInstance.confirmCardSetup(data.client_secret, {
+            payment_method: {
+              card: cardElRef.current,
+              billing_details: { name: ((customer.first_name || '') + ' ' + (customer.last_name || '')).trim(), email: customer.email }
+            }
+          });
+          if (result.error) throw new Error(result.error.message);
+          setShowAdd(false);
+          setMsg('Card saved.');
+          loadCards();
+        } catch (e) {
+          setCardError(e.message || 'Failed to save card');
+        }
+        setSavingCard(false);
+      };
+
+      const removeCard = async (pmId) => {
+        if (!confirm('Remove this card?')) return;
+        setRemoving(pmId);
+        try {
+          const r = await fetch(API + '/api/customer/payment-methods/' + pmId, { method: 'DELETE', headers: authHeaders });
+          if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed to remove card'); }
+          setCards(prev => (prev || []).filter(c => c.id !== pmId));
+        } catch (e) { alert(e.message || 'Failed to remove card'); }
+        setRemoving(null);
+      };
+
+      return (
+        <div>
+          <h3 style={{ fontSize: '1rem', fontWeight: 500, marginBottom: '1rem', paddingTop: '1.5rem', borderTop: '1px solid var(--stone-200)' }}>Payment Methods</h3>
+          {msg && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem' }}>{msg}</div>}
+          {cards === null ? (
+            <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem' }}>Loading saved cards...</p>
+          ) : cards.length === 0 && !showAdd ? (
+            <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+              {'No saved cards yet. Add one here — or check “Save card” at checkout — for faster ordering.'}
+            </p>
+          ) : null}
+          {(cards || []).map(c => (
+            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', border: '1px solid var(--stone-200)', padding: '0.75rem 1rem', marginBottom: '0.5rem' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--stone-500)" strokeWidth="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--stone-800)', textTransform: 'capitalize' }}>{c.brand}</span>
+              <span style={{ fontSize: '0.875rem', color: 'var(--stone-600)', letterSpacing: '0.08em' }}>{'•••• ' + c.last4}</span>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>Exp {String(c.exp_month).padStart(2, '0')}/{String(c.exp_year).slice(-2)}</span>
+              <button onClick={() => removeCard(c.id)} disabled={removing === c.id}
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8125rem', color: '#b91c1c', fontFamily: 'Inter, sans-serif' }}>
+                {removing === c.id ? 'Removing...' : 'Remove'}
+              </button>
+            </div>
+          ))}
+          {showAdd ? (
+            <div style={{ border: '1px solid var(--stone-200)', padding: '1rem', marginTop: '0.75rem' }}>
+              <div style={{ marginBottom: '0.35rem', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--stone-800)' }}>Card details</div>
+              <div style={{ border: '1px solid var(--stone-200)', padding: '0.75rem', background: '#fff' }}>
+                <div ref={mountRef}></div>
+              </div>
+              {cardError && <div style={{ color: '#b91c1c', fontSize: '0.8125rem', marginTop: '0.5rem' }}>{cardError}</div>}
+              <p style={{ fontSize: '0.75rem', color: 'var(--stone-500)', margin: '0.75rem 0' }}>
+                {'Stored securely with Stripe — your card number never touches our servers.'}
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button className="btn" onClick={saveNewCard} disabled={!cardComplete || savingCard}>
+                  {savingCard ? 'Saving...' : 'Save Card'}
+                </button>
+                <button onClick={() => { setShowAdd(false); setCardError(''); }} disabled={savingCard}
+                  style={{ background: 'none', border: '1px solid var(--stone-300)', padding: '0 1.25rem', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif', color: 'var(--stone-700)' }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn" onClick={() => { setMsg(''); setShowAdd(true); }} style={{ marginTop: '0.25rem', marginBottom: '1rem' }}>+ Add a Card</button>
+          )}
+        </div>
+      );
+    }
 
     function AccountPage({ customer, customerToken, setCustomer, goBrowse }) {
       const [tab, setTab] = useState('orders');
@@ -10968,6 +11118,8 @@
               <button className="btn" onClick={saveProfile} disabled={saving} style={{ marginBottom: '2.5rem' }}>
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
+
+              <PaymentMethodsSection customerToken={customerToken} customer={customer} />
 
               <h3 style={{ fontSize: '1rem', fontWeight: 500, marginBottom: '1rem', paddingTop: '1.5rem', borderTop: '1px solid var(--stone-200)' }}>Change Password</h3>
               {pwMsg && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem' }}>{pwMsg}</div>}

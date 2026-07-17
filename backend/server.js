@@ -4045,9 +4045,9 @@ app.post('/api/promo-codes/validate', async (req, res) => {
 
 // ==================== Checkout API ====================
 
-app.post('/api/checkout/create-payment-intent', async (req, res) => {
+app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req, res) => {
   try {
-    const { session_id, destination, delivery_method, shipping_option_id, residential, liftgate, promo_code } = req.body;
+    const { session_id, destination, delivery_method, shipping_option_id, residential, liftgate, promo_code, save_card } = req.body;
     if (!session_id) return res.status(400).json({ error: 'session_id is required' });
 
     const result = await pool.query(`
@@ -4172,12 +4172,25 @@ app.post('/api/checkout/create-payment-intent', async (req, res) => {
       ? { name: 'Store Pickup', address: STORE_ADDRESS }
       : { name: 'Customer', address: { line1: destination.zip || '', city: destination.city || '', state: destination.state || '', postal_code: destination.zip || '', country: 'US' } };
 
-    const paymentIntent = await stripe.paymentIntents.create({
+    const piParams = {
       amount: totalCents,
       currency: 'usd',
       payment_method_types: ['card', 'klarna'],
       shipping: piShipping,
-    });
+    };
+    // Signed-in customers can save the card they pay with for future orders
+    if (save_card && req.customer) {
+      try {
+        const stripeCustomerId = await resolveStripeCustomerForAccount(req.customer.id, req.customer.email);
+        if (stripeCustomerId) {
+          piParams.customer = stripeCustomerId;
+          piParams.payment_method_options = { card: { setup_future_usage: 'off_session' } };
+        }
+      } catch (e) {
+        console.error('Checkout save-card attach failed:', e.message);
+      }
+    }
+    const paymentIntent = await stripe.paymentIntents.create(piParams);
 
     res.json({
       clientSecret: paymentIntent.client_secret,
@@ -13165,6 +13178,68 @@ async function resolveStripeCustomerForEmail(email) {
   return stripeCustomer.id;
 }
 
+// Resolve (or create) the Stripe customer for a signed-in retail account
+async function resolveStripeCustomerForAccount(customerId, email) {
+  const r = await pool.query('SELECT stripe_customer_id FROM customers WHERE id = $1', [customerId]);
+  if (!r.rows.length) return null;
+  if (r.rows[0].stripe_customer_id) return r.rows[0].stripe_customer_id;
+  const stripeCustomer = await stripe.customers.create({ email });
+  await pool.query('UPDATE customers SET stripe_customer_id = $1 WHERE id = $2', [stripeCustomer.id, customerId]);
+  return stripeCustomer.id;
+}
+
+// Storefront account: list the signed-in customer's saved cards
+app.get('/api/customer/payment-methods', customerAuth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT stripe_customer_id FROM customers WHERE id = $1', [req.customer.id]);
+    const stripeCustomerId = r.rows.length ? r.rows[0].stripe_customer_id : null;
+    if (!stripeCustomerId) return res.json({ cards: [] });
+    const pms = await stripe.paymentMethods.list({ customer: stripeCustomerId, type: 'card' });
+    res.json({
+      cards: pms.data.map(pm => ({
+        id: pm.id,
+        brand: pm.card.brand,
+        last4: pm.card.last4,
+        exp_month: pm.card.exp_month,
+        exp_year: pm.card.exp_year,
+      }))
+    });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Storefront account: start saving a new card (Stripe SetupIntent)
+app.post('/api/customer/payment-methods/setup-intent', customerAuth, async (req, res) => {
+  try {
+    const stripeCustomerId = await resolveStripeCustomerForAccount(req.customer.id, req.customer.email);
+    if (!stripeCustomerId) return res.status(404).json({ error: 'Account not found' });
+    const setupIntent = await stripe.setupIntents.create({
+      customer: stripeCustomerId,
+      payment_method_types: ['card'],
+      usage: 'off_session',
+    });
+    res.json({ client_secret: setupIntent.client_secret });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Storefront account: remove a saved card
+app.delete('/api/customer/payment-methods/:pmId', customerAuth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT stripe_customer_id FROM customers WHERE id = $1', [req.customer.id]);
+    const stripeCustomerId = r.rows.length ? r.rows[0].stripe_customer_id : null;
+    if (!stripeCustomerId) return res.status(404).json({ error: 'No saved cards' });
+    const pm = await stripe.paymentMethods.retrieve(req.params.pmId);
+    if (!pm || pm.customer !== stripeCustomerId) return res.status(404).json({ error: 'Card not found' });
+    await stripe.paymentMethods.detach(req.params.pmId);
+    res.json({ removed: true });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // List a customer's saved cards (card on file) by email
 app.get('/api/rep/customers/payment-methods', repAuth, async (req, res) => {
   try {
@@ -13246,7 +13321,7 @@ app.post('/api/rep/card/create-payment-intent', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'Amount exceeds maximum of $50,000' });
     }
     const amountCents = Math.round(amount * 100);
-    const paymentIntent = await stripe.paymentIntents.create({
+    const piParams = {
       amount: amountCents,
       currency: 'usd',
       payment_method_types: ['card'],
