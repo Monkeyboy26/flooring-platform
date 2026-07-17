@@ -2328,6 +2328,57 @@
       const scrollY = useRef(0);
       const pendingScroll = useRef(null);
 
+      // ---- Consent-gated analytics ----
+      // Emits to /api/analytics/*, but never when the visitor has declined
+      // cookies. Consent is read live from localStorage on every call, so a
+      // Decline click stops tracking immediately for the rest of the session.
+      const analyticsAllowed = () => {
+        try { return localStorage.getItem('cookie_consent') !== 'declined'; } catch (e) { return false; }
+      };
+      const getVisitorId = () => {
+        try {
+          let vid = localStorage.getItem('analytics_visitor_id');
+          if (!vid) {
+            vid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('v_' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+            localStorage.setItem('analytics_visitor_id', vid);
+          }
+          return vid;
+        } catch (e) { return null; }
+      };
+      const track = (event_type, properties) => {
+        if (!analyticsAllowed()) return;
+        try {
+          fetch(API + '/api/analytics/event', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
+            body: JSON.stringify({ events: [{
+              event_type, properties: properties || {},
+              session_id: sessionId.current, visitor_id: getVisitorId(),
+              page_path: window.location.pathname, referrer: document.referrer || null,
+            }] })
+          }).catch(() => {});
+        } catch (e) {}
+      };
+      const pingSession = () => {
+        if (!analyticsAllowed()) return;
+        try {
+          const sp = new URLSearchParams(window.location.search);
+          const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+          fetch(API + '/api/analytics/session', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
+            body: JSON.stringify({
+              session_id: sessionId.current, visitor_id: getVisitorId(),
+              user_agent: navigator.userAgent, referrer: document.referrer || null,
+              device_type: window.innerWidth < 768 ? 'mobile' : (isTouch && window.innerWidth < 1024 ? 'tablet' : 'desktop'),
+              utm_source: sp.get('utm_source'), utm_medium: sp.get('utm_medium'), utm_campaign: sp.get('utm_campaign'),
+            })
+          }).catch(() => {});
+        } catch (e) {}
+      };
+
+      // Session ping on load; page_view whenever the view changes.
+      useEffect(() => { pingSession(); }, []);
+      useEffect(() => { track('page_view', { view }); }, [view]);
+
       const tradeHeaders = () => {
         const t = localStorage.getItem('trade_token');
         return t ? { 'X-Trade-Token': t } : {};
@@ -2482,6 +2533,7 @@
               setTimeout(() => setCartFlash(false), 600);
               showToast('Added to cart', 'success');
               setCartDrawerOpen(true);
+              track('add_to_cart', { sku_id: item.sku_id, is_sample: !!item.is_sample });
             }
           })
           .catch(err => console.error(err));
@@ -2789,6 +2841,7 @@
         const slug = generateSlug(productName || 'product');
         history.pushState({ view: 'detail', skuId, _fromDetail: fromDetail }, '', '/shop/sku/' + skuId + '/' + slug);
         window.scrollTo(0, 0);
+        track('product_view', { sku_id: skuId });
       };
 
       const goBackToBrowse = () => {
@@ -2815,6 +2868,7 @@
         setCartDrawerOpen(false);
         history.pushState({ view: 'checkout' }, '', '/checkout');
         window.scrollTo(0, 0);
+        track('checkout_started', { item_count: cart.length });
       };
 
       const goAccount = () => {
@@ -2829,6 +2883,7 @@
         setView('confirmation');
         history.pushState({ view: 'confirmation' }, '', '/checkout/confirmation');
         window.scrollTo(0, 0);
+        track('order_completed', { order_number: orderData && orderData.order ? orderData.order.order_number : undefined });
         fetch(API + '/api/cart/clear', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2978,6 +3033,7 @@
       };
 
       const handleSearch = (query) => {
+        track('search', { query: query });
         setSearchQuery(query);
         setSearchDidYouMean(null);
         setSelectedCategory(null);
