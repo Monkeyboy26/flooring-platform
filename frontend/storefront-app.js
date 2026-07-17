@@ -2227,7 +2227,7 @@
         goCabinets();
         return;
       }
-      if (path === "/terms" || path === "/privacy") {
+      if (path === "/terms" || path === "/privacy" || path === "/accessibility") {
         const viewName = path.slice(1);
         setView(viewName);
         history.pushState({ view: viewName }, "", path);
@@ -2598,6 +2598,8 @@
         setView("terms");
       } else if (path === "/privacy") {
         setView("privacy");
+      } else if (path === "/accessibility") {
+        setView("accessibility");
       } else if (["/design-services", "/about"].includes(path)) {
         const titles = { "/design-services": "Design Services", "/about": "About Us" };
         setComingSoonTitle(titles[path]);
@@ -2981,7 +2983,7 @@
     } }), view === "set-password" && /* @__PURE__ */ React.createElement(SetPasswordPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "signin" && /* @__PURE__ */ React.createElement(SignInFullPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "signup" && /* @__PURE__ */ React.createElement(SignUpFullPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "forgot-password" && /* @__PURE__ */ React.createElement(ForgotPasswordFullPage, { goHome, navigate }), view === "installation" && /* @__PURE__ */ React.createElement(InstallationPage, { onRequestQuote: () => {
       setInstallModalProduct(null);
       setShowInstallModal(true);
-    } }), view === "inspiration" && /* @__PURE__ */ React.createElement(InspirationPage, { navigate, goBrowse }), view === "sale" && /* @__PURE__ */ React.createElement(SalePage, { onSkuClick: goSkuDetail, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku, navigate }), view === "cabinets" && /* @__PURE__ */ React.createElement(CabinetsPage, null), view === "coming-soon" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "6rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, fontSize: "2.5rem", marginBottom: "1rem" } }, comingSoonTitle), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "1.125rem", lineHeight: 1.6, marginBottom: "2rem" } }, "This page is coming soon. We're working on something beautiful."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goHome }, "Back to Home")), view === "terms" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "terms", goHome, navigate }), view === "privacy" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "privacy", goHome, navigate }), /* @__PURE__ */ React.createElement(CookieConsent, { navigate }), /* @__PURE__ */ React.createElement(
+    } }), view === "inspiration" && /* @__PURE__ */ React.createElement(InspirationPage, { navigate, goBrowse }), view === "sale" && /* @__PURE__ */ React.createElement(SalePage, { onSkuClick: goSkuDetail, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku, navigate }), view === "cabinets" && /* @__PURE__ */ React.createElement(CabinetsPage, null), view === "coming-soon" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "6rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, fontSize: "2.5rem", marginBottom: "1rem" } }, comingSoonTitle), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "1.125rem", lineHeight: 1.6, marginBottom: "2rem" } }, "This page is coming soon. We're working on something beautiful."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goHome }, "Back to Home")), view === "terms" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "terms", goHome, navigate }), view === "privacy" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "privacy", goHome, navigate }), view === "accessibility" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "accessibility", goHome, navigate }), /* @__PURE__ */ React.createElement(CookieConsent, { navigate }), /* @__PURE__ */ React.createElement(
       CartDrawer,
       {
         cart,
@@ -9393,7 +9395,9 @@
   }
   function LegalPage({ kind, goHome, navigate }) {
     const isTerms = kind === "terms";
-    const title = isTerms ? "Terms of Service" : "Privacy Policy";
+    const title = { terms: "Terms of Service", privacy: "Privacy Policy", accessibility: "Accessibility Statement" }[kind] || "Legal";
+    const relHref = kind === "privacy" ? "/terms" : "/privacy";
+    const relLabel = kind === "privacy" ? "Terms of Service" : "Privacy Policy";
     const termsSections = [
       { h: "1. Acceptance of Terms", p: "By accessing this site, requesting a quote, or placing an order with Roma Flooring Designs (\u201CRoma,\u201D \u201Cwe,\u201D or \u201Cus\u201D), you acknowledge that you have read, understood, and agree to be bound by these Terms of Service. These Terms govern every sale and take precedence over any conflicting terms in your purchase documents unless we expressly agree otherwise in writing. If you do not agree, please do not use this site or purchase from us." },
       { h: "2. Natural Materials & Variation", p: "Stone, tile, wood, and other natural or nature-derived products are products of nature. Variation in color, veining, shade, tone, texture, finish, size, and marking is normal, inherent to the material, and to be expected \u2014 it is a characteristic of natural products, not a defect. Samples, displays, and on-screen images are representative only and are not guaranteed to match production material exactly. Roma does not warrant that any material will match a sample, prior lot, photograph, or expectation of uniformity, and such variation is never a basis for a claim, return, or refund." },
@@ -9428,11 +9432,20 @@
       { h: "13. Changes to This Policy", p: "We may update this Privacy Policy from time to time at our discretion. Changes are effective when the updated policy is posted, and your continued use of the site or purchase from Roma constitutes acceptance of the then-current policy." },
       { h: "14. Contact", p: "Questions about your privacy or this policy? Contact us using the details below." }
     ];
-    const sections = isTerms ? termsSections : privacySections;
-    return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 760, margin: "3.5rem auto 5rem", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.6875rem", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--stone-500)", marginBottom: "0.75rem" } }, "Roma Flooring Designs"), /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, fontSize: "2.75rem", lineHeight: 1.1, margin: "0 0 0.5rem" } }, title), /* @__PURE__ */ React.createElement("div", { style: { color: "var(--stone-500)", fontSize: "0.875rem", marginBottom: "2rem" } }, "Effective date: to be finalized"), sections.map((s, i) => /* @__PURE__ */ React.createElement("section", { key: i, style: { marginBottom: "1.75rem" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "1.0625rem", margin: "0 0 0.5rem", color: "var(--stone-800)" } }, s.h), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", fontSize: "0.9375rem", lineHeight: 1.65, margin: 0 } }, s.p))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "2.5rem", paddingTop: "1.5rem", borderTop: "0.5px solid rgba(28,25,23,0.13)", color: "var(--stone-600)", fontSize: "0.875rem", lineHeight: 1.7 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, color: "var(--stone-800)" } }, "Roma Flooring Designs"), /* @__PURE__ */ React.createElement("div", null, "1440 South State College Blvd #6M, Anaheim, CA 92806"), /* @__PURE__ */ React.createElement("div", null, "License #830966 \xB7 (714) 999-0009")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "2rem", display: "flex", gap: "1.25rem", fontSize: "0.875rem" } }, /* @__PURE__ */ React.createElement("a", { href: isTerms ? "/privacy" : "/terms", onClick: (e) => {
+    const accessibilitySections = [
+      { h: "1. Our Commitment", p: "Roma Flooring Designs is committed to making our website and our Anaheim showroom accessible to everyone, including people with disabilities, and to providing a welcoming, usable experience for all of our customers." },
+      { h: "2. Conformance Goal", p: "We aim to align this website with the Web Content Accessibility Guidelines (WCAG) 2.1, Level AA \u2014 the widely recognized standard for web accessibility. Accessibility is an ongoing effort, and we continue to review and improve the experience over time." },
+      { h: "3. What We Do", p: "We consider accessibility as we design and build the site \u2014 for example readable typography and color contrast, descriptive text for meaningful images, keyboard-navigable controls, clear and consistent layouts, and labeled forms \u2014 and we work to improve these areas as the site evolves." },
+      { h: "4. Assistive Technology & Compatibility", p: "We aim for the site to work with current browsers and commonly used assistive technologies such as screen readers and screen-magnification tools. Because technology and content change frequently, some features may perform best with the latest versions of your browser and assistive software." },
+      { h: "5. Third-Party Content", p: "Some content and tools on our site are provided by third parties (for example payment, mapping, or embedded media). We do not control the accessibility of third-party content, but we select our providers with care and welcome your feedback about any barriers you encounter." },
+      { h: "6. Help & Alternative Access", p: "If any part of our site is difficult to use, our team is glad to help. You can reach our Anaheim showroom during business hours for product information, to request samples or quotes, and to place orders with a team member \u2014 so you never have to complete a purchase online to work with us." },
+      { h: "7. Feedback & Contact", p: "We welcome your feedback on the accessibility of this site. If you encounter a barrier, or need assistance or a reasonable accommodation, please contact us using the details below and we will do our best to help and to address the issue. Letting us know the page and the difficulty you experienced helps us respond effectively." }
+    ];
+    const sections = { terms: termsSections, privacy: privacySections, accessibility: accessibilitySections }[kind] || [];
+    return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 760, margin: "3.5rem auto 5rem", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.6875rem", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--stone-500)", marginBottom: "0.75rem" } }, "Roma Flooring Designs"), /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, fontSize: "2.75rem", lineHeight: 1.1, margin: "0 0 0.5rem" } }, title), /* @__PURE__ */ React.createElement("div", { style: { color: "var(--stone-500)", fontSize: "0.875rem", marginBottom: "2rem" } }, "Effective date: to be finalized"), sections.map((s, i) => /* @__PURE__ */ React.createElement("section", { key: i, style: { marginBottom: "1.75rem" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "1.0625rem", margin: "0 0 0.5rem", color: "var(--stone-800)" } }, s.h), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", fontSize: "0.9375rem", lineHeight: 1.65, margin: 0 } }, s.p))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "2.5rem", paddingTop: "1.5rem", borderTop: "0.5px solid rgba(28,25,23,0.13)", color: "var(--stone-600)", fontSize: "0.875rem", lineHeight: 1.7 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, color: "var(--stone-800)" } }, "Roma Flooring Designs"), /* @__PURE__ */ React.createElement("div", null, "1440 South State College Blvd #6M, Anaheim, CA 92806"), /* @__PURE__ */ React.createElement("div", null, "License #830966 \xB7 (714) 999-0009")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "2rem", display: "flex", gap: "1.25rem", fontSize: "0.875rem" } }, /* @__PURE__ */ React.createElement("a", { href: relHref, onClick: (e) => {
       e.preventDefault();
-      navigate(isTerms ? "/privacy" : "/terms");
-    }, style: { color: "var(--stone-700)", textDecoration: "underline" } }, isTerms ? "Privacy Policy" : "Terms of Service"), /* @__PURE__ */ React.createElement("a", { href: "/", onClick: (e) => {
+      navigate(relHref);
+    }, style: { color: "var(--stone-700)", textDecoration: "underline" } }, relLabel), /* @__PURE__ */ React.createElement("a", { href: "/", onClick: (e) => {
       e.preventDefault();
       goHome();
     }, style: { color: "var(--stone-700)", textDecoration: "underline" } }, "Back to home")));
@@ -9483,7 +9496,10 @@
         window.dispatchEvent(new Event("open-cookie-preferences"));
       } catch (err) {
       }
-    } }, "Cookie preferences"), /* @__PURE__ */ React.createElement("span", null, "|"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => e.preventDefault() }, "Accessibility"))));
+    } }, "Cookie preferences"), /* @__PURE__ */ React.createElement("span", null, "|"), /* @__PURE__ */ React.createElement("a", { href: "/accessibility", onClick: (e) => {
+      e.preventDefault();
+      navigate("/accessibility");
+    } }, "Accessibility"))));
   }
   ReactDOM.createRoot(document.getElementById("root")).render(/* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(StorefrontApp, null)));
 })();
