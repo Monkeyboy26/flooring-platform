@@ -2087,3 +2087,21 @@ CREATE TABLE IF NOT EXISTS sku_accessories (
 );
 CREATE INDEX IF NOT EXISTS idx_sku_accessories_parent ON sku_accessories(parent_sku_id);
 CREATE INDEX IF NOT EXISTS idx_sku_accessories_accessory ON sku_accessories(accessory_sku_id);
+
+-- ==================== Email Delivery Failures ====================
+-- Durable record of emails that exhausted all delivery retries (see
+-- emailService.deliver). Before this, a failed transactional email was only
+-- console-logged and lost; now permanent failures are queryable/alertable.
+
+CREATE TABLE IF NOT EXISTS email_failures (
+  id            SERIAL PRIMARY KEY,
+  recipient     TEXT,
+  subject       TEXT,
+  error_message TEXT,
+  attempts      INTEGER NOT NULL DEFAULT 1,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_at   TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_email_failures_unresolved
+  ON email_failures (created_at DESC)
+  WHERE resolved_at IS NULL;

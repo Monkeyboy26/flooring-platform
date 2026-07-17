@@ -5088,6 +5088,39 @@ app.get('/api/admin/stats', staffAuth, requireRole('admin', 'manager'), async (r
   }
 });
 
+// Surface email delivery failures recorded by emailService.deliver, so a failed
+// order confirmation (or any transactional email) isn't silently lost in logs.
+app.get('/api/admin/email-failures', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const includeResolved = req.query.include_resolved === 'true';
+    const failures = await pool.query(`
+      SELECT id, recipient, subject, error_message, attempts, created_at, resolved_at
+      FROM email_failures
+      ${includeResolved ? '' : 'WHERE resolved_at IS NULL'}
+      ORDER BY created_at DESC
+      LIMIT 200
+    `);
+    const unresolved = await pool.query('SELECT COUNT(*)::int AS c FROM email_failures WHERE resolved_at IS NULL');
+    res.json({ failures: failures.rows, unresolved_count: unresolved.rows[0].c });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Acknowledge a failure once it's been dealt with (e.g. email resent manually).
+app.post('/api/admin/email-failures/:id/resolve', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      'UPDATE email_failures SET resolved_at = NOW() WHERE id = $1 AND resolved_at IS NULL RETURNING id',
+      [req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found or already resolved' });
+    res.json({ ok: true, id: result.rows[0].id });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Dashboard analytics
 app.get('/api/admin/analytics', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
