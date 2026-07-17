@@ -6159,6 +6159,9 @@
     const [error, setError] = useState("");
     const [processing, setProcessing] = useState(false);
     const [saveCard, setSaveCard] = useState(true);
+    const [savedCards, setSavedCards] = useState([]);
+    const [selectedSavedPm, setSelectedSavedPm] = useState(null);
+    const prefilledRef = useRef(false);
     const [taxEstimate, setTaxEstimate] = useState({ rate: 0, amount: 0 });
     const cardRef = useRef(null);
     const cardMounted = useRef(false);
@@ -6357,13 +6360,15 @@
       setError("");
       setProcessing(true);
       try {
+        const usingSavedCard = !!(customerToken && selectedSavedPm);
         const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
         if (!isPickup) {
           piBody.destination = { zip, city, state };
           piBody.residential = true;
           piBody.liftgate = liftgateEnabled;
         }
-        if (customerToken && saveCard) piBody.save_card = true;
+        if (usingSavedCard) piBody.saved_payment_method_id = selectedSavedPm;
+        else if (customerToken && saveCard) piBody.save_card = true;
         const piHeaders = { "Content-Type": "application/json" };
         if (customerToken) piHeaders["X-Customer-Token"] = customerToken;
         const piRes = await fetch(API + "/api/checkout/create-payment-intent", {
@@ -6382,18 +6387,38 @@
           }
           return;
         }
-        const { error: stripeError, paymentIntent } = await stripeInstance.confirmCardPayment(
-          piData.clientSecret,
-          { payment_method: { card: cardRef.current, billing_details: { name: customerName, email: customerEmail } } }
-        );
-        if (stripeError) {
-          setError(stripeError.message);
-          setProcessing(false);
-          return;
+        let confirmedPiId;
+        if (usingSavedCard) {
+          if (piData.status === "succeeded") {
+            confirmedPiId = piData.paymentIntentId;
+          } else if (piData.requires_action || piData.status === "requires_action") {
+            const { error: actionError, paymentIntent: actionPi } = await stripeInstance.confirmCardPayment(piData.clientSecret);
+            if (actionError) {
+              setError(actionError.message);
+              setProcessing(false);
+              return;
+            }
+            confirmedPiId = actionPi.id;
+          } else {
+            setError("Your saved card could not be charged. Please try another card.");
+            setProcessing(false);
+            return;
+          }
+        } else {
+          const { error: stripeError, paymentIntent } = await stripeInstance.confirmCardPayment(
+            piData.clientSecret,
+            { payment_method: { card: cardRef.current, billing_details: { name: customerName, email: customerEmail } } }
+          );
+          if (stripeError) {
+            setError(stripeError.message);
+            setProcessing(false);
+            return;
+          }
+          confirmedPiId = paymentIntent.id;
         }
         const orderBody = {
           session_id: sessionId,
-          payment_intent_id: paymentIntent.id,
+          payment_intent_id: confirmedPiId,
           customer_name: customerName,
           customer_email: customerEmail,
           phone,
@@ -6486,6 +6511,32 @@
       };
     }, [placesReady, isPickup]);
     useEffect(() => {
+      if (prefilledRef.current || !customer) return;
+      prefilledRef.current = true;
+      const full = ((customer.first_name || "") + " " + (customer.last_name || "")).trim();
+      setCustomerName((prev) => prev || full);
+      setCustomerEmail((prev) => prev || customer.email || "");
+      setPhone((prev) => prev || customer.phone || "");
+      setLine1((prev) => prev || customer.address_line1 || "");
+      setLine2((prev) => prev || customer.address_line2 || "");
+      setCity((prev) => prev || customer.city || "");
+      setState((prev) => prev || customer.state || "");
+      setZip((prev) => prev || customer.zip || "");
+      if (full && customer.email) setEditingContact(false);
+      if (customer.address_line1) setEditingAddress(false);
+    }, [customer]);
+    useEffect(() => {
+      if (!customerToken) {
+        setSavedCards([]);
+        return;
+      }
+      fetch(API + "/api/customer/payment-methods", { headers: { "X-Customer-Token": customerToken } }).then((r) => r.ok ? r.json() : { cards: [] }).then((d) => {
+        const cards = d.cards || [];
+        setSavedCards(cards);
+        if (cards.length) setSelectedSavedPm(cards[0].id);
+      }).catch(() => setSavedCards([]));
+    }, [customerToken]);
+    useEffect(() => {
       const taxZip = isPickup ? "92806" : zip;
       if (!taxZip || taxZip.length < 5) {
         setTaxEstimate({ rate: 0, amount: 0 });
@@ -6551,13 +6602,15 @@
       }
       setProcessing(true);
       try {
+        const usingSavedCard = !!(customerToken && selectedSavedPm);
         const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
         if (!isPickup) {
           piBody.destination = { zip, city, state };
           piBody.residential = true;
           piBody.liftgate = liftgateEnabled;
         }
-        if (customerToken && saveCard) piBody.save_card = true;
+        if (usingSavedCard) piBody.saved_payment_method_id = selectedSavedPm;
+        else if (customerToken && saveCard) piBody.save_card = true;
         const piHeaders = { "Content-Type": "application/json" };
         if (customerToken) piHeaders["X-Customer-Token"] = customerToken;
         const piRes = await fetch(API + "/api/checkout/create-payment-intent", {
@@ -6576,18 +6629,38 @@
           }
           return;
         }
-        const { error: stripeError, paymentIntent } = await stripeInstance.confirmCardPayment(
-          piData.clientSecret,
-          { payment_method: { card: cardRef.current, billing_details: { name: customerName, email: customerEmail } } }
-        );
-        if (stripeError) {
-          setError(stripeError.message);
-          setProcessing(false);
-          return;
+        let confirmedPiId;
+        if (usingSavedCard) {
+          if (piData.status === "succeeded") {
+            confirmedPiId = piData.paymentIntentId;
+          } else if (piData.requires_action || piData.status === "requires_action") {
+            const { error: actionError, paymentIntent: actionPi } = await stripeInstance.confirmCardPayment(piData.clientSecret);
+            if (actionError) {
+              setError(actionError.message);
+              setProcessing(false);
+              return;
+            }
+            confirmedPiId = actionPi.id;
+          } else {
+            setError("Your saved card could not be charged. Please try another card.");
+            setProcessing(false);
+            return;
+          }
+        } else {
+          const { error: stripeError, paymentIntent } = await stripeInstance.confirmCardPayment(
+            piData.clientSecret,
+            { payment_method: { card: cardRef.current, billing_details: { name: customerName, email: customerEmail } } }
+          );
+          if (stripeError) {
+            setError(stripeError.message);
+            setProcessing(false);
+            return;
+          }
+          confirmedPiId = paymentIntent.id;
         }
         const orderBody = {
           session_id: sessionId,
-          payment_intent_id: paymentIntent.id,
+          payment_intent_id: confirmedPiId,
           customer_name: customerName,
           customer_email: customerEmail,
           phone,
@@ -6693,7 +6766,7 @@
       },
       /* @__PURE__ */ React.createElement("span", { className: "co-time-slot-label" }, label),
       /* @__PURE__ */ React.createElement("span", { className: "co-time-slot-sub" }, sub)
-    ))))), /* @__PURE__ */ React.createElement("div", { className: "co-schedule-note" }, "We'll confirm your appointment within 24 hours. Dates subject to availability."))), /* @__PURE__ */ React.createElement("div", { className: "co-step focus" }, /* @__PURE__ */ React.createElement("div", { className: "co-step-head" }, /* @__PURE__ */ React.createElement("div", { className: "co-step-left" }, /* @__PURE__ */ React.createElement("span", { className: "co-step-num" }, "05"), /* @__PURE__ */ React.createElement("h3", { className: "co-step-title" }, "Payment"))), walletAvailable && /* @__PURE__ */ React.createElement("div", { className: "co-express-section" }, walletMode === "native" ? /* @__PURE__ */ React.createElement("div", { id: "payment-request-button" }) : /* @__PURE__ */ React.createElement("button", { type: "button", className: "co-wallet-btn", onClick: handleSimulatedWalletPay, disabled: processing }, /* @__PURE__ */ React.createElement("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "1", y: "4", width: "22", height: "16", rx: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "10", x2: "23", y2: "10" })), processing ? "Processing..." : "Pay with Wallet", isLocalDev && /* @__PURE__ */ React.createElement("span", { className: "dev-badge" }, "DEV")), /* @__PURE__ */ React.createElement("div", { className: "co-divider" }, "or pay with card")), /* @__PURE__ */ React.createElement("div", { className: "co-card-form" }, /* @__PURE__ */ React.createElement("div", { className: "co-stripe-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "co-field-label" }, "Card number"), /* @__PURE__ */ React.createElement("div", { id: "card-element" })), customerToken ? /* @__PURE__ */ React.createElement("label", { className: "co-save-card" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: saveCard, onChange: (e) => setSaveCard(e.target.checked) }), " Save card for future orders") : null)), /* @__PURE__ */ React.createElement("div", { className: "co-step" }, /* @__PURE__ */ React.createElement("div", { className: "co-step-head" }, /* @__PURE__ */ React.createElement("div", { className: "co-step-left" }, /* @__PURE__ */ React.createElement("span", { className: "co-step-num" }, "06"), /* @__PURE__ */ React.createElement("h3", { className: "co-step-title" }, "Notes")), /* @__PURE__ */ React.createElement("div", { className: "co-step-chip" }, /* @__PURE__ */ React.createElement("span", { className: "co-step-chip-label", style: { color: "var(--warm-muted)" } }, "Optional"))), /* @__PURE__ */ React.createElement("div", { className: "co-notes" }, /* @__PURE__ */ React.createElement("textarea", { value: orderNotes, onChange: (e) => setOrderNotes(e.target.value), placeholder: "Delivery instructions, gate codes, special requests..." }), /* @__PURE__ */ React.createElement("div", { className: "co-notes-hint" }, "Visible to your project manager"))), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "co-place-order", disabled: processing }, processing && /* @__PURE__ */ React.createElement("span", { className: "co-spinner" }), processing ? "Processing..." : `Place Order \u2014 $${cartTotal.toFixed(2)}`), /* @__PURE__ */ React.createElement("div", { className: "co-terms" }, "By placing this order you agree to Roma's terms of service and privacy policy.")), /* @__PURE__ */ React.createElement("div", { className: "co-summary" }, /* @__PURE__ */ React.createElement("div", { className: "co-summary-box" }, /* @__PURE__ */ React.createElement("div", { className: "co-summary-header" }, "Order summary"), /* @__PURE__ */ React.createElement("div", { className: "co-summary-items" }, cart.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.id, className: "co-summary-item" }, /* @__PURE__ */ React.createElement("div", { className: "co-summary-thumb" }, item.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(item.primary_image, 144), alt: "", decoding: "async", loading: "lazy", style: { width: "100%", height: "100%", objectFit: "cover" } }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-200)" } }), !item.is_sample && /* @__PURE__ */ React.createElement("div", { className: "co-summary-thumb-badge" }, item.num_boxes)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "co-summary-item-name" }, item.product_name || "Product"), /* @__PURE__ */ React.createElement("div", { className: "co-summary-item-detail" }, item.is_sample ? "Free sample" : item.sell_by === "unit" ? `Qty ${item.num_boxes}` : `${item.num_boxes} box${parseInt(item.num_boxes) !== 1 ? "es" : ""}`)), /* @__PURE__ */ React.createElement("div", { className: "co-summary-item-price" }, item.is_sample ? "FREE" : "$" + parseFloat(item.subtotal).toFixed(2))))), /* @__PURE__ */ React.createElement("div", { className: "co-summary-totals" }, /* @__PURE__ */ React.createElement("div", { className: "co-summary-row" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, "Subtotal"), /* @__PURE__ */ React.createElement("span", { className: "value" }, "$", productSubtotal.toFixed(2))), sampleItems.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "co-summary-row" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, "Sample shipping"), /* @__PURE__ */ React.createElement("span", { className: "value" }, "$12.00")), taxEstimate.amount > 0 && /* @__PURE__ */ React.createElement("div", { className: "co-summary-row" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, "Tax (", (taxEstimate.rate * 100).toFixed(2), "%)"), /* @__PURE__ */ React.createElement("span", { className: "value" }, "$", taxEstimate.amount.toFixed(2))), isPickup && /* @__PURE__ */ React.createElement("div", { className: "co-summary-row" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, "Delivery"), /* @__PURE__ */ React.createElement("span", { className: "value" }, "Pickup \u2014 Free"))), /* @__PURE__ */ React.createElement("div", { className: "co-summary-total" }, /* @__PURE__ */ React.createElement("span", { className: "co-summary-total-label" }, "Total"), /* @__PURE__ */ React.createElement("span", { className: "co-summary-total-amount" }, "$", cartTotal.toFixed(2)))), /* @__PURE__ */ React.createElement("a", { className: "co-summary-edit-cart", href: "#", onClick: (e) => {
+    ))))), /* @__PURE__ */ React.createElement("div", { className: "co-schedule-note" }, "We'll confirm your appointment within 24 hours. Dates subject to availability."))), /* @__PURE__ */ React.createElement("div", { className: "co-step focus" }, /* @__PURE__ */ React.createElement("div", { className: "co-step-head" }, /* @__PURE__ */ React.createElement("div", { className: "co-step-left" }, /* @__PURE__ */ React.createElement("span", { className: "co-step-num" }, "05"), /* @__PURE__ */ React.createElement("h3", { className: "co-step-title" }, "Payment"))), walletAvailable && /* @__PURE__ */ React.createElement("div", { className: "co-express-section" }, walletMode === "native" ? /* @__PURE__ */ React.createElement("div", { id: "payment-request-button" }) : /* @__PURE__ */ React.createElement("button", { type: "button", className: "co-wallet-btn", onClick: handleSimulatedWalletPay, disabled: processing }, /* @__PURE__ */ React.createElement("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "1", y: "4", width: "22", height: "16", rx: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "10", x2: "23", y2: "10" })), processing ? "Processing..." : "Pay with Wallet", isLocalDev && /* @__PURE__ */ React.createElement("span", { className: "dev-badge" }, "DEV")), /* @__PURE__ */ React.createElement("div", { className: "co-divider" }, "or pay with card")), savedCards.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "co-saved-cards" }, savedCards.map((c) => /* @__PURE__ */ React.createElement("label", { key: c.id, className: "co-saved-card" + (selectedSavedPm === c.id ? " selected" : "") }, /* @__PURE__ */ React.createElement("input", { type: "radio", name: "coSavedPm", checked: selectedSavedPm === c.id, onChange: () => setSelectedSavedPm(c.id) }), /* @__PURE__ */ React.createElement("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "1", y: "4", width: "22", height: "16", rx: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "10", x2: "23", y2: "10" })), /* @__PURE__ */ React.createElement("span", { className: "co-saved-card-brand" }, c.brand), /* @__PURE__ */ React.createElement("span", { className: "co-saved-card-num" }, "\u2022\u2022\u2022\u2022 ", c.last4), /* @__PURE__ */ React.createElement("span", { className: "co-saved-card-exp" }, "Exp ", String(c.exp_month).padStart(2, "0"), "/", String(c.exp_year).slice(-2)))), /* @__PURE__ */ React.createElement("label", { className: "co-saved-card" + (selectedSavedPm === null ? " selected" : "") }, /* @__PURE__ */ React.createElement("input", { type: "radio", name: "coSavedPm", checked: selectedSavedPm === null, onChange: () => setSelectedSavedPm(null) }), /* @__PURE__ */ React.createElement("span", { className: "co-saved-card-brand" }, "Use a new card"))), /* @__PURE__ */ React.createElement("div", { className: "co-card-form", style: { display: savedCards.length > 0 && selectedSavedPm ? "none" : "block" } }, /* @__PURE__ */ React.createElement("div", { className: "co-stripe-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "co-field-label" }, "Card number"), /* @__PURE__ */ React.createElement("div", { id: "card-element" })), customerToken ? /* @__PURE__ */ React.createElement("label", { className: "co-save-card" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: saveCard, onChange: (e) => setSaveCard(e.target.checked) }), " Save card for future orders") : null)), /* @__PURE__ */ React.createElement("div", { className: "co-step" }, /* @__PURE__ */ React.createElement("div", { className: "co-step-head" }, /* @__PURE__ */ React.createElement("div", { className: "co-step-left" }, /* @__PURE__ */ React.createElement("span", { className: "co-step-num" }, "06"), /* @__PURE__ */ React.createElement("h3", { className: "co-step-title" }, "Notes")), /* @__PURE__ */ React.createElement("div", { className: "co-step-chip" }, /* @__PURE__ */ React.createElement("span", { className: "co-step-chip-label", style: { color: "var(--warm-muted)" } }, "Optional"))), /* @__PURE__ */ React.createElement("div", { className: "co-notes" }, /* @__PURE__ */ React.createElement("textarea", { value: orderNotes, onChange: (e) => setOrderNotes(e.target.value), placeholder: "Delivery instructions, gate codes, special requests..." }), /* @__PURE__ */ React.createElement("div", { className: "co-notes-hint" }, "Visible to your project manager"))), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "co-place-order", disabled: processing }, processing && /* @__PURE__ */ React.createElement("span", { className: "co-spinner" }), processing ? "Processing..." : `Place Order \u2014 $${cartTotal.toFixed(2)}`), /* @__PURE__ */ React.createElement("div", { className: "co-terms" }, "By placing this order you agree to Roma's terms of service and privacy policy.")), /* @__PURE__ */ React.createElement("div", { className: "co-summary" }, /* @__PURE__ */ React.createElement("div", { className: "co-summary-box" }, /* @__PURE__ */ React.createElement("div", { className: "co-summary-header" }, "Order summary"), /* @__PURE__ */ React.createElement("div", { className: "co-summary-items" }, cart.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.id, className: "co-summary-item" }, /* @__PURE__ */ React.createElement("div", { className: "co-summary-thumb" }, item.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(item.primary_image, 144), alt: "", decoding: "async", loading: "lazy", style: { width: "100%", height: "100%", objectFit: "cover" } }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-200)" } }), !item.is_sample && /* @__PURE__ */ React.createElement("div", { className: "co-summary-thumb-badge" }, item.num_boxes)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "co-summary-item-name" }, item.product_name || "Product"), /* @__PURE__ */ React.createElement("div", { className: "co-summary-item-detail" }, item.is_sample ? "Free sample" : item.sell_by === "unit" ? `Qty ${item.num_boxes}` : `${item.num_boxes} box${parseInt(item.num_boxes) !== 1 ? "es" : ""}`)), /* @__PURE__ */ React.createElement("div", { className: "co-summary-item-price" }, item.is_sample ? "FREE" : "$" + parseFloat(item.subtotal).toFixed(2))))), /* @__PURE__ */ React.createElement("div", { className: "co-summary-totals" }, /* @__PURE__ */ React.createElement("div", { className: "co-summary-row" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, "Subtotal"), /* @__PURE__ */ React.createElement("span", { className: "value" }, "$", productSubtotal.toFixed(2))), sampleItems.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "co-summary-row" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, "Sample shipping"), /* @__PURE__ */ React.createElement("span", { className: "value" }, "$12.00")), taxEstimate.amount > 0 ? /* @__PURE__ */ React.createElement("div", { className: "co-summary-row" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, "Tax (", (taxEstimate.rate * 100).toFixed(2), "%)"), /* @__PURE__ */ React.createElement("span", { className: "value" }, "$", taxEstimate.amount.toFixed(2))) : !isPickup && /* @__PURE__ */ React.createElement("div", { className: "co-summary-row" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, "Tax"), /* @__PURE__ */ React.createElement("span", { className: "value", style: { color: "var(--stone-500)", fontStyle: "italic" } }, "Calculated with address")), isPickup && /* @__PURE__ */ React.createElement("div", { className: "co-summary-row" }, /* @__PURE__ */ React.createElement("span", { className: "label" }, "Delivery"), /* @__PURE__ */ React.createElement("span", { className: "value" }, "Pickup \u2014 Free"))), /* @__PURE__ */ React.createElement("div", { className: "co-summary-total" }, /* @__PURE__ */ React.createElement("span", { className: "co-summary-total-label" }, "Total"), /* @__PURE__ */ React.createElement("span", { className: "co-summary-total-amount" }, "$", cartTotal.toFixed(2)))), /* @__PURE__ */ React.createElement("a", { className: "co-summary-edit-cart", href: "#", onClick: (e) => {
       e.preventDefault();
       goCart();
     } }, "\u2190 Edit cart"), /* @__PURE__ */ React.createElement("div", { className: "co-summary-trust" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "11", width: "18", height: "11", rx: "2" }), /* @__PURE__ */ React.createElement("path", { d: "M7 11V7a5 5 0 0110 0v4" })), "256-bit TLS encryption"))))), /* @__PURE__ */ React.createElement("div", { className: "co-footer" }, /* @__PURE__ */ React.createElement("span", null, "\xA9 ", (/* @__PURE__ */ new Date()).getFullYear(), " Roma Flooring Designs"), /* @__PURE__ */ React.createElement("div", { className: "co-footer-links" }, /* @__PURE__ */ React.createElement("a", { href: "#" }, "Terms"), /* @__PURE__ */ React.createElement("a", { href: "#" }, "Privacy"), /* @__PURE__ */ React.createElement("a", { href: "#" }, "Returns"))));
@@ -6705,7 +6778,7 @@
     const items = order ? order.items || [] : [];
     const sampleItems = sampleRequest ? sampleRequest.items || [] : [];
     const orderTotal = order ? parseFloat(order.total || 0) : 0;
-    return /* @__PURE__ */ React.createElement("div", { className: "conf-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "conf-hero" }, /* @__PURE__ */ React.createElement("div", { className: "conf-check" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" }))), /* @__PURE__ */ React.createElement("h1", null, "Thank You"), order && /* @__PURE__ */ React.createElement("div", { className: "conf-order-num" }, "Order ", order.order_number), /* @__PURE__ */ React.createElement("div", { className: "conf-hero-sub" }, "Your order has been placed. We\u2019ll send a confirmation to your email with tracking details once your order ships.")), items.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "conf-items" }, /* @__PURE__ */ React.createElement("div", { className: "conf-items-header" }, "Items ordered"), items.map((item, idx) => /* @__PURE__ */ React.createElement("div", { key: idx, className: "conf-item" }, /* @__PURE__ */ React.createElement("div", { className: "conf-item-thumb" }, item.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(item.primary_image, 144), alt: "", decoding: "async", loading: "lazy" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-200)" } })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "conf-item-name" }, item.product_name || "Product"), /* @__PURE__ */ React.createElement("div", { className: "conf-item-detail" }, item.sell_by === "unit" ? `Qty ${item.num_boxes}` : `${item.num_boxes} box${parseInt(item.num_boxes) !== 1 ? "es" : ""}`)), /* @__PURE__ */ React.createElement("div", { className: "conf-item-price" }, "$" + parseFloat(item.subtotal || 0).toFixed(2)))), /* @__PURE__ */ React.createElement("div", { className: "conf-item-total-row" }, /* @__PURE__ */ React.createElement("span", { className: "conf-item-total-label" }, "Total paid"), /* @__PURE__ */ React.createElement("span", { className: "conf-item-total-amount" }, "$", orderTotal.toFixed(2)))), sampleRequest && /* @__PURE__ */ React.createElement("div", { className: "conf-samples" }, /* @__PURE__ */ React.createElement("div", { className: "conf-samples-header" }, /* @__PURE__ */ React.createElement("span", { className: "conf-samples-badge" }, "Samples"), /* @__PURE__ */ React.createElement("span", { className: "conf-samples-title" }, "Request #", sampleRequest.request_number)), sampleItems.map((item, idx) => /* @__PURE__ */ React.createElement("div", { key: idx, className: "conf-sample-item" }, /* @__PURE__ */ React.createElement("span", null, item.product_name || "Product", item.variant_name ? " \u2014 " + item.variant_name : ""), /* @__PURE__ */ React.createElement("span", { className: "conf-sample-free" }, "Free"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--warm-muted)", marginTop: "0.75rem" } }, "Samples ship separately within 2-3 business days.")), /* @__PURE__ */ React.createElement("div", { className: "conf-details" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Delivery"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, order && order.delivery_method === "pickup" ? "Showroom Pickup" : "Freight"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, order && order.delivery_method === "pickup" ? "1440 S. State College Blvd., Suite 6M, Anaheim, CA 92806" : order && order.shipping_address ? `${order.shipping_address.line1}, ${order.shipping_address.city}, ${order.shipping_address.state} ${order.shipping_address.zip}` : "Address on file"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text", style: { marginTop: "0.5rem" } }, order && order.delivery_method === "pickup" ? "Ready in 3-5 business days" : "Delivery scheduled after confirmation")), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Payment"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, "Card ending in ****"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, "Total charged: $", orderTotal.toFixed(2)), order && order.tax_amount > 0 && /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, "Includes $", parseFloat(order.tax_amount).toFixed(2), " tax")), order && order.measure_requested && /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Installation quote"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, "Requested"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, order.preferred_measure_date ? (/* @__PURE__ */ new Date(order.preferred_measure_date + "T12:00:00")).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) : "Date to be confirmed", order.preferred_measure_time && ` \u2014 ${order.preferred_measure_time.charAt(0).toUpperCase() + order.preferred_measure_time.slice(1)}`), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text", style: { marginTop: "0.5rem" } }, "We'll confirm your appointment within 24 hours.")), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Your contact"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, "Lia Romano"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, "Project Manager", /* @__PURE__ */ React.createElement("br", null), "lia@romaflooringdesigns.com", /* @__PURE__ */ React.createElement("br", null), "(714) 999-0009"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text", style: { marginTop: "0.5rem", fontStyle: "italic" } }, `"We'll be in touch within 24 hours."`))), /* @__PURE__ */ React.createElement("div", { className: "conf-cta" }, /* @__PURE__ */ React.createElement("button", { className: "conf-cta-btn", onClick: goBrowse }, "Continue Shopping")));
+    return /* @__PURE__ */ React.createElement("div", { className: "conf-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "conf-hero" }, /* @__PURE__ */ React.createElement("div", { className: "conf-check" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" }))), /* @__PURE__ */ React.createElement("h1", null, "Thank You"), order && /* @__PURE__ */ React.createElement("div", { className: "conf-order-num" }, "Order ", order.order_number), /* @__PURE__ */ React.createElement("div", { className: "conf-hero-sub" }, "Your order has been placed. We\u2019ll send a confirmation to your email with tracking details once your order ships.")), items.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "conf-items" }, /* @__PURE__ */ React.createElement("div", { className: "conf-items-header" }, "Items ordered"), items.map((item, idx) => /* @__PURE__ */ React.createElement("div", { key: idx, className: "conf-item" }, /* @__PURE__ */ React.createElement("div", { className: "conf-item-thumb" }, item.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(item.primary_image, 144), alt: "", decoding: "async", loading: "lazy" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-200)" } })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "conf-item-name" }, item.product_name || "Product"), /* @__PURE__ */ React.createElement("div", { className: "conf-item-detail" }, item.sell_by === "unit" ? `Qty ${item.num_boxes}` : `${item.num_boxes} box${parseInt(item.num_boxes) !== 1 ? "es" : ""}`)), /* @__PURE__ */ React.createElement("div", { className: "conf-item-price" }, "$" + parseFloat(item.subtotal || 0).toFixed(2)))), /* @__PURE__ */ React.createElement("div", { className: "conf-item-total-row" }, /* @__PURE__ */ React.createElement("span", { className: "conf-item-total-label" }, "Total paid"), /* @__PURE__ */ React.createElement("span", { className: "conf-item-total-amount" }, "$", orderTotal.toFixed(2)))), sampleRequest && /* @__PURE__ */ React.createElement("div", { className: "conf-samples" }, /* @__PURE__ */ React.createElement("div", { className: "conf-samples-header" }, /* @__PURE__ */ React.createElement("span", { className: "conf-samples-badge" }, "Samples"), /* @__PURE__ */ React.createElement("span", { className: "conf-samples-title" }, "Request #", sampleRequest.request_number)), sampleItems.map((item, idx) => /* @__PURE__ */ React.createElement("div", { key: idx, className: "conf-sample-item" }, /* @__PURE__ */ React.createElement("span", null, item.product_name || "Product", item.variant_name ? " \u2014 " + item.variant_name : ""), /* @__PURE__ */ React.createElement("span", { className: "conf-sample-free" }, "Free"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--warm-muted)", marginTop: "0.75rem" } }, "Samples ship separately within 2-3 business days.")), /* @__PURE__ */ React.createElement("div", { className: "conf-details" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Delivery"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, order && order.delivery_method === "pickup" ? "Showroom Pickup" : "Freight"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, order && order.delivery_method === "pickup" ? "1440 S. State College Blvd., Suite 6M, Anaheim, CA 92806" : order && order.shipping_address ? `${order.shipping_address.line1}, ${order.shipping_address.city}, ${order.shipping_address.state} ${order.shipping_address.zip}` : "Address on file"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text", style: { marginTop: "0.5rem" } }, order && order.delivery_method === "pickup" ? "Ready in 3-5 business days" : "Delivery scheduled after confirmation")), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Payment"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, order && order.card_last4 ? (order.card_brand ? order.card_brand.charAt(0).toUpperCase() + order.card_brand.slice(1) + " " : "Card ") + "ending in " + order.card_last4 : order && order.payment_method === "bank_transfer" ? "Bank transfer" : "Card payment"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, "Total charged: $", orderTotal.toFixed(2)), order && order.tax_amount > 0 && /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, "Includes $", parseFloat(order.tax_amount).toFixed(2), " tax")), order && order.measure_requested && /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Installation quote"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, "Requested"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, order.preferred_measure_date ? (/* @__PURE__ */ new Date(order.preferred_measure_date + "T12:00:00")).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) : "Date to be confirmed", order.preferred_measure_time && ` \u2014 ${order.preferred_measure_time.charAt(0).toUpperCase() + order.preferred_measure_time.slice(1)}`), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text", style: { marginTop: "0.5rem" } }, "We'll confirm your appointment within 24 hours.")), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-card" }, /* @__PURE__ */ React.createElement("div", { className: "conf-detail-label" }, "Your contact"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-title" }, "Lia Romano"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text" }, "Project Manager", /* @__PURE__ */ React.createElement("br", null), "lia@romaflooringdesigns.com", /* @__PURE__ */ React.createElement("br", null), "(714) 999-0009"), /* @__PURE__ */ React.createElement("div", { className: "conf-detail-text", style: { marginTop: "0.5rem", fontStyle: "italic" } }, `"We'll be in touch within 24 hours."`))), /* @__PURE__ */ React.createElement("div", { className: "conf-cta" }, /* @__PURE__ */ React.createElement("button", { className: "conf-cta-btn", onClick: goBrowse }, "Continue Shopping")));
   }
   function PaymentMethodsSection({ customerToken, customer }) {
     const [cards, setCards] = useState(null);

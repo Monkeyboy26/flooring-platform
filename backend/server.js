@@ -4047,7 +4047,7 @@ app.post('/api/promo-codes/validate', async (req, res) => {
 
 app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req, res) => {
   try {
-    const { session_id, destination, delivery_method, shipping_option_id, residential, liftgate, promo_code, save_card } = req.body;
+    const { session_id, destination, delivery_method, shipping_option_id, residential, liftgate, promo_code, save_card, saved_payment_method_id } = req.body;
     if (!session_id) return res.status(400).json({ error: 'session_id is required' });
 
     const result = await pool.query(`
@@ -4178,6 +4178,34 @@ app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req
       payment_method_types: ['card', 'klarna'],
       shipping: piShipping,
     };
+    // Paying with a saved card on file: charge it off-session and confirm
+    // server-side, so the client can skip the card element entirely
+    if (saved_payment_method_id && req.customer) {
+      try {
+        const stripeCustomerId = await resolveStripeCustomerForAccount(req.customer.id, req.customer.email);
+        if (!stripeCustomerId) return res.status(400).json({ error: 'No saved cards on file' });
+        const pm = await stripe.paymentMethods.retrieve(saved_payment_method_id);
+        if (!pm || pm.customer !== stripeCustomerId) return res.status(400).json({ error: 'Saved card not found' });
+        const savedPi = await stripe.paymentIntents.create({
+          amount: totalCents, currency: 'usd', customer: stripeCustomerId,
+          payment_method: saved_payment_method_id, off_session: true, confirm: true,
+          shipping: piShipping, description: 'Roma Flooring order',
+        });
+        return res.json({
+          clientSecret: savedPi.client_secret, paymentIntentId: savedPi.id, status: savedPi.status,
+          amount: total, shipping: shippingCost, shipping_method: shippingMethod,
+          discount_amount: discountAmount, promo_code: promoCodeStr,
+          tax_rate: taxRate, tax_amount: taxAmount, stock_warnings: stockWarnings,
+        });
+      } catch (err) {
+        // Off-session charge can require authentication (SCA) or be declined
+        if (err.code === 'authentication_required' && err.raw && err.raw.payment_intent) {
+          return res.json({ clientSecret: err.raw.payment_intent.client_secret, paymentIntentId: err.raw.payment_intent.id, status: 'requires_action', requires_action: true, amount: total });
+        }
+        return res.status(402).json({ error: err.message || 'Your saved card was declined. Try another card.' });
+      }
+    }
+
     // Signed-in customers can save the card they pay with for future orders
     if (save_card && req.customer) {
       try {
@@ -4575,6 +4603,14 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       return res.status(400).json({ error: 'Payment has not been completed' });
     }
 
+    // Card brand/last4 for display on the confirmation and order history
+    let cardBrand = null, cardLast4 = null;
+    try {
+      const withCharge = await stripe.paymentIntents.retrieve(payment_intent_id, { expand: ['latest_charge'] });
+      const card = withCharge.latest_charge && withCharge.latest_charge.payment_method_details && withCharge.latest_charge.payment_method_details.card;
+      if (card) { cardBrand = card.brand || null; cardLast4 = card.last4 || null; }
+    } catch (e) { /* non-fatal — display only */ }
+
     // Idempotency: if this payment intent already produced an order, return
     // that order instead of creating a duplicate (double-submit or retry
     // after a dropped response)
@@ -4728,8 +4764,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         shipping_carrier, shipping_transit_days, shipping_residential, shipping_liftgate, shipping_is_fallback,
         customer_id, promo_code_id, promo_code, discount_amount, amount_paid,
         tax_rate, tax_amount, payment_method, bank_transfer_instructions, bank_transfer_expires_at,
-        notes, measure_requested, preferred_measure_date, preferred_measure_time)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41)
+        notes, measure_requested, preferred_measure_date, preferred_measure_time, card_brand, card_last4)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43)
       RETURNING *
     `, [orderNumber, session_id, customer_email, customer_name, phone || null,
         isPickup ? null : shipping.line1, isPickup ? null : (shipping.line2 || null),
@@ -4740,7 +4776,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         selectedCarrier, selectedTransitDays, isResidential, isLiftgate, isFallback,
         existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2), amountPaid,
         taxRate, taxAmount.toFixed(2), reqPaymentMethod || 'stripe', bankInstructions ? JSON.stringify(bankInstructions) : null, bankExpiresAt,
-        orderNotes || null, measure_requested || false, preferred_measure_date || null, preferred_measure_time || null]);
+        orderNotes || null, measure_requested || false, preferred_measure_date || null, preferred_measure_time || null,
+        cardBrand, cardLast4]);
 
     const order = orderResult.rows[0];
 

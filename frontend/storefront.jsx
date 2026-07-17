@@ -9275,6 +9275,9 @@
       const [error, setError] = useState('');
       const [processing, setProcessing] = useState(false);
       const [saveCard, setSaveCard] = useState(true);
+      const [savedCards, setSavedCards] = useState([]);
+      const [selectedSavedPm, setSelectedSavedPm] = useState(null); // null = pay with a new card
+      const prefilledRef = useRef(false);
       const [taxEstimate, setTaxEstimate] = useState({ rate: 0, amount: 0 });
       const cardRef = useRef(null);
       const cardMounted = useRef(false);
@@ -9453,9 +9456,11 @@
         setError('');
         setProcessing(true);
         try {
+          const usingSavedCard = !!(customerToken && selectedSavedPm);
           const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
           if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
-          if (customerToken && saveCard) piBody.save_card = true;
+          if (usingSavedCard) piBody.saved_payment_method_id = selectedSavedPm;
+          else if (customerToken && saveCard) piBody.save_card = true;
           const piHeaders = { 'Content-Type': 'application/json' };
           if (customerToken) piHeaders['X-Customer-Token'] = customerToken;
           const piRes = await fetch(API + '/api/checkout/create-payment-intent', {
@@ -9468,13 +9473,27 @@
             return;
           }
 
-          const { error: stripeError, paymentIntent } = await stripeInstance.confirmCardPayment(
-            piData.clientSecret, { payment_method: { card: cardRef.current, billing_details: { name: customerName, email: customerEmail } } }
-          );
-          if (stripeError) { setError(stripeError.message); setProcessing(false); return; }
+          let confirmedPiId;
+          if (usingSavedCard) {
+            if (piData.status === 'succeeded') {
+              confirmedPiId = piData.paymentIntentId;
+            } else if (piData.requires_action || piData.status === 'requires_action') {
+              const { error: actionError, paymentIntent: actionPi } = await stripeInstance.confirmCardPayment(piData.clientSecret);
+              if (actionError) { setError(actionError.message); setProcessing(false); return; }
+              confirmedPiId = actionPi.id;
+            } else {
+              setError('Your saved card could not be charged. Please try another card.'); setProcessing(false); return;
+            }
+          } else {
+            const { error: stripeError, paymentIntent } = await stripeInstance.confirmCardPayment(
+              piData.clientSecret, { payment_method: { card: cardRef.current, billing_details: { name: customerName, email: customerEmail } } }
+            );
+            if (stripeError) { setError(stripeError.message); setProcessing(false); return; }
+            confirmedPiId = paymentIntent.id;
+          }
 
           const orderBody = {
-            session_id: sessionId, payment_intent_id: paymentIntent.id,
+            session_id: sessionId, payment_intent_id: confirmedPiId,
             customer_name: customerName, customer_email: customerEmail, phone,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
@@ -9558,6 +9577,38 @@
         };
       }, [placesReady, isPickup]);
 
+      // Prefill contact + address once the signed-in customer loads (the
+      // profile arrives async, after this component first mounts). Only fills
+      // fields the shopper hasn't already typed into.
+      useEffect(() => {
+        if (prefilledRef.current || !customer) return;
+        prefilledRef.current = true;
+        const full = ((customer.first_name || '') + ' ' + (customer.last_name || '')).trim();
+        setCustomerName(prev => prev || full);
+        setCustomerEmail(prev => prev || customer.email || '');
+        setPhone(prev => prev || customer.phone || '');
+        setLine1(prev => prev || customer.address_line1 || '');
+        setLine2(prev => prev || customer.address_line2 || '');
+        setCity(prev => prev || customer.city || '');
+        setState(prev => prev || customer.state || '');
+        setZip(prev => prev || customer.zip || '');
+        if (full && customer.email) setEditingContact(false);
+        if (customer.address_line1) setEditingAddress(false);
+      }, [customer]);
+
+      // Load the customer's saved cards on file
+      useEffect(() => {
+        if (!customerToken) { setSavedCards([]); return; }
+        fetch(API + '/api/customer/payment-methods', { headers: { 'X-Customer-Token': customerToken } })
+          .then(r => r.ok ? r.json() : { cards: [] })
+          .then(d => {
+            const cards = d.cards || [];
+            setSavedCards(cards);
+            if (cards.length) setSelectedSavedPm(cards[0].id);
+          })
+          .catch(() => setSavedCards([]));
+      }, [customerToken]);
+
       // Fetch tax estimate when ZIP changes
       useEffect(() => {
         const taxZip = isPickup ? '92806' : zip;
@@ -9609,9 +9660,11 @@
         }
         setProcessing(true);
         try {
+          const usingSavedCard = !!(customerToken && selectedSavedPm);
           const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
           if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
-          if (customerToken && saveCard) piBody.save_card = true;
+          if (usingSavedCard) piBody.saved_payment_method_id = selectedSavedPm;
+          else if (customerToken && saveCard) piBody.save_card = true;
           const piHeaders = { 'Content-Type': 'application/json' };
           if (customerToken) piHeaders['X-Customer-Token'] = customerToken;
           const piRes = await fetch(API + '/api/checkout/create-payment-intent', {
@@ -9624,13 +9677,27 @@
             return;
           }
 
-          const { error: stripeError, paymentIntent } = await stripeInstance.confirmCardPayment(
-            piData.clientSecret, { payment_method: { card: cardRef.current, billing_details: { name: customerName, email: customerEmail } } }
-          );
-          if (stripeError) { setError(stripeError.message); setProcessing(false); return; }
+          let confirmedPiId;
+          if (usingSavedCard) {
+            if (piData.status === 'succeeded') {
+              confirmedPiId = piData.paymentIntentId;
+            } else if (piData.requires_action || piData.status === 'requires_action') {
+              const { error: actionError, paymentIntent: actionPi } = await stripeInstance.confirmCardPayment(piData.clientSecret);
+              if (actionError) { setError(actionError.message); setProcessing(false); return; }
+              confirmedPiId = actionPi.id;
+            } else {
+              setError('Your saved card could not be charged. Please try another card.'); setProcessing(false); return;
+            }
+          } else {
+            const { error: stripeError, paymentIntent } = await stripeInstance.confirmCardPayment(
+              piData.clientSecret, { payment_method: { card: cardRef.current, billing_details: { name: customerName, email: customerEmail } } }
+            );
+            if (stripeError) { setError(stripeError.message); setProcessing(false); return; }
+            confirmedPiId = paymentIntent.id;
+          }
 
           const orderBody = {
-            session_id: sessionId, payment_intent_id: paymentIntent.id,
+            session_id: sessionId, payment_intent_id: confirmedPiId,
             customer_name: customerName, customer_email: customerEmail, phone,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
@@ -9970,7 +10037,25 @@
                       <div className="co-divider">or pay with card</div>
                     </div>
                   )}
-                  <div className="co-card-form">
+                  {savedCards.length > 0 && (
+                    <div className="co-saved-cards">
+                      {savedCards.map(c => (
+                        <label key={c.id} className={'co-saved-card' + (selectedSavedPm === c.id ? ' selected' : '')}>
+                          <input type="radio" name="coSavedPm" checked={selectedSavedPm === c.id} onChange={() => setSelectedSavedPm(c.id)} />
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                          <span className="co-saved-card-brand">{c.brand}</span>
+                          <span className="co-saved-card-num">&bull;&bull;&bull;&bull; {c.last4}</span>
+                          <span className="co-saved-card-exp">Exp {String(c.exp_month).padStart(2, '0')}/{String(c.exp_year).slice(-2)}</span>
+                        </label>
+                      ))}
+                      <label className={'co-saved-card' + (selectedSavedPm === null ? ' selected' : '')}>
+                        <input type="radio" name="coSavedPm" checked={selectedSavedPm === null} onChange={() => setSelectedSavedPm(null)} />
+                        <span className="co-saved-card-brand">Use a new card</span>
+                      </label>
+                    </div>
+                  )}
+                  {/* Card element stays mounted; hidden when paying with a card on file */}
+                  <div className="co-card-form" style={{ display: (savedCards.length > 0 && selectedSavedPm) ? 'none' : 'block' }}>
                     <div className="co-stripe-wrap">
                       <div className="co-field-label">Card number</div>
                       <div id="card-element"></div>
@@ -10048,12 +10133,17 @@
                         <span className="value">$12.00</span>
                       </div>
                     )}
-                    {taxEstimate.amount > 0 && (
+                    {taxEstimate.amount > 0 ? (
                       <div className="co-summary-row">
                         <span className="label">Tax ({(taxEstimate.rate * 100).toFixed(2)}%)</span>
                         <span className="value">${taxEstimate.amount.toFixed(2)}</span>
                       </div>
-                    )}
+                    ) : (!isPickup && (
+                      <div className="co-summary-row">
+                        <span className="label">Tax</span>
+                        <span className="value" style={{ color: 'var(--stone-500)', fontStyle: 'italic' }}>Calculated with address</span>
+                      </div>
+                    ))}
                     {isPickup && (
                       <div className="co-summary-row">
                         <span className="label">Delivery</span>
@@ -10179,7 +10269,11 @@
             </div>
             <div className="conf-detail-card">
               <div className="conf-detail-label">Payment</div>
-              <div className="conf-detail-title">Card ending in ****</div>
+              <div className="conf-detail-title">
+                {order && order.card_last4
+                  ? (order.card_brand ? order.card_brand.charAt(0).toUpperCase() + order.card_brand.slice(1) + ' ' : 'Card ') + 'ending in ' + order.card_last4
+                  : order && order.payment_method === 'bank_transfer' ? 'Bank transfer' : 'Card payment'}
+              </div>
               <div className="conf-detail-text">
                 Total charged: ${orderTotal.toFixed(2)}
               </div>

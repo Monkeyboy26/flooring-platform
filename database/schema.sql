@@ -135,6 +135,8 @@ CREATE TABLE orders (
     sample_shipping DECIMAL(10,2) DEFAULT 0,
     total DECIMAL(10,2) NOT NULL,
     stripe_payment_intent_id TEXT,
+    card_brand VARCHAR(20),
+    card_last4 VARCHAR(4),
     status VARCHAR(30) DEFAULT 'pending',
     bank_transfer_instructions JSONB,
     bank_transfer_expires_at TIMESTAMP,
