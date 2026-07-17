@@ -3539,6 +3539,9 @@
           {view === 'terms' && <LegalPage kind="terms" goHome={goHome} navigate={navigate} />}
           {view === 'privacy' && <LegalPage kind="privacy" goHome={goHome} navigate={navigate} />}
 
+          {/* Cookie consent notice */}
+          <CookieConsent navigate={navigate} />
+
           {/* Cart Drawer */}
           <CartDrawer
             cart={cart} open={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)}
@@ -14083,6 +14086,52 @@
             </React.Fragment>
           ))}
         </nav>
+      );
+    }
+
+    // ==================== Cookie Consent Notice ====================
+    // Notice-at-collection / cookie consent bar. Records the visitor's choice in
+    // localStorage so it shows once; 'declined' broadcasts a 'cookie-consent'
+    // event that non-essential tracking can listen for to stay off.
+    function CookieConsent({ navigate }) {
+      const [visible, setVisible] = useState(false);
+      useEffect(() => {
+        try { if (!localStorage.getItem('cookie_consent')) setVisible(true); } catch (e) {}
+      }, []);
+      const choose = (choice) => {
+        try {
+          localStorage.setItem('cookie_consent', choice);
+          localStorage.setItem('cookie_consent_at', new Date().toISOString());
+        } catch (e) {}
+        try { window.dispatchEvent(new CustomEvent('cookie-consent', { detail: choice })); } catch (e) {}
+        setVisible(false);
+      };
+      if (!visible) return null;
+      return (
+        <div role="dialog" aria-label="Cookie notice" style={{
+          position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 10000,
+          background: 'var(--stone-900)', color: 'var(--stone-50)',
+          padding: '1.125rem 1.25rem', boxShadow: '0 -4px 28px rgba(0,0,0,0.22)'
+        }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1rem 1.5rem', maxWidth: 1200, margin: '0 auto' }}>
+            <p style={{ flex: '1 1 300px', margin: 0, fontSize: '0.8125rem', lineHeight: 1.55, color: 'rgba(250,250,249,0.85)' }}>
+              We use cookies to keep your cart and session working, remember your preferences, and understand how our site is used. By clicking “Accept,” you agree to this use. You can decline non-essential cookies at any time. See our{' '}
+              <a href="/privacy" onClick={e => { e.preventDefault(); if (navigate) navigate('/privacy'); }} style={{ color: 'var(--gold-light)', textDecoration: 'underline' }}>Privacy Policy</a>.
+            </p>
+            <div style={{ display: 'flex', gap: '0.625rem', flexShrink: 0 }}>
+              <button type="button" onClick={() => choose('declined')} style={{
+                padding: '0.625rem 1.25rem', background: 'transparent', color: 'var(--stone-50)',
+                border: '0.5px solid rgba(250,250,249,0.35)', borderRadius: 4, cursor: 'pointer',
+                fontFamily: 'var(--font-body)', fontSize: '0.8125rem', fontWeight: 500
+              }}>Decline</button>
+              <button type="button" onClick={() => choose('accepted')} style={{
+                padding: '0.625rem 1.5rem', background: 'var(--gold)', color: 'var(--stone-900)',
+                border: 'none', borderRadius: 4, cursor: 'pointer',
+                fontFamily: 'var(--font-body)', fontSize: '0.8125rem', fontWeight: 600
+              }}>Accept</button>
+            </div>
+          </div>
+        </div>
       );
     }
 

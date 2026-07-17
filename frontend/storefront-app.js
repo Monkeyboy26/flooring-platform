@@ -2907,7 +2907,7 @@
     } }), view === "set-password" && /* @__PURE__ */ React.createElement(SetPasswordPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "signin" && /* @__PURE__ */ React.createElement(SignInFullPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "signup" && /* @__PURE__ */ React.createElement(SignUpFullPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "forgot-password" && /* @__PURE__ */ React.createElement(ForgotPasswordFullPage, { goHome, navigate }), view === "installation" && /* @__PURE__ */ React.createElement(InstallationPage, { onRequestQuote: () => {
       setInstallModalProduct(null);
       setShowInstallModal(true);
-    } }), view === "inspiration" && /* @__PURE__ */ React.createElement(InspirationPage, { navigate, goBrowse }), view === "sale" && /* @__PURE__ */ React.createElement(SalePage, { onSkuClick: goSkuDetail, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku, navigate }), view === "cabinets" && /* @__PURE__ */ React.createElement(CabinetsPage, null), view === "coming-soon" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "6rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, fontSize: "2.5rem", marginBottom: "1rem" } }, comingSoonTitle), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "1.125rem", lineHeight: 1.6, marginBottom: "2rem" } }, "This page is coming soon. We're working on something beautiful."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goHome }, "Back to Home")), view === "terms" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "terms", goHome, navigate }), view === "privacy" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "privacy", goHome, navigate }), /* @__PURE__ */ React.createElement(
+    } }), view === "inspiration" && /* @__PURE__ */ React.createElement(InspirationPage, { navigate, goBrowse }), view === "sale" && /* @__PURE__ */ React.createElement(SalePage, { onSkuClick: goSkuDetail, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku, navigate }), view === "cabinets" && /* @__PURE__ */ React.createElement(CabinetsPage, null), view === "coming-soon" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "6rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, fontSize: "2.5rem", marginBottom: "1rem" } }, comingSoonTitle), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "1.125rem", lineHeight: 1.6, marginBottom: "2rem" } }, "This page is coming soon. We're working on something beautiful."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goHome }, "Back to Home")), view === "terms" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "terms", goHome, navigate }), view === "privacy" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "privacy", goHome, navigate }), /* @__PURE__ */ React.createElement(CookieConsent, { navigate }), /* @__PURE__ */ React.createElement(
       CartDrawer,
       {
         cart,
@@ -9257,6 +9257,62 @@
       e.preventDefault();
       item.onClick();
     } }, item.label) : /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-800)" } }, item.label))));
+  }
+  function CookieConsent({ navigate }) {
+    const [visible, setVisible] = useState(false);
+    useEffect(() => {
+      try {
+        if (!localStorage.getItem("cookie_consent")) setVisible(true);
+      } catch (e) {
+      }
+    }, []);
+    const choose = (choice) => {
+      try {
+        localStorage.setItem("cookie_consent", choice);
+        localStorage.setItem("cookie_consent_at", (/* @__PURE__ */ new Date()).toISOString());
+      } catch (e) {
+      }
+      try {
+        window.dispatchEvent(new CustomEvent("cookie-consent", { detail: choice }));
+      } catch (e) {
+      }
+      setVisible(false);
+    };
+    if (!visible) return null;
+    return /* @__PURE__ */ React.createElement("div", { role: "dialog", "aria-label": "Cookie notice", style: {
+      position: "fixed",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 1e4,
+      background: "var(--stone-900)",
+      color: "var(--stone-50)",
+      padding: "1.125rem 1.25rem",
+      boxShadow: "0 -4px 28px rgba(0,0,0,0.22)"
+    } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "1rem 1.5rem", maxWidth: 1200, margin: "0 auto" } }, /* @__PURE__ */ React.createElement("p", { style: { flex: "1 1 300px", margin: 0, fontSize: "0.8125rem", lineHeight: 1.55, color: "rgba(250,250,249,0.85)" } }, "We use cookies to keep your cart and session working, remember your preferences, and understand how our site is used. By clicking \u201CAccept,\u201D you agree to this use. You can decline non-essential cookies at any time. See our", " ", /* @__PURE__ */ React.createElement("a", { href: "/privacy", onClick: (e) => {
+      e.preventDefault();
+      if (navigate) navigate("/privacy");
+    }, style: { color: "var(--gold-light)", textDecoration: "underline" } }, "Privacy Policy"), "."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "0.625rem", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => choose("declined"), style: {
+      padding: "0.625rem 1.25rem",
+      background: "transparent",
+      color: "var(--stone-50)",
+      border: "0.5px solid rgba(250,250,249,0.35)",
+      borderRadius: 4,
+      cursor: "pointer",
+      fontFamily: "var(--font-body)",
+      fontSize: "0.8125rem",
+      fontWeight: 500
+    } }, "Decline"), /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => choose("accepted"), style: {
+      padding: "0.625rem 1.5rem",
+      background: "var(--gold)",
+      color: "var(--stone-900)",
+      border: "none",
+      borderRadius: 4,
+      cursor: "pointer",
+      fontFamily: "var(--font-body)",
+      fontSize: "0.8125rem",
+      fontWeight: 600
+    } }, "Accept"))));
   }
   function LegalPage({ kind, goHome, navigate }) {
     const isTerms = kind === "terms";
