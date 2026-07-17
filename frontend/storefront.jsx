@@ -14255,7 +14255,7 @@
             Roma Flooring Designs
           </div>
           <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: '2.75rem', lineHeight: 1.1, margin: '0 0 0.5rem' }}>{title}</h1>
-          <div style={{ color: 'var(--stone-500)', fontSize: '0.875rem', marginBottom: '2rem' }}>Effective date: to be finalized</div>
+          <div style={{ color: 'var(--stone-500)', fontSize: '0.875rem', marginBottom: '2rem' }}>Effective date: July 17, 2026</div>
           {sections.map((s, i) => (
             <section key={i} style={{ marginBottom: '1.75rem' }}>
               <h2 style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '1.0625rem', margin: '0 0 0.5rem', color: 'var(--stone-800)' }}>{s.h}</h2>
