@@ -4604,6 +4604,42 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     const items = cartResult.rows;
     const productItems = items.filter(i => !i.is_sample);
     const sampleItems = items.filter(i => i.is_sample);
+
+    // Re-check stock: an item could have sold out at the vendor between
+    // payment-intent creation and now. Same gate as create-payment-intent
+    // (only blocks vendors that report public inventory). Payment already
+    // succeeded, so surface it clearly rather than booking an unfulfillable
+    // order — the charge is left for the team to refund.
+    const orderSkuIds = productItems.filter(i => i.sku_id).map(i => i.sku_id);
+    if (orderSkuIds.length > 0) {
+      const stockCheck = await client.query(`
+        SELECT s.id as sku_id, COALESCE(p.display_name, p.name) as product_name,
+          COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
+          CASE
+            WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+            WHEN inv.qty_on_hand > 0 THEN 'in_stock'
+            ELSE 'out_of_stock'
+          END as stock_status
+        FROM skus s
+        JOIN products p ON p.id = s.product_id
+        LEFT JOIN vendors v ON v.id = p.vendor_id
+        LEFT JOIN LATERAL (
+          SELECT SUM(qty_on_hand) AS qty_on_hand, MAX(fresh_until) AS fresh_until
+          FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+        ) inv ON TRUE
+        WHERE s.id = ANY($1)
+      `, [orderSkuIds]);
+      const nowOos = stockCheck.rows.filter(r => r.stock_status === 'out_of_stock' && r.vendor_has_inventory);
+      if (nowOos.length > 0) {
+        const names = nowOos.map(r => r.product_name).join(', ');
+        console.error(`place-order stock race: PI ${payment_intent_id} paid but items now OOS: ${names} — needs refund`);
+        return res.status(409).json({
+          error: `Some items sold out while your payment was processing: ${names}. Your payment went through, so please call (714) 999-0009 — we'll refund it or help you reorder right away.`,
+          out_of_stock_sku_ids: nowOos.map(r => r.sku_id),
+        });
+      }
+    }
+
     const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
     const sampleShipping = sampleItems.length > 0 ? 12 : 0;
 
