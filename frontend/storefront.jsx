@@ -10008,8 +10008,8 @@
                     {cart.map(item => (
                       <div key={item.id} className="co-summary-item">
                         <div className="co-summary-thumb">
-                          {item.image_url ? (
-                            <img src={item.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          {item.primary_image ? (
+                            <img src={optimizeImg(item.primary_image, 144)} alt="" decoding="async" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
                             <div style={{ width: '100%', height: '100%', background: 'var(--stone-200)' }} />
                           )}
