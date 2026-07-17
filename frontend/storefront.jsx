@@ -9355,6 +9355,7 @@
       const [selectedSavedPm, setSelectedSavedPm] = useState(null); // null = pay with a new card
       const prefilledRef = useRef(false);
       const [taxEstimate, setTaxEstimate] = useState({ rate: 0, amount: 0 });
+      const [promoInfo, setPromoInfo] = useState(null);
       const cardRef = useRef(null);
       const cardMounted = useRef(false);
       const taxDebounce = useRef(null);
@@ -9383,7 +9384,12 @@
       const sampleItems = cart.filter(i => i.is_sample);
       const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
       const sampleShipping = sampleItems.length > 0 ? 12 : 0;
-      const cartTotal = productSubtotal + sampleShipping + taxEstimate.amount;
+      // Promo discount reduces the merchandise subtotal AND the taxable base
+      // (CA taxes post-discount), mirroring the server's charge calculation.
+      const promoDiscount = promoInfo ? parseFloat(promoInfo.discount_amount || 0) : 0;
+      const taxableBase = Math.max(0, productSubtotal - promoDiscount);
+      const estTax = Math.round(taxEstimate.rate * taxableBase * 100) / 100;
+      const cartTotal = taxableBase + sampleShipping + estTax;
 
       const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'];
 
@@ -9466,7 +9472,7 @@
         if (!pr) return;
         const handler = async (ev) => {
           try {
-            const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
+            const piBody = { session_id: sessionId, delivery_method: deliveryMethod, promo_code: appliedPromoCode || undefined };
             if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
             const piRes = await fetch(API + '/api/checkout/create-payment-intent', {
               method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(piBody)
@@ -9499,7 +9505,7 @@
               customer_name: payerName, customer_email: payerEmail, phone: payerPhone,
               delivery_method: deliveryMethod,
               shipping: isPickup ? null : { line1, line2, city, state, zip },
-              residential: true, liftgate: liftgateEnabled,
+              residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
               notes: orderNotes || undefined,
               measure_requested: measureRequested || undefined,
               preferred_measure_date: measureRequested && preferredDate ? preferredDate : undefined,
@@ -9533,7 +9539,7 @@
         setProcessing(true);
         try {
           const usingSavedCard = !!(customerToken && selectedSavedPm);
-          const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
+          const piBody = { session_id: sessionId, delivery_method: deliveryMethod, promo_code: appliedPromoCode || undefined };
           if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
           if (usingSavedCard) piBody.saved_payment_method_id = selectedSavedPm;
           else if (customerToken && saveCard) piBody.save_card = true;
@@ -9573,7 +9579,7 @@
             customer_name: customerName, customer_email: customerEmail, phone,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
-            residential: true, liftgate: liftgateEnabled,
+            residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
             create_account: createAccount || undefined,
             account_password: createAccount ? accountPassword : undefined,
             notes: orderNotes || undefined,
@@ -9742,7 +9748,7 @@
         setProcessing(true);
         try {
           const usingSavedCard = !!(customerToken && selectedSavedPm);
-          const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
+          const piBody = { session_id: sessionId, delivery_method: deliveryMethod, promo_code: appliedPromoCode || undefined };
           if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
           if (usingSavedCard) piBody.saved_payment_method_id = selectedSavedPm;
           else if (customerToken && saveCard) piBody.save_card = true;
@@ -9782,7 +9788,7 @@
             customer_name: customerName, customer_email: customerEmail, phone,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
-            residential: true, liftgate: liftgateEnabled,
+            residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
             create_account: createAccount || undefined,
             account_password: createAccount ? accountPassword : undefined,
             notes: orderNotes || undefined,
@@ -9826,7 +9832,7 @@
         try {
           const stripe = await ensureStripe();
           if (!stripe) { setError('Payment system is still loading — please try again in a moment.'); setProcessing(false); return; }
-          const piBody = { session_id: sessionId, delivery_method: deliveryMethod };
+          const piBody = { session_id: sessionId, delivery_method: deliveryMethod, promo_code: appliedPromoCode || undefined };
           if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
           const piHeaders = { 'Content-Type': 'application/json' };
           if (customerToken) piHeaders['X-Customer-Token'] = customerToken;
@@ -9842,7 +9848,7 @@
             session_id: sessionId, customer_name: customerName, customer_email: customerEmail, phone,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
-            residential: true, liftgate: liftgateEnabled,
+            residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
             create_account: createAccount || undefined,
             account_password: createAccount ? accountPassword : undefined,
             notes: orderNotes || undefined,
@@ -10274,16 +10280,22 @@
                       <span className="label">Subtotal</span>
                       <span className="value">${productSubtotal.toFixed(2)}</span>
                     </div>
+                    {promoDiscount > 0 && (
+                      <div className="co-summary-row">
+                        <span className="label">Discount{promoInfo && promoInfo.code ? ' · ' + promoInfo.code : ''}</span>
+                        <span className="value" style={{ color: '#4a7c3e' }}>&minus;${promoDiscount.toFixed(2)}</span>
+                      </div>
+                    )}
                     {sampleItems.length > 0 && (
                       <div className="co-summary-row">
                         <span className="label">Sample shipping</span>
                         <span className="value">$12.00</span>
                       </div>
                     )}
-                    {taxEstimate.amount > 0 ? (
+                    {taxEstimate.rate > 0 ? (
                       <div className="co-summary-row">
                         <span className="label">Tax ({(taxEstimate.rate * 100).toFixed(2)}%)</span>
-                        <span className="value">${taxEstimate.amount.toFixed(2)}</span>
+                        <span className="value">${estTax.toFixed(2)}</span>
                       </div>
                     ) : (!isPickup && (
                       <div className="co-summary-row">
