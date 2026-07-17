@@ -1713,7 +1713,8 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .co-summary-header { font: 500 0.6875rem/1 ui-monospace, monospace; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.875rem; }
 .co-summary-items { display: grid; gap: 0.75rem; }
 .co-summary-item { display: grid; grid-template-columns: 3.25rem 1fr auto; gap: 0.75rem; align-items: center; }
-.co-summary-thumb { height: 3.25rem; width: 3.25rem; position: relative; overflow: hidden; background: var(--stone-200); }
+.co-summary-thumb { height: 3.25rem; width: 3.25rem; position: relative; background: var(--stone-200); }
+.co-summary-thumb img { display: block; }
 .co-summary-thumb-badge { position: absolute; top: -0.25rem; right: -0.25rem; width: 1.125rem; height: 1.125rem; border-radius: 50%; background: var(--stone-800); color: #fff; font: 500 0.625rem/1 ui-monospace, monospace; display: flex; align-items: center; justify-content: center; }
 .co-summary-item-name { font: 400 0.875rem/1.2 var(--font-heading); color: var(--stone-800); letter-spacing: -0.008em; }
 .co-summary-item-detail { font: 500 0.625rem/1 ui-monospace, monospace; letter-spacing: 0.14em; color: var(--warm-muted); text-transform: uppercase; margin-top: 0.1875rem; }
