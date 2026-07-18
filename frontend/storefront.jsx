@@ -12588,8 +12588,8 @@
                               {expandedVisit === v.id && visitDetail && (
                                 <tr><td colSpan="4" style={{ padding: '1rem 1.5rem', background: '#fafaf9' }}>
                                   {v.message && (
-                                    <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af', fontStyle: 'italic', borderRadius: '4px' }}>
-                                      "{v.message}"
+                                    <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', background: 'rgba(216,205,182,0.25)', borderLeft: '3px solid var(--gold)', fontSize: '0.875rem', color: 'var(--stone-700, #44403c)', fontStyle: 'italic', fontFamily: 'var(--font-heading)', lineHeight: 1.55 }}>
+                                      &ldquo;{v.message}&rdquo;
                                     </div>
                                   )}
                                   <table style={{ width: '100%', fontSize: '0.8125rem' }}>
