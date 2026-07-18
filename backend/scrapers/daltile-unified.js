@@ -19,6 +19,7 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { Client: FtpClient } = require('basic-ftp');
+const { buildImageIndex, resolveImage } = require('./daltile-image-match.cjs');
 
 import fs from 'fs';
 import path from 'path';
@@ -596,6 +597,19 @@ export async function run(pool, job, source) {
   const productMap = JSON.parse(fs.readFileSync(mapPath, 'utf-8'));
   await appendLog(pool, job.id, `Loaded product map: ${productMap.summary.series} series, ${productMap.summary.products} products, ${productMap.summary.skus} SKUs`);
 
+  // Per-SKU image validation index: Coveo multi-SKU entries share one image
+  // across colors, so each SKU's image is checked against its own color code
+  // and corrected from color-consistent images elsewhere in the map.
+  // daltile-broken-images.json (written by fix-daltile-image-mismatches.cjs)
+  // lists Coveo-published Scene7 URLs that 403 — never use those as corrections.
+  const brokenPath = path.join(path.dirname(mapPath), 'daltile-broken-images.json');
+  const brokenUrls = fs.existsSync(brokenPath)
+    ? new Set(JSON.parse(fs.readFileSync(brokenPath, 'utf-8'))) : new Set();
+  const imageIndex = buildImageIndex(productMap.series, brokenUrls);
+  await appendLog(pool, job.id,
+    `Image match index: ${imageIndex.byCode.size} color codes with self-consistent images` +
+    (brokenUrls.size ? ` (${brokenUrls.size} known-broken URLs excluded)` : ''));
+
   // Step 2: Download and parse EDI 832
   const ediItems = await downloadAndParse832(pool, job, source);
 
@@ -716,7 +730,7 @@ export async function run(pool, job, source) {
         await processProduct(pool, {
           vendorId, seriesName, colorName, colorData,
           category: seriesData.category, catMap,
-          ediLookup, ediFuzzy, stats, isAccessory: false,
+          ediLookup, ediFuzzy, stats, isAccessory: false, imageIndex,
         });
       } catch (err) {
         stats.errors++;
@@ -732,7 +746,7 @@ export async function run(pool, job, source) {
         await processProduct(pool, {
           vendorId, seriesName, colorName: accName, colorData: accData,
           category: seriesData.category, catMap,
-          ediLookup, ediFuzzy, stats, isAccessory: true,
+          ediLookup, ediFuzzy, stats, isAccessory: true, imageIndex,
         });
       } catch (err) {
         stats.errors++;
@@ -758,7 +772,7 @@ export async function run(pool, job, source) {
   await appendLog(pool, job.id,
     `Complete. Products: ${stats.productsCreated} new + ${stats.productsUpdated} updated. ` +
     `SKUs: ${stats.skusCreated} new + ${stats.skusUpdated} updated. ` +
-    `Images: ${stats.imagesSet}. Attributes: ${stats.attributesSet}. ` +
+    `Images: ${stats.imagesSet} (${stats.imagesCorrected || 0} match-corrected). Attributes: ${stats.attributesSet}. ` +
     `Pricing: ${stats.pricingSet}. Packaging: ${stats.packagingSet}. ` +
     `EDI matches: ${stats.ediMatches}/${stats.ediMatches + stats.ediMisses} (${stats.ediFuzzyMatches || 0} fuzzy). ` +
     `Errors: ${stats.errors}.`,
@@ -775,7 +789,7 @@ export async function run(pool, job, source) {
 async function processProduct(pool, ctx) {
   const {
     vendorId, seriesName, colorName, colorData,
-    category, catMap, ediLookup, ediFuzzy, stats, isAccessory,
+    category, catMap, ediLookup, ediFuzzy, stats, isAccessory, imageIndex,
   } = ctx;
 
   // Product name: "Series Color" for main, "Series Color TrimType" for accessories
@@ -867,12 +881,23 @@ async function processProduct(pool, ctx) {
       return url;
     };
 
-    if (sku.productImageUrl) {
-      const imgUrl = cleanImageUrl(sku.productImageUrl);
+    // Validate the entry's image against this SKU's color code — Coveo
+    // multi-SKU entries share one image across colors, so a corrected
+    // color-consistent image from elsewhere in the map takes precedence.
+    let primaryImageUrl = sku.productImageUrl || '';
+    const corrected = imageIndex
+      ? resolveImage(imageIndex, coveoSku, skuSize, primaryImageUrl) : null;
+    if (corrected) {
+      primaryImageUrl = corrected.url;
+      stats.imagesCorrected = (stats.imagesCorrected || 0) + 1;
+    }
+
+    if (primaryImageUrl) {
+      const imgUrl = cleanImageUrl(primaryImageUrl);
       await upsertMediaAsset(pool, {
         product_id: productId, sku_id: skuId,
         asset_type: 'primary', url: imgUrl,
-        original_url: sku.productImageUrl, sort_order: 0,
+        original_url: primaryImageUrl, sort_order: 0,
       });
       stats.imagesSet++;
     }
