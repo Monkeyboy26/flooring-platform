@@ -3551,7 +3551,7 @@
               <AccountPage customer={customer} customerToken={customerToken} setCustomer={setCustomer} goBrowse={goBrowse}
                 section={accountSection} setSection={setAccountSectionAndUrl}
                 wishlist={wishlist} toggleWishlist={toggleWishlist} onSkuClick={goSkuDetail}
-                addToCart={addToCart} showToast={showToast}
+                addToCart={addToCart} showToast={showToast} navigate={navigate}
                 goHome={goHome} onLogout={handleCustomerLogout} />
             ) : (
               <div style={{ maxWidth: 600, margin: '4rem auto', textAlign: 'center', padding: '0 2rem' }}>
@@ -10826,7 +10826,7 @@
       );
     }
 
-    function AccountPage({ customer, customerToken, setCustomer, goBrowse, section, setSection, wishlist, toggleWishlist, onSkuClick, addToCart, showToast, goHome, onLogout }) {
+    function AccountPage({ customer, customerToken, setCustomer, goBrowse, section, setSection, wishlist, toggleWishlist, onSkuClick, addToCart, showToast, navigate, goHome, onLogout }) {
       const [orders, setOrders] = useState([]);
       const [expandedOrder, setExpandedOrder] = useState(null);
       const [orderDetail, setOrderDetail] = useState(null);
@@ -10989,21 +10989,6 @@
         } catch(e) { setVisitDetail(null); }
       };
 
-      const quoteStatusBadge = (status, expiresAt) => {
-        const colors = {
-          sent: { bg: '#dbeafe', text: '#1e40af', label: 'Sent' },
-          converted: { bg: '#dcfce7', text: '#166534', label: 'Converted' },
-          expired: { bg: '#fef2f2', text: '#991b1b', label: 'Expired' }
-        };
-        const isExpired = status === 'sent' && expiresAt && new Date(expiresAt) < new Date();
-        const c = isExpired ? colors.expired : (colors[status] || colors.sent);
-        return (
-          <span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', background: c.bg, color: c.text, borderRadius: '3px' }}>
-            {isExpired ? 'Expired' : c.label}
-          </span>
-        );
-      };
-
       const saveProfile = async () => {
         setSaving(true); setProfileMsg(''); setProfileError('');
         try {
@@ -11043,24 +11028,6 @@
         return '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
       };
 
-      const statusBadge = (status) => {
-        const colors = {
-          pending: { bg: '#fef3c7', text: '#92400e' },
-          confirmed: { bg: '#dbeafe', text: '#1e40af' },
-          ready_for_pickup: { bg: '#f0fdf4', text: '#166534' },
-          shipped: { bg: '#e0e7ff', text: '#3730a3' },
-          delivered: { bg: '#dcfce7', text: '#166534' },
-          cancelled: { bg: '#fef2f2', text: '#991b1b' }
-        };
-        const c = colors[status] || colors.pending;
-        const label = status === 'ready_for_pickup' ? 'ready for pickup' : status;
-        return (
-          <span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', background: c.bg, color: c.text, borderRadius: '3px' }}>
-            {label}
-          </span>
-        );
-      };
-
       const US_STATES = [
         'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY',
         'LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND',
@@ -11088,6 +11055,13 @@
         shipped: { label: 'Shipped', color: '#2563eb' },
         delivered: { label: 'Delivered', color: '#3a7a4e' },
         cancelled: { label: 'Cancelled', color: 'var(--warm-muted)' }
+      };
+      const QUOTE_STATUS_META = {
+        sent: { label: 'Sent', color: '#a87935' },
+        accepted: { label: 'Accepted', color: '#3a7a4e' },
+        converted: { label: 'Converted', color: '#3a7a4e' },
+        declined: { label: 'Declined', color: 'var(--warm-muted)' },
+        expired: { label: 'Expired', color: '#b0462f' }
       };
       const ACTIVE_ORDER_STATUSES = ['pending', 'confirmed', 'shipped', 'ready_for_pickup'];
       const activeOrders = orders.filter(o => ACTIVE_ORDER_STATUSES.includes(o.status));
@@ -11586,218 +11560,241 @@
             </div>
           )}
 
-          {section === 'quotes' && (
-            <div>
-              {loadingQuotes ? (
-                <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem' }}>Loading quotes...</p>
-              ) : quotes.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '3rem 0' }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48, color: 'var(--stone-300)', margin: '0 auto 1rem' }}>
-                    <path d="M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                  </svg>
-                  <p style={{ color: 'var(--stone-500)', marginBottom: '1rem' }}>No quotes yet.</p>
-                  <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>
-                    Quotes from our sales team will appear here.
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  {quotes.map(q => (
-                    <div key={q.id} style={{ border: '1px solid var(--stone-200)', marginBottom: '0.75rem' }}>
-                      <div onClick={() => viewQuoteDetail(q.id)}
-                        style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem',
-                          cursor: 'pointer', background: expandedQuote === q.id ? 'var(--stone-50)' : '#fff'
-                        }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flex: 1, flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{q.quote_number}</span>
-                          <span style={{ color: 'var(--stone-500)', fontSize: '0.8125rem' }}>
-                            {new Date(q.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                          {quoteStatusBadge(q.status, q.expires_at)}
-                          <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{q.item_count} item{q.item_count !== 1 ? 's' : ''}</span>
-                          <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>${parseFloat(q.total || 0).toFixed(2)}</span>
-                        </div>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{
-                          width: 16, height: 16, transform: expandedQuote === q.id ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s'
-                        }}><polyline points="6 9 12 15 18 9"/></svg>
-                      </div>
-
-                      {expandedQuote === q.id && quoteDetail && (
-                        <div style={{ padding: '1.25rem', borderTop: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
-                          {q.converted_order_id && (
-                            <div style={{ background: '#dcfce7', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#166534' }}>
-                              This quote has been converted to an order.
-                            </div>
-                          )}
-                          {q.expires_at && q.status === 'sent' && new Date(q.expires_at) > new Date() && (
-                            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
-                              Valid until {new Date(q.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            </div>
-                          )}
-                          <div style={{ marginBottom: '1rem' }}>
-                            <h4 style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem' }}>Items</h4>
-                            {quoteDetail.items.map(item => (
-                              <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
-                                <div style={{ flex: 1 }}>
-                                  <span style={{ fontWeight: 500 }}>{item.product_name || 'Product'}</span>
-                                  {item.collection && <span style={{ color: 'var(--stone-500)', marginLeft: '0.5rem' }}>{item.collection}</span>}
-                                  <span style={{ color: 'var(--stone-500)', marginLeft: '0.5rem' }}>
-                                    {item.sell_by === 'unit' ? `x${item.num_boxes}` : `x${item.num_boxes} box${item.num_boxes !== 1 ? 'es' : ''}`}
-                                  </span>
-                                  {item.is_sample && <span style={{ color: 'var(--stone-400)', marginLeft: '0.5rem' }}>(Sample)</span>}
-                                </div>
-                                <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                                  <span style={{ color: 'var(--stone-500)', fontSize: '0.75rem', marginRight: '0.75rem' }}>
-                                    ${parseFloat(item.unit_price || 0).toFixed(2)}{item.sell_by === 'unit' ? '/ea' : '/sqft'}
-                                  </span>
-                                  <span style={{ fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1.5rem', fontSize: '0.8125rem', paddingTop: '0.5rem' }}>
-                            {parseFloat(q.shipping || 0) > 0 && (
-                              <span style={{ color: 'var(--stone-600)' }}>Shipping: ${parseFloat(q.shipping).toFixed(2)}</span>
-                            )}
-                            <span style={{ fontWeight: 600 }}>Total: ${parseFloat(q.total || 0).toFixed(2)}</span>
-                          </div>
-                          {q.notes && (
-                            <div style={{ marginTop: '1rem', fontSize: '0.8125rem', color: 'var(--stone-600)', fontStyle: 'italic' }}>
-                              Note: {q.notes}
-                            </div>
-                          )}
-                        </div>
-                      )}
+          {section === 'quotes' && (() => {
+            const quoteGrid = { gridTemplateColumns: '150px 1fr 130px 120px 80px' };
+            const quoteMeta = (q) => {
+              const isExpired = q.status === 'sent' && q.expires_at && new Date(q.expires_at) < new Date();
+              return isExpired ? QUOTE_STATUS_META.expired : (QUOTE_STATUS_META[q.status] || QUOTE_STATUS_META.sent);
+            };
+            const quoteDetailText = (q) => {
+              const items = q.item_count + (q.item_count === 1 ? ' item' : ' items');
+              if (q.converted_order_id) return items + ' · Became an order';
+              const isExpired = q.status === 'sent' && q.expires_at && new Date(q.expires_at) < new Date();
+              if (isExpired) return items + ' · Expired ' + fmtDate(q.expires_at);
+              if (q.status === 'sent' && q.expires_at) return items + ' · Valid until ' + fmtDate(q.expires_at);
+              return items;
+            };
+            return (
+              <div>
+                {loadingQuotes ? (
+                  <p style={{ color: 'var(--warm-muted)', fontSize: '0.875rem' }}>Loading quotes...</p>
+                ) : quotes.length === 0 ? (
+                  <div className="acct-profile-section" style={{ textAlign: 'center' }}>
+                    <p style={{ color: 'var(--warm-muted)', marginBottom: '0.375rem' }}>No quotes yet.</p>
+                    <p style={{ color: 'var(--warm-muted)', fontSize: '0.8125rem', margin: 0 }}>
+                      When our team prepares pricing for you — in the showroom or over the phone — it lands here.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="acct-col-headers" style={quoteGrid}>
+                      <span>Quote</span><span>Detail</span><span>Status</span><span style={{ textAlign: 'right' }}>Total</span><span />
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                    <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
+                      {quotes.map(q => {
+                        const qm = quoteMeta(q);
+                        return (
+                          <React.Fragment key={q.id}>
+                            <div className="acct-order-row" style={quoteGrid} onClick={() => viewQuoteDetail(q.id)}>
+                              <div>
+                                <div className="acct-order-num">{q.quote_number}</div>
+                                <div className="acct-order-date">{fmtDate(q.created_at)}</div>
+                              </div>
+                              <div className="acct-order-detail">{quoteDetailText(q)}</div>
+                              <div className="acct-order-status" style={{ color: qm.color }}>&#9679; {qm.label}</div>
+                              <div className="acct-order-total">{fmtMoney(q.total)}</div>
+                              <span className="acct-order-action">{expandedQuote === q.id ? 'Close ×' : 'Open →'}</span>
+                            </div>
+                            {expandedQuote === q.id && quoteDetail && (
+                              <div className="acct-order-expanded">
+                                {q.converted_order_id && (
+                                  <div style={{ background: '#f0fdf4', border: '0.5px solid #bbf7d0', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#166534', borderRadius: 4 }}>
+                                    This quote became an order — find it under <a style={{ fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }} onClick={() => setSection('orders')}>Orders</a>.
+                                  </div>
+                                )}
+                                {q.expires_at && q.status === 'sent' && new Date(q.expires_at) > new Date() && (
+                                  <div style={{ background: 'rgba(216,205,182,0.35)', border: '0.5px solid rgba(168,121,53,0.3)', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#7a5a1e', borderRadius: 4 }}>
+                                    Pricing held until <strong>{fmtDate(q.expires_at)}</strong> — call (714) 999-0009 or reply to your quote email to accept.
+                                  </div>
+                                )}
+                                <div style={{ marginBottom: '1rem' }}>
+                                  <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Materials</div>
+                                  {quoteDetail.items.map(item => (
+                                    <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', padding: '0.5rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name || 'Product'}</span>
+                                        <span style={{ color: 'var(--warm-muted)', marginLeft: '0.5rem', fontSize: '0.75rem' }}>
+                                          {item.collection ? item.collection + ' · ' : ''}
+                                          {item.sell_by === 'unit' ? 'x' + item.num_boxes : 'x' + item.num_boxes + ' box' + (item.num_boxes !== 1 ? 'es' : '')}
+                                          {item.is_sample ? ' · sample' : ''}
+                                        </span>
+                                      </div>
+                                      <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                        <span style={{ color: 'var(--warm-muted)', fontSize: '0.75rem', marginRight: '0.75rem' }}>
+                                          ${parseFloat(item.unit_price || 0).toFixed(2)}{item.sell_by === 'unit' ? '/ea' : '/sqft'}
+                                        </span>
+                                        <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1.5rem', fontSize: '0.8125rem', paddingTop: '0.25rem' }}>
+                                  {parseFloat(q.shipping || 0) > 0 && (
+                                    <span style={{ color: 'var(--stone-600)' }}>Shipping {fmtMoney(q.shipping)}</span>
+                                  )}
+                                  <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>Total {fmtMoney(q.total)}</span>
+                                </div>
+                                {q.notes && (
+                                  <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: 'rgba(216,205,182,0.25)', borderLeft: '3px solid var(--gold)', fontSize: '0.8125rem', color: 'var(--stone-700, #44403c)', fontStyle: 'italic', fontFamily: 'var(--font-heading)' }}>
+                                    &ldquo;{q.notes}&rdquo;
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {section === 'samples' && (
             <div>
               {/* Sample Actions Bar */}
-              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-                <button className="btn" onClick={goBrowse} style={{ fontSize: '0.8125rem', padding: '0.5rem 1.25rem' }}>
-                  Browse Products for Samples
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <button className="acct-btn" onClick={goBrowse}>
+                  Browse products for samples
                 </button>
                 {sampleRequests.filter(sr => sr.status === 'requested').length > 0 && (
-                  <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.8125rem', color: 'var(--stone-600)', gap: '0.35rem' }}>
-                    <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }}></span>
-                    {sampleRequests.filter(sr => sr.status === 'requested').length} open request{sampleRequests.filter(sr => sr.status === 'requested').length !== 1 ? 's' : ''}
+                  <span className="acct-order-status" style={{ color: '#a87935' }}>
+                    &#9679; {sampleRequests.filter(sr => sr.status === 'requested').length} open request{sampleRequests.filter(sr => sr.status === 'requested').length !== 1 ? 's' : ''}
                   </span>
                 )}
               </div>
 
               {loadingSamples ? (
-                <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem' }}>Loading samples...</p>
+                <p style={{ color: 'var(--warm-muted)', fontSize: '0.875rem' }}>Loading samples...</p>
               ) : sampleRequests.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '3rem 0' }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48, color: 'var(--stone-300)', margin: '0 auto 1rem' }}>
-                    <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
-                  </svg>
-                  <p style={{ color: 'var(--stone-500)', marginBottom: '1rem' }}>No sample requests yet.</p>
-                  <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem', marginBottom: '1rem' }}>
+                <div className="acct-profile-section" style={{ textAlign: 'center' }}>
+                  <p style={{ color: 'var(--warm-muted)', marginBottom: '0.375rem' }}>No sample requests yet.</p>
+                  <p style={{ color: 'var(--warm-muted)', fontSize: '0.8125rem', marginBottom: '1.25rem' }}>
                     Use the "Request Free Sample" button on any product page, or contact our team for assistance.
                   </p>
-                  <button className="btn" onClick={goBrowse}>Browse Products</button>
+                  <button className="acct-btn" onClick={goBrowse}>Browse products</button>
                 </div>
               ) : (
                 <div>
+                <div className="acct-col-headers" style={{ gridTemplateColumns: '150px 1fr 190px 110px 80px' }}>
+                  <span>Box</span><span>Swatches</span><span>Detail</span><span>Status</span><span />
+                </div>
+                <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
                   {sampleRequests.map(sr => {
                     const isOpen = sr.status === 'requested';
                     const isExpanded = expandedSample === sr.id;
                     const isAdding = addItemsTo === sr.id;
-                    const sColors = {
-                      requested: { bg: '#fef3c7', text: '#92400e', label: 'Open' },
-                      shipped: { bg: '#dbeafe', text: '#1e40af', label: 'Shipped' },
-                      delivered: { bg: '#dcfce7', text: '#166534', label: 'Delivered' },
-                      cancelled: { bg: '#fef2f2', text: '#991b1b', label: 'Cancelled' }
-                    };
-                    const sc = sColors[sr.status] || sColors.requested;
+                    const sc = SAMPLE_STATUS_META[sr.status] || SAMPLE_STATUS_META.requested;
+                    const n = (sr.items || []).length;
+                    const detailText = isOpen
+                      ? (5 - n) + ' of 5 slots open — add materials'
+                      : sr.delivery_method === 'pickup' && sr.status === 'shipped'
+                        ? 'Ready for pickup at the showroom'
+                        : sr.shipped_at
+                          ? 'Shipped ' + fmtDate(sr.shipped_at)
+                          : sr.delivery_method === 'pickup' ? 'Showroom pickup' : 'Ships free';
                     return (
-                      <div key={sr.id} style={{ border: '1px solid var(--stone-200)', marginBottom: '0.75rem' }}>
-                        <div onClick={() => setExpandedSample(isExpanded ? null : sr.id)}
-                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', cursor: 'pointer', background: isExpanded ? 'var(--stone-50)' : '#fff' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flex: 1, flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{sr.request_number}</span>
-                            <span style={{ color: 'var(--stone-500)', fontSize: '0.8125rem' }}>
-                              {new Date(sr.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            </span>
-                            <span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', background: sc.bg, color: sc.text, borderRadius: '3px' }}>{sc.label}</span>
-                            <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{(sr.items || []).length} sample{(sr.items || []).length !== 1 ? 's' : ''}</span>
+                      <React.Fragment key={sr.id}>
+                        <div className="acct-order-row" style={{ gridTemplateColumns: '150px 1fr 190px 110px 80px' }}
+                          onClick={() => setExpandedSample(isExpanded ? null : sr.id)}>
+                          <div>
+                            <div className="acct-order-num">{sr.request_number}</div>
+                            <div className="acct-order-date">{fmtDate(sr.created_at)}</div>
                           </div>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
+                          <div className="acct-order-items" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
+                            {(sr.items || []).filter(i => i.primary_image).slice(0, 5).map((i, idx) => (
+                              <img key={idx} onLoad={handleProductImgLoad} src={optimizeImg(i.primary_image, 100)} alt={i.product_name || ''} loading="lazy"
+                                style={{ width: 30, height: 30, objectFit: 'cover', borderRadius: 3, border: '0.5px solid rgba(28,25,23,0.1)' }} />
+                            ))}
+                            <span style={{ marginLeft: '0.375rem' }}>{n} swatch{n === 1 ? '' : 'es'}</span>
+                          </div>
+                          <div className="acct-order-detail">{detailText}</div>
+                          <div className="acct-order-status" style={{ color: sc.color }}>&#9679; {sc.label}</div>
+                          <span className="acct-order-action">{isExpanded ? 'Close ×' : 'Open →'}</span>
                         </div>
 
                         {isExpanded && (
-                          <div style={{ padding: '1.25rem', borderTop: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
+                          <div className="acct-order-expanded">
                             {sr.tracking_number && (
-                              <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
-                                Tracking: {sr.tracking_number}
-                                {sr.shipped_at && <span style={{ marginLeft: '0.5rem' }}>(Shipped {new Date(sr.shipped_at).toLocaleDateString()})</span>}
+                              <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af', borderRadius: 4 }}>
+                                Tracking: <strong>{sr.tracking_number}</strong>
+                                {sr.shipped_at && <span style={{ marginLeft: '0.5rem' }}>(Shipped {fmtDate(sr.shipped_at)})</span>}
                               </div>
                             )}
 
                             {sr.delivery_method === 'pickup' && sr.status === 'shipped' && (
-                              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#166534' }}>
+                              <div style={{ background: '#f0fdf4', border: '0.5px solid #bbf7d0', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#166534', borderRadius: 4 }}>
                                 Your samples are ready for pickup at our showroom.
                               </div>
                             )}
 
                             <div style={{ marginBottom: '1rem' }}>
-                              <h4 style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem' }}>Samples</h4>
+                              <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Swatches in this box</div>
                               {(sr.items || []).map(item => (
-                                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
+                                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0.5rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
                                   {item.primary_image && (
-                                    <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 40, height: 40, objectFit: 'cover', border: '1px solid var(--stone-200)' }} loading="lazy" />
+                                    <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, border: '0.5px solid rgba(28,25,23,0.1)' }} loading="lazy" />
                                   )}
-                                  <div style={{ flex: 1 }}>
-                                    <div style={{ fontWeight: 500 }}>{item.product_name}</div>
-                                    {item.collection && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{item.collection}</div>}
-                                    {item.variant_name && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{item.variant_name}</div>}
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name}</div>
+                                    {(item.collection || item.variant_name) && (
+                                      <div style={{ fontSize: '0.75rem', color: 'var(--warm-muted)' }}>
+                                        {[item.collection, item.variant_name].filter(Boolean).join(' · ')}
+                                      </div>
+                                    )}
                                   </div>
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--stone-400)', textTransform: 'uppercase' }}>Free</span>
+                                  <span className="acct-order-status" style={{ color: 'var(--warm-muted)' }}>Free</span>
                                 </div>
                               ))}
                             </div>
 
                             {/* Add Samples to Open Request */}
                             {isOpen && (sr.items || []).length < 5 && (
-                              <div style={{ background: '#fff', border: '1px solid var(--stone-200)', padding: '1rem', marginTop: '0.5rem' }}>
-                                <h4 style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.75rem' }}>Add Samples to This Request</h4>
+                              <div style={{ background: '#fff', border: '0.5px solid rgba(28,25,23,0.13)', borderRadius: 6, padding: '1rem 1.25rem', marginTop: '0.5rem' }}>
+                                <div className="acct-footer-card-sub" style={{ marginBottom: '0.625rem' }}>Add swatches to this box</div>
                                 <input
                                   type="text"
-                                  placeholder="Search products to add..."
+                                  className="acct-input"
+                                  placeholder="Search materials to add…"
                                   value={isAdding ? sampleSearch : ''}
                                   onFocus={() => setAddItemsTo(sr.id)}
                                   onChange={e => { setAddItemsTo(sr.id); setSampleSearch(e.target.value); searchProducts(e.target.value); }}
-                                  style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem', fontFamily: 'Inter, sans-serif', outline: 'none', marginBottom: '0.5rem' }}
+                                  style={{ marginBottom: '0.5rem' }}
                                 />
                                 {isAdding && searchingProducts && (
-                                  <p style={{ fontSize: '0.75rem', color: 'var(--stone-400)' }}>Searching...</p>
+                                  <p style={{ fontSize: '0.75rem', color: 'var(--warm-muted)' }}>Searching…</p>
                                 )}
                                 {isAdding && sampleSearchResults.length > 0 && (
-                                  <div style={{ border: '1px solid var(--stone-200)', maxHeight: 200, overflowY: 'auto' }}>
+                                  <div style={{ border: '0.5px solid rgba(28,25,23,0.13)', borderRadius: 4, maxHeight: 200, overflowY: 'auto' }}>
                                     {sampleSearchResults.map(sku => {
                                       const alreadyAdded = (sr.items || []).some(i => i.product_id === sku.product_id);
                                       return (
-                                        <div key={sku.sku_id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
-                                          {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 100)} alt="" style={{ width: 32, height: 32, objectFit: 'cover' }} loading="lazy" />}
-                                          <div style={{ flex: 1 }}>
+                                        <div key={sku.sku_id} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.5rem 0.75rem', borderBottom: '0.5px solid rgba(28,25,23,0.06)', fontSize: '0.8125rem' }}>
+                                          {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 100)} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 3 }} loading="lazy" />}
+                                          <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ fontWeight: 500 }}>{sku.product_name || sku.collection}</div>
-                                            {sku.variant_name && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{sku.variant_name}</div>}
+                                            {sku.variant_name && <div style={{ fontSize: '0.75rem', color: 'var(--warm-muted)' }}>{sku.variant_name}</div>}
                                           </div>
                                           {alreadyAdded ? (
-                                            <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)' }}>Added</span>
+                                            <span style={{ fontSize: '0.6875rem', color: 'var(--warm-muted)' }}>Added</span>
                                           ) : (
                                             <button
+                                              className="acct-btn"
                                               onClick={() => addSampleItem(sr.id, sku.product_id, sku.sku_id)}
                                               disabled={addingSampleItem === (sku.sku_id || sku.product_id)}
-                                              style={{ background: 'var(--stone-900)', color: '#fff', border: 'none', padding: '0.25rem 0.75rem', fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
-                                              {addingSampleItem === (sku.sku_id || sku.product_id) ? '...' : '+ Add'}
+                                              style={{ padding: '0.3125rem 0.75rem', fontSize: '0.625rem' }}>
+                                              {addingSampleItem === (sku.sku_id || sku.product_id) ? '…' : '+ Add'}
                                             </button>
                                           )}
                                         </div>
@@ -11805,104 +11802,115 @@
                                     })}
                                   </div>
                                 )}
-                                <p style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', marginTop: '0.5rem' }}>
-                                  {5 - (sr.items || []).length} more sample{5 - (sr.items || []).length !== 1 ? 's' : ''} can be added
+                                <p style={{ fontSize: '0.6875rem', color: 'var(--warm-muted)', marginTop: '0.5rem', marginBottom: 0 }}>
+                                  {5 - (sr.items || []).length} more swatch{5 - (sr.items || []).length !== 1 ? 'es' : ''} can be added
                                 </p>
                               </div>
                             )}
 
                             {sr.delivery_method && (
                               <div style={{ fontSize: '0.8125rem', color: 'var(--stone-600)', marginTop: '0.75rem' }}>
-                                <strong>Delivery:</strong> {sr.delivery_method === 'pickup' ? 'Showroom Pickup' : 'Shipping'}
+                                <strong>Delivery:</strong> {sr.delivery_method === 'pickup' ? 'Showroom pickup' : 'Shipping'}
                               </div>
                             )}
                           </div>
                         )}
-                      </div>
+                      </React.Fragment>
                     );
                   })}
                 </div>
+                </div>
               )}
             </div>
           )}
 
-          {section === 'visits' && (
-            <div>
-              {loadingVisits ? (
-                <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem' }}>Loading visits...</p>
-              ) : visits.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '3rem 0' }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48, color: 'var(--stone-300)', margin: '0 auto 1rem' }}>
-                    <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/>
-                  </svg>
-                  <p style={{ color: 'var(--stone-500)', marginBottom: '1rem' }}>No showroom visits yet.</p>
-                  <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>
-                    After visiting our showroom, your product recommendations will appear here.
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  {visits.map(v => (
-                    <div key={v.id} style={{ border: '1px solid var(--stone-200)', marginBottom: '0.75rem' }}>
-                      <div onClick={() => viewVisitDetail(v.id)}
-                        style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem',
-                          cursor: 'pointer', background: expandedVisit === v.id ? 'var(--stone-50)' : '#fff'
-                        }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flex: 1, flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>
-                            {new Date(v.sent_at || v.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                          <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{v.item_count} product{v.item_count !== 1 ? 's' : ''}</span>
-                          <span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', background: '#dbeafe', color: '#1e40af', borderRadius: '3px' }}>
-                            Showroom Visit
-                          </span>
-                        </div>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{
-                          width: 16, height: 16, transform: expandedVisit === v.id ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s'
-                        }}><polyline points="6 9 12 15 18 9"/></svg>
-                      </div>
+          {section === 'visits' && (() => {
+            const visitGrid = { gridTemplateColumns: '150px 1fr 130px 130px 80px' };
+            return (
+              <div>
+                {loadingVisits ? (
+                  <p style={{ color: 'var(--warm-muted)', fontSize: '0.875rem' }}>Loading visits...</p>
+                ) : visits.length === 0 ? (
+                  <div className="acct-profile-section" style={{ textAlign: 'center' }}>
+                    <p style={{ color: 'var(--warm-muted)', marginBottom: '0.375rem' }}>No showroom visits yet.</p>
+                    <p style={{ color: 'var(--warm-muted)', fontSize: '0.8125rem', margin: 0 }}>
+                      Come see us at 1440 S. State College Blvd — after your visit, everything you looked at lands here with your rep's notes.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="acct-col-headers" style={visitGrid}>
+                      <span>Visit</span><span>From your rep</span><span>Materials</span><span>Status</span><span />
+                    </div>
+                    <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
+                      {visits.map(v => (
+                        <React.Fragment key={v.id}>
+                          <div className="acct-order-row" style={visitGrid} onClick={() => viewVisitDetail(v.id)}>
+                            <div>
+                              <div className="acct-order-num">{fmtDate(v.sent_at || v.created_at)}</div>
+                              <div className="acct-order-date">Roma showroom · Anaheim</div>
+                            </div>
+                            <div className="acct-order-detail" style={{ fontStyle: v.message ? 'italic' : 'normal', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                              {v.message ? '“' + v.message + '”' : 'Your showroom recap'}
+                            </div>
+                            <div className="acct-order-items">{v.item_count} material{v.item_count !== 1 ? 's' : ''}</div>
+                            <div className="acct-order-status" style={{ color: '#a87935' }}>&#9679; Recap sent</div>
+                            <span className="acct-order-action">{expandedVisit === v.id ? 'Close ×' : 'Open →'}</span>
+                          </div>
 
-                      {expandedVisit === v.id && visitDetail && (
-                        <div style={{ padding: '1.25rem', borderTop: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
-                          {v.message && (
-                            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af', fontStyle: 'italic' }}>
-                              "{v.message}"
+                          {expandedVisit === v.id && visitDetail && (
+                            <div className="acct-order-expanded">
+                              {v.message && (
+                                <div style={{ marginBottom: '1.25rem', padding: '0.875rem 1.125rem', background: 'rgba(216,205,182,0.25)', borderLeft: '3px solid var(--gold)', fontSize: '0.875rem', color: 'var(--stone-700, #44403c)', fontStyle: 'italic', fontFamily: 'var(--font-heading)', lineHeight: 1.55 }}>
+                                  &ldquo;{v.message}&rdquo;
+                                </div>
+                              )}
+                              <div style={{ marginBottom: '0.5rem' }}>
+                                <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>What you looked at</div>
+                                {visitDetail.items.map(item => (
+                                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0.625rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
+                                    {item.primary_image && (
+                                      <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt={item.product_name}
+                                        style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, border: '0.5px solid rgba(28,25,23,0.1)', cursor: item.sku_id ? 'pointer' : 'default' }}
+                                        onClick={() => item.sku_id && onSkuClick(item.sku_id, item.product_name)} loading="lazy" />
+                                    )}
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)', cursor: item.sku_id ? 'pointer' : 'default' }}
+                                        onClick={() => item.sku_id && onSkuClick(item.sku_id, item.product_name)}>{item.product_name}</div>
+                                      {(item.collection || item.variant_name) && (
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--warm-muted)' }}>
+                                          {[item.collection, item.variant_name].filter(Boolean).join(' · ')}
+                                        </div>
+                                      )}
+                                      {item.rep_note && (
+                                        <div style={{ fontSize: '0.75rem', color: '#7a5a1e', fontStyle: 'italic', marginTop: 2 }}>
+                                          {item.rep_note}
+                                        </div>
+                                      )}
+                                    </div>
+                                    {skuListPrice(item) && (
+                                      <span style={{ fontWeight: 500, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                                        ${displayPrice(item, skuListPrice(item)).toFixed(2)}{priceSuffix(item)}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                              {v.token && navigate && (
+                                <button className="acct-btn acct-btn--outline" style={{ marginTop: '0.75rem' }} onClick={() => navigate('/visit/' + v.token)}>
+                                  Open the full recap page →
+                                </button>
+                              )}
                             </div>
                           )}
-                          <div style={{ marginBottom: '1rem' }}>
-                            <h4 style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem' }}>Recommended Products</h4>
-                            {visitDetail.items.map(item => (
-                              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
-                                {item.primary_image && (
-                                  <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 48, height: 48, objectFit: 'cover', border: '1px solid var(--stone-200)' }} loading="lazy" />
-                                )}
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ fontWeight: 500 }}>{item.product_name}</div>
-                                  {item.collection && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{item.collection}</div>}
-                                  {item.variant_name && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{item.variant_name}</div>}
-                                </div>
-                                {skuListPrice(item) && (
-                                  <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
-                                    ${displayPrice(item, skuListPrice(item)).toFixed(2)}{priceSuffix(item)}
-                                  </span>
-                                )}
-                                {item.rep_note && (
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.rep_note}>
-                                    {item.rep_note}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                        </React.Fragment>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {section === 'settings' && (
             <div>
