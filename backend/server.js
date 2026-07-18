@@ -964,7 +964,7 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
     await pool.query(`
       INSERT INTO newsletter_subscribers (email)
       VALUES ($1)
-      ON CONFLICT (email) DO UPDATE SET subscribed_at = CURRENT_TIMESTAMP
+      ON CONFLICT (email) DO UPDATE SET subscribed_at = CURRENT_TIMESTAMP, unsubscribed_at = NULL
     `, [email.toLowerCase().trim()]);
     res.json({ success: true });
   } catch (err) {
@@ -972,6 +972,34 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
     res.status(500).json({ error: 'Failed to subscribe' });
   }
 });
+
+// One-click unsubscribe from marketing email links (CAN-SPAM). GET serves a
+// confirmation page; POST supports RFC 8058 List-Unsubscribe-Post one-click.
+const handleNewsletterUnsubscribe = async (req, res) => {
+  const page = (title, body) => res.set('Content-Type', 'text/html').send(
+    `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">` +
+    `<title>${title} — Roma Flooring Designs</title></head>` +
+    `<body style="margin:0;font-family:Georgia,serif;background:#faf8f5;color:#1c1917;display:flex;align-items:center;justify-content:center;min-height:100vh">` +
+    `<div style="max-width:420px;text-align:center;padding:2rem"><h1 style="font-weight:300;font-size:1.75rem">${title}</h1>` +
+    `<p style="color:#57534e;font-size:0.9375rem;line-height:1.6">${body}</p>` +
+    `<a href="/" style="color:#1c1917">Return to Roma Flooring Designs</a></div></body></html>`
+  );
+  try {
+    const { token } = req.params;
+    if (!/^[0-9a-f-]{36}$/i.test(token || '')) return page('Link not valid', 'This unsubscribe link is incomplete or expired. You can also unsubscribe by replying to any of our emails.');
+    const result = await pool.query(`
+      UPDATE newsletter_subscribers SET unsubscribed_at = COALESCE(unsubscribed_at, CURRENT_TIMESTAMP)
+      WHERE unsubscribe_token = $1 RETURNING email
+    `, [token]);
+    if (!result.rows.length) return page('Link not valid', 'This unsubscribe link is incomplete or expired. You can also unsubscribe by replying to any of our emails.');
+    return page('You’re unsubscribed', `${result.rows[0].email} will no longer receive marketing emails from us. You may still receive transactional emails about orders and your account. Unsubscribed by mistake? Sign up again any time from our site footer.`);
+  } catch (err) {
+    console.error('[Newsletter] Unsubscribe error:', err.message);
+    return page('Something went wrong', 'We could not process your unsubscribe request. Please try again or contact Sales@romaflooringdesigns.com.');
+  }
+};
+app.get('/api/newsletter/unsubscribe/:token', handleNewsletterUnsubscribe);
+app.post('/api/newsletter/unsubscribe/:token', handleNewsletterUnsubscribe);
 
 // ==================== Search Synonyms / Aliases ====================
 

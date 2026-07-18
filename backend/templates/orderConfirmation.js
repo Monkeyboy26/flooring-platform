@@ -1,4 +1,5 @@
-import { LOGO_URL } from './_config.js';
+import { emailShell, heroSection, section, sectionLabel, ctaButton, detailList, money, T, SERIF, SANS, MONO, esc } from './_shell.js';
+import { SITE_URL } from './_config.js';
 
 export function generateOrderConfirmationHTML(orderData) {
   const {
@@ -12,131 +13,111 @@ export function generateOrderConfirmationHTML(orderData) {
   });
 
   const isPickup = delivery_method === 'pickup';
+  const firstName = esc((customer_name || '').trim().split(/\s+/)[0] || 'there');
 
-  const addressBlock = isPickup
-    ? '<p style="margin:0;color:#57534e;">Store Pickup</p>'
-    : `<p style="margin:0;color:#57534e;">${esc(shipping_address_line1)}</p>
-       ${shipping_address_line2 ? `<p style="margin:0;color:#57534e;">${esc(shipping_address_line2)}</p>` : ''}
-       <p style="margin:0;color:#57534e;">${esc(shipping_city)}, ${esc(shipping_state)} ${esc(shipping_zip)}</p>`;
-
-  const itemRows = items.map(item => {
+  const itemRows = items.map((item, i) => {
     const isSample = item.is_sample;
     const name = esc(item.product_name || 'Product');
     const collection = item.collection ? esc(item.collection) : '';
-    const qty = isSample ? `${item.num_boxes} sample${item.num_boxes > 1 ? 's' : ''}` : item.sell_by === 'unit' ? `${item.num_boxes}` : `${item.num_boxes} box${item.num_boxes > 1 ? 'es' : ''}`;
-    const price = isSample ? 'FREE' : `$${parseFloat(item.subtotal || 0).toFixed(2)}`;
+    const qty = isSample
+      ? `${item.num_boxes} sample${item.num_boxes > 1 ? 's' : ''}`
+      : item.sell_by === 'unit' ? `${item.num_boxes}` : `${item.num_boxes} box${item.num_boxes > 1 ? 'es' : ''}`;
+    const price = isSample ? 'Free' : money(item.subtotal);
     const sampleBadge = isSample
-      ? ' <span style="display:inline-block;background:#c9a668;color:#fff;font-size:10px;padding:2px 6px;border-radius:3px;text-transform:uppercase;font-family:Inter,Arial,sans-serif;">Sample</span>'
+      ? ` <span style="display:inline-block;padding:2px 7px;background:${T.warm};border:1px solid ${T.border};font-family:${MONO};font-size:9px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:${T.ink};vertical-align:2px;">Sample</span>`
       : '';
 
     return `<tr>
-      <td style="padding:12px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;">
-        ${name}${sampleBadge}
-        ${collection ? `<br><span style="color:#78716c;font-size:12px;">${collection}</span>` : ''}
+      <td style="padding:14px 14px 14px 0;${i < items.length - 1 ? `border-bottom:1px solid ${T.border};` : ''}">
+        ${collection ? `<p style="margin:0 0 3px;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">${collection}</p>` : ''}
+        <p style="margin:0;font-family:${SERIF};font-size:17px;line-height:1.2;letter-spacing:-0.01em;color:${T.ink};">${name}${sampleBadge}</p>
+        <p style="margin:4px 0 0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.ink};">${qty}</p>
       </td>
-      <td style="padding:12px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;text-align:center;">${qty}</td>
-      <td style="padding:12px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;text-align:right;">${price}</td>
+      <td align="right" valign="middle" style="padding:14px 0;${i < items.length - 1 ? `border-bottom:1px solid ${T.border};` : ''}font-family:${SERIF};font-size:20px;font-weight:300;letter-spacing:-0.01em;color:${T.ink};white-space:nowrap;">${price}</td>
     </tr>`;
   }).join('');
 
-  const shippingTotal = parseFloat(shipping || 0) + parseFloat(sample_shipping || 0);
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@400;500&display=swap');</style>
-</head>
-<body style="margin:0;padding:0;background-color:#fafaf9;font-family:Inter,Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;">
-<tr><td align="center" style="padding:40px 20px;">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e7e5e4;">
-
-  <!-- Header -->
-  <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto;width:140px;height:140px;" />
-  </td></tr>
-
-  <!-- Title -->
-  <tr><td style="padding:40px 40px 20px;">
-    <h1 style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:600;color:#292524;">Order Confirmed</h1>
-    <p style="margin:8px 0 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#78716c;">Thank you for your order, ${esc(customer_name)}.</p>
-  </td></tr>
-
-  <!-- Order Info -->
-  <tr><td style="padding:0 40px 24px;">
+  const itemsSection = `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>
-        <td style="padding:12px 16px;background:#fafaf9;border:1px solid #e7e5e4;width:50%;">
-          <p style="margin:0;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;">Order Number</p>
-          <p style="margin:4px 0 0;font-family:Inter,Arial,sans-serif;font-size:14px;font-weight:500;color:#292524;">${esc(order_number)}</p>
-        </td>
-        <td style="padding:12px 16px;background:#fafaf9;border:1px solid #e7e5e4;border-left:none;width:50%;">
-          <p style="margin:0;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;">Order Date</p>
-          <p style="margin:4px 0 0;font-family:Inter,Arial,sans-serif;font-size:14px;font-weight:500;color:#292524;">${orderDate}</p>
-        </td>
-      </tr>
-    </table>
-  </td></tr>
-
-  <!-- Shipping Address -->
-  <tr><td style="padding:0 40px 24px;">
-    <p style="margin:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;">${isPickup ? 'Delivery Method' : 'Shipping Address'}</p>
-    ${addressBlock}
-  </td></tr>
-
-  <!-- Items -->
-  <tr><td style="padding:0 40px 24px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="padding:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;border-bottom:2px solid #292524;">Item</td>
-        <td style="padding:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;border-bottom:2px solid #292524;text-align:center;">Qty</td>
-        <td style="padding:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;border-bottom:2px solid #292524;text-align:right;">Price</td>
+        <td style="padding-bottom:12px;border-bottom:1px solid ${T.border};font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${T.muted};">In your order</td>
+        <td align="right" style="padding-bottom:12px;border-bottom:1px solid ${T.border};font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${T.muted};">${items.length} item${items.length === 1 ? '' : 's'}</td>
       </tr>
       ${itemRows}
-    </table>
-  </td></tr>
+    </table>`;
 
-  <!-- Totals -->
-  <tr><td style="padding:0 40px 32px;">
+  const addressValue = isPickup
+    ? `Roma Flooring Designs<br>1440 S. State College Blvd #6M, Anaheim, CA 92806<br><span style="color:${T.soft};">Mon&ndash;Fri 8am&ndash;5pm &middot; Sat 9am&ndash;2pm &middot; bring a photo ID</span>`
+    : `${esc(shipping_address_line1)}${shipping_address_line2 ? `<br>${esc(shipping_address_line2)}` : ''}<br>${esc(shipping_city)}, ${esc(shipping_state)} ${esc(shipping_zip)}`;
+
+  const orderDetails = detailList([
+    { label: 'Order number', value: esc(order_number) },
+    { label: 'Placed', value: orderDate },
+    { label: isPickup ? 'Pickup at' : 'Ships to', value: addressValue }
+  ]);
+
+  const shippingTotal = parseFloat(shipping || 0) + parseFloat(sample_shipping || 0);
+  const totalsSection = `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;">Subtotal</td>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;text-align:right;">$${parseFloat(subtotal || 0).toFixed(2)}</td>
+        <td style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.body};">Subtotal</td>
+        <td align="right" style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.ink};">${money(subtotal)}</td>
       </tr>
       <tr>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;">Shipping</td>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;text-align:right;">${shippingTotal > 0 ? '$' + shippingTotal.toFixed(2) : 'FREE'}</td>
+        <td style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.body};">Shipping</td>
+        <td align="right" style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.ink};">${shippingTotal > 0 ? money(shippingTotal) : 'Free'}</td>
       </tr>
       <tr>
-        <td style="padding:12px 0 0;font-family:Inter,Arial,sans-serif;font-size:16px;font-weight:500;color:#292524;border-top:2px solid #292524;">Total</td>
-        <td style="padding:12px 0 0;font-family:Inter,Arial,sans-serif;font-size:16px;font-weight:500;color:#292524;border-top:2px solid #292524;text-align:right;">$${parseFloat(total || 0).toFixed(2)}</td>
+        <td style="padding:12px 0 0;border-top:2px solid ${T.ink};font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.ink};">Total</td>
+        <td align="right" style="padding:12px 0 0;border-top:2px solid ${T.ink};font-family:${SERIF};font-size:24px;font-weight:300;letter-spacing:-0.01em;color:${T.ink};">${money(total)}</td>
       </tr>
-    </table>
-  </td></tr>
+    </table>`;
 
-  <!-- Next Steps -->
-  <tr><td style="padding:0 40px 40px;">
-    <p style="margin:0;padding:16px;background:#fafaf9;border:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:13px;color:#57534e;line-height:1.6;">
-      We'll send you a notification when your order ships. If you have any questions, reply to this email or contact us at <a href="mailto:hello@ateliersurfaces.com" style="color:#c9a668;">hello@ateliersurfaces.com</a>.
-    </p>
-  </td></tr>
+  const nextSteps = isPickup
+    ? [
+        { d: 'Now', t: 'Order confirmed', s: 'Our team is pulling your materials.' },
+        { d: 'Next', t: 'Ready-for-pickup email', s: 'We’ll let you know the moment it’s staged.' },
+        { d: 'Then', t: 'Pick up in Anaheim', s: 'Bring a photo ID · we’ll load your vehicle.' }
+      ]
+    : [
+        { d: 'Now', t: 'Order confirmed', s: 'Our team is pulling your materials.' },
+        { d: 'Next', t: 'Shipping notification', s: 'You’ll get tracking the moment it leaves the warehouse.' },
+        { d: 'Then', t: 'Inspect on arrival', s: 'Check the boxes and report any damage within 48 hours.' }
+      ];
 
-  <!-- Footer -->
-  <tr><td style="padding:24px 40px;border-top:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:14px;letter-spacing:2px;color:#a8a29e;">ROMA FLOORING DESIGNS</p>
-    <p style="margin:8px 0 0;font-family:Inter,Arial,sans-serif;font-size:11px;color:#a8a29e;">Curated flooring &amp; surfaces for refined spaces</p>
-  </td></tr>
+  const nextSection = `
+    ${sectionLabel('What happens next')}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${nextSteps.map((s, i) => `<tr>
+        <td width="90" valign="top" style="padding:12px 14px 12px 0;${i < nextSteps.length - 1 ? `border-bottom:1px solid ${T.hairline};` : ''}font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.accent};">${s.d}</td>
+        <td valign="top" style="padding:12px 0;${i < nextSteps.length - 1 ? `border-bottom:1px solid ${T.hairline};` : ''}">
+          <p style="margin:0;font-family:${SERIF};font-size:15px;line-height:1.2;letter-spacing:-0.008em;color:${T.ink};">${s.t}</p>
+          <p style="margin:3px 0 0;font-family:${SANS};font-size:12px;line-height:1.4;color:${T.muted};">${s.s}</p>
+        </td>
+      </tr>`).join('')}
+    </table>`;
 
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
-}
+  const content = [
+    heroSection({
+      eyebrow: `Order ${esc(order_number)} &middot; Confirmed`,
+      headline: 'We’ve <em style="font-style:italic;">got it</em>.',
+      body: `${firstName} &mdash; thank you. Your order is in and our team is getting it ready. Everything we have on file is below; reply to this email if anything looks off.`,
+      chip: `&#10003; Total &middot; ${money(total)}`
+    }),
+    section(itemsSection, '8px 40px 24px'),
+    section(orderDetails),
+    section(totalsSection, '0 40px 28px'),
+    section(nextSection, '0 40px 28px'),
+    ctaButton({
+      href: `${SITE_URL}/account`,
+      label: 'View your order &rarr;',
+      note: 'Questions? Reply to this email or call (714) 999-0009 &mdash; it reaches our showroom team in Anaheim.'
+    })
+  ].join('');
 
-function esc(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return emailShell({
+    title: `Order Confirmed — ${order_number}`,
+    preheader: `Order ${order_number} is confirmed — ${money(total)}. Here's what happens next.`,
+    content
+  });
 }

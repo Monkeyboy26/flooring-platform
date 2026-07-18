@@ -1,4 +1,4 @@
-import { LOGO_URL } from './_config.js';
+import { emailShell, heroSection, section, ctaButton, detailList, warmCard, T, SERIF, SANS, MONO, esc } from './_shell.js';
 
 function getTrackingUrl(carrier, trackingNumber) {
   if (!carrier || !trackingNumber) return null;
@@ -12,24 +12,24 @@ function getTrackingUrl(carrier, trackingNumber) {
 
 const statusContent = {
   shipped: {
-    title: 'Your Order Has Shipped',
-    message: 'Great news! Your order is on its way.',
-    icon: '&#x2708;'
+    eyebrow: 'Shipped',
+    headline: 'On the truck, <em style="font-style:italic;">headed your way</em>.',
+    message: 'your order has left the warehouse and is on its way. Give the boxes a quick once-over when they land — if anything arrived less than perfect, tell us within 48 hours and we’ll make it right.'
   },
   ready_for_pickup: {
-    title: 'Your Order Is Ready for Pickup',
-    message: 'Your order is ready and waiting for you at our showroom. Please bring a valid photo ID when you come to pick up your order.',
-    icon: '&#x1F3E0;'
+    eyebrow: 'Ready for pickup',
+    headline: 'Ready when <em style="font-style:italic;">you are</em>.',
+    message: 'your order is staged and waiting at our Anaheim showroom. Bring a valid photo ID and we’ll load your vehicle.'
   },
   delivered: {
-    title: 'Your Order Has Been Delivered',
-    message: 'Your order has been delivered! Please inspect your delivery and ensure everything is in good condition. If you have any concerns, please contact us within 48 hours.',
-    icon: '&#x2714;'
+    eyebrow: 'Delivered',
+    headline: 'It’s <em style="font-style:italic;">home</em>.',
+    message: 'your order has been delivered. Please inspect everything and make sure it arrived in good condition — if you have any concerns, contact us within 48 hours.'
   },
   cancelled: {
-    title: 'Order Cancelled',
-    message: 'Your order has been cancelled. If payment was collected, your refund will be processed within 5\u20137 business days. If you believe this was done in error, please contact us immediately.',
-    icon: '&#x2715;'
+    eyebrow: 'Cancelled',
+    headline: 'Order <em style="font-style:italic;">cancelled</em>.',
+    message: 'your order has been cancelled. If payment was collected, your refund will be processed within 5–7 business days. If you believe this was done in error, please contact us right away.'
   }
 };
 
@@ -39,99 +39,53 @@ export function generateOrderStatusUpdateHTML(orderData, status) {
 
   if (!content) return null;
 
-  const accentColor = status === 'cancelled' ? '#b91c1c' : '#c9a668';
+  const firstName = esc((customer_name || '').trim().split(/\s+/)[0] || 'there');
   const trackingUrl = getTrackingUrl(shipping_carrier, tracking_number);
 
-  // Build tracking section if tracking data exists
-  let trackingSection = '';
-  if (tracking_number && status === 'shipped') {
-    const shippedDate = shipped_at ? new Date(shipped_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
-    trackingSection = `
-  <!-- Tracking Info -->
-  <tr><td style="padding:0 40px 32px;">
-    <div style="background:#fafaf9;border:1px solid #e7e5e4;border-radius:4px;padding:20px;text-align:center;">
-      <p style="margin:0 0 4px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;">Tracking Number</p>
-      <p style="margin:0 0 12px;font-family:Inter,Arial,sans-serif;font-size:16px;font-weight:500;color:#292524;letter-spacing:0.5px;">${esc(tracking_number)}</p>
-      ${shipping_carrier ? `<p style="margin:0 0 4px;font-family:Inter,Arial,sans-serif;font-size:13px;color:#57534e;">Carrier: <strong>${esc(shipping_carrier)}</strong></p>` : ''}
-      ${shippedDate ? `<p style="margin:0 0 16px;font-family:Inter,Arial,sans-serif;font-size:13px;color:#57534e;">Shipped: ${shippedDate}</p>` : ''}
-      ${trackingUrl ? `<a href="${trackingUrl}" target="_blank" style="display:inline-block;padding:10px 28px;background:#c9a668;color:#ffffff;font-family:Inter,Arial,sans-serif;font-size:13px;font-weight:500;text-decoration:none;border-radius:4px;letter-spacing:0.5px;">Track Your Package</a>` : ''}
-    </div>
-  </td></tr>`;
+  const sections = [
+    heroSection({
+      eyebrow: `Order ${esc(order_number)} &middot; ${content.eyebrow}`,
+      headline: content.headline,
+      body: `${firstName} &mdash; ${content.message}`
+    })
+  ];
+
+  if (status === 'shipped' && tracking_number) {
+    const shippedDate = shipped_at
+      ? new Date(shipped_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+      : '';
+    sections.push(section(warmCard(`
+      <p style="margin:0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:${T.accent};">Tracking number</p>
+      <p style="margin:6px 0 0;font-family:${SERIF};font-size:26px;font-weight:300;letter-spacing:0.01em;color:${T.ink};word-break:break-all;">${esc(tracking_number)}</p>
+      ${shipping_carrier ? `<p style="margin:10px 0 0;font-family:${SANS};font-size:13px;line-height:1.5;color:${T.body};">Carrier: <span style="color:${T.ink};font-weight:500;">${esc(shipping_carrier)}</span>${shippedDate ? ` &middot; shipped ${shippedDate}` : ''}</p>` : (shippedDate ? `<p style="margin:10px 0 0;font-family:${SANS};font-size:13px;line-height:1.5;color:${T.body};">Shipped ${shippedDate}</p>` : '')}
+    `, '20px 22px'), '0 40px 24px'));
+
+    if (trackingUrl) {
+      sections.push(ctaButton({ href: trackingUrl, label: 'Track your shipment &rarr;' }));
+    }
   }
 
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@400;500&display=swap');</style>
-</head>
-<body style="margin:0;padding:0;background-color:#fafaf9;font-family:Inter,Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;">
-<tr><td align="center" style="padding:40px 20px;">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e7e5e4;">
+  if (status === 'ready_for_pickup') {
+    sections.push(section(warmCard(`
+      <p style="margin:0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:${T.accent};">Pickup location</p>
+      <p style="margin:6px 0 0;font-family:${SERIF};font-size:22px;font-weight:300;letter-spacing:-0.01em;color:${T.ink};">Roma Flooring Designs</p>
+      <p style="margin:8px 0 0;font-family:${SANS};font-size:13px;line-height:1.6;color:${T.body};">1440 S. State College Blvd #6M, Anaheim, CA 92806<br>Mon&ndash;Fri 8am&ndash;5pm &middot; Sat 9am&ndash;2pm<br>Bring a valid photo ID</p>
+    `, '20px 22px'), '0 40px 24px'));
+  }
 
-  <!-- Header -->
-  <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto;width:140px;height:140px;" />
-  </td></tr>
+  sections.push(section(
+    detailList([{ label: 'Order number', value: esc(order_number) }]),
+    '0 40px 20px'
+  ));
 
-  <!-- Status Icon + Title -->
-  <tr><td style="padding:40px 40px 20px;text-align:center;">
-    <div style="display:inline-block;width:48px;height:48px;line-height:48px;border-radius:50%;background:${accentColor};color:#fff;font-size:20px;text-align:center;margin-bottom:16px;">
-      ${content.icon}
-    </div>
-    <h1 style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:600;color:#292524;">${content.title}</h1>
-  </td></tr>
+  sections.push(section(
+    `<p style="margin:0;font-family:${SANS};font-size:13px;line-height:1.6;color:${T.soft};text-align:center;">Questions? Reply to this email or call (714) 999-0009 &mdash; it reaches our showroom team in Anaheim.</p>`,
+    '0 40px 32px'
+  ));
 
-  <!-- Order Number -->
-  <tr><td style="padding:0 40px 24px;text-align:center;">
-    <p style="margin:0;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;">Order Number</p>
-    <p style="margin:4px 0 0;font-family:Inter,Arial,sans-serif;font-size:16px;font-weight:500;color:#292524;">${esc(order_number)}</p>
-  </td></tr>
-
-  <!-- Message -->
-  <tr><td style="padding:0 40px ${tracking_number && status === 'shipped' ? '24px' : '40px'};">
-    <p style="margin:0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;line-height:1.7;">
-      Hi ${esc(customer_name)},<br><br>
-      ${content.message}
-    </p>
-  </td></tr>
-
-  ${trackingSection}
-
-  ${status === 'ready_for_pickup' ? `
-  <!-- Pickup Location -->
-  <tr><td style="padding:0 40px 32px;">
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:20px;text-align:center;">
-      <p style="margin:0 0 4px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#166534;">Pickup Location</p>
-      <p style="margin:4px 0 0;font-family:Inter,Arial,sans-serif;font-size:14px;font-weight:500;color:#292524;">Roma Flooring Designs</p>
-      <p style="margin:4px 0 0;font-family:Inter,Arial,sans-serif;font-size:13px;color:#57534e;">1440 S. State College Blvd #6M, Anaheim, CA 92806</p>
-      <p style="margin:8px 0 0;font-family:Inter,Arial,sans-serif;font-size:13px;color:#57534e;">Mon\u2013Fri 8am\u20135pm, Sat 9am\u20132pm</p>
-    </div>
-  </td></tr>` : ''}
-
-  <!-- Contact -->
-  <tr><td style="padding:0 40px 40px;">
-    <p style="margin:0;padding:16px;background:#fafaf9;border:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:13px;color:#57534e;line-height:1.6;text-align:center;">
-      Questions? Contact us at <a href="mailto:Sales@romaflooringdesigns.com" style="color:#c9a668;">Sales@romaflooringdesigns.com</a>
-    </p>
-  </td></tr>
-
-  <!-- Footer -->
-  <tr><td style="padding:24px 40px;border-top:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:14px;letter-spacing:2px;color:#a8a29e;">ROMA FLOORING DESIGNS</p>
-    <p style="margin:8px 0 0;font-family:Inter,Arial,sans-serif;font-size:11px;color:#a8a29e;">Curated flooring &amp; surfaces for refined spaces</p>
-  </td></tr>
-
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
-}
-
-function esc(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return emailShell({
+    title: `Order ${order_number} — ${content.eyebrow}`,
+    preheader: `Order ${order_number}: ${content.eyebrow.toLowerCase()}.`,
+    content: sections.join('')
+  });
 }

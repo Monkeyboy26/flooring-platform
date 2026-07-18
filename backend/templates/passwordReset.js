@@ -1,36 +1,34 @@
-import { LOGO_URL } from './_config.js';
-function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+import { emailShell, heroSection, section, ctaButton, T, SERIF, SANS, MONO, esc } from './_shell.js';
 
 export function generatePasswordResetHTML(resetUrl) {
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#fafaf9;font-family:Inter,Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf9;padding:40px 0;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e7e5e4;">
-  <tr><td style="padding:40px 40px 20px;text-align:center;border-bottom:1px solid #e7e5e4;">
-    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto 12px;width:140px;height:140px;" />
-    <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#78716c;margin:0;">Account Security</p>
-  </td></tr>
-  <tr><td style="padding:40px;">
-    <div style="text-align:center;margin-bottom:24px;">
-      <span style="display:inline-block;width:48px;height:48px;background:#f5f5f4;border-radius:50%;line-height:48px;font-size:24px;">&#128274;</span>
-    </div>
-    <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;font-weight:400;color:#1c1917;margin:0 0 16px;text-align:center;">Reset Your Password</h2>
-    <p style="color:#57534e;line-height:1.6;margin:0 0 16px;">We received a request to reset your password. Click the button below to choose a new password:</p>
-    <div style="text-align:center;margin:32px 0;">
-      <a href="${esc(resetUrl)}" style="display:inline-block;background:#b8960c;color:#fff;text-decoration:none;padding:14px 40px;font-size:14px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;">Reset Password</a>
-    </div>
-    <p style="color:#78716c;font-size:13px;line-height:1.6;margin:0 0 16px;">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
-    <p style="color:#78716c;font-size:13px;line-height:1.6;margin:0;">If the button doesn't work, copy and paste this link into your browser:<br/>
-      <span style="color:#57534e;word-break:break-all;">${esc(resetUrl)}</span>
-    </p>
-  </td></tr>
-  <tr><td style="padding:20px 40px;background:#f5f5f4;border-top:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0 0 4px;font-size:12px;color:#78716c;">Questions? Contact us at Sales@romaflooringdesigns.com</p>
-    <p style="margin:0;font-size:12px;color:#78716c;">Roma Flooring Designs | 1440 S. State College Blvd #6M, Anaheim, CA 92806 | (714) 999-0009</p>
-  </td></tr>
-</table>
-</td></tr></table>
-</body></html>`;
+  const content = [
+    heroSection({
+      eyebrow: 'Password reset',
+      headline: 'Let’s get you <em style="font-style:italic;">back in</em>.',
+      body: 'Someone asked to reset the password on your Roma account. If that was you, set a new one below. The link is good for one hour, then it quietly expires.',
+      chip: '&#9200; Expires in 1 hour'
+    }),
+    ctaButton({
+      href: resetUrl,
+      label: 'Set a new password &rarr;',
+      note: `Button not working? Paste this into your browser:<br><span style="color:${T.ink};word-break:break-all;">${esc(resetUrl)}</span>`
+    }),
+    section(`
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${T.warm};"><tr>
+        <td width="28" valign="top" style="padding:18px 0 18px 22px;">
+          <span style="display:inline-block;width:28px;height:28px;border-radius:50%;background:${T.ink};color:${T.paper};font-family:${SERIF};font-size:14px;line-height:28px;text-align:center;">!</span>
+        </td>
+        <td valign="top" style="padding:18px 22px 18px 14px;">
+          <p style="margin:0;font-family:${SANS};font-size:12px;font-weight:500;letter-spacing:0.02em;color:${T.ink};">Didn&rsquo;t ask for this?</p>
+          <p style="margin:5px 0 0;font-family:${SANS};font-size:13px;line-height:1.55;color:${T.soft};">Ignore this email and your password stays exactly as it is &mdash; nothing changes until the link above is used. If something seems off, reply and our showroom team will take a look.</p>
+        </td>
+      </tr></table>`,
+      '4px 40px 32px')
+  ].join('');
+
+  return emailShell({
+    title: 'Reset Your Password — Roma Flooring Designs',
+    preheader: 'Set a new password for your Roma account — the link expires in one hour.',
+    content
+  });
 }

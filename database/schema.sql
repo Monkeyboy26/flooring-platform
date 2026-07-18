@@ -1457,7 +1457,9 @@ CREATE INDEX IF NOT EXISTS idx_estimate_items_estimate ON estimate_items(estimat
 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) NOT NULL UNIQUE,
-    subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    unsubscribe_token UUID DEFAULT uuid_generate_v4(),
+    unsubscribed_at TIMESTAMP
 );
 
 -- ==================== CRM: Deals & Tasks ====================
