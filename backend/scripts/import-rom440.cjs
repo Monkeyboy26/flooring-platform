@@ -232,7 +232,7 @@ function parseXlsx(filePath) {
       : [];
 
     map.set(vendorSku, {
-      productTitle: String(r['Product Title'] || '').trim(),
+      productTitle: stripCopyright(String(r['Product Title'] || '').trim()),
       finish: String(r['General - Finish'] || '').trim(),
       description: String(r['General - Product Description'] || '').trim(),
       mainImage: String(r['Digital Assets - Main Image'] || '').trim(),
@@ -256,6 +256,21 @@ function parseXlsx(filePath) {
 
 const FINISH_RE  = /\s*Finish\s*:\s*([^.]+?)\.?\s*$/im;
 const SPECIES_RE = /\s*Species\s*:\s*([^.]+?)\.?\s*$/im;
+// Vendor copyright notice embedded in descriptions/titles, e.g.
+// "...Open Space Corbel.&copy;Hardware Resources, Inc." — never part of the name
+const COPYRIGHT_RE = /[.\s]*(?:&copy;|©)\s*Hardware Resources,?\s*Inc\.?[.\s]*$/i;
+
+function stripCopyright(s) {
+  return (s || '').replace(COPYRIGHT_RE, '').trim();
+}
+
+// Global variant for descriptions, where the notice appears mid-text
+// ("...Corbel. &copy;Hardware Resources, Inc.Species:Alder.")
+const COPYRIGHT_ANYWHERE_RE = /\s*(?:&copy;|©)\s*Hardware Resources,?\s*Inc\.?/gi;
+
+function stripCopyrightAll(s) {
+  return (s || '').replace(COPYRIGHT_ANYWHERE_RE, ' ').replace(/\s{2,}/g, ' ').trim();
+}
 
 function stripMarkers(desc) {
   if (!desc) return '';
@@ -265,7 +280,7 @@ function stripMarkers(desc) {
     s = s.replace(FINISH_RE, '').replace(SPECIES_RE, '').trim();
     if (s === before) break;
   }
-  return s
+  return stripCopyright(s)
     .replace(/\*+NRB\*+/gi, '')
     .replace(/\s+/g, ' ')
     .replace(/[,;]\s*$/, '')
@@ -408,7 +423,7 @@ async function main() {
         collection: row.collection || '',
         name,
         normDesc,
-        descriptionLong: (xlsx?.description || row.description || '').trim(),
+        descriptionLong: stripCopyrightAll((xlsx?.description || row.description || '').trim()),
         skuRows: [],
         xlsxCovered: !!xlsx,
       });

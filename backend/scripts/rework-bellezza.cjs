@@ -635,22 +635,12 @@ async function main() {
   console.log(`  Deleted ${deletedAccessories.rowCount} sku_accessories rows\n`);
 
   // ══════════════════════════════════════════════════════════════════════
-  // STEP 2: UPDATE COLLECTION GROUPING
+  // STEP 2: COLLECTION GROUPING — SKIPPED
+  // Collections are now managed by import-bellezza.js (deriveCollection)
+  // and migration 019. Do not overwrite with thematic groupings.
   // ══════════════════════════════════════════════════════════════════════
-  console.log('━━━ Step 2: Updating collection grouping ━━━\n');
-  let collectionsUpdated = 0;
-
-  for (const prod of prodRows.rows) {
-    const newCollection = PRODUCT_TO_COLLECTION[prod.name];
-    if (newCollection && newCollection !== prod.collection) {
-      await pool.query('UPDATE products SET collection = $1 WHERE id = $2', [newCollection, prod.id]);
-      collectionsUpdated++;
-      console.log(`  ${prod.name}: "${prod.collection || '(none)'}" → "${newCollection}"`);
-    } else if (!newCollection) {
-      console.log(`  [UNMAPPED] ${prod.name} — keeping "${prod.collection || '(none)'}"`);
-    }
-  }
-  console.log(`\n  Collections updated: ${collectionsUpdated}\n`);
+  console.log('━━━ Step 2: Skipped (collections managed by import script) ━━━\n');
+  const collectionsUpdated = 0;
 
   // ══════════════════════════════════════════════════════════════════════
   // STEP 3: SCRAPE IMAGES & ASSIGN PER-SKU
@@ -718,14 +708,9 @@ async function main() {
       continue;
     }
 
-    // ── Helper: sort product photos first ─────────────────────────────
-    const sortImages = (imgs) => [...imgs].sort((a, b) => {
-      if (a.isProduct && !b.isProduct) return -1;
-      if (!a.isProduct && b.isProduct) return 1;
-      if (!a.isLifestyle && b.isLifestyle) return -1;
-      if (a.isLifestyle && !b.isLifestyle) return 1;
-      return 0;
-    });
+    // ── Helper: preserve slider order (matches Bellezza website) ──────
+    // Images are already in slider order from scraping; no reordering needed.
+    const sortImages = (imgs) => [...imgs];
 
     // ── Helper: save images for a single SKU ──────────────────────────
     const saveSkuImages = async (skuId, images, maxImages = 6) => {

@@ -689,6 +689,46 @@ const PRODUCTS = [
 ];
 
 
+// ==================== Collection Mapping ====================
+
+const COLLECTION_MAP = {
+  // ── Multi-product families ──
+  'Calacatta Gold': 'Calacatta', 'Calacatta Gloss': 'Calacatta',
+  'Calacatta Hex Gloss': 'Calacatta', 'Calacatta Natural': 'Calacatta',
+  'Calacatta Brick Gloss': 'Calacatta',
+  'Austral Blanco': 'Austral', 'Austral Essence Blanco': 'Austral',
+  'Granby Beige': 'Granby', 'Granby Ivory': 'Granby',
+  'Hex XL Coimbra': 'Hex XL', 'Hex XL Fosco': 'Hex XL', 'Hex XL Inverno Grey': 'Hex XL',
+  'Penny Calacatta Gold': 'Penny Round', 'Penny Fosco': 'Penny Round', 'Penny Grafito': 'Penny Round',
+  'NatureGlass Hex': 'NatureGlass', 'Silver Matte Hex': 'NatureGlass', 'Statuario Matte Hex': 'NatureGlass',
+  'Antwerp': 'Recycled Glass', 'Camden': 'Recycled Glass', 'Grande': 'Recycled Glass',
+  'Hudson': 'Recycled Glass', 'Nord': 'Recycled Glass', 'Park': 'Recycled Glass',
+  'Acoustic MDF Sound Absorption Panel': 'Wall Panels',
+  'Exterior Composite Wall Panel': 'Wall Panels',
+  'BPC Interior Panel': 'Wall Panels',
+  'Metallic Dark Grey Mosaic': 'Metal Mosaic', 'Stainless Gold Hexagon Mosaic': 'Metal Mosaic',
+  // ── Standalone name cleanup (strip color from collection name) ──
+  'Anima Antracita': 'Anima', 'Arena Chiaro': 'Arena', 'Armani White': 'Armani',
+  'Bolonia Marengo': 'Bolonia', 'Connor Beige': 'Connor',
+  'Elegance Marble Pearl': 'Elegance Marble', 'Enigma White': 'Enigma',
+  'Larin Marfil': 'Larin', 'Laurent Black': 'Laurent',
+  'MAPEI Grout Medium Grey': 'MAPEI Grout', 'Magna White': 'Magna',
+  'Markina Gold': 'Markina', 'Marmo Marfil': 'Marmo',
+  'Milano Crema': 'Milano', 'Modern Concrete Ivory': 'Modern Concrete',
+  'Montblanc Gold': 'Montblanc', 'Naples White': 'Naples',
+  'Scanda White': 'Scanda', 'Sekos White': 'Sekos',
+  'Sun Blanco': 'Sun', 'Unique Ceppo Bone': 'Unique Ceppo',
+  'Westmount Beige': 'Westmount', 'LN520 Stacked Linear': 'LN520',
+  'Insignia White': 'Insignia', 'Kube Blanco': 'Kube',
+  'Kyoto White': 'Kyoto', 'Odissey Saphire': 'Odissey',
+  'Dorset Hexagon': 'Dorset', 'Nero Marquina Matte Hexagon': 'Nero Marquina',
+};
+
+function deriveCollection(prod) {
+  return COLLECTION_MAP[prod.name] || prod.name;
+}
+
+
 // ==================== Main Import ====================
 
 async function main() {
@@ -709,30 +749,34 @@ async function main() {
   }
 
   // Look up category IDs
-  const catRes = await pool.query("SELECT id, slug FROM categories WHERE slug IN ('porcelain-tile', 'ceramic-tile', 'glass-mosaic', 'trim-accessories')");
+  const catRes = await pool.query("SELECT id, slug FROM categories WHERE slug IN ('porcelain-tile', 'ceramic-tile', 'mosaic-tile', 'trim-accessories', 'wall-panels')");
   const catMap = {};
   for (const row of catRes.rows) catMap[row.slug] = row.id;
 
   const CAT_PORCELAIN = catMap['porcelain-tile'] || null;
   const CAT_CERAMIC = catMap['ceramic-tile'] || null;
-  const CAT_GLASS = catMap['glass-mosaic'] || null;
+  const CAT_MOSAIC = catMap['mosaic-tile'] || null;
   const CAT_TRIM = catMap['trim-accessories'] || null;
+  const CAT_PANELS = catMap['wall-panels'] || null;
 
   let productsCreated = 0, productsUpdated = 0;
   let skusCreated = 0, skusUpdated = 0;
 
   for (const prod of PRODUCTS) {
     // Determine category
+    const allSheets = prod.skus.every(s => s[8] === 'SH');
     let catId = CAT_PORCELAIN;
     if (prod.material === 'Ceramic') catId = CAT_CERAMIC || CAT_PORCELAIN;
-    if (prod.material === 'Glass') catId = CAT_GLASS || CAT_PORCELAIN;
-    if (prod.material === 'Metal') catId = CAT_TRIM || null;
-    if (prod.material === 'MDF' || prod.material === 'WPC' || prod.material === 'BPC') catId = null;
+    if (prod.material === 'Glass') catId = CAT_MOSAIC || CAT_PORCELAIN;
+    if (prod.material === 'Metal') catId = allSheets ? (CAT_MOSAIC || null) : (CAT_TRIM || null);
+    if (prod.material === 'MDF' || prod.material === 'WPC' || prod.material === 'BPC') catId = CAT_PANELS || null;
     if (prod.material === 'Grout') catId = CAT_TRIM || null;
+    // Porcelain/Ceramic mosaic-only products (all SKUs sold by sheet)
+    if ((prod.material === 'Porcelain' || prod.material === 'Ceramic') && allSheets) catId = CAT_MOSAIC || catId;
 
     const prodRec = await upsertProduct(vendorId, {
       name: prod.name,
-      collection: prod.name,
+      collection: deriveCollection(prod),
       category_id: catId,
       description_short: prod.desc || null,
     });

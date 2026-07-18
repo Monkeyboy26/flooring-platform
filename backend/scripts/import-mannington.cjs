@@ -744,8 +744,11 @@ function formatSize(width, thickness) {
 }
 
 function getRetail(mapKey, cost) {
-  if (mapKey && MAP[mapKey]) return MAP[mapKey];
-  return cost * 2.0;
+  // MAP is a minimum advertised price (a floor), not the selling price —
+  // using it as retail directly gave 12-49% margins on 333 SKUs (fixed 2026-07-16).
+  const keystone = cost * 2.0;
+  if (mapKey && MAP[mapKey]) return Math.max(keystone, MAP[mapKey]);
+  return keystone;
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -789,7 +792,7 @@ async function processFlooring(client, vendorId, collections, accTypes, defaultA
 
       // Pricing
       const retail = getRetail(col.map, cost);
-      const mapPrice = (col.map && MAP[col.map]) ? retail : null;
+      const mapPrice = (col.map && MAP[col.map]) ? MAP[col.map] : null;
       await client.query(`
         INSERT INTO pricing (sku_id, cost, retail_price, map_price, price_basis)
         VALUES ($1, $2, $3, $4, 'sqft')

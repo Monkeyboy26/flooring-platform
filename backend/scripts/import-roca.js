@@ -94,12 +94,13 @@ function parseSheet(ws, sheetType) {
       const col4 = String(row[4] || '').trim();
       const col5 = String(row[5] || '').trim();
 
-      // Collection header: "ABACO    - GLAZED PORCELAIN"
-      if (col2.includes(' - ') && col2 !== 'SKU' && !col2.startsWith('*')) {
-        const dashIdx = col2.indexOf(' - ');
+      // Collection header: "ABACO    - GLAZED PORCELAIN" or "AVENUE-GLAZED PORCELAIN"
+      // Left side must be letters/spaces/punctuation only (no digits) to avoid matching SKU codes
+      const mainHeaderMatch = col2 !== 'SKU' && !col2.startsWith('*') && col2.match(/^([A-Za-z][A-Za-z &'.+]+?)\s*-\s*(.+)$/);
+      if (mainHeaderMatch && !/\d/.test(mainHeaderMatch[1]) && !/\d/.test(mainHeaderMatch[2])) {
         collection = {
-          name: col2.substring(0, dashIdx).replace(/\s+/g, ' ').trim(),
-          material: col2.substring(dashIdx + 3).replace(/\s+/g, ' ').trim(),
+          name: mainHeaderMatch[1].replace(/\s+/g, ' ').trim(),
+          material: mainHeaderMatch[2].replace(/\s+/g, ' ').trim(),
         };
         currentSize = ''; currentPrice = null; currentType = '';
         currentPcsBox = null; currentSfBox = null; currentBxsPallet = null;
@@ -139,11 +140,11 @@ function parseSheet(ws, sheetType) {
       const col3 = String(row[3] || '').trim();
       const col4 = String(row[4] || '').trim();
 
-      if (col1.includes(' - ') && col1 !== 'SKU') {
-        const dashIdx = col1.indexOf(' - ');
+      const soHeaderMatch = col1 !== 'SKU' && col1.match(/^([A-Za-z][A-Za-z &'.+]+?)\s*-\s*(.+)$/);
+      if (soHeaderMatch && !/\d/.test(soHeaderMatch[1]) && !/\d/.test(soHeaderMatch[2])) {
         collection = {
-          name: col1.substring(0, dashIdx).replace(/\s+/g, ' ').trim(),
-          material: col1.substring(dashIdx + 3).replace(/\s+/g, ' ').trim(),
+          name: soHeaderMatch[1].replace(/\s+/g, ' ').trim(),
+          material: soHeaderMatch[2].replace(/\s+/g, ' ').trim(),
         };
         currentSize = ''; currentPrice = null; currentType = '';
         currentPcsBox = null; currentSfBox = null; currentBxsPallet = null;

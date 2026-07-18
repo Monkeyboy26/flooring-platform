@@ -57,7 +57,6 @@ const BRAND_MAP = {
   'stanton': 'triwest-stanton',
   'bravada': 'triwest-bravada',
   'mirage': 'triwest-mirage',
-  'elysium': 'triwest-elysium',
   'paradigm': 'triwest-paradigm',
   'kenmark': 'triwest-kenmark',
   'jmcork': 'triwest-jmcork',

@@ -219,24 +219,11 @@ async function main() {
 
   // ─── STEP 1: Fix Collection Grouping ────────────────────────────────────
   console.log('--- Step 1: Updating product collections ---\n');
-  let collectionsUpdated = 0;
-
-  const allProducts = await pool.query(
-    'SELECT id, name, collection FROM products WHERE vendor_id = $1 AND status = $2',
-    [vendorId, 'active']
-  );
-
-  for (const prod of allProducts.rows) {
-    const newCollection = PRODUCT_TO_COLLECTION[prod.name];
-    if (newCollection && newCollection !== prod.collection) {
-      await pool.query('UPDATE products SET collection = $1 WHERE id = $2', [newCollection, prod.id]);
-      collectionsUpdated++;
-      console.log(`  ${prod.name}: "${prod.collection || '(none)'}" → "${newCollection}"`);
-    } else if (!newCollection) {
-      console.log(`  [UNMAPPED] ${prod.name} — keeping "${prod.collection || '(none)'}"`);
-    }
-  }
-  console.log(`\n  Collections updated: ${collectionsUpdated}\n`);
+  // Collection grouping SKIPPED — collections are now managed by
+  // import-bellezza.js (deriveCollection) and migration 019.
+  // Do not overwrite with thematic groupings.
+  console.log('  Collections: skipped (managed by import script)\n');
+  const collectionsUpdated = 0;
 
   // ─── STEP 2: Fix Per-SKU Image Assignment ───────────────────────────────
   console.log('--- Step 2: Fixing per-SKU image assignment ---\n');
