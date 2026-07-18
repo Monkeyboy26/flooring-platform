@@ -7892,81 +7892,102 @@
         border: "0.5px solid rgba(176,138,84,0.35)",
         padding: "0.875rem 1.375rem",
         marginBottom: "1.5rem",
+        borderRadius: 6,
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
         gap: "1rem",
         flexWrap: "wrap"
-      } }, /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "var(--font-heading)", fontSize: "0.9375rem", color: "var(--stone-800)" } }, /* @__PURE__ */ React.createElement("em", { style: { color: "var(--gold)" } }, wlSelected.length, " selected"), " of ", wishlistSkus.length, " saved"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("button", { className: "acct-btn acct-btn--outline", onClick: () => setWlSelected([]) }, "Clear"), /* @__PURE__ */ React.createElement("button", { className: "acct-btn", onClick: () => orderSamples(selectedSkus) }, "Order samples (", wlSelected.length, ") \u2192"))), wishlistSkus.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { color: "var(--stone-500)", fontSize: "0.875rem" } }, "Loading saved materials\u2026") : /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "1.125rem" } }, wishlistSkus.map((sku) => {
+      } }, /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "var(--font-heading)", fontSize: "0.9375rem", color: "var(--stone-800)" } }, /* @__PURE__ */ React.createElement("em", { style: { color: "var(--gold)" } }, wlSelected.length, " selected"), " of ", wishlistSkus.length, " saved"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("button", { className: "acct-btn acct-btn--outline", onClick: () => setWlSelected([]) }, "Clear"), /* @__PURE__ */ React.createElement("button", { className: "acct-btn", onClick: () => orderSamples(selectedSkus) }, "Order samples (", wlSelected.length, ") \u2192"))), wishlistSkus.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { color: "var(--stone-500)", fontSize: "0.875rem" } }, "Loading saved materials\u2026") : /* @__PURE__ */ React.createElement("div", { className: "acct-wishlist-grid", style: { gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: "1rem" } }, wishlistSkus.map((sku) => {
         const sel = wlSelected.includes(sku.sku_id);
         const price = skuListPrice(sku);
         const meta = coverageMeta(sku);
-        return /* @__PURE__ */ React.createElement("div", { key: sku.sku_id, style: {
-          background: "#fff",
-          border: sel ? "0.5px solid var(--gold)" : "0.5px solid rgba(28,25,23,0.13)",
-          borderLeft: sel ? "3px solid var(--gold)" : "0.5px solid rgba(28,25,23,0.13)",
-          display: "grid",
-          gridTemplateColumns: "150px 1fr"
-        } }, /* @__PURE__ */ React.createElement(
+        const smallBtn = { padding: "0.5rem 0.75rem", fontSize: "0.625rem", flex: 1 };
+        return /* @__PURE__ */ React.createElement(
           "div",
           {
-            style: { position: "relative", background: "rgba(28,25,23,0.05)", overflow: "hidden", cursor: "pointer", minHeight: 170 },
-            onClick: () => onSkuClick(sku.sku_id, sku.product_name || sku.collection)
+            key: sku.sku_id,
+            className: "acct-wishlist-card",
+            style: { cursor: "default", ...sel ? { borderColor: "var(--gold)", boxShadow: "0 0 0 1px var(--gold)" } : {} }
           },
-          sku.primary_image && /* @__PURE__ */ React.createElement(
-            "img",
-            {
-              onLoad: handleProductImgLoad,
-              src: optimizeImg(sku.primary_image, 400),
-              alt: sku.product_name || "",
-              loading: "lazy",
-              style: { width: "100%", height: "100%", objectFit: "cover", display: "block" }
-            }
-          ),
           /* @__PURE__ */ React.createElement(
-            "button",
+            "div",
             {
-              "aria-label": sel ? "Deselect" : "Select",
-              onClick: (e) => {
-                e.stopPropagation();
-                toggleSel(sku.sku_id);
-              },
-              style: {
-                position: "absolute",
-                top: 10,
-                left: 10,
-                width: 24,
-                height: 24,
-                borderRadius: 4,
-                background: sel ? "var(--gold)" : "rgba(255,255,255,0.9)",
-                border: sel ? "1.5px solid var(--gold)" : "1.5px solid rgba(28,25,23,0.4)",
-                color: "#fff",
-                fontSize: "0.8125rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0
-              }
+              style: { position: "relative", overflow: "hidden", cursor: "pointer" },
+              onClick: () => onSkuClick(sku.sku_id, sku.product_name || sku.collection)
             },
-            sel ? "\u2713" : ""
-          )
-        ), /* @__PURE__ */ React.createElement("div", { style: { padding: "1rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("div", null, sku.collection && /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-sub" }, sku.collection), /* @__PURE__ */ React.createElement(
-          "div",
-          {
-            style: { fontFamily: "var(--font-heading)", fontSize: "1.1875rem", fontWeight: 400, color: "var(--stone-800)", letterSpacing: "-0.01em", lineHeight: 1.25, cursor: "pointer" },
-            onClick: () => onSkuClick(sku.sku_id, sku.product_name || sku.collection)
-          },
-          fullProductName(sku)
-        ), price != null && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.3125rem", fontSize: "0.8125rem", color: "var(--stone-600)" } }, /* @__PURE__ */ React.createElement("strong", { style: { color: "var(--stone-800)" } }, "$", displayPrice(sku, price).toFixed(2), priceSuffix(sku)), meta && /* @__PURE__ */ React.createElement("span", null, " \xB7 ", meta))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement(
-          "button",
-          {
-            onClick: () => toggleWishlist2(sku.sku_id),
-            style: { background: "none", border: "none", padding: 0, fontSize: "0.6875rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--warm-muted)", cursor: "pointer" }
-          },
-          "Remove"
-        ), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "0.375rem" } }, /* @__PURE__ */ React.createElement("button", { className: "acct-btn acct-btn--outline", onClick: () => orderSamples([sku]) }, "Sample"), /* @__PURE__ */ React.createElement("button", { className: "acct-btn", onClick: () => onSkuClick(sku.sku_id, sku.product_name || sku.collection) }, "View \u2192")))));
+            sku.primary_image && /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(sku.primary_image, 400), alt: sku.product_name || "", loading: "lazy" }),
+            /* @__PURE__ */ React.createElement(
+              "button",
+              {
+                "aria-label": sel ? "Deselect" : "Select",
+                onClick: (e) => {
+                  e.stopPropagation();
+                  toggleSel(sku.sku_id);
+                },
+                style: {
+                  position: "absolute",
+                  top: 10,
+                  left: 10,
+                  width: 24,
+                  height: 24,
+                  borderRadius: 5,
+                  background: sel ? "var(--gold)" : "rgba(255,255,255,0.92)",
+                  border: sel ? "1.5px solid var(--gold)" : "1.5px solid rgba(28,25,23,0.35)",
+                  color: "#fff",
+                  fontSize: "0.8125rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 0,
+                  boxShadow: "0 1px 4px rgba(28,25,23,0.15)"
+                }
+              },
+              sel ? "\u2713" : ""
+            ),
+            /* @__PURE__ */ React.createElement(
+              "button",
+              {
+                "aria-label": "Remove from wishlist",
+                title: "Remove from wishlist",
+                onClick: (e) => {
+                  e.stopPropagation();
+                  toggleWishlist2(sku.sku_id);
+                },
+                style: {
+                  position: "absolute",
+                  top: 10,
+                  right: 10,
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.92)",
+                  border: "none",
+                  color: "var(--stone-600)",
+                  fontSize: "0.875rem",
+                  lineHeight: 1,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 0,
+                  boxShadow: "0 1px 4px rgba(28,25,23,0.15)"
+                }
+              },
+              "\xD7"
+            )
+          ),
+          /* @__PURE__ */ React.createElement("div", { className: "acct-wishlist-card-body", style: { gap: "0.375rem" } }, sku.collection && /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-sub" }, sku.collection), /* @__PURE__ */ React.createElement(
+            "div",
+            {
+              onClick: () => onSkuClick(sku.sku_id, sku.product_name || sku.collection),
+              style: { fontFamily: "var(--font-heading)", fontSize: "1.0625rem", fontWeight: 400, color: "var(--stone-800)", letterSpacing: "-0.01em", lineHeight: 1.3, cursor: "pointer" }
+            },
+            fullProductName(sku)
+          ), price != null && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--stone-600)" } }, /* @__PURE__ */ React.createElement("strong", { style: { color: "var(--stone-800)", fontWeight: 500 } }, "$", displayPrice(sku, price).toFixed(2), priceSuffix(sku)), meta && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "0.75rem" } }, " \xB7 ", meta)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "0.375rem", marginTop: "0.5rem" } }, /* @__PURE__ */ React.createElement("button", { className: "acct-btn acct-btn--outline", style: smallBtn, onClick: () => orderSamples([sku]) }, "Sample"), /* @__PURE__ */ React.createElement("button", { className: "acct-btn", style: smallBtn, onClick: () => onSkuClick(sku.sku_id, sku.product_name || sku.collection) }, "View \u2192")))
+        );
       }))));
     })(), section === "payment" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-profile-section" }, /* @__PURE__ */ React.createElement("h3", { className: "acct-profile-title" }, "Payment methods"), /* @__PURE__ */ React.createElement(PaymentMethodsSection, { customerToken, customer, onCardsChange: setCards }))))));
   }
