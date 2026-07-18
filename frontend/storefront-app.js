@@ -1038,6 +1038,14 @@
         "Call for availability"
       );
     }
+    let inStockLabel = "In Stock";
+    if (status === "in_stock" && qtyOnHand != null && qtyOnHand > 0) {
+      if (sellBy === "unit") {
+        inStockLabel = "In Stock \u2014 " + Number(qtyOnHand).toLocaleString() + " available";
+      } else if (qtyOnHandSqft && parseFloat(qtyOnHandSqft) > 0) {
+        inStockLabel = "In Stock \u2014 " + Math.round(qtyOnHandSqft).toLocaleString() + " sqft available";
+      }
+    }
     let lowStockLabel = "Low Stock \u2014 Order Soon";
     if (status === "low_stock" && qtyOnHand != null && qtyOnHand > 0) {
       if (sellBy === "unit") {
@@ -1051,7 +1059,7 @@
       }
     }
     const map = {
-      in_stock: { label: "In Stock", cls: "in-stock" },
+      in_stock: { label: inStockLabel, cls: "in-stock" },
       low_stock: { label: lowStockLabel, cls: "low-stock" },
       out_of_stock: { label: "Out of Stock", cls: "out-of-stock" },
       discontinued: { label: "Discontinued", cls: "discontinued" }
