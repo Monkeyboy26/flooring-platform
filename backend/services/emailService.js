@@ -120,7 +120,7 @@ export async function sendQuoteSent(quoteData) {
     return { sent: false };
   }
   try {
-    const html = generateQuoteSentHTML(quoteData);
+    const html = generateQuoteSentHTML(quoteData, { tracking: true });
     await deliver({
       from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
       to: quoteData.customer_email,

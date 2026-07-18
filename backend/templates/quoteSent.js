@@ -1,12 +1,19 @@
 import { LOGO_URL } from './_config.js';
 
-export function generateQuoteSentHTML(quoteData) {
+// opts.tracking adds an open-tracking pixel — only set when actually emailing,
+// never for the rep-facing preview (the preview iframe would log a fake open).
+export function generateQuoteSentHTML(quoteData, opts = {}) {
   const {
-    quote_number, customer_name, customer_email,
+    id, quote_number, customer_name, customer_email,
     subtotal, shipping, total,
     rep_first_name, rep_last_name, rep_email,
     items = []
   } = quoteData;
+
+  const siteUrl = process.env.SITE_URL || 'http://localhost:3000';
+  const trackingPixel = (opts.tracking && id)
+    ? `<img src="${siteUrl}/api/quotes/${id}/open.gif" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`
+    : '';
 
   const itemRows = items.map(item => {
     const name = esc(item.product_name || 'Product');
@@ -123,6 +130,7 @@ export function generateQuoteSentHTML(quoteData) {
 </table>
 </td></tr>
 </table>
+${trackingPixel}
 </body>
 </html>`;
 }

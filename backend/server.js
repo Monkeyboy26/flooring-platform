@@ -4429,6 +4429,19 @@ async function getNextQuoteNumber() {
   return 'RDQ-' + result.rows[0].nextval;
 }
 
+// Append a lifecycle/engagement event to a quote's thread. Never throws —
+// event logging must not break the operation it decorates.
+async function logQuoteEvent(db, quoteId, eventType, { body = null, meta = {}, actor = 'system', actorName = null } = {}) {
+  try {
+    await db.query(
+      'INSERT INTO quote_events (quote_id, event_type, body, meta, actor, actor_name) VALUES ($1, $2, $3, $4, $5, $6)',
+      [quoteId, eventType, body, JSON.stringify(meta), actor, actorName]
+    );
+  } catch (err) {
+    console.error('[QuoteEvent] log failed (non-fatal):', err.message);
+  }
+}
+
 async function getNextEstimateNumber() {
   const result = await pool.query("SELECT nextval('estimate_number_seq')");
   return 'RDE-' + result.rows[0].nextval;
@@ -11245,6 +11258,14 @@ app.get('/api/trade/quotes/:id', tradeAuth, async (req, res) => {
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE qi.quote_id = $1 ORDER BY qi.id
     `, [req.params.id]);
+
+    await logQuoteEvent(pool, req.params.id, 'viewed', {
+      body: 'Viewed in trade portal',
+      meta: { source: 'trade_portal', viewer_key: 'trade-' + req.tradeCustomer.id },
+      actor: 'customer',
+      actorName: req.tradeCustomer.contact_name || req.tradeCustomer.company_name || quote.rows[0].customer_name
+    });
+
     res.json({ quote: quote.rows[0], items: items.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -11289,6 +11310,20 @@ app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
     }
 
     await client.query("UPDATE quotes SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [order.id, q.id]);
+
+    const tradeActorName = req.tradeCustomer.contact_name || req.tradeCustomer.company_name || q.customer_name;
+    await logQuoteEvent(client, q.id, 'accepted', {
+      body: 'Accepted in trade portal',
+      meta: { source: 'trade_portal' },
+      actor: 'customer',
+      actorName: tradeActorName
+    });
+    await logQuoteEvent(client, q.id, 'converted', {
+      body: 'Converted to order ' + orderNumber + ' · $' + parseFloat(q.total || 0).toFixed(2),
+      meta: { order_id: order.id, order_number: orderNumber, source: 'trade_portal' },
+      actor: 'customer',
+      actorName: tradeActorName
+    });
     await client.query('COMMIT');
 
     res.json({ order });
@@ -13642,6 +13677,14 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'Shipping address is required for delivery orders' });
     }
 
+    // Optional rep-entered freight estimate (delivery orders only) and notes
+    const shippingCost = !isPickup && req.body.shipping_cost != null && !isNaN(parseFloat(req.body.shipping_cost))
+      ? Math.max(0, parseFloat(req.body.shipping_cost)) : 0;
+    const notesParts = [];
+    if (req.body.notes) notesParts.push(String(req.body.notes).slice(0, 2000));
+    if (req.body.delivery_notes) notesParts.push('Delivery: ' + String(req.body.delivery_notes).slice(0, 1000));
+    const orderNotes = notesParts.length ? notesParts.join('\n') : null;
+
     await client.query('BEGIN');
 
     // Auto-create customer
@@ -13791,8 +13834,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
         subtotal, shipping, total, status, sales_rep_id, payment_method, delivery_method,
         stripe_payment_intent_id, promo_code_id, promo_code, discount_amount,
-        amount_paid, customer_id, tax_rate, tax_amount)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+        amount_paid, customer_id, tax_rate, tax_amount, notes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $24, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $25)
       RETURNING *
     `, [orderNumber, customer_email.toLowerCase().trim(), customer_name, phone || null,
         isPickup ? null : shipping_address.line1, isPickup ? null : (shipping_address.line2 || null),
@@ -13800,7 +13843,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         subtotal.toFixed(2), total.toFixed(2), orderStatus, req.rep.id, payment_method,
         isPickup ? 'pickup' : 'shipping',
         stripePaymentIntentId, promoCodeId, promoCodeStr, discountAmount.toFixed(2),
-        paidInStore ? total.toFixed(2) : '0.00', cust.id, taxRate, taxAmount.toFixed(2)]);
+        paidInStore ? total.toFixed(2) : '0.00', cust.id, taxRate, taxAmount.toFixed(2),
+        shippingCost.toFixed(2), orderNotes]);
 
     const order = orderResult.rows[0];
 
@@ -15118,7 +15162,7 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
         s.id as sku_id, s.variant_name, s.variant_type, s.accessory_label,
         s.vendor_sku, s.internal_sku, s.sell_by,
         (SELECT COUNT(*)::int FROM skus s2 WHERE s2.product_id = p.id AND s2.status = 'active' AND s2.is_sample = false) as sku_count,
-        pr.retail_price as price, pr.cost as cost, pr.map_price,
+        pr.retail_price as price, pr.cost as cost, pr.map_price, pr.price_basis,
         pk.sqft_per_box, pk.weight_per_box_lbs as weight_per_box, pk.pieces_per_box,
         (SELECT COUNT(*)::int FROM sku_accessories sacc
          JOIN skus acc ON acc.id = sacc.accessory_sku_id AND acc.status = 'active'
@@ -16793,7 +16837,9 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
     const fullQuote = await pool.query('SELECT * FROM quotes WHERE id = $1', [quote.id]);
     const quoteItems = await pool.query(`
       SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
-        pr.cost as vendor_cost
+        pr.cost as vendor_cost,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
@@ -16824,7 +16870,9 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
-        pr.cost as vendor_cost
+        pr.cost as vendor_cost,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
@@ -17103,6 +17151,15 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
     const emailResult = await sendQuoteSent(emailData);
     const emailed = emailResult && emailResult.sent;
 
+    const wasRevision = q.status === 'sent';
+    await logQuoteEvent(pool, id, 'sent', {
+      body: (wasRevision ? 'Sent revision to ' : 'Sent quote to ') + q.customer_email +
+        ' · $' + parseFloat(q.total || 0).toFixed(2) + (emailed ? '' : ' (email not configured)'),
+      meta: { emailed, revision: wasRevision, total: q.total },
+      actor: 'rep',
+      actorName: req.rep.first_name + ' ' + req.rep.last_name
+    });
+
     // Auto-create deal in "quoted" stage if none exists for this quote
     try {
       const existingDeal = await pool.query('SELECT id FROM deals WHERE linked_quote_id = $1', [id]);
@@ -17336,6 +17393,13 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
       [order.id, payment_method, id]
     );
 
+    await logQuoteEvent(client, id, 'converted', {
+      body: 'Converted to order ' + orderNumber + ' · $' + totalNum.toFixed(2) + ' · paid by ' + payment_method,
+      meta: { order_id: order.id, order_number: orderNumber, payment_method },
+      actor: 'rep',
+      actorName: req.rep.first_name + ' ' + req.rep.last_name
+    });
+
     // Move linked deal to "won" stage + link the new order
     try {
       const dealResult = await client.query('SELECT id FROM deals WHERE linked_quote_id = $1 AND rep_id = $2', [id, req.rep.id]);
@@ -17364,6 +17428,205 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
+  }
+});
+
+// Email open-tracking pixel — public (no auth): the UUID in the URL is the secret.
+// Referenced from the quote email; every load logs a 'viewed' event.
+const TRACKING_PIXEL_GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+app.get('/api/quotes/:id/open.gif', async (req, res) => {
+  try {
+    const quote = await pool.query('SELECT id, status, customer_name FROM quotes WHERE id = $1', [req.params.id]);
+    if (quote.rows.length && quote.rows[0].status !== 'draft') {
+      const ua = req.headers['user-agent'] || '';
+      const viewerKey = crypto.createHash('sha1').update((req.ip || '') + '|' + ua).digest('hex').substring(0, 12);
+      await logQuoteEvent(pool, req.params.id, 'viewed', {
+        body: 'Opened the quote email',
+        meta: { source: 'email', viewer_key: viewerKey, user_agent: ua.substring(0, 200) },
+        actor: 'customer',
+        actorName: quote.rows[0].customer_name
+      });
+    }
+  } catch (err) {
+    console.error('[QuoteEvent] pixel error (non-fatal):', err.message);
+  }
+  res.set({ 'Content-Type': 'image/gif', 'Cache-Control': 'no-store, no-cache, must-revalidate', 'Pragma': 'no-cache' });
+  res.send(TRACKING_PIXEL_GIF);
+});
+
+// Thread + engagement for the quote workspace
+app.get('/api/rep/quotes/:id/events', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const events = await pool.query(
+      'SELECT * FROM quote_events WHERE quote_id = $1 ORDER BY created_at ASC, id ASC', [id]
+    );
+    const views = events.rows.filter(e => e.event_type === 'viewed');
+    const replies = events.rows.filter(e => e.event_type === 'reply');
+    const viewerKeys = new Set(views.map(v => (v.meta && v.meta.viewer_key) || 'unknown'));
+    res.json({
+      events: events.rows,
+      engagement: {
+        opens: views.length,
+        viewers: viewerKeys.size,
+        replies: replies.length,
+        last_viewed_at: views.length ? views[views.length - 1].created_at : null,
+        last_reply_at: replies.length ? replies[replies.length - 1].created_at : null
+      }
+    });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Log a thread entry: an internal note, or a customer reply the rep is recording
+app.post('/api/rep/quotes/:id/events', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { event_type, body } = req.body;
+    if (!['note', 'reply'].includes(event_type)) {
+      return res.status(400).json({ error: 'event_type must be note or reply' });
+    }
+    if (!body || !body.trim()) return res.status(400).json({ error: 'body is required' });
+
+    const quote = await pool.query('SELECT * FROM quotes WHERE id = $1', [id]);
+    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    const q = quote.rows[0];
+
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    const result = await pool.query(
+      'INSERT INTO quote_events (quote_id, event_type, body, meta, actor, actor_name) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [id, event_type, body.trim(), JSON.stringify(event_type === 'reply' ? { logged_by: repName } : {}),
+       event_type === 'reply' ? 'customer' : 'rep',
+       event_type === 'reply' ? q.customer_name : repName]
+    );
+    res.json({ event: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Manual lifecycle moves: mark accepted (verbal yes) or mark lost
+app.post('/api/rep/quotes/:id/status', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, reason } = req.body;
+    if (!['accepted', 'declined'].includes(status)) {
+      return res.status(400).json({ error: 'status must be accepted or declined' });
+    }
+
+    const quote = await pool.query('SELECT * FROM quotes WHERE id = $1', [id]);
+    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    const q = quote.rows[0];
+    if (q.status === 'converted') return res.status(400).json({ error: 'Quote already converted' });
+    if (status === 'accepted' && !['draft', 'sent'].includes(q.status)) {
+      return res.status(400).json({ error: 'Only draft or sent quotes can be marked accepted' });
+    }
+
+    const result = await pool.query(
+      'UPDATE quotes SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logQuoteEvent(pool, id, status === 'accepted' ? 'accepted' : 'marked_lost', {
+      body: status === 'accepted'
+        ? 'Marked accepted — customer confirmed'
+        : 'Marked lost' + (reason ? ' — ' + reason : ''),
+      meta: reason ? { reason } : {},
+      actor: 'rep',
+      actorName: repName
+    });
+
+    // Keep the linked deal in step
+    if (status === 'declined') {
+      try {
+        await pool.query(`
+          UPDATE deals SET stage = 'lost', lost_reason = COALESCE($1, lost_reason),
+            stage_entered_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+          WHERE linked_quote_id = $2 AND stage NOT IN ('won', 'lost')
+        `, [reason || 'Quote marked lost', id]);
+      } catch (dealErr) {
+        console.error('Deal stage update failed (non-fatal):', dealErr.message);
+      }
+    }
+
+    res.json({ quote: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Quote PDF for the rep workspace (mirrors the trade-portal quote PDF)
+app.get('/api/rep/quotes/:id/pdf', repAuth, async (req, res) => {
+  try {
+    const quote = await pool.query('SELECT * FROM quotes WHERE id = $1', [req.params.id]);
+    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    const q = quote.rows[0];
+    const items = await pool.query(`
+      SELECT qi.*, sk.variant_name, sa_c.value as color,
+        v.name as vendor_name, sk.vendor_sku, p.collection as current_collection
+      FROM quote_items qi
+      LEFT JOIN skus sk ON sk.id = qi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(sk.product_id, qi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE qi.quote_id = $1 ORDER BY qi.id
+    `, [req.params.id]);
+
+    const isExpired = q.expires_at && new Date(q.expires_at) < new Date();
+    const expiryStr = q.expires_at ? new Date(q.expires_at).toLocaleDateString() : 'N/A';
+
+    const html = `<!DOCTYPE html><html><head><style>${getDocumentBaseCSS()}</style></head><body>
+      <div class="page">
+        ${getDocumentHeader('Quote')}
+        <div class="doc-banner">
+          <div class="doc-banner-left">
+            <div class="meta-group"><p class="meta-label">Quote</p><p class="meta-value">${q.quote_number || 'Q-' + q.id.substring(0, 8).toUpperCase()}</p></div>
+            <div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${new Date(q.created_at).toLocaleDateString()}</p></div>
+            <div class="meta-group"><p class="meta-label">Valid Until</p><p class="meta-value-sm">${expiryStr}</p></div>
+          </div>
+          <div>${isExpired ? '<span class="badge badge-expired">Expired</span>' : '<span class="badge badge-valid">Valid</span>'}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-card">
+            <h3>Prepared For</h3>
+            <p><strong>${q.customer_name || ''}</strong><br/>
+            ${q.customer_email || ''}
+            ${q.phone ? '<br/>' + q.phone : ''}
+            ${q.shipping_address_line1 ? '<br/>' + q.shipping_address_line1 : ''}
+            ${q.shipping_address_line2 ? '<br/>' + q.shipping_address_line2 : ''}
+            ${q.shipping_city ? '<br/>' + q.shipping_city + ', ' + (q.shipping_state || '') + ' ' + (q.shipping_zip || '') : ''}</p>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Description</th><th class="text-right">Qty</th><th class="text-right">Unit Price</th><th class="text-right">Subtotal</th></tr></thead>
+          <tbody>
+            ${items.rows.map(i => {
+              const isUnit = i.sell_by === 'unit';
+              const qty = i.num_boxes || i.quantity || 1;
+              return `<tr>
+              <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td>
+              <td class="text-right">${qty}${isUnit ? '' : ' box' + (qty > 1 ? 'es' : '')}</td>
+              <td class="text-right">$${parseFloat(i.unit_price || 0).toFixed(2)}${isUnit ? '/ea' : '/sqft'}</td>
+              <td class="text-right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
+            </tr>`; }).join('')}
+          </tbody>
+        </table>
+        <div class="totals-wrapper"><div class="totals-box">
+          <div class="totals-line"><span>Subtotal</span><span>$${parseFloat(q.subtotal || 0).toFixed(2)}</span></div>
+          ${parseFloat(q.discount_amount || 0) > 0 ? `<div class="totals-line"><span>Discount${q.promo_code ? ' (' + q.promo_code + ')' : ''}</span><span>-$${parseFloat(q.discount_amount).toFixed(2)}</span></div>` : ''}
+          ${parseFloat(q.shipping || 0) > 0 ? `<div class="totals-line"><span>Shipping</span><span>$${parseFloat(q.shipping).toFixed(2)}</span></div>` : ''}
+          <div class="totals-line grand-total"><span>Total</span><span>$${parseFloat(q.total || 0).toFixed(2)}</span></div>
+        </div></div>
+        ${getDocumentFooter('<p>This quote is valid for 14 days from the date of issue. Prices are subject to change after expiry.</p>')}
+      </div>
+    </body></html>`;
+
+    await generatePDF(html, `quote-${q.quote_number || q.id.substring(0, 8)}.pdf`, req, res);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -17495,7 +17758,9 @@ app.get('/api/rep/estimates/:id', repAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color,
-        p.collection as current_collection, pr.cost as vendor_cost
+        p.collection as current_collection, pr.cost as vendor_cost,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY CASE WHEN ma.sku_id = ei.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM estimate_items ei
       LEFT JOIN skus s ON s.id = ei.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, ei.product_id)
@@ -17833,7 +18098,9 @@ app.get('/api/rep/estimates/:id/preview', repAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color,
-        p.collection as current_collection, pr.cost as vendor_cost
+        p.collection as current_collection, pr.cost as vendor_cost,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY CASE WHEN ma.sku_id = ei.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM estimate_items ei
       LEFT JOIN skus s ON s.id = ei.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, ei.product_id)
@@ -17886,7 +18153,9 @@ app.post('/api/rep/estimates/:id/send', repAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color,
-        p.collection as current_collection, pr.cost as vendor_cost
+        p.collection as current_collection, pr.cost as vendor_cost,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY CASE WHEN ma.sku_id = ei.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM estimate_items ei
       LEFT JOIN skus s ON s.id = ei.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, ei.product_id)

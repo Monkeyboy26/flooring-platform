@@ -357,6 +357,19 @@ CREATE TABLE quote_items (
     is_sample BOOLEAN DEFAULT false
 );
 
+-- Quote lifecycle + engagement events (sent, viewed via email pixel, replies, status changes)
+CREATE TABLE quote_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    quote_id UUID NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+    event_type VARCHAR(30) NOT NULL, -- sent | viewed | reply | note | accepted | marked_lost | converted
+    body TEXT,
+    meta JSONB DEFAULT '{}',
+    actor VARCHAR(20) DEFAULT 'system', -- rep | customer | system
+    actor_name TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_quote_events_quote_id ON quote_events(quote_id);
+
 CREATE TABLE order_price_adjustments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_item_id UUID NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
