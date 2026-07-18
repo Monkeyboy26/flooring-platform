@@ -7,7 +7,7 @@ Custom PIM + storefront for a flooring/remodeling e-commerce business. No Shopif
 - **Database:** PostgreSQL (19 tables — see `database/schema.sql`)
 - **Backend:** Node.js + Express (`backend/server.js` ~12.6K lines, monolithic)
 - **Frontend:** 3 React SPAs using CDN React + in-browser Babel (no build step)
-- **Infrastructure:** Docker Compose, Nginx reverse proxy, MinIO (S3), Redis
+- **Infrastructure:** Docker Compose, Nginx reverse proxy, MinIO (S3) — no Redis; caching is nginx proxy_cache + in-process (see Caching)
 - **Scrapers:** 29 Puppeteer-based vendor scrapers (`backend/scrapers/`)
 
 ## Routing (nginx.conf)
@@ -29,7 +29,6 @@ Custom PIM + storefront for a flooring/remodeling e-commerce business. No Shopif
 - Frontend (Nginx): **3000**
 - API (Express): **3001**
 - PostgreSQL: **5432**
-- Redis: **6379**
 - MinIO: **9000** (console: 9001)
 
 ## Key Conventions
@@ -40,6 +39,15 @@ Custom PIM + storefront for a flooring/remodeling e-commerce business. No Shopif
 - `sell_by` field determines pricing display: `/sqft` vs `/ea`
 - Typography: Cormorant Garamond (headlines) + Inter (body)
 - Color palette: warm stone neutrals (`--stone-50` through `--stone-900`), gold/sage/terracotta accents
+
+## Caching
+
+No Redis — all caching is nginx, in-process, or client-side:
+
+- **Nginx:** `proxy_cache` zone `img_cache` for the image resize proxy (30d TTL, stale-on-error, `X-Cache-Status` header); static assets get 7d/1d/30d `Cache-Control`; SPA HTML routes are `no-cache`
+- **Backend (`server.js`):** resized images cached to disk in `backend/_cache/` with in-flight dedup; in-memory LRU `SearchCache` for search suggestions (5 min TTL) and popular searches (10 min TTL)
+- **Service worker (`frontend/sw.js`):** precaches shell assets; cache-first for `/api/img` (2000-entry LRU); all other `/api/*` network-only
+- In-memory caches are per-process — fine for the single API container, revisit if scaling horizontally
 
 ## Database Quick Reference
 
