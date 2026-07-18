@@ -6,7 +6,7 @@ export default function createCustomerRoutes(ctx) {
   const router = Router();
   const {
     pool, customerAuth, optionalCustomerAuth,
-    hashPassword, verifyPassword,
+    hashPassword, verifyPassword, hashToken, logAudit,
     sendPasswordReset, sendWelcomeSetPassword,
     recalculateBalance,
     generatePDF, generateSampleRequestConfirmationHtml
@@ -25,36 +25,36 @@ export default function createCustomerRoutes(ctx) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return res.status(400).json({ error: 'Invalid email address' });
       }
-      if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
-        return res.status(400).json({ error: 'Password must be at least 8 characters with 1 uppercase letter and 1 number' });
+      if (password.length < 8 || password.length > 128 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+        return res.status(400).json({ error: 'Password must be 8–128 characters with 1 uppercase letter and 1 number' });
       }
 
-      const existing = await pool.query('SELECT id, password_set FROM customers WHERE email = $1', [email.toLowerCase()]);
+      const existing = await pool.query('SELECT id, email, first_name, password_set FROM customers WHERE email = $1', [email.toLowerCase()]);
       if (existing.rows.length) {
-        // If account was auto-created by rep (password not set), let them claim it
+        // Account exists but was auto-created by a rep and never claimed.
+        // We must NOT let an unauthenticated caller set its password just by
+        // knowing the email — that is account takeover. Email a set-password
+        // link instead, so only the inbox owner can claim it.
         if (existing.rows[0].password_set === false) {
-          const { hash, salt } = hashPassword(password);
+          const claimToken = crypto.randomBytes(32).toString('hex');
+          const tokenHash = crypto.createHash('sha256').update(claimToken).digest('hex');
+          const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
           await pool.query(
-            `UPDATE customers SET password_hash = $1, password_salt = $2, first_name = $3, last_name = $4,
-             phone = COALESCE($5, phone), password_set = true, password_reset_token = NULL, password_reset_expires = NULL,
-             updated_at = CURRENT_TIMESTAMP WHERE id = $6`,
-            [hash, salt, first_name, last_name, phone || null, existing.rows[0].id]
+            'UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3',
+            [tokenHash, expires, existing.rows[0].id]
           );
-          const custResult = await pool.query(
-            'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via FROM customers WHERE id = $1',
-            [existing.rows[0].id]
-          );
-          const customer = custResult.rows[0];
-          const token = crypto.randomBytes(32).toString('hex');
-          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-          await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
-            [customer.id, token, expiresAt]);
-          return res.json({ token, customer });
+          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+          const claimUrl = `${frontendUrl}/account?action=set-password&token=${claimToken}`;
+          sendWelcomeSetPassword(existing.rows[0].email, existing.rows[0].first_name, claimUrl)
+            .catch(err => console.error('[Email] Set-password link error:', err.message));
+          // 409, not a 200 with a session: the caller has not proven they own
+          // the inbox, so they get no token. Existing clients render data.error.
+          return res.status(409).json({ error: 'This email already has an account. Check your inbox for a link to set your password.' });
         }
         return res.status(400).json({ error: 'An account with this email already exists' });
       }
 
-      const { hash, salt } = hashPassword(password);
+      const { hash, salt } = await hashPassword(password);
       const result = await pool.query(
         `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, password_set)
          VALUES ($1, $2, $3, $4, $5, $6, true) RETURNING id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via`,
@@ -65,7 +65,7 @@ export default function createCustomerRoutes(ctx) {
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
-        [customer.id, token, expiresAt]);
+        [customer.id, hashToken(token), expiresAt]);
 
       if (newsletter) {
         await pool.query('INSERT INTO newsletter_subscribers (email) VALUES ($1) ON CONFLICT (email) DO NOTHING', [email.toLowerCase()]);
@@ -96,22 +96,25 @@ export default function createCustomerRoutes(ctx) {
 
       const cust = result.rows[0];
 
-      // Block login for auto-created accounts that haven't set a password yet
+      // Auto-created accounts that never set a password can't log in by
+      // password. Return the same generic error as a bad password so this
+      // isn't an account-existence oracle. (These accounts also carry an
+      // unusable placeholder hash, so verifyPassword below would fail anyway.)
       if (cust.password_set === false) {
-        return res.status(403).json({
-          error: 'password_not_set',
-          message: 'Please set your password first. Check your email for the welcome link.'
-        });
+        return res.status(401).json({ error: 'Invalid email or password' });
       }
 
-      if (!verifyPassword(password, cust.password_hash, cust.password_salt)) {
+      if (!(await verifyPassword(password, cust.password_hash, cust.password_salt))) {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
 
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
-        [cust.id, token, expiresAt]);
+        [cust.id, hashToken(token), expiresAt]);
+
+      // Non-staff actor: log under entity_type/entity_id, staff_id stays null.
+      await logAudit(null, 'customer.login', 'customers', cust.id, { email: cust.email }, req.ip);
 
       res.json({
         token,
@@ -126,6 +129,7 @@ export default function createCustomerRoutes(ctx) {
   router.post('/api/customer/logout', customerAuth, async (req, res) => {
     try {
       await pool.query('DELETE FROM customer_sessions WHERE id = $1', [req.customer.session_id]);
+      await logAudit(null, 'customer.logout', 'customers', req.customer.id, {}, req.ip);
       res.json({ success: true });
     } catch (err) {
       console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -161,19 +165,24 @@ export default function createCustomerRoutes(ctx) {
       if (!current_password || !new_password) {
         return res.status(400).json({ error: 'Current and new password are required' });
       }
-      if (new_password.length < 8 || !/[A-Z]/.test(new_password) || !/[0-9]/.test(new_password)) {
-        return res.status(400).json({ error: 'Password must be at least 8 characters with 1 uppercase letter and 1 number' });
+      if (new_password.length < 8 || new_password.length > 128 || !/[A-Z]/.test(new_password) || !/[0-9]/.test(new_password)) {
+        return res.status(400).json({ error: 'Password must be 8–128 characters with 1 uppercase letter and 1 number' });
       }
 
       const result = await pool.query('SELECT password_hash, password_salt FROM customers WHERE id = $1', [req.customer.id]);
       const cust = result.rows[0];
-      if (!verifyPassword(current_password, cust.password_hash, cust.password_salt)) {
+      if (!(await verifyPassword(current_password, cust.password_hash, cust.password_salt))) {
         return res.status(401).json({ error: 'Current password is incorrect' });
       }
 
-      const { hash, salt } = hashPassword(new_password);
+      const { hash, salt } = await hashPassword(new_password);
       await pool.query('UPDATE customers SET password_hash = $1, password_salt = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
         [hash, salt, req.customer.id]);
+
+      // Revoke all other sessions so a stolen token can't survive a password
+      // change; keep the current session so the user stays signed in.
+      await pool.query('DELETE FROM customer_sessions WHERE customer_id = $1 AND id != $2',
+        [req.customer.id, req.customer.session_id]);
 
       res.json({ success: true });
     } catch (err) {
@@ -216,8 +225,8 @@ export default function createCustomerRoutes(ctx) {
       if (!token || !new_password) {
         return res.status(400).json({ error: 'Token and new password are required' });
       }
-      if (new_password.length < 8 || !/[A-Z]/.test(new_password) || !/[0-9]/.test(new_password)) {
-        return res.status(400).json({ error: 'Password must be at least 8 characters with 1 uppercase letter and 1 number' });
+      if (new_password.length < 8 || new_password.length > 128 || !/[A-Z]/.test(new_password) || !/[0-9]/.test(new_password)) {
+        return res.status(400).json({ error: 'Password must be 8–128 characters with 1 uppercase letter and 1 number' });
       }
 
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -230,7 +239,7 @@ export default function createCustomerRoutes(ctx) {
       }
 
       const customerId = result.rows[0].id;
-      const { hash, salt } = hashPassword(new_password);
+      const { hash, salt } = await hashPassword(new_password);
       await pool.query(
         'UPDATE customers SET password_hash = $1, password_salt = $2, password_set = true, password_reset_token = NULL, password_reset_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
         [hash, salt, customerId]
@@ -243,7 +252,7 @@ export default function createCustomerRoutes(ctx) {
       const sessionToken = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
-        [customerId, sessionToken, expiresAt]);
+        [customerId, hashToken(sessionToken), expiresAt]);
       const custResult = await pool.query(
         'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via FROM customers WHERE id = $1',
         [customerId]
@@ -278,10 +287,15 @@ export default function createCustomerRoutes(ctx) {
       const payload = ticket.getPayload();
       const googleId = payload.sub;
       const email = payload.email?.toLowerCase();
+      const emailVerified = payload.email_verified === true || payload.email_verified === 'true';
       const firstName = payload.given_name || '';
       const lastName = payload.family_name || '';
 
       if (!email) return res.status(400).json({ error: 'Google account has no email' });
+      // Require Google to assert the email is verified. Without this, an
+      // attacker with an unverified Google account bearing someone else's
+      // address could be matched to — and take over — an existing account.
+      if (!emailVerified) return res.status(401).json({ error: 'Your Google email address is not verified' });
 
       // 1. Lookup by google_id
       let existing = await pool.query(
@@ -290,7 +304,7 @@ export default function createCustomerRoutes(ctx) {
       );
 
       if (!existing.rows.length) {
-        // 2. Lookup by email
+        // 2. Lookup by email (safe: email ownership is proven by Google above)
         existing = await pool.query(
           'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via, google_id FROM customers WHERE email = $1',
           [email]
@@ -338,7 +352,10 @@ export default function createCustomerRoutes(ctx) {
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
-        [customer.id, token, expiresAt]);
+        [customer.id, hashToken(token), expiresAt]);
+
+      // Non-staff actor: log under entity_type/entity_id, staff_id stays null.
+      await logAudit(null, 'customer.login', 'customers', customer.id, { email: customer.email, via: 'google' }, req.ip);
 
       res.json({ token, customer });
     } catch (err) {

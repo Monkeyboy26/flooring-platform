@@ -1,20 +1,49 @@
 import crypto from 'crypto';
 
 export function createAuthMiddleware(pool) {
-  function hashPassword(password) {
+  // scrypt is deliberately CPU-heavy. The sync variant blocks the event loop
+  // for the whole hash, so under concurrent logins requests serialize. Use the
+  // async form so the work runs on the libuv threadpool instead.
+  function scryptAsync(password, salt, keylen) {
+    return new Promise((resolve, reject) => {
+      crypto.scrypt(password, salt, keylen, (err, derivedKey) => {
+        if (err) reject(err); else resolve(derivedKey);
+      });
+    });
+  }
+
+  // Hard ceiling on hashable input — well above any legitimate password — so an
+  // oversized string can't turn a single hash into a CPU-exhaustion vector.
+  const MAX_HASH_INPUT = 1024;
+
+  async function hashPassword(password) {
+    if (typeof password !== 'string' || password.length > MAX_HASH_INPUT) {
+      throw new Error('Password exceeds maximum length');
+    }
     const salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+    const hash = (await scryptAsync(password, salt, 64)).toString('hex');
     return { hash, salt };
   }
 
-  function verifyPassword(password, hash, salt) {
-    const derived = crypto.scryptSync(password, salt, 64);
+  async function verifyPassword(password, hash, salt) {
+    if (typeof password !== 'string' || password.length > MAX_HASH_INPUT) return false;
+    const derived = await scryptAsync(password, salt, 64);
     const stored = Buffer.from(hash, 'hex');
+    // timingSafeEqual throws on length mismatch (e.g. placeholder hashes for
+    // OAuth-only accounts). Treat any malformed stored hash as a failed match.
+    if (stored.length !== derived.length) return false;
     return crypto.timingSafeEqual(derived, stored);
+  }
+
+  // Session tokens are stored hashed at rest so a database read cannot yield
+  // usable credentials. The raw token is only ever held by the client.
+  function hashToken(token) {
+    return crypto.createHash('sha256').update(String(token)).digest('hex');
   }
 
   function validatePassword(password) {
     if (!password || password.length < 8) return 'Password must be at least 8 characters';
+    if (password.length > 128) return 'Password must be at most 128 characters';
     if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
     if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
     return null;
@@ -30,7 +59,7 @@ export function createAuthMiddleware(pool) {
         FROM rep_sessions rs
         JOIN sales_reps sr ON sr.id = rs.rep_id
         WHERE rs.token = $1 AND rs.expires_at > CURRENT_TIMESTAMP
-      `, [token]);
+      `, [hashToken(token)]);
 
       if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
       if (!result.rows[0].is_active) return res.status(403).json({ error: 'Account deactivated' });
@@ -59,7 +88,7 @@ export function createAuthMiddleware(pool) {
         JOIN trade_customers tc ON tc.id = ts.trade_customer_id
         LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
         WHERE ts.token = $1 AND ts.expires_at > CURRENT_TIMESTAMP
-      `, [token]);
+      `, [hashToken(token)]);
 
       if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
       if (result.rows[0].status !== 'approved') return res.status(403).json({ error: 'Account not approved' });
@@ -93,7 +122,7 @@ export function createAuthMiddleware(pool) {
         JOIN trade_customers tc ON tc.id = ts.trade_customer_id
         LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
         WHERE ts.token = $1 AND ts.expires_at > CURRENT_TIMESTAMP
-      `, [token]);
+      `, [hashToken(token)]);
 
       if (result.rows.length && result.rows[0].status === 'approved') {
         req.tradeCustomer = {
@@ -126,7 +155,7 @@ export function createAuthMiddleware(pool) {
         FROM customer_sessions cs
         JOIN customers c ON c.id = cs.customer_id
         WHERE cs.token = $1 AND cs.expires_at > CURRENT_TIMESTAMP
-      `, [token]);
+      `, [hashToken(token)]);
 
       if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
 
@@ -152,7 +181,7 @@ export function createAuthMiddleware(pool) {
         FROM customer_sessions cs
         JOIN customers c ON c.id = cs.customer_id
         WHERE cs.token = $1 AND cs.expires_at > CURRENT_TIMESTAMP
-      `, [token]);
+      `, [hashToken(token)]);
 
       if (result.rows.length) {
         req.customer = result.rows[0];
@@ -176,7 +205,7 @@ export function createAuthMiddleware(pool) {
         FROM staff_sessions ss
         JOIN staff_accounts sa ON sa.id = ss.staff_id
         WHERE ss.token = $1 AND ss.expires_at > CURRENT_TIMESTAMP
-      `, [token]);
+      `, [hashToken(token)]);
 
       if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
       if (!result.rows[0].is_active) return res.status(403).json({ error: 'Account deactivated' });
@@ -216,7 +245,7 @@ export function createAuthMiddleware(pool) {
   }
 
   return {
-    hashPassword, verifyPassword, validatePassword,
+    hashPassword, verifyPassword, validatePassword, hashToken,
     staffAuth, repAuth, tradeAuth, optionalTradeAuth,
     customerAuth, optionalCustomerAuth, requireRole, logAudit
   };

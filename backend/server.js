@@ -32,7 +32,7 @@ import createCartRoutes from './routes/cart.js';
 import createCustomerRoutes from './routes/customer.js';
 import createAnalyticsRoutes from './routes/analytics.js';
 
-const { staffAuth, repAuth, tradeAuth, optionalTradeAuth, customerAuth, optionalCustomerAuth, requireRole, hashPassword, verifyPassword, validatePassword, logAudit } = createAuthMiddleware(pool);
+const { staffAuth, repAuth, tradeAuth, optionalTradeAuth, customerAuth, optionalCustomerAuth, requireRole, hashPassword, verifyPassword, validatePassword, hashToken, logAudit } = createAuthMiddleware(pool);
 const { findOrCreateCustomer } = createCustomerHelpers(hashPassword, sendWelcomeSetPassword);
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
@@ -4880,7 +4880,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         const nameParts = customer_name.trim().split(/\s+/);
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
-        const { hash, salt } = hashPassword(account_password);
+        const { hash, salt } = await hashPassword(account_password);
         const custResult = await client.query(
           `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone,
             address_line1, address_line2, city, state, zip)
@@ -4899,7 +4899,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         await client.query(
           'INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
-          [newCust.id, newCustomerToken, expiresAt]
+          [newCust.id, hashToken(newCustomerToken), expiresAt]
         );
         newCustomerData = { id: newCust.id, email: newCust.email, first_name: newCust.first_name, last_name: newCust.last_name };
       }
@@ -9724,7 +9724,7 @@ app.post('/api/staff/setup', async (req, res) => {
     const pwError = validatePassword(password);
     if (pwError) return res.status(400).json({ error: pwError });
 
-    const { hash, salt } = hashPassword(password);
+    const { hash, salt } = await hashPassword(password);
     const result = await pool.query(`
       INSERT INTO staff_accounts (email, password_hash, password_salt, first_name, last_name, role)
       VALUES ($1, $2, $3, $4, $5, 'admin')
@@ -9738,7 +9738,7 @@ app.post('/api/staff/setup', async (req, res) => {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await pool.query(
       'INSERT INTO staff_sessions (staff_id, token, expires_at) VALUES ($1, $2, $3)',
-      [staff.id, token, expiresAt]
+      [staff.id, hashToken(token), expiresAt]
     );
 
     await logAudit(staff.id, 'staff.setup', 'staff_accounts', staff.id, { email: staff.email }, req.ip);
@@ -9750,10 +9750,35 @@ app.post('/api/staff/setup', async (req, res) => {
   }
 });
 
-// Rate limiting store for login attempts
-const loginAttempts = {};
+// Per-source failed-login tracking for staff login. Keyed by IP+email (never
+// email alone) so an attacker can't lock a victim's account from an unrelated
+// IP, and only failed attempts are counted. Entries are pruned on a timer so
+// the map can't grow without bound. Complements the IP-wide authLimiter that
+// is already mounted on this route.
+const staffLoginFailures = new Map();
 const LOGIN_MAX = 5;
 const LOGIN_WINDOW = 15 * 60 * 1000; // 15 minutes
+
+setInterval(() => {
+  const cutoff = Date.now() - LOGIN_WINDOW;
+  for (const [key, times] of staffLoginFailures) {
+    const recent = times.filter(t => t > cutoff);
+    if (recent.length) staffLoginFailures.set(key, recent);
+    else staffLoginFailures.delete(key);
+  }
+}, LOGIN_WINDOW).unref();
+
+function recordLoginFailure(key) {
+  const now = Date.now();
+  const times = (staffLoginFailures.get(key) || []).filter(t => now - t < LOGIN_WINDOW);
+  times.push(now);
+  staffLoginFailures.set(key, times);
+}
+
+function loginFailureCount(key) {
+  const now = Date.now();
+  return (staffLoginFailures.get(key) || []).filter(t => now - t < LOGIN_WINDOW).length;
+}
 
 app.post('/api/staff/login', async (req, res) => {
   try {
@@ -9761,25 +9786,23 @@ app.post('/api/staff/login', async (req, res) => {
     if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
 
     const emailKey = email.toLowerCase().trim();
+    const attemptKey = `${req.ip}:${emailKey}`;
 
-    // Rate limiting
-    const now = Date.now();
-    if (!loginAttempts[emailKey]) loginAttempts[emailKey] = [];
-    loginAttempts[emailKey] = loginAttempts[emailKey].filter(t => now - t < LOGIN_WINDOW);
-    if (loginAttempts[emailKey].length >= LOGIN_MAX) {
+    // Per-source failed-attempt throttle (see staffLoginFailures above).
+    if (loginFailureCount(attemptKey) >= LOGIN_MAX) {
       return res.status(429).json({ error: 'Too many login attempts. Please try again in 15 minutes.' });
     }
 
     const result = await pool.query('SELECT * FROM staff_accounts WHERE email = $1', [emailKey]);
     if (!result.rows.length) {
-      loginAttempts[emailKey].push(now);
+      recordLoginFailure(attemptKey);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const staff = result.rows[0];
     if (!staff.is_active) return res.status(403).json({ error: 'Account deactivated' });
-    if (!verifyPassword(password, staff.password_hash, staff.password_salt)) {
-      loginAttempts[emailKey].push(now);
+    if (!(await verifyPassword(password, staff.password_hash, staff.password_salt))) {
+      recordLoginFailure(attemptKey);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -9794,13 +9817,15 @@ app.post('/api/staff/login', async (req, res) => {
       isTrusted = trusted.rows.length > 0;
     }
 
-    // If untrusted device, require 2FA (skip only in non-production)
-    if (!isTrusted && fpHash && process.env.NODE_ENV === 'production') {
+    // If untrusted device, require 2FA (skip only in non-production).
+    // A missing device_fingerprint counts as untrusted — otherwise a caller
+    // could bypass 2FA entirely just by omitting the field.
+    if (!isTrusted && process.env.NODE_ENV === 'production') {
       const smtpConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
       if (!smtpConfigured) {
         return res.status(503).json({ error: '2FA is required but email service is not configured. Contact an administrator.' });
       }
-      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const code = String(crypto.randomInt(100000, 1000000));
       const codeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
       await pool.query(
         'INSERT INTO staff_2fa_codes (staff_id, code, expires_at) VALUES ($1, $2, $3)',
@@ -9810,7 +9835,7 @@ app.post('/api/staff/login', async (req, res) => {
       await send2FACode(staff.email, code);
       return res.json({ requires_2fa: true, staff_id: staff.id });
     }
-    if (!isTrusted && fpHash && process.env.NODE_ENV !== 'production') {
+    if (!isTrusted && process.env.NODE_ENV !== 'production') {
       console.log(`[Auth] 2FA bypassed for ${emailKey} — non-production environment`);
     }
 
@@ -9821,7 +9846,7 @@ app.post('/api/staff/login', async (req, res) => {
 
     await pool.query(
       'INSERT INTO staff_sessions (staff_id, token, device_fingerprint, is_trusted, trusted_until, remember_me, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      [staff.id, token, fpHash, isTrusted, isTrusted ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null, remember_me || false, expiresAt]
+      [staff.id, hashToken(token), fpHash, isTrusted, isTrusted ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null, remember_me || false, expiresAt]
     );
 
     await logAudit(staff.id, 'staff.login', 'staff_accounts', staff.id, { trusted_device: isTrusted }, req.ip);
@@ -9868,7 +9893,7 @@ app.post('/api/staff/verify-2fa', authLimiter, async (req, res) => {
 
     await pool.query(
       'INSERT INTO staff_sessions (staff_id, token, device_fingerprint, is_trusted, trusted_until, expires_at) VALUES ($1, $2, $3, $4, $5, $6)',
-      [staff.id, token, fpHash, trust_device || false, trustedUntil, expiresAt]
+      [staff.id, hashToken(token), fpHash, trust_device || false, trustedUntil, expiresAt]
     );
 
     await logAudit(staff.id, 'staff.login.2fa', 'staff_accounts', staff.id, { trusted: trust_device || false }, req.ip);
@@ -9891,7 +9916,7 @@ app.post('/api/staff/verify-2fa', authLimiter, async (req, res) => {
 app.post('/api/staff/logout', staffAuth, async (req, res) => {
   try {
     const token = req.headers['x-staff-token'];
-    await pool.query('DELETE FROM staff_sessions WHERE token = $1', [token]);
+    await pool.query('DELETE FROM staff_sessions WHERE token = $1', [hashToken(token)]);
     await logAudit(req.staff.id, 'staff.logout', 'staff_accounts', req.staff.id, {}, req.ip);
     res.json({ success: true });
   } catch (err) {
@@ -9935,7 +9960,7 @@ app.post('/api/admin/staff', staffAuth, requireRole('admin', 'manager'), async (
       return res.status(403).json({ error: 'Managers cannot create admin accounts' });
     }
 
-    const { hash, salt } = hashPassword(password);
+    const { hash, salt } = await hashPassword(password);
     const result = await pool.query(`
       INSERT INTO staff_accounts (email, password_hash, password_salt, first_name, last_name, phone, role)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -10031,7 +10056,7 @@ app.put('/api/admin/staff/:id/password', staffAuth, requireRole('admin', 'manage
     const { password } = req.body;
     if (!password) return res.status(400).json({ error: 'Password is required' });
 
-    const { hash, salt } = hashPassword(password);
+    const { hash, salt } = await hashPassword(password);
     const result = await pool.query(
       'UPDATE staff_accounts SET password_hash = $1, password_salt = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING id',
       [hash, salt, id]
@@ -10059,7 +10084,7 @@ app.post('/api/trade/register', async (req, res) => {
     const pwError = validatePassword(password);
     if (pwError) return res.status(400).json({ error: pwError });
 
-    const { hash, salt } = hashPassword(password);
+    const { hash, salt } = await hashPassword(password);
     await pool.query(
       `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone)
        VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -10084,14 +10109,16 @@ app.post('/api/trade/login', async (req, res) => {
     if (!result.rows.length) return res.status(401).json({ error: 'Invalid email or password' });
 
     const customer = result.rows[0];
+    // Verify credentials before disclosing account status, so the pending /
+    // rejected messages aren't an unauthenticated account-existence oracle.
+    if (!(await verifyPassword(password, customer.password_hash, customer.password_salt))) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
     if (customer.status === 'pending') {
       return res.status(403).json({ error: 'Your account is still pending approval. We will notify you once approved.' });
     }
     if (customer.status === 'rejected') {
       return res.status(403).json({ error: 'Your trade application has been declined.' });
-    }
-    if (!verifyPassword(password, customer.password_hash, customer.password_salt)) {
-      return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const token = crypto.randomBytes(32).toString('hex');
@@ -10099,8 +10126,11 @@ app.post('/api/trade/login', async (req, res) => {
 
     await pool.query(
       'INSERT INTO trade_sessions (trade_customer_id, token, expires_at) VALUES ($1, $2, $3)',
-      [customer.id, token, expiresAt]
+      [customer.id, hashToken(token), expiresAt]
     );
+
+    // Non-staff actor: log under entity_type/entity_id, staff_id stays null.
+    await logAudit(null, 'trade.login', 'trade_customers', customer.id, { email: customer.email }, req.ip);
 
     // Fetch tier info
     let tier = null;
@@ -10128,7 +10158,8 @@ app.post('/api/trade/login', async (req, res) => {
 app.post('/api/trade/logout', tradeAuth, async (req, res) => {
   try {
     const token = req.headers['x-trade-token'];
-    await pool.query('DELETE FROM trade_sessions WHERE token = $1', [token]);
+    await pool.query('DELETE FROM trade_sessions WHERE token = $1', [hashToken(token)]);
+    await logAudit(null, 'trade.logout', 'trade_customers', req.tradeCustomer.id, {}, req.ip);
     res.json({ success: true });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -10199,7 +10230,7 @@ app.post('/api/trade/register/enhanced', async (req, res) => {
 
     await client.query('BEGIN');
 
-    const { hash, salt } = hashPassword(password);
+    const { hash, salt } = await hashPassword(password);
     const result = await client.query(
       `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, stripe_customer_id, address_line1, city, state, zip, contractor_license)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
@@ -11148,12 +11179,16 @@ app.post('/api/trade/change-password', tradeAuth, async (req, res) => {
     if (pwError) return res.status(400).json({ error: pwError });
 
     const cust = await pool.query('SELECT password_hash, password_salt FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
-    if (!verifyPassword(current_password, cust.rows[0].password_hash, cust.rows[0].password_salt)) {
+    if (!(await verifyPassword(current_password, cust.rows[0].password_hash, cust.rows[0].password_salt))) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
 
-    const { hash, salt } = hashPassword(new_password);
+    const { hash, salt } = await hashPassword(new_password);
     await pool.query('UPDATE trade_customers SET password_hash = $1, password_salt = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3', [hash, salt, req.tradeCustomer.id]);
+    // Revoke all other sessions so a stolen token can't survive a password
+    // change; keep the current session so the user stays signed in.
+    await pool.query('DELETE FROM trade_sessions WHERE trade_customer_id = $1 AND token != $2',
+      [req.tradeCustomer.id, hashToken(req.headers['x-trade-token'])]);
     res.json({ success: true });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -11993,7 +12028,7 @@ app.post('/api/rep/login', async (req, res) => {
 
     const rep = result.rows[0];
     if (!rep.is_active) return res.status(403).json({ error: 'Account deactivated' });
-    if (!verifyPassword(password, rep.password_hash, rep.password_salt)) {
+    if (!(await verifyPassword(password, rep.password_hash, rep.password_salt))) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -12005,8 +12040,11 @@ app.post('/api/rep/login', async (req, res) => {
 
     await pool.query(
       'INSERT INTO rep_sessions (rep_id, token, expires_at) VALUES ($1, $2, $3)',
-      [rep.id, token, expiresAt]
+      [rep.id, hashToken(token), expiresAt]
     );
+
+    // Non-staff actor: log under entity_type/entity_id, staff_id stays null.
+    await logAudit(null, 'rep.login', 'sales_reps', rep.id, { email: rep.email }, req.ip);
 
     res.json({
       token,
@@ -12020,7 +12058,8 @@ app.post('/api/rep/login', async (req, res) => {
 app.post('/api/rep/logout', repAuth, async (req, res) => {
   try {
     const token = req.headers['x-rep-token'];
-    await pool.query('DELETE FROM rep_sessions WHERE token = $1', [token]);
+    await pool.query('DELETE FROM rep_sessions WHERE token = $1', [hashToken(token)]);
+    await logAudit(null, 'rep.logout', 'sales_reps', req.rep.id, {}, req.ip);
     res.json({ success: true });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -23091,7 +23130,7 @@ cron.schedule('0 8 * * *', async () => {
 // Customer routes — extracted to routes/customer.js
 app.use(createCustomerRoutes({
   pool, customerAuth, optionalCustomerAuth,
-  hashPassword, verifyPassword,
+  hashPassword, verifyPassword, hashToken, logAudit,
   sendPasswordReset, sendWelcomeSetPassword,
   recalculateBalance: (orderId, client) => recalculateBalance(pool, orderId, client),
   generatePDF, generateSampleRequestConfirmationHtml

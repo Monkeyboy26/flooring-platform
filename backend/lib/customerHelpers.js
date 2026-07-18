@@ -29,7 +29,7 @@ export function createCustomerHelpers(hashPassword, sendWelcomeSetPassword) {
 
     // 2. Create new customer with random placeholder password
     const placeholder = crypto.randomBytes(32).toString('hex');
-    const { hash, salt } = hashPassword(placeholder);
+    const { hash, salt } = await hashPassword(placeholder);
 
     const result = await client.query(
       `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, password_set, assigned_rep_id, assigned_at, created_via)
