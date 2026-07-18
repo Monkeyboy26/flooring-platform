@@ -117,7 +117,7 @@ export async function run(pool, job) {
           aq,
           firstResult,
           numberOfResults: PAGE_SIZE,
-          fieldsToInclude: ['sku', 'inventoryitems', 'uom', 'brandid', 'color', 'colornameenglish', 'nominalsize', 'finish', 'seriesname'],
+          fieldsToInclude: ['sku', 'inventoryitems', 'uom', 'brandid', 'color', 'colornameenglish', 'nominalsize', 'finish', 'seriesname', 'classprices', 'skudescription', 'shapeandmosaic', 'planproducttype'],
           searchHub: SEARCH_HUB,
         }),
       });
@@ -206,20 +206,39 @@ export async function run(pool, job) {
       }
       return prev[b.length];
     };
+    // Longest common CONTIGUOUS substring — trim codes share literal tokens
+    // (S3419T, 2448A) that subsequence scoring dilutes.
+    const lcSubstr = (a, b) => {
+      let best = 0;
+      let prev = new Array(b.length + 1).fill(0);
+      for (let i = 1; i <= a.length; i++) {
+        const cur = [0];
+        for (let j = 1; j <= b.length; j++) {
+          cur[j] = a[i - 1] === b[j - 1] ? prev[j - 1] + 1 : 0;
+          if (cur[j] > best) best = cur[j];
+        }
+        prev = cur;
+      }
+      return best;
+    };
+    const first = (v) => Array.isArray(v) ? v[0] : v;
 
     const activeResult = await pool.query(`
-      SELECT s.id, s.vendor_sku, p.collection, pkg.sqft_per_box,
+      SELECT s.id, s.vendor_sku, s.variant_type, p.collection, p.name AS product_name,
+             pkg.sqft_per_box, pr.cost,
              MAX(CASE WHEN a.name = 'Size' THEN sa.value END) AS size,
-             MAX(CASE WHEN a.name = 'Finish' THEN sa.value END) AS finish
+             MAX(CASE WHEN a.name = 'Finish' THEN sa.value END) AS finish,
+             MAX(CASE WHEN a.name = 'Shape' THEN sa.value END) AS shape
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN packaging pkg ON pkg.sku_id = s.id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN sku_attributes sa ON sa.sku_id = s.id
-      LEFT JOIN attributes a ON a.id = sa.attribute_id AND a.name IN ('Size', 'Finish')
+      LEFT JOIN attributes a ON a.id = sa.attribute_id AND a.name IN ('Size', 'Finish', 'Shape')
       WHERE v.code IN ('DAL', 'AO', 'MZ') AND p.status = 'active' AND s.status = 'active'
         AND s.vendor_sku IS NOT NULL
-      GROUP BY s.id, s.vendor_sku, p.collection, pkg.sqft_per_box
+      GROUP BY s.id, s.vendor_sku, s.variant_type, p.collection, p.name, pkg.sqft_per_box, pr.cost
     `);
     const activeBySize = new Map();
     for (const row of activeResult.rows) {
@@ -260,8 +279,8 @@ export async function run(pool, job) {
 
       // Attribute crosswalk to an active twin (skip if exact already hit it)
       const colorCode = String(item.color || '').toUpperCase();
-      const sizeKey = norm(Array.isArray(item.nominalsize) ? item.nominalsize[0] : item.nominalsize);
-      const itemFinish = norm(Array.isArray(item.finish) ? item.finish[0] : item.finish);
+      const sizeKey = norm(first(item.nominalsize));
+      const itemFinish = norm(first(item.finish));
       let candidates = (colorCode && sizeKey && activeBySize.get(sizeKey) || [])
         .filter(c => c.vendor_sku.toUpperCase().startsWith(colorCode))
         .filter(c => finishCompatible(norm(c.finish), itemFinish));
@@ -269,6 +288,48 @@ export async function run(pool, job) {
         const seriesKey = norm(item.seriesname);
         const bySeries = candidates.filter(c => norm(c.collection) === seriesKey);
         if (bySeries.length >= 1) candidates = bySeries;
+      }
+      // Field tile vs trim/accessory: the portal's planproducttype says which
+      // side of a field-vs-trim collision this item belongs to
+      if (candidates.length > 1) {
+        const portalIsTrim = /trim|installation/i.test(String(first(item.planproducttype) || ''));
+        const isTrimCand = (c) => c.variant_type === 'accessory' || /trim/i.test(c.product_name || '');
+        const aligned = candidates.filter(c => isTrimCand(c) === portalIsTrim);
+        if (aligned.length >= 1 && aligned.length < candidates.length) candidates = aligned;
+      }
+      // Variant markers (MB = Microban, BV = beveled) must be echoed by the
+      // portal sku/description, else those candidates are the wrong variant
+      if (candidates.length > 1) {
+        const portalStr = (rawSku + ' ' + (item.skudescription || '')).toUpperCase();
+        for (const [tok, re] of [['MB', /MICROBAN|MB/], ['BV', /BEV/]]) {
+          const withTok = candidates.filter(c => c.vendor_sku.toUpperCase().slice(4).includes(tok));
+          if (withTok.length > 0 && withTok.length < candidates.length) {
+            const keep = re.test(portalStr) ? withTok : candidates.filter(c => !withTok.includes(c));
+            if (keep.length >= 1) candidates = keep;
+          }
+        }
+      }
+      // Shape alignment (Hexagon vs Straight Joint mosaics, etc.)
+      if (candidates.length > 1) {
+        const itemShape = norm(first(item.shapeandmosaic));
+        if (itemShape) {
+          const shaped = candidates.filter(c => norm(c.shape) && norm(c.shape) === itemShape);
+          if (shaped.length >= 1 && shaped.length < candidates.length) candidates = shaped;
+        }
+      }
+      // Contiguous shared token beats subsequence for trim codes (color prefix
+      // stripped; normalized so 3/8 ↔ 38 compare)
+      if (candidates.length > 1) {
+        const rem = norm(rawSku.slice(colorCode.length));
+        const scored = candidates.map(c => ({ c, score: lcSubstr(rem, norm(c.vendor_sku.slice(colorCode.length))) }));
+        const best = Math.max(...scored.map(s => s.score));
+        const winners = scored.filter(s => s.score === best);
+        if (winners.length === 1) candidates = [winners[0].c];
+      }
+      // Dealer price: the portal classprices should equal the EDI cost of the twin
+      if (candidates.length > 1 && item.classprices > 0) {
+        const close = candidates.filter(c => c.cost > 0 && Math.abs(parseFloat(c.cost) - item.classprices) / item.classprices < 0.03);
+        if (close.length === 1) candidates = close;
       }
       if (candidates.length > 1) {
         const scored = candidates.map(c => ({ c, score: lcsLen(rawSku, c.vendor_sku.toUpperCase()) }));
