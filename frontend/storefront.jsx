@@ -11124,11 +11124,11 @@
       const renderOrderExpanded = () => (
         <div className="acct-order-expanded">
           {orderDetail.order.tracking_number && (
-            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
+            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af', borderRadius: 4 }}>
               Tracking: {orderDetail.order.shipping_carrier && <strong>{orderDetail.order.shipping_carrier} </strong>}
-              {orderDetail.order.tracking_number}
+              <strong>{orderDetail.order.tracking_number}</strong>
               {orderDetail.order.shipped_at && <span style={{ marginLeft: '0.5rem' }}>
-                (Shipped {new Date(orderDetail.order.shipped_at).toLocaleDateString()})
+                (Shipped {fmtDate(orderDetail.order.shipped_at)})
               </span>}
             </div>
           )}
@@ -11159,72 +11159,67 @@
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '0', marginBottom: '1.25rem', fontSize: '0.75rem' }}>
-            {(() => {
-              const isPickupOrder = orderDetail.order.delivery_method === 'pickup';
-              const steps = isPickupOrder
-                ? ['pending', 'confirmed', 'ready_for_pickup', 'delivered']
-                : ['pending', 'confirmed', 'shipped', 'delivered'];
-              const stepLabels = isPickupOrder
-                ? { pending: 'pending', confirmed: 'confirmed', ready_for_pickup: 'ready', delivered: 'picked up' }
-                : { pending: 'pending', confirmed: 'confirmed', shipped: 'shipped', delivered: 'delivered' };
-              const currentIdx = steps.indexOf(orderDetail.order.status);
-              return steps.map((s, i) => {
-                const isActive = i <= currentIdx;
-                return (
-                  <div key={s} style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{
-                      width: 24, height: 24, borderRadius: '50%', margin: '0 auto 0.35rem',
-                      background: isActive ? 'var(--gold)' : 'var(--stone-200)',
-                      color: isActive ? '#fff' : 'var(--stone-500)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '0.7rem', fontWeight: 600
-                    }}>{i + 1}</div>
-                    <span style={{ color: isActive ? 'var(--stone-800)' : 'var(--stone-400)', textTransform: 'capitalize' }}>{stepLabels[s]}</span>
-                  </div>
-                );
-              });
-            })()}
-          </div>
+          {(() => {
+            const isPickupOrder = orderDetail.order.delivery_method === 'pickup';
+            const steps = isPickupOrder
+              ? ['pending', 'confirmed', 'ready_for_pickup', 'delivered']
+              : ['pending', 'confirmed', 'shipped', 'delivered'];
+            const stepLabels = isPickupOrder
+              ? { pending: 'Placed', confirmed: 'Confirmed', ready_for_pickup: 'Ready', delivered: 'Picked up' }
+              : { pending: 'Placed', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered' };
+            const currentIdx = Math.max(0, steps.indexOf(orderDetail.order.status));
+            return (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <div className="acct-progress"><div className="acct-progress-fill" style={{ right: (100 - ((currentIdx + 1) / steps.length) * 100) + '%' }} /></div>
+                <div className="acct-progress-steps">
+                  {steps.map((s, i) => <span key={s} style={{ color: i <= currentIdx ? 'var(--stone-800)' : 'var(--warm-muted)' }}>{i <= currentIdx ? '✓ ' : ''}{stepLabels[s]}</span>)}
+                </div>
+              </div>
+            );
+          })()}
 
           <div style={{ marginBottom: '1rem' }}>
-            <h4 style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem' }}>Items</h4>
+            <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Materials</div>
             {orderDetail.items.map(item => {
               const fStatus = item.fulfillment_status;
               const isPickup = orderDetail.order.delivery_method === 'pickup';
-              const badgeMap = {
-                'received': { label: isPickup ? 'Ready' : 'Received', bg: '#f0fdf4', color: '#166534' },
-                'shipped': { label: 'In Transit', bg: '#dbeafe', color: '#1e40af' },
-                'ordered': { label: 'Ordered', bg: '#fffbeb', color: '#92400e' },
-                'pending': { label: 'Processing', bg: 'var(--stone-100)', color: 'var(--stone-500)' }
+              const fulfillMap = {
+                'received': { label: isPickup ? 'Ready' : 'Received', color: '#3a7a4e' },
+                'shipped': { label: 'In transit', color: '#2563eb' },
+                'ordered': { label: 'Ordered', color: '#a87935' },
+                'pending': { label: 'Processing', color: 'var(--warm-muted)' }
               };
-              const badge = !item.is_sample ? (badgeMap[fStatus] || badgeMap['pending']) : null;
+              const fm = !item.is_sample ? (fulfillMap[fStatus] || fulfillMap['pending']) : null;
               return (
-                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                    {item.product_name || 'Product'} {item.is_sample ? '(Sample)' : item.sell_by === 'unit' ? `x${item.num_boxes}` : `x${item.num_boxes} box${item.num_boxes !== 1 ? 'es' : ''}`}
-                    {badge && <span style={{ display: 'inline-block', padding: '1px 6px', fontSize: '0.6875rem', fontWeight: 600, background: badge.bg, color: badge.color, borderRadius: '3px', whiteSpace: 'nowrap' }}>{badge.label}</span>}
-                  </span>
-                  <span style={{ fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', padding: '0.5rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: '0.625rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name || 'Product'}</span>
+                    <span style={{ color: 'var(--warm-muted)', fontSize: '0.75rem' }}>
+                      {item.is_sample ? 'Sample' : item.sell_by === 'unit' ? 'x' + item.num_boxes : 'x' + item.num_boxes + ' box' + (item.num_boxes !== 1 ? 'es' : '')}
+                    </span>
+                    {fm && <span className="acct-order-status" style={{ color: fm.color }}>&#9679; {fm.label}</span>}
+                  </div>
+                  <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
                 </div>
               );
             })}
           </div>
 
           {orderDetail.balance && orderDetail.balance.balance_status === 'credit' && (
-            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
+            <div style={{ background: '#f0fdf4', border: '0.5px solid #bbf7d0', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#166534', borderRadius: 4 }}>
               You have a credit of <strong>${Math.abs(orderDetail.balance.balance).toFixed(2)}</strong> on this order.
             </div>
           )}
           {orderDetail.balance && orderDetail.balance.balance_status === 'balance_due' && (
-            <div style={{ background: '#fef3c7', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#92400e' }}>
-              Balance due: <strong>${orderDetail.balance.balance.toFixed(2)}</strong> — check your email for a payment link.
+            <div style={{ background: 'rgba(216,205,182,0.35)', border: '0.5px solid rgba(168,121,53,0.3)', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#7a5a1e', borderRadius: 4 }}>
+              Balance due: <strong>${orderDetail.balance.balance.toFixed(2)}</strong> — check your email for a payment link, or call (714) 999-0009.
             </div>
           )}
 
           {orderDetail.order.shipping_address_line1 && (
             <div style={{ fontSize: '0.8125rem', color: 'var(--stone-600)' }}>
-              <strong>Ships to:</strong> {orderDetail.order.shipping_address_line1}
+              <span className="acct-footer-card-sub" style={{ marginRight: '0.5rem' }}>Ships to</span>
+              {orderDetail.order.shipping_address_line1}
               {orderDetail.order.shipping_address_line2 && ', ' + orderDetail.order.shipping_address_line2}
               , {orderDetail.order.shipping_city}, {orderDetail.order.shipping_state} {orderDetail.order.shipping_zip}
             </div>
