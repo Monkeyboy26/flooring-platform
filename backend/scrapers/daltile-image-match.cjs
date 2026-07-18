@@ -73,6 +73,32 @@ function isPatternSku(vendorSku) {
     .test(vendorSku || '');
 }
 
+// Daltile item codes → display pattern names, matched longest-first.
+// Coveo often omits shape/designpattern for these, so the SKU code is the
+// only source (STJ22 = 2x2 straight joint mosaic sheet).
+const PATTERN_LABELS = [
+  [/PNYRD/, 'Penny Round Mosaic'],
+  [/HEXMS/, 'Hexagon Mosaic'],
+  [/BRKJ/, 'Brick Joint Mosaic'],
+  [/HERR/, 'Herringbone Mosaic'],
+  [/CHEV/, 'Chevron Mosaic'],
+  [/3DC/, '3D Cube Mosaic'],
+  [/STJ/, 'Straight Joint Mosaic'],
+  [/STK/, 'Stacked Joint Mosaic'],
+  [/WAVE/, 'Wave Mosaic'],
+  [/ARCH/, 'Arches Mosaic'],
+  [/PKT/, 'Picket'],
+  [/MS\d|MSMT|MSGL|MS1P/, 'Mosaic'],
+];
+
+function patternFromVendorSku(vendorSku) {
+  const sku = (vendorSku || '').toUpperCase();
+  for (const [re, label] of PATTERN_LABELS) {
+    if (re.test(sku)) return label;
+  }
+  return null;
+}
+
 // Derive the tile size from the vendor SKU's shape-code digits
 // (RCT416 → 4X16, SQU2424 → 24X24). More reliable than the stored size
 // attribute, which can carry Coveo's combined-size resolution mistakes.
@@ -245,4 +271,4 @@ function resolveImage(index, vendorSku, size, currentUrl, opts = {}) {
   return null;
 }
 
-module.exports = { buildImageIndex, resolveImage, skuColorCode, isSwatchUrl };
+module.exports = { buildImageIndex, resolveImage, skuColorCode, isSwatchUrl, patternFromVendorSku };

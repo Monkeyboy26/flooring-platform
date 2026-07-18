@@ -19,7 +19,7 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { Client: FtpClient } = require('basic-ftp');
-const { buildImageIndex, resolveImage } = require('./daltile-image-match.cjs');
+const { buildImageIndex, resolveImage, patternFromVendorSku } = require('./daltile-image-match.cjs');
 
 import fs from 'fs';
 import path from 'path';
@@ -825,7 +825,16 @@ async function processProduct(pool, ctx) {
     if (skuSize.includes(',')) {
       skuSize = skuSize.split(',')[0].trim();
     }
-    const variantParts = [skuSize, sku.finish, sku.designPattern, sku.shape].filter(Boolean);
+    // Coveo often omits shape/designpattern for mosaic sheets — derive the
+    // pattern from the SKU code so "2X2, Matte" becomes
+    // "2X2, Straight Joint Mosaic, Matte"
+    let derivedPattern = null;
+    if (/mosaic/i.test(sku.productType || '') &&
+        !/(mosaic|joint|cube|herringbone|chevron|penny|hex|picket|stacked|wave|arch)/i
+          .test(`${sku.designPattern || ''} ${sku.shape || ''}`)) {
+      derivedPattern = patternFromVendorSku(coveoSku);
+    }
+    const variantParts = [skuSize, derivedPattern, sku.finish, sku.designPattern, sku.shape].filter(Boolean);
     const variantName = variantParts.join(', ') || colorName;
 
     // Determine sell_by
