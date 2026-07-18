@@ -5182,8 +5182,8 @@
           <RevealSection delay={0.1}>
             <section className="form-counsel-band">
               <div className="form-counsel-inner">
-                <h2 className="form-counsel-headline">Join the monthly field guide</h2>
-                <p className="form-counsel-body">Install math, new arrivals, showroom notes &mdash; once a month, straight to your inbox. No daily emails. Unsubscribe whenever.</p>
+                <h2 className="form-counsel-headline">Join the field guide</h2>
+                <p className="form-counsel-body">Install math, new arrivals, showroom notes &mdash; straight to your inbox. No daily emails. Unsubscribe whenever.</p>
                 {newsletterSubmitted ? (
                   <p className="form-counsel-success">You&rsquo;re on the list. Watch for the next field guide.</p>
                 ) : (
@@ -13602,7 +13602,7 @@
                 /* @__PURE__ */ React.createElement("span", { className: "auth-checkbox-box" + (newsletter ? " checked" : "") },
                   newsletter && /* @__PURE__ */ React.createElement("span", { className: "auth-checkbox-check" }, "\u2713")
                 ),
-                /* @__PURE__ */ React.createElement("span", null, "Send me Roma\u2019s monthly field guide \u2014 install math, new arrivals, showroom notes. No daily emails. Unsubscribe whenever.")
+                /* @__PURE__ */ React.createElement("span", null, "Send me Roma\u2019s field guide \u2014 install math, new arrivals, showroom notes. No daily emails. Unsubscribe whenever.")
               ),
               /* @__PURE__ */ React.createElement("button", { type: "submit", className: "auth-cta", disabled: loading }, loading ? "Creating account\u2026" : "Create my account \u2192"),
               /* @__PURE__ */ React.createElement("div", { className: "auth-terms" },
