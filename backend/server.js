@@ -10497,8 +10497,13 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
         return res.status(400).json({ error: 'Webhook signature verification failed' });
       }
     } else {
-      // Fallback for dev — log warning
-      console.warn('STRIPE_WEBHOOK_SECRET not set — webhook signature verification disabled');
+      // Unverified webhooks can forge payment settlements (mark ACH/bank-transfer
+      // orders paid, activate subscriptions). Never process them in production.
+      if (process.env.NODE_ENV === 'production') {
+        console.error('STRIPE_WEBHOOK_SECRET not set — rejecting webhook (signature verification is required in production)');
+        return res.status(500).json({ error: 'Webhook verification not configured' });
+      }
+      console.warn('STRIPE_WEBHOOK_SECRET not set — webhook signature verification disabled (dev only)');
       event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     }
     switch (event.type) {
@@ -13512,7 +13517,42 @@ app.post('/api/rep/card/charge-saved', repAuth, async (req, res) => {
     if (!stripe_customer_id || !payment_method_id) {
       return res.status(400).json({ error: 'Customer and payment method are required' });
     }
+
+    // The Stripe customer must belong to a Roma account — never charge
+    // arbitrary Stripe ids sent from the client
+    const known = await pool.query(
+      `SELECT 'customer' AS kind, id, email FROM customers WHERE stripe_customer_id = $1
+       UNION ALL
+       SELECT 'trade_customer', id, email FROM trade_customers WHERE stripe_customer_id = $1
+       LIMIT 1`,
+      [stripe_customer_id]
+    );
+    if (!known.rows.length) {
+      return res.status(400).json({ error: 'No Roma customer matches that payment profile' });
+    }
+    const romaCustomer = known.rows[0];
+
+    // The card must be attached to that customer (Stripe would also reject
+    // this, but verify explicitly so the failure is ours and gets audited)
+    const pm = await stripe.paymentMethods.retrieve(payment_method_id).catch(() => null);
+    if (!pm || pm.customer !== stripe_customer_id) {
+      return res.status(400).json({ error: 'Saved card not found for this customer' });
+    }
+
     const amountCents = Math.round(amount * 100);
+    const auditDetails = {
+      rep_id: req.rep.id,
+      rep_name: (req.rep.first_name + ' ' + req.rep.last_name).trim(),
+      rep_email: req.rep.email,
+      amount: amount,
+      description: description || 'Card on file charge',
+      stripe_customer_id,
+      customer_kind: romaCustomer.kind,
+      customer_id: romaCustomer.id,
+      customer_email: romaCustomer.email,
+      payment_method_id,
+      card_last4: pm.card ? pm.card.last4 : null,
+    };
     try {
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amountCents,
@@ -13528,6 +13568,8 @@ app.post('/api/rep/card/charge-saved', repAuth, async (req, res) => {
         ? paymentIntent.latest_charge
         : (paymentIntent.charges && paymentIntent.charges.data && paymentIntent.charges.data[0]);
       const cardDetails = charge && charge.payment_method_details && charge.payment_method_details.card;
+      await logAudit(null, 'card_on_file_charge', 'payment', null,
+        { ...auditDetails, payment_intent_id: paymentIntent.id, status: paymentIntent.status }, req.ip);
       res.json({
         payment_intent_id: paymentIntent.id,
         status: paymentIntent.status,
@@ -13536,6 +13578,8 @@ app.post('/api/rep/card/charge-saved', repAuth, async (req, res) => {
       });
     } catch (err) {
       if (err.type === 'StripeCardError' || err.code === 'authentication_required') {
+        await logAudit(null, 'card_on_file_charge_declined', 'payment', null,
+          { ...auditDetails, error: err.message, decline_code: err.decline_code || err.code }, req.ip);
         return res.status(402).json({ error: err.message || 'Card declined', decline_code: err.decline_code || err.code });
       }
       throw err;
