@@ -3342,3 +3342,9 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
   .auth-header { flex-direction: column; gap: 8px; align-items: flex-start; }
   .auth-footer { flex-direction: column; gap: 8px; align-items: flex-start; }
 }
+
+/* ===== About Page (The Letter) ===== */
+.about-visit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+@media (max-width: 720px) {
+  .about-visit-grid { grid-template-columns: 1fr; gap: 36px; }
+}

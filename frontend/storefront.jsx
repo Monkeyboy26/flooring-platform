@@ -2782,7 +2782,7 @@
           goCabinets();
           return;
         }
-        if (path === '/terms' || path === '/privacy' || path === '/accessibility') {
+        if (path === '/terms' || path === '/privacy' || path === '/accessibility' || path === '/about') {
           const viewName = path.slice(1);
           setView(viewName);
           history.pushState({ view: viewName }, '', path);
@@ -2791,8 +2791,7 @@
         }
         // Service page placeholders
         const servicePages = {
-          '/design-services': 'Design Services',
-          '/about': 'About Us'
+          '/design-services': 'Design Services'
         };
         if (servicePages[path]) {
           setComingSoonTitle(servicePages[path]);
@@ -3179,9 +3178,10 @@
           setView('privacy');
         } else if (path === '/accessibility') {
           setView('accessibility');
-        } else if (['/design-services', '/about'].includes(path)) {
-          const titles = { '/design-services': 'Design Services', '/about': 'About Us' };
-          setComingSoonTitle(titles[path]);
+        } else if (path === '/about') {
+          setView('about');
+        } else if (path === '/design-services') {
+          setComingSoonTitle('Design Services');
           setView('coming-soon');
         } else if (path === '/shop' || path.startsWith('/shop')) {
           // Browse view
@@ -3261,6 +3261,7 @@
             else if (p === '/trade/dashboard') { setView('trade-dashboard'); }
             else if (p === '/sale') { setView('sale'); }
             else if (p === '/cabinets') { setView('cabinets'); }
+            else if (p === '/about') { setView('about'); }
             else if (p.startsWith('/visit/')) { setVisitRecapToken(p.replace('/visit/', '')); setView('visit-recap'); }
             else {
               setView('browse');
@@ -3311,6 +3312,7 @@
           signin: { title: 'Sign In | Roma Flooring Designs', description: 'Sign in to your Roma Flooring Designs account.', url: SITE_URL + '/signin' },
           signup: { title: 'Create Account | Roma Flooring Designs', description: 'Create your Roma Flooring Designs account.', url: SITE_URL + '/signup' },
           'forgot-password': { title: 'Forgot Password | Roma Flooring Designs', description: 'Reset your Roma Flooring Designs password.', url: SITE_URL + '/forgot-password' },
+          about: { title: 'About Us | Roma Flooring Designs', description: 'A family flooring house in Anaheim, California — hardwood, stone, tile, and cabinetry since 2010. Visit our showroom on State College Blvd.', url: SITE_URL + '/about' },
         };
 
         // Dynamic SEO for filtered browse views
@@ -3582,6 +3584,10 @@
 
           {view === 'cabinets' && (
             <CabinetsPage />
+          )}
+
+          {view === 'about' && (
+            <AboutPage navigate={navigate} />
           )}
 
           {view === 'coming-soon' && (
@@ -14300,6 +14306,165 @@
             </a>
             <a href="/" onClick={e => { e.preventDefault(); goHome(); }} style={{ color: 'var(--stone-700)', textDecoration: 'underline' }}>Back to home</a>
           </div>
+        </div>
+      );
+    }
+
+    // ==================== About Page (Direction A — "The Letter") ====================
+
+    const ABOUT_FACTS = {
+      address: '1440 S. State College Blvd #6M',
+      cityzip: 'Anaheim, CA 92806',
+      phone: '(714) 999-0009',
+      phoneHref: 'tel:+17149990009',
+      license: 'License #830966',
+      mapsUrl: 'https://maps.google.com/?q=1440+S+State+College+Blvd+%236M,+Anaheim,+CA+92806',
+    };
+
+    const ABOUT_VALUES = [
+      { t: 'Stand on it first', d: 'No floor goes home on a screen alone. Every material in our showroom can be held, walked on, and cut to a sample at the counter before you commit a single dollar.' },
+      { t: 'Stone outlives trends', d: 'We stock what lasts thirty years, not one season. If a material will not age well in a Californian house, it does not earn a place on our floor.' },
+      { t: 'A person answers the phone', d: 'When something comes up mid-install, you reach a person who was here when the order was written — not a queue. That has been true since the first day.' },
+      { t: 'One roof, every trade', d: 'Flooring, stone, tile, and cabinets under one roof, supplied and set by people who talk to each other. One number to call when a room needs to come together.' },
+    ];
+
+    function AboutImgSlot({ label, ratio = '4 / 3' }) {
+      const ink = '#1c1917';
+      return (
+        <div style={{
+          aspectRatio: ratio, width: '100%', background: '#ddd4c1',
+          border: `1px solid ${ink}20`, position: 'relative',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', inset: 10, border: `1px dashed ${ink}26`, pointerEvents: 'none' }} />
+          <div style={{ textAlign: 'center', padding: 20 }}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={ink + '66'} strokeWidth="1.2" style={{ marginBottom: 10 }} aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="1" />
+              <circle cx="8.5" cy="8.5" r="1.6" />
+              <path d="M21 15l-5-5L5 21" />
+            </svg>
+            <div style={{ font: '500 10px/1.5 var(--font-body)', letterSpacing: '0.18em', textTransform: 'uppercase', color: ink + '88' }}>{label}</div>
+          </div>
+        </div>
+      );
+    }
+
+    function AboutPage({ navigate }) {
+      const INK = '#1c1917';
+      const PAPER = '#efe9dc';
+      const PAPER_ALT = '#e9e3d6';
+      const ACCENT = 'var(--gold)';
+      return (
+        <div className="about-page" style={{ background: PAPER, color: INK }}>
+          {/* Manifesto / hero */}
+          <section style={{ maxWidth: 720, margin: '0 auto', padding: 'clamp(64px, 9vw, 112px) 32px 64px', textAlign: 'center' }}>
+            <div style={{ font: '500 11px/1.8 var(--font-body)', letterSpacing: '0.22em', textTransform: 'uppercase', color: ACCENT, marginBottom: 30 }}>
+              A family flooring house &middot; Anaheim, California
+            </div>
+            <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 400, fontSize: 'clamp(2.125rem, 5vw, 3rem)', lineHeight: 1.3, letterSpacing: '0.004em', textWrap: 'balance' }}>
+              We have spent fifteen years learning what a good floor
+              asks of a house — and then keeping that material on the shelf.
+            </h1>
+          </section>
+
+          <div style={{ maxWidth: 720, margin: '0 auto', padding: '0 32px' }}>
+            <div style={{ height: 1, background: `${INK}22` }} />
+          </div>
+
+          {/* The letter */}
+          <section style={{ maxWidth: 640, margin: '0 auto', padding: '64px 32px 40px' }}>
+            <div style={{ font: '500 11px/1 var(--font-body)', letterSpacing: '0.24em', textTransform: 'uppercase', color: `${INK}88`, marginBottom: 32 }}>
+              A note from the family
+            </div>
+
+            <p style={{ margin: '0 0 26px', font: '400 19px/1.85 var(--font-heading)', textWrap: 'pretty' }}>
+              <span style={{ float: 'left', font: '400 76px/0.78 var(--font-heading)', color: ACCENT, padding: '6px 14px 0 0' }}>R</span>
+              oma began in 2010 with a single rented bay, a tile saw, and a
+              simple rule: never sell a floor you would not lay in your own
+              home. We started with the materials other shops would not bother
+              to stock, and a habit of walking customers across every sample
+              until they were sure.
+            </p>
+            <p style={{ margin: '0 0 26px', font: '400 17px/1.92 var(--font-body)', color: `${INK}cc`, textWrap: 'pretty' }}>
+              Fifteen years later the saw is still here, and so are we. The bay
+              became a showroom; the odd lots became a real collection of
+              hardwood, stone, tile, and cabinetry. What did not change is the
+              counter — the place where someone on our team will still cut you
+              a sample, talk you out of the wrong choice, and answer the phone
+              when the install hits a surprise.
+            </p>
+            <p style={{ margin: '0 0 38px', font: '400 17px/1.92 var(--font-body)', color: `${INK}cc`, textWrap: 'pretty' }}>
+              We are not the biggest flooring company in Orange County, and we
+              have never tried to be. We would rather be the one a family comes
+              back to for the second house, and sends their neighbor to for the
+              first. A few things we hold to, in case it helps you decide
+              whether we are your kind of shop:
+            </p>
+
+            {/* Values — numbered, inside the prose */}
+            <ol style={{ margin: '0 0 42px', padding: 0, listStyle: 'none' }}>
+              {ABOUT_VALUES.map((v, i) => (
+                <li key={i} style={{ display: 'flex', gap: 22, padding: '22px 0', borderTop: `1px solid ${INK}1a` }}>
+                  <span style={{ font: '400 26px/1 var(--font-heading)', fontStyle: 'italic', color: ACCENT, flex: '0 0 auto', width: 34 }}>
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <div>
+                    <div style={{ font: '500 17px/1.4 var(--font-heading)', marginBottom: 7 }}>{v.t}</div>
+                    <p style={{ margin: 0, font: '400 15px/1.78 var(--font-body)', color: `${INK}aa`, textWrap: 'pretty' }}>{v.d}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+
+            {/* Signature */}
+            <div style={{ borderTop: `1px solid ${INK}1a`, paddingTop: 30 }}>
+              <p style={{ margin: '0 0 18px', font: '400 17px/1.85 var(--font-body)', color: `${INK}cc` }}>
+                Come stand on a few. We will put the kettle on.
+              </p>
+              <div style={{ font: '400 34px/1 var(--font-heading)', fontStyle: 'italic', color: INK, marginBottom: 8 }}>
+                The Roma family
+              </div>
+              <div style={{ font: '500 11px/1.6 var(--font-body)', letterSpacing: '0.16em', textTransform: 'uppercase', color: `${INK}77` }}>
+                Founders &middot; Anaheim, California
+              </div>
+            </div>
+          </section>
+
+          {/* A single quiet image */}
+          <section style={{ maxWidth: 720, margin: '0 auto', padding: '20px 32px 72px' }}>
+            <AboutImgSlot label="The showroom counter" ratio="16 / 7" />
+            <div style={{ font: '400 12px/1.6 var(--font-body)', color: `${INK}77`, marginTop: 12, fontStyle: 'italic' }}>
+              Fig. — the counter at our Anaheim showroom, much as it looks today.
+            </div>
+          </section>
+
+          {/* Visit — quiet block */}
+          <section style={{ background: PAPER_ALT, borderTop: `1px solid ${INK}22` }}>
+            <div className="about-visit-grid" style={{ maxWidth: 720, margin: '0 auto', padding: '64px 32px' }}>
+              <div>
+                <div style={{ font: '500 11px/1 var(--font-body)', letterSpacing: '0.24em', textTransform: 'uppercase', color: ACCENT, marginBottom: 22 }}>Visit the showroom</div>
+                <div style={{ font: '400 22px/1.5 var(--font-heading)', marginBottom: 18 }}>{ABOUT_FACTS.address}<br />{ABOUT_FACTS.cityzip}</div>
+                <div style={{ font: '400 14px/1.9 var(--font-body)', color: `${INK}aa` }}>
+                  Mon &ndash; Fri &middot; 9am &ndash; 5pm<br />
+                  Saturday &middot; 10am &ndash; 5pm<br />
+                  Closed Sunday<br />
+                  <a href={ABOUT_FACTS.phoneHref} style={{ color: 'inherit', textDecoration: 'none' }}>{ABOUT_FACTS.phone}</a><br />
+                  {ABOUT_FACTS.license}<br />
+                  <span style={{ fontStyle: 'italic' }}>Just off the 57 freeway.</span>
+                </div>
+              </div>
+              <div>
+                <a href={ABOUT_FACTS.mapsUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }} aria-label="Open our showroom location in Google Maps">
+                  <AboutImgSlot label="Open in Google Maps" ratio="4 / 3" />
+                </a>
+                <a href={ABOUT_FACTS.phoneHref} style={{
+                  display: 'inline-block', marginTop: 18, font: '500 11px/1 var(--font-body)', letterSpacing: '0.18em',
+                  textTransform: 'uppercase', color: INK, textDecoration: 'none', cursor: 'pointer',
+                  borderBottom: `1px solid ${INK}`, paddingBottom: 6,
+                }}>Book a counter visit</a>
+              </div>
+            </div>
+          </section>
         </div>
       );
     }
