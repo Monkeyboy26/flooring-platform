@@ -27,6 +27,20 @@ const CATEGORY_MAP = {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+/** Infer category slug from product name when CATEGORY_MAP has no match. */
+function inferCategoryFromName(name) {
+  if (!name) return null;
+  const n = name.toLowerCase();
+  if (/stairnose|threshold|reducer|bullnose|t.?mold|quarter.?round|transition|l.?shape|u.?shape|q.?shape|chair.?rail|pencil.?liner|overlap/i.test(n)) return 'transitions-moldings';
+  // Shaw coded trim part numbers
+  if (/^(aa(?:olr|qtr)|bt[0-9]|sq[0-9]|sqths|tr[0-9]|vsqt|pcqtr|qtr\d|qtrhs|cs\d{2}[fz]|lx\d{2}|sors)/i.test(n)) return 'transitions-moldings';
+  if (/mosaic|chair rail|pencil liner/i.test(n)) return 'transitions-moldings';
+  if (/adhesive|adh\b/i.test(n)) return 'adhesives-sealants';
+  if (/underlayment|pad\b/i.test(n)) return 'underlayment';
+  if (/cleaner|mop pad|seam|sealer/i.test(n)) return 'installation-sundries';
+  return null;
+}
+
 function titleCase(str) {
   if (!str) return '';
   // Strip trailing foot/inch marks that 832 names don't have
@@ -167,7 +181,7 @@ async function loadExistingData(pool, vendorId) {
     FROM skus s
     JOIN products p ON p.id = s.product_id
     LEFT JOIN sku_attributes sc ON sc.sku_id = s.id
-      AND sc.attribute_id = (SELECT id FROM attributes WHERE slug = 'style_number' LIMIT 1)
+      AND sc.attribute_id = (SELECT id FROM attributes WHERE slug = 'style_code' LIMIT 1)
     LEFT JOIN sku_attributes upc ON upc.sku_id = s.id
       AND upc.attribute_id = (SELECT id FROM attributes WHERE slug = 'upc' LIMIT 1)
     WHERE p.vendor_id = $1 AND s.status = 'active'
@@ -228,11 +242,15 @@ async function loadExistingData(pool, vendorId) {
 async function processStyle(pool, style, vendorId, data, counters, jobId) {
   const styleNumber = (style.sellingStyleNumber || '').trim();
   const styleName = titleCase(style.sellingStyleName || '');
+  // Append style number to product name (like EF format: "Style Name STYLENUMBER")
+  const fullStyleName = styleNumber && !styleName.includes(styleNumber)
+    ? `${styleName} ${styleNumber}`
+    : styleName;
   // Shaw's sellingCompanyGroup values are broad marketing divisions (e.g. "COREtec", "Shaw Floors")
   // not actual product collections. Use empty string to avoid overbroad collection_siblings on storefront.
   const collection = '';
   const productType = style.inventoryType || style.productType || '';
-  const categorySlug = CATEGORY_MAP[productType] || null;
+  const categorySlug = CATEGORY_MAP[productType] || inferCategoryFromName(fullStyleName);
   const categoryId = categorySlug ? (data.categories.get(categorySlug) || null) : null;
   const description = (style.marketingDescription || '').trim() || null;
 
@@ -247,8 +265,18 @@ async function processStyle(pool, style, vendorId, data, counters, jobId) {
 
   // 2. Match by product name (normalized to handle foot marks, apostrophes)
   if (!productId && styleName) {
-    const existing = data.nameToProduct.get(normalizeName(styleName));
+    // Try full name first, then base name for backwards compat
+    const existing = data.nameToProduct.get(normalizeName(fullStyleName))
+      || data.nameToProduct.get(normalizeName(styleName));
     if (existing) productId = existing.id;
+  }
+
+  // Rename existing product to include style number
+  if (productId && styleNumber && fullStyleName !== styleName) {
+    await pool.query(
+      'UPDATE products SET name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND name NOT LIKE $3',
+      [fullStyleName, productId, `% ${styleNumber}`]
+    );
   }
 
   // 3. Fallback: create new product
@@ -256,7 +284,7 @@ async function processStyle(pool, style, vendorId, data, counters, jobId) {
     if (!styleName) return; // Skip styles with no name
     const result = await upsertProduct(pool, {
       vendor_id: vendorId,
-      name: styleName,
+      name: fullStyleName,
       collection: collection || '',
       category_id: categoryId,
       description_long: description,
@@ -266,7 +294,7 @@ async function processStyle(pool, style, vendorId, data, counters, jobId) {
     if (isNewProduct) {
       counters.productsCreated++;
       // Register in lookup maps for subsequent styles
-      data.nameToProduct.set(normalizeName(styleName), { id: productId, name: styleName, collection, description_long: description });
+      data.nameToProduct.set(normalizeName(fullStyleName), { id: productId, name: fullStyleName, collection, description_long: description });
     }
   }
 
@@ -332,6 +360,10 @@ async function processColor(pool, color, style, productId, vendorId, existingSku
   const styleNumber = (style.sellingStyleNumber || '').trim();
   const colorNumber = (color.colorNumber || '').trim();
   const colorName = titleCase(color.colorName || '');
+  // Append color number to variant name (like EF format: "Color Name 00475")
+  const fullColorName = colorName && colorNumber && !colorName.includes(colorNumber)
+    ? `${colorName} ${colorNumber}`
+    : (colorName || colorNumber || null);
   const upcCode = (color.upcCode || '').trim();
 
   // ─── Match or create SKU ─────────────────────────────────────────────
@@ -344,12 +376,23 @@ async function processColor(pool, color, style, productId, vendorId, existingSku
     if (match) skuId = match.sku_id;
   }
 
-  // 2. Color name match
+  // 2. Color name match (supports both old "Color Name" and new "Color Name 00475" formats)
   if (!skuId && colorName) {
     const match = existingSkus.find(s =>
-      s.variant_name && s.variant_name.toUpperCase() === colorName.toUpperCase()
+      s.variant_name && (
+        s.variant_name.toUpperCase() === colorName.toUpperCase() ||
+        s.variant_name.toUpperCase() === (fullColorName || '').toUpperCase()
+      )
     );
     if (match) skuId = match.sku_id;
+  }
+
+  // Rename existing SKU variant to include color number
+  if (skuId && fullColorName && colorNumber) {
+    await pool.query(
+      'UPDATE skus SET variant_name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND variant_name NOT LIKE $3',
+      [fullColorName, skuId, `% ${colorNumber}`]
+    );
   }
 
   // 3. Fallback: create new SKU
@@ -359,7 +402,7 @@ async function processColor(pool, color, style, productId, vendorId, existingSku
       product_id: productId,
       vendor_sku: `${styleNumber} ${colorNumber}`.trim(),
       internal_sku: internalSku,
-      variant_name: colorName || colorNumber || null,
+      variant_name: fullColorName,
       sell_by: 'box',
     });
     skuId = result.id;
@@ -369,7 +412,7 @@ async function processColor(pool, color, style, productId, vendorId, existingSku
       // Add to existing SKU list for matching subsequent colors
       existingSkus.push({
         sku_id: skuId, product_id: productId,
-        variant_name: colorName, upc: upcCode, style_code: styleNumber,
+        variant_name: fullColorName, upc: upcCode, style_code: styleNumber,
       });
     }
   }
@@ -725,8 +768,13 @@ async function processStyleImagesOnly(pool, style, vendorId, data, counters) {
       if (match) skuId = match.sku_id;
     }
     if (!skuId && colorName) {
+      const colorNumber = (color.colorNumber || '').trim();
+      const fullName = colorName && colorNumber ? `${colorName} ${colorNumber}` : colorName;
       const match = existingSkus.find(s =>
-        s.variant_name && s.variant_name.toUpperCase() === colorName.toUpperCase()
+        s.variant_name && (
+          s.variant_name.toUpperCase() === colorName.toUpperCase() ||
+          s.variant_name.toUpperCase() === fullName.toUpperCase()
+        )
       );
       if (match) skuId = match.sku_id;
     }

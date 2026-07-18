@@ -236,9 +236,7 @@ function extractFullName(html, fallbackLine) {
   // Try h1
   const h1 = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
   if (h1) {
-    let name = h1[1].trim();
-    // Clean up Schluter® prefix → "Schluter"
-    name = name.replace(/Schluter®?\s*/gi, 'Schluter ').trim();
+    const name = cleanProductName(h1[1]);
     if (name.length > 5 && name.length < 200) return name;
   }
 
@@ -249,18 +247,38 @@ function extractFullName(html, fallbackLine) {
     try {
       const data = JSON.parse(content);
       const name = extractJsonLdName(data);
-      if (name) return name.replace(/Schluter®?\s*/gi, 'Schluter ').trim();
+      if (name) return cleanProductName(name);
     } catch { /* skip */ }
   }
 
   // Try og:title
   const ogTitle = html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]+)"/i);
   if (ogTitle) {
-    return ogTitle[1].replace(/Schluter®?\s*/gi, 'Schluter ').trim();
+    return cleanProductName(ogTitle[1]);
   }
 
   // Fallback: construct from line name
   return `Schluter ${fallbackLine}`;
+}
+
+/**
+ * Normalize a scraped title into a product name: decode HTML entities
+ * (titles arrive with &reg;/&amp; from raw HTML), drop the page-title
+ * suffix ("... | Decorative | Schluter"), and normalize the Schluter®
+ * prefix → "Schluter ".
+ */
+function cleanProductName(raw) {
+  let name = (raw || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&reg;/gi, '®')
+    .replace(/&trade;/gi, '™')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+  name = name.split('|')[0].trim();
+  name = name.replace(/Schluter\s*®?\s*-?\s*/gi, 'Schluter ').replace(/\s+/g, ' ').trim();
+  return name;
 }
 
 function extractJsonLdName(data) {

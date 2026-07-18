@@ -250,7 +250,15 @@ function extractDetailPage(html, entry) {
   const h1 = html.match(/<h1[^>]*class="[^"]*product_title[^"]*"[^>]*>([^<]+)<\/h1>/i)
     || html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
   if (h1) {
-    let title = h1[1].trim();
+    // Decode HTML entities — h1 text arrives raw (e.g. "Mosaic &amp; Glass Tile")
+    let title = h1[1]
+      .replace(/&amp;/g, '&')
+      .replace(/&reg;/gi, '®')
+      .replace(/&trade;/gi, '™')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&nbsp;/g, ' ')
+      .trim();
     // Ensure "Mapei" prefix
     if (!title.toLowerCase().startsWith('mapei')) title = `Mapei ${title}`;
     result.fullName = title;

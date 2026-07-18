@@ -19,12 +19,15 @@ import { bosphorusLogin, bosphorusLoginFromCookies, bosphorusFetch, BASE_URL } f
  *   - SQFT: sqft per unit
  *   - SoldAs: 'box' | 'piece'
  *
- * Modes (set via source.config.mode):
- *   'inventory' (default): Update pricing + inventory for existing BOS-* SKUs
- *   'full': Also fetch packaging data from specs tables
+ * Modes (set via source.config.mode) — Elysium-style split, one module
+ * shared by multiple vendor_sources rows:
+ *   'price':     Update dealer pricing only
+ *   'inventory': Update stock snapshots only
+ *   'full':      Pricing + inventory + packaging from specs tables
+ *   (unset):     Pricing + inventory (legacy default)
  *
  * Requires:
- *   BOSPHORUS_USERNAME + BOSPHORUS_PASSWORD env vars (Puppeteer login)
+ *   BOSPHORUS_USERNAME + BOSPHORUS_PASSWORD env vars (fetch-based login)
  *   OR BOSPHORUS_COOKIES env var (pre-exported cookie string/file)
  */
 
@@ -33,7 +36,10 @@ const MAX_PAGES = 10;
 
 export async function run(pool, job, source) {
   const config = { delayMs: DEFAULT_DELAY_MS, ...(source.config || {}) };
-  const isFullMode = config.mode === 'full';
+  const mode = config.mode || 'default';
+  const doPricing = mode === 'price' || mode === 'full' || mode === 'default';
+  const doInventory = mode === 'inventory' || mode === 'full' || mode === 'default';
+  const doPackaging = mode === 'full';
 
   const stats = {
     found: 0, pricingUpdated: 0, inventoryUpdated: 0,
@@ -54,16 +60,17 @@ export async function run(pool, job, source) {
     throw err;
   }
 
-  // ── Build internal_sku → sku_id lookup for existing Bosphorus SKUs ──
-  const existingSkus = await pool.query(`SELECT id, internal_sku, vendor_sku FROM skus WHERE internal_sku LIKE 'bos-%' OR internal_sku LIKE 'BOS-%'`);
-  const skuLookup = new Map(existingSkus.rows.map(r => [r.internal_sku.toLowerCase(), r.id]));
+  // ── Build lookups for existing Bosphorus SKUs ──
+  // Primary match: vendor_sku (from JSON-LD hasVariant, same source the catalog
+  // scraper stores). Fallback: rebuilt internal_sku.
+  const existingSkus = await pool.query(`SELECT id, internal_sku, vendor_sku, sell_by FROM skus WHERE internal_sku LIKE 'bos-%' OR internal_sku LIKE 'BOS-%'`);
+  const skuLookup = new Map(existingSkus.rows.map(r => [r.internal_sku.toLowerCase(), r]));
   await appendLog(pool, job.id, `Found ${skuLookup.size} existing BOS-* SKUs in DB`);
 
-  // Also build a vendor_sku lookup for matching by vendor SKU
   const vendorSkuLookup = new Map();
   for (const row of existingSkus.rows) {
     if (row.vendor_sku) {
-      vendorSkuLookup.set(row.vendor_sku.toUpperCase(), row.id);
+      vendorSkuLookup.set(row.vendor_sku.toUpperCase(), row);
     }
   }
 
@@ -105,7 +112,8 @@ export async function run(pool, job, source) {
   });
 
   // ── Phase 2: Fetch detail pages and update inventory/pricing ──
-  await appendLog(pool, job.id, 'Phase 2: Fetching detail pages and updating inventory...');
+  const modeLabel = [doPricing && 'pricing', doInventory && 'inventory', doPackaging && 'packaging'].filter(Boolean).join(' + ');
+  await appendLog(pool, job.id, `Phase 2: Fetching detail pages (mode: ${mode} — updating ${modeLabel})...`);
 
   for (let i = 0; i < productUrls.length; i++) {
     const url = productUrls[i];
@@ -125,50 +133,79 @@ export async function run(pool, job, source) {
       // Process each variant
       for (const variant of data.variants) {
         try {
-          // Build the internal SKU that the catalog scraper would have created
-          const sizeNorm = normalizeSize(variant.size);
-          const internalSku = buildInternalSku(data.name, variant.color, sizeNorm, variant.finish);
-          const internalSkuLower = internalSku.toLowerCase();
+          // Primary match: vendor SKU (same value the catalog scraper stores)
+          let sku = variant.vendorSku
+            ? vendorSkuLookup.get(variant.vendorSku.toUpperCase())
+            : null;
 
-          // Try to find matching SKU
-          let skuId = skuLookup.get(internalSkuLower);
-
-          // Fallback: try vendor SKU match
-          if (!skuId && variant.vendorSku) {
-            skuId = vendorSkuLookup.get(variant.vendorSku.toUpperCase());
+          // Fallback: rebuild the internal SKU the catalog scraper would have created
+          if (!sku) {
+            const sizeNorm = normalizeSize(variant.size);
+            const internalSku = buildInternalSku(data.name, sizeNorm, variant.finish, variant.color);
+            sku = skuLookup.get(internalSku.toLowerCase());
           }
 
-          if (!skuId) {
+          if (!sku) {
             stats.noMatch++;
             continue;
           }
 
-          // Update pricing
-          if (variant.price > 0) {
-            const sellBy = determineSellBy(variant.size, variant.sizeLabel);
-            await upsertPricing(pool, skuId, {
-              cost: variant.netPrice || variant.price,
-              retail_price: variant.listPrice || 0,
-              price_basis: sellBy === 'box' ? 'per_sqft' : 'per_unit',
-            });
-            stats.pricingUpdated++;
+          // Update pricing — mirror the catalog scraper's conversion:
+          // sell_by 'box' SKUs store a per-sqft cost, 'unit' SKUs store the
+          // piece price as-is.
+          if (doPricing && variant.price > 0) {
+            let cost = variant.netPrice || variant.price;
+            let retailPrice = variant.listPrice || null;
+            let pricingValid = true;
+
+            if (sku.sell_by === 'box') {
+              if (variant.areaNetPrice > 0) {
+                cost = variant.areaNetPrice;
+                retailPrice = variant.areaListPrice || null;
+              } else if (variant.sqft > 0) {
+                cost = +(cost / variant.sqft).toFixed(4);
+                if (retailPrice) retailPrice = +(retailPrice / variant.sqft).toFixed(4);
+              } else {
+                // No sqft divisor — storing a raw box price as per_sqft would be
+                // wildly wrong. Skip pricing, still update inventory below.
+                pricingValid = false;
+              }
+            }
+
+            if (pricingValid) {
+              // Bosphorus list prices run only ~10% above dealer net on most
+              // lines — passing them through as retail yields ~10% margin.
+              // Keystone (cost × 2) is the floor; keep list only when higher.
+              const keystone = Math.round(cost * 2 * 100) / 100;
+              if (!retailPrice || retailPrice < keystone) retailPrice = keystone;
+              await upsertPricing(pool, sku.id, {
+                cost,
+                retail_price: retailPrice,
+                price_basis: sku.sell_by === 'box' ? 'per_sqft' : 'per_unit',
+              });
+              stats.pricingUpdated++;
+            }
           }
 
-          // Update inventory — prefer WarehouseQty if available, fall back to TotalStock
-          const stockQty = variant.warehouseQty
-            ? parseFloat(variant.warehouseQty)
-            : (parseFloat(variant.totalStock) || 0);
-          await upsertInventorySnapshot(pool, skuId, 'Bosphorus-Anaheim', {
-            qty_on_hand_sqft: stockQty || 0,
-            qty_in_transit_sqft: 0,
-          });
-          stats.inventoryUpdated++;
+          // Update inventory — prefer WarehouseQty (0 is a valid value),
+          // fall back to TotalStock, clamp negatives (oversold) to 0
+          if (doInventory) {
+            const warehouseQty = parseFloat(variant.warehouseQty);
+            const stockQty = Number.isFinite(warehouseQty)
+              ? warehouseQty
+              : (parseFloat(variant.totalStock) || 0);
+            await upsertInventorySnapshot(pool, sku.id, 'Bosphorus-Anaheim', {
+              qty_on_hand_sqft: Math.max(stockQty, 0),
+              qty_in_transit_sqft: 0,
+            });
+            stats.inventoryUpdated++;
+          }
 
           // Update packaging if in full mode and specs available
-          if (isFullMode) {
+          if (doPackaging) {
             const sqftPerBox = data.specs?.sqftPerBox || variant.sqft || null;
             if (sqftPerBox || data.specs?.piecesPerBox) {
-              await upsertPackaging(pool, skuId, {
+              await upsertPackaging(pool, sku.id, {
                 sqft_per_box: sqftPerBox,
                 pieces_per_box: data.specs?.piecesPerBox || null,
                 weight_per_box_lbs: data.specs?.boxWeight || null,
@@ -241,15 +278,25 @@ function parseDetailForInventory(html) {
     specs: {},
   };
 
-  // ── Product name from JSON-LD ──
+  // ── Product name + URL→vendorSku map from JSON-LD ──
+  // hasVariant entries pair each variant's offer URL with its vendor SKU;
+  // variant_groups values carry the same Url, giving a reliable join key.
+  const skuByUrl = new Map();
   const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
   if (jsonLdMatch) {
     for (const tag of jsonLdMatch) {
       try {
-        const content = tag.replace(/<script[^>]*>/, '').replace(/<\/script>/, '');
+        const content = tag.replace(/<script[^>]*>/, '').replace(/<\/script>/, '').replace(/[\x00-\x1f]/g, ' ');
         const data = JSON.parse(content);
         if (data['@type'] === 'ProductGroup' || data['@type'] === 'Product') {
           result.name = data.name || null;
+          if (data.hasVariant) {
+            for (const v of data.hasVariant) {
+              if (v.sku && v.offers?.url) {
+                skuByUrl.set(v.offers.url, v.sku);
+              }
+            }
+          }
         }
       } catch {}
     }
@@ -290,15 +337,23 @@ function parseDetailForInventory(html) {
         const listPrice = val.PriceData ? (parseFloat(val.PriceData.price) || 0) : 0;
         const netPrice = val.PriceData ? (parseFloat(val.PriceData.net_price) || dealerPrice) : dealerPrice;
 
+        // Per-sqft prices pre-computed by the website (price_text.area_*)
+        const priceTxt = val.PriceData?.price_text;
+        const parseMoney = (s) => s ? parseFloat(String(s).replace(/[^0-9.]/g, '')) || 0 : 0;
+        const areaNetPrice = parseMoney(priceTxt?.area_net_price);
+        const areaListPrice = parseMoney(priceTxt?.area_price);
+
         result.variants.push({
           color: color || 'Default',
           size: size || '',
           sizeLabel,
           finish: finish || null,
-          vendorSku: null,
+          vendorSku: skuByUrl.get(val.Url) || null,
           price: dealerPrice,
           listPrice,
           netPrice,
+          areaNetPrice,
+          areaListPrice,
           stockStatus: parseInt(val.StockStatus, 10),
           totalStock: val.TotalStock || '0',
           sqft: val.SQFT ? parseFloat(val.SQFT) : null,
@@ -402,34 +457,14 @@ function extractField(variantName, field) {
   return null;
 }
 
-function buildInternalSku(collection, color, size, finish) {
-  const parts = ['BOS', slugify(collection), slugify(color)];
+// Must match the catalog scraper's buildInternalSku exactly:
+// BOS-<collection>-<size>-<finish>-<color>
+function buildInternalSku(collection, size, finish, color) {
+  const parts = ['BOS', slugify(collection)];
   if (size) parts.push(slugify(size));
   if (finish) parts.push(slugify(finish));
+  parts.push(slugify(color));
   return parts.join('-');
-}
-
-function determineSellBy(size, sizeLabel) {
-  const label = (sizeLabel || '').toLowerCase();
-  if (label.includes('mosaic') || label.includes('bullnose') || label.includes('surface')) {
-    return 'unit';
-  }
-
-  const normalized = normalizeSize(size);
-  if (!normalized) return 'box';
-
-  const match = normalized.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
-  if (!match) return 'box';
-
-  const dim1 = parseFloat(match[1]);
-  const dim2 = parseFloat(match[2]);
-  const maxDim = Math.max(dim1, dim2);
-  const minDim = Math.min(dim1, dim2);
-
-  if (maxDim <= 4) return 'unit';
-  if (minDim <= 3 && maxDim >= 12) return 'unit';
-
-  return 'box';
 }
 
 function slugify(str) {

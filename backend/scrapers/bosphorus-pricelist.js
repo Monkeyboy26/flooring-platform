@@ -245,7 +245,7 @@ async function createItemSku(pool, vendorId, series, block, item, categoryId, st
 
   await upsertPricing(pool, sku.id, {
     cost: item.price,
-    retail_price: 0,
+    retail_price: Math.round(item.price * 2 * 100) / 100,
     price_basis: priceBasis,
   });
   stats.pricingSet++;
@@ -302,7 +302,7 @@ async function createBudgetSku(pool, vendorId, item, catMap, stats) {
 
   await upsertPricing(pool, sku.id, {
     cost: item.newPrice,
-    retail_price: 0,
+    retail_price: Math.round(item.newPrice * 2 * 100) / 100,
     price_basis: 'per_sqft',
   });
   stats.pricingSet++;
@@ -338,7 +338,7 @@ async function createLiquidationSku(pool, vendorId, item, catMap, stats) {
   // Use job pack price as cost (most relevant for single-box purchase)
   await upsertPricing(pool, sku.id, {
     cost: item.jobPackPrice,
-    retail_price: 0,
+    retail_price: Math.round(item.jobPackPrice * 2 * 100) / 100,
     price_basis: 'per_sqft',
   });
   stats.pricingSet++;
@@ -386,7 +386,7 @@ async function createStoneSku(pool, vendorId, stone, item, type, categoryId, sta
 
   await upsertPricing(pool, sku.id, {
     cost: item.price,
-    retail_price: 0,
+    retail_price: Math.round(item.price * 2 * 100) / 100,
     price_basis: priceBasis,
   });
   stats.pricingSet++;

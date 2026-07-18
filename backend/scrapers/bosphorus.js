@@ -385,10 +385,19 @@ export async function run(pool, job, source) {
             }
 
             // Packaging — try per-size match first, then fall back to default/single packaging
-            const pkg = productData.packagingBySize.get(sizeNorm)
+            let pkg = productData.packagingBySize.get(sizeNorm)
               || productData.packagingBySize.get('_default')
               || (productData.packagingBySize.size === 1
                   ? productData.packagingBySize.values().next().value : null);
+            // Last resort: match by v.sqft against packagingBySize entries
+            if (!pkg && v.sqft && productData.packagingBySize.size > 0) {
+              for (const entry of productData.packagingBySize.values()) {
+                if (entry.sqftPerBox && Math.abs(entry.sqftPerBox - v.sqft) < 0.5) {
+                  pkg = entry;
+                  break;
+                }
+              }
+            }
             if (pkg && (pkg.sqftPerBox || pkg.piecesPerBox)) {
               await upsertPackaging(pool, sku.id, {
                 sqft_per_box: pkg.sqftPerBox || null,
@@ -431,6 +440,11 @@ export async function run(pool, job, source) {
               }
 
               if (pricingValid) {
+                // Bosphorus list prices run only ~10% above dealer net on most
+                // lines — passing them through as retail yields ~10% margin.
+                // Keystone (cost × 2) is the floor; keep list only when higher.
+                const keystone = Math.round(cost * 2 * 100) / 100;
+                if (!retailPrice || retailPrice < keystone) retailPrice = keystone;
                 await upsertPricing(pool, sku.id, {
                   cost,
                   retail_price: retailPrice,
@@ -585,6 +599,7 @@ export async function run(pool, job, source) {
     `UPDATE products SET
       display_name = CASE
         WHEN name = collection THEN collection
+        WHEN lower(name) LIKE lower(collection) || ' %' THEN name
         ELSE collection || ' ' || name
       END,
       updated_at = CURRENT_TIMESTAMP
@@ -1097,7 +1112,7 @@ function parseSelectOptions(html, attributeName) {
       // Match <p> or <span> with variant-name-value class (may have other classes before it)
       const nameMatch = inner.match(/<(?:p|span)[^>]*class="[^"]*variant-name-value[^"]*"[^>]*>([^<]+)<\/(?:p|span)>/)
         || inner.match(/<span[^>]*>([^<]+)<\/span>/);
-      const text = nameMatch ? nameMatch[1].trim() : stripTags(inner).trim();
+      const text = nameMatch ? stripTags(nameMatch[1]).trim() : stripTags(inner).trim();
       if (text && !options.find(o => o.id === id)) {
         options.push({ id, text });
       }
@@ -1116,7 +1131,7 @@ function parseSelectOptions(html, attributeName) {
       const optionRegex = /data-product-attribute-value="(\d+)"[^>]*>([^<]+)</g;
       let optMatch;
       while ((optMatch = optionRegex.exec(selectHtml)) !== null) {
-        options.push({ id: optMatch[1], text: optMatch[2].trim() });
+        options.push({ id: optMatch[1], text: stripTags(optMatch[2]).trim() });
       }
     }
   }
@@ -1129,7 +1144,7 @@ function parseSelectOptions(html, attributeName) {
     );
     let bMatch;
     while ((bMatch = broadRegex.exec(html)) !== null) {
-      const text = (bMatch[2] || bMatch[3] || '').trim();
+      const text = stripTags(bMatch[2] || bMatch[3] || '').trim();
       if (text && !options.find(o => o.id === bMatch[1])) {
         options.push({ id: bMatch[1], text });
       }

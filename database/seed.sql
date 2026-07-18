@@ -959,7 +959,10 @@ INSERT INTO vendor_sources (vendor_id, source_type, name, base_url, config, scra
 ('550e8400-e29b-41d4-a716-446655440010', 'website', 'Ottimo Shopify Catalog', 'https://ottimoceramics.com', '{}', 'ottimo', '0 2 * * 0', true),
 ('550e8400-e29b-41d4-a716-446655440010', 'website', 'Ottimo Stock Check', 'https://ottimostockcheck.netlify.app', '{}', 'ottimo-stockcheck', '0 6 * * *', true),
 -- ── Daltile family — TradePro Exchange inventory ──
-('550e8400-e29b-41d4-a716-446655440003', 'portal', 'Daltile TradePro Inventory', 'https://www.tradeproexchange.com', '{"discovery_mode": false}', 'daltile-inventory', '0 5 * * *', true)
+('550e8400-e29b-41d4-a716-446655440003', 'portal', 'Daltile TradePro Inventory', 'https://www.tradeproexchange.com', '{"discovery_mode": false}', 'daltile-inventory', '0 5 * * *', true),
+-- ── Elysium Tile ──
+('550e8400-e29b-41d4-a716-446655440006', 'portal', 'Elysium Tile Catalog', 'http://elysiumtile.com', '{}', 'elysium', '0 2 * * 0', true),
+('550e8400-e29b-41d4-a716-446655440006', 'portal', 'Elysium Tile Inventory', 'http://elysiumtile.com', '{"mode": "inventory"}', 'elysium', '0 6 * * *', true)
 ON CONFLICT DO NOTHING;
 
 -- ==================== Brands ====================

@@ -530,12 +530,21 @@ function parseListingPage(html, listingCategory) {
  *   - Activates seen products/SKUs; deactivates active SKUs no longer listed
  *     (guarded: only when every category crawled cleanly, with a hard cap).
  *
- * Config: delayMs, batchSize, deepDay (0-6), deep (force full), maxDeactivate.
+ * Config: delayMs, batchSize, deepDay (0-6), deep (force full), maxDeactivate,
+ *         softDeadlineMin (stop crawling and finalize before the global 240-min kill).
  */
 export async function run(pool, job, source) {
   const config = { ...DEFAULT_CONFIG, ...(source.config || {}) };
   const vendor_id = source.vendor_id;
   const deepAll = config.deep === true || new Date().getDay() === config.deepDay;
+
+  // The harness kills scrapers at SCRAPER_TIMEOUT_MS (240 min) and marks the job
+  // failed, discarding finalization (activation, accessory links). On a slow
+  // portal night, stop crawling at the soft deadline instead and finish cleanly
+  // with partial coverage.
+  const runStartMs = Date.now();
+  const softDeadlineMin = config.softDeadlineMin || 200;
+  let deadlineReached = false;
 
   const stats = {
     entries: 0, skusSeen: 0, skusCreated: 0, deepEnriched: 0,
@@ -560,14 +569,29 @@ export async function run(pool, job, source) {
   const seenUrls = new Set();
   let listingFailures = 0;
 
+  // Fetch a listing page with retries — one transient failure must not drop a
+  // whole category (that blocks deactivation and shrinks the run's coverage).
+  const fetchListingPage = async (listUrl) => {
+    let lastErr;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const resp = await elysiumFetch(listUrl, cookies);
+        return await resp.text();
+      } catch (err) {
+        lastErr = err;
+        await delay(2000 * attempt);
+      }
+    }
+    throw lastErr;
+  };
+
   for (const cat of CATEGORY_SOURCES) {
     try {
       let page = 1;
       let hasMore = true;
       while (hasMore) {
         const listUrl = `/category?type=${cat.type}&order_by=name&page=${page}`;
-        const resp = await elysiumFetch(listUrl, cookies);
-        const html = await resp.text();
+        const html = await fetchListingPage(listUrl);
 
         const cardEntries = parseListingPage(html, cat.name);
         for (const entry of cardEntries) {
@@ -760,6 +784,11 @@ export async function run(pool, job, source) {
 
   let processed = 0;
   for (let batchStart = 0; batchStart < entries.length; batchStart += config.batchSize) {
+    if (Date.now() - runStartMs > softDeadlineMin * 60 * 1000) {
+      deadlineReached = true;
+      await appendLog(pool, job.id, `Soft deadline (${softDeadlineMin} min) reached at ${batchStart}/${entries.length} entries — stopping crawl and finalizing with partial coverage`);
+      break;
+    }
     const batch = entries.slice(batchStart, batchStart + config.batchSize);
 
     await Promise.all(batch.map(async (entry) => {
@@ -835,7 +864,9 @@ export async function run(pool, job, source) {
   // fetches were healthy — a flaky night shrinks the "seen" set and would
   // otherwise deactivate live products. Also hard-capped.
   const errorRate = entries.length > 0 ? stats.errors / entries.length : 1;
-  if (errorRate > 0.05) {
+  if (deadlineReached) {
+    await appendLog(pool, job.id, 'Deactivation skipped — crawl stopped at soft deadline, seen-set is incomplete');
+  } else if (errorRate > 0.05) {
     await appendLog(pool, job.id, `Deactivation skipped — error rate ${(errorRate * 100).toFixed(1)}% exceeds 5%`);
   } else if (listingFailures === 0 && entries.length >= 1500) {
     const candidates = await pool.query(`

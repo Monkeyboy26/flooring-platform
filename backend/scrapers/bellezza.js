@@ -48,7 +48,7 @@ const URL_MAP = {
   'Chamonix':                 ['chamonix-beige', 'chamonix-bianco', 'chamonix-dark-gray', 'chamonix-gray'],
   'Concretus':                ['concretus', 'concretus-light-matte', 'concretus-light-12x24-matte', 'concretus-light-36x36-matte'],
   'Connor Beige':             ['connor-beige-matte'],
-  'District':                 ['district-denim-calma-matte', 'district-moon-calma-matte', 'district-sabbia-calma', 'district-taupe-calma'],
+  'District':                 ['district-denim-calma-matte', 'district-sabbia-calma', 'district-taupe-calma'],  // moon-calma-matte page 404'd; image handled via MANUAL_SKU_IMAGES
   'Docks':                    ['docks', 'docks-beige', 'docks-white'],
   'Dolomite':                 ['dolomite-matte'],
   'Emporio Calacatta':        ['emporio-calacatta-matte'],
@@ -185,21 +185,8 @@ function stripWpThumbnail(url) {
   return url.replace(/-(150|300|600|768|1024|1536|2048)x\d+(-\d+)?\.(jpe?g|png|gif|webp)$/i, '.$3');
 }
 
-// Manual override: force a specific gallery index for products where
-// automated scoring fails. Key = product name, value = gallery index to pick.
-const IMAGE_INDEX_OVERRIDE = {
-  'Armani White': 1,   // index 0,2,3 are room scenes; index 1 is product close-up
-  'Altea':        1,   // index 0,2 are bath scenes; index 1 is product swatch (27598_*)
-  'Limit':        1,   // index 0,3 are cocina, index 2 is bath; index 1 is product swatch (27526_*)
-  'Amazonia':     1,   // index 0 is bathroom scene; index 1 is stone texture swatch
-  'Antwerp':      0,   // index 0 is product close-up (hexagon mosaic on white); rest are room scenes
-  'Camden':       0,   // index 0 is product close-up (hexagon mosaic on white); rest are room scenes
-  'Docks':        1,   // index 0,2 are room scenes; index 1 is tile surface swatch
-  'Grande':       0,   // index 0 is product close-up (hexagon mosaic on white); rest are room scenes
-  'Lingot':       1,   // index 0 is bathroom scene; index 1 is tile pattern close-up
-  'Palatino':     1,   // index 0 is bathroom scene; index 1 is ivory stone surface swatch
-  'Spatula':      1,   // index 0,4 are room scenes; index 1 is dark grey tile close-up (120SPAAN_4)
-};
+// IMAGE_INDEX_OVERRIDE removed — primary selection now uses first non-lifestyle
+// image in slider order, which matches the Bellezza product page layout.
 
 // Manual SKU-level image overrides for variants where the vendor site has
 // no dedicated page/gallery and automated scoring can't find the right image.
@@ -208,6 +195,7 @@ const IMAGE_INDEX_OVERRIDE = {
 const MANUAL_SKU_IMAGES = {
   'Altea::Matcha':            'https://bellezzaceramica.com/wp-content/uploads/2022/04/27600_Altea_MATCHA_10x10.jpeg',
   'Angelo Silk Shimmer::Silver': 'https://bellezzaceramica.com/wp-content/uploads/2022/02/51799-angelo-silk-60-silver.jpg',
+  'Angelo Silk Shimmer::Gold':   'https://bellezzaceramica.com/wp-content/uploads/2022/02/51800-angelo-silk-60-gold.jpg',
   'Concretus::Dark':          'https://bellezzaceramica.com/wp-content/uploads/2020/07/concretus-dark-36x36-1.jpg',
   'Fry::Grigio':              'https://bellezzaceramica.com/wp-content/uploads/2020/01/FryGrigioMatte12X2424X48-scaled.jpg',
   'Gio::Cobalt Matte Hexagon': 'https://bellezzaceramica.com/wp-content/uploads/2022/03/GIO-Colbat-Glossy-Stacked-Linear-0.86x5.7-3.jpg',
@@ -231,7 +219,10 @@ const MANUAL_SKU_IMAGES = {
   // ── Fix wrong-color images ─────────────────────────────────────
   'Leccese Cesellata::Fossile': 'https://bellezzaceramica.com/wp-content/uploads/2023/12/ambi-Leccese_Fossile-60x120_2.jpg',
   'Leccese Cesellata::Fumo':    'https://bellezzaceramica.com/wp-content/uploads/2023/12/ambi_Leccese-Fumo_120x120.jpg',
-  'Chamonix::Ocean':            'https://bellezzaceramica.com/wp-content/uploads/2023/10/Chamonix_Beige_Laydown.jpg',  // no Ocean image exists; Beige laydown as fallback
+  'Chamonix::Ocean':            'https://bellezzaceramica.com/wp-content/uploads/2023/10/Chamonix_Beige_Laydown.jpg',  // no Ocean image on vendor site; Beige as fallback
+  'District::Moon':             'https://bellezzaceramica.com/wp-content/uploads/2020/01/DistrictMoonCalmaMatte97.8X291.2.jpg',  // product page 404'd but image file still exists
+  'Milano Mosaic::Gold':        'https://bellezzaceramica.com/wp-content/uploads/2024/10/Milano-Crema-0.jpg',  // no Gold image on vendor site; Crema as fallback
+  'Milano Mosaic::Silver':      'https://bellezzaceramica.com/wp-content/uploads/2024/10/Milano-Crema-0.jpg',  // no Silver image on vendor site; Crema as fallback
   'Elven::Grafito':             'https://bellezzaceramica.com/wp-content/uploads/2020/01/ElvenGrafitoLapattoWallTile15X60.jpg',
 
   // ── Fix wrong-product image ────────────────────────────────────
@@ -265,13 +256,12 @@ async function scrollToLoadAll(page) {
 
 async function extractProductImages(page, url) {
   try {
-    const resp = await page.goto(url, { waitUntil: 'networkidle2', timeout: 35000 });
+    const resp = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
     if (!resp || resp.status() >= 400) {
       console.log(`    HTTP ${resp?.status()} for ${url}`);
       return { images: [], metadata: null };
     }
-    await delay(1500);
-    await scrollToLoadAll(page);
+    await delay(800);
 
     const result = await page.evaluate(() => {
       const imgs = [];
@@ -391,83 +381,30 @@ async function extractProductImages(page, url) {
 }
 
 /**
- * Score an image URL to identify product close-up photos vs room/lifestyle scenes.
- * Higher score = more likely a product photo (swatch, laydown, tile close-up).
- * Lower/negative score = more likely a room/lifestyle scene.
+ * Check if an image URL is a lifestyle/room scene photo.
+ * Bellezza product pages typically show the product swatch as the first slider
+ * image. This function identifies lifestyle images so we can skip them when
+ * selecting the primary — the first non-lifestyle image in slider order wins.
  */
-function scoreProductPhoto(imgObj) {
-  // Normalize to NFC so that decomposed characters (e.g., n + combining tilde)
-  // match precomposed forms (ñ) in our regexes
+function isLifestyleImage(imgObj) {
   const filename = (imgObj.url || '').split('/').pop().toLowerCase().normalize('NFC');
-  const w = imgObj.width || 0;
-  const h = imgObj.height || 0;
-  const idx = imgObj.galleryIndex ?? -1;
-  let score = 0;
 
-  // ── Strong positive: product photo keywords ──
-  if (filename.includes('laydown')) score += 100;
-  if (/swatch|closeup|close-up|detail|texture/i.test(filename)) score += 80;
+  // Room/scene keywords (multi-language)
+  if (/wall|kitchen|bath|room|lobby|living|bedroom|shower|cocina|ba[nñ][oe]|lazienka|lavabo|ba[nñ]era|salon|interior|scene|installed|setting/i.test(filename)) return true;
 
-  // Positive: "EC." prefix = product catalog/swatch image
-  if (filename.startsWith('ec.') || filename.startsWith('ec-')) score += 50;
+  // Ambiance/lifestyle prefix (AMB_, ambi_, amb-)
+  if (/^amb[_-i]|[_-]amb[_-i]/i.test(filename)) return true;
 
-  // Positive: WhatsApp images are product photos shared by vendors
-  if (filename.includes('whatsapp') || /\bwa\d{4}\b/.test(filename)) score += 30;
+  // Camera render angles (cam1, cam2)
+  if (/cam\d/i.test(filename)) return true;
 
-  // ── Strong negative: room/scene keywords ──
-  // Multi-language: wall, kitchen, bathroom, room, lobby, living, bedroom, shower,
-  //   cocina (ES kitchen), bano/baño (ES bathroom), lazienka (PL bathroom),
-  //   lavabo (FR/ES sink), bañera/banera (ES bathtub),
-  //   salon, interior, scene, installed, setting, render
-  if (/wall|kitchen|bath|room|lobby|living|bedroom|shower|cocina|ba[nñ][oe]|lazienka|lavabo|ba[nñ]era|salon|interior|scene|installed|setting/i.test(filename)) score -= 80;
+  // Catalog/brochure scans
+  if (/folder|katalog|catalog|brochure/i.test(filename)) return true;
 
-  // Negative: "-Image" suffix (WooCommerce lifestyle/room photo naming convention)
-  // e.g., Deco-Lingot-Blue-Image.png, Palatino-Ivory-image-2.jpg
-  if (/[-_]image/i.test(filename)) score -= 30;
+  // Render resolution in filename
+  if (filename.includes('1920x1080') || filename.includes('1280x720')) return true;
 
-  // Negative: trailing dash-number suffix (e.g., Antracite-1.png, Chalk-1.png, Beige-2.jpg)
-  // Bellezza uses these for room scene variants; only applies to filenames starting with
-  // a letter (not product codes like 120SPAAN_4.jpg that start with digits)
-  if (/^[a-z].*-\d+\.\w{3,4}$/i.test(filename)) score -= 25;
-
-  // Negative: ambiance/lifestyle keywords (AMB, ambi, amb-)
-  if (/^amb[_-i]|[_-]amb[_-i]/i.test(filename)) score -= 70;
-
-  // Negative: camera render angles (cam1, cam2, etc.)
-  if (/cam\d/i.test(filename)) score -= 50;
-
-  // Negative: catalog/folder scans
-  if (/folder|katalog|catalog|brochure/i.test(filename)) score -= 40;
-
-  // Negative: award/marketing photos
-  if (/award|konkurs|prize/i.test(filename)) score -= 40;
-
-  // Negative: render resolution in filename
-  if (filename.includes('1920x1080') || filename.includes('1280x720')) score -= 60;
-
-  // Negative: exact common render dimensions (16:9 room renders)
-  if ((w === 1920 && h === 1080) || (w === 1280 && h === 720)) score -= 40;
-
-  // Slightly negative: very wide landscape ratio with large dimensions (likely room render)
-  if (w > 1000 && h > 0) {
-    const ratio = w / h;
-    if (ratio > 1.6 && ratio < 1.85) score -= 15; // 16:9 range
-  }
-
-  // ── Aspect ratio heuristics ──
-  // Product close-ups/swatches tend to be square (1:1).
-  // Room scenes tend to be wide landscape (16:9, 3:2, etc).
-  if (w > 200 && h > 200) {
-    const ratio = w / h;
-    if (ratio >= 0.82 && ratio <= 1.22) score += 20;  // near-square = likely product swatch
-  }
-
-  // ── Gallery position tiebreaker ──
-  // Bellezza typically uses room scenes as the featured (first) image.
-  // Penalize index 0 slightly so non-first images win ties.
-  if (idx === 0) score -= 5;
-
-  return score;
+  return false;
 }
 
 /** Generate a description from scraped metadata + product name */
@@ -727,6 +664,18 @@ async function run() {
       'Sec-Fetch-User': '?1',
       'Upgrade-Insecure-Requests': '1',
     });
+    // Block images/media/fonts — we only need DOM attributes (href, data-large_image)
+    await pg.setRequestInterception(true);
+    pg.on('request', req => {
+      const type = req.resourceType();
+      if (type === 'image' || type === 'media' || type === 'font' || type === 'stylesheet') {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+    // Disable browser cache
+    await pg.setCacheEnabled(false);
     await pg.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => false });
       Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
@@ -738,6 +687,8 @@ async function run() {
 
   try {
     let page = await createPage(browser);
+    let pagesVisited = 0;
+    const RESTART_EVERY = 15; // restart browser every N page visits to avoid OOM
 
     console.log('=== Scraping Product Pages ===\n');
 
@@ -779,6 +730,15 @@ async function run() {
             page = await createPage(browser);
           }
         }
+        pagesVisited++;
+        // Periodically restart browser to prevent OOM
+        if (pagesVisited % RESTART_EVERY === 0) {
+          console.log(`    [RESTART] Recycling browser after ${pagesVisited} pages...`);
+          try { await page.close(); } catch {}
+          try { await browser.close(); } catch {}
+          browser = await launchBrowser();
+          page = await createPage(browser);
+        }
         await delay(800);
       }
 
@@ -804,53 +764,71 @@ async function run() {
           bestImage = { url: primaryOverride, width: 0, height: 0 };
           console.log(`    [PRIMARY OVERRIDE] ${primaryOverride.split('/').pop()}`);
         } else {
-          const overrideIdx = IMAGE_INDEX_OVERRIDE[productName];
-          if (overrideIdx !== undefined && overrideIdx < allImages.length) {
-            bestImage = allImages[overrideIdx];
-            console.log(`    [OVERRIDE] Using gallery index ${overrideIdx}: ${bestImage.url.split('/').pop()}`);
-          } else {
-            // Score each image to find the best product close-up photo
-            const scored = allImages.map(img => ({ ...img, score: scoreProductPhoto(img) }));
-            scored.sort((a, b) => b.score - a.score);
-            bestImage = scored[0];
-            // Always log scores so we can identify products needing overrides
-            console.log(`    Scores: ${scored.map(s => `[${s.galleryIndex ?? '?'}]${s.url.split('/').pop()}=${s.score}`).join(', ')}`);
-          }
+          // Use first non-lifestyle image in slider order (matches Bellezza website)
+          bestImage = allImages.find(img => !isLifestyleImage(img)) || allImages[0];
+          console.log(`    Primary: ${bestImage.url.split('/').pop()} (slider order, ${allImages.length} total)`);
         }
         const bestFilename = bestImage.url.split('/').pop();
 
         // Helper: pick the best swatch image from a single slug's gallery.
-        // Uses scoring only (NOT the product-level override) because gallery
-        // structure can differ across slugs within the same product.
+        // Uses first non-lifestyle image in slider order.
         function bestImageForSlug(slug) {
           const imgs = slugImages.get(slug);
           if (!imgs || imgs.length === 0) return null;
-          const scored = imgs.map(img => ({ ...img, score: scoreProductPhoto(img) }));
-          scored.sort((a, b) => b.score - a.score);
-          return scored[0];
+          return imgs.find(img => !isLifestyleImage(img)) || imgs[0];
         }
 
-        // Clear old product-level primary images
+        // Clear old product-level images
         await pool.query(`
           DELETE FROM media_assets
-          WHERE product_id = $1 AND sku_id IS NULL AND asset_type = 'primary'
+          WHERE product_id = $1 AND sku_id IS NULL AND asset_type IN ('primary', 'alternate', 'lifestyle')
         `, [productId]);
 
-        // Clear old SKU-level primary/alternate/lifestyle images from previous runs
-        // (lifestyle images from initial import are room scenes that override our scored primary)
+        // Clear old SKU-level images from previous runs
         await pool.query(`
           DELETE FROM media_assets
           WHERE product_id = $1 AND sku_id IS NOT NULL AND asset_type IN ('primary', 'alternate', 'lifestyle')
         `, [productId]);
 
-        // Save best product-level primary image
-        await upsertMediaAsset(pool, {
-          product_id: productId,
-          asset_type: 'primary',
-          url: bestImage.url,
-          original_url: bestImage.url,
-          sort_order: 0,
-        });
+        // Save ALL product-level images in slider order
+        // First non-lifestyle image is primary, rest classified by type
+        let primarySaved = false;
+        for (let i = 0; i < allImages.length; i++) {
+          const img = allImages[i];
+          const isPrimary = img.url === bestImage.url;
+          if (isPrimary) primarySaved = true;
+          const isLifestyle = isLifestyleImage(img);
+          const assetType = isPrimary ? 'primary' : (isLifestyle ? 'lifestyle' : 'alternate');
+          await upsertMediaAsset(pool, {
+            product_id: productId,
+            asset_type: assetType,
+            url: img.url,
+            original_url: img.url,
+            sort_order: i,
+          });
+        }
+
+        // If the override URL didn't match any scraped image (e.g. WP thumbnail
+        // suffix mismatch), save it as a separate primary asset at sort_order -1
+        // so it appears first.
+        if (!primarySaved && PRODUCT_PRIMARY_OVERRIDE[productName]) {
+          console.log(`    [PRIMARY OVERRIDE] Saving override URL as separate primary (no match in slider)`);
+          await upsertMediaAsset(pool, {
+            product_id: productId,
+            asset_type: 'primary',
+            url: bestImage.url,
+            original_url: bestImage.url,
+            sort_order: -1,
+          });
+        } else if (!primarySaved && allImages.length > 0) {
+          // Fallback: no override, but somehow no primary was assigned — mark first non-lifestyle
+          const fallback = allImages.find(img => !isLifestyleImage(img)) || allImages[0];
+          console.log(`    [PRIMARY FALLBACK] ${fallback.url.split('/').pop()}`);
+          await pool.query(
+            `UPDATE media_assets SET asset_type = 'primary' WHERE product_id = $1 AND url = $2`,
+            [productId, fallback.url]
+          );
+        }
 
         // Save variant-aware SKU-level primaries
         // Each SKU gets the best swatch from its best-matching slug's gallery
@@ -875,7 +853,6 @@ async function run() {
               if (detectColorMismatch(skuRow.variant_name, slugBest.url)) {
                 console.log(`    [COLOR MISMATCH] ${skuRow.variant_name} — skipping ${slugBest.url.split('/').pop()}, using product primary`);
                 colorMismatches++;
-                // skuImage stays as bestImage (product primary fallback)
               } else {
                 skuImage = slugBest;
                 if (skuImage.url !== bestImage.url) variantMatches++;
@@ -897,7 +874,7 @@ async function run() {
         productsMatched++;
         const variantInfo = variantMatches > 0 ? `, ${variantMatches} variant-specific` : '';
         const mismatchInfo = colorMismatches > 0 ? `, ${colorMismatches} color-mismatch fallbacks` : '';
-        console.log(`  [SAVED] ${productName} — ${bestFilename} (product + ${skuRows.rows.length} SKUs${variantInfo}${mismatchInfo})`);
+        console.log(`  [SAVED] ${productName} — ${bestFilename} (${allImages.length} images, ${skuRows.rows.length} SKUs${variantInfo}${mismatchInfo})`);
       } else {
         console.log(`  [NO IMAGES] ${productName}`);
       }

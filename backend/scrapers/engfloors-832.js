@@ -458,8 +458,9 @@ function finalizeItem(item) {
     const costEntry = ctPrice || plPrice || lprPrices[0];
     if (costEntry) { item.cost = costEntry.unit_price; item.unit_of_measure = costEntry.unit_of_measure || item.unit_of_measure; }
 
-    const retailEntry = stPrice || ctPrice || lprPrices[0];
-    if (retailEntry) item.retail_price = retailEntry.unit_price;
+    // ST only — CT/PL are dealer prices, not retail. Falling back to them set
+    // retail = cost (0% margin) on 133 SKUs; missing retail now gets keystone at upsert.
+    if (stPrice) { item.retail_price = stPrice.unit_price; item._retail_uom = stPrice.unit_of_measure || null; }
 
     const mapPrice = item.pricing.find(p => p.price_type === 'MAP');
     if (mapPrice) item.map_price = mapPrice.unit_price;
@@ -469,17 +470,22 @@ function finalizeItem(item) {
     if (netPrice) { item.cost = netPrice.unit_price; item.unit_of_measure = netPrice.unit_of_measure || item.unit_of_measure; }
 
     const retailPrice = item.pricing.find(p => p.price_type === 'MSR') || item.pricing.find(p => p.class_of_trade === 'RS') || item.pricing.find(p => p.price_type === 'CAT');
-    if (retailPrice) item.retail_price = retailPrice.unit_price;
+    if (retailPrice) { item.retail_price = retailPrice.unit_price; item._retail_uom = retailPrice.unit_of_measure || null; }
 
     const mapPrice = item.pricing.find(p => p.price_type === 'MAP');
     if (mapPrice) item.map_price = mapPrice.unit_price;
   }
 
-  // Convert SY prices to SF (1 SY = 9 SF)
+  // Convert SY prices to SF (1 SY = 9 SF) — each price by its OWN entry's UOM.
+  // EF 832 lines can carry CT in SY and ST in SF on the same item; converting
+  // both by the cost UOM divided retail by 9 twice-over (negative margins, 52 SKUs).
+  const retailUom = (item._retail_uom || item.unit_of_measure || '').toUpperCase();
   if (item.unit_of_measure && item.unit_of_measure.toUpperCase() === 'SY') {
     if (item.cost) item.cost = parseFloat((item.cost / 9).toFixed(4));
-    if (item.retail_price) item.retail_price = parseFloat((item.retail_price / 9).toFixed(4));
     item.unit_of_measure = 'SF';
+  }
+  if (retailUom === 'SY' && item.retail_price) {
+    item.retail_price = parseFloat((item.retail_price / 9).toFixed(4));
   }
 
   if (!item.sell_by && item.unit_of_measure) {
@@ -775,9 +781,14 @@ export async function run(pool, job, source) {
       // Pricing — always create a row so downstream scrapers (web services)
       // can UPDATE dealer cost without hitting the retail_price NOT NULL constraint.
       const priceBasis = sellBy === 'roll' ? 'per_sqyd' : sellBy === 'box' ? 'per_sqft' : 'per_unit';
+      // Keystone fallback + floor: missing/thin vendor retail must not undercut
+      // the site-standard cost × 2 margin (raising a price never violates MAP).
+      const efKeystone = item.cost ? Math.round(item.cost * 2 * 100) / 100 : 0;
+      let efRetail = item.retail_price || efKeystone;
+      if (item.cost > 0 && efRetail < efKeystone) efRetail = efKeystone;
       await upsertPricing(pool, skuId, {
         cost: item.cost || 0,
-        retail_price: item.retail_price || item.cost || 0,
+        retail_price: efRetail,
         price_basis: priceBasis,
         cut_price: item.cut_price || null,
         roll_price: item.roll_price || null,

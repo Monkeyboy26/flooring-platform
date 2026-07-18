@@ -77,8 +77,8 @@ const CATEGORY_MAP = {
   'sandstone': 'natural-stone',
   'basalt': 'natural-stone',
   'pebble rock': 'natural-stone',
-  'ledger': 'natural-stone',
-  'corner': 'natural-stone',
+  'ledger': 'stacked-stone',
+  'corner': 'stacked-stone',
   'brick': 'ceramic-tile',
   'mineral surface': 'quartz-countertops',
   'quartz': 'quartz-countertops',
@@ -187,11 +187,29 @@ export async function run(pool, job, source) {
           await appendLog(pool, job.id, `Unmapped MaterialType "${mapped.materialType}" for ${productCode} — product will have no category`);
         }
 
+        // Shape-based product splitting: when the shape implies a different category
+        // than the base MaterialType, create a separate product with a shape suffix.
+        // This prevents mosaic/penny-round/wall-tile SKUs from being lumped with
+        // field tiles under a single product.
+        const baseCategoryId = resolveCategoryId(mapped.materialType, categoryLookup, mapped.collection, {
+          shape: null,
+          isSlab: mapped.isSlab,
+        });
+        let productName = mapped.name;
+        let productCollection = mapped.collection;
+        if (categoryId && baseCategoryId && categoryId !== baseCategoryId && mapped.shape) {
+          const shapeSuffix = classifyShapeSuffix(mapped.shape);
+          if (shapeSuffix) {
+            productName = `${mapped.name} ${shapeSuffix}`;
+            productCollection = `${mapped.collection} ${shapeSuffix}`;
+          }
+        }
+
         // Upsert product
         const product = await upsertProduct(pool, {
           vendor_id,
-          name: mapped.name,
-          collection: mapped.collection,
+          name: productName,
+          collection: productCollection,
           category_id: categoryId,
           description_short: mapped.description ? mapped.description.slice(0, 255) : null,
           description_long: mapped.description
@@ -893,7 +911,9 @@ function parseBedrosianName(rawName) {
     result.color = colorMatch[1].trim();
   }
 
-  const sizeMatch = rawName.match(/(\d+\.?\d*)\s*"?\s*[xX×]\s*(\d+\.?\d*)\s*"?/);
+  // Match dimensions including fractions: 3/4" x 3/4", 1-1/2" x 12", 12" x 24"
+  const dimPat = /(\d+(?:[- ]\d+\/\d+|\.\d+|\/\d+)?)\s*"?\s*[xX×]\s*(\d+(?:[- ]\d+\/\d+|\.\d+|\/\d+)?)\s*"?/;
+  const sizeMatch = rawName.match(dimPat);
   if (sizeMatch) {
     result.size = normalizeSize(sizeMatch[0]);
   }
@@ -997,7 +1017,9 @@ function mapListingProduct(raw) {
   const isSlab = materialLower === 'mineral surface' || materialLower === 'quartz'
     || (raw.ProductCode && String(raw.ProductCode).toUpperCase().includes('SLAB'))
     || isSlabSize;
-  const sellBy = isSlab ? 'unit' : mapUomToSellBy(raw.SellingUom);
+  // Mosaics are sold per piece/sheet, not per sqft
+  const isMosaic = classifyShapeSuffix(parsed.shape || raw.Shape) === 'Mosaic';
+  const sellBy = (isSlab || isMosaic) ? 'unit' : mapUomToSellBy(raw.SellingUom);
 
   // ── Pricing from PriceToDisplay ──
   const pricing = { retailPrice: null, priceBasis: 'per_sqft' };
@@ -1115,9 +1137,26 @@ function normalizeCloudinaryUrl(url) {
 }
 
 /**
+ * Classify a shape string into a product-name suffix for shape-based splitting.
+ * Returns null if the shape doesn't warrant splitting (e.g., "Field Tile").
+ */
+function classifyShapeSuffix(shape) {
+  if (!shape) return null;
+  const s = shape.toLowerCase();
+  const MOSAIC_SHAPES = [
+    'mosaic', 'penny round', 'hexagon', 'herringbone', 'basketweave',
+    'arabesque', 'picket', 'diamond', 'lantern', 'fan', 'chevron',
+  ];
+  if (MOSAIC_SHAPES.some(kw => s.includes(kw))) return 'Mosaic';
+  if (s.includes('wall tile') || s.includes('subway')) return 'Wall Tile';
+  return null;
+}
+
+/**
  * Resolve a Bedrosians MaterialType to a PIM category_id.
  * Uses shape and slab context to override the base MaterialType mapping
- * for mosaics (→ mosaic-tile) and slabs (→ porcelain-slabs / countertop categories).
+ * for mosaics (→ mosaic-tile), wall tiles (→ backsplash-wall),
+ * and slabs (→ porcelain-slabs / countertop categories).
  */
 function resolveCategoryId(materialType, categoryLookup, collection, { shape, isSlab } = {}) {
   if (!materialType) return null;
@@ -1138,6 +1177,10 @@ function resolveCategoryId(materialType, categoryLookup, collection, { shape, is
     ];
     if (MOSAIC_SHAPES.some(s => shapeLower.includes(s))) {
       slug = 'mosaic-tile';
+    }
+    // Wall tile override: small-format ceramic/porcelain wall tiles → backsplash-wall
+    if (shapeLower.includes('wall tile') || shapeLower.includes('subway')) {
+      slug = 'backsplash-wall';
     }
   }
 

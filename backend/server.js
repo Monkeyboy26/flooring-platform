@@ -8638,7 +8638,7 @@ app.delete('/api/admin/import/templates/:id', staffAuth, requireRole('admin', 'm
 
 // Scrapers that launch a Puppeteer browser (high memory — need concurrency limits)
 const BROWSER_SCRAPERS = new Set([
-  'msi', 'bed', 'tradepro-pricebooks', 'tradepro-inventory', 'daltile-inventory', 'bosphorus-inventory',
+  'msi', 'bed', 'tradepro-pricebooks', 'tradepro-inventory', 'daltile-inventory',
   'triwest-inventory',
   'triwest-provenza', 'triwest-paradigm', 'triwest-quickstep', 'triwest-armstrong',
   'triwest-metroflor', 'triwest-mirage', 'triwest-grandpacific',
@@ -22388,7 +22388,7 @@ cron.schedule('*/15 * * * *', async () => {
         completed_at = CURRENT_TIMESTAMP,
         errors = errors || $1::jsonb
       WHERE status = 'running'
-        AND started_at < NOW() - INTERVAL '1 hour' * $2
+        AND COALESCE(started_at, created_at) < NOW() - INTERVAL '1 hour' * $2
       RETURNING id, vendor_source_id, started_at
     `, [
       JSON.stringify([{ message: `Reaped: job exceeded ${STALE_JOB_HOURS}h time limit`, time: new Date().toISOString() }]),

@@ -924,6 +924,11 @@ export async function run(pool, job, source) {
   }
 
   // ── Step 5b: Discontinuation detection ──
+  // Emser publishes multiple 832 catalog streams (e.g. legacy + Z-series item codes),
+  // so a single file is NOT the full catalog. A SKU is only considered discontinued
+  // when it has been absent from every processed 832 for a grace period — in-file
+  // SKUs get updated_at bumped by the upsert above, so updated_at doubles as last-seen.
+  const DISCONTINUE_GRACE_DAYS = 21;
   if (catalog.items.length >= 10) {
     const importedSkus = new Set();
     for (const group of productGroups) {
@@ -933,25 +938,37 @@ export async function run(pool, job, source) {
     }
 
     const activeResult = await pool.query(
-      `SELECT s.id, s.internal_sku FROM skus s
+      `SELECT s.id, s.internal_sku,
+              (s.updated_at < NOW() - INTERVAL '1 day' * $2) AS past_grace
+       FROM skus s
        JOIN products p ON s.product_id = p.id
        WHERE p.vendor_id = $1 AND s.status = 'active'`,
-      [vendorId]
+      [vendorId, DISCONTINUE_GRACE_DAYS]
     );
 
-    let deactivated = 0;
-    for (const row of activeResult.rows) {
-      if (!importedSkus.has(row.internal_sku)) {
+    const stale = activeResult.rows.filter(r => !importedSkus.has(r.internal_sku) && r.past_grace);
+    const missingButRecent = activeResult.rows.filter(r => !importedSkus.has(r.internal_sku) && !r.past_grace).length;
+
+    // Safety valve: never mass-deactivate. A vendor feed anomaly (partial file,
+    // format change) should be investigated, not silently applied.
+    const cap = Math.floor(activeResult.rows.length * 0.2);
+    if (stale.length > cap) {
+      await appendLog(pool, job.id, `WARNING: ${stale.length} SKUs eligible for deactivation exceeds 20% safety cap (${cap}) — skipping discontinuation. Investigate the 832 feed.`);
+    } else {
+      let deactivated = 0;
+      for (const row of stale) {
         await pool.query(
           `UPDATE skus SET status = 'inactive', updated_at = NOW() WHERE id = $1`,
           [row.id]
         );
         deactivated++;
       }
+      if (deactivated > 0) {
+        await appendLog(pool, job.id, `Deactivated ${deactivated} SKUs absent from all 832s for ${DISCONTINUE_GRACE_DAYS}+ days`);
+      }
     }
-
-    if (deactivated > 0) {
-      await appendLog(pool, job.id, `Deactivated ${deactivated} SKUs not found in latest 832`);
+    if (missingButRecent > 0) {
+      await appendLog(pool, job.id, `${missingButRecent} SKUs missing from this 832 but seen recently (other catalog stream) — left active`);
     }
   }
 

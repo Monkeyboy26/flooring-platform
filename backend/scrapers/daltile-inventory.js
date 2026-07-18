@@ -83,54 +83,60 @@ export async function run(pool, job, source) {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
 
-    // ── Step 3: Login ──
-    let loginSuccess = false;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        await appendLog(pool, job.id, `Login attempt ${attempt}/3...`);
-        await portalLogin(page, pool, job);
-        loginSuccess = true;
-        break;
-      } catch (err) {
-        await logError(`Login attempt ${attempt} failed: ${err.message}`);
-        if (attempt < 3) {
-          const backoff = attempt * 5000;
-          await appendLog(pool, job.id, `Retrying login in ${backoff / 1000}s...`);
-          await delay(backoff);
+    // ── Helper: login + navigate to products page (reusable for session recovery) ──
+    async function loginAndNavigate(targetPage) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await appendLog(pool, job.id, `Login attempt ${attempt}/3...`);
+          await portalLogin(page, pool, job);
+          break;
+        } catch (err) {
+          await logError(`Login attempt ${attempt} failed: ${err.message}`);
+          if (attempt === 3) throw new Error('All login attempts failed');
+          await delay(attempt * 5000);
         }
       }
+
+      // Navigate to products page
+      const productsUrl = `${BASE_URL}${PRODUCTS_PATH}`;
+      await appendLog(pool, job.id, `Navigating to products: ${productsUrl}`);
+      await page.goto(productsUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+      await waitForSPA(page);
+
+      if (page.url().includes('/login')) {
+        throw new Error('Session expired — redirected to login after navigation');
+      }
+
+      await delay(5000);
+
+      // If resuming from a specific page, navigate there
+      if (targetPage > 1) {
+        await appendLog(pool, job.id, `Resuming from page ${targetPage}...`);
+        for (let p = 1; p < targetPage; p++) {
+          const ok = await goToNextPage(page, p);
+          if (!ok) {
+            await appendLog(pool, job.id, `Could not navigate to page ${targetPage}, stuck at ${p}`);
+            return p + 1;
+          }
+          await delay(2000);
+          await waitForSPA(page);
+          // Skip extraction on these pages, just navigate
+        }
+        await delay(3000);
+        await waitForSPA(page);
+      }
+
+      return targetPage;
     }
 
-    if (!loginSuccess) throw new Error('All login attempts failed');
-
-    // ── Step 4: Navigate to products page ──
-    const productsUrl = `${BASE_URL}${PRODUCTS_PATH}`;
-    await appendLog(pool, job.id, `Navigating to products: ${productsUrl}`);
-    await page.goto(productsUrl, { waitUntil: 'networkidle2', timeout: 60000 });
-    await waitForSPA(page);
-
-    if (page.url().includes('/login')) {
-      throw new Error('Session expired — redirected to login');
-    }
-
-    // Wait for product cards to render
-    await delay(5000);
+    // ── Step 3: Initial login + navigate ──
+    await loginAndNavigate(1);
 
     if (discoveryMode) {
       await screenshot(page, 'daltile-inv-products-page');
     }
 
-    // ── Step 5: Apply "In Stock at SSC" filter to narrow results ──
-    await appendLog(pool, job.id, 'Checking for In Stock at SSC filter...');
-    const appliedFilter = await applyInStockFilter(page);
-    if (appliedFilter) {
-      await appendLog(pool, job.id, 'Applied "In Stock at SSC" filter');
-      await delay(5000);
-    } else {
-      await appendLog(pool, job.id, 'Could not find In Stock filter — scraping all products');
-    }
-
-    // ── Step 6: Read pagination info ──
+    // ── Step 4: Read pagination info ──
     const paginationInfo = await getPaginationInfo(page);
     await appendLog(pool, job.id,
       `Page shows: ${paginationInfo.text || 'unknown'} (${paginationInfo.totalResults} results, ${paginationInfo.perPage} per page)`
@@ -142,18 +148,62 @@ export async function run(pool, job, source) {
     );
     await appendLog(pool, job.id, `Will scrape up to ${totalPages} pages`);
 
-    // ── Step 7: Scrape each page ──
+    // ── Step 5: Scrape each page with session recovery ──
     const allItems = [];
     let consecutiveEmptyPages = 0;
+    let sessionRecoveries = 0;
+    const MAX_SESSION_RECOVERIES = 5;
 
     for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-      if (page.url().includes('/login')) {
-        await appendLog(pool, job.id, 'Session expired during pagination');
-        break;
-      }
+      let pageItems = [];
 
-      // Extract items from current page via DOM innerText
-      const pageItems = await extractItemsFromInnerText(page);
+      try {
+        // Check for session expiry
+        const currentUrl = page.url();
+        if (currentUrl.includes('/login') || currentUrl.includes('/LoginPage')) {
+          throw new Error('SESSION_EXPIRED');
+        }
+
+        // Extract items from current page via DOM innerText
+        pageItems = await Promise.race([
+          extractItemsFromInnerText(page),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('EXTRACT_TIMEOUT')), 30000)),
+        ]);
+      } catch (err) {
+        const isSessionError = err.message === 'SESSION_EXPIRED' ||
+          err.message === 'EXTRACT_TIMEOUT' ||
+          err.message.includes('Execution context was destroyed') ||
+          err.message.includes('Session closed') ||
+          err.message.includes('Target closed');
+
+        if (isSessionError && sessionRecoveries < MAX_SESSION_RECOVERIES) {
+          sessionRecoveries++;
+          await appendLog(pool, job.id,
+            `Session lost at page ${pageNum} (${err.message}). Recovery ${sessionRecoveries}/${MAX_SESSION_RECOVERIES}...`
+          );
+
+          // Close old page, open new one
+          try { await page.close(); } catch { /* ignore */ }
+          page = await browser.newPage();
+          await page.setViewport({ width: 1440, height: 900 });
+          await page.setUserAgent(
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          );
+
+          try {
+            const resumedAt = await loginAndNavigate(pageNum);
+            pageNum = resumedAt - 1; // loop will increment
+            consecutiveEmptyPages = 0;
+            continue;
+          } catch (loginErr) {
+            await logError(`Session recovery failed: ${loginErr.message}`);
+            break;
+          }
+        } else {
+          await logError(`Page ${pageNum} failed: ${err.message}`);
+          break;
+        }
+      }
 
       if (pageItems.length === 0) {
         consecutiveEmptyPages++;
@@ -175,14 +225,44 @@ export async function run(pool, job, source) {
 
       // Navigate to next page
       if (pageNum < totalPages) {
-        const navigated = await goToNextPage(page, pageNum);
-        if (!navigated) {
-          await appendLog(pool, job.id, `Could not navigate past page ${pageNum} — stopping`);
-          break;
+        try {
+          const navigated = await Promise.race([
+            goToNextPage(page, pageNum),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('NAV_TIMEOUT')), 30000)),
+          ]);
+          if (!navigated) {
+            await appendLog(pool, job.id, `Could not navigate past page ${pageNum} — stopping`);
+            break;
+          }
+          await delay(3000);
+          await waitForSPA(page);
+        } catch (navErr) {
+          // Navigation timeout — treat as session loss
+          if (sessionRecoveries < MAX_SESSION_RECOVERIES) {
+            sessionRecoveries++;
+            await appendLog(pool, job.id,
+              `Navigation timeout at page ${pageNum} (${navErr.message}). Recovery ${sessionRecoveries}/${MAX_SESSION_RECOVERIES}...`
+            );
+            try { await page.close(); } catch { /* ignore */ }
+            page = await browser.newPage();
+            await page.setViewport({ width: 1440, height: 900 });
+            await page.setUserAgent(
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            );
+            try {
+              const resumedAt = await loginAndNavigate(pageNum + 1);
+              pageNum = resumedAt - 1;
+              consecutiveEmptyPages = 0;
+              continue;
+            } catch (loginErr) {
+              await logError(`Session recovery failed: ${loginErr.message}`);
+              break;
+            }
+          } else {
+            await appendLog(pool, job.id, `Max session recoveries reached — stopping`);
+            break;
+          }
         }
-        // Wait for new page to load
-        await delay(3000);
-        await waitForSPA(page);
       }
     }
 
@@ -191,7 +271,7 @@ export async function run(pool, job, source) {
     }
 
     await appendLog(pool, job.id,
-      `Extraction complete: ${allItems.length} items from ${Math.min(totalPages, allItems.length > 0 ? Math.ceil(allItems.length / 48) : 0)} pages`
+      `Extraction complete: ${allItems.length} items (session recoveries: ${sessionRecoveries})`
     );
 
     // ── Step 8: Match and upsert ──
@@ -435,52 +515,6 @@ async function goToNextPage(page, currentPage) {
   }, nextPage);
 
   return clickResult.clicked;
-}
-
-/**
- * Apply the "In Stock at SSC" filter if available.
- * This narrows results to items available at the user's local SSC.
- */
-async function applyInStockFilter(page) {
-  return page.evaluate(() => {
-    // The filter appears as "In Stock at SSC Anaheim, CA (1,381)" in the facets
-    // Look for this text in the DOM (including shadow DOM)
-    function queryShadow(root, selector) {
-      const results = [...root.querySelectorAll(selector)];
-      for (const el of root.querySelectorAll('*')) {
-        if (el.shadowRoot) results.push(...queryShadow(el.shadowRoot, selector));
-      }
-      return results;
-    }
-
-    // Look for checkbox/link/button with "In Stock at SSC" text
-    const allClickables = queryShadow(document, 'input[type="checkbox"], label, a, button, [role="checkbox"], [role="option"]');
-    for (const el of allClickables) {
-      const text = (el.textContent || el.innerText || '').trim();
-      if (/in\s*stock\s*at\s*ssc/i.test(text)) {
-        // Check if it's already selected
-        if (el.type === 'checkbox' && el.checked) return false;
-        if (el.getAttribute('aria-checked') === 'true') return false;
-        el.click();
-        return true;
-      }
-    }
-
-    // Fallback: look in the page text for the facet and try to click it
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-    while (walker.nextNode()) {
-      const text = walker.currentNode.textContent.trim();
-      if (/^In Stock at SSC/i.test(text)) {
-        const parent = walker.currentNode.parentElement;
-        if (parent) {
-          parent.click();
-          return true;
-        }
-      }
-    }
-
-    return false;
-  });
 }
 
 // ─── Standalone Entry Point ──────────────────────────────────────────────────

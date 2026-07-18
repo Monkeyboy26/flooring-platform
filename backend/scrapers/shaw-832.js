@@ -168,6 +168,7 @@ const ABBREVIATION_MAP = {
   'ANODI':       'ANODIZED',
   'ANODIZ':      'ANODIZED',
   'TRHD':        'THRESHOLD',
+  'THRES':       'THRESHOLD',
   'SEALR':       'SEALER',
   'CLNR':        'CLEANER',
   'CONCENTRAT':  'CONCENTRATE',
@@ -177,6 +178,16 @@ const ABBREVIATION_MAP = {
   'SLP':         'SLIP',
   'DRYBAC':      'DRYBACK',
   'INDENTIONS':  'INDENTIONS',
+  'FLSN':        'FLUSH STAIRNOSE',
+  'OLSN':        'OVERLAP STAIRNOSE',
+  'STRNOSE':     'STAIRNOSE',
+  'STAIRNOSING': 'STAIRNOSE',
+  'MBX':         'MOISTURE BARRIER',
+  'VSM':         'SEAM',
+  'BN':          'BULLNOSE',
+  'PLSH':        'POLISHED',
+  'RND':         'ROUND',
+  'QTR':         'QUARTER',
 };
 
 // Words/acronyms that should stay uppercase after title-casing
@@ -227,6 +238,24 @@ function cleanEdiText(text) {
   s = s.replace(/\bLOUD CLEAR\b/gi, 'LOUD & CLEAR');
   s = s.replace(/\bLAUGHS YAWNS\b/gi, 'LAUGHS & YAWNS');
   s = s.replace(/\bCUT UNCUT\b/gi, 'CUT & UNCUT');
+
+  // Multi-word abbreviation expansions
+  s = s.replace(/\bMULTI PR RD\b/gi, 'MULTI-PURPOSE REDUCER');
+  s = s.replace(/\bHS\b/gi, 'HARD SURFACE');
+  s = s.replace(/\bO STAIRNOSE\b/gi, 'OVERLAP STAIRNOSE');
+  s = s.replace(/\bOL STAIRNOSE\b/gi, 'OVERLAP STAIRNOSE');
+  s = s.replace(/\bO REDUCER\b/gi, 'OVERLAP REDUCER');
+  s = s.replace(/\bF REDUCER\b/gi, 'FLUSH REDUCER');
+  s = s.replace(/\bF STAIRNOSE\b/gi, 'FLUSH STAIRNOSE');
+  s = s.replace(/\bOVERLAP SN\b/gi, 'OVERLAP STAIRNOSE');
+  s = s.replace(/\bFLUSH STAIR NOSE\b/gi, 'FLUSH STAIRNOSE');
+  s = s.replace(/\bW TRACK\b/gi, 'WITH TRACK');
+  s = s.replace(/\bT SHAPE\b/gi, 'T-MOLDING');
+  s = s.replace(/\bQ SHAPE\b/gi, 'QUARTER ROUND SHAPE');
+  s = s.replace(/\bRS BULLNOSE\b/gi, 'RADIUS BULLNOSE');
+  s = s.replace(/\bR BULLNOSE\b/gi, 'ROUND BULLNOSE');
+  s = s.replace(/\bU REDUCER\b/gi, 'UNIVERSAL REDUCER');
+  s = s.replace(/\bTC TILE CPT\b/gi, 'TILE TO CARPET');
 
   // Expand trailing abbreviations (only at end of string or before spaces)
   for (const [abbr, full] of Object.entries(ABBREVIATION_MAP)) {
@@ -279,6 +308,41 @@ function looksLikeSkuCode(val) {
   // Real Shaw SKUs have digits: "5480101210", "SW84300130", "155TS00001"
   // Style names are all alpha+spaces: "ABBEY S ROAD", "ON THE MOVE"
   return /\d/.test(val);
+}
+
+/**
+ * Decode coded Shaw accessory product names into descriptive names.
+ * E.g. "AAOLR11052" → "Overlap Reducer AAOLR11052"
+ *      "BT7CT01030" → "Baby Threshold COREtec 7mm BT7CT01030"
+ */
+const CODED_NAME_PREFIXES = [
+  [/^AAOLR/i,    'Overlap Reducer'],
+  [/^AAQTR/i,    'Quarter Round'],
+  [/^BT3HU/i,    'Baby Threshold Hardwood'],
+  [/^BT7CT/i,    'Baby Threshold COREtec 7mm'],
+  [/^BT\dCT/i,   'Baby Threshold COREtec'],
+  [/^SQ4CT/i,    'Square Trim COREtec 4mm'],
+  [/^SQ7CT/i,    'Square Trim COREtec 7mm'],
+  [/^SQ\dCT/i,   'Square Trim COREtec'],
+  [/^SQTHS/i,    'Square Threshold'],
+  [/^CS\d{2}F/i, 'Ceramic Bullnose'],
+  [/^LX\d{2}/i,  'Luxury Trim'],
+  [/^SORS/i,     'Overlap Stairnose'],
+  [/^PCQTR/i,    'Quarter Round'],
+  [/^QTR96/i,    'Quarter Round 96"'],
+  [/^QTRHS/i,    'Quarter Round Handscraped'],
+  [/^TR1HS/i,    'Threshold Handscraped'],
+  [/^VSQT/i,     'Vinyl Square Trim'],
+];
+
+function decodeCodedName(name) {
+  if (!name) return name;
+  for (const [pattern, prefix] of CODED_NAME_PREFIXES) {
+    if (pattern.test(name)) {
+      return `${prefix} ${name}`;
+    }
+  }
+  return name;
 }
 
 /**
@@ -594,7 +658,7 @@ function finalizeItem(item) {
     else if (/\bADHESIVE\b/.test(sub) && !/CARIND|CARTIL/.test(item.material_class || '')) item.category = 'adhesives-sealants';
     else if (/\bCLEANER\b|\bSUNDRIES\b/.test(sub)) item.category = 'installation-sundries';
     else if (/\bUNDERLAYMENT\b|\bPAD\b|\bREBOND\b/.test(sub) && item.material_class !== 'CARIND') item.category = 'underlayment';
-    else if (/\bTRIM\b|\bMOLDING\b/.test(sub) && !/CARIND|CARTIL/.test(item.material_class || '')) item.category = 'transitions-moldings';
+    else if (/\bTRIMS?\b|\bMOLDING\b|\bDECORATIVE\b/.test(sub) && !/CARIND|CARTIL/.test(item.material_class || '')) item.category = 'transitions-moldings';
   }
 
   // Fallback: infer from fiber content / name
@@ -604,7 +668,11 @@ function finalizeItem(item) {
     if (/pile|nylon|polyester|pet|olefin|wool/i.test(mat)) item.category = 'carpet';
     else if (/adhesive|adh\b/i.test(name)) item.category = 'adhesives-sealants';
     else if (/underlayment|pad\b/i.test(name)) item.category = 'underlayment';
-    else if (/stairnose|threshold|reducer|bullnose|t.?mold|quarter.?round|transition|l.?shape|u.?shape|q.?shape/i.test(name)) item.category = 'transitions-moldings';
+    else if (/stairnose|threshold|reducer|bullnose|t.?mold|quarter.?round|transition|l.?shape|u.?shape|q.?shape|chair.?rail|pencil.?liner/i.test(name)) item.category = 'transitions-moldings';
+    // Shaw coded trim part numbers: AAOLR (overlap reducer), AAQTR/PCQTR/QTR (quarter round),
+    // BT3HU/BT7CT (baby threshold), SQ4CT/SQ7CT/SQTHS (square trim/threshold),
+    // TR1HS (t-reducer), VSQT (v-square trim), CS##Z/CS##F (ceramic trim)
+    else if (/^(aa(?:olr|qtr)|bt[0-9]|sq[0-9]|sqths|tr[0-9]|vsqt|pcqtr|qtr\d|qtrhs|cs\d{2}[fz]|lx\d{2})/i.test(name)) item.category = 'transitions-moldings';
     else if (/seam|sealer|poly\b/i.test(name)) item.category = 'installation-sundries';
   }
 
@@ -657,9 +725,9 @@ function finalizeItem(item) {
     item.cost = stdPrice.unit_price;
     item.unit_of_measure = stdPrice.unit_of_measure || item.unit_of_measure;
   }
-  if (ctPrice && ctPrice.unit_price > 0) {
-    item.retail_price = ctPrice.unit_price; // Contract price as secondary
-  }
+  // NOTE: CT (contract) is a dealer price — single-unit/cut cost, typically only
+  // ~4% above ST. It is NOT retail; using it as retail_price sold carpet at
+  // dealer cost (2,023 SKUs, fixed 2026-07-16). CT still feeds cut_price below.
 
   // Fallback to generic CTP parsing (for non-Shaw 832 files)
   if (!item.cost) {
@@ -1102,15 +1170,33 @@ export async function run(pool, job, source) {
     const descShort = descParts.length > 0 ? descParts.join(' | ') : (item.subcategory || null);
     const descLong = longParts.length > 0 ? longParts.join(' ') : null;
 
-    // Derive collection from product name: strip roman numeral + width suffixes
-    const productName = item.product_name || (looksLikeSkuCode(item.vendor_sku) ? null : cleanAndTitle(item.vendor_sku)) || 'Unknown';
+    // Derive collection from base product name: strip roman numeral + width suffixes
+    const rawProductName = item.product_name || (looksLikeSkuCode(item.vendor_sku) ? null : cleanAndTitle(item.vendor_sku)) || 'Unknown';
+    // Decode coded accessory names (e.g. "Aaolr11052" → "Overlap Reducer Aaolr11052")
+    const baseProductName = decodeCodedName(rawProductName);
     if (!item.collection) {
-      item.collection = productName
+      item.collection = baseProductName
         .replace(/\s+\d{2}\s*$/, '')              // strip width suffix (12, 15, 20, etc.)
         .replace(/\s+(I{1,3}|IV|V|VI{0,3})\s*$/, '') // strip roman numeral suffix
         .trim();
     }
-    const productCollection = item.collection || productName;
+    const productCollection = item.collection || baseProductName;
+
+    // Append style code to product name (like EF format: "Style Name STYLECODE")
+    const styleCode = item.vendor_sku || '';
+    const productName = styleCode && !baseProductName.includes(styleCode)
+      ? `${baseProductName} ${styleCode}`
+      : baseProductName;
+
+    // Rename existing product from old name (without style code) to new name
+    if (productName !== baseProductName) {
+      await pool.query(
+        `UPDATE products SET name = $1, updated_at = NOW()
+         WHERE vendor_id = $2 AND name = $3 AND collection = $4`,
+        [productName, vendorId, baseProductName, productCollection]
+      );
+    }
+
     if (productCollection) {
       await pool.query(
         `UPDATE products SET collection = $1, updated_at = NOW()
@@ -1150,7 +1236,11 @@ export async function run(pool, job, source) {
       const sellBy = item.sell_by || 'box';
       const variantType = isAccessory ? 'accessory' : null;
       const rawVariant = sl.color || item.color || item.product_name || null;
-      const variantName = rawVariant ? cleanAndTitle(rawVariant) : null;
+      const baseVariant = rawVariant ? cleanAndTitle(rawVariant) : null;
+      // Append color code to variant name (like EF format: "Color Name 00475")
+      const variantName = baseVariant && sl.color_code && !baseVariant.includes(sl.color_code)
+        ? `${baseVariant} ${sl.color_code}`
+        : baseVariant;
 
       importedSkus.add(internalSku);
 
@@ -1176,9 +1266,12 @@ export async function run(pool, job, source) {
         const markup = (v) => v ? Math.round(v * 2 * 100) / 100 : null;
 
         const cost = item.cost || 0;
-        const retail = item.retail_price && item.retail_price !== item.cost
+        let retail = item.retail_price && item.retail_price !== item.cost
           ? item.retail_price
           : markup(cost);
+        // Keystone floor: vendor-supplied retail (MSR/CAT) below cost × 2 would
+        // undercut the site-standard margin — raise it (never violates MAP).
+        if (cost > 0 && (!retail || retail < markup(cost))) retail = markup(cost);
 
         await upsertPricing(pool, skuId, {
           cost,
@@ -1323,6 +1416,21 @@ export async function run(pool, job, source) {
       if (sl.companions.length > 0) {
         await upsertSkuAttribute(pool, skuId, 'companion_skus', sl.companions.join(','));
         attrsUpserted++;
+        // Resolve companion codes to sku_accessories links
+        for (const accCode of sl.companions) {
+          const accRes = await pool.query(
+            `SELECT s.id FROM skus s JOIN products p ON p.id = s.product_id
+             WHERE p.vendor_id = $1 AND UPPER(s.vendor_sku) = UPPER($2) AND s.id <> $3 LIMIT 1`,
+            [vendorId, accCode.trim(), skuId]
+          );
+          if (accRes.rows.length > 0) {
+            await pool.query(
+              `INSERT INTO sku_accessories (parent_sku_id, accessory_sku_id, sort_order)
+               VALUES ($1, $2, 0) ON CONFLICT DO NOTHING`,
+              [skuId, accRes.rows[0].id]
+            );
+          }
+        }
       }
 
       // Carpet-specific attributes
