@@ -1138,6 +1138,20 @@
       });
     }
 
+    function staffOpenDoc(path, newTab) {
+      return fetch(API + path, {
+        headers: getAuthHeaders()
+      }).then(r => {
+        if (r.status === 401) { sessionStorage.removeItem('staff_token'); sessionStorage.removeItem('staff_data'); window.location.reload(); throw new Error('Unauthorized'); }
+        if (!r.ok) throw new Error('Failed to load document');
+        return r.blob();
+      }).then(blob => {
+        const url = URL.createObjectURL(blob);
+        if (newTab) { window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); }
+        return url;
+      });
+    }
+
     function adminUpload(path, file) {
       const formData = new FormData();
       formData.append('file', file);
@@ -5012,9 +5026,8 @@
                           </button>
                         ))}
                         <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
-                          onClick={() => {
-                            const token = sessionStorage.getItem('staff_token');
-                            setDocPreview({ url: API + '/api/staff/purchase-orders/' + po.id + '/pdf?token=' + encodeURIComponent(token), title: 'Purchase Order - ' + po.po_number });
+                          onClick={async () => {
+                            try { const url = await staffOpenDoc('/api/staff/purchase-orders/' + po.id + '/pdf'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number }); } catch(e) { alert('Failed to load PO'); }
                           }}>
                           Download PO
                         </button>
@@ -9483,7 +9496,7 @@
               {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-primary btn-sm" onClick={() => handleSend(detailId)}>Send Invoice</button>}
               {(detail.status === 'overdue' || detail.status === 'partial') && <button className="btn btn-sm" style={{ background: '#fef3c7', color: '#d97706', border: 'none' }} onClick={() => handleSendReminder(detailId)}>Send Reminder</button>}
               {detail.status !== 'void' && detail.status !== 'paid' && <button className="btn btn-sm" style={{ background: '#dcfce7', color: '#166534', border: 'none' }} onClick={() => { setPayForm(f => ({ ...f, amount: parseFloat(detail.balance || 0).toFixed(2) })); setShowPayment(true); }}>Record Payment</button>}
-              <a className="btn btn-secondary btn-sm" href={API + '/api/admin/accounting/invoices/' + detailId + '/pdf?preview=true&token=' + encodeURIComponent(sessionStorage.getItem('staff_token'))} target="_blank" rel="noopener">Download PDF</a>
+              <button className="btn btn-secondary btn-sm" onClick={async () => { try { await staffOpenDoc('/api/admin/accounting/invoices/' + detailId + '/pdf?preview=true', true); } catch(e) { alert('Failed to load PDF'); } }}>Download PDF</button>
               {detail.status !== 'void' && <button className="btn btn-sm" style={{ background: 'var(--red-light)', color: 'var(--red)', border: 'none' }} onClick={() => handleVoid(detailId)}>Void</button>}
             </div>
 
@@ -11299,7 +11312,7 @@
 
           {/* PDF Download */}
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <a href={'/api/staff/purchase-orders/' + editId + '/pdf?token=' + encodeURIComponent(sessionStorage.getItem('staff_token'))} target="_blank" className="btn btn-secondary">Download PDF</a>
+            <button className="btn btn-secondary" onClick={() => staffOpenDoc('/api/staff/purchase-orders/' + editId + '/pdf', true).catch(() => alert('Failed to load PDF'))}>Download PDF</button>
           </div>
         </div>
       );
