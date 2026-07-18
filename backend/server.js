@@ -4576,7 +4576,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     const { session_id, payment_intent_id, customer_name: bodyName, customer_email: bodyEmail, phone: bodyPhone, shipping, delivery_method,
             po_number, project_id, is_tax_exempt, shipping_option_id, residential, liftgate,
             create_account, account_password, promo_code, payment_method: reqPaymentMethod,
-            notes: orderNotes, measure_requested, preferred_measure_date, preferred_measure_time } = req.body;
+            notes: orderNotes, measure_requested, preferred_measure_date, preferred_measure_time,
+            terms_accepted } = req.body;
 
     // Pre-fill from customer profile if logged in
     const customer_name = bodyName || (req.customer ? (req.customer.first_name + ' ' + req.customer.last_name) : '');
@@ -4777,8 +4778,9 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         shipping_carrier, shipping_transit_days, shipping_residential, shipping_liftgate, shipping_is_fallback,
         customer_id, promo_code_id, promo_code, discount_amount, amount_paid,
         tax_rate, tax_amount, payment_method, bank_transfer_instructions, bank_transfer_expires_at,
-        notes, measure_requested, preferred_measure_date, preferred_measure_time, card_brand, card_last4)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43)
+        notes, measure_requested, preferred_measure_date, preferred_measure_time, card_brand, card_last4,
+        terms_accepted_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44)
       RETURNING *
     `, [orderNumber, session_id, customer_email, customer_name, phone || null,
         isPickup ? null : shipping.line1, isPickup ? null : (shipping.line2 || null),
@@ -4790,7 +4792,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2), amountPaid,
         taxRate, taxAmount.toFixed(2), reqPaymentMethod || 'stripe', bankInstructions ? JSON.stringify(bankInstructions) : null, bankExpiresAt,
         orderNotes || null, measure_requested || false, preferred_measure_date || null, preferred_measure_time || null,
-        cardBrand, cardLast4]);
+        cardBrand, cardLast4, terms_accepted ? new Date() : null]);
 
     const order = orderResult.rows[0];
 

@@ -1704,6 +1704,11 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .co-place-order:disabled { opacity: 0.6; cursor: not-allowed; }
 .co-terms { font: 400 0.75rem/1.5 var(--font-body); color: var(--warm-muted); margin-top: 0.75rem; }
 .co-terms a { color: var(--stone-800); border-bottom: 1px solid rgba(28,25,23,0.2); text-decoration: none; }
+.co-terms-check { display: flex; align-items: flex-start; gap: 0.625rem; margin: 0.25rem 0 0.875rem; cursor: pointer; }
+.co-terms-check input[type="checkbox"] { accent-color: var(--stone-800); margin-top: 2px; flex-shrink: 0; }
+.co-terms-invalid { color: #991b1b; }
+.co-terms-invalid a { color: #991b1b; border-bottom-color: rgba(153,27,27,0.35); }
+.co-terms-error-msg { font: 400 0.75rem/1.4 var(--font-body); color: #991b1b; margin: -0.375rem 0 0.875rem; }
 
 /* Notes textarea */
 .co-notes textarea { width: 100%; min-height: 4rem; padding: 0.875rem; background: transparent; border: 0.5px solid rgba(28,25,23,0.2); font: 400 0.875rem/1.5 var(--font-body); color: var(--stone-800); resize: vertical; outline: none; box-sizing: border-box; }

@@ -4494,6 +4494,10 @@
                 <label>Stripe Payment ID</label>
                 <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', wordBreak: 'break-all' }}>{order.stripe_payment_intent_id || '—'}</span>
               </div>
+              <div className="order-info-item">
+                <label>Terms Accepted</label>
+                <span>{order.terms_accepted_at ? new Date(order.terms_accepted_at).toLocaleString() : '—'}</span>
+              </div>
             </div>
           </div>
 

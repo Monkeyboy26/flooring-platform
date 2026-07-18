@@ -144,6 +144,7 @@ CREATE TABLE orders (
     measure_requested BOOLEAN DEFAULT false,
     preferred_measure_date DATE,
     preferred_measure_time VARCHAR(20),
+    terms_accepted_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

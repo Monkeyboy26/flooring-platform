@@ -9438,6 +9438,21 @@
       const [measureRequested, setMeasureRequested] = useState(false);
       const [preferredDate, setPreferredDate] = useState('');
       const [preferredTime, setPreferredTime] = useState('');
+      const [termsAccepted, setTermsAccepted] = useState(false);
+      const [termsError, setTermsError] = useState(false);
+      // Ref mirror: the wallet button's click listener is bound once at mount
+      // and would otherwise close over stale termsAccepted state
+      const termsAcceptedRef = useRef(false);
+      useEffect(() => {
+        termsAcceptedRef.current = termsAccepted;
+        if (termsAccepted) setTermsError(false);
+      }, [termsAccepted]);
+      const requireTermsAccepted = () => {
+        if (termsAcceptedRef.current) return true;
+        setTermsError(true);
+        setError('Please accept the terms of service and privacy policy to place your order.');
+        return false;
+      };
 
       const cartEmpty = !cart || cart.length === 0;
 
@@ -9513,6 +9528,7 @@
           paymentRequest: paymentRequestRef.current,
           style: { paymentRequestButton: { type: 'default', theme: 'dark', height: '48px' } }
         });
+        prButton.on('click', ev => { if (!requireTermsAccepted()) ev.preventDefault(); });
         prButton.mount('#payment-request-button');
         return () => prButton.unmount();
       }, [walletMode]);
@@ -9571,7 +9587,8 @@
               notes: orderNotes || undefined,
               measure_requested: measureRequested || undefined,
               preferred_measure_date: measureRequested && preferredDate ? preferredDate : undefined,
-              preferred_measure_time: measureRequested && preferredTime ? preferredTime : undefined
+              preferred_measure_time: measureRequested && preferredTime ? preferredTime : undefined,
+              terms_accepted: true
             };
             const orderHeaders = { 'Content-Type': 'application/json' };
             if (tradeToken) orderHeaders['X-Trade-Token'] = tradeToken;
@@ -9597,6 +9614,7 @@
       // Simulated wallet pay (dev only) — uses the card element behind the scenes
       const handleSimulatedWalletPay = async () => {
         if (!cardRef.current) { setError('Card element not ready.'); return; }
+        if (!requireTermsAccepted()) return;
         setError('');
         setProcessing(true);
         try {
@@ -9647,7 +9665,8 @@
             notes: orderNotes || undefined,
             measure_requested: measureRequested || undefined,
             preferred_measure_date: measureRequested && preferredDate ? preferredDate : undefined,
-            preferred_measure_time: measureRequested && preferredTime ? preferredTime : undefined
+            preferred_measure_time: measureRequested && preferredTime ? preferredTime : undefined,
+            terms_accepted: true
           };
           const orderHeaders = { 'Content-Type': 'application/json' };
           if (tradeToken) orderHeaders['X-Trade-Token'] = tradeToken;
@@ -9822,6 +9841,7 @@
             return;
           }
         }
+        if (!requireTermsAccepted()) return;
         setProcessing(true);
         try {
           const usingSavedCard = !!(customerToken && selectedSavedPm);
@@ -9871,7 +9891,8 @@
             notes: orderNotes || undefined,
             measure_requested: measureRequested || undefined,
             preferred_measure_date: measureRequested && preferredDate ? preferredDate : undefined,
-            preferred_measure_time: measureRequested && preferredTime ? preferredTime : undefined
+            preferred_measure_time: measureRequested && preferredTime ? preferredTime : undefined,
+            terms_accepted: true
           };
           const orderHeaders = { 'Content-Type': 'application/json' };
           if (tradeToken) orderHeaders['X-Trade-Token'] = tradeToken;
@@ -9905,6 +9926,7 @@
           if (!state) { setError('Please select a state.'); return; }
           if (!/^\d{5}(-\d{4})?$/.test(zip.trim())) { setError('Please enter a valid ZIP code.'); return; }
         }
+        if (!requireTermsAccepted()) return;
         setProcessing(true);
         try {
           const stripe = await ensureStripe();
@@ -9932,6 +9954,7 @@
             measure_requested: measureRequested || undefined,
             preferred_measure_date: measureRequested && preferredDate ? preferredDate : undefined,
             preferred_measure_time: measureRequested && preferredTime ? preferredTime : undefined,
+            terms_accepted: true
           };
           sessionStorage.setItem('klarna_pending', JSON.stringify({ orderBody, ts: Date.now() }));
           const billingAddress = isPickup
@@ -10313,16 +10336,20 @@
                   </div>
                 </div>
 
-                {/* Place order CTA */}
+                {/* Terms acceptance + place order CTA */}
+                <label className={'co-terms co-terms-check' + (termsError ? ' co-terms-invalid' : '')}>
+                  <input type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} />
+                  <span>
+                    I have read and agree to Roma's{' '}
+                    <a href="/terms" target="_blank" rel="noopener">terms of service</a> and{' '}
+                    <a href="/privacy" target="_blank" rel="noopener">privacy policy</a>.
+                  </span>
+                </label>
+                {termsError && <div className="co-terms-error-msg">Please check the box above to place your order.</div>}
                 <button type="submit" className="co-place-order" disabled={processing}>
                   {processing && <span className="co-spinner"></span>}
                   {processing ? 'Processing...' : `Place Order \u2014 $${cartTotal.toFixed(2)}`}
                 </button>
-                <div className="co-terms">
-                  By placing this order you agree to Roma's{' '}
-                  <a href="/terms" target="_blank" rel="noopener">terms of service</a> and{' '}
-                  <a href="/privacy" target="_blank" rel="noopener">privacy policy</a>.
-                </div>
               </div>
 
               {/* RIGHT: Order summary */}
