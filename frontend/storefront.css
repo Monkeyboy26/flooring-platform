@@ -554,6 +554,11 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .form-counsel-headline { font-family: var(--font-heading); font-size: 2.375rem; font-weight: 300; color: white; line-height: 1.25; margin-bottom: 1rem; }
 .form-counsel-body { font-size: 0.9rem; color: var(--stone-400); line-height: 1.7; margin-bottom: 2.5rem; }
 .form-counsel-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.form-counsel-form { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; max-width: 480px; margin: 0 auto; }
+.form-counsel-input { flex: 1 1 260px; padding: 0.875rem 1.25rem; font-family: var(--font-body); font-size: 0.875rem; color: white; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25); outline: none; transition: border-color var(--transition-base); }
+.form-counsel-input::placeholder { color: var(--stone-400); }
+.form-counsel-input:focus { border-color: var(--stone-400); }
+.form-counsel-success { font-size: 0.9rem; color: white; letter-spacing: 0.02em; }
 .form-counsel-btn { display: inline-block; padding: 0.875rem 2.25rem; font-family: var(--font-body); font-size: 0.6875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; transition: all var(--transition-base); }
 .form-counsel-btn-light { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.25); }
 .form-counsel-btn-light:hover { background: rgba(255,255,255,0.2); }
@@ -2780,6 +2785,7 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
   .form-counsel-band { padding: 2.5rem 1.25rem; }
   .form-counsel-headline { font-size: 1.5rem; }
   .form-counsel-btn { width: 100%; text-align: center; }
+  .form-counsel-input { flex-basis: 100%; }
   /* Shop landing */
   .shop-landing-hero { padding: 40px 1.25rem 30px; }
   .shop-landing-hero-headline { font-size: 2.5rem; }

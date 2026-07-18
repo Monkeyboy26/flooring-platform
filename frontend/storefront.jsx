@@ -5178,16 +5178,28 @@
             </section>
           </RevealSection>
 
-          {/* Counsel Band */}
+          {/* Newsletter Band */}
           <RevealSection delay={0.1}>
             <section className="form-counsel-band">
               <div className="form-counsel-inner">
-                <h2 className="form-counsel-headline">We send free samples anywhere in the country</h2>
-                <p className="form-counsel-body">Choose up to five materials and we will ship them to your door at no cost. Touch the grain, see the color in your own light, then decide.</p>
-                <div className="form-counsel-actions">
-                  <button className="form-counsel-btn form-counsel-btn-light" onClick={goBrowse}>Build a sample box</button>
-                  <button className="form-counsel-btn form-counsel-btn-outline" onClick={() => navigate('/about')}>Visit the showroom</button>
-                </div>
+                <h2 className="form-counsel-headline">Join the monthly field guide</h2>
+                <p className="form-counsel-body">Install math, new arrivals, showroom notes &mdash; once a month, straight to your inbox. No daily emails. Unsubscribe whenever.</p>
+                {newsletterSubmitted ? (
+                  <p className="form-counsel-success">You&rsquo;re on the list. Watch for the next field guide.</p>
+                ) : (
+                  <form className="form-counsel-form" onSubmit={onNewsletterSubmit}>
+                    <input
+                      type="email"
+                      className="form-counsel-input"
+                      placeholder="Your email address"
+                      aria-label="Email address"
+                      value={newsletterEmail}
+                      onChange={e => setNewsletterEmail(e.target.value)}
+                      required
+                    />
+                    <button type="submit" className="form-counsel-btn form-counsel-btn-light">Subscribe</button>
+                  </form>
+                )}
               </div>
             </section>
           </RevealSection>
