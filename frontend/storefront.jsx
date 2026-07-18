@@ -2782,7 +2782,7 @@
           goCabinets();
           return;
         }
-        if (path === '/terms' || path === '/privacy' || path === '/accessibility' || path === '/about') {
+        if (path === '/terms' || path === '/privacy' || path === '/accessibility' || path === '/returns' || path === '/about') {
           const viewName = path.slice(1);
           setView(viewName);
           history.pushState({ view: viewName }, '', path);
@@ -3178,6 +3178,8 @@
           setView('privacy');
         } else if (path === '/accessibility') {
           setView('accessibility');
+        } else if (path === '/returns') {
+          setView('returns');
         } else if (path === '/about') {
           setView('about');
         } else if (path === '/design-services') {
@@ -3603,6 +3605,7 @@
           {view === 'terms' && <LegalPage kind="terms" goHome={goHome} navigate={navigate} />}
           {view === 'privacy' && <LegalPage kind="privacy" goHome={goHome} navigate={navigate} />}
           {view === 'accessibility' && <LegalPage kind="accessibility" goHome={goHome} navigate={navigate} />}
+          {view === 'returns' && <LegalPage kind="returns" goHome={goHome} navigate={navigate} />}
 
           {/* Cookie consent notice */}
           <CookieConsent navigate={navigate} />
@@ -10342,6 +10345,11 @@
                   </div>
                 </div>
 
+                {/* Final-sale notice (CA Civil Code §1723 — must be conspicuous at point of sale) */}
+                <div className="co-final-sale">
+                  <strong>All sales are final.</strong> Materials cannot be returned or exchanged — please verify quantities and colors before ordering. See our{' '}
+                  <a href="/returns" target="_blank" rel="noopener">Shipping &amp; Returns</a> policy.
+                </div>
                 {/* Terms acceptance + place order CTA */}
                 <label className={'co-terms co-terms-check' + (termsError ? ' co-terms-invalid' : '')}>
                   <input type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} />
@@ -14235,9 +14243,9 @@
     // on them. Accessibility is an aspirational statement with a support contact.
     function LegalPage({ kind, goHome, navigate }) {
       const isTerms = kind === 'terms';
-      const title = { terms: 'Terms of Service', privacy: 'Privacy Policy', accessibility: 'Accessibility Statement' }[kind] || 'Legal';
-      const relHref = kind === 'privacy' ? '/terms' : '/privacy';
-      const relLabel = kind === 'privacy' ? 'Terms of Service' : 'Privacy Policy';
+      const title = { terms: 'Terms of Service', privacy: 'Privacy Policy', accessibility: 'Accessibility Statement', returns: 'Shipping & Returns' }[kind] || 'Legal';
+      const relHref = kind === 'privacy' ? '/terms' : kind === 'returns' ? '/terms' : '/privacy';
+      const relLabel = relHref === '/terms' ? 'Terms of Service' : 'Privacy Policy';
       const termsSections = [
         { h: '1. Acceptance of Terms', p: 'By accessing this site, requesting a quote, or placing an order with Roma Flooring Designs (“Roma,” “we,” or “us”), you acknowledge that you have read, understood, and agree to be bound by these Terms of Service. These Terms govern every sale and take precedence over any conflicting terms in your purchase documents unless we expressly agree otherwise in writing. If you do not agree, please do not use this site or purchase from us.' },
         { h: '2. Natural Materials & Variation', p: 'Stone, tile, wood, and other natural or nature-derived products are products of nature. Variation in color, veining, shade, tone, texture, finish, size, and marking is normal, inherent to the material, and to be expected — it is a characteristic of natural products, not a defect. Samples, displays, and on-screen images are representative only and are not guaranteed to match production material exactly. Roma does not warrant that any material will match a sample, prior lot, photograph, or expectation of uniformity, and such variation is never a basis for a claim, return, or refund.' },
@@ -14281,7 +14289,16 @@
         { h: '6. Help & Alternative Access', p: 'If any part of our site is difficult to use, our team is glad to help. You can reach our Anaheim showroom during business hours for product information, to request samples or quotes, and to place orders with a team member — so you never have to complete a purchase online to work with us.' },
         { h: '7. Feedback & Contact', p: 'We welcome your feedback on the accessibility of this site. If you encounter a barrier, or need assistance or a reasonable accommodation, please contact us using the details below and we will do our best to help and to address the issue. Letting us know the page and the difficulty you experienced helps us respond effectively.' },
       ];
-      const sections = { terms: termsSections, privacy: privacySections, accessibility: accessibilitySections }[kind] || [];
+      const returnsSections = [
+        { h: '1. All Sales Are Final', p: 'ALL SALES ARE FINAL. Flooring, tile, stone, and related materials are sold without returns, exchanges, refunds, or cancellations. Special-order, custom, cut, closeout, and clearance items are in all cases non-returnable and non-refundable. Any exception is granted solely at Roma’s discretion, in writing, and may be conditioned on the material being unopened and in resalable condition and on payment of restocking, handling, and freight charges. Please order carefully — our team is happy to help you confirm quantities, review samples, and check material before you buy.' },
+        { h: '2. Inspect Before Installation', p: 'Inspect all materials before installation. Before installing, cutting, or using any product, verify quantity, color, shade, lot, size, quality, and overall condition. Installation, cutting, or use of any material constitutes final acceptance of it in its delivered condition, and no claims are accepted after installation. If anything looks incorrect or unacceptable, do not install it — contact us first and we will work with you.' },
+        { h: '3. Shipping & Freight', p: 'Freight-shipped orders are quoted based on destination and scheduled after the order is placed. Delivery dates are estimates and are not guaranteed, so please do not schedule installers until your material has arrived and been inspected. You are responsible for confirming site access for delivery. Curbside freight delivery requires someone present to receive the material.' },
+        { h: '4. Damage or Shortage at Delivery', p: 'Inspect every shipment at the time of delivery. Note any visible damage or shortage on the delivery receipt before signing, keep the affected material and packaging, and contact us right away with photos. Claims must be raised before installation — we cannot accept claims for material that has been installed, cut, or used.' },
+        { h: '5. Showroom Pickup', p: 'Showroom pickup is available at our Anaheim location during business hours. Please bring your order confirmation and a vehicle suited to the weight of your material — tile and stone are heavy. Material not collected within a reasonable time may be subject to storage fees at Roma’s discretion.' },
+        { h: '6. Cancellations & Special Orders', p: 'Orders may be cancelled only with Roma’s written consent and at Roma’s discretion. Special, custom, and non-stock orders are placed with the vendor on your behalf and are non-cancellable and non-refundable once submitted. Where a cancellation is permitted, restocking, handling, and freight charges may apply and deposits may be forfeited.' },
+        { h: '7. Questions Before You Order', p: 'Not sure about quantity, color matching, or suitability? Order free samples, use our coverage calculator, or contact our team before purchasing — we would much rather help you get it right up front than have you end up with material you cannot use. This page summarizes our full Terms of Service, which govern every sale.' },
+      ];
+      const sections = { terms: termsSections, privacy: privacySections, accessibility: accessibilitySections, returns: returnsSections }[kind] || [];
       return (
         <div style={{ maxWidth: 760, margin: '3.5rem auto 5rem', padding: '0 2rem' }}>
           <div style={{ fontSize: '0.6875rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>
@@ -14515,6 +14532,8 @@
               <a href="/privacy" onClick={e => { e.preventDefault(); navigate('/privacy'); }}>Privacy</a>
               <span>|</span>
               <a href="/terms" onClick={e => { e.preventDefault(); navigate('/terms'); }}>Terms</a>
+              <span>|</span>
+              <a href="/returns" onClick={e => { e.preventDefault(); navigate('/returns'); }}>Shipping &amp; Returns</a>
               <span>|</span>
               <a href="#" onClick={e => { e.preventDefault(); try { window.dispatchEvent(new Event('open-cookie-preferences')); } catch (err) {} }}>Cookie preferences</a>
               <span>|</span>
