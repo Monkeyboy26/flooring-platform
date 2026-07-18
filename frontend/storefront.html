@@ -88,7 +88,17 @@
   <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-      navigator.serviceWorker.register('/sw.js');
+      navigator.serviceWorker.register('/sw.js').then(function(reg) { reg.update(); });
+      // When a new SW takes control (new deploy), reload once so this tab
+      // picks up the new shell instead of running the old bundle until a
+      // manual refresh. hadController guards the first-install claim().
+      var hadController = !!navigator.serviceWorker.controller;
+      var reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (!hadController || reloaded) return;
+        reloaded = true;
+        location.reload();
+      });
     });
   }
   </script>
