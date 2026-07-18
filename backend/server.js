@@ -10061,6 +10061,16 @@ app.put('/api/admin/staff/:id/password', staffAuth, requireRole('admin', 'manage
     const { id } = req.params;
     const { password } = req.body;
     if (!password) return res.status(400).json({ error: 'Password is required' });
+    const pwError = validatePassword(password);
+    if (pwError) return res.status(400).json({ error: pwError });
+
+    const target = await pool.query('SELECT id, role FROM staff_accounts WHERE id = $1', [id]);
+    if (!target.rows.length) return res.status(404).json({ error: 'Staff member not found' });
+    // Mirrors staff creation: managers may not create admins, so they may not
+    // take over admin accounts via password reset either.
+    if (target.rows[0].role === 'admin' && req.staff.role !== 'admin') {
+      return res.status(403).json({ error: 'Managers cannot reset admin passwords' });
+    }
 
     const { hash, salt } = await hashPassword(password);
     const result = await pool.query(
