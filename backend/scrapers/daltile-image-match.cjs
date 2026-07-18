@@ -64,12 +64,12 @@ function isBathFixtureUrl(url) {
 }
 
 function isBathFixtureSku(vendorSku) {
-  return /TWB|SPD|CRC|RBH/i.test(vendorSku || '');
+  return /TWB|SPD|CRC|RBH|PPH/i.test(vendorSku || '');
 }
 
 // SKUs that ARE a pattern/mosaic format — these legitimately wear pattern renders
 function isPatternSku(vendorSku) {
-  return /STK|HERR|MS\d|MSMT|MSGL|BRKJ|CHEV|HEXMS|WAVE|ARCH|PNYRD|STJ|MOD|3DC|CHV|BV|OCT|PKT|PICKET|HEX/i
+  return /STK|HERR|HER\d|MS\d|MSMT|MSGL|BRKJ|CHEV|CHV\d|HEXMS|EHX|WAVE|ARCH|PNYRD|STJ|MOD|3DC|LTW\d|ARB\d|HAR\d|BV|OCT|PKT|PCK|PICKET|HEX/i
     .test(vendorSku || '');
 }
 
@@ -78,23 +78,60 @@ function isPatternSku(vendorSku) {
 // only source (STJ22 = 2x2 straight joint mosaic sheet).
 const PATTERN_LABELS = [
   [/PNYRD/, 'Penny Round Mosaic'],
-  [/HEXMS/, 'Hexagon Mosaic'],
+  [/EHX/, 'Elongated Hexagon Mosaic'],
+  [/HEXMS|HEX\d/, 'Hexagon Mosaic'],
   [/BRKJ/, 'Brick Joint Mosaic'],
-  [/HERR/, 'Herringbone Mosaic'],
-  [/CHEV/, 'Chevron Mosaic'],
+  [/HERR|HER\d/, 'Herringbone Mosaic'],
+  [/CHEV|CHV\d/, 'Chevron Mosaic'],
+  [/LTW\d/, 'Lattice Weave Mosaic'],
+  [/ARB\d/, 'Arabesque Mosaic'],
+  [/HAR\d/, 'Harlequin Mosaic'],
   [/3DC/, '3D Cube Mosaic'],
   [/STJ/, 'Straight Joint Mosaic'],
   [/STK/, 'Stacked Joint Mosaic'],
   [/WAVE/, 'Wave Mosaic'],
   [/ARCH/, 'Arches Mosaic'],
-  [/PKT/, 'Picket'],
-  [/MS\d|MSMT|MSGL|MS1P/, 'Mosaic'],
+  [/PKT|PCK/, 'Picket'],
+  [/MS\d|MSMT|MSGL|MS1P|MB\d/, 'Mosaic'],
 ];
 
 function patternFromVendorSku(vendorSku) {
-  const sku = (vendorSku || '').toUpperCase();
+  // Skip the leading 4-char color code — a color code like MS72 must not
+  // read as a mosaic token
+  const sku = (vendorSku || '').toUpperCase().slice(4);
   for (const [re, label] of PATTERN_LABELS) {
     if (re.test(sku)) return label;
+  }
+  return null;
+}
+
+// Distinct pattern "kinds" recognizable in both SKU labels and Scene7
+// filenames. Only kinds with unambiguous filename keywords are listed —
+// e.g. "wave"/"arch" would false-match ColorWave and ArchitecturalGray.
+const KIND_KEYWORDS = [
+  ['herringbone', /herringbone/i],
+  ['lattice', /lattice/i],
+  ['harlequin', /harlequin/i],
+  ['chevron', /chevron/i],
+  ['arabesque', /arabesque/i],
+  ['penny', /penny/i],
+  ['picket', /picket/i],
+  ['cube', /cube|3dc/i],
+  ['hex', /hex/i],
+];
+
+function urlPatternKind(url) {
+  const file = fileOf(url);
+  for (const [kind, re] of KIND_KEYWORDS) {
+    if (re.test(file)) return kind;
+  }
+  return null;
+}
+
+function skuPatternKind(vendorSku) {
+  const label = patternFromVendorSku(vendorSku) || '';
+  for (const [kind, re] of KIND_KEYWORDS) {
+    if (re.test(label)) return kind;
   }
   return null;
 }
@@ -150,6 +187,7 @@ function buildImageIndex(seriesMap, excludeUrls) {
               swatch: isSwatchUrl(url),
               // Shape-bound images may only match same-size, never as fallback
               shapeBound: isPatternUrl(url) || isBathFixtureUrl(url),
+              kind: urlPatternKind(url),
               file: fileOf(url).toLowerCase(),
             });
           }
@@ -175,18 +213,36 @@ function buildImageIndex(seriesMap, excludeUrls) {
  * renders (mosaics, bevels) are size-bound and never used cross-size —
  * then a color-correct swatch.
  */
-function pickCandidate(index, code, size, allowAnySize) {
-  const cands = index.byCode.get(code) || [];
+function pickCandidate(index, code, size, allowAnySize, skuKind = null, skuIsMosaic = false) {
+  const all = index.byCode.get(code) || [];
+  // A candidate with a recognizable pattern kind may only serve SKUs of that
+  // kind (a chevron SKU must not get the same-size harlequin render)
+  const cands = all.filter(c => !c.kind || c.kind === skuKind);
   if (cands.length === 0) return null;
 
   const sz = normSize(size);
   const tok = sizeToken(size);
-  const shots = cands.filter(c => !c.swatch);
+  let shots = cands.filter(c => !c.swatch);
+  // Pattern SKUs prefer their own pattern's renders over generic mosaic shots
+  if (skuKind && shots.some(c => c.kind === skuKind)) {
+    shots = shots.filter(c => c.kind === skuKind);
+  }
+  // Plain SKUs only take shape-bound renders whose filename proves the size;
+  // mosaic-family SKUs accept mosaic renders across chip sizes
+  if (!skuKind && !skuIsMosaic) {
+    shots = shots.filter(c => !c.shapeBound || (tok && c.file.includes(tok)));
+  }
+  // A map size can lie (multi-SKU Coveo entries) — a size-rank match must not
+  // contradict the size stated in the candidate's own filename
+  const fileSizeAgrees = (c) => {
+    const m = c.file.match(/(\d+x\d+)/);
+    return !m || !tok || m[1] === tok;
+  };
 
   return shots.find(c => c.size === sz && tok && c.file.includes(tok))
-    || shots.find(c => c.size === sz)
+    || shots.find(c => c.size === sz && fileSizeAgrees(c))
     || (tok ? shots.find(c => c.file.includes(tok)) : null)
-    || (allowAnySize ? (shots.find(c => !c.shapeBound) || cands.find(c => c.swatch)) : null)
+    || (allowAnySize ? (shots.find(c => !c.shapeBound || c.kind === skuKind || skuIsMosaic) || cands.find(c => c.swatch)) : null)
     || null;
 }
 
@@ -211,10 +267,13 @@ function resolveImage(index, vendorSku, size, currentUrl, opts = {}) {
   // The SKU's shape-code digits beat the stored size attribute, which can
   // carry Coveo's combined-size resolution mistakes (RCT416 recorded as 1X6)
   const skuSize = sizeFromVendorSku(vendorSku) || size;
+  const skuKind = skuPatternKind(vendorSku);
+  const skuIsMosaic = /mosaic/i.test(patternFromVendorSku(vendorSku) || '');
+  const pick = (allowAny) => pickCandidate(index, code, skuSize, allowAny, skuKind, skuIsMosaic);
 
   // No image at all — backfill with a color-correct image
   if (!currentUrl) {
-    const cand = pickCandidate(index, code, skuSize, anySize);
+    const cand = pick(anySize);
     return cand ? { url: cand.url, reason: 'backfill' } : null;
   }
 
@@ -223,9 +282,19 @@ function resolveImage(index, vendorSku, size, currentUrl, opts = {}) {
   if (toks.includes(code)) {
     // Color-correct, but a bath fixture shot must not represent a tile SKU
     if (isBathFixtureUrl(currentUrl) && !isBathFixtureSku(vendorSku)) {
-      const cand = pickCandidate(index, code, skuSize, anySize);
+      const cand = pick(anySize);
       if (cand && !isBathFixtureUrl(cand.url) && cand.url !== currentUrl) {
         return { url: cand.url, reason: 'wrong-item' };
+      }
+      return null;
+    }
+    // A recognizable pattern render of the WRONG pattern (harlequin on a
+    // chevron SKU) — swap for the SKU's own pattern, or a swatch
+    const curKind = urlPatternKind(currentUrl);
+    if (skuKind && curKind && curKind !== skuKind) {
+      const cand = pick(anySize);
+      if (cand && cand.url !== currentUrl) {
+        return { url: cand.url, reason: 'pattern-mismatch' };
       }
       return null;
     }
@@ -234,7 +303,7 @@ function resolveImage(index, vendorSku, size, currentUrl, opts = {}) {
     if (!opts.isTrim && isPatternUrl(currentUrl) && !isPatternSku(vendorSku)) {
       const tok = sizeToken(skuSize);
       if (tok && !fileOf(currentUrl).toLowerCase().includes(tok)) {
-        const cand = pickCandidate(index, code, skuSize, true);
+        const cand = pick(true);
         if (cand && !cand.shapeBound && !cand.swatch && cand.url !== currentUrl) {
           return { url: cand.url, reason: 'pattern-mismatch' };
         }
@@ -243,7 +312,7 @@ function resolveImage(index, vendorSku, size, currentUrl, opts = {}) {
     }
     // Upgrade swatches to a real product shot.
     if (isSwatchUrl(currentUrl)) {
-      const cand = pickCandidate(index, code, skuSize, anySize);
+      const cand = pick(anySize);
       if (cand && !cand.swatch && cand.url !== currentUrl) {
         return { url: cand.url, reason: 'swatch-upgrade' };
       }
@@ -255,15 +324,17 @@ function resolveImage(index, vendorSku, size, currentUrl, opts = {}) {
   // multi-SKU Coveo entry. Any color-correct image beats it.
   const foreign = toks.some(t => index.knownCodes.has(t) && t !== code);
   if (foreign) {
-    const cand = pickCandidate(index, code, skuSize, true);
+    const cand = pick(true);
     return cand ? { url: cand.url, reason: 'wrong-color' } : null;
   }
 
   // Generic image (bare item code, DAM rendition, …). Never displace trim
   // silhouettes; for other generics a color-correct image is an upgrade.
+  // A pattern SKU only upgrades to its own pattern's render — a generic DAM
+  // rendition may well BE the correct pattern image, just unrecognizably named.
   if (!isTrimSilhouetteUrl(currentUrl) && !isSwatchUrl(currentUrl)) {
-    const cand = pickCandidate(index, code, skuSize, anySize);
-    if (cand && cand.url !== currentUrl) {
+    const cand = pick(anySize);
+    if (cand && cand.url !== currentUrl && (!skuKind || cand.kind === skuKind)) {
       return { url: cand.url, reason: 'generic-upgrade' };
     }
   }

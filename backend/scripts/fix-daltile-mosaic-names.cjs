@@ -30,7 +30,7 @@ const pool = new Pool({
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
-const PATTERN_WORDS = /mosaic|joint|cube|herringbone|chevron|penny|hex|picket|stacked|wave|arch/i;
+const PATTERN_WORDS = /mosaic|joint|cube|herringbone|chevron|penny|hex|picket|stacked|wave|arch|lattice|arabesque|harlequin/i;
 
 function insertPattern(variantName, label) {
   if (!variantName) return label;
@@ -52,7 +52,7 @@ async function main() {
     JOIN products p ON p.id = s.product_id
     JOIN vendors v ON v.id = p.vendor_id
     WHERE v.code = 'DAL' AND s.status = 'active' AND p.status = 'active'
-      AND s.vendor_sku ~ '(STJ|STK|HERR|BRKJ|CHEV|HEXMS|PNYRD|3DC|PKT|MS[0-9]|MSMT|MSGL|MS1P|WAVE|ARCH)'
+      AND s.vendor_sku ~ '(STJ|STK|HERR|HER[0-9]|BRKJ|CHEV|CHV[0-9]|HEXMS|HEX[0-9]|EHX|PNYRD|3DC|LTW[0-9]|ARB[0-9]|HAR[0-9]|PKT|PCK|MS[0-9]|MSMT|MSGL|MS1P|MB[0-9]|WAVE|ARCH)'
   `);
 
   const updates = [];
