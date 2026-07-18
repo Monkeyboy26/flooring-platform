@@ -4077,7 +4077,7 @@ app.post('/api/promo-codes/validate', async (req, res) => {
 
 app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req, res) => {
   try {
-    const { session_id, destination, delivery_method, shipping_option_id, residential, liftgate, promo_code, save_card, saved_payment_method_id } = req.body;
+    const { session_id, destination, delivery_method, shipping_option_id, residential, liftgate, promo_code, save_card, saved_payment_method_id, idempotency_key } = req.body;
     if (!session_id) return res.status(400).json({ error: 'session_id is required' });
 
     const result = await pool.query(`
@@ -4218,11 +4218,17 @@ app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req
         if (!stripeCustomerId) return res.status(400).json({ error: 'No saved cards on file' });
         const pm = await stripe.paymentMethods.retrieve(saved_payment_method_id);
         if (!pm || pm.customer !== stripeCustomerId) return res.status(400).json({ error: 'Saved card not found' });
+        // Client-supplied idempotency key: a retry after a dropped response
+        // replays the original charge instead of charging the card twice
+        const idemOpts = {};
+        if (typeof idempotency_key === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(idempotency_key)) {
+          idemOpts.idempotencyKey = 'co-saved-' + idempotency_key;
+        }
         const savedPi = await stripe.paymentIntents.create({
           amount: totalCents, currency: 'usd', customer: stripeCustomerId,
           payment_method: saved_payment_method_id, off_session: true, confirm: true,
           shipping: piShipping, description: 'Roma Flooring order',
-        });
+        }, idemOpts);
         return res.json({
           clientSecret: savedPi.client_secret, paymentIntentId: savedPi.id, status: savedPi.status,
           amount: total, shipping: shippingCost, shipping_method: shippingMethod,
@@ -13550,7 +13556,7 @@ app.get('/api/rep/customers/payment-methods', repAuth, async (req, res) => {
 // Charge a saved card (card on file) off-session
 app.post('/api/rep/card/charge-saved', repAuth, async (req, res) => {
   try {
-    const { amount, description, stripe_customer_id, payment_method_id } = req.body;
+    const { amount, description, stripe_customer_id, payment_method_id, idempotency_key } = req.body;
     if (!amount || amount <= 0) return res.status(400).json({ error: 'A positive amount is required' });
     if (amount > 50000) return res.status(400).json({ error: 'Amount exceeds maximum of $50,000' });
     if (!stripe_customer_id || !payment_method_id) {
@@ -13592,6 +13598,12 @@ app.post('/api/rep/card/charge-saved', repAuth, async (req, res) => {
       payment_method_id,
       card_last4: pm.card ? pm.card.last4 : null,
     };
+    // Client-supplied idempotency key: a re-click after a dropped response
+    // replays the original charge instead of charging the card twice
+    const idemOpts = {};
+    if (typeof idempotency_key === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(idempotency_key)) {
+      idemOpts.idempotencyKey = 'rep-cof-' + idempotency_key;
+    }
     try {
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amountCents,
@@ -13602,7 +13614,7 @@ app.post('/api/rep/card/charge-saved', repAuth, async (req, res) => {
         confirm: true,
         description: description || 'Card on file charge',
         expand: ['latest_charge'],
-      });
+      }, idemOpts);
       const charge = (paymentIntent.latest_charge && typeof paymentIntent.latest_charge === 'object')
         ? paymentIntent.latest_charge
         : (paymentIntent.charges && paymentIntent.charges.data && paymentIntent.charges.data[0]);

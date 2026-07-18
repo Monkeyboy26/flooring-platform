@@ -9485,6 +9485,18 @@
     // ==================== Checkout Page ====================
 
     function CheckoutPage({ cart, sessionId, goCart, handleOrderComplete, deliveryMethod, setDeliveryMethod, liftgateEnabled, tradeCustomer, tradeToken, customer, customerToken, onCustomerLogin, klarnaError, clearKlarnaError, appliedPromoCode, setAppliedPromoCode }) {
+      // Idempotency nonce for saved-card charges: stable across ambiguous
+      // failures (network drop → retry replays the charge instead of
+      // double-charging), reset once the charge definitively fails or the
+      // order is placed
+      const savedCardNonceRef = useRef(null);
+      const getSavedCardNonce = () => {
+        if (!savedCardNonceRef.current) {
+          savedCardNonceRef.current = 'ck' + Date.now().toString(36) + Math.random().toString(36).slice(2, 14);
+        }
+        return savedCardNonceRef.current;
+      };
+      const resetSavedCardNonce = () => { savedCardNonceRef.current = null; };
       const [customerName, setCustomerName] = useState(tradeCustomer ? tradeCustomer.contact_name : (customer ? (customer.first_name + ' ' + customer.last_name) : ''));
       const [customerEmail, setCustomerEmail] = useState(tradeCustomer ? tradeCustomer.email : (customer ? customer.email : ''));
       const [phone, setPhone] = useState(customer ? (customer.phone || '') : '');
@@ -9704,7 +9716,7 @@
           const usingSavedCard = !!(customerToken && selectedSavedPm);
           const piBody = { session_id: sessionId, delivery_method: deliveryMethod, promo_code: appliedPromoCode || undefined };
           if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
-          if (usingSavedCard) piBody.saved_payment_method_id = selectedSavedPm;
+          if (usingSavedCard) { piBody.saved_payment_method_id = selectedSavedPm; piBody.idempotency_key = getSavedCardNonce(); }
           else if (customerToken && saveCard) piBody.save_card = true;
           const piHeaders = { 'Content-Type': 'application/json' };
           if (customerToken) piHeaders['X-Customer-Token'] = customerToken;
@@ -9713,6 +9725,7 @@
           });
           const piData = await piRes.json();
           if (piData.error) {
+            if (usingSavedCard) resetSavedCardNonce();
             setError(piData.error); setProcessing(false);
             if (piData.out_of_stock_sku_ids) { setTimeout(() => { if (typeof goCart === 'function') goCart(); }, 3000); }
             return;
@@ -9727,6 +9740,7 @@
               if (actionError) { setError(actionError.message); setProcessing(false); return; }
               confirmedPiId = actionPi.id;
             } else {
+              resetSavedCardNonce();
               setError('Your saved card could not be charged. Please try another card.'); setProcessing(false); return;
             }
           } else {
@@ -9930,7 +9944,7 @@
           const usingSavedCard = !!(customerToken && selectedSavedPm);
           const piBody = { session_id: sessionId, delivery_method: deliveryMethod, promo_code: appliedPromoCode || undefined };
           if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
-          if (usingSavedCard) piBody.saved_payment_method_id = selectedSavedPm;
+          if (usingSavedCard) { piBody.saved_payment_method_id = selectedSavedPm; piBody.idempotency_key = getSavedCardNonce(); }
           else if (customerToken && saveCard) piBody.save_card = true;
           const piHeaders = { 'Content-Type': 'application/json' };
           if (customerToken) piHeaders['X-Customer-Token'] = customerToken;
@@ -9939,6 +9953,7 @@
           });
           const piData = await piRes.json();
           if (piData.error) {
+            if (usingSavedCard) resetSavedCardNonce();
             setError(piData.error); setProcessing(false);
             if (piData.out_of_stock_sku_ids) { setTimeout(() => { if (typeof goCart === 'function') goCart(); }, 3000); }
             return;
@@ -9953,6 +9968,7 @@
               if (actionError) { setError(actionError.message); setProcessing(false); return; }
               confirmedPiId = actionPi.id;
             } else {
+              resetSavedCardNonce();
               setError('Your saved card could not be charged. Please try another card.'); setProcessing(false); return;
             }
           } else {
@@ -10021,6 +10037,7 @@
           const piRes = await fetch(API + '/api/checkout/create-payment-intent', { method: 'POST', headers: piHeaders, body: JSON.stringify(piBody) });
           const piData = await piRes.json();
           if (piData.error) {
+            if (usingSavedCard) resetSavedCardNonce();
             setError(piData.error); setProcessing(false);
             if (piData.out_of_stock_sku_ids) { setTimeout(() => { if (typeof goCart === 'function') goCart(); }, 3000); }
             return;

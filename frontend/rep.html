@@ -5672,7 +5672,11 @@
           throw new Error('Server returned non-JSON (status ' + r.status + ')');
         }
         return r.json().then(data => {
-          if (!r.ok) throw new Error(data.error || 'Request failed (status ' + r.status + ')');
+          if (!r.ok) {
+            const e = new Error(data.error || 'Request failed (status ' + r.status + ')');
+            e.status = r.status;
+            throw e;
+          }
           return data;
         });
       });
@@ -9623,6 +9627,16 @@
       const mountRef = useRef(null);
       // Which input tab initiated the charge (for retry + receipt)
       const lastInputTab = useRef('newcard');
+      // Idempotency nonce for card-on-file charges — reused across ambiguous
+      // network failures (a re-click replays the same charge at Stripe instead
+      // of double-charging), regenerated once the server definitively responds
+      const chargeIdemRef = useRef(null);
+      const takeChargeIdemKey = () => {
+        if (!chargeIdemRef.current) {
+          chargeIdemRef.current = 'rp' + Date.now().toString(36) + Math.random().toString(36).slice(2, 14);
+        }
+        return chargeIdemRef.current;
+      };
 
       useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
@@ -9705,15 +9719,21 @@
               amount: parseFloat(amount),
               description: chargeDescription,
               stripe_customer_id: stripeCustomerId,
-              payment_method_id: card.id
+              payment_method_id: card.id,
+              idempotency_key: takeChargeIdemKey()
             })
           });
+          chargeIdemRef.current = null;
           setProcStep(2);
           if (r.brand) setCardBrand(r.brand.toUpperCase());
           if (r.last4) setCardLast4(r.last4);
           setPiId(r.payment_intent_id);
           setPhase('approved');
         } catch (err) {
+          // A definitive server response (decline, validation error) gets a
+          // fresh key so the next attempt actually retries; a network failure
+          // keeps the key so a re-click can't double-charge
+          if (err && err.status) chargeIdemRef.current = null;
           setDeclineReason(err.message || 'Charge failed');
           setPhase('declined');
         }

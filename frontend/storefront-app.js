@@ -6329,6 +6329,16 @@
     } }), "Liftgate delivery (residential)")), deliveryMethod === "pickup" && /* @__PURE__ */ React.createElement("div", { className: "ct-summary-line", style: { marginTop: 8 } }, /* @__PURE__ */ React.createElement("span", null, "Shipping"), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--gold)" } }, "Free"))), /* @__PURE__ */ React.createElement("div", { className: "ct-summary-total" }, /* @__PURE__ */ React.createElement("span", { className: "ct-summary-total-label" }, selectedShippingOption ? "Estimated total" : "Subtotal"), /* @__PURE__ */ React.createElement("span", { className: "ct-summary-total-value" }, "$", cartTotal.toLocaleString(void 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))), /* @__PURE__ */ React.createElement("button", { className: "ct-checkout-btn", onClick: goCheckout, disabled: hasOutOfStock }, hasOutOfStock ? "Remove out-of-stock items to checkout" : "Checkout securely"), /* @__PURE__ */ React.createElement("div", { className: "ct-summary-trust" }, /* @__PURE__ */ React.createElement("div", null, "Secure checkout \xB7 Stripe"), /* @__PURE__ */ React.createElement("div", null, "(714) 999-0009"))))));
   }
   function CheckoutPage({ cart, sessionId, goCart, handleOrderComplete, deliveryMethod, setDeliveryMethod, liftgateEnabled, tradeCustomer, tradeToken, customer, customerToken, onCustomerLogin, klarnaError, clearKlarnaError, appliedPromoCode, setAppliedPromoCode }) {
+    const savedCardNonceRef = useRef(null);
+    const getSavedCardNonce = () => {
+      if (!savedCardNonceRef.current) {
+        savedCardNonceRef.current = "ck" + Date.now().toString(36) + Math.random().toString(36).slice(2, 14);
+      }
+      return savedCardNonceRef.current;
+    };
+    const resetSavedCardNonce = () => {
+      savedCardNonceRef.current = null;
+    };
     const [customerName, setCustomerName] = useState(tradeCustomer ? tradeCustomer.contact_name : customer ? customer.first_name + " " + customer.last_name : "");
     const [customerEmail, setCustomerEmail] = useState(tradeCustomer ? tradeCustomer.email : customer ? customer.email : "");
     const [phone, setPhone] = useState(customer ? customer.phone || "" : "");
@@ -6564,15 +6574,17 @@
       setError("");
       setProcessing(true);
       try {
-        const usingSavedCard = !!(customerToken && selectedSavedPm);
+        const usingSavedCard2 = !!(customerToken && selectedSavedPm);
         const piBody = { session_id: sessionId, delivery_method: deliveryMethod, promo_code: appliedPromoCode || void 0 };
         if (!isPickup) {
           piBody.destination = { zip, city, state };
           piBody.residential = true;
           piBody.liftgate = liftgateEnabled;
         }
-        if (usingSavedCard) piBody.saved_payment_method_id = selectedSavedPm;
-        else if (customerToken && saveCard) piBody.save_card = true;
+        if (usingSavedCard2) {
+          piBody.saved_payment_method_id = selectedSavedPm;
+          piBody.idempotency_key = getSavedCardNonce();
+        } else if (customerToken && saveCard) piBody.save_card = true;
         const piHeaders = { "Content-Type": "application/json" };
         if (customerToken) piHeaders["X-Customer-Token"] = customerToken;
         const piRes = await fetch(API + "/api/checkout/create-payment-intent", {
@@ -6582,6 +6594,7 @@
         });
         const piData = await piRes.json();
         if (piData.error) {
+          if (usingSavedCard2) resetSavedCardNonce();
           setError(piData.error);
           setProcessing(false);
           if (piData.out_of_stock_sku_ids) {
@@ -6592,7 +6605,7 @@
           return;
         }
         let confirmedPiId;
-        if (usingSavedCard) {
+        if (usingSavedCard2) {
           if (piData.status === "succeeded") {
             confirmedPiId = piData.paymentIntentId;
           } else if (piData.requires_action || piData.status === "requires_action") {
@@ -6604,6 +6617,7 @@
             }
             confirmedPiId = actionPi.id;
           } else {
+            resetSavedCardNonce();
             setError("Your saved card could not be charged. Please try another card.");
             setProcessing(false);
             return;
@@ -6834,15 +6848,17 @@
       if (!requireTermsAccepted()) return;
       setProcessing(true);
       try {
-        const usingSavedCard = !!(customerToken && selectedSavedPm);
+        const usingSavedCard2 = !!(customerToken && selectedSavedPm);
         const piBody = { session_id: sessionId, delivery_method: deliveryMethod, promo_code: appliedPromoCode || void 0 };
         if (!isPickup) {
           piBody.destination = { zip, city, state };
           piBody.residential = true;
           piBody.liftgate = liftgateEnabled;
         }
-        if (usingSavedCard) piBody.saved_payment_method_id = selectedSavedPm;
-        else if (customerToken && saveCard) piBody.save_card = true;
+        if (usingSavedCard2) {
+          piBody.saved_payment_method_id = selectedSavedPm;
+          piBody.idempotency_key = getSavedCardNonce();
+        } else if (customerToken && saveCard) piBody.save_card = true;
         const piHeaders = { "Content-Type": "application/json" };
         if (customerToken) piHeaders["X-Customer-Token"] = customerToken;
         const piRes = await fetch(API + "/api/checkout/create-payment-intent", {
@@ -6852,6 +6868,7 @@
         });
         const piData = await piRes.json();
         if (piData.error) {
+          if (usingSavedCard2) resetSavedCardNonce();
           setError(piData.error);
           setProcessing(false);
           if (piData.out_of_stock_sku_ids) {
@@ -6862,7 +6879,7 @@
           return;
         }
         let confirmedPiId;
-        if (usingSavedCard) {
+        if (usingSavedCard2) {
           if (piData.status === "succeeded") {
             confirmedPiId = piData.paymentIntentId;
           } else if (piData.requires_action || piData.status === "requires_action") {
@@ -6874,6 +6891,7 @@
             }
             confirmedPiId = actionPi.id;
           } else {
+            resetSavedCardNonce();
             setError("Your saved card could not be charged. Please try another card.");
             setProcessing(false);
             return;
@@ -6985,6 +7003,7 @@
         const piRes = await fetch(API + "/api/checkout/create-payment-intent", { method: "POST", headers: piHeaders, body: JSON.stringify(piBody) });
         const piData = await piRes.json();
         if (piData.error) {
+          if (usingSavedCard) resetSavedCardNonce();
           setError(piData.error);
           setProcessing(false);
           if (piData.out_of_stock_sku_ids) {
