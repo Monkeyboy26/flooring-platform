@@ -1715,6 +1715,13 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .co-final-sale strong { color: var(--stone-800); font-weight: 600; }
 .co-final-sale a { color: var(--stone-800); border-bottom: 1px solid rgba(28,25,23,0.2); text-decoration: none; }
 
+/* California Prop 65 warning */
+.prop65-warning { display: flex; align-items: flex-start; gap: 0.625rem; margin-top: 1rem; padding: 0.75rem 0.875rem; background: #fffbeb; border: 0.5px solid #fde68a; border-left: 3px solid #f59e0b; font: 400 0.75rem/1.5 var(--font-body); color: #78716c; }
+.prop65-warning .prop65-icon { color: #b45309; font-size: 0.875rem; line-height: 1.4; flex-shrink: 0; }
+.prop65-warning strong { color: #57534e; font-weight: 600; }
+.prop65-warning a { color: #57534e; text-decoration: underline; }
+.prop65-compact { margin-top: 0.75rem; padding: 0.5rem 0.75rem; }
+
 /* Notes textarea */
 .co-notes textarea { width: 100%; min-height: 4rem; padding: 0.875rem; background: transparent; border: 0.5px solid rgba(28,25,23,0.2); font: 400 0.875rem/1.5 var(--font-body); color: var(--stone-800); resize: vertical; outline: none; box-sizing: border-box; }
 .co-notes-hint { margin-top: 0.5rem; font: 500 0.625rem/1 ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase; color: var(--warm-muted); }

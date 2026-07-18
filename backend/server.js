@@ -2278,6 +2278,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.variant_type,
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, p.vendor_id, p.brand_id, p.description_long, p.description_short,
         p.slug as product_slug, p.format_group, p.format_label,
+        p.prop65_warning, p.prop65_chemicals,
         v.name as vendor_name, v.code as vendor_code,
         COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
@@ -6080,7 +6081,8 @@ app.post('/api/admin/products', staffAuth, requireRole('admin', 'manager'), asyn
 app.put('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, collection, vendor_id, category_id, brand_id, status, description_short, description_long } = req.body;
+    const { name, collection, vendor_id, category_id, brand_id, status, description_short, description_long,
+            prop65_warning, prop65_chemicals } = req.body;
 
     // Activation guard: check product is ready before setting to 'active'
     if (status === 'active') {
@@ -6114,10 +6116,13 @@ app.put('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
         status = COALESCE($6, status),
         description_short = COALESCE($7, description_short),
         description_long = COALESCE($8, description_long),
+        prop65_warning = COALESCE($9, prop65_warning),
+        prop65_chemicals = COALESCE($10, prop65_chemicals),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $9
+      WHERE id = $11
       RETURNING *
-    `, [name, collection, vendor_id, category_id, brand_id, status, description_short, description_long, id]);
+    `, [name, collection, vendor_id, category_id, brand_id, status, description_short, description_long,
+        typeof prop65_warning === 'boolean' ? prop65_warning : null, prop65_chemicals, id]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Product not found' });
     clearSearchCaches();

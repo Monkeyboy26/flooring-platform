@@ -4697,6 +4697,15 @@
                 </div>
               )}
 
+              {activeSku.prop65_warning && (
+                <div className="prop65-warning prop65-compact">
+                  <span className="prop65-icon" aria-hidden="true">&#9888;</span>
+                  <span><strong>WARNING:</strong> Cancer and Reproductive Harm &mdash;{' '}
+                    <a href="https://www.P65Warnings.ca.gov" target="_blank" rel="noopener noreferrer">www.P65Warnings.ca.gov</a>
+                  </span>
+                </div>
+              )}
+
               <div className="qv-footer">
                 <div className="qv-footer-links">
                   <button className="qv-footer-link" onClick={() => { if (typeof toggleWishlist === 'function') toggleWishlist(activeSku.sku_id); }} title="Save to wishlist">
@@ -8618,6 +8627,22 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16 }}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
                     Call (714) 999-0009
                   </a>
+                </div>
+              )}
+
+              {/* California Prop 65 — warning must be shown before purchase */}
+              {sku.prop65_warning && (
+                <div className="prop65-warning">
+                  <span className="prop65-icon" aria-hidden="true">&#9888;</span>
+                  <span>
+                    <strong>WARNING:</strong>{' '}
+                    {sku.prop65_chemicals ? (
+                      <>This product can expose you to chemicals including {sku.prop65_chemicals}, which is known to the State of California to cause cancer and birth defects or other reproductive harm. For more information go to{' '}</>
+                    ) : (
+                      <>Cancer and Reproductive Harm &mdash;{' '}</>
+                    )}
+                    <a href="https://www.P65Warnings.ca.gov" target="_blank" rel="noopener noreferrer">www.P65Warnings.ca.gov</a>
+                  </span>
                 </div>
               )}
 

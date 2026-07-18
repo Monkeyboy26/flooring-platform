@@ -2336,7 +2336,7 @@
 
     // ========== ProductFormView ==========
     function ProductFormView({ navigate, editId }) {
-      const [form, setForm] = useState({ name: '', collection: '', vendor_id: '', brand_id: '', category_id: '', status: 'draft', description_short: '', description_long: '' });
+      const [form, setForm] = useState({ name: '', collection: '', vendor_id: '', brand_id: '', category_id: '', status: 'draft', description_short: '', description_long: '', prop65_warning: false, prop65_chemicals: '' });
       const [skus, setSkus] = useState([]);
       const [media, setMedia] = useState([]);
       const [vendors, setVendors] = useState([]);
@@ -2367,7 +2367,9 @@
                 category_id: p.category_id || '',
                 status: p.status || 'draft',
                 description_short: p.description_short || '',
-                description_long: p.description_long || ''
+                description_long: p.description_long || '',
+                prop65_warning: !!p.prop65_warning,
+                prop65_chemicals: p.prop65_chemicals || ''
               });
               setSkus((data.skus || []).map(s => ({ ...s, _existing: true })));
               setMedia(data.media || []);
@@ -2552,6 +2554,18 @@
                 <label>Long Description</label>
                 <textarea value={form.description_long} onChange={e => updateForm('description_long', e.target.value)} placeholder="Detailed product description" />
               </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={form.prop65_warning} onChange={e => updateForm('prop65_warning', e.target.checked)} style={{ width: 'auto' }} />
+                  Prop 65 Warning
+                </label>
+              </div>
+              {form.prop65_warning && (
+                <div className="form-group">
+                  <label>Prop 65 Chemicals</label>
+                  <input value={form.prop65_chemicals} onChange={e => updateForm('prop65_chemicals', e.target.value)} placeholder="e.g. crystalline silica (blank = generic warning)" />
+                </div>
+              )}
             </div>
           </CollapsibleSection>
 

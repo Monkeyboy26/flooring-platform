@@ -64,7 +64,9 @@ CREATE TABLE products (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     format_group VARCHAR(100),
     format_label VARCHAR(50),
-    sort_priority INTEGER NOT NULL DEFAULT 0
+    sort_priority INTEGER NOT NULL DEFAULT 0,
+    prop65_warning BOOLEAN DEFAULT false,
+    prop65_chemicals TEXT
 );
 
 CREATE UNIQUE INDEX products_slug_unique ON products (slug) WHERE slug IS NOT NULL;
