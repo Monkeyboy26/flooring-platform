@@ -797,23 +797,28 @@
   }
   function pdpSubtitle(sku) {
     if (sku.variant_type === "accessory") return formatVariantName(sku.variant_name);
-    if (sku.variant_name && sku.variant_name.includes(",")) return formatVariantName(sku.variant_name);
     const attrs = sku.attributes || [];
+    const colorAttr = attrs.find((a) => a.slug === "color");
+    const sizeAttr = attrs.find((a) => a.slug === "size");
+    const finishAttr = attrs.find((a) => a.slug === "finish");
+    if (colorAttr && colorAttr.value && sizeAttr && sizeAttr.value) {
+      const parts2 = [formatCarpetValue(colorAttr.value), formatSizeDim(sizeAttr.value)];
+      if (finishAttr && finishAttr.value) parts2.push(formatCarpetValue(finishAttr.value));
+      return parts2.join(", ");
+    }
+    if (sku.variant_name && sku.variant_name.includes(",")) return formatVariantName(sku.variant_name);
     const titleName = cleanProductTitle(sku.product_name, sku) || sku.product_name || "";
     const titleLower = titleName.toLowerCase();
     const parts = [];
-    const colorAttr = attrs.find((a) => a.slug === "color");
     if (colorAttr && colorAttr.value) {
       const colorVal = formatCarpetValue(colorAttr.value);
       if (!titleLower.includes(colorVal.toLowerCase())) {
         parts.push(colorVal);
       }
     }
-    const sizeAttr = attrs.find((a) => a.slug === "size");
     if (sizeAttr && sizeAttr.value) {
       parts.push(formatSizeDim(sizeAttr.value));
     }
-    const finishAttr = attrs.find((a) => a.slug === "finish");
     if (finishAttr && finishAttr.value) {
       const finishVal = formatCarpetValue(finishAttr.value);
       if (!titleLower.includes(finishVal.toLowerCase())) {
@@ -947,11 +952,13 @@
             if (colorVal) variant = null;
           } else {
             const colLc = (col || "").toLowerCase();
-            if (colLc && name.toLowerCase().startsWith(colLc + " ")) {
-              name = name.slice(0, col.length) + (colorVal ? " " + colorVal : "") + " " + sizePart + name.slice(col.length);
-              if (colorVal) variant = null;
+            if (colorVal && colLc && name.toLowerCase().startsWith(colLc + " ")) {
+              name = name.slice(0, col.length) + " " + colorVal + " " + sizePart + name.slice(col.length);
+              variant = null;
+            } else if (!colorVal) {
+              name = name + " " + sizePart;
             } else {
-              variant = (colorVal ? colorVal + " " : "") + sizePart;
+              variant = colorVal + " " + sizePart;
             }
           }
         }
@@ -4332,7 +4339,8 @@
     const price = sku.trade_price || (onSale ? sku.sale_price : basePrice);
     const discountPct = onSale && parseFloat(basePrice) > 0 ? Math.round((1 - parseFloat(sku.sale_price) / parseFloat(basePrice)) * 100) : 0;
     const catName = sku.category_name || "";
-    const variantLabel = sku.variant_name || "";
+    const cardHasVariants = sku.variant_count > 1;
+    const variantLabel = cardHasVariants ? sku.variant_count + " " + ((sku.attributes || []).some((a) => a.slug === "color") ? "colors" : "options") : sku.variant_name || "";
     const vendorLabel = sku.brand_name || sku.vendor_name || "";
     const stockStatus = sku.stock_status || "unknown";
     const lowStockQty = sku.low_stock_qty;
@@ -4354,7 +4362,7 @@
     )), onQuickView && /* @__PURE__ */ React.createElement("div", { className: "sku-card-qv-gradient", onClick: (e) => {
       e.stopPropagation();
       onQuickView();
-    } }, /* @__PURE__ */ React.createElement("button", { className: "sku-card-qv-btn" }, "Quick View"))), /* @__PURE__ */ React.createElement("div", { className: "sku-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "sku-card-meta-row" }, /* @__PURE__ */ React.createElement("span", null, catName), stockLabel && /* @__PURE__ */ React.createElement("span", { className: "sku-card-stock " + stockClass }, "\u25CF", " ", stockLabel)), /* @__PURE__ */ React.createElement("div", { className: "sku-card-name" }, fullProductName(sku)), hasVariants && variantImages.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "sku-card-variant-swatches" }, variantImages.slice(0, 5).map((vi, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "sku-card-variant-dot" }, vi.image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(vi.image, 60), alt: "", loading: "lazy", decoding: "async", width: 22, height: 22 }) : null)), variantImages.length > 5 && /* @__PURE__ */ React.createElement("span", { className: "sku-card-variant-more" }, "+", variantImages.length - 5)), /* @__PURE__ */ React.createElement("div", { className: "sku-card-vendor" }, variantLabel && vendorLabel ? variantLabel + " \xB7 " + vendorLabel : vendorLabel || variantLabel, !variantLabel && !vendorLabel && hasVariants && sku.variant_count + " " + ((sku.attributes || []).some((a) => a.slug === "color") ? "colors" : "options")), /* @__PURE__ */ React.createElement("div", { className: "sku-card-price-row" }, /* @__PURE__ */ React.createElement("div", { className: "sku-card-price" }, price ? /* @__PURE__ */ React.createElement(React.Fragment, null, sku.trade_price && basePrice && /* @__PURE__ */ React.createElement("span", { className: "sku-card-trade-strike" }, "$", displayPrice(sku, basePrice).toFixed(2)), onSale && /* @__PURE__ */ React.createElement("span", { className: "sale-original-price" }, "$", displayPrice(sku, basePrice).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: onSale ? "sale-price-text" : "" }, "$", displayPrice(sku, price).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "price-suffix" }, priceSuffix(sku))) : "Call for Price"), /* @__PURE__ */ React.createElement("span", { className: "sku-card-view-link" }, "View \u2192"))));
+    } }, /* @__PURE__ */ React.createElement("button", { className: "sku-card-qv-btn" }, "Quick View"))), /* @__PURE__ */ React.createElement("div", { className: "sku-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "sku-card-meta-row" }, /* @__PURE__ */ React.createElement("span", null, catName), stockLabel && /* @__PURE__ */ React.createElement("span", { className: "sku-card-stock " + stockClass }, "\u25CF", " ", stockLabel)), /* @__PURE__ */ React.createElement("div", { className: "sku-card-name" }, fullProductName(sku.variant_type === "accessory" ? sku : { ...sku, variant_name: null })), hasVariants && variantImages.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "sku-card-variant-swatches" }, variantImages.slice(0, 5).map((vi, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "sku-card-variant-dot" }, vi.image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(vi.image, 60), alt: "", loading: "lazy", decoding: "async", width: 22, height: 22 }) : null)), variantImages.length > 5 && /* @__PURE__ */ React.createElement("span", { className: "sku-card-variant-more" }, "+", variantImages.length - 5)), /* @__PURE__ */ React.createElement("div", { className: "sku-card-vendor" }, variantLabel && vendorLabel ? variantLabel + " \xB7 " + vendorLabel : vendorLabel || variantLabel, !variantLabel && !vendorLabel && hasVariants && sku.variant_count + " " + ((sku.attributes || []).some((a) => a.slug === "color") ? "colors" : "options")), /* @__PURE__ */ React.createElement("div", { className: "sku-card-price-row" }, /* @__PURE__ */ React.createElement("div", { className: "sku-card-price" }, price ? /* @__PURE__ */ React.createElement(React.Fragment, null, sku.trade_price && basePrice && /* @__PURE__ */ React.createElement("span", { className: "sku-card-trade-strike" }, "$", displayPrice(sku, basePrice).toFixed(2)), onSale && /* @__PURE__ */ React.createElement("span", { className: "sale-original-price" }, "$", displayPrice(sku, basePrice).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: onSale ? "sale-price-text" : "" }, "$", displayPrice(sku, price).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "price-suffix" }, priceSuffix(sku))) : "Call for Price"), /* @__PURE__ */ React.createElement("span", { className: "sku-card-view-link" }, "View \u2192"))));
   }
   function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, tradeCustomer, wishlist, toggleWishlist: toggleWishlist2, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth, showToast, categories }) {
     const [sku, setSku] = useState(null);

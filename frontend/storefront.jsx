@@ -705,20 +705,33 @@
       return cleaned;
     }
 
-    // Build a richer PDP subtitle from SKU attributes (color, size, finish)
+    // Build a uniform PDP subtitle from SKU attributes: "Color, Size, Finish"
+    // (e.g. "Cream, 12″ × 24″, Matte") — the variant line always carries the
+    // full variant identity even when size/finish also appear in the title.
     function pdpSubtitle(sku) {
       // Accessories: keep existing formatVariantName behavior
       if (sku.variant_type === 'accessory') return formatVariantName(sku.variant_name);
+
+      const attrs = sku.attributes || [];
+      const colorAttr = attrs.find(a => a.slug === 'color');
+      const sizeAttr = attrs.find(a => a.slug === 'size');
+      const finishAttr = attrs.find(a => a.slug === 'finish');
+
+      // Uniform structure whenever color + size are known
+      if (colorAttr && colorAttr.value && sizeAttr && sizeAttr.value) {
+        const parts = [formatCarpetValue(colorAttr.value), formatSizeDim(sizeAttr.value)];
+        if (finishAttr && finishAttr.value) parts.push(formatCarpetValue(finishAttr.value));
+        return parts.join(', ');
+      }
+
       // If variant_name already has a good compound format (contains comma → e.g. "12x24, Matte"), keep it
       if (sku.variant_name && sku.variant_name.includes(',')) return formatVariantName(sku.variant_name);
 
-      const attrs = sku.attributes || [];
       const titleName = cleanProductTitle(sku.product_name, sku) || sku.product_name || '';
       const titleLower = titleName.toLowerCase();
       const parts = [];
 
       // Color — only if not already in the product title
-      const colorAttr = attrs.find(a => a.slug === 'color');
       if (colorAttr && colorAttr.value) {
         const colorVal = formatCarpetValue(colorAttr.value);
         if (!titleLower.includes(colorVal.toLowerCase())) {
@@ -727,13 +740,11 @@
       }
 
       // Size — formatted with inch/foot marks
-      const sizeAttr = attrs.find(a => a.slug === 'size');
       if (sizeAttr && sizeAttr.value) {
         parts.push(formatSizeDim(sizeAttr.value));
       }
 
       // Finish — if available and not redundant with title
-      const finishAttr = attrs.find(a => a.slug === 'finish');
       if (finishAttr && finishAttr.value) {
         const finishVal = formatCarpetValue(finishAttr.value);
         if (!titleLower.includes(finishVal.toLowerCase())) {
@@ -926,11 +937,16 @@
               if (colorVal) variant = null;
             } else {
               const colLc = (col || '').toLowerCase();
-              if (colLc && name.toLowerCase().startsWith(colLc + ' ')) {
-                name = name.slice(0, col.length) + (colorVal ? ' ' + colorVal : '') + ' ' + sizePart + name.slice(col.length);
-                if (colorVal) variant = null;
+              if (colorVal && colLc && name.toLowerCase().startsWith(colLc + ' ')) {
+                // Insert "Color Size" after the collection prefix: "Pietra Cream 12x24 ..."
+                name = name.slice(0, col.length) + ' ' + colorVal + ' ' + sizePart + name.slice(col.length);
+                variant = null;
+              } else if (!colorVal) {
+                // Color already lives inside the name — append size after it
+                // ("Pietra Bone" → "Pietra Bone 12x24"), never mid-name
+                name = name + ' ' + sizePart;
               } else {
-                variant = (colorVal ? colorVal + ' ' : '') + sizePart;
+                variant = colorVal + ' ' + sizePart;
               }
             }
           }
@@ -6159,7 +6175,12 @@
       const price = sku.trade_price || (onSale ? sku.sale_price : basePrice);
       const discountPct = onSale && parseFloat(basePrice) > 0 ? Math.round((1 - parseFloat(sku.sale_price) / parseFloat(basePrice)) * 100) : 0;
       const catName = sku.category_name || '';
-      const variantLabel = sku.variant_name || '';
+      // Uniform card structure: title stays product-level (no color), the
+      // variant line below carries the color / option count instead.
+      const cardHasVariants = sku.variant_count > 1;
+      const variantLabel = cardHasVariants
+        ? sku.variant_count + ' ' + ((sku.attributes || []).some(a => a.slug === 'color') ? 'colors' : 'options')
+        : (sku.variant_name || '');
       const vendorLabel = sku.brand_name || sku.vendor_name || '';
       const stockStatus = sku.stock_status || 'unknown';
       const lowStockQty = sku.low_stock_qty;
@@ -6196,7 +6217,7 @@
               <span>{catName}</span>
               {stockLabel && <span className={'sku-card-stock ' + stockClass}>{'\u25CF'} {stockLabel}</span>}
             </div>
-            <div className="sku-card-name">{fullProductName(sku)}</div>
+            <div className="sku-card-name">{fullProductName(sku.variant_type === 'accessory' ? sku : { ...sku, variant_name: null })}</div>
             {hasVariants && variantImages.length > 0 && (
               <div className="sku-card-variant-swatches">
                 {variantImages.slice(0, 5).map((vi, i) => (
