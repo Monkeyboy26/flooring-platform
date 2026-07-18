@@ -11124,11 +11124,12 @@
       const renderOrderExpanded = () => (
         <div className="acct-order-expanded">
           {orderDetail.order.tracking_number && (
-            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af', borderRadius: 4 }}>
-              Tracking: {orderDetail.order.shipping_carrier && <strong>{orderDetail.order.shipping_carrier} </strong>}
-              <strong>{orderDetail.order.tracking_number}</strong>
-              {orderDetail.order.shipped_at && <span style={{ marginLeft: '0.5rem' }}>
-                (Shipped {fmtDate(orderDetail.order.shipped_at)})
+            <div style={{ background: 'rgba(28,25,23,0.04)', border: '0.5px solid rgba(28,25,23,0.12)', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--stone-700, #44403c)', borderRadius: 4 }}>
+              <span className="acct-footer-card-sub" style={{ marginRight: '0.625rem' }}>In transit</span>
+              {orderDetail.order.shipping_carrier && <span>{orderDetail.order.shipping_carrier} </span>}
+              <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{orderDetail.order.tracking_number}</strong>
+              {orderDetail.order.shipped_at && <span style={{ color: 'var(--warm-muted)', marginLeft: '0.5rem' }}>
+                Shipped {fmtDate(orderDetail.order.shipped_at)}
               </span>}
             </div>
           )}
@@ -11154,8 +11155,9 @@
           })()}
 
           {orderDetail.order.delivery_method !== 'pickup' && orderDetail.fulfillment_summary && orderDetail.fulfillment_summary.total > 0 && orderDetail.fulfillment_summary.received > 0 && orderDetail.fulfillment_summary.received < orderDetail.fulfillment_summary.total && (
-            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
-              Your order is being prepared — {orderDetail.fulfillment_summary.received} of {orderDetail.fulfillment_summary.total} items received from suppliers
+            <div style={{ background: 'rgba(28,25,23,0.04)', border: '0.5px solid rgba(28,25,23,0.12)', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--stone-700, #44403c)', borderRadius: 4 }}>
+              <span className="acct-footer-card-sub" style={{ marginRight: '0.625rem' }}>Preparing</span>
+              {orderDetail.fulfillment_summary.received} of {orderDetail.fulfillment_summary.total} items received from suppliers
             </div>
           )}
 
@@ -11722,9 +11724,10 @@
                         {isExpanded && (
                           <div className="acct-order-expanded">
                             {sr.tracking_number && (
-                              <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af', borderRadius: 4 }}>
-                                Tracking: <strong>{sr.tracking_number}</strong>
-                                {sr.shipped_at && <span style={{ marginLeft: '0.5rem' }}>(Shipped {fmtDate(sr.shipped_at)})</span>}
+                              <div style={{ background: 'rgba(28,25,23,0.04)', border: '0.5px solid rgba(28,25,23,0.12)', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--stone-700, #44403c)', borderRadius: 4 }}>
+                                <span className="acct-footer-card-sub" style={{ marginRight: '0.625rem' }}>In transit</span>
+                                <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{sr.tracking_number}</strong>
+                                {sr.shipped_at && <span style={{ color: 'var(--warm-muted)', marginLeft: '0.5rem' }}>Shipped {fmtDate(sr.shipped_at)}</span>}
                               </div>
                             )}
 
