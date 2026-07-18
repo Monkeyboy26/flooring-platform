@@ -2239,6 +2239,7 @@
 
     function StorefrontApp() {
       const [view, setView] = useState('home');
+      const [accountSection, setAccountSection] = useState('overview');
       const [selectedSkuId, setSelectedSkuId] = useState(null);
 
       // SKU browse state
@@ -2887,8 +2888,16 @@
       };
 
       const goAccount = () => {
+        setAccountSection('overview');
         setView('account');
-        history.pushState({ view: 'account' }, '', '/account');
+        history.pushState({ view: 'account', accountSection: 'overview' }, '', '/account');
+        window.scrollTo(0, 0);
+      };
+
+      const setAccountSectionAndUrl = (section) => {
+        setAccountSection(section);
+        history.pushState({ view: 'account', accountSection: section }, '',
+          section === 'overview' ? '/account' : '/account/' + section);
         window.scrollTo(0, 0);
       };
 
@@ -3165,7 +3174,9 @@
           setView('checkout');
         } else if (path === '/account' && sp.get('action') === 'set-password' && sp.get('token')) {
           setView('set-password');
-        } else if (path === '/account' || path === '/shop/account') {
+        } else if (path === '/account' || path === '/shop/account' || path.startsWith('/account/')) {
+          const sec = path.startsWith('/account/') ? path.replace('/account/', '').split('/')[0] : 'overview';
+          setAccountSection(['overview', 'orders', 'quotes', 'samples', 'visits', 'payment', 'settings'].includes(sec) ? sec : 'overview');
           setView('account');
         } else if (path === '/wishlist' || path === '/shop/wishlist') {
           setView('wishlist');
@@ -3540,7 +3551,10 @@
 
           {view === 'account' && (
             customer ? (
-              <AccountPage customer={customer} customerToken={customerToken} setCustomer={setCustomer} goBrowse={goBrowse} />
+              <AccountPage customer={customer} customerToken={customerToken} setCustomer={setCustomer} goBrowse={goBrowse}
+                section={accountSection} setSection={setAccountSectionAndUrl}
+                wishlist={wishlist} goWishlist={goWishlist} onSkuClick={goSkuDetail}
+                goHome={goHome} onLogout={handleCustomerLogout} />
             ) : (
               <div style={{ maxWidth: 600, margin: '4rem auto', textAlign: 'center', padding: '0 2rem' }}>
                 <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, marginBottom: '1rem' }}>Sign In Required</h2>
@@ -10661,7 +10675,7 @@
     // ==================== Account Page ====================
 
     // ==================== Saved Payment Methods (account) ====================
-    function PaymentMethodsSection({ customerToken, customer }) {
+    function PaymentMethodsSection({ customerToken, customer, onCardsChange }) {
       const [cards, setCards] = useState(null);
       const [showAdd, setShowAdd] = useState(false);
       const [cardComplete, setCardComplete] = useState(false);
@@ -10676,7 +10690,7 @@
       const loadCards = () => {
         fetch(API + '/api/customer/payment-methods', { headers: authHeaders })
           .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-          .then(data => setCards(data.cards || []))
+          .then(data => { setCards(data.cards || []); if (onCardsChange) onCardsChange(data.cards || []); })
           .catch(() => setCards([]));
       };
       useEffect(loadCards, []);
@@ -10730,14 +10744,15 @@
         try {
           const r = await fetch(API + '/api/customer/payment-methods/' + pmId, { method: 'DELETE', headers: authHeaders });
           if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed to remove card'); }
-          setCards(prev => (prev || []).filter(c => c.id !== pmId));
+          const next = (cards || []).filter(c => c.id !== pmId);
+          setCards(next);
+          if (onCardsChange) onCardsChange(next);
         } catch (e) { alert(e.message || 'Failed to remove card'); }
         setRemoving(null);
       };
 
       return (
         <div>
-          <h3 style={{ fontSize: '1rem', fontWeight: 500, marginBottom: '1rem', paddingTop: '1.5rem', borderTop: '1px solid var(--stone-200)' }}>Payment Methods</h3>
           {msg && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem' }}>{msg}</div>}
           {cards === null ? (
             <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem' }}>Loading saved cards...</p>
@@ -10785,8 +10800,7 @@
       );
     }
 
-    function AccountPage({ customer, customerToken, setCustomer, goBrowse }) {
-      const [tab, setTab] = useState('orders');
+    function AccountPage({ customer, customerToken, setCustomer, goBrowse, section, setSection, wishlist, goWishlist, onSkuClick, goHome, onLogout }) {
       const [orders, setOrders] = useState([]);
       const [expandedOrder, setExpandedOrder] = useState(null);
       const [orderDetail, setOrderDetail] = useState(null);
@@ -10835,6 +10849,31 @@
 
       const headers = { 'X-Customer-Token': customerToken, 'Content-Type': 'application/json' };
       const authHeaders = { 'X-Customer-Token': customerToken };
+
+      // Redesigned account shell state
+      const [cards, setCards] = useState([]);
+      const [wishlistSkus, setWishlistSkus] = useState([]);
+      const [ordersTab, setOrdersTab] = useState('all');
+      const [ordersSearch, setOrdersSearch] = useState('');
+
+      useEffect(() => {
+        fetch(API + '/api/customer/payment-methods', { headers: authHeaders })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(data => setCards(data.cards || []))
+          .catch(() => {});
+      }, []);
+
+      useEffect(() => {
+        const ids = (wishlist || []).slice(0, 4);
+        if (!ids.length) { setWishlistSkus([]); return; }
+        fetch(API + '/api/storefront/skus?sku_ids=' + encodeURIComponent(ids.join(',')) + '&limit=' + ids.length)
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(data => {
+            const map = new Map((data.skus || []).map(s => [s.sku_id, s]));
+            setWishlistSkus(ids.map(id => map.get(id)).filter(Boolean));
+          })
+          .catch(() => {});
+      }, [wishlist]);
 
       useEffect(() => {
         fetch(API + '/api/customer/orders', { headers: authHeaders })
@@ -11001,195 +11040,524 @@
       ];
 
       const inputStyle = {
-        width: '100%', padding: '0.65rem 0.75rem', border: '1px solid var(--stone-200)',
-        fontSize: '0.875rem', fontFamily: 'Inter, sans-serif', outline: 'none'
+        width: '100%', padding: '0.625rem 0.75rem', border: '0.5px solid rgba(28,25,23,0.15)', borderRadius: 4,
+        background: 'transparent', fontSize: '0.8125rem', fontFamily: 'var(--font-body)', color: 'var(--stone-800)', outline: 'none'
       };
-      const labelStyle = { display: 'block', marginBottom: '0.35rem', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--stone-800)' };
-      const fieldStyle = { marginBottom: '1rem' };
+      const labelStyle = { display: 'block', marginBottom: '0.3125rem', fontSize: '0.75rem', fontWeight: 500, color: 'var(--stone-700, #44403c)', fontFamily: 'var(--font-body)' };
+      const fieldStyle = { marginBottom: '0.875rem' };
 
-      return (
-        <div style={{ maxWidth: 900, margin: '3rem auto', padding: '0 1.5rem' }}>
-          <h1 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '2rem', fontWeight: 400, marginBottom: '0.5rem' }}>
-            My Account
-          </h1>
-          <p style={{ color: 'var(--stone-600)', fontSize: '0.875rem', marginBottom: '2rem' }}>
-            Welcome back, {customer.first_name}
-          </p>
+      // ---- Redesigned shell: derived data + shared renderers ----
+      const ORDER_STATUS_META = {
+        pending: { label: 'Pending', color: '#a87935' },
+        confirmed: { label: 'Confirmed', color: '#a87935' },
+        ready_for_pickup: { label: 'Ready for pickup', color: '#3a7a4e' },
+        shipped: { label: 'Shipped', color: '#2563eb' },
+        delivered: { label: 'Delivered', color: '#3a7a4e' },
+        cancelled: { label: 'Cancelled', color: 'var(--warm-muted)' }
+      };
+      const SAMPLE_STATUS_META = {
+        requested: { label: 'Open', color: '#a87935' },
+        shipped: { label: 'Shipped', color: '#2563eb' },
+        delivered: { label: 'Delivered', color: '#3a7a4e' },
+        cancelled: { label: 'Cancelled', color: 'var(--warm-muted)' }
+      };
+      const ACTIVE_ORDER_STATUSES = ['pending', 'confirmed', 'shipped', 'ready_for_pickup'];
+      const activeOrders = orders.filter(o => ACTIVE_ORDER_STATUSES.includes(o.status));
+      const activeOrder = activeOrders[0] || null;
+      const lifetimeSpend = orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + parseFloat(o.total || 0), 0);
+      const firstOrderYear = orders.length ? new Date(orders[orders.length - 1].created_at).getFullYear() : null;
+      const swatchCount = sampleRequests.reduce((n, sr) => n + (sr.items || []).length, 0);
+      const initials = ((((customer.first_name || '')[0] || '') + ((customer.last_name || '')[0] || '')).toUpperCase()) || (customer.email || 'A')[0].toUpperCase();
+      const fmtDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const fmtMoney = (n) => '$' + parseFloat(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-          <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid var(--stone-200)', marginBottom: '2rem' }}>
-            {['orders', 'quotes', 'samples', 'visits', 'profile'].map(t => {
-              const labels = { orders: 'Order History', quotes: 'Quotes', samples: 'My Samples', visits: 'Visits', profile: 'Profile' };
+      const NAV_SECTIONS = [
+        { id: 'overview', label: 'Overview', meta: 'Snapshot' },
+        { id: 'orders', label: 'Orders', meta: loadingOrders ? '…' : orders.length + ' lifetime' + (activeOrders.length ? ' · ' + activeOrders.length + ' active' : '') },
+        { id: 'quotes', label: 'Quotes', meta: loadingQuotes ? '…' : (quotes.length ? quotes.length + (quotes.length === 1 ? ' quote' : ' quotes') : 'None yet') },
+        { id: 'samples', label: 'Samples', meta: loadingSamples ? '…' : (sampleRequests.length ? sampleRequests.length + (sampleRequests.length === 1 ? ' box' : ' boxes') + ' · ' + swatchCount + ' swatches' : 'None yet') },
+        { id: 'visits', label: 'Visits', meta: loadingVisits ? '…' : (visits.length ? visits.length + (visits.length === 1 ? ' showroom visit' : ' showroom visits') : 'None yet') },
+        { id: 'wishlist', label: 'Wishlist', meta: (wishlist || []).length ? wishlist.length + (wishlist.length === 1 ? ' item saved' : ' items saved') : 'Nothing saved yet' },
+        { id: 'payment', label: 'Payment', meta: cards.length ? (cards[0].brand || 'Card').toUpperCase() + ' •••• ' + cards[0].last4 : 'Add a card' },
+        { id: 'settings', label: 'Settings', meta: 'Email, password, address' }
+      ];
+
+      const monthYear = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const heroBySection = {
+        overview: { eyebrow: 'Account · ' + monthYear, heading: <>Welcome back,<br /><em>{customer.first_name || 'friend'}</em>.</> },
+        orders: { eyebrow: loadingOrders ? 'Order history' : orders.length + ' lifetime ' + (orders.length === 1 ? 'order' : 'orders'), heading: <>Your <em>orders</em>.</> },
+        quotes: { eyebrow: 'Prepared by our team', heading: <>Your <em>quotes</em>.</> },
+        samples: { eyebrow: 'Boxes & swatches', heading: <>Your <em>samples</em>.</> },
+        visits: { eyebrow: 'Showroom recaps', heading: <>Your <em>visits</em>.</> },
+        payment: { eyebrow: 'Stored securely with Stripe', heading: <>Payment <em>methods</em>.</> },
+        settings: { eyebrow: 'Profile & security', heading: <>Account <em>settings</em>.</> }
+      };
+      const hero = heroBySection[section] || heroBySection.overview;
+
+      const sectionHead = (eyebrow, title, action, onAction) => (
+        <div className="acct-section-head">
+          <div>
+            <div className="acct-eyebrow">{eyebrow}</div>
+            <h2 className="acct-section-title">{title}</h2>
+          </div>
+          {action && <button className="acct-section-action" onClick={onAction}>{action}</button>}
+        </div>
+      );
+
+      const ordersTabs = [
+        { id: 'all', label: 'All', count: orders.length },
+        { id: 'active', label: 'Active', count: activeOrders.length },
+        { id: 'delivered', label: 'Delivered', count: orders.filter(o => o.status === 'delivered').length },
+        { id: 'cancelled', label: 'Cancelled', count: orders.filter(o => o.status === 'cancelled').length }
+      ];
+      const filteredOrders = orders.filter(o => {
+        if (ordersTab === 'active' && !ACTIVE_ORDER_STATUSES.includes(o.status)) return false;
+        if (ordersTab === 'delivered' && o.status !== 'delivered') return false;
+        if (ordersTab === 'cancelled' && o.status !== 'cancelled') return false;
+        if (ordersSearch && !(o.order_number || '').toLowerCase().includes(ordersSearch.trim().toLowerCase())) return false;
+        return true;
+      });
+
+      const renderOrderExpanded = () => (
+        <div className="acct-order-expanded">
+          {orderDetail.order.tracking_number && (
+            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
+              Tracking: {orderDetail.order.shipping_carrier && <strong>{orderDetail.order.shipping_carrier} </strong>}
+              {orderDetail.order.tracking_number}
+              {orderDetail.order.shipped_at && <span style={{ marginLeft: '0.5rem' }}>
+                (Shipped {new Date(orderDetail.order.shipped_at).toLocaleDateString()})
+              </span>}
+            </div>
+          )}
+
+          {orderDetail.order.delivery_method === 'pickup' && orderDetail.fulfillment_summary && orderDetail.fulfillment_summary.total > 0 && ['confirmed', 'shipped', 'delivered'].includes(orderDetail.order.status) && (() => {
+            const { total, received } = orderDetail.fulfillment_summary;
+            const allReady = received >= total;
+            return (
+              <div style={{
+                background: allReady ? '#f0fdf4' : '#fffbeb', border: '1px solid ' + (allReady ? '#bbf7d0' : '#fde68a'),
+                padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem',
+                color: allReady ? '#166534' : '#92400e', display: 'flex', alignItems: 'center', gap: '0.75rem'
+              }}>
+                <div style={{ flex: 1 }}>
+                  <strong>{allReady ? 'All items ready for pickup!' : `${received} of ${total} items ready for pickup`}</strong>
+                  {!allReady && <div style={{ marginTop: '0.35rem', fontSize: '0.75rem', opacity: 0.8 }}>Remaining items are still being received from suppliers</div>}
+                </div>
+                <div style={{ width: 48, height: 48, borderRadius: '50%', background: allReady ? '#22c55e' : '#f59e0b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.8125rem', flexShrink: 0 }}>
+                  {received}/{total}
+                </div>
+              </div>
+            );
+          })()}
+
+          {orderDetail.order.delivery_method !== 'pickup' && orderDetail.fulfillment_summary && orderDetail.fulfillment_summary.total > 0 && orderDetail.fulfillment_summary.received > 0 && orderDetail.fulfillment_summary.received < orderDetail.fulfillment_summary.total && (
+            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
+              Your order is being prepared — {orderDetail.fulfillment_summary.received} of {orderDetail.fulfillment_summary.total} items received from suppliers
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '0', marginBottom: '1.25rem', fontSize: '0.75rem' }}>
+            {(() => {
+              const isPickupOrder = orderDetail.order.delivery_method === 'pickup';
+              const steps = isPickupOrder
+                ? ['pending', 'confirmed', 'ready_for_pickup', 'delivered']
+                : ['pending', 'confirmed', 'shipped', 'delivered'];
+              const stepLabels = isPickupOrder
+                ? { pending: 'pending', confirmed: 'confirmed', ready_for_pickup: 'ready', delivered: 'picked up' }
+                : { pending: 'pending', confirmed: 'confirmed', shipped: 'shipped', delivered: 'delivered' };
+              const currentIdx = steps.indexOf(orderDetail.order.status);
+              return steps.map((s, i) => {
+                const isActive = i <= currentIdx;
+                return (
+                  <div key={s} style={{ flex: 1, textAlign: 'center' }}>
+                    <div style={{
+                      width: 24, height: 24, borderRadius: '50%', margin: '0 auto 0.35rem',
+                      background: isActive ? 'var(--gold)' : 'var(--stone-200)',
+                      color: isActive ? '#fff' : 'var(--stone-500)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '0.7rem', fontWeight: 600
+                    }}>{i + 1}</div>
+                    <span style={{ color: isActive ? 'var(--stone-800)' : 'var(--stone-400)', textTransform: 'capitalize' }}>{stepLabels[s]}</span>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+
+          <div style={{ marginBottom: '1rem' }}>
+            <h4 style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem' }}>Items</h4>
+            {orderDetail.items.map(item => {
+              const fStatus = item.fulfillment_status;
+              const isPickup = orderDetail.order.delivery_method === 'pickup';
+              const badgeMap = {
+                'received': { label: isPickup ? 'Ready' : 'Received', bg: '#f0fdf4', color: '#166534' },
+                'shipped': { label: 'In Transit', bg: '#dbeafe', color: '#1e40af' },
+                'ordered': { label: 'Ordered', bg: '#fffbeb', color: '#92400e' },
+                'pending': { label: 'Processing', bg: 'var(--stone-100)', color: 'var(--stone-500)' }
+              };
+              const badge = !item.is_sample ? (badgeMap[fStatus] || badgeMap['pending']) : null;
               return (
-                <button key={t} onClick={() => setTab(t)}
-                  style={{
-                    background: 'none', border: 'none', padding: '0.75rem 0', cursor: 'pointer',
-                    fontSize: '0.875rem', fontWeight: 500, fontFamily: 'Inter, sans-serif',
-                    color: tab === t ? 'var(--stone-900)' : 'var(--stone-500)',
-                    borderBottom: tab === t ? '2px solid var(--gold)' : '2px solid transparent',
-                    marginBottom: '-1px'
-                  }}>
-                  {labels[t]}
-                </button>
+                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                    {item.product_name || 'Product'} {item.is_sample ? '(Sample)' : item.sell_by === 'unit' ? `x${item.num_boxes}` : `x${item.num_boxes} box${item.num_boxes !== 1 ? 'es' : ''}`}
+                    {badge && <span style={{ display: 'inline-block', padding: '1px 6px', fontSize: '0.6875rem', fontWeight: 600, background: badge.bg, color: badge.color, borderRadius: '3px', whiteSpace: 'nowrap' }}>{badge.label}</span>}
+                  </span>
+                  <span style={{ fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                </div>
               );
             })}
           </div>
 
-          {tab === 'orders' && (
-            <div>
-              {loadingOrders ? (
-                <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem' }}>Loading orders...</p>
-              ) : orders.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '3rem 0' }}>
-                  <p style={{ color: 'var(--stone-500)', marginBottom: '1rem' }}>No orders yet.</p>
-                  <button className="btn" onClick={goBrowse}>Start Shopping</button>
-                </div>
-              ) : (
-                <div>
-                  {orders.map(order => (
-                    <div key={order.id} style={{ border: '1px solid var(--stone-200)', marginBottom: '0.75rem' }}>
-                      <div onClick={() => viewOrderDetail(order.id)}
-                        style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem',
-                          cursor: 'pointer', background: expandedOrder === order.id ? 'var(--stone-50)' : '#fff'
-                        }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flex: 1, flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{order.order_number}</span>
-                          <span style={{ color: 'var(--stone-500)', fontSize: '0.8125rem' }}>
-                            {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                          {statusBadge(order.status)}
-                          {parseFloat(order.total || 0) > parseFloat(order.amount_paid || 0) + 0.01 && (
-                            <span style={{ display: 'inline-block', padding: '2px 8px', fontSize: '0.6875rem', fontWeight: 600, background: '#fef3c7', color: '#92400e' }}>
-                              Balance Due
-                            </span>
-                          )}
-                          <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>
-                            ${parseFloat(order.total).toFixed(2)}
-                          </span>
-                        </div>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{
-                          width: 16, height: 16, transform: expandedOrder === order.id ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s'
-                        }}><polyline points="6 9 12 15 18 9"/></svg>
-                      </div>
-
-                      {expandedOrder === order.id && orderDetail && (
-                        <div style={{ padding: '1.25rem', borderTop: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
-                          {orderDetail.order.tracking_number && (
-                            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
-                              Tracking: {orderDetail.order.shipping_carrier && <strong>{orderDetail.order.shipping_carrier} </strong>}
-                              {orderDetail.order.tracking_number}
-                              {orderDetail.order.shipped_at && <span style={{ marginLeft: '0.5rem' }}>
-                                (Shipped {new Date(orderDetail.order.shipped_at).toLocaleDateString()})
-                              </span>}
-                            </div>
-                          )}
-
-                          {orderDetail.order.delivery_method === 'pickup' && orderDetail.fulfillment_summary && orderDetail.fulfillment_summary.total > 0 && ['confirmed', 'shipped', 'delivered'].includes(orderDetail.order.status) && (() => {
-                            const { total, received } = orderDetail.fulfillment_summary;
-                            const allReady = received >= total;
-                            return (
-                              <div style={{
-                                background: allReady ? '#f0fdf4' : '#fffbeb', border: '1px solid ' + (allReady ? '#bbf7d0' : '#fde68a'),
-                                padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem',
-                                color: allReady ? '#166534' : '#92400e', display: 'flex', alignItems: 'center', gap: '0.75rem'
-                              }}>
-                                <div style={{ flex: 1 }}>
-                                  <strong>{allReady ? 'All items ready for pickup!' : `${received} of ${total} items ready for pickup`}</strong>
-                                  {!allReady && <div style={{ marginTop: '0.35rem', fontSize: '0.75rem', opacity: 0.8 }}>Remaining items are still being received from suppliers</div>}
-                                </div>
-                                <div style={{ width: 48, height: 48, borderRadius: '50%', background: allReady ? '#22c55e' : '#f59e0b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.8125rem', flexShrink: 0 }}>
-                                  {received}/{total}
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {orderDetail.order.delivery_method !== 'pickup' && orderDetail.fulfillment_summary && orderDetail.fulfillment_summary.total > 0 && orderDetail.fulfillment_summary.received > 0 && orderDetail.fulfillment_summary.received < orderDetail.fulfillment_summary.total && (
-                            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
-                              Your order is being prepared — {orderDetail.fulfillment_summary.received} of {orderDetail.fulfillment_summary.total} items received from suppliers
-                            </div>
-                          )}
-
-                          <div style={{ display: 'flex', gap: '0', marginBottom: '1.25rem', fontSize: '0.75rem' }}>
-                            {(() => {
-                              const isPickupOrder = orderDetail.order.delivery_method === 'pickup';
-                              const steps = isPickupOrder
-                                ? ['pending', 'confirmed', 'ready_for_pickup', 'delivered']
-                                : ['pending', 'confirmed', 'shipped', 'delivered'];
-                              const stepLabels = isPickupOrder
-                                ? { pending: 'pending', confirmed: 'confirmed', ready_for_pickup: 'ready', delivered: 'picked up' }
-                                : { pending: 'pending', confirmed: 'confirmed', shipped: 'shipped', delivered: 'delivered' };
-                              const currentIdx = steps.indexOf(orderDetail.order.status);
-                              return steps.map((s, i) => {
-                                const isActive = i <= currentIdx;
-                                return (
-                                  <div key={s} style={{ flex: 1, textAlign: 'center' }}>
-                                    <div style={{
-                                      width: 24, height: 24, borderRadius: '50%', margin: '0 auto 0.35rem',
-                                      background: isActive ? 'var(--gold)' : 'var(--stone-200)',
-                                      color: isActive ? '#fff' : 'var(--stone-500)',
-                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                      fontSize: '0.7rem', fontWeight: 600
-                                    }}>{i + 1}</div>
-                                    <span style={{ color: isActive ? 'var(--stone-800)' : 'var(--stone-400)', textTransform: 'capitalize' }}>{stepLabels[s]}</span>
-                                  </div>
-                                );
-                              });
-                            })()}
-                          </div>
-
-                          <div style={{ marginBottom: '1rem' }}>
-                            <h4 style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.5rem' }}>Items</h4>
-                            {orderDetail.items.map(item => {
-                              const fStatus = item.fulfillment_status;
-                              const isPickup = orderDetail.order.delivery_method === 'pickup';
-                              const badgeMap = {
-                                'received': { label: isPickup ? 'Ready' : 'Received', bg: '#f0fdf4', color: '#166534' },
-                                'shipped': { label: 'In Transit', bg: '#dbeafe', color: '#1e40af' },
-                                'ordered': { label: 'Ordered', bg: '#fffbeb', color: '#92400e' },
-                                'pending': { label: 'Processing', bg: 'var(--stone-100)', color: 'var(--stone-500)' }
-                              };
-                              const badge = !item.is_sample ? (badgeMap[fStatus] || badgeMap['pending']) : null;
-                              return (
-                                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid var(--stone-100)', fontSize: '0.8125rem' }}>
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                                    {item.product_name || 'Product'} {item.is_sample ? '(Sample)' : item.sell_by === 'unit' ? `x${item.num_boxes}` : `x${item.num_boxes} box${item.num_boxes !== 1 ? 'es' : ''}`}
-                                    {badge && <span style={{ display: 'inline-block', padding: '1px 6px', fontSize: '0.6875rem', fontWeight: 600, background: badge.bg, color: badge.color, borderRadius: '3px', whiteSpace: 'nowrap' }}>{badge.label}</span>}
-                                  </span>
-                                  <span style={{ fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          {orderDetail.balance && orderDetail.balance.balance_status === 'credit' && (
-                            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
-                              You have a credit of <strong>${Math.abs(orderDetail.balance.balance).toFixed(2)}</strong> on this order.
-                            </div>
-                          )}
-                          {orderDetail.balance && orderDetail.balance.balance_status === 'balance_due' && (
-                            <div style={{ background: '#fef3c7', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#92400e' }}>
-                              Balance due: <strong>${orderDetail.balance.balance.toFixed(2)}</strong> — check your email for a payment link.
-                            </div>
-                          )}
-
-                          {orderDetail.order.shipping_address_line1 && (
-                            <div style={{ fontSize: '0.8125rem', color: 'var(--stone-600)' }}>
-                              <strong>Ships to:</strong> {orderDetail.order.shipping_address_line1}
-                              {orderDetail.order.shipping_address_line2 && ', ' + orderDetail.order.shipping_address_line2}
-                              , {orderDetail.order.shipping_city}, {orderDetail.order.shipping_state} {orderDetail.order.shipping_zip}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+          {orderDetail.balance && orderDetail.balance.balance_status === 'credit' && (
+            <div style={{ background: '#dbeafe', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
+              You have a credit of <strong>${Math.abs(orderDetail.balance.balance).toFixed(2)}</strong> on this order.
+            </div>
+          )}
+          {orderDetail.balance && orderDetail.balance.balance_status === 'balance_due' && (
+            <div style={{ background: '#fef3c7', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#92400e' }}>
+              Balance due: <strong>${orderDetail.balance.balance.toFixed(2)}</strong> — check your email for a payment link.
             </div>
           )}
 
-          {tab === 'quotes' && (
+          {orderDetail.order.shipping_address_line1 && (
+            <div style={{ fontSize: '0.8125rem', color: 'var(--stone-600)' }}>
+              <strong>Ships to:</strong> {orderDetail.order.shipping_address_line1}
+              {orderDetail.order.shipping_address_line2 && ', ' + orderDetail.order.shipping_address_line2}
+              , {orderDetail.order.shipping_city}, {orderDetail.order.shipping_state} {orderDetail.order.shipping_zip}
+            </div>
+          )}
+        </div>
+      );
+
+      const renderOrderRow = (order) => {
+        const sm = ORDER_STATUS_META[order.status] || ORDER_STATUS_META.pending;
+        const balanceDue = order.status !== 'cancelled' && parseFloat(order.total || 0) > parseFloat(order.amount_paid || 0) + 0.01;
+        const detailText = order.tracking_number
+          ? ((order.shipping_carrier ? order.shipping_carrier + ' ' : '') + order.tracking_number)
+          : order.shipped_at
+            ? 'Shipped ' + fmtDate(order.shipped_at)
+            : order.delivery_method === 'pickup' ? 'Showroom pickup' : 'Standard delivery';
+        return (
+          <React.Fragment key={order.id}>
+            <div className="acct-order-row" onClick={() => viewOrderDetail(order.id)}>
+              <div>
+                <div className="acct-order-num">{order.order_number}</div>
+                <div className="acct-order-date">{fmtDate(order.created_at)}</div>
+              </div>
+              <div className="acct-order-items" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
+                {(order.items_preview || []).filter(p => p.primary_image).slice(0, 5).map((p, i) => (
+                  <img key={i} onLoad={handleProductImgLoad} src={optimizeImg(p.primary_image, 100)} alt={p.product_name || ''} loading="lazy"
+                    style={{ width: 30, height: 30, objectFit: 'cover', borderRadius: 3, border: '0.5px solid rgba(28,25,23,0.1)' }} />
+                ))}
+                <span style={{ marginLeft: '0.375rem' }}>{order.item_count || 0} {order.item_count === 1 ? 'item' : 'items'}</span>
+              </div>
+              <div className="acct-order-detail">
+                {detailText}
+                {balanceDue && <span style={{ color: '#92400e', fontWeight: 600 }}> &middot; Balance due</span>}
+              </div>
+              <div className="acct-order-status" style={{ color: sm.color }}>&#9679; {sm.label}</div>
+              <div className="acct-order-total">{fmtMoney(order.total)}</div>
+              <span className="acct-order-action">{expandedOrder === order.id ? 'Close ×' : 'Open →'}</span>
+            </div>
+            {expandedOrder === order.id && orderDetail && orderDetail.order && renderOrderExpanded()}
+          </React.Fragment>
+        );
+      };
+
+      return (
+        <div className="acct-page">
+          <section className="acct-hero">
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+              <div className="acct-breadcrumb">
+                <a onClick={goHome}>Home</a>
+                <span className="acct-breadcrumb-sep" />
+                {section === 'overview' ? (
+                  <span className="acct-breadcrumb-current">Account</span>
+                ) : (
+                  <>
+                    <a onClick={() => setSection('overview')}>Account</a>
+                    <span className="acct-breadcrumb-sep" />
+                    <span className="acct-breadcrumb-current">{(NAV_SECTIONS.find(n => n.id === section) || {}).label || 'Account'}</span>
+                  </>
+                )}
+              </div>
+              <div className="acct-hero-meta">{customer.email}</div>
+            </div>
+            <div className="acct-hero-grid">
+              <div>
+                <div className="acct-hero-eyebrow">{hero.eyebrow}</div>
+                <h1 className="acct-hero-heading">{hero.heading}</h1>
+              </div>
+              {section === 'overview' ? (
+                <div className="acct-stats">
+                  {[
+                    { v: loadingOrders ? '—' : String(orders.length), l: orders.length === 1 ? 'Order placed' : 'Orders placed', s: firstOrderYear ? 'Since ' + firstOrderYear : 'Start your first project' },
+                    { v: loadingOrders ? '—' : String(activeOrders.length), l: activeOrders.length === 1 ? 'Active order' : 'Active orders', s: activeOrder ? 'Placed ' + fmtDate(activeOrder.created_at) : 'Nothing in flight' },
+                    { v: loadingSamples ? '—' : String(sampleRequests.length), l: sampleRequests.length === 1 ? 'Sample box' : 'Sample boxes', s: swatchCount + ' swatches lifetime' },
+                    { v: loadingOrders ? '—' : '$' + Math.round(lifetimeSpend).toLocaleString(), l: 'Lifetime spend', s: 'Across all orders' }
+                  ].map(st => (
+                    <div key={st.l} className="acct-stat">
+                      <div className="acct-stat-value">{st.v}</div>
+                      <div className="acct-stat-label">{st.l}</div>
+                      <div className="acct-stat-sub">{st.s}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : section === 'orders' && !loadingOrders && orders.length > 0 ? (
+                <p style={{ fontSize: '0.9375rem', lineHeight: 1.55, color: 'rgba(28,25,23,0.75)', margin: 0, maxWidth: 420, paddingBottom: '0.25rem' }}>
+                  {activeOrders.length ? activeOrders.length + ' in progress, ' : ''}
+                  {orders.filter(o => o.status === 'delivered').length} delivered{orders.filter(o => o.status === 'cancelled').length ? ', ' + orders.filter(o => o.status === 'cancelled').length + ' cancelled' : ''}.
+                  Filter by status below, or open any order to see materials, tracking, and documents.
+                </p>
+              ) : null}
+            </div>
+          </section>
+
+          <div className="acct-body">
+            <aside className="acct-sidebar">
+              <div className="acct-customer-chip">
+                <div className="acct-avatar">{initials}</div>
+                <div>
+                  <div className="acct-customer-name">{((customer.first_name || '') + ' ' + (customer.last_name || '')).trim() || customer.email}</div>
+                  <div className="acct-customer-tier">&#9679; Member</div>
+                </div>
+              </div>
+              <nav className="acct-nav">
+                {NAV_SECTIONS.map(it => (
+                  <button key={it.id} className={'acct-nav-item' + (section === it.id ? ' acct-nav-item--active' : '')}
+                    onClick={() => { if (it.id === 'wishlist') { goWishlist(); } else { setSection(it.id); } }}>
+                    <span className="acct-nav-label">{it.label}</span>
+                    <span className="acct-nav-meta">{it.meta}</span>
+                  </button>
+                ))}
+              </nav>
+              <button className="acct-signout" onClick={() => { onLogout(); goHome(); }}>Sign out &rarr;</button>
+            </aside>
+
+            <div className="acct-content">
+          {section === 'overview' && (
+            <div>
+              {activeOrder && (() => {
+                const o = activeOrder;
+                const sm = ORDER_STATUS_META[o.status] || ORDER_STATUS_META.pending;
+                const isPickup = o.delivery_method === 'pickup';
+                const steps = isPickup ? ['pending', 'confirmed', 'ready_for_pickup', 'delivered'] : ['pending', 'confirmed', 'shipped', 'delivered'];
+                const stepLabels = isPickup
+                  ? { pending: 'Placed', confirmed: 'Confirmed', ready_for_pickup: 'Ready', delivered: 'Picked up' }
+                  : { pending: 'Placed', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered' };
+                const idx = Math.max(0, steps.indexOf(o.status));
+                return (
+                  <section>
+                    {sectionHead('Active right now',
+                      activeOrders.length === 1 ? <>One order in <em>flight</em>.</> : <>{activeOrders.length} orders in <em>flight</em>.</>,
+                      'Track this order →', () => { setSection('orders'); viewOrderDetail(o.id); })}
+                    <div className="acct-active-order">
+                      <div className="acct-active-order-main">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', fontFamily: 'var(--font-body)', fontSize: '0.625rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--warm-muted)' }}>
+                          <span>Order {o.order_number}</span>
+                          <span style={{ color: sm.color }}>&#9679; {sm.label}</span>
+                        </div>
+                        <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.75rem', fontWeight: 300, letterSpacing: '-0.014em', margin: 0, color: 'var(--stone-800)' }}>
+                          Placed {fmtDate(o.created_at)}{o.tracking_number ? ' · on its way' : isPickup ? ' · showroom pickup' : ''}
+                        </h3>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {(o.items_preview || []).filter(p => p.primary_image).slice(0, 5).map((p, i) => (
+                            <img key={i} onLoad={handleProductImgLoad} src={optimizeImg(p.primary_image, 200)} alt={p.product_name || ''} loading="lazy"
+                              style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 4, border: '0.5px solid rgba(28,25,23,0.1)' }} />
+                          ))}
+                          <span style={{ marginLeft: 8, fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'rgba(28,25,23,0.7)' }}>
+                            {o.item_count || 0} {o.item_count === 1 ? 'item' : 'items'} &middot; {fmtMoney(o.total)}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="acct-progress"><div className="acct-progress-fill" style={{ right: (100 - ((idx + 1) / steps.length) * 100) + '%' }} /></div>
+                          <div className="acct-progress-steps">
+                            {steps.map((s, i) => <span key={s} style={{ color: i <= idx ? 'var(--stone-800)' : 'var(--warm-muted)' }}>{i <= idx ? '✓ ' : ''}{stepLabels[s]}</span>)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="acct-active-order-actions">
+                        <div className="acct-eyebrow" style={{ marginBottom: '0.25rem' }}>What you can do</div>
+                        <button className="acct-action-link" onClick={() => { setSection('orders'); viewOrderDetail(o.id); }}>
+                          <span>Open order details</span><span style={{ color: 'var(--warm-muted)' }}>&rarr;</span>
+                        </button>
+                        {o.tracking_number && (
+                          <a className="acct-action-link" target="_blank" rel="noopener noreferrer"
+                            href={'https://www.google.com/search?q=' + encodeURIComponent(((o.shipping_carrier || '') + ' ' + o.tracking_number).trim())}>
+                            <span>Track shipment</span><span style={{ color: 'var(--warm-muted)' }}>&rarr;</span>
+                          </a>
+                        )}
+                        <a className="acct-action-link" href="tel:+17149990009">
+                          <span>Call the showroom &middot; (714) 999-0009</span><span style={{ color: 'var(--warm-muted)' }}>&rarr;</span>
+                        </a>
+                        <button className="acct-action-link" onClick={goBrowse}>
+                          <span>Keep browsing materials</span><span style={{ color: 'var(--warm-muted)' }}>&rarr;</span>
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+                );
+              })()}
+
+              <section>
+                {sectionHead('Order history', <>Recent <em>orders</em>.</>,
+                  orders.length > 0 ? 'See all ' + orders.length + ' →' : null, () => setSection('orders'))}
+                {loadingOrders ? (
+                  <p style={{ color: 'var(--warm-muted)', fontSize: '0.875rem' }}>Loading orders...</p>
+                ) : orders.length === 0 ? (
+                  <div className="acct-profile-section" style={{ textAlign: 'center' }}>
+                    <p style={{ color: 'var(--warm-muted)', marginBottom: '1rem' }}>No orders yet — your project starts with a sample.</p>
+                    <button className="acct-btn" onClick={goBrowse}>Start Shopping</button>
+                  </div>
+                ) : (
+                  <div className="acct-order-table">
+                    {orders.slice(0, 6).map(renderOrderRow)}
+                  </div>
+                )}
+              </section>
+
+              {wishlistSkus.length > 0 && (
+                <section>
+                  {sectionHead('Wishlist',
+                    <>{wishlist.length === 1 ? 'One material' : wishlist.length + ' materials'} <em>saved for later</em>.</>,
+                    'Open full wishlist →', goWishlist)}
+                  <div className="acct-wishlist-grid">
+                    {wishlistSkus.map(sku => (
+                      <a key={sku.sku_id} className="acct-wishlist-card" onClick={() => onSkuClick(sku.sku_id, sku.product_name || sku.collection)}>
+                        <div style={{ background: 'rgba(28,25,23,0.05)', overflow: 'hidden' }}>
+                          {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 400)} alt={sku.product_name || ''} loading="lazy" />}
+                        </div>
+                        <div className="acct-wishlist-card-body">
+                          {sku.collection && <div className="acct-footer-card-sub">{sku.collection}</div>}
+                          <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 400, color: 'var(--stone-800)', letterSpacing: '-0.01em' }}>{fullProductName(sku)}</div>
+                          {skuListPrice(sku) && (
+                            <div style={{ marginTop: '0.25rem', fontSize: '0.875rem', fontWeight: 500, color: 'var(--stone-800)' }}>
+                              ${displayPrice(sku, skuListPrice(sku)).toFixed(2)}<span style={{ fontSize: '0.6875rem', color: 'var(--warm-muted)', fontWeight: 400 }}>{priceSuffix(sku)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <section className="acct-footer-row">
+                <div className="acct-footer-card">
+                  <div className="acct-footer-card-head">
+                    <h3 className="acct-footer-card-title">Sample boxes</h3>
+                    <button className="acct-footer-card-action" onClick={() => setSection('samples')}>View all</button>
+                  </div>
+                  <div className="acct-footer-card-sub">
+                    {loadingSamples ? 'Loading…' : sampleRequests.length ? sampleRequests.length + (sampleRequests.length === 1 ? ' box' : ' boxes') + ' · ' + swatchCount + ' swatches' : 'No sample requests yet'}
+                  </div>
+                  {sampleRequests.slice(0, 3).map(sr => {
+                    const sc = SAMPLE_STATUS_META[sr.status] || SAMPLE_STATUS_META.requested;
+                    const n = (sr.items || []).length;
+                    return (
+                      <div key={sr.id} onClick={() => setSection('samples')}
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.625rem 0 0.125rem', borderTop: '0.5px solid rgba(28,25,23,0.08)', cursor: 'pointer' }}>
+                        <div>
+                          <div style={{ fontSize: '0.875rem', color: 'var(--stone-800)', fontFamily: 'var(--font-heading)' }}>
+                            {sr.request_number} <span style={{ color: 'var(--warm-muted)', fontFamily: 'var(--font-body)', fontSize: '0.75rem' }}>&middot; {n} swatch{n === 1 ? '' : 'es'}</span>
+                          </div>
+                          <div className="acct-order-date">{fmtDate(sr.created_at)}</div>
+                        </div>
+                        <span className="acct-order-status" style={{ color: sc.color }}>&#9679; {sc.label}</span>
+                      </div>
+                    );
+                  })}
+                  {!loadingSamples && !sampleRequests.length && (
+                    <div><button className="acct-btn acct-btn--outline" onClick={goBrowse}>Browse products</button></div>
+                  )}
+                </div>
+
+                <div className="acct-footer-card">
+                  <div className="acct-footer-card-head">
+                    <h3 className="acct-footer-card-title">Address</h3>
+                    <button className="acct-footer-card-action" onClick={() => setSection('settings')}>Edit</button>
+                  </div>
+                  {customer.address_line1 ? (
+                    <div className="acct-address-card acct-address-card--primary">
+                      <div className="acct-address-label" style={{ color: 'var(--gold)' }}>&#9679; Primary</div>
+                      <div style={{ fontSize: '0.8125rem', lineHeight: 1.5, color: 'var(--stone-800)', marginTop: '0.375rem' }}>
+                        {customer.address_line1}{customer.address_line2 ? <><br />{customer.address_line2}</> : null}<br />
+                        {[customer.city, customer.state].filter(Boolean).join(', ')} {customer.zip || ''}
+                      </div>
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '0.8125rem', color: 'var(--warm-muted)', margin: 0 }}>No saved address yet — add one for faster checkout.</p>
+                  )}
+                </div>
+
+                <div className="acct-footer-card">
+                  <div className="acct-footer-card-head">
+                    <h3 className="acct-footer-card-title">Payment</h3>
+                    <button className="acct-footer-card-action" onClick={() => setSection('payment')}>Manage</button>
+                  </div>
+                  {cards.length ? cards.slice(0, 2).map((c, i) => (
+                    <div key={c.id} className={'acct-payment-card' + (i === 0 ? ' acct-payment-card--default' : '')}>
+                      <div className="acct-payment-badge">{(c.brand || 'CARD').slice(0, 4).toUpperCase()}</div>
+                      <div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--stone-800)' }}>&bull;&bull;&bull;&bull; {c.last4}{i === 0 ? ' · Default' : ''}</div>
+                        <div className="acct-order-date">Exp {String(c.exp_month).padStart(2, '0')}/{String(c.exp_year).slice(-2)}</div>
+                      </div>
+                    </div>
+                  )) : (
+                    <p style={{ fontSize: '0.8125rem', color: 'var(--warm-muted)', margin: 0 }}>No saved cards yet — add one for faster ordering.</p>
+                  )}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {section === 'orders' && (
+            <div>
+              <div>
+                <div className="acct-tabs">
+                  {ordersTabs.map(t => (
+                    <button key={t.id} className={'acct-tab' + (ordersTab === t.id ? ' acct-tab--active' : '')} onClick={() => setOrdersTab(t.id)}>
+                      {t.label}<span className="acct-tab-count">{t.count}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="acct-toolbar">
+                  <div className="acct-search-box">
+                    <span className="acct-search-icon">&#8981;</span>
+                    <input className="acct-search-input" placeholder="Search by order number…" value={ordersSearch} onChange={e => setOrdersSearch(e.target.value)} />
+                  </div>
+                  <div className="acct-toolbar-right">
+                    <span style={{ color: 'var(--warm-muted)' }}>Sort: <span style={{ color: 'var(--stone-800)' }}>Newest first</span></span>
+                  </div>
+                </div>
+                {loadingOrders ? (
+                  <p style={{ color: 'var(--warm-muted)', fontSize: '0.875rem' }}>Loading orders...</p>
+                ) : orders.length === 0 ? (
+                  <div className="acct-profile-section" style={{ textAlign: 'center' }}>
+                    <p style={{ color: 'var(--warm-muted)', marginBottom: '1rem' }}>No orders yet.</p>
+                    <button className="acct-btn" onClick={goBrowse}>Start Shopping</button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="acct-col-headers">
+                      <span>Order</span><span>Materials</span><span>Detail</span><span>Status</span><span style={{ textAlign: 'right' }}>Total</span><span />
+                    </div>
+                    <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
+                      {filteredOrders.length === 0 ? (
+                        <p style={{ color: 'var(--warm-muted)', fontSize: '0.875rem', padding: '1.5rem', margin: 0 }}>No orders match.</p>
+                      ) : filteredOrders.map(renderOrderRow)}
+                    </div>
+                    <div className="acct-pagination">
+                      <span>Showing {filteredOrders.length} of {orders.length} {orders.length === 1 ? 'order' : 'orders'}</span>
+                      <span>&middot; &middot; &middot;</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {section === 'quotes' && (
             <div>
               {loadingQuotes ? (
                 <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem' }}>Loading quotes...</p>
@@ -11279,7 +11647,7 @@
             </div>
           )}
 
-          {tab === 'samples' && (
+          {section === 'samples' && (
             <div>
               {/* Sample Actions Bar */}
               <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
@@ -11429,7 +11797,7 @@
             </div>
           )}
 
-          {tab === 'visits' && (
+          {section === 'visits' && (
             <div>
               {loadingVisits ? (
                 <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem' }}>Loading visits...</p>
@@ -11507,10 +11875,12 @@
             </div>
           )}
 
-          {tab === 'profile' && (
+          {section === 'settings' && (
             <div>
-              {profileMsg && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem' }}>{profileMsg}</div>}
-              {profileError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem' }}>{profileError}</div>}
+              <div className="acct-profile-section">
+              <h3 className="acct-profile-title">Profile &amp; address</h3>
+              {profileMsg && <div className="acct-msg--success">{profileMsg}</div>}
+              {profileError && <div className="acct-msg--error">{profileError}</div>}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div style={fieldStyle}>
@@ -11557,15 +11927,15 @@
                   <input style={inputStyle} value={zip} onChange={e => setZip(e.target.value)} />
                 </div>
               </div>
-              <button className="btn" onClick={saveProfile} disabled={saving} style={{ marginBottom: '2.5rem' }}>
+              <button className="acct-btn" onClick={saveProfile} disabled={saving}>
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
+              </div>
 
-              <PaymentMethodsSection customerToken={customerToken} customer={customer} />
-
-              <h3 style={{ fontSize: '1rem', fontWeight: 500, marginBottom: '1rem', paddingTop: '1.5rem', borderTop: '1px solid var(--stone-200)' }}>Change Password</h3>
-              {pwMsg && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem' }}>{pwMsg}</div>}
-              {pwError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem' }}>{pwError}</div>}
+              <div className="acct-profile-section">
+              <h3 className="acct-profile-title">Change password</h3>
+              {pwMsg && <div className="acct-msg--success">{pwMsg}</div>}
+              {pwError && <div className="acct-msg--error">{pwError}</div>}
               <div style={fieldStyle}>
                 <label style={labelStyle}>Current Password</label>
                 <input style={inputStyle} type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} />
@@ -11581,11 +11951,23 @@
                 </div>
               </div>
               <p style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '1rem' }}>8+ characters, 1 uppercase letter, 1 number</p>
-              <button className="btn" onClick={changePassword} disabled={pwSaving}>
+              <button className="acct-btn" onClick={changePassword} disabled={pwSaving}>
                 {pwSaving ? 'Updating...' : 'Update Password'}
               </button>
+              </div>
             </div>
           )}
+
+          {section === 'payment' && (
+            <div>
+              <div className="acct-profile-section">
+                <h3 className="acct-profile-title">Payment methods</h3>
+                <PaymentMethodsSection customerToken={customerToken} customer={customer} onCardsChange={setCards} />
+              </div>
+            </div>
+          )}
+            </div>
+          </div>
         </div>
       );
     }

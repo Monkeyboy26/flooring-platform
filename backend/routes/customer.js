@@ -504,9 +504,17 @@ export default function createCustomerRoutes(ctx) {
   router.get('/api/customer/orders', customerAuth, async (req, res) => {
     try {
       const result = await pool.query(
-        `SELECT id, order_number, customer_name, customer_email, status, subtotal, shipping, total, amount_paid,
-          delivery_method, shipping_method, tracking_number, shipping_carrier, shipped_at, created_at
-         FROM orders WHERE customer_id = $1 ORDER BY created_at DESC`,
+        `SELECT o.id, o.order_number, o.customer_name, o.customer_email, o.status, o.subtotal, o.shipping, o.total, o.amount_paid,
+          o.delivery_method, o.shipping_method, o.tracking_number, o.shipping_carrier, o.shipped_at, o.created_at,
+          (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) as item_count,
+          (SELECT json_agg(t) FROM (
+            SELECT oi.product_name,
+              (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
+            FROM order_items oi WHERE oi.order_id = o.id
+            ORDER BY COALESCE(oi.is_sample, false), oi.subtotal DESC NULLS LAST
+            LIMIT 5
+          ) t) as items_preview
+         FROM orders o WHERE o.customer_id = $1 ORDER BY o.created_at DESC`,
         [req.customer.id]
       );
       res.json({ orders: result.rows });
@@ -549,7 +557,7 @@ export default function createCustomerRoutes(ctx) {
         WHERE oi.order_id = $1
       `, [req.params.id]);
       const items = itemsResult.rows;
-      const balanceInfo = await recalculateBalance(pool, req.params.id);
+      const balanceInfo = await recalculateBalance(req.params.id);
       const totalItems = items.filter(i => !i.is_sample).length;
       const receivedItems = items.filter(i => !i.is_sample && i.fulfillment_status === 'received').length;
       res.json({ order: orderResult.rows[0], items, balance: balanceInfo, fulfillment_summary: { total: totalItems, received: receivedItems } });
