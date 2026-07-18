@@ -3173,7 +3173,7 @@
           setView('set-password');
         } else if (path === '/account' || path === '/shop/account' || path.startsWith('/account/')) {
           const sec = path.startsWith('/account/') ? path.replace('/account/', '').split('/')[0] : 'overview';
-          setAccountSection(['overview', 'orders', 'quotes', 'samples', 'visits', 'payment', 'settings'].includes(sec) ? sec : 'overview');
+          setAccountSection(['overview', 'orders', 'quotes', 'samples', 'visits', 'wishlist', 'payment', 'settings'].includes(sec) ? sec : 'overview');
           setView('account');
         } else if (path === '/wishlist' || path === '/shop/wishlist') {
           setView('wishlist');
@@ -3550,7 +3550,8 @@
             customer ? (
               <AccountPage customer={customer} customerToken={customerToken} setCustomer={setCustomer} goBrowse={goBrowse}
                 section={accountSection} setSection={setAccountSectionAndUrl}
-                wishlist={wishlist} goWishlist={goWishlist} onSkuClick={goSkuDetail}
+                wishlist={wishlist} toggleWishlist={toggleWishlist} onSkuClick={goSkuDetail}
+                addToCart={addToCart} showToast={showToast}
                 goHome={goHome} onLogout={handleCustomerLogout} />
             ) : (
               <div style={{ maxWidth: 600, margin: '4rem auto', textAlign: 'center', padding: '0 2rem' }}>
@@ -10825,7 +10826,7 @@
       );
     }
 
-    function AccountPage({ customer, customerToken, setCustomer, goBrowse, section, setSection, wishlist, goWishlist, onSkuClick, goHome, onLogout }) {
+    function AccountPage({ customer, customerToken, setCustomer, goBrowse, section, setSection, wishlist, toggleWishlist, onSkuClick, addToCart, showToast, goHome, onLogout }) {
       const [orders, setOrders] = useState([]);
       const [expandedOrder, setExpandedOrder] = useState(null);
       const [orderDetail, setOrderDetail] = useState(null);
@@ -10878,6 +10879,7 @@
       // Redesigned account shell state
       const [cards, setCards] = useState([]);
       const [wishlistSkus, setWishlistSkus] = useState([]);
+      const [wlSelected, setWlSelected] = useState([]);
       const [ordersTab, setOrdersTab] = useState('all');
       const [ordersSearch, setOrdersSearch] = useState('');
 
@@ -10889,7 +10891,7 @@
       }, []);
 
       useEffect(() => {
-        const ids = (wishlist || []).slice(0, 4);
+        const ids = wishlist || [];
         if (!ids.length) { setWishlistSkus([]); return; }
         fetch(API + '/api/storefront/skus?sku_ids=' + encodeURIComponent(ids.join(',')) + '&limit=' + ids.length)
           .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -10898,6 +10900,7 @@
             setWishlistSkus(ids.map(id => map.get(id)).filter(Boolean));
           })
           .catch(() => {});
+        setWlSelected(prev => prev.filter(id => ids.includes(id)));
       }, [wishlist]);
 
       useEffect(() => {
@@ -11114,6 +11117,7 @@
         quotes: { eyebrow: 'Prepared by our team', heading: <>Your <em>quotes</em>.</> },
         samples: { eyebrow: 'Boxes & swatches', heading: <>Your <em>samples</em>.</> },
         visits: { eyebrow: 'Showroom recaps', heading: <>Your <em>visits</em>.</> },
+        wishlist: { eyebrow: (wishlist || []).length ? wishlist.length + (wishlist.length === 1 ? ' material saved' : ' materials saved') : 'Nothing saved yet', heading: <>Materials you're <em>thinking about</em>.</> },
         payment: { eyebrow: 'Stored securely with Stripe', heading: <>Payment <em>methods</em>.</> },
         settings: { eyebrow: 'Profile & security', heading: <>Account <em>settings</em>.</> }
       };
@@ -11350,7 +11354,7 @@
               <nav className="acct-nav">
                 {NAV_SECTIONS.map(it => (
                   <button key={it.id} className={'acct-nav-item' + (section === it.id ? ' acct-nav-item--active' : '')}
-                    onClick={() => { if (it.id === 'wishlist') { goWishlist(); } else { setSection(it.id); } }}>
+                    onClick={() => setSection(it.id)}>
                     <span className="acct-nav-label">{it.label}</span>
                     <span className="acct-nav-meta">{it.meta}</span>
                   </button>
@@ -11445,9 +11449,9 @@
                 <section>
                   {sectionHead('Wishlist',
                     <>{wishlist.length === 1 ? 'One material' : wishlist.length + ' materials'} <em>saved for later</em>.</>,
-                    'Open full wishlist →', goWishlist)}
+                    'Open full wishlist →', () => setSection('wishlist'))}
                   <div className="acct-wishlist-grid">
-                    {wishlistSkus.map(sku => (
+                    {wishlistSkus.slice(0, 4).map(sku => (
                       <a key={sku.sku_id} className="acct-wishlist-card" onClick={() => onSkuClick(sku.sku_id, sku.product_name || sku.collection)}>
                         <div style={{ background: 'rgba(28,25,23,0.05)', overflow: 'hidden' }}>
                           {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 400)} alt={sku.product_name || ''} loading="lazy" />}
@@ -11982,6 +11986,114 @@
               </div>
             </div>
           )}
+
+          {section === 'wishlist' && (() => {
+            const toggleSel = (id) => setWlSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+            const selectedSkus = wishlistSkus.filter(s => wlSelected.includes(s.sku_id));
+            const orderSamples = (skus) => {
+              skus.forEach(sku => addToCart({
+                product_id: sku.product_id, sku_id: sku.sku_id,
+                num_boxes: 1, unit_price: 0, subtotal: '0.00', is_sample: true
+              }));
+              setWlSelected([]);
+            };
+            const coverageMeta = (sku) => {
+              const spb = parseFloat(sku.sqft_per_box);
+              if (sku.sell_by === 'unit') return 'Sold per piece';
+              if (spb > 0) return 'Box covers ' + spb.toFixed(1).replace(/\.0$/, '') + ' ft²';
+              return null;
+            };
+            return (
+              <div>
+                {(wishlist || []).length === 0 ? (
+                  <section style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+                    <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 300, marginBottom: '0.5rem' }}>Nothing saved yet.</h3>
+                    <p style={{ color: 'var(--stone-600)', marginBottom: '1.5rem' }}>Save anything you're considering by tapping the heart while you browse — it'll wait for you here.</p>
+                    <button className="acct-btn" onClick={goBrowse}>Browse materials</button>
+                  </section>
+                ) : (
+                  <div>
+                    {sectionHead('Saved materials',
+                      <>Order samples, or open any material to <em>buy it</em>.</>,
+                      wlSelected.length ? null : 'Order samples of everything →',
+                      wlSelected.length ? null : () => orderSamples(wishlistSkus))}
+                    {wlSelected.length > 0 && (
+                      <div style={{
+                        background: 'var(--warm-bg, #f5f0e8)', border: '0.5px solid rgba(176,138,84,0.35)',
+                        padding: '0.875rem 1.375rem', marginBottom: '1.5rem',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap'
+                      }}>
+                        <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>
+                          <em style={{ color: 'var(--gold)' }}>{wlSelected.length} selected</em> of {wishlistSkus.length} saved
+                        </span>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button className="acct-btn acct-btn--outline" onClick={() => setWlSelected([])}>Clear</button>
+                          <button className="acct-btn" onClick={() => orderSamples(selectedSkus)}>Order samples ({wlSelected.length}) →</button>
+                        </div>
+                      </div>
+                    )}
+                    {wishlistSkus.length === 0 ? (
+                      <div style={{ color: 'var(--stone-500)', fontSize: '0.875rem' }}>Loading saved materials…</div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.125rem' }}>
+                        {wishlistSkus.map(sku => {
+                          const sel = wlSelected.includes(sku.sku_id);
+                          const price = skuListPrice(sku);
+                          const meta = coverageMeta(sku);
+                          return (
+                            <div key={sku.sku_id} style={{
+                              background: '#fff',
+                              border: sel ? '0.5px solid var(--gold)' : '0.5px solid rgba(28,25,23,0.13)',
+                              borderLeft: sel ? '3px solid var(--gold)' : '0.5px solid rgba(28,25,23,0.13)',
+                              display: 'grid', gridTemplateColumns: '150px 1fr'
+                            }}>
+                              <div style={{ position: 'relative', background: 'rgba(28,25,23,0.05)', overflow: 'hidden', cursor: 'pointer', minHeight: 170 }}
+                                onClick={() => onSkuClick(sku.sku_id, sku.product_name || sku.collection)}>
+                                {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 400)} alt={sku.product_name || ''} loading="lazy"
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+                                <button aria-label={sel ? 'Deselect' : 'Select'}
+                                  onClick={e => { e.stopPropagation(); toggleSel(sku.sku_id); }}
+                                  style={{
+                                    position: 'absolute', top: 10, left: 10, width: 24, height: 24, borderRadius: 4,
+                                    background: sel ? 'var(--gold)' : 'rgba(255,255,255,0.9)',
+                                    border: sel ? '1.5px solid var(--gold)' : '1.5px solid rgba(28,25,23,0.4)',
+                                    color: '#fff', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0
+                                  }}>{sel ? '✓' : ''}</button>
+                              </div>
+                              <div style={{ padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <div>
+                                  {sku.collection && <div className="acct-footer-card-sub">{sku.collection}</div>}
+                                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1875rem', fontWeight: 400, color: 'var(--stone-800)', letterSpacing: '-0.01em', lineHeight: 1.25, cursor: 'pointer' }}
+                                    onClick={() => onSkuClick(sku.sku_id, sku.product_name || sku.collection)}>{fullProductName(sku)}</div>
+                                  {price != null && (
+                                    <div style={{ marginTop: '0.3125rem', fontSize: '0.8125rem', color: 'var(--stone-600)' }}>
+                                      <strong style={{ color: 'var(--stone-800)' }}>${displayPrice(sku, price).toFixed(2)}{priceSuffix(sku)}</strong>
+                                      {meta && <span> &middot; {meta}</span>}
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                                  <button onClick={() => toggleWishlist(sku.sku_id)}
+                                    style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--warm-muted)', cursor: 'pointer' }}>
+                                    Remove
+                                  </button>
+                                  <div style={{ display: 'flex', gap: '0.375rem' }}>
+                                    <button className="acct-btn acct-btn--outline" onClick={() => orderSamples([sku])}>Sample</button>
+                                    <button className="acct-btn" onClick={() => onSkuClick(sku.sku_id, sku.product_name || sku.collection)}>View →</button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {section === 'payment' && (
             <div>
