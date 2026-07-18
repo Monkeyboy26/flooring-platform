@@ -117,7 +117,7 @@ export async function run(pool, job) {
           aq,
           firstResult,
           numberOfResults: PAGE_SIZE,
-          fieldsToInclude: ['sku', 'inventoryitems', 'uom', 'brandid'],
+          fieldsToInclude: ['sku', 'inventoryitems', 'uom', 'brandid', 'color', 'colornameenglish', 'nominalsize', 'finish', 'seriesname'],
           searchHub: SEARCH_HUB,
         }),
       });
@@ -180,46 +180,140 @@ export async function run(pool, job) {
     `, [WAREHOUSE]);
     await appendLog(pool, job.id, `Zero-filled ${zeroFill.rowCount} snapshots`);
 
-    let totalMatched = 0;
+    // ── Step 5: Match portal items to DB SKUs ──
+    // Daltile runs two code families for the same physical item: the portal /
+    // Coveo "sales SKU" (e.g. 019036MOD1P4, on our draft rows from the old
+    // portal catalog scraper) and the EDI 832 item code (e.g. 0190S4639MODGL,
+    // on the ACTIVE storefront rows). Exact code match alone therefore parks
+    // nearly all stock on unpublished twins. So: exact match first, then an
+    // attribute crosswalk (color-code prefix + size + finish, series as
+    // tiebreaker) to land quantities on the live catalog SKUs too.
+    const norm = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const finishCompatible = (a, b) => a === b || (a && b && (a.startsWith(b) || b.startsWith(a)));
+
+    // The portal sales-SKU and its EDI twin encode the same tokens in slightly
+    // different layouts (HS05RCT1224VXTM ↔ HS05RCT1224VXTMT), so among
+    // attribute-equal candidates the true twin has the longest common
+    // subsequence with the portal code. Ties stay ambiguous.
+    const lcsLen = (a, b) => {
+      let prev = new Array(b.length + 1).fill(0);
+      for (let i = 1; i <= a.length; i++) {
+        const cur = [0];
+        for (let j = 1; j <= b.length; j++) {
+          cur[j] = a[i - 1] === b[j - 1] ? prev[j - 1] + 1 : Math.max(prev[j], cur[j - 1]);
+        }
+        prev = cur;
+      }
+      return prev[b.length];
+    };
+
+    const activeResult = await pool.query(`
+      SELECT s.id, s.vendor_sku, p.collection, pkg.sqft_per_box,
+             MAX(CASE WHEN a.name = 'Size' THEN sa.value END) AS size,
+             MAX(CASE WHEN a.name = 'Finish' THEN sa.value END) AS finish
+      FROM skus s
+      JOIN products p ON p.id = s.product_id
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN packaging pkg ON pkg.sku_id = s.id
+      LEFT JOIN sku_attributes sa ON sa.sku_id = s.id
+      LEFT JOIN attributes a ON a.id = sa.attribute_id AND a.name IN ('Size', 'Finish')
+      WHERE v.code IN ('DAL', 'AO', 'MZ') AND p.status = 'active' AND s.status = 'active'
+        AND s.vendor_sku IS NOT NULL
+      GROUP BY s.id, s.vendor_sku, p.collection, pkg.sqft_per_box
+    `);
+    const activeBySize = new Map();
+    for (const row of activeResult.rows) {
+      const key = norm(row.size);
+      if (!key) continue;
+      if (!activeBySize.has(key)) activeBySize.set(key, []);
+      activeBySize.get(key).push(row);
+    }
+    await appendLog(pool, job.id, `Attribute index: ${activeResult.rows.length} active SKUs across ${activeBySize.size} sizes`);
+
+    const toSqft = (item, sqftPerBox) => {
+      let qty = parseFloat(item.inventoryitems) || 0;
+      // Non-SF items report units; convert via packaging like the DOM scraper did
+      if (item.uom && item.uom !== 'SF' && item.uom !== 'SQFT') {
+        const spb = parseFloat(sqftPerBox);
+        if (spb > 0) qty = qty * spb;
+      }
+      return qty < 1 ? 0 : qty;
+    };
+
+    const qtyBySkuId = new Map();
+    const addQty = (skuId, sqft) => qtyBySkuId.set(skuId, (qtyBySkuId.get(skuId) || 0) + sqft);
+
+    let exactMatched = 0;
+    let crosswalked = 0;
+    let ambiguous = 0;
     let totalUnmatched = 0;
-    let totalUpserted = 0;
 
     for (const item of stockItems) {
       const rawSku = (item.sku || '').toUpperCase();
       if (!rawSku) continue;
-      const dbSku = skuMap.get(rawSku) || skuMap.get(rawSku.replace(/[-\s]/g, ''));
 
-      if (!dbSku) {
+      const exact = skuMap.get(rawSku) || skuMap.get(rawSku.replace(/[-\s]/g, ''));
+      if (exact) {
+        exactMatched++;
+        addQty(exact.id, toSqft(item, exact.sqft_per_box));
+      }
+
+      // Attribute crosswalk to an active twin (skip if exact already hit it)
+      const colorCode = String(item.color || '').toUpperCase();
+      const sizeKey = norm(Array.isArray(item.nominalsize) ? item.nominalsize[0] : item.nominalsize);
+      const itemFinish = norm(Array.isArray(item.finish) ? item.finish[0] : item.finish);
+      let candidates = (colorCode && sizeKey && activeBySize.get(sizeKey) || [])
+        .filter(c => c.vendor_sku.toUpperCase().startsWith(colorCode))
+        .filter(c => finishCompatible(norm(c.finish), itemFinish));
+      if (candidates.length > 1) {
+        const seriesKey = norm(item.seriesname);
+        const bySeries = candidates.filter(c => norm(c.collection) === seriesKey);
+        if (bySeries.length >= 1) candidates = bySeries;
+      }
+      if (candidates.length > 1) {
+        const scored = candidates.map(c => ({ c, score: lcsLen(rawSku, c.vendor_sku.toUpperCase()) }));
+        const best = Math.max(...scored.map(s => s.score));
+        const winners = scored.filter(s => s.score === best);
+        if (winners.length === 1) candidates = [winners[0].c];
+      }
+
+      if (candidates.length === 1) {
+        const twin = candidates[0];
+        if (!exact || twin.id !== exact.id) {
+          crosswalked++;
+          addQty(twin.id, toSqft(item, twin.sqft_per_box));
+        }
+      } else if (candidates.length > 1) {
+        ambiguous++;
+        if (ambiguous <= 10) {
+          await appendLog(pool, job.id, `  Ambiguous crosswalk: ${item.sku} → ${candidates.map(c => c.vendor_sku).join(', ')}`);
+        }
+      } else if (!exact) {
         totalUnmatched++;
         if (totalUnmatched <= 20) {
           await appendLog(pool, job.id, `  Unmatched: ${item.sku} (qty: ${item.inventoryitems} ${item.uom || '?'})`);
         }
-        continue;
       }
-      totalMatched++;
+    }
 
-      let qtySqft = parseFloat(item.inventoryitems) || 0;
-      // Non-SF items report units; convert via packaging like the DOM scraper did
-      if (item.uom && item.uom !== 'SF' && item.uom !== 'SQFT') {
-        const sqftPerBox = parseFloat(dbSku.sqft_per_box);
-        if (sqftPerBox > 0) qtySqft = qtySqft * sqftPerBox;
-      }
-      if (qtySqft < 1) qtySqft = 0;
-
+    // ── Step 6: Write aggregated quantities ──
+    let totalUpserted = 0;
+    for (const [skuId, sqft] of qtyBySkuId) {
       try {
-        await upsertInventorySnapshot(pool, dbSku.id, WAREHOUSE, {
-          qty_on_hand_sqft: Math.round(qtySqft),
+        await upsertInventorySnapshot(pool, skuId, WAREHOUSE, {
+          qty_on_hand_sqft: Math.round(sqft),
           qty_in_transit_sqft: 0,
         });
         totalUpserted++;
       } catch (err) {
-        await addJobError(pool, job.id, `Inventory upsert failed for ${item.sku}: ${err.message}`);
+        await addJobError(pool, job.id, `Inventory upsert failed for sku ${skuId}: ${err.message}`);
       }
     }
 
     await appendLog(pool, job.id,
-      `Complete. In-stock items: ${stockItems.length}, Matched: ${totalMatched}, ` +
-      `Upserted: ${totalUpserted}, Unmatched: ${totalUnmatched}, Zero-filled: ${zeroFill.rowCount}`,
+      `Complete. In-stock items: ${stockItems.length}, Exact: ${exactMatched}, ` +
+      `Crosswalked to active: ${crosswalked}, Ambiguous: ${ambiguous}, Unmatched: ${totalUnmatched}, ` +
+      `SKUs written: ${totalUpserted}, Zero-filled: ${zeroFill.rowCount}`,
       { products_found: stockItems.length, products_updated: totalUpserted, skus_affected: zeroFill.rowCount }
     );
   } finally {
