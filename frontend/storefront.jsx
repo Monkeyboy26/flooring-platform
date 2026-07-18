@@ -2294,8 +2294,6 @@
       const [tradeToken, setTradeToken] = useState(localStorage.getItem('trade_token') || null);
       const [customer, setCustomer] = useState(null);
       const [customerToken, setCustomerToken] = useState(localStorage.getItem('customer_token') || null);
-      const [showAuthModal, setShowAuthModal] = useState(false);
-      const [authModalMode, setAuthModalMode] = useState('login');
       const [showTradeModal, setShowTradeModal] = useState(false);
       const [tradeModalMode, setTradeModalMode] = useState('login');
       const [showInstallModal, setShowInstallModal] = useState(false);
@@ -2603,7 +2601,6 @@
         }
         setCustomerToken(token);
         setCustomer(cust);
-        setShowAuthModal(false);
         syncWishlistOnLogin(token);
         if (view === 'signin' || view === 'signup' || view === 'set-password' || view === 'reset-password') {
           setView('account');
@@ -3513,7 +3510,7 @@
               wishlist={wishlist} toggleWishlist={toggleWishlist}
               recentlyViewed={recentlyViewed} addRecentlyViewed={addRecentlyViewed}
               customer={customer} customerToken={customerToken}
-              onShowAuth={() => { setAuthModalMode('login'); setShowAuthModal(true); }}
+              onShowAuth={() => navigate('/signin')}
               showToast={showToast} categories={categories}
             />
           )}
@@ -3559,7 +3556,7 @@
               <div style={{ maxWidth: 600, margin: '4rem auto', textAlign: 'center', padding: '0 2rem' }}>
                 <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, marginBottom: '1rem' }}>Sign In Required</h2>
                 <p style={{ color: 'var(--stone-600)', marginBottom: '1.5rem' }}>Please sign in to view your account.</p>
-                <button className="btn" onClick={() => { setAuthModalMode('login'); setShowAuthModal(true); }}>Sign In</button>
+                <button className="btn" onClick={() => navigate('/signin')}>Sign In</button>
               </div>
             )
           )}
@@ -3597,7 +3594,7 @@
           )}
 
           {view === 'reset-password' && (
-            <ResetPasswordPage goHome={goHome} onLogin={handleCustomerLogin} openLogin={() => { setAuthModalMode('login'); setShowAuthModal(true); }} />
+            <ResetPasswordPage goHome={goHome} onLogin={handleCustomerLogin} openLogin={() => navigate('/signin')} />
           )}
 
           {view === 'set-password' && (
@@ -3670,7 +3667,7 @@
             categories={categories} onCategorySelect={(slug) => { handleCategorySelect(slug); setView('browse'); }}
             globalFacets={globalFacets} onAxisSelect={handleAxisSelect}
             goHome={goHome} goBrowse={goBrowse} goCollections={goCollections} goTrade={goTrade}
-            goAccount={() => { if (customer) goAccount(); else { setAuthModalMode('login'); setShowAuthModal(true); } }}
+            goAccount={() => { if (customer) goAccount(); else navigate('/signin'); }}
             customer={customer} tradeCustomer={tradeCustomer}
             onTradeClick={() => { setTradeModalMode('login'); setShowTradeModal(true); }}
             onCustomerLogout={handleCustomerLogout} onTradeLogout={handleTradeLogout}
@@ -3682,7 +3679,6 @@
           />
 
           {showTradeModal && <TradeModal onClose={() => setShowTradeModal(false)} onLogin={handleTradeLogin} initialMode={tradeModalMode} />}
-          {showAuthModal && <CustomerAuthModal onClose={() => setShowAuthModal(false)} onLogin={handleCustomerLogin} initialMode={authModalMode} />}
           {showInstallModal && <InstallationModal onClose={() => setShowInstallModal(false)} product={installModalProduct} />}
           {showFloorQuiz && <FloorQuizModal onClose={() => setShowFloorQuiz(false)} onSkuClick={goSkuDetail} onViewAll={(qs) => { navigate('/shop?' + qs); }} />}
 
@@ -13755,133 +13751,6 @@
       );
     }
 
-
-    function CustomerAuthModal({ onClose, onLogin, initialMode }) {
-      const [mode, setMode] = useState(initialMode || 'login');
-      const [email, setEmail] = useState('');
-      const [password, setPassword] = useState('');
-      const [firstName, setFirstName] = useState('');
-      const [lastName, setLastName] = useState('');
-      const [error, setError] = useState('');
-      const [success, setSuccess] = useState('');
-      const [loading, setLoading] = useState(false);
-      const { handleGoogleCredential, googleError, googleLoading } = useGoogleAuth(onLogin);
-      useEffect(() => { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = ''; }; }, []);
-
-      const handleLogin = async (e) => {
-        e.preventDefault();
-        setError(''); setLoading(true);
-        try {
-          const res = await fetch(API + '/api/customer/login', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok || data.error) { setError(data.error || 'Login failed'); setLoading(false); return; }
-          onLogin(data.token, data.customer);
-        } catch(e) { setError('Login failed'); setLoading(false); }
-      };
-
-      const handleRegister = async (e) => {
-        e.preventDefault();
-        setError(''); setLoading(true);
-        try {
-          const res = await fetch(API + '/api/customer/register', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName })
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok || data.error) { setError(data.error || 'Registration failed'); setLoading(false); return; }
-          onLogin(data.token, data.customer);
-        } catch(e) { setError('Registration failed'); setLoading(false); }
-      };
-
-      const handleForgotPassword = async (e) => {
-        e.preventDefault();
-        setError(''); setSuccess(''); setLoading(true);
-        try {
-          const res = await fetch(API + '/api/customer/forgot-password', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok || data.error) { setError(data.error || 'Unable to send reset email. Please try again.'); setLoading(false); return; }
-          setSuccess('If an account exists with that email, a reset link has been sent.');
-          setLoading(false);
-        } catch(e) { setError('Unable to send reset email. Please try again.'); setLoading(false); }
-      };
-
-      const switchMode = (newMode) => { setMode(newMode); setError(''); setSuccess(''); };
-
-      return (
-        <div className="modal-overlay" onClick={onClose}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={onClose}>&times;</button>
-            <h2>{mode === 'login' ? 'Sign In' : mode === 'register' ? 'Create Account' : 'Reset Password'}</h2>
-
-            {mode === 'forgot' ? (
-              <>
-                <p style={{ fontSize: '0.875rem', color: 'var(--stone-600)', marginBottom: '1.5rem' }}>
-                  Enter your email and we'll send you a link to reset your password.
-                </p>
-                <form onSubmit={handleForgotPassword}>
-                  {error && <div className="checkout-error">{error}</div>}
-                  {success && <div style={{ padding: '0.75rem 1rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 4, fontSize: '0.875rem', color: '#166534', marginBottom: '1rem' }}>{success}</div>}
-                  <div className="checkout-field"><label>Email</label><input className="checkout-input" type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
-                  <button type="submit" className="btn" style={{ width: '100%' }} disabled={loading || !!success}>
-                    {loading ? '...' : 'Send Reset Link'}
-                  </button>
-                </form>
-                <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem' }}>
-                  <a href="#" onClick={e => { e.preventDefault(); switchMode('login'); }} style={{ color: 'var(--gold)', cursor: 'pointer' }}>Back to Sign In</a>
-                </div>
-              </>
-            ) : (
-              <>
-                {mode === 'login' && (
-                  <>
-                    <GoogleSignInButton onCredentialResponse={handleGoogleCredential} />
-                    {googleError && <div className="checkout-error">{googleError}</div>}
-                    {googleLoading && <div style={{ textAlign: 'center', fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Signing in with Google…</div>}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '1rem 0', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>
-                      <span style={{ flex: 1, borderBottom: '1px solid var(--stone-200)' }} />
-                      or
-                      <span style={{ flex: 1, borderBottom: '1px solid var(--stone-200)' }} />
-                    </div>
-                  </>
-                )}
-                <form onSubmit={mode === 'login' ? handleLogin : handleRegister}>
-                  {error && <div className="checkout-error">{error}</div>}
-                  {mode === 'register' && (
-                    <div className="checkout-row">
-                      <div className="checkout-field"><label>First Name</label><input className="checkout-input" value={firstName} onChange={e => setFirstName(e.target.value)} required /></div>
-                      <div className="checkout-field"><label>Last Name</label><input className="checkout-input" value={lastName} onChange={e => setLastName(e.target.value)} required /></div>
-                    </div>
-                  )}
-                  <div className="checkout-field"><label>Email</label><input className="checkout-input" type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
-                  <div className="checkout-field"><label>Password</label><input className="checkout-input" type="password" value={password} onChange={e => setPassword(e.target.value)} required /></div>
-                  {mode === 'login' && (
-                    <div style={{ textAlign: 'right', marginBottom: '1rem' }}>
-                      <a href="#" onClick={e => { e.preventDefault(); switchMode('forgot'); }} style={{ fontSize: '0.8125rem', color: 'var(--gold)', cursor: 'pointer' }}>Forgot password?</a>
-                    </div>
-                  )}
-                  <button type="submit" className="btn" style={{ width: '100%' }} disabled={loading}>
-                    {loading ? '...' : (mode === 'login' ? 'Sign In' : 'Create Account')}
-                  </button>
-                </form>
-                <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem' }}>
-                  {mode === 'login' ? (
-                    <span>No account? <a href="#" onClick={e => { e.preventDefault(); switchMode('register'); }} style={{ color: 'var(--gold)', cursor: 'pointer' }}>Create one</a></span>
-                  ) : (
-                    <span>Have an account? <a href="#" onClick={e => { e.preventDefault(); switchMode('login'); }} style={{ color: 'var(--gold)', cursor: 'pointer' }}>Sign in</a></span>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      );
-    }
 
     // ==================== Installation Modal ====================
 

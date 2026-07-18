@@ -1711,8 +1711,6 @@
     const [tradeToken, setTradeToken] = useState(localStorage.getItem("trade_token") || null);
     const [customer, setCustomer] = useState(null);
     const [customerToken, setCustomerToken] = useState(localStorage.getItem("customer_token") || null);
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [authModalMode, setAuthModalMode] = useState("login");
     const [showTradeModal, setShowTradeModal] = useState(false);
     const [tradeModalMode, setTradeModalMode] = useState("login");
     const [showInstallModal, setShowInstallModal] = useState(false);
@@ -2041,7 +2039,6 @@
       }
       setCustomerToken(token);
       setCustomer(cust);
-      setShowAuthModal(false);
       syncWishlistOnLogin(token);
       if (view === "signin" || view === "signup" || view === "set-password" || view === "reset-password") {
         setView("account");
@@ -2957,10 +2954,7 @@
         addRecentlyViewed,
         customer,
         customerToken,
-        onShowAuth: () => {
-          setAuthModalMode("login");
-          setShowAuthModal(true);
-        },
+        onShowAuth: () => navigate("/signin"),
         showToast,
         categories
       }
@@ -3016,19 +3010,13 @@
         goHome,
         onLogout: handleCustomerLogout
       }
-    ) : /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "4rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, marginBottom: "1rem" } }, "Sign In Required"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Please sign in to view your account."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => {
-      setAuthModalMode("login");
-      setShowAuthModal(true);
-    } }, "Sign In"))), view === "wishlist" && /* @__PURE__ */ React.createElement(WishlistPage, { wishlist, toggleWishlist: toggleWishlist2, onSkuClick: goSkuDetail, goBrowse, recentlyViewed, goHome }), view === "collections" && /* @__PURE__ */ React.createElement(CollectionsPage, { onCollectionClick: handleCollectionClick, goHome }), view === "trade" && /* @__PURE__ */ React.createElement(TradePage, { goTradeDashboard, onApplyClick: () => {
+    ) : /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "4rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, marginBottom: "1rem" } }, "Sign In Required"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Please sign in to view your account."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => navigate("/signin") }, "Sign In"))), view === "wishlist" && /* @__PURE__ */ React.createElement(WishlistPage, { wishlist, toggleWishlist: toggleWishlist2, onSkuClick: goSkuDetail, goBrowse, recentlyViewed, goHome }), view === "collections" && /* @__PURE__ */ React.createElement(CollectionsPage, { onCollectionClick: handleCollectionClick, goHome }), view === "trade" && /* @__PURE__ */ React.createElement(TradePage, { goTradeDashboard, onApplyClick: () => {
       setTradeModalMode("register");
       setShowTradeModal(true);
     }, tradeCustomer }), view === "trade-dashboard" && (tradeCustomer ? /* @__PURE__ */ React.createElement(TradeDashboard, { tradeCustomer, tradeToken, addToCart, goBrowse, setTradeCustomer, handleTradeLogout, goBulkOrder, showToast }) : /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "4rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, marginBottom: "1rem" } }, "Trade Login Required"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Please sign in with your trade account to access the dashboard."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => {
       setTradeModalMode("login");
       setShowTradeModal(true);
-    } }, "Trade Sign In"))), view === "bulk-order" && /* @__PURE__ */ React.createElement(BulkOrderPage, { tradeToken, addToCart, goTradeDashboard, showToast }), view === "visit-recap" && visitRecapToken && /* @__PURE__ */ React.createElement(VisitRecapPage, { token: visitRecapToken, onSkuClick: goSkuDetail }), view === "reset-password" && /* @__PURE__ */ React.createElement(ResetPasswordPage, { goHome, onLogin: handleCustomerLogin, openLogin: () => {
-      setAuthModalMode("login");
-      setShowAuthModal(true);
-    } }), view === "set-password" && /* @__PURE__ */ React.createElement(SetPasswordPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "signin" && /* @__PURE__ */ React.createElement(SignInFullPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "signup" && /* @__PURE__ */ React.createElement(SignUpFullPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "forgot-password" && /* @__PURE__ */ React.createElement(ForgotPasswordFullPage, { goHome, navigate }), view === "installation" && /* @__PURE__ */ React.createElement(InstallationPage, { onRequestQuote: () => {
+    } }, "Trade Sign In"))), view === "bulk-order" && /* @__PURE__ */ React.createElement(BulkOrderPage, { tradeToken, addToCart, goTradeDashboard, showToast }), view === "visit-recap" && visitRecapToken && /* @__PURE__ */ React.createElement(VisitRecapPage, { token: visitRecapToken, onSkuClick: goSkuDetail }), view === "reset-password" && /* @__PURE__ */ React.createElement(ResetPasswordPage, { goHome, onLogin: handleCustomerLogin, openLogin: () => navigate("/signin") }), view === "set-password" && /* @__PURE__ */ React.createElement(SetPasswordPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "signin" && /* @__PURE__ */ React.createElement(SignInFullPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "signup" && /* @__PURE__ */ React.createElement(SignUpFullPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "forgot-password" && /* @__PURE__ */ React.createElement(ForgotPasswordFullPage, { goHome, navigate }), view === "installation" && /* @__PURE__ */ React.createElement(InstallationPage, { onRequestQuote: () => {
       setInstallModalProduct(null);
       setShowInstallModal(true);
     } }), view === "inspiration" && /* @__PURE__ */ React.createElement(InspirationPage, { navigate, goBrowse }), view === "sale" && /* @__PURE__ */ React.createElement(SalePage, { onSkuClick: goSkuDetail, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku, navigate }), view === "cabinets" && /* @__PURE__ */ React.createElement(CabinetsPage, null), view === "about" && /* @__PURE__ */ React.createElement(AboutPage, { navigate }), view === "coming-soon" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "6rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, fontSize: "2.5rem", marginBottom: "1rem" } }, comingSoonTitle), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "1.125rem", lineHeight: 1.6, marginBottom: "2rem" } }, "This page is coming soon. We're working on something beautiful."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goHome }, "Back to Home")), view === "terms" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "terms", goHome, navigate }), view === "privacy" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "privacy", goHome, navigate }), view === "accessibility" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "accessibility", goHome, navigate }), view === "returns" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "returns", goHome, navigate }), /* @__PURE__ */ React.createElement(CookieConsent, { navigate }), /* @__PURE__ */ React.createElement(
@@ -3061,10 +3049,7 @@
         goTrade,
         goAccount: () => {
           if (customer) goAccount();
-          else {
-            setAuthModalMode("login");
-            setShowAuthModal(true);
-          }
+          else navigate("/signin");
         },
         customer,
         tradeCustomer,
@@ -3084,7 +3069,7 @@
         onSkuClick: goSkuDetail,
         onCategorySelect: handleCategorySelect
       }
-    ), showTradeModal && /* @__PURE__ */ React.createElement(TradeModal, { onClose: () => setShowTradeModal(false), onLogin: handleTradeLogin, initialMode: tradeModalMode }), showAuthModal && /* @__PURE__ */ React.createElement(CustomerAuthModal, { onClose: () => setShowAuthModal(false), onLogin: handleCustomerLogin, initialMode: authModalMode }), showInstallModal && /* @__PURE__ */ React.createElement(InstallationModal, { onClose: () => setShowInstallModal(false), product: installModalProduct }), showFloorQuiz && /* @__PURE__ */ React.createElement(FloorQuizModal, { onClose: () => setShowFloorQuiz(false), onSkuClick: goSkuDetail, onViewAll: (qs) => {
+    ), showTradeModal && /* @__PURE__ */ React.createElement(TradeModal, { onClose: () => setShowTradeModal(false), onLogin: handleTradeLogin, initialMode: tradeModalMode }), showInstallModal && /* @__PURE__ */ React.createElement(InstallationModal, { onClose: () => setShowInstallModal(false), product: installModalProduct }), showFloorQuiz && /* @__PURE__ */ React.createElement(FloorQuizModal, { onClose: () => setShowFloorQuiz(false), onSkuClick: goSkuDetail, onViewAll: (qs) => {
       navigate("/shop?" + qs);
     } }), !isCheckoutFlow && /* @__PURE__ */ React.createElement(
       SiteFooter,
@@ -9212,109 +9197,6 @@
         /* @__PURE__ */ React.createElement("a", { className: "auth-link", onClick: () => window.location.href = "mailto:Sales@romaflooringdesigns.com" }, "Write to support \u2192")
       )
     );
-  }
-  function CustomerAuthModal({ onClose, onLogin, initialMode }) {
-    const [mode, setMode] = useState(initialMode || "login");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [firstName, setFirstName] = useState("");
-    const [lastName, setLastName] = useState("");
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
-    const [loading, setLoading] = useState(false);
-    const { handleGoogleCredential, googleError, googleLoading } = useGoogleAuth(onLogin);
-    useEffect(() => {
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
-    }, []);
-    const handleLogin = async (e) => {
-      e.preventDefault();
-      setError("");
-      setLoading(true);
-      try {
-        const res = await fetch(API + "/api/customer/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password })
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.error) {
-          setError(data.error || "Login failed");
-          setLoading(false);
-          return;
-        }
-        onLogin(data.token, data.customer);
-      } catch (e2) {
-        setError("Login failed");
-        setLoading(false);
-      }
-    };
-    const handleRegister = async (e) => {
-      e.preventDefault();
-      setError("");
-      setLoading(true);
-      try {
-        const res = await fetch(API + "/api/customer/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName })
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.error) {
-          setError(data.error || "Registration failed");
-          setLoading(false);
-          return;
-        }
-        onLogin(data.token, data.customer);
-      } catch (e2) {
-        setError("Registration failed");
-        setLoading(false);
-      }
-    };
-    const handleForgotPassword = async (e) => {
-      e.preventDefault();
-      setError("");
-      setSuccess("");
-      setLoading(true);
-      try {
-        const res = await fetch(API + "/api/customer/forgot-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email })
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.error) {
-          setError(data.error || "Unable to send reset email. Please try again.");
-          setLoading(false);
-          return;
-        }
-        setSuccess("If an account exists with that email, a reset link has been sent.");
-        setLoading(false);
-      } catch (e2) {
-        setError("Unable to send reset email. Please try again.");
-        setLoading(false);
-      }
-    };
-    const switchMode = (newMode) => {
-      setMode(newMode);
-      setError("");
-      setSuccess("");
-    };
-    return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("button", { className: "modal-close", onClick: onClose }, "\xD7"), /* @__PURE__ */ React.createElement("h2", null, mode === "login" ? "Sign In" : mode === "register" ? "Create Account" : "Reset Password"), mode === "forgot" ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.875rem", color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Enter your email and we'll send you a link to reset your password."), /* @__PURE__ */ React.createElement("form", { onSubmit: handleForgotPassword }, error && /* @__PURE__ */ React.createElement("div", { className: "checkout-error" }, error), success && /* @__PURE__ */ React.createElement("div", { style: { padding: "0.75rem 1rem", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 4, fontSize: "0.875rem", color: "#166534", marginBottom: "1rem" } }, success), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Email"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "email", value: email, onChange: (e) => setEmail(e.target.value), required: true })), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn", style: { width: "100%" }, disabled: loading || !!success }, loading ? "..." : "Send Reset Link")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: "1.5rem", fontSize: "0.875rem" } }, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
-      e.preventDefault();
-      switchMode("login");
-    }, style: { color: "var(--gold)", cursor: "pointer" } }, "Back to Sign In"))) : /* @__PURE__ */ React.createElement(React.Fragment, null, mode === "login" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(GoogleSignInButton, { onCredentialResponse: handleGoogleCredential }), googleError && /* @__PURE__ */ React.createElement("div", { className: "checkout-error" }, googleError), googleLoading && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: "0.8125rem", color: "var(--stone-500)", marginBottom: "0.5rem" } }, "Signing in with Google\u2026"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, margin: "1rem 0", fontSize: "0.8125rem", color: "var(--stone-400)" } }, /* @__PURE__ */ React.createElement("span", { style: { flex: 1, borderBottom: "1px solid var(--stone-200)" } }), "or", /* @__PURE__ */ React.createElement("span", { style: { flex: 1, borderBottom: "1px solid var(--stone-200)" } }))), /* @__PURE__ */ React.createElement("form", { onSubmit: mode === "login" ? handleLogin : handleRegister }, error && /* @__PURE__ */ React.createElement("div", { className: "checkout-error" }, error), mode === "register" && /* @__PURE__ */ React.createElement("div", { className: "checkout-row" }, /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "First Name"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: firstName, onChange: (e) => setFirstName(e.target.value), required: true })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Last Name"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: lastName, onChange: (e) => setLastName(e.target.value), required: true }))), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Email"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "email", value: email, onChange: (e) => setEmail(e.target.value), required: true })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Password"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "password", value: password, onChange: (e) => setPassword(e.target.value), required: true })), mode === "login" && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
-      e.preventDefault();
-      switchMode("forgot");
-    }, style: { fontSize: "0.8125rem", color: "var(--gold)", cursor: "pointer" } }, "Forgot password?")), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn", style: { width: "100%" }, disabled: loading }, loading ? "..." : mode === "login" ? "Sign In" : "Create Account")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: "1.5rem", fontSize: "0.875rem" } }, mode === "login" ? /* @__PURE__ */ React.createElement("span", null, "No account? ", /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
-      e.preventDefault();
-      switchMode("register");
-    }, style: { color: "var(--gold)", cursor: "pointer" } }, "Create one")) : /* @__PURE__ */ React.createElement("span", null, "Have an account? ", /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
-      e.preventDefault();
-      switchMode("login");
-    }, style: { color: "var(--gold)", cursor: "pointer" } }, "Sign in"))))));
   }
   function InstallationModal({ onClose, product }) {
     const [name, setName] = useState("");
