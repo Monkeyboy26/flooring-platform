@@ -3012,6 +3012,20 @@
         });
       };
 
+      // Canonicalize vendor filters from deep links (?vendor=bosphorus) to facet
+      // names ("Bosphorus Imports") so checkboxes and filter pills reflect them
+      useEffect(() => {
+        if (!vendorFacets.length || !vendorFilters.length) return;
+        const names = vendorFacets.map(v => v.name);
+        const canonical = [...new Set(vendorFilters.map(f =>
+          names.find(n => n.toLowerCase() === f.toLowerCase())
+          || names.find(n => n.toLowerCase().includes(f.toLowerCase()))
+          || f))];
+        if (canonical.length !== vendorFilters.length || canonical.some((v, i) => v !== vendorFilters[i])) {
+          setVendorFilters(canonical);
+        }
+      }, [vendorFacets]);
+
       const handleTagToggle = (slug) => {
         setTagFilters(prev => {
           const next = prev.includes(slug) ? prev.filter(t => t !== slug) : [...prev, slug];
@@ -3445,7 +3459,7 @@
           )}
 
           {view === 'browse' && (
-            (!selectedCategory && !selectedCollection && !searchQuery) ? (
+            (!selectedCategory && !selectedCollection && !searchQuery && !vendorFilters.length && !tagFilters.length && !Object.keys(filters).length) ? (
               <ShopLanding
                 categories={categories}
                 featuredSkus={featuredSkus} featuredLoading={featuredLoading}

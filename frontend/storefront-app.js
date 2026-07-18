@@ -2431,6 +2431,14 @@
         return next;
       });
     };
+    useEffect(() => {
+      if (!vendorFacets.length || !vendorFilters.length) return;
+      const names = vendorFacets.map((v) => v.name);
+      const canonical = [...new Set(vendorFilters.map((f) => names.find((n) => n.toLowerCase() === f.toLowerCase()) || names.find((n) => n.toLowerCase().includes(f.toLowerCase())) || f))];
+      if (canonical.length !== vendorFilters.length || canonical.some((v, i) => v !== vendorFilters[i])) {
+        setVendorFilters(canonical);
+      }
+    }, [vendorFacets]);
     const handleTagToggle = (slug) => {
       setTagFilters((prev) => {
         const next = prev.includes(slug) ? prev.filter((t) => t !== slug) : [...prev, slug];
@@ -2860,7 +2868,7 @@
         onNewsletterSubmit: handleNewsletterSubmit,
         onOpenQuiz: () => setShowFloorQuiz(true)
       }
-    ), view === "browse" && (!selectedCategory && !selectedCollection && !searchQuery ? /* @__PURE__ */ React.createElement(
+    ), view === "browse" && (!selectedCategory && !selectedCollection && !searchQuery && !vendorFilters.length && !tagFilters.length && !Object.keys(filters).length ? /* @__PURE__ */ React.createElement(
       ShopLanding,
       {
         categories,

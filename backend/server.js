@@ -1811,18 +1811,19 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       }
     }
 
-    // Vendor filter (internal/PO — filters by vendor name)
+    // Vendor filter (internal/PO — filters by vendor name; case-insensitive
+    // containment so deep links like ?vendor=bosphorus match "Bosphorus Imports")
     if (req.query.vendor) {
       const vendorNames = req.query.vendor.split('|').map(v => v.trim()).filter(Boolean);
-      const vendorPlaceholders = vendorNames.map(v => { params.push(v); return `$${paramIndex++}`; });
-      whereClauses.push(`v.name IN (${vendorPlaceholders.join(',')})`);
+      const vendorConds = vendorNames.map(v => { params.push(`%${v.replace(/([\\%_])/g, '\\$1')}%`); return `v.name ILIKE $${paramIndex++}`; });
+      whereClauses.push(`(${vendorConds.join(' OR ')})`);
     }
 
     // Brand filter (customer-facing — filters by COALESCE(brand, vendor) name)
     if (req.query.brand) {
       const brandNames = req.query.brand.split('|').map(v => v.trim()).filter(Boolean);
-      const brandPlaceholders = brandNames.map(v => { params.push(v); return `$${paramIndex++}`; });
-      whereClauses.push(`COALESCE(br.name, v.name) IN (${brandPlaceholders.join(',')})`);
+      const brandConds = brandNames.map(v => { params.push(`%${v.replace(/([\\%_])/g, '\\$1')}%`); return `COALESCE(br.name, v.name) ILIKE $${paramIndex++}`; });
+      whereClauses.push(`(${brandConds.join(' OR ')})`);
     }
 
     // Price range filters
@@ -3157,18 +3158,18 @@ app.get('/api/storefront/facets', async (req, res) => {
       }
     }
 
-    // Vendor filter (internal/PO)
+    // Vendor filter (internal/PO — forgiving match, same as /api/storefront/skus)
     if (req.query.vendor) {
       const vendorNames = req.query.vendor.split('|').map(v => v.trim()).filter(Boolean);
-      const vendorPlaceholders = vendorNames.map(v => { params.push(v); return `$${paramIndex++}`; });
-      baseWhere.push(`v.name IN (${vendorPlaceholders.join(',')})`);
+      const vendorConds = vendorNames.map(v => { params.push(`%${v.replace(/([\\%_])/g, '\\$1')}%`); return `v.name ILIKE $${paramIndex++}`; });
+      baseWhere.push(`(${vendorConds.join(' OR ')})`);
     }
 
     // Brand filter (customer-facing)
     if (req.query.brand) {
       const brandNames = req.query.brand.split('|').map(v => v.trim()).filter(Boolean);
-      const brandPlaceholders = brandNames.map(v => { params.push(v); return `$${paramIndex++}`; });
-      baseWhere.push(`COALESCE(br.name, v.name) IN (${brandPlaceholders.join(',')})`);
+      const brandConds = brandNames.map(v => { params.push(`%${v.replace(/([\\%_])/g, '\\$1')}%`); return `COALESCE(br.name, v.name) ILIKE $${paramIndex++}`; });
+      baseWhere.push(`(${brandConds.join(' OR ')})`);
     }
 
     // Price range filters
