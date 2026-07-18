@@ -886,7 +886,7 @@ async function processProduct(pool, ctx) {
     // color-consistent image from elsewhere in the map takes precedence.
     let primaryImageUrl = sku.productImageUrl || '';
     const corrected = imageIndex
-      ? resolveImage(imageIndex, coveoSku, skuSize, primaryImageUrl) : null;
+      ? resolveImage(imageIndex, coveoSku, skuSize, primaryImageUrl, { isTrim }) : null;
     if (corrected) {
       primaryImageUrl = corrected.url;
       stats.imagesCorrected = (stats.imagesCorrected || 0) + 1;

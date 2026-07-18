@@ -73,6 +73,21 @@ async function main() {
   console.log(`Image index: ${index.byCode.size} color codes, ${index.knownCodes.size} known codes` +
     (knownBroken.size ? ` (${knownBroken.size} known-broken URLs excluded)` : '') + '\n');
 
+  // Trim/accessory SKUs get conservative matching (same-size only) so shape
+  // silhouettes aren't displaced by field-tile photos.
+  const trimSkus = new Set();
+  for (const series of Object.values(productMap.series)) {
+    for (const group of Object.values(series.accessories || {})) {
+      for (const sku of group.skus || []) trimSkus.add((sku.coveoSku || '').toUpperCase());
+    }
+    for (const group of Object.values(series.products || {})) {
+      for (const sku of group.skus || []) {
+        if (/trim/i.test(sku.productType || '')) trimSkus.add((sku.coveoSku || '').toUpperCase());
+      }
+    }
+  }
+  console.log(`Trim/accessory SKUs: ${trimSkus.size}`);
+
   // All active DAL-family SKUs with their current primary image (if any) and size
   const { rows } = await pool.query(`
     SELECT s.id AS sku_id, s.vendor_sku, p.id AS product_id, p.name AS product_name,
@@ -95,7 +110,8 @@ async function main() {
   for (let pass = 1; ; pass++) {
     fixes = [];
     for (const r of rows) {
-      const fix = resolveImage(index, r.vendor_sku, r.size, r.url);
+      const isTrim = trimSkus.has((r.vendor_sku || '').toUpperCase());
+      const fix = resolveImage(index, r.vendor_sku, r.size, r.url, { isTrim });
       if (fix) fixes.push({ ...r, newUrl: fix.url, reason: fix.reason });
     }
     const unchecked = [...new Set(fixes.map(f => f.newUrl))].filter(u => !checked.has(u));
