@@ -1,6 +1,7 @@
 import pg from 'pg';
 import { launchBrowser, delay, appendLog, addJobError, upsertInventorySnapshot } from './base.js';
 import { portalLogin, waitForSPA } from './tradepro-auth.js';
+import { buildActiveIndex, crosswalkItem } from './daltile-crosswalk.js';
 
 /**
  * Daltile inventory scraper — TradePro Exchange (Salesforce Experience Cloud).
@@ -185,44 +186,8 @@ export async function run(pool, job) {
     // Coveo "sales SKU" (e.g. 019036MOD1P4, on our draft rows from the old
     // portal catalog scraper) and the EDI 832 item code (e.g. 0190S4639MODGL,
     // on the ACTIVE storefront rows). Exact code match alone therefore parks
-    // nearly all stock on unpublished twins. So: exact match first, then an
-    // attribute crosswalk (color-code prefix + size + finish, series as
-    // tiebreaker) to land quantities on the live catalog SKUs too.
-    const norm = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const finishCompatible = (a, b) => a === b || (a && b && (a.startsWith(b) || b.startsWith(a)));
-
-    // The portal sales-SKU and its EDI twin encode the same tokens in slightly
-    // different layouts (HS05RCT1224VXTM ↔ HS05RCT1224VXTMT), so among
-    // attribute-equal candidates the true twin has the longest common
-    // subsequence with the portal code. Ties stay ambiguous.
-    const lcsLen = (a, b) => {
-      let prev = new Array(b.length + 1).fill(0);
-      for (let i = 1; i <= a.length; i++) {
-        const cur = [0];
-        for (let j = 1; j <= b.length; j++) {
-          cur[j] = a[i - 1] === b[j - 1] ? prev[j - 1] + 1 : Math.max(prev[j], cur[j - 1]);
-        }
-        prev = cur;
-      }
-      return prev[b.length];
-    };
-    // Longest common CONTIGUOUS substring — trim codes share literal tokens
-    // (S3419T, 2448A) that subsequence scoring dilutes.
-    const lcSubstr = (a, b) => {
-      let best = 0;
-      let prev = new Array(b.length + 1).fill(0);
-      for (let i = 1; i <= a.length; i++) {
-        const cur = [0];
-        for (let j = 1; j <= b.length; j++) {
-          cur[j] = a[i - 1] === b[j - 1] ? prev[j - 1] + 1 : 0;
-          if (cur[j] > best) best = cur[j];
-        }
-        prev = cur;
-      }
-      return best;
-    };
-    const first = (v) => Array.isArray(v) ? v[0] : v;
-
+    // nearly all stock on unpublished twins. The attribute crosswalk lives in
+    // daltile-crosswalk.js (shared with the offline _match-diag.js replay).
     const activeResult = await pool.query(`
       SELECT s.id, s.vendor_sku, s.variant_type, p.collection, p.name AS product_name,
              pkg.sqft_per_box, pr.cost,
@@ -240,14 +205,8 @@ export async function run(pool, job) {
         AND s.vendor_sku IS NOT NULL
       GROUP BY s.id, s.vendor_sku, s.variant_type, p.collection, p.name, pkg.sqft_per_box, pr.cost
     `);
-    const activeBySize = new Map();
-    for (const row of activeResult.rows) {
-      const key = norm(row.size);
-      if (!key) continue;
-      if (!activeBySize.has(key)) activeBySize.set(key, []);
-      activeBySize.get(key).push(row);
-    }
-    await appendLog(pool, job.id, `Attribute index: ${activeResult.rows.length} active SKUs across ${activeBySize.size} sizes`);
+    const activeIndex = buildActiveIndex(activeResult.rows);
+    await appendLog(pool, job.id, `Attribute index: ${activeResult.rows.length} active SKUs across ${activeIndex.bySize.size} sizes`);
 
     const toSqft = (item, sqftPerBox) => {
       let qty = parseFloat(item.inventoryitems) || 0;
@@ -266,6 +225,7 @@ export async function run(pool, job) {
     let crosswalked = 0;
     let ambiguous = 0;
     let totalUnmatched = 0;
+    const cwStats = {};
 
     for (const item of stockItems) {
       const rawSku = (item.sku || '').toUpperCase();
@@ -278,76 +238,19 @@ export async function run(pool, job) {
       }
 
       // Attribute crosswalk to an active twin (skip if exact already hit it)
-      const colorCode = String(item.color || '').toUpperCase();
-      const sizeKey = norm(first(item.nominalsize));
-      const itemFinish = norm(first(item.finish));
-      let candidates = (colorCode && sizeKey && activeBySize.get(sizeKey) || [])
-        .filter(c => c.vendor_sku.toUpperCase().startsWith(colorCode))
-        .filter(c => finishCompatible(norm(c.finish), itemFinish));
-      if (candidates.length > 1) {
-        const seriesKey = norm(item.seriesname);
-        const bySeries = candidates.filter(c => norm(c.collection) === seriesKey);
-        if (bySeries.length >= 1) candidates = bySeries;
-      }
-      // Field tile vs trim/accessory: the portal's planproducttype says which
-      // side of a field-vs-trim collision this item belongs to
-      if (candidates.length > 1) {
-        const portalIsTrim = /trim|installation/i.test(String(first(item.planproducttype) || ''));
-        const isTrimCand = (c) => c.variant_type === 'accessory' || /trim/i.test(c.product_name || '');
-        const aligned = candidates.filter(c => isTrimCand(c) === portalIsTrim);
-        if (aligned.length >= 1 && aligned.length < candidates.length) candidates = aligned;
-      }
-      // Variant markers (MB = Microban, BV = beveled) must be echoed by the
-      // portal sku/description, else those candidates are the wrong variant
-      if (candidates.length > 1) {
-        const portalStr = (rawSku + ' ' + (item.skudescription || '')).toUpperCase();
-        for (const [tok, re] of [['MB', /MICROBAN|MB/], ['BV', /BEV/]]) {
-          const withTok = candidates.filter(c => c.vendor_sku.toUpperCase().slice(4).includes(tok));
-          if (withTok.length > 0 && withTok.length < candidates.length) {
-            const keep = re.test(portalStr) ? withTok : candidates.filter(c => !withTok.includes(c));
-            if (keep.length >= 1) candidates = keep;
-          }
+      const res = crosswalkItem(item, activeIndex, cwStats);
+      if (res.state === 'matched') {
+        let counted = false;
+        for (const { row, share } of res.matches) {
+          if (exact && row.id === exact.id) continue;
+          addQty(row.id, toSqft(item, row.sqft_per_box) * share);
+          counted = true;
         }
-      }
-      // Shape alignment (Hexagon vs Straight Joint mosaics, etc.)
-      if (candidates.length > 1) {
-        const itemShape = norm(first(item.shapeandmosaic));
-        if (itemShape) {
-          const shaped = candidates.filter(c => norm(c.shape) && norm(c.shape) === itemShape);
-          if (shaped.length >= 1 && shaped.length < candidates.length) candidates = shaped;
-        }
-      }
-      // Contiguous shared token beats subsequence for trim codes (color prefix
-      // stripped; normalized so 3/8 ↔ 38 compare)
-      if (candidates.length > 1) {
-        const rem = norm(rawSku.slice(colorCode.length));
-        const scored = candidates.map(c => ({ c, score: lcSubstr(rem, norm(c.vendor_sku.slice(colorCode.length))) }));
-        const best = Math.max(...scored.map(s => s.score));
-        const winners = scored.filter(s => s.score === best);
-        if (winners.length === 1) candidates = [winners[0].c];
-      }
-      // Dealer price: the portal classprices should equal the EDI cost of the twin
-      if (candidates.length > 1 && item.classprices > 0) {
-        const close = candidates.filter(c => c.cost > 0 && Math.abs(parseFloat(c.cost) - item.classprices) / item.classprices < 0.03);
-        if (close.length === 1) candidates = close;
-      }
-      if (candidates.length > 1) {
-        const scored = candidates.map(c => ({ c, score: lcsLen(rawSku, c.vendor_sku.toUpperCase()) }));
-        const best = Math.max(...scored.map(s => s.score));
-        const winners = scored.filter(s => s.score === best);
-        if (winners.length === 1) candidates = [winners[0].c];
-      }
-
-      if (candidates.length === 1) {
-        const twin = candidates[0];
-        if (!exact || twin.id !== exact.id) {
-          crosswalked++;
-          addQty(twin.id, toSqft(item, twin.sqft_per_box));
-        }
-      } else if (candidates.length > 1) {
+        if (counted) crosswalked++;
+      } else if (res.state === 'ambiguous') {
         ambiguous++;
         if (ambiguous <= 10) {
-          await appendLog(pool, job.id, `  Ambiguous crosswalk: ${item.sku} → ${candidates.map(c => c.vendor_sku).join(', ')}`);
+          await appendLog(pool, job.id, `  Ambiguous crosswalk: ${item.sku} → ${res.candidates.map(c => c.vendor_sku).join(', ')}`);
         }
       } else if (!exact) {
         totalUnmatched++;
@@ -356,6 +259,7 @@ export async function run(pool, job) {
         }
       }
     }
+    await appendLog(pool, job.id, `Crosswalk signals: ${JSON.stringify(cwStats)}`);
 
     // ── Step 6: Write aggregated quantities ──
     let totalUpserted = 0;

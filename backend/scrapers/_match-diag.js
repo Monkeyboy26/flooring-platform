@@ -4,34 +4,7 @@
  */
 import fs from 'fs';
 import pg from 'pg';
-
-const norm = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const first = (v) => Array.isArray(v) ? v[0] : v;
-const finishCompatible = (a, b) => a === b || (a && b && (a.startsWith(b) || b.startsWith(a)));
-const lcSubstr = (a, b) => {
-  let best = 0;
-  let prev = new Array(b.length + 1).fill(0);
-  for (let i = 1; i <= a.length; i++) {
-    const cur = [0];
-    for (let j = 1; j <= b.length; j++) {
-      cur[j] = a[i - 1] === b[j - 1] ? prev[j - 1] + 1 : 0;
-      if (cur[j] > best) best = cur[j];
-    }
-    prev = cur;
-  }
-  return best;
-};
-const lcsLen = (a, b) => {
-  let prev = new Array(b.length + 1).fill(0);
-  for (let i = 1; i <= a.length; i++) {
-    const cur = [0];
-    for (let j = 1; j <= b.length; j++) {
-      cur[j] = a[i - 1] === b[j - 1] ? prev[j - 1] + 1 : Math.max(prev[j], cur[j - 1]);
-    }
-    prev = cur;
-  }
-  return prev[b.length];
-};
+import { buildActiveIndex, crosswalkItem, canonSize, norm, first } from './daltile-crosswalk.js';
 
 async function main() {
   const pool = new pg.Pool({
@@ -63,7 +36,8 @@ async function main() {
   const exactMap = new Map();
   for (const r of all.rows) exactMap.set(r.vendor_sku.toUpperCase(), r);
 
-  const stats = { exact: 0, exactActive: 0, crosswalked: 0, ambiguous: 0, unmatched: 0 };
+  const index = buildActiveIndex(active);
+  const stats = { exact: 0, exactActive: 0, crosswalked: 0, split: 0, ambiguous: 0, unmatched: 0 };
   const unmatched = [];
   const ambiguous = [];
 
@@ -72,91 +46,35 @@ async function main() {
     const exact = exactMap.get(rawSku);
     if (exact) { stats.exact++; if (exact.product_status === 'active' && exact.sku_status === 'active') stats.exactActive++; }
 
-    const colorCode = String(item.color || '').toUpperCase();
-    const sizeKey = norm(first(item.nominalsize));
-    const itemFinish = norm(first(item.finish));
-    let candidates = active.filter(c => colorCode && c.vendor_sku.toUpperCase().startsWith(colorCode));
-    const byPrefix = candidates.length;
-    candidates = candidates.filter(c => norm(c.size) === sizeKey);
-    const bySize = candidates.length;
-    candidates = candidates.filter(c => finishCompatible(norm(c.finish), itemFinish));
-    if (candidates.length > 1) {
-      const s = candidates.filter(c => norm(c.collection) === norm(item.seriesname));
-      if (s.length >= 1) candidates = s;
-    }
-    // Type alignment: field tile vs trim/accessory
-    if (candidates.length > 1) {
-      const portalIsTrim = /trim|installation/i.test(String(first(item.planproducttype) || ''));
-      const isTrimCand = (c) => c.variant_type === 'accessory' || /trim/i.test(c.product_name || '');
-      const aligned = candidates.filter(c => isTrimCand(c) === portalIsTrim);
-      if (aligned.length >= 1 && aligned.length < candidates.length) { candidates = aligned; stats.typeAligned = (stats.typeAligned || 0) + 1; }
-    }
-    // Marker tokens: candidate variants flagged MB (Microban) / BV (bevel) must be
-    // echoed by the portal sku/description, else dropped (and vice versa)
-    if (candidates.length > 1) {
-      const portalStr = (rawSku + ' ' + (item.skudescription || '')).toUpperCase();
-      for (const [tok, re] of [['MB', /MICROBAN|MB/], ['BV', /BEV/]]) {
-        const withTok = candidates.filter(c => c.vendor_sku.toUpperCase().slice(4).includes(tok));
-        if (withTok.length > 0 && withTok.length < candidates.length) {
-          const keep = re.test(portalStr) ? withTok : candidates.filter(c => !withTok.includes(c));
-          if (keep.length >= 1) candidates = keep;
-        }
-      }
-    }
-    // Shape alignment (Hexagon vs Straight Joint etc.)
-    if (candidates.length > 1) {
-      const itemShape = norm(first(item.shapeandmosaic));
-      if (itemShape) {
-        const shaped = candidates.filter(c => norm(c.shape) && norm(c.shape) === itemShape);
-        if (shaped.length >= 1 && shaped.length < candidates.length) { candidates = shaped; stats.shapeAligned = (stats.shapeAligned || 0) + 1; }
-      }
-    }
-    // Contiguous substring (color prefix stripped): trim codes share literal tokens
-    if (candidates.length > 1) {
-      const colorLen = colorCode.length;
-      const rem = norm(rawSku.slice(colorLen));
-      const scored = candidates.map(c => ({ c, score: lcSubstr(rem, norm(c.vendor_sku.slice(colorLen))) }));
-      const best = Math.max(...scored.map(x => x.score));
-      const winners = scored.filter(x => x.score === best);
-      if (winners.length === 1) { candidates = [winners[0].c]; stats.substrResolved = (stats.substrResolved || 0) + 1; }
-    }
-    if (candidates.length > 1 && item.classprices > 0) {
-      const withDiff = candidates.map(c => ({ c, diff: c.cost > 0 ? Math.abs(parseFloat(c.cost) - item.classprices) / item.classprices : Infinity }));
-      const close = withDiff.filter(x => x.diff < 0.03);
-      if (close.length === 1) { candidates = [close[0].c]; stats.priceResolved = (stats.priceResolved || 0) + 1; }
-    }
-    if (candidates.length > 1) {
-      const scored = candidates.map(c => ({ c, score: lcsLen(rawSku, c.vendor_sku.toUpperCase()) }));
-      const best = Math.max(...scored.map(x => x.score));
-      const winners = scored.filter(x => x.score === best);
-      if (winners.length === 1) candidates = [winners[0].c];
-    }
-
-    if (candidates.length === 1) { if (!exact || candidates[0].id !== exact.id) stats.crosswalked++; }
-    else if (candidates.length > 1) {
+    const res = crosswalkItem(item, index, stats);
+    if (res.state === 'matched') {
+      if (res.matches.length > 1) stats.split++;
+      if (!exact || res.matches.some(m => m.row.id !== exact.id)) stats.crosswalked++;
+    } else if (res.state === 'ambiguous') {
       stats.ambiguous++;
       ambiguous.push({
         sku: item.sku, size: first(item.nominalsize), finish: first(item.finish),
         shape: first(item.shapeandmosaic), series: item.seriesname,
-        classprices: item.classprices, cands: candidates.map(c => `${c.vendor_sku}[$${c.cost}]`),
+        classprices: item.classprices, cands: res.candidates.map(c => `${c.vendor_sku}[$${c.cost}]`),
       });
     } else if (!exact) {
       stats.unmatched++;
-      // Explain: how far did the funnel get?
-      const prefixSizes = [...new Set(active.filter(c => colorCode && c.vendor_sku.toUpperCase().startsWith(colorCode)).map(c => c.size))].slice(0, 8);
+      const colorCode = String(item.color || '').toUpperCase();
+      const byPrefix = active.filter(c => colorCode && c.vendor_sku.toUpperCase().startsWith(colorCode));
       unmatched.push({
         sku: item.sku, qty: item.inventoryitems, uom: item.uom,
         color: item.color, size: first(item.nominalsize), finish: first(item.finish),
         series: item.seriesname, type: first(item.planproducttype),
-        byPrefix, bySize, activeSizesForColor: prefixSizes,
+        byPrefix: byPrefix.length,
+        activeSizesForColor: [...new Set(byPrefix.map(c => `${c.size}→${canonSize(c.size)}`))].slice(0, 8),
       });
     }
   }
 
-  console.log('BASELINE:', JSON.stringify(stats));
+  console.log('RESULT:', JSON.stringify(stats));
   console.log('\n=== UNMATCHED with active same-color candidates (normalization gaps) ===');
   for (const u of unmatched.filter(u => u.byPrefix > 0).slice(0, 30)) {
-    console.log(` ${u.sku} | size=${u.size} finish=${u.finish} | prefix-cands=${u.byPrefix} size-cands=${u.bySize} | active sizes for ${u.color}: ${u.activeSizesForColor.join(', ')}`);
+    console.log(` ${u.sku} | size=${u.size}→${canonSize(u.size)} finish=${u.finish} | prefix-cands=${u.byPrefix} | active sizes for ${u.color}: ${u.activeSizesForColor.join(', ')}`);
   }
   console.log('\n=== UNMATCHED with NO active same-color SKU (not in catalog) ===');
   const noCat = unmatched.filter(u => u.byPrefix === 0);
@@ -166,7 +84,7 @@ async function main() {
   console.log('by product type:', JSON.stringify(byType));
   console.log('\n=== AMBIGUOUS (first 20) ===');
   for (const a of ambiguous.slice(0, 20)) {
-    console.log(` ${a.sku} [$${a.classprices}] → ${a.cands.join(' | ')}`);
+    console.log(` ${a.sku} [$${a.classprices}] shape=${a.shape} → ${a.cands.join(' | ')}`);
   }
   await pool.end();
 }
