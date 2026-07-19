@@ -10736,12 +10736,20 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             const failMessage = pi.last_payment_error ? pi.last_payment_error.message : (payMethod === 'bank_transfer' ? 'Bank transfer payment failed' : 'ACH payment failed');
             await logOrderActivity(pool, order.id, 'payment_failed', null, 'System',
               { method: payMethod, error: failMessage });
-            // Notify assigned rep
+            // Notify assigned rep + create a due-today follow-up task (deduped per order)
             if (order.sales_rep_id) {
               setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'payment_failed',
                 payMethod.replace('_', ' ') + ' payment failed for ' + order.order_number,
                 failMessage + '. The order remains pending — retry or switch payment method.',
                 'order', order.id));
+              setImmediate(() => createAutoTask(pool, order.sales_rep_id, 'payment_failed', order.id,
+                'Resolve failed payment on ' + order.order_number, {
+                  description: failMessage + '. Retry the charge or switch payment method.',
+                  priority: 'high',
+                  customer_name: order.customer_name, customer_email: order.customer_email,
+                  customer_phone: order.customer_phone,
+                  linked_order_id: order.id
+                }));
             }
           }
         }
@@ -19351,7 +19359,7 @@ app.delete('/api/rep/notifications/read', repAuth, async (req, res) => {
 // GET /api/rep/tasks — List tasks with filters
 app.get('/api/rep/tasks', repAuth, async (req, res) => {
   try {
-    const { status, priority, due_from, due_to, completed_from, linked_type, search, source } = req.query;
+    const { status, priority, due_from, due_to, completed_from, linked_type, search, source, snoozed } = req.query;
     let where = 'WHERE t.rep_id = $1';
     const params = [req.rep.id];
     let idx = 2;
@@ -19369,8 +19377,23 @@ app.get('/api/rep/tasks', repAuth, async (req, res) => {
     else if (linked_type === 'estimate') { where += ' AND t.linked_estimate_id IS NOT NULL'; }
     else if (linked_type === 'deal') { where += ' AND t.linked_deal_id IS NOT NULL'; }
     if (search) { where += ` AND (t.title ILIKE $${idx} OR t.description ILIKE $${idx} OR t.customer_name ILIKE $${idx})`; params.push(`%${search}%`); idx++; }
-    // Hide snoozed tasks
-    where += ' AND (t.snoozed_until IS NULL OR t.snoozed_until <= CURRENT_DATE)';
+    if (snoozed === 'true') {
+      // Snoozed view: only open tasks parked for a future date
+      where += " AND t.status = 'open' AND t.snoozed_until > CURRENT_DATE";
+    } else {
+      // Hide snoozed tasks
+      where += ' AND (t.snoozed_until IS NULL OR t.snoozed_until <= CURRENT_DATE)';
+    }
+
+    const orderBy = status === 'completed'
+      ? 't.completed_at DESC'
+      : snoozed === 'true'
+      ? 't.snoozed_until ASC, CASE t.priority WHEN \'high\' THEN 0 WHEN \'medium\' THEN 1 ELSE 2 END'
+      : `CASE WHEN t.status = 'open' THEN 0 ELSE 1 END,
+        CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END,
+        t.due_date ASC,
+        CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+        t.created_at DESC`;
 
     const result = await pool.query(`
       SELECT t.*,
@@ -19384,14 +19407,38 @@ app.get('/api/rep/tasks', repAuth, async (req, res) => {
       LEFT JOIN estimates e ON e.id = t.linked_estimate_id
       LEFT JOIN deals d ON d.id = t.linked_deal_id
       ${where}
-      ORDER BY
-        CASE WHEN t.status = 'open' THEN 0 ELSE 1 END,
-        CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END,
-        t.due_date ASC,
-        CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
-        t.created_at DESC
+      ORDER BY ${orderBy}
     `, params);
-    res.json({ tasks: result.rows });
+
+    // View counts across the whole task list (unfiltered) — powers the filter chips
+    const countsResult = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE status = 'open' AND (snoozed_until IS NULL OR snoozed_until <= CURRENT_DATE))::int AS open,
+        COUNT(*) FILTER (WHERE status = 'open' AND (snoozed_until IS NULL OR snoozed_until <= CURRENT_DATE) AND due_date < CURRENT_DATE)::int AS overdue,
+        COUNT(*) FILTER (WHERE status = 'open' AND (snoozed_until IS NULL OR snoozed_until <= CURRENT_DATE) AND due_date = CURRENT_DATE)::int AS due_today,
+        COUNT(*) FILTER (WHERE status = 'open' AND snoozed_until > CURRENT_DATE)::int AS snoozed,
+        COUNT(*) FILTER (WHERE status = 'completed')::int AS completed
+      FROM rep_tasks WHERE rep_id = $1
+    `, [req.rep.id]);
+
+    res.json({ tasks: result.rows, counts: countsResult.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/rep/tasks/count — Lightweight badge count (due today or overdue)
+app.get('/api/rep/tasks/count', repAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE due_date <= CURRENT_DATE)::int AS due_count,
+        COUNT(*) FILTER (WHERE due_date < CURRENT_DATE)::int AS overdue_count
+      FROM rep_tasks
+      WHERE rep_id = $1 AND status = 'open'
+        AND (snoozed_until IS NULL OR snoozed_until <= CURRENT_DATE)
+    `, [req.rep.id]);
+    res.json(result.rows[0]);
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -19547,16 +19594,18 @@ app.put('/api/rep/tasks/:id/snooze', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { snooze_until } = req.body;
-    if (!snooze_until) return res.status(400).json({ error: 'snooze_until date is required' });
-    const snoozeDate = new Date(snooze_until + 'T00:00:00');
-    const today = new Date(); today.setHours(0,0,0,0);
-    if (snoozeDate <= today) return res.status(400).json({ error: 'Snooze date must be in the future' });
+    if (snooze_until) {
+      const snoozeDate = new Date(snooze_until + 'T00:00:00');
+      const today = new Date(); today.setHours(0,0,0,0);
+      if (snoozeDate <= today) return res.status(400).json({ error: 'Snooze date must be in the future' });
+    }
 
+    // A null/empty snooze_until clears the snooze (wake now)
     const result = await pool.query(`
       UPDATE rep_tasks SET snoozed_until = $1, updated_at = CURRENT_TIMESTAMP
       WHERE id = $2 AND rep_id = $3 AND status = 'open'
       RETURNING *
-    `, [snooze_until, id, req.rep.id]);
+    `, [snooze_until || null, id, req.rep.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Task not found or not open' });
     res.json({ task: result.rows[0] });
   } catch (err) {

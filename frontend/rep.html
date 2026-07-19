@@ -2595,6 +2595,176 @@
       .nin-group-label, .nin-row { padding-left: 11px; padding-right: 14px; }
     }
 
+    /* Tasks (tk-*) — shares nin-list / nin-group-label / nin-filters / nin-chip chrome */
+    .rep-topbar-count {
+      margin-left: 2px;
+      padding: 2px 6px;
+      border-radius: 8px;
+      background: var(--rod-accent);
+      color: #fff;
+      font: 500 9px/1 ui-monospace, monospace;
+    }
+    .tk-row {
+      display: grid;
+      grid-template-columns: 20px 4px 1fr auto;
+      gap: 14px;
+      align-items: start;
+      padding: 13px 22px;
+      border-bottom: 0.5px solid rgba(28,25,23,0.08);
+      transition: background 0.1s;
+    }
+    .tk-row:last-child { border-bottom: none; }
+    .tk-row:hover { background: rgba(28,25,23,0.03); }
+    .tk-check {
+      width: 20px; height: 20px;
+      border-radius: 4px;
+      border: 1.5px solid rgba(28,25,23,0.35);
+      background: transparent;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+      font: 500 12px/1 'Inter', sans-serif;
+      margin-top: 1px;
+      padding: 0;
+      transition: border-color 0.15s, background 0.15s;
+      flex-shrink: 0;
+    }
+    .tk-check:hover { border-color: var(--rod-green); }
+    .tk-check.done { border-color: var(--rod-green); background: var(--rod-green); }
+    .tk-priority-bar { width: 4px; height: 20px; margin-top: 1px; }
+    .tk-priority-bar.high { background: var(--rod-red); }
+    .tk-priority-bar.medium { background: var(--rod-accent); }
+    .tk-priority-bar.low { background: rgba(28,25,23,0.18); }
+    .tk-title {
+      font: 400 14px/1.35 'Inter', sans-serif;
+      color: var(--rod-ink);
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
+    .tk-title.editable { cursor: pointer; }
+    .tk-title.editable:hover { color: var(--rod-accent); }
+    .tk-title.done { color: rgba(28,25,23,0.45); text-decoration: line-through; }
+    .tk-auto-chip {
+      padding: 2px 7px;
+      background: rgba(168,121,53,0.12);
+      color: var(--rod-accent);
+      font: 500 9px/1.3 ui-monospace, monospace;
+      letter-spacing: 0.14em; text-transform: uppercase;
+    }
+    .tk-desc {
+      font: 400 12.5px/1.5 'Inter', sans-serif;
+      color: rgba(28,25,23,0.55);
+      margin-top: 3px;
+    }
+    .tk-contact {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      margin-top: 4px;
+      font: 400 12px/1.4 'Inter', sans-serif;
+      color: rgba(28,25,23,0.65);
+    }
+    .tk-contact a { color: var(--rod-accent); text-decoration: none; }
+    .tk-contact a:hover { text-decoration: underline; }
+    .tk-row-right {
+      display: flex; gap: 6px; align-items: center; justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+    .tk-ref {
+      padding: 3px 8px;
+      border: 0.5px solid rgba(28,25,23,0.18);
+      background: #fff;
+      cursor: pointer;
+      font: 500 9px/1.3 ui-monospace, monospace;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--rod-ink);
+    }
+    .tk-ref:hover { border-color: rgba(28,25,23,0.45); }
+    .tk-due {
+      padding: 3px 8px;
+      font: 500 9px/1.3 ui-monospace, monospace;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .tk-icon-btn {
+      width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      border: 0.5px solid rgba(28,25,23,0.18);
+      background: transparent;
+      cursor: pointer;
+      color: var(--rod-muted);
+      padding: 0;
+    }
+    .tk-icon-btn:hover { border-color: rgba(28,25,23,0.45); color: var(--rod-ink); }
+    .tk-menu {
+      position: absolute; right: 0; top: 100%; margin-top: 4px;
+      background: #f5f1e8;
+      border: 0.5px solid rgba(28,25,23,0.25);
+      box-shadow: 0 8px 24px rgba(28,25,23,0.14);
+      z-index: 60;
+      min-width: 150px;
+    }
+    .tk-menu button {
+      display: block; width: 100%; text-align: left;
+      padding: 9px 14px;
+      background: none; border: none; cursor: pointer;
+      font: 400 12.5px/1 'Inter', sans-serif;
+      color: var(--rod-ink);
+      border-bottom: 0.5px solid rgba(28,25,23,0.06);
+    }
+    .tk-menu button:last-child { border-bottom: none; }
+    .tk-menu button:hover { background: rgba(28,25,23,0.05); }
+    .tk-completed-at {
+      font: 500 9px/1.3 ui-monospace, monospace;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--rod-muted);
+      white-space: nowrap;
+    }
+    .tk-modal {
+      width: 480px;
+      max-width: calc(100vw - 32px);
+      background: #f5f1e8;
+      border: 0.5px solid rgba(28,25,23,0.3);
+      box-shadow: 0 24px 64px rgba(28,25,23,0.25);
+    }
+    .tk-modal-header {
+      padding: 16px 20px;
+      border-bottom: 0.5px solid rgba(28,25,23,0.14);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .tk-modal-title {
+      font: 300 24px/1 'Cormorant Garamond', serif;
+      letter-spacing: -0.01em;
+      color: var(--rod-ink);
+    }
+    .tk-modal-close {
+      background: none; border: none; cursor: pointer;
+      font: 300 20px/1 'Inter', sans-serif;
+      color: var(--rod-muted);
+      padding: 2px 6px;
+    }
+    .tk-modal-close:hover { color: var(--rod-ink); }
+    .tk-modal-body { padding: 18px 20px; }
+    .tk-modal-actions {
+      padding: 14px 20px;
+      border-top: 0.5px solid rgba(28,25,23,0.14);
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+    .tk-seg { display: flex; gap: 6px; }
+    .tk-seg button {
+      flex: 1;
+      padding: 9px 10px;
+      border: 0.5px solid rgba(28,25,23,0.2);
+      background: #fff;
+      cursor: pointer;
+      font: 500 10px/1 'Inter', sans-serif;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--rod-muted);
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    .tk-seg .tk-seg-dot { width: 8px; height: 8px; border-radius: 50%; }
+    @media (max-width: 768px) {
+      .tk-row { grid-template-columns: 20px 4px 1fr; padding: 12px 14px; }
+      .tk-row-right { grid-column: 3; justify-content: flex-start; margin-top: 6px; }
+    }
+
     /* Catalog grid */
     .cost-toggle {
       display: flex;
@@ -7475,18 +7645,23 @@
         return () => window.removeEventListener('popstate', onPopState);
       }, []);
 
-      // Poll unread count every 45 seconds
-      const pollNotifCount = useCallback(() => {
+      // Poll unread notifications + due-task counts every 45 seconds
+      const [tasksDueCount, setTasksDueCount] = useState(0);
+      const [tasksOverdueCount, setTasksOverdueCount] = useState(0);
+      const pollBadges = useCallback(() => {
         repFetch('/api/rep/notifications/count')
           .then(d => setUnreadCount(d.unread_count || 0))
+          .catch(() => {});
+        repFetch('/api/rep/tasks/count')
+          .then(d => { setTasksDueCount(d.due_count || 0); setTasksOverdueCount(d.overdue_count || 0); })
           .catch(() => {});
       }, []);
 
       useEffect(() => {
-        pollNotifCount();
-        const interval = setInterval(pollNotifCount, 45000);
+        pollBadges();
+        const interval = setInterval(pollBadges, 45000);
         return () => clearInterval(interval);
-      }, [pollNotifCount]);
+      }, [pollBadges]);
 
       // Close dropdown on outside click
       useEffect(() => {
@@ -7589,6 +7764,11 @@
               </button>
               <button className="rep-topbar-btn" onClick={() => navigate('tasks')}>
                 <span className="glyph">{'\u25C7'}</span> Tasks
+                {tasksDueCount > 0 && (
+                  <span className="rep-topbar-count" style={tasksOverdueCount > 0 ? { background: 'var(--rod-red)' } : undefined}>
+                    {tasksDueCount}
+                  </span>
+                )}
               </button>
               <div style={{ position: 'relative' }} ref={notifRef}>
                 <button className="rep-topbar-btn" onClick={openNotifDropdown}>
@@ -7702,7 +7882,7 @@
             </div>
             <div className="rep-content">
               {view === 'dashboard' && <RepDashboardView navigate={navigate} />}
-              {view === 'tasks' && <RepTasksListView navigate={navigate} />}
+              {view === 'tasks' && <RepTasksListView navigate={navigate} onChanged={pollBadges} />}
               {view === 'catalog' && <RepCatalogView navigate={navigate} showCost={showCost} setShowCost={setShowCost} />}
               {view === 'product-detail' && <RepProductDetailView navigate={navigate} editId={editId} showCost={showCost} setShowCost={setShowCost} />}
               {view === 'orders' && <RepOrdersListView navigate={navigate} />}
@@ -7723,7 +7903,7 @@
               {view === 'samples' && <RepSampleRequestsListView navigate={navigate} />}
               {view === 'sample-create' && <RepSampleRequestCreateView navigate={navigate} />}
               {view === 'sample-detail' && <RepSampleRequestDetailView navigate={navigate} editId={editId} terminalRef={terminalRef} terminalStatus={terminalStatus} connectReader={connectReader} />}
-              {view === 'notifications' && <RepNotificationsListView navigate={navigate} onUnreadChange={pollNotifCount} />}
+              {view === 'notifications' && <RepNotificationsListView navigate={navigate} onUnreadChange={pollBadges} />}
               {view === 'cash-drawer' && <RepCashDrawerView navigate={navigate} />}
               {view === 'purchase-orders' && <RepPurchaseOrdersListView navigate={navigate} />}
               {view === 'purchase-order-detail' && <RepPurchaseOrderDetailView navigate={navigate} editId={editId} />}
@@ -23045,49 +23225,48 @@
       );
     }
 
-    // ========== RepTasksListView ==========
-    function RepTasksListView({ navigate }) {
+    // ========== RepTasksListView (Tasks) ==========
+    const TK_VIEWS = [
+      { key: 'open', label: 'Open' },
+      { key: 'today', label: 'Today' },
+      { key: 'overdue', label: 'Overdue' },
+      { key: 'snoozed', label: 'Snoozed' },
+      { key: 'done', label: 'Done' },
+    ];
+
+    function RepTasksListView({ navigate, onChanged }) {
       const [tasks, setTasks] = useState([]);
+      const [counts, setCounts] = useState(null);
       const [loading, setLoading] = useState(true);
-      const [statusFilter, setStatusFilter] = useState('open');
+      const [viewKey, setViewKey] = useState('open');
       const [priorityFilter, setPriorityFilter] = useState('');
       const [sourceFilter, setSourceFilter] = useState('');
       const [search, setSearch] = useState('');
       const [showModal, setShowModal] = useState(false);
       const [editingTask, setEditingTask] = useState(null);
       const [snoozeMenuId, setSnoozeMenuId] = useState(null);
-      const [confirmCompleteTask, setConfirmCompleteTask] = useState(null);
-
-      // Completed history state
-      const [showCompleted, setShowCompleted] = useState(false);
-      const [completedTasks, setCompletedTasks] = useState([]);
-      const [completedLoading, setCompletedLoading] = useState(false);
-      const [completedPeriod, setCompletedPeriod] = useState('7');
 
       const load = useCallback(() => {
         setLoading(true);
         const params = new URLSearchParams();
-        if (statusFilter) params.set('status', statusFilter);
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (viewKey === 'open') params.set('status', 'open');
+        else if (viewKey === 'today') { params.set('status', 'open'); params.set('due_from', todayStr); params.set('due_to', todayStr); }
+        else if (viewKey === 'overdue') {
+          params.set('status', 'open');
+          params.set('due_to', new Date(Date.now() - 86400000).toISOString().split('T')[0]);
+        }
+        else if (viewKey === 'snoozed') params.set('snoozed', 'true');
+        else if (viewKey === 'done') params.set('status', 'completed');
         if (priorityFilter) params.set('priority', priorityFilter);
         if (sourceFilter) params.set('source', sourceFilter);
         if (search) params.set('search', search);
         repFetch('/api/rep/tasks?' + params.toString())
-          .then(d => { setTasks(d.tasks || []); setLoading(false); })
+          .then(d => { setTasks(d.tasks || []); setCounts(d.counts || null); setLoading(false); })
           .catch(() => setLoading(false));
-      }, [statusFilter, priorityFilter, sourceFilter, search]);
+      }, [viewKey, priorityFilter, sourceFilter, search]);
 
       useEffect(load, [load]);
-
-      const loadCompleted = useCallback(() => {
-        setCompletedLoading(true);
-        const days = parseInt(completedPeriod) || 7;
-        const from = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
-        repFetch('/api/rep/tasks?status=completed&completed_from=' + from)
-          .then(d => { setCompletedTasks(d.tasks || []); setCompletedLoading(false); })
-          .catch(() => setCompletedLoading(false));
-      }, [completedPeriod]);
-
-      useEffect(() => { if (showCompleted) loadCompleted(); }, [showCompleted, loadCompleted]);
 
       // Close snooze menu on outside click
       useEffect(() => {
@@ -23097,133 +23276,139 @@
         return () => document.removeEventListener('click', handler);
       }, [snoozeMenuId]);
 
-      const handleCheckboxClick = (task) => {
-        if (task.status === 'completed') {
-          // Reopen immediately, no confirmation needed
-          reopenTask(task.id);
-        } else {
-          setConfirmCompleteTask(task);
-        }
-      };
+      const afterChange = () => { load(); if (onChanged) onChanged(); };
 
-      const completeTask = async (id) => {
-        await repFetch('/api/rep/tasks/' + id + '/complete', { method: 'PUT' });
-        setConfirmCompleteTask(null);
-        load();
-        if (showCompleted) loadCompleted();
+      const toggleTask = async (t) => {
+        if (t.status === 'completed') await repFetch('/api/rep/tasks/' + t.id + '/reopen', { method: 'PUT' });
+        else await repFetch('/api/rep/tasks/' + t.id + '/complete', { method: 'PUT' });
+        afterChange();
       };
-
-      const reopenTask = async (id) => {
-        await repFetch('/api/rep/tasks/' + id + '/reopen', { method: 'PUT' });
-        load();
-        if (showCompleted) loadCompleted();
-      };
-
       const deleteTask = async (id) => {
         if (!confirm('Delete this task?')) return;
         await repFetch('/api/rep/tasks/' + id, { method: 'DELETE' });
-        load();
+        afterChange();
       };
-
       const dismissTask = async (id) => {
         await repFetch('/api/rep/tasks/' + id + '/dismiss', { method: 'PUT' });
-        load();
+        afterChange();
       };
-
       const snoozeTask = async (id, days) => {
-        const d = new Date(Date.now() + days * 86400000);
-        const dateStr = d.toISOString().split('T')[0];
-        await repFetch('/api/rep/tasks/' + id + '/snooze', {
-          method: 'PUT', body: JSON.stringify({ snooze_until: dateStr })
-        });
+        const dateStr = new Date(Date.now() + days * 86400000).toISOString().split('T')[0];
+        await repFetch('/api/rep/tasks/' + id + '/snooze', { method: 'PUT', body: JSON.stringify({ snooze_until: dateStr }) });
         setSnoozeMenuId(null);
-        load();
+        afterChange();
+      };
+      const wakeTask = async (id) => {
+        await repFetch('/api/rep/tasks/' + id + '/snooze', { method: 'PUT', body: JSON.stringify({ snooze_until: null }) });
+        afterChange();
       };
 
-      const formatDue = (dateStr) => {
+      const dueMeta = (dateStr) => {
         if (!dateStr) return null;
-        const d = new Date(dateStr + 'T00:00:00');
-        const today = new Date(); today.setHours(0,0,0,0);
-        const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-        const diff = Math.floor((d - today) / 86400000);
-        if (diff < 0) return { text: Math.abs(diff) + 'd overdue', cls: 'task-overdue', bg: '#fef2f2', color: '#dc2626' };
-        if (diff === 0) return { text: 'Today', cls: 'task-today', bg: '#fefce8', color: '#92400e' };
-        if (diff === 1) return { text: 'Tomorrow', cls: '', bg: '#f0fdf4', color: '#15803d' };
-        if (diff <= 7) return { text: d.toLocaleDateString('en-US', { weekday: 'short' }), cls: '', bg: '#eff6ff', color: '#2563eb' };
-        return { text: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), cls: '', bg: 'var(--stone-100)', color: 'var(--stone-600)' };
+        const d = new Date(String(dateStr).split('T')[0] + 'T00:00:00');
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const diff = Math.round((d - today) / 86400000);
+        if (diff < 0) return { text: Math.abs(diff) + 'd overdue', tone: '#c54731', group: 'Overdue' };
+        if (diff === 0) return { text: 'Today', tone: '#a87935', group: 'Today' };
+        if (diff === 1) return { text: 'Tomorrow', tone: '#3a7a4e', group: 'Tomorrow' };
+        if (diff < 7) return { text: d.toLocaleDateString('en-US', { weekday: 'short' }), tone: '#8a7e68', group: 'This week' };
+        return { text: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), tone: '#8a7e68', group: 'Later' };
+      };
+      const fmtCompletedAt = (ts) => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+      const fmtWake = (dateStr) => new Date(String(dateStr).split('T')[0] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      // Backend orders open tasks by due date, so consecutive grouping is safe
+      const groups = [];
+      if (viewKey === 'open') {
+        tasks.forEach(t => {
+          const label = t.due_date ? dueMeta(t.due_date).group : 'No due date';
+          let g = groups[groups.length - 1];
+          if (!g || g.label !== label) { g = { label, items: [] }; groups.push(g); }
+          g.items.push(t);
+        });
+      } else {
+        groups.push({ label: null, items: tasks });
+      }
+
+      const chipCount = (k) => {
+        if (!counts) return null;
+        return { open: counts.open, today: counts.due_today, overdue: counts.overdue, snoozed: counts.snoozed, done: counts.completed }[k];
       };
 
-      const formatCompletedDate = (dateStr) => {
-        if (!dateStr) return '';
-        return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-      };
+      const emptyText = {
+        open: "No open tasks — you're all caught up.",
+        today: 'Nothing due today.',
+        overdue: 'Nothing overdue. Nice.',
+        snoozed: 'No snoozed tasks.',
+        done: 'No completed tasks yet.',
+      }[viewKey];
 
-      const openEdit = (task) => {
-        if (task.source === 'auto') return; // Auto-tasks are not editable
-        setEditingTask(task); setShowModal(true);
-      };
-      const openNew = () => { setEditingTask(null); setShowModal(true); };
-
-      const renderTaskRow = (t, opts = {}) => {
-        const due = formatDue(t.due_date);
+      const renderRow = (t) => {
         const isDone = t.status === 'completed';
         const isAuto = t.source === 'auto';
+        const due = dueMeta(t.due_date);
         return (
-          <div className="task-row" key={t.id} style={{ flexWrap: 'wrap' }}>
-            <div className={'task-check' + (isDone ? ' done' : '')} onClick={() => handleCheckboxClick(t)}>
-              {isDone && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M5 13l4 4L19 7"/></svg>}
-            </div>
-            <span className={'priority-dot ' + t.priority} title={t.priority + ' priority'} />
-            <div className={'task-title' + (isDone ? ' done' : '')} style={{ cursor: isAuto && !isDone ? 'default' : isDone ? 'default' : 'pointer' }} onClick={() => !isDone && openEdit(t)}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <div className="tk-row" key={t.id}>
+            <button className={'tk-check' + (isDone ? ' done' : '')} onClick={() => toggleTask(t)}
+              title={isDone ? 'Reopen' : 'Mark complete'}>
+              {isDone ? '✓' : ''}
+            </button>
+            <div className={'tk-priority-bar ' + t.priority} title={t.priority + ' priority'} />
+            <div>
+              <div className={'tk-title' + (isDone ? ' done' : '') + (!isAuto && !isDone ? ' editable' : '')}
+                onClick={() => { if (!isAuto && !isDone) { setEditingTask(t); setShowModal(true); } }}>
                 {t.title}
-                {isAuto && <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '0.1rem 0.4rem', borderRadius: '1rem', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>AUTO</span>}
+                {isAuto && <span className="tk-auto-chip">Auto</span>}
               </div>
-              {t.description && <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', marginTop: '0.125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.description}</div>}
-              {isAuto && (t.customer_name || t.customer_email || t.customer_phone) && (
-                <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.2rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {t.description && <div className="tk-desc">{t.description}</div>}
+              {(t.customer_name || t.customer_email || t.customer_phone) && (
+                <div className="tk-contact">
                   {t.customer_name && <span>{t.customer_name}</span>}
-                  {t.customer_email && <a href={'mailto:' + t.customer_email} onClick={e => e.stopPropagation()} style={{ color: '#2563eb' }}>{t.customer_email}</a>}
-                  {t.customer_phone && <a href={'tel:' + t.customer_phone} onClick={e => e.stopPropagation()} style={{ color: '#2563eb' }}>{t.customer_phone}</a>}
+                  {t.customer_email && <a href={'mailto:' + t.customer_email} onClick={e => e.stopPropagation()}>{t.customer_email}</a>}
+                  {t.customer_phone && <a href={'tel:' + t.customer_phone} onClick={e => e.stopPropagation()}>{t.customer_phone}</a>}
                 </div>
               )}
-              {isDone && t.completed_at && <div style={{ fontSize: '0.7rem', color: 'var(--stone-400)', marginTop: '0.15rem', textDecoration: 'none' }}>Completed {formatCompletedDate(t.completed_at)}</div>}
             </div>
-            <div className="task-meta">
-              {t.linked_order_number && <span className="task-link" onClick={() => navigate('order-detail', t.linked_order_id)}>{t.linked_order_number}</span>}
-              {t.linked_quote_number && <span className="task-link" onClick={() => navigate('quote-edit', t.linked_quote_id)}>{t.linked_quote_number}</span>}
-              {t.linked_estimate_number && <span className="task-link" onClick={() => navigate('estimate-edit', t.linked_estimate_id)}>{t.linked_estimate_number}</span>}
-              {t.linked_deal_title && <span className="task-link">{t.linked_deal_title}</span>}
-              {due && <span className="task-due" style={{ background: due.bg, color: due.color }}>{due.text}</span>}
-              {/* Snooze button */}
-              {t.status === 'open' && (
-                <div style={{ position: 'relative', display: 'inline-block' }}>
-                  <button className="btn btn-secondary btn-sm" title="Snooze" onClick={(e) => { e.stopPropagation(); setSnoozeMenuId(snoozeMenuId === t.id ? null : t.id); }}
-                    style={{ padding: '0.2rem 0.4rem', minWidth: 0, fontSize: '0.75rem', color: 'var(--stone-400)' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            <div className="tk-row-right">
+              {t.linked_order_number && <span className="tk-ref" onClick={() => navigate('order-detail', t.linked_order_id)}>{t.linked_order_number}</span>}
+              {t.linked_quote_number && <span className="tk-ref" onClick={() => navigate('quote-edit', t.linked_quote_id)}>{t.linked_quote_number}</span>}
+              {t.linked_estimate_number && <span className="tk-ref" onClick={() => navigate('estimate-edit', t.linked_estimate_id)}>{t.linked_estimate_number}</span>}
+              {t.linked_deal_title && <span className="tk-ref" style={{ cursor: 'default' }}>{t.linked_deal_title}</span>}
+              {viewKey === 'snoozed' && t.snoozed_until && (
+                <span className="tk-due" style={{ color: '#8a7e68', background: 'rgba(28,25,23,0.06)' }}>Wakes {fmtWake(t.snoozed_until)}</span>
+              )}
+              {!isDone && viewKey !== 'snoozed' && due && (
+                <span className="tk-due" style={{ color: due.tone, background: due.tone + '1a' }}>{due.text}</span>
+              )}
+              {isDone && t.completed_at && <span className="tk-completed-at">Done {fmtCompletedAt(t.completed_at)}</span>}
+              {viewKey === 'snoozed' && (
+                <button className="tk-icon-btn"
+                  style={{ width: 'auto', padding: '0 10px', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase' }}
+                  onClick={() => wakeTask(t.id)}>Wake now</button>
+              )}
+              {!isDone && viewKey !== 'snoozed' && (
+                <div style={{ position: 'relative' }}>
+                  <button className="tk-icon-btn" title="Snooze" onClick={e => { e.stopPropagation(); setSnoozeMenuId(snoozeMenuId === t.id ? null : t.id); }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                   </button>
                   {snoozeMenuId === t.id && (
-                    <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', right: 0, top: '100%', marginTop: '0.25rem', background: 'white', border: '1px solid var(--stone-200)', borderRadius: '0.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 100, minWidth: '140px', padding: '0.25rem 0' }}>
+                    <div className="tk-menu" onClick={e => e.stopPropagation()}>
                       {[{ label: 'Tomorrow', days: 1 }, { label: 'In 3 days', days: 3 }, { label: 'Next week', days: 7 }, { label: 'In 2 weeks', days: 14 }].map(opt => (
-                        <button key={opt.days} onClick={() => snoozeTask(t.id, opt.days)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.4rem 0.75rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--stone-700)' }}
-                          onMouseEnter={e => e.target.style.background = 'var(--stone-50)'} onMouseLeave={e => e.target.style.background = 'none'}>
-                          {opt.label}
-                        </button>
+                        <button key={opt.days} onClick={() => snoozeTask(t.id, opt.days)}>{opt.label}</button>
                       ))}
                     </div>
                   )}
                 </div>
               )}
-              {/* Dismiss for auto, Delete for manual */}
-              {!isDone && isAuto ? (
-                <button className="btn btn-secondary btn-sm" onClick={() => dismissTask(t.id)} title="Dismiss" style={{ padding: '0.2rem 0.4rem', minWidth: 0, fontSize: '0.75rem', color: 'var(--stone-400)' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              {!isDone && (isAuto ? (
+                <button className="tk-icon-btn" title="Dismiss" onClick={() => dismissTask(t.id)}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                 </button>
-              ) : !isDone ? (
-                <button className="btn btn-secondary btn-sm" onClick={() => deleteTask(t.id)} title="Delete" style={{ padding: '0.2rem 0.4rem', minWidth: 0, fontSize: '0.75rem', color: 'var(--stone-400)' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              ) : (
+                <button className="tk-icon-btn" title="Delete" onClick={() => deleteTask(t.id)}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 </button>
-              ) : null}
+              ))}
             </div>
           </div>
         );
@@ -23231,102 +23416,63 @@
 
       return (
         <div>
-          <div className="content-header">
-            <h1>Tasks</h1>
-            <button className="btn btn-primary" onClick={openNew}>+ New Task</button>
+          <div className="ol-header">
+            <div>
+              <div className="ol-header-label">
+                {'◇'} Tasks{counts ? ' · ' + counts.open + ' open' : ''}
+                {counts && counts.overdue > 0 && <span style={{ color: 'var(--rod-red)' }}>{' · ' + counts.overdue + ' overdue'}</span>}
+              </div>
+              <h1><em>Tasks</em></h1>
+              <div style={{ font: "400 14px/1.5 'Inter', sans-serif", color: 'rgba(28,25,23,0.7)', marginTop: 6 }}>
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} {'·'} follow-ups and to-dos, sorted by urgency
+              </div>
+            </div>
+            <div className="ol-header-actions">
+              <button className="ol-header-btn primary" onClick={() => { setEditingTask(null); setShowModal(true); }}>+ New task</button>
+            </div>
           </div>
-          <div className="filter-bar">
-            <input type="text" placeholder="Search tasks..." value={search} onChange={e => setSearch(e.target.value)} />
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="open">Open</option>
-              <option value="">All</option>
-            </select>
-            <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}>
-              <option value="">All Priorities</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-            <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}>
-              <option value="">All Sources</option>
-              <option value="auto">Auto-generated</option>
-              <option value="manual">Manual</option>
-            </select>
-            <span className="filter-count">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
+          <div className="nin-filters">
+            <div className="nin-filter-chips">
+              {TK_VIEWS.map(v => (
+                <button key={v.key} className={'nin-chip' + (viewKey === v.key ? ' active' : '')} onClick={() => setViewKey(v.key)}>
+                  {v.label}
+                  {chipCount(v.key) != null && <span className="nin-chip-count">{chipCount(v.key)}</span>}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <select className="rod-input" style={{ width: 'auto', padding: '6px 8px' }} value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}>
+                <option value="">All priorities</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+              <select className="rod-input" style={{ width: 'auto', padding: '6px 8px' }} value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}>
+                <option value="">All sources</option>
+                <option value="auto">Auto</option>
+                <option value="manual">Manual</option>
+              </select>
+              <input className="ol-search-inline" style={{ paddingLeft: 12, minWidth: 170 }} placeholder="Search tasks…" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
           </div>
-          {loading ? <div className="loading">Loading tasks...</div> : tasks.length === 0 ? (
-            <div className="form-card" style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-400)' }}>
-              {statusFilter === 'open' ? 'No open tasks. You\'re all caught up!' : 'No tasks found.'}
+          {loading ? <div className="loading">Loading tasks…</div> : tasks.length === 0 ? (
+            <div className="nin-list">
+              <div className="nin-empty-state">
+                <div className="nin-empty-glyph">{'◇'}</div>
+                <div className="nin-empty-text">{emptyText}</div>
+              </div>
             </div>
           ) : (
-            <div className="form-card" style={{ padding: '0.5rem 1rem' }}>
-              {tasks.map(t => renderTaskRow(t))}
+            <div className="nin-list">
+              {groups.map((g, gi) => (
+                <div key={g.label || gi}>
+                  {g.label && <div className="nin-group-label" style={g.label === 'Overdue' ? { color: 'var(--rod-red)' } : undefined}>{g.label}</div>}
+                  {g.items.map(renderRow)}
+                </div>
+              ))}
             </div>
           )}
-
-          {/* Completed Tasks History */}
-          <div style={{ marginTop: '1.5rem' }}>
-            <button onClick={() => setShowCompleted(!showCompleted)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0', color: 'var(--stone-500)', fontSize: '0.85rem', fontWeight: 500 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: showCompleted ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform 0.15s' }}><path d="M9 18l6-6-6-6"/></svg>
-              Completed Tasks
-              {showCompleted && completedTasks.length > 0 && <span style={{ fontSize: '0.75rem', color: 'var(--stone-400)' }}>({completedTasks.length})</span>}
-            </button>
-            {showCompleted && (
-              <div style={{ marginTop: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--stone-500)' }}>Show last:</span>
-                  {[{ label: '7 days', value: '7' }, { label: '30 days', value: '30' }, { label: '90 days', value: '90' }].map(p => (
-                    <button key={p.value} onClick={() => setCompletedPeriod(p.value)}
-                      style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem', borderRadius: '1rem', border: '1px solid ' + (completedPeriod === p.value ? '#2563eb' : 'var(--stone-200)'), background: completedPeriod === p.value ? '#eff6ff' : 'white', color: completedPeriod === p.value ? '#2563eb' : 'var(--stone-500)', cursor: 'pointer', fontWeight: completedPeriod === p.value ? 600 : 400 }}>
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-                {completedLoading ? <div className="loading">Loading...</div> : completedTasks.length === 0 ? (
-                  <div className="form-card" style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--stone-400)' }}>
-                    No completed tasks in the last {completedPeriod} days.
-                  </div>
-                ) : (
-                  <div className="form-card" style={{ padding: '0.5rem 1rem', opacity: 0.85 }}>
-                    {completedTasks.map(t => renderTaskRow(t))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Confirm Complete Modal */}
-          {confirmCompleteTask && (
-            <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setConfirmCompleteTask(null); }}>
-              <div className="modal-content" style={{ maxWidth: 420 }}>
-                <div className="modal-header">
-                  <h2>Complete Task</h2>
-                  <button className="modal-close" onClick={() => setConfirmCompleteTask(null)}>&times;</button>
-                </div>
-                <div className="modal-body" style={{ padding: '1.25rem' }}>
-                  <p style={{ margin: '0 0 0.75rem', color: 'var(--stone-700)' }}>Mark this task as completed?</p>
-                  <div style={{ background: 'var(--stone-50)', borderRadius: '0.5rem', padding: '0.75rem 1rem' }}>
-                    <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <span className={'priority-dot ' + confirmCompleteTask.priority} />
-                      {confirmCompleteTask.title}
-                      {confirmCompleteTask.source === 'auto' && <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '0.1rem 0.4rem', borderRadius: '1rem' }}>AUTO</span>}
-                    </div>
-                    {confirmCompleteTask.customer_name && <div style={{ fontSize: '0.8rem', color: 'var(--stone-500)', marginTop: '0.25rem' }}>{confirmCompleteTask.customer_name}</div>}
-                    {confirmCompleteTask.description && <div style={{ fontSize: '0.8rem', color: 'var(--stone-400)', marginTop: '0.25rem' }}>{confirmCompleteTask.description}</div>}
-                  </div>
-                </div>
-                <div className="modal-actions">
-                  <button className="btn btn-secondary" onClick={() => setConfirmCompleteTask(null)}>Cancel</button>
-                  <button className="btn btn-primary" onClick={() => completeTask(confirmCompleteTask.id)}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '0.4rem' }}><path d="M5 13l4 4L19 7"/></svg>
-                    Complete
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showModal && <TaskCreateEditModal task={editingTask} onClose={() => { setShowModal(false); setEditingTask(null); }} onSaved={load} navigate={navigate} />}
+          {showModal && <TaskCreateEditModal task={editingTask} onClose={() => { setShowModal(false); setEditingTask(null); }} onSaved={afterChange} navigate={navigate} />}
         </div>
       );
     }
@@ -23335,33 +23481,25 @@
     function TaskCreateEditModal({ task, onClose, onSaved, navigate, prefill }) {
       const [title, setTitle] = useState(task ? task.title : (prefill && prefill.title) || '');
       const [description, setDescription] = useState(task ? task.description || '' : '');
-      const [dueDate, setDueDate] = useState(task && task.due_date ? task.due_date.split('T')[0] : '');
+      const [dueDate, setDueDate] = useState(task && task.due_date ? String(task.due_date).split('T')[0] : '');
       const [priority, setPriority] = useState(task ? task.priority : 'medium');
-      const [linkedOrderId, setLinkedOrderId] = useState(task ? task.linked_order_id : (prefill && prefill.linked_order_id) || null);
-      const [linkedQuoteId, setLinkedQuoteId] = useState(task ? task.linked_quote_id : (prefill && prefill.linked_quote_id) || null);
-      const [linkedEstimateId, setLinkedEstimateId] = useState(task ? task.linked_estimate_id : (prefill && prefill.linked_estimate_id) || null);
-      const [linkedDealId, setLinkedDealId] = useState(task ? task.linked_deal_id : (prefill && prefill.linked_deal_id) || null);
+      const [linkedOrderId] = useState(task ? task.linked_order_id : (prefill && prefill.linked_order_id) || null);
+      const [linkedQuoteId] = useState(task ? task.linked_quote_id : (prefill && prefill.linked_quote_id) || null);
+      const [linkedEstimateId] = useState(task ? task.linked_estimate_id : (prefill && prefill.linked_estimate_id) || null);
+      const [linkedDealId] = useState(task ? task.linked_deal_id : (prefill && prefill.linked_deal_id) || null);
       const [saving, setSaving] = useState(false);
 
-      const setQuickDate = (days) => {
-        const d = new Date(Date.now() + days * 86400000);
-        setDueDate(d.toISOString().split('T')[0]);
-      };
-
-      const quickDateMatch = (days) => {
-        if (!dueDate) return false;
-        const target = new Date(Date.now() + days * 86400000).toISOString().split('T')[0];
-        return dueDate === target;
-      };
+      const setQuickDate = (days) => setDueDate(new Date(Date.now() + days * 86400000).toISOString().split('T')[0]);
+      const quickDateMatch = (days) => !!dueDate && dueDate === new Date(Date.now() + days * 86400000).toISOString().split('T')[0];
 
       const priorities = [
-        { key: 'low', label: 'Low', color: '#16a34a', bg: '#f0fdf4' },
-        { key: 'medium', label: 'Medium', color: '#d97706', bg: '#fefce8' },
-        { key: 'high', label: 'High', color: '#dc2626', bg: '#fef2f2' }
+        { key: 'low', label: 'Low', tone: '#8a7e68' },
+        { key: 'medium', label: 'Medium', tone: '#a87935' },
+        { key: 'high', label: 'High', tone: '#c54731' },
       ];
 
       const save = async () => {
-        if (!title.trim()) return;
+        if (!title.trim() || saving) return;
         setSaving(true);
         const body = {
           title: title.trim(), description: description || null,
@@ -23369,94 +23507,58 @@
           linked_order_id: linkedOrderId, linked_quote_id: linkedQuoteId,
           linked_estimate_id: linkedEstimateId, linked_deal_id: linkedDealId
         };
-        if (task) {
-          await repFetch('/api/rep/tasks/' + task.id, { method: 'PUT', body: JSON.stringify(body) });
-        } else {
-          await repFetch('/api/rep/tasks', { method: 'POST', body: JSON.stringify(body) });
-        }
+        try {
+          if (task) await repFetch('/api/rep/tasks/' + task.id, { method: 'PUT', body: JSON.stringify(body) });
+          else await repFetch('/api/rep/tasks', { method: 'POST', body: JSON.stringify(body) });
+          onSaved();
+          onClose();
+        } catch (e) {}
         setSaving(false);
-        onSaved();
-        onClose();
-      };
-
-      const handleKeyDown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey && title.trim()) {
-          e.preventDefault();
-          save();
-        }
       };
 
       return (
-        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-          <div className="modal-content" style={{ maxWidth: 500, borderRadius: '0.75rem', overflow: 'hidden' }}>
-            {/* Header with colored accent */}
-            <div style={{ background: priority === 'high' ? '#fef2f2' : priority === 'medium' ? '#fefce8' : '#f0fdf4', padding: '1.25rem 1.5rem 1rem', borderBottom: '1px solid var(--stone-100)', transition: 'background 0.2s' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--stone-800)' }}>{task ? 'Edit Task' : 'New Task'}</h2>
-                <button className="modal-close" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', color: 'var(--stone-400)', lineHeight: 1, padding: '0.25rem' }}>&times;</button>
-              </div>
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+          <div className="tk-modal">
+            <div className="tk-modal-header">
+              <span className="tk-modal-title">{task ? 'Edit task' : 'New task'}</span>
+              <button className="tk-modal-close" onClick={onClose}>{'×'}</button>
             </div>
-
-            <div style={{ padding: '1.25rem 1.5rem' }}>
-              {/* Title */}
-              <input type="text" value={title} onChange={e => setTitle(e.target.value)} onKeyDown={handleKeyDown}
-                placeholder="What needs to be done?" autoFocus
-                style={{ width: '100%', padding: '0.7rem 0.85rem', fontSize: '0.95rem', border: '1.5px solid var(--stone-200)', borderRadius: '0.5rem', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s' }}
-                onFocus={e => e.target.style.borderColor = '#2563eb'} onBlur={e => e.target.style.borderColor = 'var(--stone-200)'} />
-
-              {/* Description */}
-              <textarea rows="2" value={description} onChange={e => setDescription(e.target.value)}
-                placeholder="Add details or notes..."
-                style={{ width: '100%', marginTop: '0.75rem', padding: '0.6rem 0.85rem', fontSize: '0.85rem', border: '1.5px solid var(--stone-200)', borderRadius: '0.5rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', transition: 'border-color 0.15s' }}
-                onFocus={e => e.target.style.borderColor = '#2563eb'} onBlur={e => e.target.style.borderColor = 'var(--stone-200)'} />
-
-              {/* Priority selector */}
-              <div style={{ marginTop: '1rem' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem', display: 'block' }}>Priority</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div className="tk-modal-body">
+              <label className="rod-field-label">Task</label>
+              <input className="rod-input" value={title} onChange={e => setTitle(e.target.value)} autoFocus
+                placeholder="What needs to be done?"
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); } }} />
+              <div style={{ marginTop: 14 }}>
+                <label className="rod-field-label">Notes</label>
+                <textarea className="rod-input" rows="2" value={description} onChange={e => setDescription(e.target.value)} placeholder="Details or context (optional)" />
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <label className="rod-field-label">Priority</label>
+                <div className="tk-seg">
                   {priorities.map(p => (
                     <button key={p.key} onClick={() => setPriority(p.key)}
-                      style={{ flex: 1, padding: '0.5rem', borderRadius: '0.5rem', border: priority === p.key ? '2px solid ' + p.color : '1.5px solid var(--stone-200)', background: priority === p.key ? p.bg : 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', fontSize: '0.8rem', fontWeight: priority === p.key ? 600 : 400, color: priority === p.key ? p.color : 'var(--stone-500)', transition: 'all 0.15s' }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, opacity: priority === p.key ? 1 : 0.4, transition: 'opacity 0.15s' }} />
+                      style={priority === p.key ? { borderColor: p.tone, color: p.tone, background: p.tone + '14' } : undefined}>
+                      <span className="tk-seg-dot" style={{ background: p.tone, opacity: priority === p.key ? 1 : 0.35 }} />
                       {p.label}
                     </button>
                   ))}
                 </div>
               </div>
-
-              {/* Due date */}
-              <div style={{ marginTop: '1rem' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--stone-500)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem', display: 'block' }}>Due Date</label>
-                <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ marginTop: 14 }}>
+                <label className="rod-field-label">Due date</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                   {[{ label: 'Today', days: 0 }, { label: 'Tomorrow', days: 1 }, { label: 'In 3 days', days: 3 }, { label: 'Next week', days: 7 }].map(q => (
-                    <button key={q.days} onClick={() => setQuickDate(q.days)}
-                      style={{ padding: '0.3rem 0.65rem', fontSize: '0.75rem', borderRadius: '1rem', border: quickDateMatch(q.days) ? '1.5px solid #2563eb' : '1px solid var(--stone-200)', background: quickDateMatch(q.days) ? '#eff6ff' : 'white', color: quickDateMatch(q.days) ? '#2563eb' : 'var(--stone-500)', cursor: 'pointer', fontWeight: quickDateMatch(q.days) ? 600 : 400, transition: 'all 0.15s' }}>
-                      {q.label}
-                    </button>
+                    <button key={q.days} className={'nin-chip' + (quickDateMatch(q.days) ? ' active' : '')} onClick={() => setQuickDate(q.days)}>{q.label}</button>
                   ))}
-                  {dueDate && (
-                    <button onClick={() => setDueDate('')}
-                      style={{ padding: '0.3rem 0.65rem', fontSize: '0.75rem', borderRadius: '1rem', border: '1px solid var(--stone-200)', background: 'white', color: 'var(--stone-400)', cursor: 'pointer' }}>
-                      Clear
-                    </button>
-                  )}
+                  {dueDate && <button className="nin-chip" onClick={() => setDueDate('')}>Clear</button>}
                 </div>
-                <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
-                  style={{ width: '100%', padding: '0.5rem 0.75rem', fontSize: '0.85rem', border: '1.5px solid var(--stone-200)', borderRadius: '0.5rem', outline: 'none', boxSizing: 'border-box', color: dueDate ? 'var(--stone-700)' : 'var(--stone-400)' }} />
+                <input type="date" className="rod-input" value={dueDate} onChange={e => setDueDate(e.target.value)} />
               </div>
             </div>
-
-            {/* Actions */}
-            <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--stone-100)', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', background: 'var(--stone-50)' }}>
-              <button className="btn btn-secondary" onClick={onClose} style={{ borderRadius: '0.5rem' }}>Cancel</button>
-              <button onClick={save} disabled={saving || !title.trim()}
-                style={{ padding: '0.55rem 1.25rem', borderRadius: '0.5rem', border: 'none', background: !title.trim() ? 'var(--stone-200)' : '#2563eb', color: !title.trim() ? 'var(--stone-400)' : 'white', cursor: !title.trim() ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', transition: 'background 0.15s' }}>
-                {saving ? 'Saving...' : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7"/></svg>
-                    {task ? 'Update' : 'Create Task'}
-                  </>
-                )}
+            <div className="tk-modal-actions">
+              <button className="rod-mini-btn" onClick={onClose}>Cancel</button>
+              <button className="rod-mini-btn primary" onClick={save} disabled={saving || !title.trim()}>
+                {saving ? 'Saving…' : task ? 'Save changes' : 'Create task'}
               </button>
             </div>
           </div>
