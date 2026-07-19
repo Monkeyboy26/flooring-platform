@@ -7861,82 +7861,6 @@
       );
     }
 
-    // ========== ShareProductModal ==========
-    function ShareProductModal({ product, media, onClose }) {
-      const [email, setEmail] = useState('');
-      const [message, setMessage] = useState('');
-      const [sending, setSending] = useState(false);
-      const [sent, setSent] = useState(false);
-
-      const primaryImage = (media || []).find(m => m.asset_type === 'primary');
-      const productName = product?.collection ? `${product.collection} ${product.name}` : product?.name || '';
-
-      const handleSend = async () => {
-        if (!email) return;
-        setSending(true);
-        try {
-          await repFetch('/api/rep/share-product', {
-            method: 'POST',
-            body: JSON.stringify({ product_id: product.id, customer_email: email, message })
-          });
-          setSent(true);
-          setTimeout(() => onClose(), 1500);
-        } catch (err) {
-          alert('Failed to send: ' + (err.message || 'Unknown error'));
-        }
-        setSending(false);
-      };
-
-      return ReactDOM.createPortal(
-        <div className="share-modal-overlay" onClick={onClose}>
-          <div className="share-modal" onClick={e => e.stopPropagation()}>
-            <div className="share-modal-header">
-              <h3>Share Product</h3>
-              <button style={{ background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: 'var(--stone-400)' }} onClick={onClose}>{'\u00D7'}</button>
-            </div>
-            <div className="share-modal-body">
-              {sent ? (
-                <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{'\u2713'}</div>
-                  <div style={{ fontSize: '0.9375rem', fontWeight: 500, color: 'var(--stone-800)' }}>Email sent!</div>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginTop: '0.25rem' }}>Product shared with {email}</div>
-                </div>
-              ) : (
-                <>
-                  <div className="share-modal-preview">
-                    {primaryImage && <img src={optimizeImg(primaryImage.url, 400)} alt="" loading="lazy" />}
-                    <div>
-                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--stone-800)' }}>{productName}</div>
-                      {product?.vendor_name && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{product.vendor_name}</div>}
-                    </div>
-                  </div>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.35rem', color: 'var(--stone-700)' }}>Customer Email *</label>
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="customer@example.com"
-                      style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--stone-200)', borderRadius: '6px', fontSize: '0.875rem', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.35rem', color: 'var(--stone-700)' }}>Message (optional)</label>
-                    <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} placeholder="Add a personal note..."
-                      style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--stone-200)', borderRadius: '6px', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box' }} />
-                  </div>
-                </>
-              )}
-            </div>
-            {!sent && (
-              <div className="share-modal-footer">
-                <button className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
-                <button className="btn btn-primary btn-sm" onClick={handleSend} disabled={!email || sending}>
-                  {sending ? 'Sending...' : 'Send Email'}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>,
-        document.body
-      );
-    }
-
     // ========== QuickViewErrorBoundary ==========
     class QuickViewErrorBoundary extends React.Component {
       constructor(props) {
@@ -7969,7 +7893,6 @@
       const [skuLoading, setSkuLoading] = useState(false);
       const [mainImgIdx, setMainImgIdx] = useState(0);
       const [lightbox, setLightbox] = useState(null);
-      const [shareModal, setShareModal] = useState(null);
       const [specsOpen, setSpecsOpen] = useState(true);
       const [calcPrice, setCalcPrice] = useState(null);
       const [coverSqft, setCoverSqft] = useState(200);
@@ -8349,18 +8272,9 @@
                 font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.08em', textTransform: 'uppercase',
                 cursor: 'pointer', textDecoration: 'none',
               }}>+ Add to&hellip;</a>
-              {['Sample', 'Share'].map(l => (
-                <a key={l} onClick={() => { if (l === 'Share') { setShareModal({ product, media: productData ? productData.media || [] : [] }); } else { onClose(); navigate('sample-create'); } }}
-                  style={{
-                  flex: 1, padding: '13px 8px', textAlign: 'center', background: 'transparent', color: TH.ink,
-                  border: '0.5px solid rgba(28,25,23,0.2)', font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.08em',
-                  textTransform: 'uppercase', cursor: 'pointer', textDecoration: 'none',
-                }}>{l}</a>
-              ))}
             </div>}
           </aside>
           {lightbox && <ImageLightbox images={lightbox.images} startIndex={lightbox.startIndex} onClose={() => setLightbox(null)} />}
-          {shareModal && <ShareProductModal product={shareModal.product} media={shareModal.media} onClose={() => setShareModal(null)} />}
         </React.Fragment>,
         document.body
       );
@@ -8719,7 +8633,6 @@
       const [addTo, setAddTo] = useState(null); // { skuId, summary }
       const [includeAccessories, setIncludeAccessories] = useState(false);
       const [lightbox, setLightbox] = useState(null);
-      const [shareModal, setShareModal] = useState(null);
       const searchTimer = useRef(null);
 
       // FilterRail collapsible state
@@ -8777,13 +8690,7 @@
       const startIdx = (page - 1) * perPage + 1;
       const endIdx = Math.min(page * perPage, total);
 
-      const handleShare = (p) => {
-        repFetch('/api/rep/products/' + p.id).then(d => {
-          setShareModal({ product: d.product, media: d.media });
-        }).catch(() => { setShareModal({ product: p, media: [] }); });
-      };
-
-      const openAddTo = (p, variantText) => setAddTo({
+      const openAddTo =(p, variantText) => setAddTo({
         skuId: p.sku_id,
         summary: {
           name: p.name, variant: variantText !== undefined ? variantText : p.variant_name,
@@ -9127,8 +9034,6 @@
                           {[
                             { l: 'View', primary: true, act: () => setQuickView({ id: p.id, skuId: p.sku_id }) },
                             { l: 'Add', primary: false, act: () => openAddTo(p, variantText) },
-                            { l: 'Sample', primary: false, act: () => navigate('sample-create') },
-                            { l: 'Share', primary: false, act: () => handleShare(p) },
                           ].map(b => (
                             <a key={b.l} onClick={e => { e.stopPropagation(); b.act(); }} style={{
                               flex: 1, minWidth: 0, padding: '6px 4px', textAlign: 'center',
@@ -9275,9 +9180,6 @@
 
           {/* Lightbox */}
           {lightbox && <ImageLightbox images={lightbox.images} startIndex={lightbox.startIndex} onClose={() => setLightbox(null)} />}
-
-          {/* Share Modal */}
-          {shareModal && <ShareProductModal product={shareModal.product} media={shareModal.media} onClose={() => setShareModal(null)} />}
 
           {/* Add to… chooser */}
           {addTo && <AddToTargetModal skuId={addTo.skuId} summary={addTo.summary} navigate={navigate} onClose={() => setAddTo(null)} />}
