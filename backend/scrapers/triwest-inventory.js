@@ -174,7 +174,16 @@ export async function run(pool, job, source) {
 
         const skuKey = row.itemNumber.toUpperCase();
         const normalizedKey = row.itemNumber.replace(/[-\s.]/g, '').toUpperCase();
-        const dbSku = skuMap.get(skuKey) || skuMap.get(normalizedKey);
+        // Some brands' catalog SKUs came from pricelists without the portal's
+        // 3-letter manufacturer prefix (Quick-Step: portal UNLUS4217 ↔ DB
+        // US4217; Cal Classics ride under STX: STXLCMI812 ↔ LCMI812, with an
+        // optional CF packaging suffix: STXMCLV395CF ↔ MCLV395; Citywide under
+        // TDT) — try the stripped keys last so prefixed SKUs always win
+        const strippedKey = skuKey.startsWith(mfgrCode) && skuKey.length >= mfgrCode.length + 4
+          ? skuKey.slice(mfgrCode.length) : null;
+        const dbSku = skuMap.get(skuKey) || skuMap.get(normalizedKey) ||
+          (strippedKey ? skuMap.get(strippedKey) : undefined) ||
+          (strippedKey && strippedKey.endsWith('CF') ? skuMap.get(strippedKey.slice(0, -2)) : undefined);
 
         if (!dbSku) {
           totalUnmatched++;
