@@ -8,6 +8,7 @@ import {
 const MAX_ERRORS = 30;
 const PER_MANUFACTURER_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes per manufacturer
 const MAX_CONSECUTIVE_EMPTY = 5; // abort if 5+ manufacturers in a row return 0 results
+const MAX_ATTEMPTS_PER_MANUFACTURER = 2; // retry once if the session expires mid-search
 
 /**
  * Tri-West DNav inventory scraper.
@@ -112,19 +113,46 @@ export async function run(pool, job, source) {
 
       await appendLog(pool, job.id, `[${m + 1}/${mfgrCodes.length}] Inventory: ${brandName} (${mfgrCode})`);
 
-      // Per-manufacturer timeout to prevent hanging on unresponsive pages
-      let rows;
-      try {
-        rows = await Promise.race([
-          searchByManufacturer(page, mfgrCode, pool, job.id),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`Timed out after ${PER_MANUFACTURER_TIMEOUT_MS / 1000}s`)), PER_MANUFACTURER_TIMEOUT_MS)
-          ),
-        ]);
-      } catch (searchErr) {
-        await logError(`${brandName} (${mfgrCode}): ${searchErr.message}`);
-        rows = [];
+      // Per-manufacturer timeout to prevent hanging on unresponsive pages.
+      // If the DNav session expires mid-pagination the results are silently
+      // truncated, so re-login and retry the manufacturer, keeping the larger set.
+      let rows = [];
+      let reloginFailed = false;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_MANUFACTURER; attempt++) {
+        const status = {};
+        let attemptRows;
+        try {
+          attemptRows = await Promise.race([
+            searchByManufacturer(page, mfgrCode, pool, job.id, { status }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error(`Timed out after ${PER_MANUFACTURER_TIMEOUT_MS / 1000}s`)), PER_MANUFACTURER_TIMEOUT_MS)
+            ),
+          ]);
+        } catch (searchErr) {
+          await logError(`${brandName} (${mfgrCode}): ${searchErr.message}`);
+          attemptRows = [];
+        }
+        if (attemptRows.length > rows.length) rows = attemptRows;
+        if (!status.sessionExpired) break;
+
+        if (attempt >= MAX_ATTEMPTS_PER_MANUFACTURER) {
+          await appendLog(pool, job.id, `  ${mfgrCode}: keeping partial results (${rows.length} rows) — session expired again on retry`);
+          break;
+        }
+
+        await appendLog(pool, job.id, `Session expired mid-search for ${brandName}, re-logging in to retry...`);
+        await browser.close().catch(() => {});
+        try {
+          const session = await triwestLogin(pool, job.id);
+          browser = session.browser;
+          page = session.page;
+        } catch (err) {
+          await appendLog(pool, job.id, `Re-login failed: ${err.message}`);
+          reloginFailed = true;
+          break;
+        }
       }
+      if (reloginFailed) break;
 
       if (rows.length === 0) {
         consecutiveEmpty++;

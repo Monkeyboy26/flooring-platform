@@ -501,6 +501,20 @@ export async function navigateToSearchForm(page, portalBase) {
   return false;
 }
 
+/**
+ * Check whether the DNav session has expired (we've been bounced to the login page).
+ *
+ * @param {import('puppeteer').Page} page
+ * @returns {Promise<boolean>}
+ */
+export async function isSessionExpired(page) {
+  return await page.evaluate(() => {
+    if (document.querySelector('#d24user_login') || document.querySelector('form#login_form')) return true;
+    const text = document.body.innerText || '';
+    return text.includes('User Sign-In');
+  }).catch(() => false);
+}
+
 /** Check if the manufacturer dropdown is visible and interactable. */
 async function _isFormReady(page) {
   const ready = await page.evaluate(() => {
@@ -525,10 +539,13 @@ async function _isFormReady(page) {
  * @param {number} jobId - Scrape job ID
  * @param {object} [opts]
  * @param {number} [opts.maxRows=3000] - Max rows to collect per manufacturer
+ * @param {object} [opts.status] - Out-param: set `sessionExpired: true` when the
+ *   session died before/during this search, so results may be truncated
  * @returns {Promise<object[]>} All parsed rows for this manufacturer
  */
 export async function searchByManufacturer(page, mfgrCode, pool, jobId, opts = {}) {
   const maxRows = opts.maxRows || 3000;
+  const status = opts.status || {};
 
   // Select manufacturer in dropdown
   try {
@@ -594,6 +611,11 @@ export async function searchByManufacturer(page, mfgrCode, pool, jobId, opts = {
       await appendLog(pool, jobId, `  ${mfgrCode}: 0 results`);
       return [];
     }
+    if (await isSessionExpired(page)) {
+      status.sessionExpired = true;
+      await appendLog(pool, jobId, `  ${mfgrCode}: session expired before search returned results`);
+      return [];
+    }
     // Take a screenshot for debugging
     await screenshot(page, `triwest-no-results-${mfgrCode}`);
     await appendLog(pool, jobId, `  ${mfgrCode}: table parse returned 0 rows (possible structure change)`);
@@ -619,7 +641,15 @@ export async function searchByManufacturer(page, mfgrCode, pool, jobId, opts = {
   while (seenItems.size < maxRows && paginationAttempts < MAX_PAGINATION) {
     const prevCount = seenItems.size;
     const moreAvailable = await clickMoreResults(page);
-    if (!moreAvailable) break;
+    if (!moreAvailable) {
+      // No "More" button can mean end-of-results OR a session-expiry redirect
+      // to the login page — distinguish them so results aren't silently truncated
+      if (await isSessionExpired(page)) {
+        status.sessionExpired = true;
+        await appendLog(pool, jobId, `  ${mfgrCode}: session expired during pagination at ${seenItems.size} rows`);
+      }
+      break;
+    }
 
     paginationAttempts++;
     const newRows = await parseResultsTable(page);
@@ -632,7 +662,12 @@ export async function searchByManufacturer(page, mfgrCode, pool, jobId, opts = {
     }
 
     if (seenItems.size === prevCount) {
-      // No new unique rows found — we've reached the end
+      // No new unique rows found — end of results, unless the session died
+      // and the "results" we just parsed were the login page
+      if (await isSessionExpired(page)) {
+        status.sessionExpired = true;
+        await appendLog(pool, jobId, `  ${mfgrCode}: session expired during pagination at ${seenItems.size} rows`);
+      }
       break;
     }
 
