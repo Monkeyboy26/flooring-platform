@@ -130,16 +130,35 @@ function portalKinds(text) {
  * Index active catalog rows by canonical size.
  * Rows need: id, vendor_sku, variant_type, collection, product_name,
  * sqft_per_box, cost, size, finish, shape.
+ *
+ * aliasRows (non-active DAL/AO/MZ rows, vendor_sku only) form the portal-code
+ * alias registry used by the alias-claim signal in crosswalkItem.
  */
-export function buildActiveIndex(rows) {
+export function buildActiveIndex(rows, aliasRows = []) {
   const bySize = new Map();
   for (const row of rows) {
-    const key = canonSize(row.size);
-    if (!key) continue;
-    if (!bySize.has(key)) bySize.set(key, []);
-    bySize.get(key).push(row);
+    const raw = String(row.size ?? '').trim();
+    // Multi-size attribute values ("1x6, 2x6, 3x6, 4x6" trim strips, "2, 6"
+    // Keystones hexes) canonicalize as a whole to a garbage key no portal size
+    // can hit — index the row under each listed size as well
+    const keys = new Set([canonSize(raw)]);
+    const parts = raw.split(',');
+    if (parts.length > 1) for (const p of parts) keys.add(canonSize(p));
+    keys.delete('');
+    for (const key of keys) {
+      if (!bySize.has(key)) bySize.set(key, []);
+      bySize.get(key).push(row);
+    }
   }
-  return { bySize, count: rows.length };
+  const aliasByColor = new Map();
+  for (const row of aliasRows) {
+    const sku = norm(row.vendor_sku);
+    if (sku.length < 5) continue;
+    const color = sku.slice(0, 4);
+    if (!aliasByColor.has(color)) aliasByColor.set(color, []);
+    aliasByColor.get(color).push(sku);
+  }
+  return { bySize, aliasByColor, count: rows.length };
 }
 
 /**
@@ -177,6 +196,28 @@ export function crosswalkItem(item, index, stats = {}) {
       candidates = echoed;
       codeEchoed = true;
       bump('itemCodeEcho');
+    }
+  }
+
+  // Alias claim: the non-active rows carry the portal sales SKU for each EDI
+  // code family, so they double as a registry of which portal code owns which
+  // candidate. A candidate whose item code appears inside a DIFFERENT alias
+  // (0T03Q1665U1A claims Q1665AB while we're matching 0T03661A) belongs to
+  // that other portal item — drop it, unless the portal code echoes the
+  // candidate's code itself (then it's a legitimate twin of this item too).
+  if (candidates.length > 1 && index.aliasByColor) {
+    const aliasPool = index.aliasByColor.get(norm(colorCode)) || [];
+    if (aliasPool.length > 0) {
+      const unclaimed = candidates.filter(c => {
+        const code = codeOf(c);
+        if (code.length < 4 || skuNormFull.includes(code)) return true;
+        const own = norm(c.vendor_sku);
+        return !aliasPool.some(a => a !== skuNormFull && a !== own && a.includes(code));
+      });
+      if (unclaimed.length >= 1 && unclaimed.length < candidates.length) {
+        candidates = unclaimed;
+        bump('aliasClaimed');
+      }
     }
   }
 

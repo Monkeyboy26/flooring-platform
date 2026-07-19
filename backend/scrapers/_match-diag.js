@@ -36,7 +36,8 @@ async function main() {
   const exactMap = new Map();
   for (const r of all.rows) exactMap.set(r.vendor_sku.toUpperCase(), r);
 
-  const index = buildActiveIndex(active);
+  const aliasRows = all.rows.filter(r => !(r.product_status === 'active' && r.sku_status === 'active'));
+  const index = buildActiveIndex(active, aliasRows);
   const stats = { exact: 0, exactActive: 0, crosswalked: 0, split: 0, ambiguous: 0, unmatched: 0 };
   const unmatched = [];
   const ambiguous = [];

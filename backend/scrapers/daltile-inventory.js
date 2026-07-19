@@ -205,8 +205,10 @@ export async function run(pool, job) {
         AND s.vendor_sku IS NOT NULL
       GROUP BY s.id, s.vendor_sku, s.variant_type, p.collection, p.name, pkg.sqft_per_box, pr.cost
     `);
-    const activeIndex = buildActiveIndex(activeResult.rows);
-    await appendLog(pool, job.id, `Attribute index: ${activeResult.rows.length} active SKUs across ${activeIndex.bySize.size} sizes`);
+    const activeIds = new Set(activeResult.rows.map(r => r.id));
+    const aliasRows = skuResult.rows.filter(r => !activeIds.has(r.id));
+    const activeIndex = buildActiveIndex(activeResult.rows, aliasRows);
+    await appendLog(pool, job.id, `Attribute index: ${activeResult.rows.length} active SKUs across ${activeIndex.bySize.size} sizes, ${aliasRows.length} alias rows`);
 
     const toSqft = (item, sqftPerBox) => {
       let qty = parseFloat(item.inventoryitems) || 0;
