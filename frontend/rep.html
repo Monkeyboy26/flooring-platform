@@ -8723,7 +8723,7 @@
       const searchTimer = useRef(null);
 
       // FilterRail collapsible state
-      const [railSections, setRailSections] = useState({ category: true, vendor: true, price: false, stock: true, accessories: true, collection: false });
+      const [railSections, setRailSections] = useState({ category: false, vendor: false, price: false, stock: false, accessories: false, collection: false });
       const toggleRailSection = (key) => setRailSections(s => ({ ...s, [key]: !s[key] }));
 
       useEffect(() => {
@@ -8990,19 +8990,19 @@
                 </div>
               </div>}
 
-              {/* Category */}
-              <RailSection id="category" title="Category" count={category ? 1 : 0}>
-                <div style={{ display: 'grid', gap: 7 }}>
-                  {flatCats.map(c => <CheckRow key={c.slug} label={c.name} on={category === c.slug} onToggle={() => { setCategory(category === c.slug ? '' : c.slug); setPage(1); }} />)}
-                  {flatCats.length === 0 && <span style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted }}>Loading...</span>}
-                </div>
-              </RailSection>
-
               {/* Vendor */}
               <RailSection id="vendor" title="Vendor" count={vendor ? 1 : 0}>
                 <div style={{ display: 'grid', gap: 7 }}>
                   {vendors.map(v => <CheckRow key={v.id} label={v.name} on={String(vendor) === String(v.id)} onToggle={() => { setVendor(String(vendor) === String(v.id) ? '' : String(v.id)); setPage(1); }} />)}
                   {vendors.length === 0 && <span style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted }}>Loading...</span>}
+                </div>
+              </RailSection>
+
+              {/* Category */}
+              <RailSection id="category" title="Category" count={category ? 1 : 0}>
+                <div style={{ display: 'grid', gap: 7 }}>
+                  {flatCats.map(c => <CheckRow key={c.slug} label={c.name} on={category === c.slug} onToggle={() => { setCategory(category === c.slug ? '' : c.slug); setPage(1); }} />)}
+                  {flatCats.length === 0 && <span style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted }}>Loading...</span>}
                 </div>
               </RailSection>
 
