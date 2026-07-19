@@ -8832,15 +8832,6 @@
       ];
       const activeBand = priceBands.findIndex(b => b.min === minPrice && b.max === maxPrice);
 
-      // Filter presets
-      const applyPreset = (preset) => {
-        clearAllFilters();
-        if (preset === 'in_stock') { setStockStatus('in_stock'); setSortBy('margin_desc'); }
-        else if (preset === 'ready') { setStockStatus('in_stock'); }
-        else if (preset === 'tile_under_10') { setMaxPrice('10'); }
-        setPage(1);
-      };
-
       // Sort options
       const sortOptions = [
         { value: 'margin_desc', label: 'Margin \u00B7 high \u2192 low' },
@@ -8980,22 +8971,6 @@
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 12 }}>
                 <h3 style={{ font: '400 19px/1 var(--roma-serif)', color: TH.ink, margin: 0 }}>Filters</h3>
                 <span style={mono(TH.muted)}>{total} match{total === 1 ? '' : 'es'}</span>
-              </div>
-
-              {/* Saved presets */}
-              <div style={{ display: 'grid', gap: 6, marginBottom: 4 }}>
-                <span style={{ ...mono(TH.muted), marginBottom: 2 }}>Saved sets</span>
-                {[
-                  { label: 'High-margin \u00B7 in stock', preset: 'in_stock' },
-                  { label: 'Ready to quote', preset: 'ready' },
-                  { label: 'Tile under $10', preset: 'tile_under_10' },
-                ].map(p => (
-                  <button key={p.label} onClick={() => applyPreset(p.preset)} style={{
-                    textAlign: 'left', padding: '8px 10px', background: TH.warm, border: '0.5px solid ' + TH.ink + '1a',
-                    cursor: 'pointer', font: '400 12px/1.2 var(--roma-sans)', color: TH.ink,
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  }}>{p.label} <span style={{ color: TH.accent, font: '400 13px/1 var(--roma-sans)' }}>&rarr;</span></button>
-                ))}
               </div>
 
               {/* Applied chips (in rail) */}
