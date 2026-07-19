@@ -14083,7 +14083,7 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
       SELECT o.*, sr.first_name || ' ' || sr.last_name as rep_name
       FROM orders o
       LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
-      WHERE o.id = $1 AND o.sales_rep_id = $2
+      WHERE o.id = $1 AND (o.sales_rep_id = $2 OR o.sales_rep_id IS NULL)
     `, [id, req.rep.id]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
 
@@ -19250,7 +19250,7 @@ app.get('/api/rep/customers/:id/timeline', repAuth, async (req, res) => {
 
 app.get('/api/rep/notifications', repAuth, async (req, res) => {
   try {
-    const { unread_only, limit: limitParam, offset: offsetParam } = req.query;
+    const { unread_only, types, limit: limitParam, offset: offsetParam } = req.query;
     const limit = Math.min(parseInt(limitParam) || 50, 100);
     const offset = parseInt(offsetParam) || 0;
 
@@ -19260,6 +19260,14 @@ app.get('/api/rep/notifications', repAuth, async (req, res) => {
 
     if (unread_only === 'true') {
       query += ' AND is_read = false';
+    }
+
+    if (types) {
+      const typeList = String(types).split(',').map(t => t.trim()).filter(t => /^[a-z_]{1,50}$/.test(t));
+      if (typeList.length > 0) {
+        query += ` AND type = ANY($${idx++}::text[])`;
+        params.push(typeList);
+      }
     }
 
     const countQuery = query.replace('SELECT *', 'SELECT COUNT(*)::int as total');
@@ -19272,11 +19280,18 @@ app.get('/api/rep/notifications', repAuth, async (req, res) => {
     );
     const unread_count = unreadResult.rows[0].cnt;
 
+    // Per-type counts across the whole inbox (unfiltered) — powers filter chip counts
+    const typeCountsResult = await pool.query(
+      `SELECT type, COUNT(*)::int AS total, COUNT(*) FILTER (WHERE is_read = false)::int AS unread
+       FROM rep_notifications WHERE rep_id = $1 GROUP BY type`,
+      [req.rep.id]
+    );
+
     query += ` ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`;
     params.push(limit, offset);
 
     const result = await pool.query(query, params);
-    res.json({ notifications: result.rows, unread_count, total });
+    res.json({ notifications: result.rows, unread_count, total, type_counts: typeCountsResult.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -19314,6 +19329,18 @@ app.put('/api/rep/notifications/:id/read', repAuth, async (req, res) => {
       [id, req.rep.id]
     );
     res.json({ success: true });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/rep/notifications/read', repAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM rep_notifications WHERE rep_id = $1 AND is_read = true',
+      [req.rep.id]
+    );
+    res.json({ success: true, deleted: result.rowCount });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }

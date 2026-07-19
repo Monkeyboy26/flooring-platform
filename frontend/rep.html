@@ -2372,43 +2372,16 @@
     }
     .price-history-entry:last-child { border-bottom: none; }
 
-    /* Notification bell */
-    .notification-bell {
-      position: relative;
-      cursor: pointer;
-      padding: 0.5rem;
-      margin: 0 0.5rem;
-      color: var(--brass-muted);
-      transition: color 0.15s;
-    }
-    .notification-bell:hover { color: var(--stone-900); }
-    .notification-bell svg { width: 18px; height: 18px; }
-    .notification-badge {
-      position: absolute;
-      top: 2px;
-      right: 2px;
-      background: var(--red);
-      color: white;
-      font-size: 0.6rem;
-      font-weight: 700;
-      min-width: 16px;
-      height: 16px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 4px;
-    }
+    /* Notifications — topbar dropdown + inbox page (nin-*) */
     .notification-dropdown {
       position: absolute;
       top: 100%;
       right: 0;
-      width: 360px;
-      max-height: 480px;
-      background: white;
-      border: 0.5px solid rgba(28,25,23,0.15);
-      border-radius: 0;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      width: 400px;
+      max-height: 520px;
+      background: #f5f1e8;
+      border: 0.5px solid rgba(28,25,23,0.25);
+      box-shadow: 0 12px 32px rgba(28,25,23,0.16);
       z-index: 100;
       display: flex;
       flex-direction: column;
@@ -2419,31 +2392,208 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0.75rem 1rem;
-      border-bottom: 1px solid var(--stone-200);
-      font-size: 0.75rem;
-      font-weight: 600;
+      gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 0.5px solid rgba(28,25,23,0.14);
+      font: 500 10px/1 ui-monospace, monospace;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--stone-600);
+      color: var(--rod-muted);
     }
-    .notification-dropdown-list {
-      flex: 1;
-      overflow-y: auto;
-      max-height: 380px;
+    .notification-dropdown-header .nin-header-unread { color: var(--rod-accent); }
+    .nin-text-btn {
+      background: none; border: none; padding: 0; cursor: pointer;
+      font: 500 10px/1 ui-monospace, monospace;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--rod-muted);
     }
+    .nin-text-btn:hover { color: var(--rod-ink); }
+    .notification-dropdown-list { flex: 1; overflow-y: auto; }
     .notification-item {
-      padding: 0.75rem 1rem;
-      border-bottom: 1px solid var(--stone-100);
+      display: grid;
+      grid-template-columns: 26px 1fr auto;
+      gap: 10px;
+      align-items: start;
+      padding: 11px 16px 11px 13px;
+      border-bottom: 0.5px solid rgba(28,25,23,0.08);
+      border-left: 3px solid transparent;
       cursor: pointer;
       transition: background 0.1s;
-      font-size: 0.8125rem;
     }
-    .notification-item:hover { background: var(--stone-50); }
-    .notification-item.unread { background: #fffbeb; }
-    .notification-item-title { font-weight: 500; color: var(--stone-800); }
-    .notification-item-message { color: var(--stone-500); font-size: 0.75rem; margin-top: 0.2rem; }
-    .notification-item-time { color: var(--stone-400); font-size: 0.6875rem; margin-top: 0.2rem; }
+    .notification-item:last-child { border-bottom: none; }
+    .notification-item:hover { background: rgba(28,25,23,0.04); }
+    .notification-item.unread {
+      border-left-color: var(--rod-accent);
+      background: rgba(216,205,182,0.35);
+    }
+    .notification-item.unread:hover { background: rgba(216,205,182,0.55); }
+    .nin-glyph {
+      width: 26px; height: 26px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(28,25,23,0.06);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 13px;
+      color: var(--rod-ink);
+      flex-shrink: 0;
+    }
+    .notification-item-title {
+      font: 500 13px/1.35 'Inter', sans-serif;
+      letter-spacing: 0.01em;
+      color: var(--rod-ink);
+    }
+    .notification-item.unread .notification-item-title { font-weight: 600; }
+    .notification-item-message {
+      font: 400 12px/1.45 'Inter', sans-serif;
+      color: rgba(28,25,23,0.6);
+      margin-top: 2px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .notification-item-time {
+      font: 500 9px/1 ui-monospace, monospace;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--rod-muted);
+      white-space: nowrap;
+      padding-top: 3px;
+    }
+    .notification-dropdown-footer {
+      border-top: 0.5px solid rgba(28,25,23,0.14);
+      padding: 10px 16px;
+      text-align: center;
+      background: rgba(28,25,23,0.03);
+      font: 500 10px/1 ui-monospace, monospace;
+      letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--rod-ink);
+      cursor: pointer;
+    }
+    .notification-dropdown-footer:hover { background: rgba(28,25,23,0.06); }
+    .nin-empty {
+      padding: 28px 16px;
+      text-align: center;
+      font: 400 13px/1.5 'Inter', sans-serif;
+      color: var(--rod-muted);
+    }
+
+    /* Inbox page */
+    .nin-filters {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 8px; padding: 10px 0; margin-bottom: 14px;
+      border-bottom: 0.5px solid rgba(28,25,23,0.1);
+      flex-wrap: wrap;
+    }
+    .nin-filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .nin-chip {
+      padding: 6px 12px;
+      background: transparent;
+      border: 0.5px solid rgba(28,25,23,0.16);
+      font: 500 10px/1 'Inter', sans-serif;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--rod-ink);
+      cursor: pointer;
+      display: flex; gap: 6px; align-items: center;
+    }
+    .nin-chip:hover { border-color: rgba(28,25,23,0.35); }
+    .nin-chip.active { background: var(--rod-ink); color: #ece5d8; border-color: var(--rod-ink); }
+    .nin-chip-count {
+      padding: 1px 6px; border-radius: 8px;
+      background: rgba(28,25,23,0.07);
+      font: 500 9px/1.4 ui-monospace, monospace;
+      color: var(--rod-muted);
+    }
+    .nin-chip.active .nin-chip-count { background: var(--rod-accent); color: #fff; }
+    .nin-list {
+      background: #f2ede2;
+      border: 0.5px solid rgba(28,25,23,0.14);
+      margin-bottom: 18px;
+    }
+    .nin-group-label {
+      padding: 11px 22px;
+      background: rgba(28,25,23,0.03);
+      border-bottom: 0.5px solid rgba(28,25,23,0.08);
+      font: 500 10px/1 ui-monospace, monospace;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--rod-muted);
+    }
+    .nin-row {
+      display: grid;
+      grid-template-columns: 36px 1fr 150px;
+      gap: 14px;
+      align-items: start;
+      padding: 14px 22px 14px 19px;
+      border-bottom: 0.5px solid rgba(28,25,23,0.08);
+      border-left: 3px solid transparent;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .nin-row:last-child { border-bottom: none; }
+    .nin-row:hover { background: rgba(28,25,23,0.03); }
+    .nin-row.unread {
+      border-left-color: var(--rod-accent);
+      background: rgba(216,205,182,0.3);
+    }
+    .nin-row.unread:hover { background: rgba(216,205,182,0.5); }
+    .nin-row .nin-glyph { width: 36px; height: 36px; font-size: 16px; }
+    .nin-row-topline { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .nin-kind-chip {
+      padding: 2px 8px;
+      font: 500 9px/1.4 ui-monospace, monospace;
+      letter-spacing: 0.14em; text-transform: uppercase;
+    }
+    .nin-row-title {
+      font: 500 17px/1.25 'Cormorant Garamond', serif;
+      letter-spacing: -0.005em;
+      color: var(--rod-ink);
+      margin-top: 4px;
+    }
+    .nin-row-message {
+      font: 400 13px/1.5 'Inter', sans-serif;
+      color: rgba(28,25,23,0.6);
+      margin-top: 2px;
+    }
+    .nin-row.unread .nin-row-message { color: rgba(28,25,23,0.75); }
+    .nin-row-right { text-align: right; }
+    .nin-row-time {
+      font: 500 10px/1 ui-monospace, monospace;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--rod-muted);
+      white-space: nowrap;
+    }
+    .nin-row-entity {
+      margin-top: 8px;
+      font: 500 10px/1 ui-monospace, monospace;
+      letter-spacing: 0.14em; text-transform: uppercase;
+    }
+    .nin-empty-state {
+      padding: 56px 22px;
+      text-align: center;
+    }
+    .nin-empty-state .nin-empty-glyph {
+      font: 400 34px/1 'Cormorant Garamond', serif;
+      color: var(--rod-muted);
+      margin-bottom: 12px;
+    }
+    .nin-empty-state .nin-empty-text {
+      font: 400 14px/1.5 'Inter', sans-serif;
+      color: var(--rod-muted);
+    }
+    .nin-pagination {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 768px) {
+      .nin-row { grid-template-columns: 28px 1fr; padding: 12px 14px 12px 11px; }
+      .nin-row .nin-glyph { width: 28px; height: 28px; font-size: 13px; }
+      .nin-row-right {
+        grid-column: 2;
+        text-align: left;
+        display: flex; gap: 12px; align-items: center;
+        margin-top: 6px;
+      }
+      .nin-row-entity { margin-top: 0; }
+      .nin-group-label, .nin-row { padding-left: 11px; padding-right: 14px; }
+    }
 
     /* Catalog grid */
     .cost-toggle {
@@ -2877,7 +3027,6 @@
     @media (max-width: 768px) {
       .mobile-topbar { display: flex; }
       .rep-topbar { display: none; }
-      .rep-sidebar .notification-bell { display: none; }
       .rep-layout { grid-template-columns: 1fr; }
       .rep-sidebar {
         position: fixed; top: 0; left: -280px; width: 280px;
@@ -2931,7 +3080,7 @@
       .rc-qv-nav { display: none; }
 
       /* Media */
-      .notification-dropdown { width: calc(100vw - 2rem); max-width: 360px; }
+      .notification-dropdown { width: calc(100vw - 2rem); max-width: 400px; }
       .product-media-grid { flex-direction: column; }
       .product-media-main { width: 100%; max-width: 100%; }
       .product-media-thumbs { flex-direction: row; max-height: none; overflow-x: auto; }
@@ -5842,6 +5991,42 @@
     const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
     const isValidPhone = (v) => v.replace(/\D/g, '').length === 10;
 
+    // ========== Notification type metadata ==========
+    // Categories group backend notification types for the inbox filter chips.
+    // Glyphs mirror the sidebar nav glyphs; tones color the kind chip + entity ref.
+    const NOTIF_CATEGORIES = [
+      { key: 'orders', label: 'Orders', tone: '#5c6e94', glyph: '▚',
+        types: ['new_order', 'order_created', 'order_status_changed', 'order_assigned', 'delivery_method_changed', 'item_added', 'item_removed', 'price_adjusted'] },
+      { key: 'payments', label: 'Payments', tone: '#3a7a4e', glyph: '$',
+        types: ['payment_received', 'payment_failed', 'payment_request_sent', 'refund_issued'] },
+      { key: 'purchasing', label: 'Purchasing', tone: '#a87935', glyph: '⌘',
+        types: ['po_approved', 'po_items_received'] },
+      { key: 'samples', label: 'Samples', tone: '#8a7e68', glyph: '⌗',
+        types: ['sample_request_created', 'sample_request_shipped'] },
+    ];
+    const notifCategoryFor = (type) =>
+      NOTIF_CATEGORIES.find(c => c.types.includes(type)) || { key: 'other', label: 'Update', tone: '#8a7e68', glyph: '◉' };
+    // Types that need the rep's attention get the accent treatment
+    const NOTIF_URGENT_TYPES = ['payment_failed'];
+    const notifDeepLink = (n) => {
+      if (!n.entity_id) return null;
+      if (n.entity_type === 'order') return { view: 'order-detail', label: 'Order' };
+      if (n.entity_type === 'quote') return { view: 'quote-edit', label: 'Quote' };
+      if (n.entity_type === 'sample_request') return { view: 'sample-detail', label: 'Samples' };
+      if (n.entity_type === 'purchase_order') return { view: 'purchase-order-detail', label: 'PO' };
+      return null;
+    };
+    const notifDayGroup = (dateStr) => {
+      const d = new Date(dateStr);
+      const now = new Date();
+      const startOfDay = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+      const dayDiff = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
+      if (dayDiff <= 0) return 'Today';
+      if (dayDiff === 1) return 'Yesterday';
+      if (dayDiff < 7) return 'This week';
+      return 'Earlier';
+    };
+
     // ========== Google Places Loader ==========
     let _placesPromise = null;
     function loadGooglePlaces(apiKey) {
@@ -7336,10 +7521,9 @@
           setNotifList(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x));
           setUnreadCount(prev => Math.max(0, prev - 1));
         }
-        if (n.entity_type === 'order' && n.entity_id) {
-          navigate('order-detail', n.entity_id);
-        } else if (n.entity_type === 'quote' && n.entity_id) {
-          navigate('quote-edit', n.entity_id);
+        const link = notifDeepLink(n);
+        if (link) {
+          navigate(link.view, n.entity_id);
         } else {
           setShowNotifDropdown(false);
         }
@@ -7412,28 +7596,35 @@
                 {showNotifDropdown && (
                   <div className="notification-dropdown" onClick={e => e.stopPropagation()} style={{ top: '100%', right: 0, marginTop: 4 }}>
                     <div className="notification-dropdown-header">
-                      <span>Notifications</span>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        {unreadCount > 0 && (
-                          <button className="btn btn-sm btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem', textTransform: 'none', letterSpacing: 0 }}
-                            onClick={markAllRead}>Mark all read</button>
-                        )}
-                        <button className="btn btn-sm btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem', textTransform: 'none', letterSpacing: 0 }}
-                          onClick={() => navigate('notifications')}>View All</button>
-                      </div>
+                      <span>
+                        Notifications
+                        {unreadCount > 0 && <span className="nin-header-unread">{' · ' + unreadCount + ' unread'}</span>}
+                      </span>
+                      {unreadCount > 0 && (
+                        <button className="nin-text-btn" onClick={markAllRead}>Mark all read</button>
+                      )}
                     </div>
                     <div className="notification-dropdown-list">
                       {notifLoading ? (
-                        <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--brass-muted)', fontSize: '0.8125rem' }}>Loading...</div>
+                        <div className="nin-empty">Loading…</div>
                       ) : notifList.length === 0 ? (
-                        <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--brass-muted)', fontSize: '0.8125rem' }}>No notifications</div>
-                      ) : notifList.map(n => (
-                        <div key={n.id} className={'notification-item' + (n.is_read ? '' : ' unread')} onClick={() => handleNotifClick(n)}>
-                          <div className="notification-item-title">{n.title}</div>
-                          {n.message && <div className="notification-item-message">{n.message}</div>}
-                          <div className="notification-item-time">{timeAgo(n.created_at)}</div>
-                        </div>
-                      ))}
+                        <div className="nin-empty">You're all caught up.</div>
+                      ) : notifList.map(n => {
+                        const cat = notifCategoryFor(n.type);
+                        return (
+                          <div key={n.id} className={'notification-item' + (n.is_read ? '' : ' unread')} onClick={() => handleNotifClick(n)}>
+                            <div className="nin-glyph" style={{ color: cat.tone }}>{cat.glyph}</div>
+                            <div>
+                              <div className="notification-item-title">{n.title}</div>
+                              {n.message && <div className="notification-item-message">{n.message}</div>}
+                            </div>
+                            <div className="notification-item-time">{timeAgo(n.created_at)}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="notification-dropdown-footer" onClick={() => navigate('notifications')}>
+                      View all {'→'}
                     </div>
                   </div>
                 )}
@@ -7530,7 +7721,7 @@
               {view === 'samples' && <RepSampleRequestsListView navigate={navigate} />}
               {view === 'sample-create' && <RepSampleRequestCreateView navigate={navigate} />}
               {view === 'sample-detail' && <RepSampleRequestDetailView navigate={navigate} editId={editId} terminalRef={terminalRef} terminalStatus={terminalStatus} connectReader={connectReader} />}
-              {view === 'notifications' && <RepNotificationsListView navigate={navigate} />}
+              {view === 'notifications' && <RepNotificationsListView navigate={navigate} onUnreadChange={pollNotifCount} />}
               {view === 'cash-drawer' && <RepCashDrawerView navigate={navigate} />}
               {view === 'purchase-orders' && <RepPurchaseOrdersListView navigate={navigate} />}
               {view === 'purchase-order-detail' && <RepPurchaseOrderDetailView navigate={navigate} editId={editId} />}
@@ -15696,99 +15887,173 @@
       );
     }
 
-    // ========== RepNotificationsListView ==========
-    function RepNotificationsListView({ navigate }) {
+    // ========== RepNotificationsListView (Inbox) ==========
+    function RepNotificationsListView({ navigate, onUnreadChange }) {
       const [notifications, setNotifications] = useState([]);
       const [loading, setLoading] = useState(true);
-      const [unreadOnly, setUnreadOnly] = useState(false);
+      const [filter, setFilter] = useState('all'); // 'all' | 'unread' | category key
       const [page, setPage] = useState(1);
       const [total, setTotal] = useState(0);
+      const [unreadCount, setUnreadCount] = useState(0);
+      const [typeCounts, setTypeCounts] = useState([]);
       const limit = 50;
 
       const load = useCallback(() => {
         setLoading(true);
         const params = new URLSearchParams();
-        if (unreadOnly) params.set('unread_only', 'true');
+        if (filter === 'unread') params.set('unread_only', 'true');
+        const activeCat = NOTIF_CATEGORIES.find(c => c.key === filter);
+        if (activeCat) params.set('types', activeCat.types.join(','));
         params.set('limit', limit);
         params.set('offset', (page - 1) * limit);
         repFetch('/api/rep/notifications?' + params.toString())
-          .then(d => { setNotifications(d.notifications || []); setTotal(d.total || 0); setLoading(false); })
+          .then(d => {
+            setNotifications(d.notifications || []);
+            setTotal(d.total || 0);
+            setUnreadCount(d.unread_count || 0);
+            setTypeCounts(d.type_counts || []);
+            setLoading(false);
+          })
           .catch(() => setLoading(false));
-      }, [unreadOnly, page]);
+      }, [filter, page]);
 
       useEffect(load, [load]);
 
+      const countFor = (key) => {
+        if (key === 'all') return typeCounts.reduce((s, t) => s + t.total, 0);
+        if (key === 'unread') return unreadCount;
+        const cat = NOTIF_CATEGORIES.find(c => c.key === key);
+        return typeCounts.filter(t => cat.types.includes(t.type)).reduce((s, t) => s + t.total, 0);
+      };
+
       const markAllRead = () => {
         repFetch('/api/rep/notifications/read-all', { method: 'PUT' })
-          .then(() => { setNotifications(prev => prev.map(n => ({ ...n, is_read: true }))); })
+          .then(() => { load(); if (onUnreadChange) onUnreadChange(); })
+          .catch(() => {});
+      };
+
+      const clearRead = () => {
+        if (!window.confirm('Remove all read notifications? This cannot be undone.')) return;
+        repFetch('/api/rep/notifications/read', { method: 'DELETE' })
+          .then(() => { if (page !== 1) setPage(1); else load(); })
           .catch(() => {});
       };
 
       const handleClick = (n) => {
         if (!n.is_read) {
-          repFetch('/api/rep/notifications/' + n.id + '/read', { method: 'PUT' }).catch(() => {});
+          repFetch('/api/rep/notifications/' + n.id + '/read', { method: 'PUT' })
+            .then(() => { if (onUnreadChange) onUnreadChange(); })
+            .catch(() => {});
           setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x));
+          setUnreadCount(c => Math.max(0, c - 1));
         }
-        if (n.entity_type === 'order' && n.entity_id) navigate('order-detail', n.entity_id);
-        else if (n.entity_type === 'quote' && n.entity_id) navigate('quote-edit', n.entity_id);
+        const link = notifDeepLink(n);
+        if (link) navigate(link.view, n.entity_id);
       };
 
+      // Rows arrive sorted newest-first, so consecutive grouping is safe
+      const groups = [];
+      notifications.forEach(n => {
+        const label = notifDayGroup(n.created_at);
+        let g = groups[groups.length - 1];
+        if (!g || g.label !== label) { g = { label, items: [] }; groups.push(g); }
+        g.items.push(n);
+      });
+
       const totalPages = Math.ceil(total / limit) || 1;
+      const chips = [
+        { key: 'all', label: 'All' },
+        { key: 'unread', label: 'Unread' },
+        ...NOTIF_CATEGORIES.map(c => ({ key: c.key, label: c.label })),
+      ];
 
       return (
         <div>
-          <div className="content-header">
-            <h1>Notifications</h1>
-            <button className="btn btn-secondary" onClick={markAllRead}>Mark All Read</button>
-          </div>
-          <div className="filter-bar">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', cursor: 'pointer' }}>
-              <input type="checkbox" checked={unreadOnly} onChange={e => { setUnreadOnly(e.target.checked); setPage(1); }} style={{ accentColor: 'var(--gold)' }} />
-              Unread Only
-            </label>
-            <span className="filter-count">{total} notification{total !== 1 ? 's' : ''}</span>
-          </div>
-          {loading ? <div className="loading">Loading notifications...</div> : (
+          <div className="ol-header">
             <div>
-              {notifications.map(n => (
-                <div key={n.id}
-                  style={{
-                    padding: '1rem 1.5rem',
-                    marginBottom: '0.5rem',
-                    background: n.is_read ? 'white' : '#fffbeb',
-                    border: '1px solid ' + (n.is_read ? 'var(--stone-200)' : '#fde68a'),
-                    cursor: 'pointer',
-                    transition: 'background 0.1s'
-                  }}
-                  onClick={() => handleClick(n)}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontWeight: n.is_read ? 400 : 600, fontSize: '0.875rem', color: 'var(--stone-800)' }}>{n.title}</div>
-                      {n.message && <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginTop: '0.25rem' }}>{n.message}</div>}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
-                      {new Date(n.created_at).toLocaleString()}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.35rem' }}>
-                    <span className="badge badge-draft" style={{ fontSize: '0.6rem' }}>{n.type}</span>
-                    {!n.is_read && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--gold)', display: 'inline-block', marginTop: '2px' }}></span>}
-                  </div>
+              <div className="ol-header-label">
+                {'●'} Inbox{unreadCount > 0 ? ' · ' + unreadCount + ' unread' : ' · all caught up'}
+              </div>
+              <h1><em>Inbox</em></h1>
+              <div style={{ font: "400 14px/1.5 'Inter', sans-serif", color: 'rgba(28,25,23,0.7)', marginTop: 6 }}>
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} {'·'} order, payment & vendor activity in one stream
+              </div>
+            </div>
+            <div className="ol-header-actions">
+              <button className="ol-header-btn" onClick={clearRead}>Clear read</button>
+              <button className="ol-header-btn primary" onClick={markAllRead} disabled={unreadCount === 0}
+                style={unreadCount === 0 ? { opacity: 0.4, cursor: 'default' } : undefined}>Mark all read</button>
+            </div>
+          </div>
+          <div className="nin-filters">
+            <div className="nin-filter-chips">
+              {chips.map(c => (
+                <button key={c.key} className={'nin-chip' + (filter === c.key ? ' active' : '')}
+                  onClick={() => { setFilter(c.key); setPage(1); }}>
+                  {c.label}
+                  <span className="nin-chip-count">{countFor(c.key)}</span>
+                </button>
+              ))}
+            </div>
+            <span className="ol-meta">{total} notification{total !== 1 ? 's' : ''}</span>
+          </div>
+          {loading ? <div className="loading">Loading notifications…</div> : notifications.length === 0 ? (
+            <div className="nin-list">
+              <div className="nin-empty-state">
+                <div className="nin-empty-glyph">{'◉'}</div>
+                <div className="nin-empty-text">
+                  {filter === 'unread' ? "No unread notifications — you're all caught up."
+                    : filter !== 'all' ? 'Nothing in this category yet.'
+                    : 'Nothing here yet. Order, payment and sample activity will land in this stream.'}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="nin-list">
+              {groups.map(g => (
+                <div key={g.label}>
+                  <div className="nin-group-label">{g.label}</div>
+                  {g.items.map(n => {
+                    const cat = notifCategoryFor(n.type);
+                    const urgent = NOTIF_URGENT_TYPES.includes(n.type);
+                    const tone = urgent ? '#c54731' : cat.tone;
+                    const link = notifDeepLink(n);
+                    return (
+                      <div key={n.id} className={'nin-row' + (n.is_read ? '' : ' unread')}
+                        role="button" tabIndex={0}
+                        onClick={() => handleClick(n)}
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(n); } }}>
+                        <div className="nin-glyph" style={{ color: tone }}>{cat.glyph}</div>
+                        <div>
+                          <div className="nin-row-topline">
+                            <span className="nin-kind-chip" style={{ background: tone + '1a', color: tone }}>
+                              {urgent ? 'Needs you' : cat.label}
+                            </span>
+                          </div>
+                          <div className="nin-row-title">{n.title}</div>
+                          {n.message && <div className="nin-row-message">{n.message}</div>}
+                        </div>
+                        <div className="nin-row-right">
+                          <div className="nin-row-time">
+                            {!n.is_read && <span style={{ color: 'var(--rod-accent)' }}>{'●'} </span>}
+                            {timeAgo(n.created_at)}
+                          </div>
+                          {link && <div className="nin-row-entity" style={{ color: tone }}>{link.label} {'→'}</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
-              {notifications.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--stone-400)' }}>
-                  {unreadOnly ? 'No unread notifications' : 'No notifications yet'}
-                </div>
-              )}
             </div>
           )}
           {totalPages > 1 && (
-            <div className="pagination">
-              <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</button>
-              <span>Page {page} of {totalPages}</span>
-              <button className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
+            <div className="nin-pagination">
+              <button className="ol-header-btn" disabled={page <= 1} style={page <= 1 ? { opacity: 0.4 } : undefined}
+                onClick={() => setPage(p => p - 1)}>{'←'} Previous</button>
+              <span className="ol-meta">Page {page} of {totalPages}</span>
+              <button className="ol-header-btn" disabled={page >= totalPages} style={page >= totalPages ? { opacity: 0.4 } : undefined}
+                onClick={() => setPage(p => p + 1)}>Next {'→'}</button>
             </div>
           )}
         </div>
