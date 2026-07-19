@@ -416,7 +416,7 @@ export async function clickMoreResults(page) {
   });
 
   if (moreClicked) {
-    await delay(5000); // Wait for results to load
+    await delay(1500); // Head start — callers poll parseResultsTable for growth
     return true;
   }
   return false;
@@ -463,20 +463,35 @@ export async function getAllManufacturerCodes(page) {
  */
 export async function navigateToSearchForm(page, portalBase) {
   // DNav is an SPA — after a search with results, the DOM stays in results view.
-  // After heavy pagination, the session may also expire and redirect to login.
+  // The session lives in hidden d24sesid form fields, NOT just cookies, so a
+  // real page load (goto) drops it and lands on the login page. Avoid
+  // navigation entirely: the advanced-search form stays in the DOM in results
+  // view and is fully drivable via JS even while hidden.
 
-  // Strategy 1: Click home link to reset to dashboard
+  // Strategy 1: Click the header ADVANCED SEARCH link (href="#advanced_search")
+  // to restore the search view in-place
   await page.evaluate(() => {
+    const advLink = document.querySelector('a[href*="#advanced_search"]') ||
+      document.querySelector('a[href*="ADVANCED"]');
+    if (advLink) { advLink.click(); return; }
     const homeLink = document.querySelector('a[href*="#home"]');
-    if (homeLink) { homeLink.click(); return; }
-    const advLink = document.querySelector('a[href*="ADVANCED"]');
-    if (advLink) advLink.click();
+    if (homeLink) homeLink.click();
   });
-  await delay(3000);
+  await delay(2000);
 
   if (await _isFormReady(page)) return true;
 
-  // Strategy 2: Full page reload
+  // Strategy 1b: Form present but hidden (still in results view) — good enough,
+  // searchByManufacturer drives it with page.select + JS click
+  const formPresent = await page.evaluate(() => {
+    const select = document.querySelector('select[name="d24_filter_mfgr"]');
+    if (!select) return false;
+    select.value = ''; // reset for next search
+    return true;
+  });
+  if (formPresent) return true;
+
+  // Strategy 2: Full page reload (last resort — usually costs the session)
   try {
     await page.goto(`${portalBase}/main/`, { waitUntil: 'networkidle2', timeout: 30000 });
     await delay(3000);
@@ -606,8 +621,9 @@ export async function searchByManufacturer(page, mfgrCode, pool, jobId, opts = {
 
   if (allRows.length === 0) {
     // Check if "no results" or empty
-    const pageText = await page.evaluate(() => document.body.innerText.slice(0, 500)).catch(() => '');
-    if (pageText.toLowerCase().includes('no items') || pageText.toLowerCase().includes('no results') || pageText.toLowerCase().includes('0 items')) {
+    const pageText = await page.evaluate(() => document.body.innerText.slice(0, 2500)).catch(() => '');
+    if (pageText.toLowerCase().includes('no items') || pageText.toLowerCase().includes('no results') ||
+        pageText.toLowerCase().includes('no records found') || pageText.toLowerCase().includes('0 items')) {
       await appendLog(pool, jobId, `  ${mfgrCode}: 0 results`);
       return [];
     }
@@ -652,13 +668,24 @@ export async function searchByManufacturer(page, mfgrCode, pool, jobId, opts = {
     }
 
     paginationAttempts++;
-    const newRows = await parseResultsTable(page);
 
-    // Merge new rows into accumulator (handles both append and replace behaviors)
-    for (const row of newRows) {
-      if (row.itemNumber && !seenItems.has(row.itemNumber)) {
-        seenItems.set(row.itemNumber, row);
+    // The More POST can take well over 5s on large catalogs — PRO/ARM/MET/ELT
+    // were all truncating at page 1 because a fixed wait re-parsed the OLD
+    // table and looked like end-of-results. Poll until the table grows.
+    // Merging handles both append and replace behaviors.
+    const POLL_MS = 2000;
+    const MAX_WAIT_MS = 30000;
+    let waited = 0;
+    while (true) {
+      const newRows = await parseResultsTable(page).catch(() => []);
+      for (const row of newRows) {
+        if (row.itemNumber && !seenItems.has(row.itemNumber)) {
+          seenItems.set(row.itemNumber, row);
+        }
       }
+      if (seenItems.size > prevCount || waited >= MAX_WAIT_MS) break;
+      await delay(POLL_MS);
+      waited += POLL_MS;
     }
 
     if (seenItems.size === prevCount) {
@@ -761,8 +788,9 @@ export async function searchByKeyword(page, keyword, pool, jobId, opts = {}) {
   let allRows = await parseResultsTable(page);
 
   if (allRows.length === 0) {
-    const pageText = await page.evaluate(() => document.body.innerText.slice(0, 500)).catch(() => '');
-    if (pageText.toLowerCase().includes('no items') || pageText.toLowerCase().includes('no results') || pageText.toLowerCase().includes('0 items')) {
+    const pageText = await page.evaluate(() => document.body.innerText.slice(0, 2500)).catch(() => '');
+    if (pageText.toLowerCase().includes('no items') || pageText.toLowerCase().includes('no results') ||
+        pageText.toLowerCase().includes('no records found') || pageText.toLowerCase().includes('0 items')) {
       await appendLog(pool, jobId, `  "${keyword}": 0 results`);
       return [];
     }

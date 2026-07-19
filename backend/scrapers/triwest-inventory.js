@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { launchBrowser, delay, upsertInventorySnapshot, appendLog, addJobError } from './base.js';
 import { triwestLogin, triwestLoginFromCookies, PORTAL_BASE, screenshot } from './triwest-auth.js';
 import {
@@ -105,6 +106,7 @@ export async function run(pool, job, source) {
     await appendLog(pool, job.id, `Scanning ${mfgrCodes.length} manufacturers for inventory`);
 
     let consecutiveEmpty = 0;
+    const dumpRows = []; // raw portal rows for offline match analysis
 
     for (let m = 0; m < mfgrCodes.length; m++) {
       const mfgr = mfgrCodes[m];
@@ -164,6 +166,8 @@ export async function run(pool, job, source) {
       } else {
         consecutiveEmpty = 0;
       }
+
+      for (const row of rows) dumpRows.push({ mfgr: mfgrCode, ...row });
 
       for (const row of rows) {
         if (!row.itemNumber) continue;
@@ -239,6 +243,14 @@ export async function run(pool, job, source) {
         }
         await delay(delayMs);
       }
+    }
+
+    // Persist raw rows so match gaps can be analyzed offline without re-scraping
+    try {
+      fs.writeFileSync('/app/data/triwest-instock.json', JSON.stringify(dumpRows, null, 1));
+      await appendLog(pool, job.id, `Dumped ${dumpRows.length} raw rows to data/triwest-instock.json`);
+    } catch (err) {
+      await appendLog(pool, job.id, `Row dump failed: ${err.message}`);
     }
 
     await appendLog(pool, job.id,
