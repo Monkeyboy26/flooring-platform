@@ -23235,6 +23235,17 @@ app.post('/api/installation-inquiries', async (req, res) => {
     sendInstallationInquiryNotification(inquiry).catch(err => console.error('[Install Inquiry] Staff email error:', err.message));
     sendInstallationInquiryConfirmation(inquiry).catch(err => console.error('[Install Inquiry] Confirmation email error:', err.message));
 
+    // Fire-and-forget: notify all active reps in the rep portal
+    const inqDetails = [];
+    if (product_name) inqDetails.push(product_name + (collection ? ' (' + collection + ')' : ''));
+    const inqSqft = parseFloat(estimated_sqft);
+    if (!isNaN(inqSqft) && inqSqft > 0) inqDetails.push(inqSqft.toFixed(0) + ' sqft');
+    if (zip_code) inqDetails.push('zip ' + zip_code);
+    setImmediate(() => notifyAllActiveReps(pool, 'installation_inquiry',
+      'Installation inquiry from ' + customer_name,
+      inqDetails.join(' · ') || null,
+      'installation_inquiry', result.rows[0].id));
+
     res.json({ success: true, inquiry_id: result.rows[0].id });
   } catch (err) {
     console.error('Installation inquiry error:', err);
