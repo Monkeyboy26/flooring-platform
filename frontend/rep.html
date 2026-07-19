@@ -962,6 +962,46 @@
       .sl-table-head > :nth-child(6), .sl-table-row > :nth-child(6) { display: none; }
     }
 
+    /* ── Purchase orders list (pl-*) ── */
+    .pl-table-wrap { background: #ece5d8; border: 0.5px solid rgba(28,25,23,0.14); }
+    .pl-table-head {
+      padding: 10px 22px; border-bottom: 0.5px solid rgba(28,25,23,0.07);
+      display: grid; grid-template-columns: 110px 1.4fr 110px 60px 90px 1.2fr 60px 24px;
+      gap: 12px; align-items: center;
+      font: 500 10px/1 ui-monospace, monospace; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--brass-muted);
+    }
+    .pl-table-row {
+      padding: 12px 22px; border-bottom: 0.5px solid rgba(28,25,23,0.07);
+      display: grid; grid-template-columns: 110px 1.4fr 110px 60px 90px 1.2fr 60px 24px;
+      gap: 12px; align-items: center; cursor: pointer;
+    }
+    .pl-table-head.standalone, .pl-table-row.standalone { grid-template-columns: 110px 1.4fr 60px 90px 1.2fr 60px 24px; }
+    .pl-table-row:last-child { border-bottom: none; }
+    .pl-table-row:hover { background: rgba(28,25,23,0.02); }
+    .pl-table-row:focus-visible { outline: 2px solid var(--gold, #c9a668); outline-offset: -2px; }
+    .pl-po-id { font: 500 11px/1 ui-monospace, monospace; letter-spacing: 0.06em; color: var(--stone-900); }
+    .pl-vendor-name { font: 400 14px/1.2 'Inter', sans-serif; color: var(--stone-900); }
+    .pl-order-ref { font: 500 11px/1 ui-monospace, monospace; letter-spacing: 0.06em; color: var(--gold, #c9a668); }
+    .pl-items { font: 400 13px/1.3 'Cormorant Garamond', serif; color: var(--stone-900); }
+    .pl-total { font: 400 14px/1 'Cormorant Garamond', serif; color: var(--stone-900); text-align: right; }
+    .pl-status { font: 500 10px/1.3 ui-monospace, monospace; letter-spacing: 0.1em; text-transform: uppercase; }
+    .pl-age { font: 500 11px/1 ui-monospace, monospace; letter-spacing: 0.08em; color: var(--brass-muted); text-align: right; }
+    .pl-footer {
+      padding: 14px 22px; border-top: 0.5px solid rgba(28,25,23,0.1);
+      display: flex; justify-content: space-between; align-items: center;
+      font: 500 10px/1 ui-monospace, monospace; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--brass-muted);
+    }
+    @media (max-width: 1200px) {
+      .pl-table-head, .pl-table-row { grid-template-columns: 100px 1fr 90px 80px 1fr 20px; }
+      .pl-table-head:not(.standalone) > :nth-child(4), .pl-table-row:not(.standalone) > :nth-child(4) { display: none; }
+      .pl-table-head:not(.standalone) > :nth-child(7), .pl-table-row:not(.standalone) > :nth-child(7) { display: none; }
+      .pl-table-head.standalone, .pl-table-row.standalone { grid-template-columns: 100px 1fr 80px 1fr 20px; }
+      .pl-table-head.standalone > :nth-child(3), .pl-table-row.standalone > :nth-child(3) { display: none; }
+      .pl-table-head.standalone > :nth-child(6), .pl-table-row.standalone > :nth-child(6) { display: none; }
+    }
+
     /* ── Quote workspace (qw-*) ── */
     .qw-breadcrumb {
       padding-bottom: 14px; border-bottom: 0.5px solid rgba(28,25,23,0.12); margin-bottom: 18px;
@@ -5335,6 +5375,61 @@
       color: var(--rod-muted);
       text-transform: uppercase;
     }
+
+    /* Shared rod form controls & inline panels */
+    .rod-input {
+      width: 100%; box-sizing: border-box; padding: 8px 10px;
+      border: 0.5px solid rgba(28,25,23,0.3); border-radius: 0; background: #fff;
+      font: 400 13px/1.3 'Inter', sans-serif; color: var(--rod-ink); outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .rod-input:focus { border-color: var(--rod-accent); }
+    textarea.rod-input { resize: vertical; font-family: 'Inter', sans-serif; }
+    .rod-field-label {
+      display: block; font: 500 9px/1 ui-monospace, monospace;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--rod-muted); margin-bottom: 6px;
+    }
+    .rod-mini-btn {
+      padding: 8px 12px; border: 0.5px solid rgba(28,25,23,0.35); border-radius: 0;
+      background: transparent; cursor: pointer;
+      font: 500 10px/1 'Inter', sans-serif; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--rod-ink);
+    }
+    .rod-mini-btn:hover:not(:disabled) { border-color: var(--rod-ink); }
+    .rod-mini-btn.primary { background: var(--rod-ink); color: #ece5d8; border-color: var(--rod-ink); }
+    .rod-mini-btn.primary:hover:not(:disabled) { opacity: 0.9; }
+    .rod-mini-btn.danger { color: var(--rod-red); border-color: rgba(197,71,49,0.4); }
+    .rod-mini-btn.danger:hover:not(:disabled) { border-color: var(--rod-red); background: rgba(197,71,49,0.06); }
+    .rod-mini-btn.selected { background: var(--rod-ink); color: #ece5d8; border-color: var(--rod-ink); }
+    .rod-mini-btn:disabled { opacity: 0.4; cursor: default; }
+    .rod-inline-panel {
+      margin-top: 12px; padding: 14px 16px;
+      border: 0.5px solid var(--rod-border); background: rgba(28,25,23,0.025);
+    }
+    .rod-banner {
+      padding: 8px 12px; margin-top: 10px; text-align: center;
+      font: 500 10px/1.4 ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .rod-banner.green { background: rgba(58,122,78,0.12); color: var(--rod-green); }
+    .rod-banner.blue { background: rgba(92,110,148,0.14); color: #5c6e94; }
+    .rod-banner.amber { background: rgba(168,121,53,0.14); color: var(--rod-accent); }
+
+    /* Workflow checklist */
+    .rod-check-step { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 0.5px solid rgba(28,25,23,0.07); }
+    .rod-check-step:last-child { border-bottom: none; }
+    .rod-check-mark {
+      width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font: 500 10px/1 ui-monospace, monospace;
+    }
+    .rod-check-mark.done { background: rgba(58,122,78,0.14); color: var(--rod-green); }
+    .rod-check-mark.pending { background: rgba(28,25,23,0.05); color: var(--rod-muted); }
+    .rod-check-label { font: 500 10px/1.3 ui-monospace, monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rod-ink); }
+    .rod-check-label.pending { color: var(--rod-muted); }
+    .rod-check-detail { font: 400 11px/1.4 'Inter', sans-serif; color: rgba(28,25,23,0.6); margin-top: 2px; }
+    .rod-check-segment { flex: 1; height: 4px; background: rgba(28,25,23,0.08); }
+    .rod-check-segment.done { background: var(--rod-green); }
 
     .rod-note-entry {
       padding: 12px 20px;
@@ -17326,48 +17421,48 @@
 
           {/* Tracking form */}
           {showTrackingForm && (
-            <div style={{ marginBottom: '12px', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)' }}>
-              <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--stone-700)' }}>Shipment Details</h4>
+            <div className="rod-inline-panel" style={{ marginTop: 0, marginBottom: '12px' }}>
+              <div className="rod-field-label" style={{ marginBottom: '0.75rem' }}>Shipment Details</div>
               <div className="resp-grid-3" style={{ gap: '0.75rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Carrier *</label>
-                  <select className="form-control" value={trackingData.carrier} onChange={e => setTrackingData({ ...trackingData, carrier: e.target.value })} style={{ fontSize: '0.8125rem' }}>
+                  <label className="rod-field-label">Carrier *</label>
+                  <select className="rod-input" value={trackingData.carrier} onChange={e => setTrackingData({ ...trackingData, carrier: e.target.value })}>
                     <option value="">Select carrier...</option>
                     <option>UPS</option><option>FedEx</option><option>USPS</option><option>FedEx Freight</option><option>XPO Logistics</option><option>R+L Carriers</option><option>SAIA</option><option>Old Dominion</option><option>Other</option>
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Tracking Number *</label>
-                  <input className="form-control" type="text" maxLength={80} placeholder="Enter tracking number" value={trackingData.tracking_number} onChange={e => setTrackingData({ ...trackingData, tracking_number: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                  <label className="rod-field-label">Tracking Number *</label>
+                  <input className="rod-input" type="text" maxLength={80} placeholder="Enter tracking number" value={trackingData.tracking_number} onChange={e => setTrackingData({ ...trackingData, tracking_number: e.target.value })} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Ship Date</label>
-                  <input className="form-control" type="date" value={trackingData.shipped_at} onChange={e => setTrackingData({ ...trackingData, shipped_at: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                  <label className="rod-field-label">Ship Date</label>
+                  <input className="rod-input" type="date" value={trackingData.shipped_at} onChange={e => setTrackingData({ ...trackingData, shipped_at: e.target.value })} />
                 </div>
               </div>
               <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
-                <button className="btn btn-primary btn-sm" onClick={() => updateStatus('shipped')} disabled={updating || !trackingData.carrier || !trackingData.tracking_number}>
+                <button className="rod-mini-btn primary" onClick={() => updateStatus('shipped')} disabled={updating || !trackingData.carrier || !trackingData.tracking_number}>
                   {updating ? 'Submitting...' : 'Confirm Shipment'}
                 </button>
-                <button className="btn btn-secondary btn-sm" onClick={() => setShowTrackingForm(false)}>Cancel</button>
+                <button className="rod-mini-btn" onClick={() => setShowTrackingForm(false)}>Cancel</button>
               </div>
             </div>
           )}
 
           {/* Cancel form */}
           {showCancelForm && (
-            <div style={{ marginBottom: '12px', padding: '1rem', background: '#fef2f2', border: '1px solid #fecaca' }}>
-              <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: '#991b1b' }}>Cancel Order</h4>
-              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-600)', marginBottom: '0.25rem' }}>Reason for cancellation *</label>
-              <textarea value={cancelReason} onChange={e => setCancelReason(e.target.value)}
+            <div className="rod-inline-panel" style={{ marginTop: 0, marginBottom: '12px', borderColor: 'rgba(197,71,49,0.35)', background: 'rgba(197,71,49,0.04)' }}>
+              <div className="rod-field-label" style={{ marginBottom: '0.75rem', color: 'var(--rod-red)' }}>Cancel Order</div>
+              <label className="rod-field-label">Reason for cancellation *</label>
+              <textarea className="rod-input" value={cancelReason} onChange={e => setCancelReason(e.target.value)}
                 placeholder="e.g. Customer requested cancellation, out of stock..."
-                rows={3} style={{ width: '100%', padding: '0.5rem', border: '1px solid #fecaca', borderRadius: '4px', fontSize: '0.8125rem', resize: 'vertical', marginBottom: '0.75rem' }} />
+                rows={3} style={{ marginBottom: '0.75rem' }} />
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button className="btn btn-danger btn-sm" disabled={updating || !cancelReason.trim()}
+                <button className="rod-mini-btn danger" disabled={updating || !cancelReason.trim()}
                   onClick={() => updateStatus('cancelled', { cancel_reason: cancelReason.trim() })}>
                   {updating ? 'Cancelling...' : 'Confirm Cancellation'}
                 </button>
-                <button className="btn btn-secondary btn-sm" onClick={() => { setShowCancelForm(false); setCancelReason(''); }} disabled={updating}>Go Back</button>
+                <button className="rod-mini-btn" onClick={() => { setShowCancelForm(false); setCancelReason(''); }} disabled={updating}>Go Back</button>
               </div>
             </div>
           )}
@@ -17554,8 +17649,8 @@
                                   style={{ width: '60px', padding: '0.2rem 0.3rem', fontSize: '0.75rem', border: 'none', outline: 'none', background: 'transparent' }} />
                               </div>
                             ) : (
-                              <button onClick={() => { setEditingItem(item.id); setNewPrice(parseFloat(item.unit_price || 0).toFixed(2)); setPriceReason(''); }}
-                                style={{ padding: '0.2rem 0.4rem', fontSize: '0.75rem', border: '0.5px solid var(--stone-300)', background: 'white', cursor: 'pointer', color: 'var(--rod-ink)' }}>
+                              <button title="Edit unit price" onClick={() => { setEditingItem(item.id); setNewPrice(parseFloat(item.unit_price || 0).toFixed(2)); setPriceReason(''); }}
+                                style={{ padding: '0.2rem 0.4rem', fontSize: '0.75rem', border: 'none', borderBottom: '1px dashed rgba(28,25,23,0.35)', background: 'transparent', cursor: 'pointer', color: 'var(--rod-ink)' }}>
                                 {item.is_sample ? 'Free' : '$' + parseFloat(item.unit_price || 0).toFixed(2)}
                               </button>
                             )
@@ -17566,7 +17661,7 @@
                         <div className="rod-line-item-subtotal" style={{ textAlign: 'right', font: '400 14px/1 "Cormorant Garamond", serif', letterSpacing: '-0.008em' }}>
                           {item.is_sample ? 'Free' : item.subtotal ? '$' + parseFloat(item.subtotal).toFixed(2) : '—'}
                           {['pending', 'confirmed'].includes(order.status) && !item.is_sample && (
-                            <button className="btn btn-danger btn-sm" style={{ marginLeft: '6px', fontSize: '0.6rem', padding: '1px 4px' }}
+                            <button title="Remove item" style={{ marginLeft: '6px', padding: '1px 5px', border: '0.5px solid rgba(197,71,49,0.35)', background: 'transparent', color: 'var(--rod-red)', cursor: 'pointer', font: '400 11px/1.2 "Inter", sans-serif' }}
                               onClick={async () => {
                                 if (!confirm('Remove this item from the order?')) return;
                                 try {
@@ -17632,26 +17727,26 @@
                 {/* Add Item section */}
                 {['pending', 'confirmed'].includes(order.status) && addingItem && (
                   <div style={{ padding: '14px 18px', borderTop: '0.5px solid var(--rod-border)' }}>
-                    <div style={{ padding: '1rem', border: '1px solid var(--stone-200)', background: 'var(--stone-50)' }}>
+                    <div className="rod-inline-panel" style={{ marginTop: 0 }}>
                       {/* Mode toggle */}
                       <div className="mobile-stack" style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                        <button className={addItemMode === 'sku' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary'}
+                        <button className={'rod-mini-btn' + (addItemMode === 'sku' ? ' selected' : '')}
                           onClick={() => { setAddItemMode('sku'); setSelectedSku(null); setCalcSqft(''); setCalcBoxes(''); setCalcUnitQty(1); setCustomItemName(''); setCustomItemPrice(''); setCustomItemVendor(''); setCustomItemDesc(''); setCustomItemBoxes(1); }}>
                           Search SKU
                         </button>
-                        <button className={addItemMode === 'custom' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary'}
+                        <button className={'rod-mini-btn' + (addItemMode === 'custom' ? ' selected' : '')}
                           onClick={() => { setAddItemMode('custom'); setAddItemSku(''); setSkuSearchResults([]); setSelectedSku(null); }}>
                           Custom Item
                         </button>
                         <div style={{ flex: 1 }}></div>
-                        <button className="btn btn-sm btn-secondary" onClick={() => setAddingItem(false)}>Cancel</button>
+                        <button className="rod-mini-btn" onClick={() => setAddingItem(false)}>Cancel</button>
                       </div>
 
                       {addItemMode === 'sku' ? (
                         <div>
                           {!selectedSku ? (
                             <div style={{ position: 'relative' }}>
-                              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Search SKU</label>
+                              <label className="rod-field-label">Search SKU</label>
                               <input type="text" value={addItemSku} placeholder="Type SKU or product name..."
                                 onBlur={() => setTimeout(() => { setSkuSearchResults([]); setSkuSearching(false); }, 200)}
                                 onChange={(e) => {
@@ -17678,7 +17773,7 @@
                                     }, 250);
                                   } else { setSkuSearchResults([]); setSkuSearching(false); }
                                 }}
-                                style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                                className="rod-input" />
                               {skuSearching && skuSearchResults.length === 0 && addItemSku.length >= 2 && (
                                 <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
                               )}
@@ -17737,19 +17832,19 @@
                             const canAdd = isUnit ? calcUnitQty > 0 : isCarpet ? (parseFloat(calcSqft) || 0) > 0 : hasBoxCalc ? numBoxes > 0 : isPerSqft ? (parseFloat(calcSqft) || 0) > 0 : (parseInt(calcBoxes) || 0) > 0;
                             return (
                               <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', background: 'white', border: '1px solid var(--stone-200)', borderRadius: '6px', marginBottom: '0.75rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', background: 'white', border: '0.5px solid var(--rod-border)', marginBottom: '0.75rem' }}>
                                   {r.primary_image ? <img src={optimizeImg(r.primary_image, 96)} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 48, height: 48, background: 'var(--stone-100)', borderRadius: 4, flexShrink: 0 }}></div>}
                                   <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ fontWeight: 500, fontSize: '0.8125rem' }}>{r.collection || r.product_name}{r.color ? ' — ' + r.color : ''}</div>
                                     <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : ''}{' · $' + unitPrice.toFixed(2) + (isUnit ? '/ea' : isCarpet ? '/sqyd' : '/sqft')}{showCost && r.vendor_cost ? ' · Cost $' + parseFloat(r.vendor_cost).toFixed(2) : ''}</div>
                                   </div>
-                                  <button className="btn btn-secondary btn-sm" style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem', flexShrink: 0 }} onClick={() => setSelectedSku(null)}>Change</button>
+                                  <button className="rod-mini-btn" style={{ padding: '5px 8px', fontSize: '9px', flexShrink: 0 }} onClick={() => setSelectedSku(null)}>Change</button>
                                 </div>
                                 {isUnit ? (
                                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
                                     <div style={{ width: '100px' }}>
-                                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Quantity</label>
-                                      <input type="number" min="1" value={calcUnitQty} onChange={e => setCalcUnitQty(parseInt(e.target.value) || 1)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                                      <label className="rod-field-label">Quantity</label>
+                                      <input type="number" min="1" value={calcUnitQty} onChange={e => setCalcUnitQty(parseInt(e.target.value) || 1)} className="rod-input" />
                                     </div>
                                     {calcUnitQty > 0 && <span style={{ fontSize: '0.8125rem', fontWeight: 500, paddingBottom: '0.5rem' }}>= ${subtotal.toFixed(2)}</span>}
                                   </div>
@@ -17757,16 +17852,16 @@
                                   <div>
                                     <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                                       <div style={{ flex: 1, minWidth: '100px' }}>
-                                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Square Feet Needed</label>
-                                        <input type="number" min="0" step="1" value={calcSqft} placeholder="0" onChange={e => handleCalcSqft(e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                                        <label className="rod-field-label">Square Feet Needed</label>
+                                        <input type="number" min="0" step="1" value={calcSqft} placeholder="0" onChange={e => handleCalcSqft(e.target.value)} className="rod-input" />
                                       </div>
                                       <div style={{ flex: 1, minWidth: '100px' }}>
-                                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Boxes</label>
-                                        <input type="number" min="0" step="1" value={calcBoxes} placeholder="0" onChange={e => handleCalcBoxes(e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                                        <label className="rod-field-label">Boxes</label>
+                                        <input type="number" min="0" step="1" value={calcBoxes} placeholder="0" onChange={e => handleCalcBoxes(e.target.value)} className="rod-input" />
                                       </div>
                                     </div>
                                     {numBoxes > 0 && (
-                                      <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: 'white', border: '1px solid var(--stone-200)', borderRadius: '6px', fontSize: '0.8125rem' }}>
+                                      <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: 'white', border: '0.5px solid var(--rod-border)', fontSize: '0.8125rem' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}><span style={{ color: 'var(--stone-500)' }}>Boxes</span><span>{numBoxes}</span></div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}><span style={{ color: 'var(--stone-500)' }}>Total Coverage</span><span>{actualSqft.toFixed(1)} sqft</span></div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}><span style={{ color: 'var(--stone-500)' }}>Rate</span><span>${unitPrice.toFixed(2)}/sqft</span></div>
@@ -17777,28 +17872,28 @@
                                 ) : isCarpet ? (
                                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
                                     <div style={{ width: '120px' }}>
-                                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Square Feet</label>
-                                      <input type="number" min="0" value={calcSqft} placeholder="0" onChange={e => setCalcSqft(e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                                      <label className="rod-field-label">Square Feet</label>
+                                      <input type="number" min="0" value={calcSqft} placeholder="0" onChange={e => setCalcSqft(e.target.value)} className="rod-input" />
                                     </div>
                                     {(parseFloat(calcSqft) || 0) > 0 && <span style={{ fontSize: '0.8125rem', fontWeight: 500, paddingBottom: '0.5rem' }}>= {((parseFloat(calcSqft) || 0) / 9).toFixed(1)} sqyd · ${subtotal.toFixed(2)}</span>}
                                   </div>
                                 ) : isPerSqft ? (
                                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
                                     <div style={{ width: '120px' }}>
-                                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Square Feet</label>
-                                      <input type="number" min="0" value={calcSqft} placeholder="0" onChange={e => setCalcSqft(e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                                      <label className="rod-field-label">Square Feet</label>
+                                      <input type="number" min="0" value={calcSqft} placeholder="0" onChange={e => setCalcSqft(e.target.value)} className="rod-input" />
                                     </div>
                                     {(parseFloat(calcSqft) || 0) > 0 && <span style={{ fontSize: '0.8125rem', fontWeight: 500, paddingBottom: '0.5rem' }}>= ${subtotal.toFixed(2)}</span>}
                                   </div>
                                 ) : (
                                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
                                     <div style={{ width: '100px' }}>
-                                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Boxes</label>
-                                      <input type="number" min="1" value={calcBoxes} onChange={e => setCalcBoxes(e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                                      <label className="rod-field-label">Boxes</label>
+                                      <input type="number" min="1" value={calcBoxes} onChange={e => setCalcBoxes(e.target.value)} className="rod-input" />
                                     </div>
                                   </div>
                                 )}
-                                <button className="btn btn-primary btn-sm" style={{ marginTop: '0.75rem' }} onClick={handleAddSku} disabled={!canAdd || submittingItem}>
+                                <button className="rod-mini-btn primary" style={{ marginTop: '0.75rem' }} onClick={handleAddSku} disabled={!canAdd || submittingItem}>
                                   {submittingItem ? 'Adding...' : canAdd ? 'Add to Order — $' + subtotal.toFixed(2) : 'Add to Order'}
                                 </button>
                               </div>
@@ -17808,35 +17903,35 @@
                       ) : addItemMode === 'custom' ? (
                         <div className="mobile-stack" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                           <div style={{ minWidth: '160px', flex: 1 }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Vendor *</label>
-                            <select value={customItemVendor} onChange={e => setCustomItemVendor(e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }}>
+                            <label className="rod-field-label">Vendor *</label>
+                            <select value={customItemVendor} onChange={e => setCustomItemVendor(e.target.value)} className="rod-input">
                               <option value="">Select vendor...</option>
                               {addItemVendors.map(v => (<option key={v.id} value={v.id}>{v.name}</option>))}
                             </select>
                           </div>
                           <div style={{ minWidth: '160px', flex: 2 }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Product Name *</label>
-                            <input type="text" maxLength={200} value={customItemName} onChange={e => setCustomItemName(e.target.value)} placeholder="e.g. Custom transition strip" style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                            <label className="rod-field-label">Product Name *</label>
+                            <input type="text" maxLength={200} value={customItemName} onChange={e => setCustomItemName(e.target.value)} placeholder="e.g. Custom transition strip" className="rod-input" />
                           </div>
                           <div style={{ width: '100px' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Unit Price *</label>
-                            <input type="number" min="0" step="0.01" value={customItemPrice} onChange={e => setCustomItemPrice(e.target.value)} placeholder="0.00" style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                            <label className="rod-field-label">Unit Price *</label>
+                            <input type="number" min="0" step="0.01" value={customItemPrice} onChange={e => setCustomItemPrice(e.target.value)} placeholder="0.00" className="rod-input" />
                           </div>
                           <div style={{ width: '90px' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Sold By *</label>
-                            <select value={customItemSellBy} onChange={e => setCustomItemSellBy(e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }}>
+                            <label className="rod-field-label">Sold By *</label>
+                            <select value={customItemSellBy} onChange={e => setCustomItemSellBy(e.target.value)} className="rod-input">
                               <option value="box">Box</option><option value="unit">Per Unit (slabs/prefab)</option><option value="piece">Per Piece (mosaics)</option><option value="roll">Roll</option>
                             </select>
                           </div>
                           <div style={{ width: '70px' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>{customItemSellBy === 'unit' ? 'Qty *' : customItemSellBy === 'piece' ? 'Qty *' : customItemSellBy === 'roll' ? 'SqFt *' : 'Boxes *'}</label>
-                            <input type="number" min="1" value={customItemBoxes} onChange={e => setCustomItemBoxes(parseInt(e.target.value) || 1)} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                            <label className="rod-field-label">{customItemSellBy === 'unit' ? 'Qty *' : customItemSellBy === 'piece' ? 'Qty *' : customItemSellBy === 'roll' ? 'SqFt *' : 'Boxes *'}</label>
+                            <input type="number" min="1" value={customItemBoxes} onChange={e => setCustomItemBoxes(parseInt(e.target.value) || 1)} className="rod-input" />
                           </div>
                           <div style={{ minWidth: '140px', flex: 1 }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Description</label>
-                            <input type="text" maxLength={500} value={customItemDesc} onChange={e => setCustomItemDesc(e.target.value)} placeholder="Optional notes" style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                            <label className="rod-field-label">Description</label>
+                            <input type="text" maxLength={500} value={customItemDesc} onChange={e => setCustomItemDesc(e.target.value)} placeholder="Optional notes" className="rod-input" />
                           </div>
-                          <button className="btn btn-sm btn-primary" disabled={!customItemVendor || !customItemName.trim() || !customItemPrice}
+                          <button className="rod-mini-btn primary" disabled={!customItemVendor || !customItemName.trim() || !customItemPrice}
                             onClick={async () => {
                               try {
                                 const data = await repFetch('/api/rep/orders/' + editId + '/add-item', {
@@ -18134,48 +18229,48 @@
                 }}>
                 <div className="rod-card-body-padded">
                   {isPickup ? (
-                    <div style={{ fontSize: '0.875rem' }}>
-                      <strong>Roma Flooring Designs</strong><br/>
+                    <div style={{ font: '400 13px/1.6 "Inter", sans-serif', color: 'var(--rod-ink)' }}>
+                      <strong style={{ fontWeight: 500 }}>Roma Flooring Designs</strong><br/>
                       1440 S. State College Blvd., Suite 6M<br/>
                       Anaheim, CA 92806
                     </div>
                   ) : (
-                    <div style={{ fontSize: '0.875rem' }}>
+                    <div style={{ font: '400 13px/1.6 "Inter", sans-serif', color: 'var(--rod-ink)' }}>
                       {order.shipping_address_line1}
                       {order.shipping_address_line2 && <><br/>{order.shipping_address_line2}</>}
                       <br/>{order.shipping_city}, {order.shipping_state} {order.shipping_zip}
                     </div>
                   )}
                   {showDeliveryForm && (
-                    <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)' }}>
-                      <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--stone-700)' }}>Shipping Address</h4>
+                    <div className="rod-inline-panel">
+                      <div className="rod-field-label" style={{ marginBottom: '0.75rem' }}>Shipping Address</div>
                       <div className="resp-grid-2" style={{ gap: '0.75rem' }}>
                         <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Address Line 1 *</label>
-                          <input className="form-control" value={deliveryAddress.line1} onChange={e => setDeliveryAddress({ ...deliveryAddress, line1: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                          <label className="rod-field-label">Address Line 1 *</label>
+                          <input className="rod-input" value={deliveryAddress.line1} onChange={e => setDeliveryAddress({ ...deliveryAddress, line1: e.target.value })} />
                         </div>
                         <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Address Line 2</label>
-                          <input className="form-control" value={deliveryAddress.line2} onChange={e => setDeliveryAddress({ ...deliveryAddress, line2: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                          <label className="rod-field-label">Address Line 2</label>
+                          <input className="rod-input" value={deliveryAddress.line2} onChange={e => setDeliveryAddress({ ...deliveryAddress, line2: e.target.value })} />
                         </div>
                         <div>
-                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>City *</label>
-                          <input className="form-control" value={deliveryAddress.city} onChange={e => setDeliveryAddress({ ...deliveryAddress, city: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                          <label className="rod-field-label">City *</label>
+                          <input className="rod-input" value={deliveryAddress.city} onChange={e => setDeliveryAddress({ ...deliveryAddress, city: e.target.value })} />
                         </div>
                         <div className="resp-grid-2" style={{ gap: '0.75rem' }}>
                           <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>State *</label>
-                            <input className="form-control" value={deliveryAddress.state} onChange={e => setDeliveryAddress({ ...deliveryAddress, state: e.target.value })} maxLength={2} style={{ fontSize: '0.8125rem' }} />
+                            <label className="rod-field-label">State *</label>
+                            <input className="rod-input" value={deliveryAddress.state} onChange={e => setDeliveryAddress({ ...deliveryAddress, state: e.target.value })} maxLength={2} />
                           </div>
                           <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>ZIP *</label>
-                            <input className="form-control" value={deliveryAddress.zip} onChange={e => setDeliveryAddress({ ...deliveryAddress, zip: e.target.value })} maxLength={10} style={{ fontSize: '0.8125rem' }} />
+                            <label className="rod-field-label">ZIP *</label>
+                            <input className="rod-input" value={deliveryAddress.zip} onChange={e => setDeliveryAddress({ ...deliveryAddress, zip: e.target.value })} maxLength={10} />
                           </div>
                         </div>
                       </div>
                       {!shippingOptions && (
                         <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                          <button className="btn btn-primary btn-sm" disabled={deliveryUpdating || !deliveryAddress.line1 || !deliveryAddress.city || !deliveryAddress.state || !deliveryAddress.zip} onClick={async () => {
+                          <button className="rod-mini-btn primary" disabled={deliveryUpdating || !deliveryAddress.line1 || !deliveryAddress.city || !deliveryAddress.state || !deliveryAddress.zip} onClick={async () => {
                             setDeliveryUpdating(true);
                             try {
                               const data = await repFetch('/api/rep/orders/' + editId + '/delivery-method', { method: 'PUT', body: JSON.stringify({ delivery_method: 'shipping', shipping_address: deliveryAddress }) });
@@ -18183,22 +18278,22 @@
                             } catch (err) {}
                             setDeliveryUpdating(false);
                           }}>{deliveryUpdating ? 'Calculating...' : 'Get Rates'}</button>
-                          <button className="btn btn-secondary btn-sm" onClick={() => { setShowDeliveryForm(false); setShippingOptions(null); }}>Cancel</button>
+                          <button className="rod-mini-btn" onClick={() => { setShowDeliveryForm(false); setShippingOptions(null); }}>Cancel</button>
                         </div>
                       )}
                       {shippingOptions && (
                         <div style={{ marginTop: '0.75rem' }}>
-                          <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.5rem', fontWeight: 600 }}>Select Shipping Rate</div>
+                          <div className="rod-field-label" style={{ marginBottom: '0.5rem' }}>Select Shipping Rate</div>
                           {shippingOptions.map((opt, idx) => (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', border: '1px solid var(--stone-200)', borderRadius: '4px', marginBottom: '0.5rem', background: '#fff' }}>
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', border: '0.5px solid var(--rod-border)', marginBottom: '0.5rem', background: '#fff' }}>
                               <div>
-                                <strong style={{ fontSize: '0.8125rem' }}>{opt.carrier || 'Standard'}</strong>
-                                {opt.service && <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginLeft: '0.5rem' }}>{opt.service}</span>}
-                                {opt.transit_days && <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginLeft: '0.5rem' }}>({opt.transit_days} days)</span>}
+                                <span style={{ font: '400 13px/1.3 "Inter", sans-serif', color: 'var(--rod-ink)' }}>{opt.carrier || 'Standard'}</span>
+                                {opt.service && <span style={{ fontSize: '0.75rem', color: 'var(--rod-muted)', marginLeft: '0.5rem' }}>{opt.service}</span>}
+                                {opt.transit_days && <span style={{ fontSize: '0.75rem', color: 'var(--rod-muted)', marginLeft: '0.5rem' }}>({opt.transit_days} days)</span>}
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <strong>${parseFloat(opt.amount).toFixed(2)}</strong>
-                                <button className="btn btn-primary btn-sm" disabled={deliveryUpdating} onClick={async () => {
+                                <span style={{ font: '400 15px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>${parseFloat(opt.amount).toFixed(2)}</span>
+                                <button className="rod-mini-btn primary" disabled={deliveryUpdating} onClick={async () => {
                                   setDeliveryUpdating(true);
                                   try {
                                     const data = await repFetch('/api/rep/orders/' + editId + '/delivery-method', { method: 'PUT', body: JSON.stringify({ delivery_method: 'shipping', shipping_address: deliveryAddress, shipping_option_index: idx }) });
@@ -18211,7 +18306,7 @@
                             </div>
                           ))}
                           <div style={{ marginTop: '0.5rem', textAlign: 'center' }}>
-                            <button className="btn btn-secondary btn-sm" onClick={() => { setShowDeliveryForm(false); setShippingOptions(null); }}>Cancel</button>
+                            <button className="rod-mini-btn" onClick={() => { setShowDeliveryForm(false); setShippingOptions(null); }}>Cancel</button>
                           </div>
                         </div>
                       )}
@@ -18226,83 +18321,89 @@
                 onAction={() => { if (!showCollectPayment && balanceInfo) setCollectAmount(balanceInfo.balance.toFixed(2)); setShowCollectPayment(!showCollectPayment); setCollectMethod(null); }}>
                 <div className="rod-card-body-padded">
                   <div style={{ maxWidth: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', fontSize: '0.875rem' }}>
-                      <span>Subtotal</span><span>${parseFloat(order.subtotal).toFixed(2)}</span>
+                    <div className="rod-commission-row">
+                      <span className="rod-commission-row-label">Subtotal</span>
+                      <span className="rod-commission-row-value">${parseFloat(order.subtotal).toFixed(2)}</span>
                     </div>
                     {order.delivery_method === 'pickup' ? (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', fontSize: '0.875rem' }}>
-                        <span>Shipping (Store Pickup)</span><span style={{ color: '#16a34a', fontWeight: 500 }}>FREE</span>
+                      <div className="rod-commission-row">
+                        <span className="rod-commission-row-label">Shipping (Store Pickup)</span>
+                        <span className="rod-commission-row-value" style={{ color: 'var(--rod-green)' }}>Free</span>
                       </div>
                     ) : parseFloat(order.shipping || 0) > 0 ? (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', fontSize: '0.875rem' }}>
-                        <span>Shipping</span><span>${parseFloat(order.shipping).toFixed(2)}</span>
+                      <div className="rod-commission-row">
+                        <span className="rod-commission-row-label">Shipping</span>
+                        <span className="rod-commission-row-value">${parseFloat(order.shipping).toFixed(2)}</span>
                       </div>
                     ) : null}
                     {parseFloat(order.sample_shipping || 0) > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', fontSize: '0.875rem' }}>
-                        <span>Sample Shipping</span><span>${parseFloat(order.sample_shipping).toFixed(2)}</span>
+                      <div className="rod-commission-row">
+                        <span className="rod-commission-row-label">Sample Shipping</span>
+                        <span className="rod-commission-row-value">${parseFloat(order.sample_shipping).toFixed(2)}</span>
                       </div>
                     )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0', fontSize: '1.05rem', fontWeight: 600, borderTop: '2px solid var(--stone-200)', marginTop: '0.25rem' }}>
-                      <span>Total</span><span>${parseFloat(order.total).toFixed(2)}</span>
+                    <div className="rod-commission-row" style={{ borderTop: '0.5px solid rgba(28,25,23,0.25)', borderBottom: 'none', marginTop: '4px', paddingTop: '10px' }}>
+                      <span style={{ font: '500 10px/1.4 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--rod-ink)' }}>Total</span>
+                      <span className="rod-commission-row-value" style={{ fontSize: '18px' }}>${parseFloat(order.total).toFixed(2)}</span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', fontSize: '0.875rem', color: 'var(--stone-500)' }}>
-                      <span>Amount Paid</span><span>${parseFloat(order.amount_paid || 0).toFixed(2)}</span>
+                    <div className="rod-commission-row" style={{ borderBottom: 'none' }}>
+                      <span className="rod-commission-row-label">Amount Paid</span>
+                      <span className="rod-commission-row-value" style={{ color: 'var(--rod-green)' }}>${parseFloat(order.amount_paid || 0).toFixed(2)}</span>
                     </div>
                     {balanceInfo && balanceInfo.balance_status === 'paid' && (
-                      <div style={{ padding: '0.5rem 0.75rem', background: '#dcfce7', color: '#166534', fontSize: '0.8125rem', fontWeight: 500, textAlign: 'center', marginTop: '0.5rem' }}>Paid in Full</div>
+                      <div className="rod-banner green">Paid in Full</div>
                     )}
                     {balanceInfo && balanceInfo.balance_status === 'credit' && (
-                      <div style={{ padding: '0.5rem 0.75rem', background: '#dbeafe', color: '#1e40af', fontSize: '0.8125rem', fontWeight: 500, textAlign: 'center', marginTop: '0.5rem' }}>Credit Available: ${Math.abs(balanceInfo.balance).toFixed(2)}</div>
+                      <div className="rod-banner blue">Credit Available: ${Math.abs(balanceInfo.balance).toFixed(2)}</div>
                     )}
                     {balanceInfo && balanceInfo.balance_status === 'balance_due' && (
-                      <div style={{ padding: '0.5rem 0.75rem', background: '#fef3c7', color: '#92400e', fontSize: '0.8125rem', fontWeight: 500, textAlign: 'center', marginTop: '0.5rem' }}>Balance Due: ${balanceInfo.balance.toFixed(2)}</div>
+                      <div className="rod-banner amber">Balance Due: ${balanceInfo.balance.toFixed(2)}</div>
                     )}
                     {balanceInfo && balanceInfo.balance_status === 'balance_due' && (
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                        <button className="btn btn-sm" style={{ background: '#fef3c7', color: '#92400e' }}
+                        <button className="rod-mini-btn"
                           onClick={() => { setPaymentRequestMessage(''); setShowPaymentRequestModal(true); }}>Send Payment Request</button>
                       </div>
                     )}
                     {showCollectPayment && balanceInfo && balanceInfo.balance_status === 'balance_due' && (
-                      <div style={{ marginTop: '0.75rem', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '8px' }}>
+                      <div className="rod-inline-panel">
                         <div style={{ marginBottom: '0.75rem' }}>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'block', marginBottom: '0.375rem' }}>Payment Amount</label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--stone-700)' }}>$</span>
-                            <input type="number" min="0.01" max={balanceInfo.balance} step="0.01" value={collectAmount} onChange={e => setCollectAmount(e.target.value)}
-                              style={{ flex: 1, padding: '0.5rem 0.75rem', border: '1px solid var(--stone-300)', borderRadius: '6px', fontSize: '0.9375rem', fontWeight: 600 }} />
-                            <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)', whiteSpace: 'nowrap' }}>of ${balanceInfo.balance.toFixed(2)}</span>
+                          <label className="rod-field-label">Payment Amount</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <span style={{ font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>$</span>
+                            <input className="rod-input" type="number" min="0.01" max={balanceInfo.balance} step="0.01" value={collectAmount} onChange={e => setCollectAmount(e.target.value)}
+                              style={{ flex: 1, width: 'auto' }} />
+                            <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.1em', color: 'var(--rod-muted)', whiteSpace: 'nowrap' }}>OF ${balanceInfo.balance.toFixed(2)}</span>
                           </div>
                           {parseFloat(collectAmount) > 0 && parseFloat(collectAmount) < balanceInfo.balance && (
-                            <div style={{ fontSize: '0.75rem', color: '#92400e', marginTop: '0.375rem' }}>Remaining after: ${(balanceInfo.balance - parseFloat(collectAmount)).toFixed(2)}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--rod-accent)', marginTop: '0.375rem' }}>Remaining after: ${(balanceInfo.balance - parseFloat(collectAmount)).toFixed(2)}</div>
                           )}
                           {(parseFloat(collectAmount) <= 0 || parseFloat(collectAmount) > balanceInfo.balance || isNaN(parseFloat(collectAmount))) && collectAmount !== '' && (
-                            <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '0.375rem' }}>Amount must be between $0.01 and ${balanceInfo.balance.toFixed(2)}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--rod-red)', marginTop: '0.375rem' }}>Amount must be between $0.01 and ${balanceInfo.balance.toFixed(2)}</div>
                           )}
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
                           {['card', 'cash', 'check'].map(m => (
-                            <button key={m} className="btn btn-sm"
-                              style={{ background: collectMethod === m ? 'var(--stone-800)' : '#fff', color: collectMethod === m ? '#fff' : 'var(--stone-700)', border: '1px solid var(--stone-300)', flex: 1 }}
+                            <button key={m} className={'rod-mini-btn' + (collectMethod === m ? ' selected' : '')}
+                              style={{ flex: 1 }}
                               onClick={() => setCollectMethod(m)}>
                               {m === 'card' ? 'Card' : m === 'cash' ? 'Cash' : 'Check'}
                             </button>
                           ))}
                         </div>
                         {collectMethod === 'card' && (
-                          <div style={{ fontSize: '0.8125rem', color: 'var(--stone-600)', marginBottom: '0.75rem' }}>
+                          <div style={{ fontSize: '0.8125rem', color: 'var(--rod-muted)', marginBottom: '0.75rem' }}>
                             {terminalStatus === 'connected' ? '✓ Tap to Pay terminal connected' : terminalStatus === 'connecting' ? 'Connecting to terminal...' : 'Terminal offline — manual card entry available'}
                           </div>
                         )}
                         {collectMethod === 'cash' && collectCashDrawerOpen === false && (
-                          <div style={{ padding: '0.5rem 0.75rem', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '6px', fontSize: '0.8125rem', color: '#92400e', marginBottom: '0.75rem' }}>No cash drawer open. Open one from the Cash Drawer tab first.</div>
+                          <div className="rod-banner amber" style={{ marginTop: 0, marginBottom: '0.75rem', textAlign: 'left' }}>No cash drawer open. Open one from the Cash Drawer tab first.</div>
                         )}
                         {collectMethod === 'check' && (
                           <div style={{ marginBottom: '0.75rem' }}>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 500, display: 'block', marginBottom: '0.25rem' }}>Check Number *</label>
-                            <input type="text" maxLength={20} value={collectCheckNumber} onChange={e => setCollectCheckNumber(e.target.value)}
-                              placeholder="Enter check number" style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }} />
+                            <label className="rod-field-label">Check Number *</label>
+                            <input className="rod-input" type="text" maxLength={20} value={collectCheckNumber} onChange={e => setCollectCheckNumber(e.target.value)}
+                              placeholder="Enter check number" />
                           </div>
                         )}
                         {collectMethod && (() => {
@@ -18310,7 +18411,7 @@
                           const validAmt = !isNaN(amt) && amt > 0 && amt <= balanceInfo.balance;
                           const amtLabel = validAmt ? ' — $' + amt.toFixed(2) : '';
                           return (
-                            <button className="btn" style={{ width: '100%', background: 'var(--stone-800)', color: '#fff' }}
+                            <button className="rod-mini-btn primary" style={{ width: '100%', padding: '10px 12px' }}
                               disabled={collectSaving || !validAmt || (collectMethod === 'cash' && collectCashDrawerOpen === false) || (collectMethod === 'check' && !collectCheckNumber.trim())}
                               onClick={() => {
                                 if (collectMethod === 'card') handleCollectCard();
@@ -18351,26 +18452,22 @@
                 return (
                   <RodCard title="Workflow Checklist">
                     <div className="rod-card-body-padded">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                        <span style={{ fontSize: '0.8125rem', color: pct === 100 ? '#15803d' : 'var(--stone-500)', fontWeight: 500 }}>
-                          {completedCount} of {totalSteps} steps complete
-                        </span>
+                      <div style={{ marginBottom: '0.75rem', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: pct === 100 ? 'var(--rod-green)' : 'var(--rod-muted)' }}>
+                        {completedCount} of {totalSteps} steps complete
                       </div>
-                      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1rem' }}>
+                      <div style={{ display: 'flex', gap: '3px', marginBottom: '1rem' }}>
                         {steps.map((_, i) => (
-                          <div key={i} style={{ flex: 1, height: 5, borderRadius: 3, background: i < completedCount ? '#15803d' : 'var(--stone-200)', transition: 'background 0.3s' }} />
+                          <div key={i} className={'rod-check-segment' + (i < completedCount ? ' done' : '')} />
                         ))}
                       </div>
                       {steps.map((step, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.4rem 0', borderBottom: i < steps.length - 1 ? '1px solid var(--stone-100)' : 'none' }}>
-                          <div style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            background: step.done ? '#dcfce7' : 'var(--stone-100)', color: step.done ? '#15803d' : 'var(--stone-400)',
-                            fontSize: '0.7rem', fontWeight: 700, border: step.done ? '2px solid #15803d' : '2px solid var(--stone-300)' }}>
+                        <div key={i} className="rod-check-step">
+                          <div className={'rod-check-mark ' + (step.done ? 'done' : 'pending')}>
                             {step.done ? '✓' : (i + 1)}
                           </div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '0.8125rem', fontWeight: 500, color: step.done ? '#15803d' : 'var(--stone-700)' }}>{step.label}</div>
-                            {step.detail && <div style={{ fontSize: '0.7rem', color: 'var(--stone-500)', marginTop: '0.1rem' }}>{step.detail}</div>}
+                            <div className={'rod-check-label' + (step.done ? '' : ' pending')}>{step.label}</div>
+                            {step.detail && <div className="rod-check-detail">{step.detail}</div>}
                           </div>
                         </div>
                       ))}
@@ -18518,14 +18615,14 @@
                 <h3>Send Payment Request</h3>
                 <p>Send a payment link for <strong>${balanceInfo ? balanceInfo.balance.toFixed(2) : '0.00'}</strong> to <strong>{order.customer_email}</strong>.</p>
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Message to Customer (optional)</label>
+                  <label className="rod-field-label">Message to Customer (optional)</label>
                   <textarea value={paymentRequestMessage} onChange={e => setPaymentRequestMessage(e.target.value)}
                     placeholder="e.g. Additional items were added to your order..."
-                    rows={3} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)', resize: 'vertical' }} />
+                    rows={3} className="rod-input" />
                 </div>
                 <div className="modal-actions">
                   <button className="btn btn-secondary" onClick={() => setShowPaymentRequestModal(false)} disabled={updating}>Cancel</button>
-                  <button className="btn" style={{ background: '#fef3c7', color: '#92400e' }} disabled={updating}
+                  <button className="btn btn-primary" disabled={updating}
                     onClick={async () => {
                       setUpdating(true);
                       try {
@@ -18550,16 +18647,16 @@
                 <p style={{ fontSize: '0.875rem', color: 'var(--stone-600)', margin: '0 0 1rem' }}>
                   Send invoice for <strong>{order.order_number}</strong> to <strong>{order.customer_email}</strong>.
                   {balanceInfo && balanceInfo.balance > 0.01 && (
-                    <span style={{ display: 'block', marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: '#fefce8', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.8125rem' }}>
+                    <span style={{ display: 'block', marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: 'rgba(168,121,53,0.1)', border: '0.5px solid rgba(168,121,53,0.35)', color: 'var(--rod-accent)', fontSize: '0.8125rem' }}>
                       Balance due of <strong>${balanceInfo.balance.toFixed(2)}</strong> — a payment link will be included.
                     </span>
                   )}
                 </p>
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Message to Customer (optional)</label>
+                  <label className="rod-field-label">Message to Customer (optional)</label>
                   <textarea value={invoiceMessage} onChange={e => setInvoiceMessage(e.target.value)}
                     placeholder="e.g. Here is the invoice for your recent order..."
-                    rows={3} style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem', resize: 'vertical' }} />
+                    rows={3} className="rod-input" />
                 </div>
                 <div className="modal-actions">
                   <button className="btn btn-secondary" onClick={() => setShowSendInvoiceModal(false)} disabled={sendingInvoice}>Cancel</button>
@@ -23156,76 +23253,144 @@
         setCreating(false);
       };
 
-      const statusBadge = (s) => {
-        const cls = { draft: 'badge-draft', sent: 'badge-sent', acknowledged: 'badge-acknowledged', fulfilled: 'badge-fulfilled', cancelled: 'badge-cancelled' };
-        return <span className={'badge ' + (cls[s] || 'badge-draft')}>{s}</span>;
+      const getStatusTone = (s) => {
+        if (s === 'sent') return '#5c6e94';
+        if (s === 'acknowledged') return '#a87935';
+        if (s === 'fulfilled') return '#3a7a4e';
+        if (s === 'cancelled') return '#c54731';
+        return 'var(--brass-muted)';
+      };
+
+      const getAge = (d) => {
+        if (!d) return '—';
+        const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+        if (days === 0) return 'today';
+        return days + 'd';
       };
 
       const filteredPOs = pos.filter(po => tab === 'order' ? po.order_id != null : po.order_id == null);
+      const orderCount = pos.filter(po => po.order_id != null).length;
+      const openPO = (po) => tab === 'order' ? navigate('order-detail', po.order_id) : navigate('purchase-order-detail', po.id);
+      const viewSubtotal = filteredPOs.reduce((sum, po) => sum + parseFloat(po.subtotal || 0), 0);
+
+      const VIEWS = [
+        { key: 'order', label: 'Order POs', count: orderCount },
+        { key: 'standalone', label: 'Standalone', count: pos.length - orderCount },
+      ];
 
       return (
         <div>
-          <div className="content-header">
-            <h1>PO Tracking</h1>
-            {tab === 'standalone' && <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ New Purchase Order</button>}
+          {/* Header */}
+          <div className="ol-header">
+            <div>
+              <div className="ol-header-label">
+                {'●'} Purchase orders {'·'} {filteredPOs.length} showing {'·'} {pos.length} total
+              </div>
+              <h1><em>Purchase orders</em></h1>
+            </div>
+            <div className="ol-header-actions">
+              {tab === 'standalone' && <button className="ol-header-btn primary" onClick={() => setShowCreate(true)}>+ New purchase order</button>}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-            <button className={tab === 'order' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setTab('order')}>Order POs</button>
-            <button className={tab === 'standalone' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setTab('standalone')}>Standalone</button>
+
+          {/* Saved views tabs */}
+          <div className="ol-saved-views">
+            {VIEWS.map(v => (
+              <button key={v.key} className={'ol-view-tab' + (tab === v.key ? ' active' : '')} onClick={() => setTab(v.key)}>
+                {v.label}
+                <span className="ol-tab-count">{v.count}</span>
+              </button>
+            ))}
           </div>
-          <div className="filter-bar">
-            <input type="text" placeholder="Search PO#, vendor, order#..." value={search} onChange={e => setSearch(e.target.value)} />
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="">All Statuses</option>
-              {['draft','sent','acknowledged','fulfilled','cancelled'].map(s => (
-                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-              ))}
-            </select>
-            <select value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}>
-              <option value="">All Vendors</option>
-              {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-            </select>
-            <span className="filter-count">{filteredPOs.length} PO{filteredPOs.length !== 1 ? 's' : ''}</span>
-          </div>
-          {loading ? <div className="loading">Loading purchase orders...</div> : (
-            <div className="table-scroll-wrapper"><table className="rep-table">
-              <thead>
-                <tr>
-                  <th>PO #</th>
-                  <th>Vendor</th>
-                  {tab === 'order' && <th>Order #</th>}
-                  <th>Items</th>
-                  <th>Subtotal</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPOs.map(po => (
-                  <tr key={po.id} style={{ cursor: 'pointer' }} onClick={() => tab === 'order' ? navigate('order-detail', po.order_id) : navigate('purchase-order-detail', po.id)}>
-                    <td data-label="PO #" style={{ fontWeight: 500 }}>{po.po_number}</td>
-                    <td data-label="Vendor">{po.vendor_name}</td>
-                    {tab === 'order' && <td data-label="Order #"><span style={{ color: 'var(--gold)', fontWeight: 500 }}>{po.order_number}</span></td>}
-                    <td data-label="Items">{po.item_count}</td>
-                    <td data-label="Subtotal">${parseFloat(po.subtotal || 0).toFixed(2)}</td>
-                    <td data-label="Status">{statusBadge(po.status)}</td>
-                    <td data-label="Date" style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(po.created_at).toLocaleDateString()}</td>
-                    <td data-label="" className="actions" onClick={e => e.stopPropagation()}>
-                      {tab === 'order'
-                        ? <button className="btn btn-secondary btn-sm" onClick={() => navigate('order-detail', po.order_id)}>Open order &rarr;</button>
-                        : <button className="btn btn-secondary btn-sm" onClick={() => navigate('purchase-order-detail', po.id)}>View</button>
-                      }
-                    </td>
-                  </tr>
+
+          {/* Filter bar */}
+          <div className="ol-filter-bar">
+            <div className="ol-filter-chips">
+              <select className="ol-chip" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                style={{ appearance: 'auto', paddingRight: 24 }}>
+                <option value="">Status: Any</option>
+                {['draft','sent','acknowledged','fulfilled','cancelled'].map(s => (
+                  <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
                 ))}
-                {filteredPOs.length === 0 && (
-                  <tr><td colSpan={tab === 'order' ? 8 : 7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-400)' }}>
-                    {tab === 'order' ? 'No order-linked purchase orders found' : 'No standalone purchase orders found'}
-                  </td></tr>
-                )}
-              </tbody>
-            </table></div>
+              </select>
+              {statusFilter && (
+                <span className="ol-chip active" onClick={() => setStatusFilter('')}>
+                  <span className="ol-chip-label">Status:</span> {statusFilter}
+                  <span className="ol-chip-remove">{'×'}</span>
+                </span>
+              )}
+              <select className="ol-chip" value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}
+                style={{ appearance: 'auto', paddingRight: 24 }}>
+                <option value="">Vendor: Any</option>
+                {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+              </select>
+              {vendorFilter && (
+                <span className="ol-chip active" onClick={() => setVendorFilter('')}>
+                  <span className="ol-chip-label">Vendor:</span> {(vendors.find(v => String(v.id) === String(vendorFilter)) || {}).name || vendorFilter}
+                  <span className="ol-chip-remove">{'×'}</span>
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 10, top: 7, font: '400 14px/1 "Cormorant Garamond", serif', color: 'var(--brass-muted)' }}>{'⌕'}</span>
+                <input className="ol-search-inline" placeholder="Search PO#, vendor, order#" aria-label="Search purchase orders"
+                  value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+              <span className="ol-meta">{filteredPOs.length} rows</span>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="gs-loading" style={{ padding: '40px 22px', background: '#ece5d8', border: '0.5px solid rgba(28,25,23,0.14)' }}>Loading purchase orders{'…'}</div>
+          ) : (
+            <div className="pl-table-wrap">
+              {/* Table header */}
+              <div className={'pl-table-head' + (tab === 'standalone' ? ' standalone' : '')}>
+                <span>PO #</span>
+                <span>Vendor</span>
+                {tab === 'order' && <span>Order #</span>}
+                <span>Items</span>
+                <span style={{ textAlign: 'right' }}>Subtotal</span>
+                <span>Status</span>
+                <span style={{ textAlign: 'right' }}>Age</span>
+                <span />
+              </div>
+
+              {/* Rows */}
+              {filteredPOs.map(po => (
+                <div key={po.id} className={'pl-table-row' + (tab === 'standalone' ? ' standalone' : '')}
+                  role="button" tabIndex={0}
+                  onClick={() => openPO(po)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPO(po); } }}>
+                  <span className="pl-po-id">{po.po_number}</span>
+                  <span className="pl-vendor-name">{po.vendor_name}</span>
+                  {tab === 'order' && <span className="pl-order-ref">{po.order_number}</span>}
+                  <span className="pl-items">{po.item_count} item{po.item_count !== 1 ? 's' : ''}</span>
+                  <span className="pl-total">${parseFloat(po.subtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="pl-status" style={{ color: getStatusTone(po.status) }}>{'●'} {po.status}</span>
+                  <span className="pl-age">{getAge(po.created_at)}</span>
+                  <span style={{ font: '400 14px/1 "Cormorant Garamond", serif', color: 'var(--brass-muted)', textAlign: 'right' }}>{'→'}</span>
+                </div>
+              ))}
+
+              {filteredPOs.length === 0 && (
+                <div style={{ padding: '40px 22px', textAlign: 'center' }}>
+                  <div style={{ color: 'var(--brass-muted)', font: '400 13px/1.4 Inter, sans-serif', marginBottom: tab === 'standalone' ? 14 : 0 }}>
+                    {tab === 'order' ? 'No order-linked purchase orders match this view.' : 'No standalone purchase orders match this view.'}
+                  </div>
+                  {tab === 'standalone' && <button className="ol-header-btn" onClick={() => setShowCreate(true)}>+ New purchase order</button>}
+                </div>
+              )}
+
+              {/* Footer */}
+              {filteredPOs.length > 0 && (
+                <div className="pl-footer">
+                  <span>{filteredPOs.length} purchase order{filteredPOs.length !== 1 ? 's' : ''}</span>
+                  <span>${viewSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} combined subtotal</span>
+                </div>
+              )}
+            </div>
           )}
 
           {showCreate && (
