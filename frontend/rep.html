@@ -962,6 +962,37 @@
       .sl-table-head > :nth-child(6), .sl-table-row > :nth-child(6) { display: none; }
     }
 
+    /* ── Showroom visits list (vl-*) ── */
+    .vl-table-wrap { background: #ece5d8; border: 0.5px solid rgba(28,25,23,0.14); }
+    .vl-table-head {
+      padding: 10px 22px; border-bottom: 0.5px solid rgba(28,25,23,0.07);
+      display: grid; grid-template-columns: 18px 1.6fr 70px 90px 90px 1.2fr 60px 24px;
+      gap: 12px; align-items: center;
+      font: 500 10px/1 ui-monospace, monospace; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--brass-muted);
+    }
+    .vl-table-row {
+      padding: 12px 22px; border-bottom: 0.5px solid rgba(28,25,23,0.07);
+      display: grid; grid-template-columns: 18px 1.6fr 70px 90px 90px 1.2fr 60px 24px;
+      gap: 12px; align-items: center; cursor: pointer;
+    }
+    .vl-table-row:last-child { border-bottom: none; }
+    .vl-table-row:hover { background: rgba(28,25,23,0.02); }
+    .vl-table-row:focus-visible { outline: 2px solid var(--gold, #c9a668); outline-offset: -2px; }
+    .vl-table-row.selected { background: var(--brass-warm, #d8cdb6); }
+    .vl-cust-name { font: 400 14px/1.2 'Inter', sans-serif; color: var(--stone-900); }
+    .vl-cust-sub { font: 500 9px/1.3 ui-monospace, monospace; letter-spacing: 0.1em; color: var(--brass-muted); text-transform: uppercase; margin-top: 3px; word-break: break-all; }
+    .vl-items { font: 400 13px/1.3 'Cormorant Garamond', serif; color: var(--stone-900); }
+    .vl-date { font: 500 11px/1.3 ui-monospace, monospace; letter-spacing: 0.06em; color: var(--stone-900); }
+    .vl-stage { font: 500 10px/1.3 ui-monospace, monospace; letter-spacing: 0.1em; text-transform: uppercase; }
+    .vl-stage-sub { font: 400 11px/1.4 'Inter', sans-serif; color: rgba(28,25,23,0.6); margin-top: 3px; }
+    .vl-age { font: 500 11px/1 ui-monospace, monospace; letter-spacing: 0.08em; color: var(--brass-muted); text-align: right; }
+    @media (max-width: 1200px) {
+      .vl-table-head, .vl-table-row { grid-template-columns: 18px 1fr 50px 1.2fr 50px 20px; }
+      .vl-table-head > :nth-child(4), .vl-table-row > :nth-child(4) { display: none; }
+      .vl-table-head > :nth-child(5), .vl-table-row > :nth-child(5) { display: none; }
+    }
+
     /* ── Purchase orders list (pl-*) ── */
     .pl-table-wrap { background: #ece5d8; border: 0.5px solid rgba(28,25,23,0.14); }
     .pl-table-head {
@@ -1802,59 +1833,6 @@
     .timeline-type-showroom_visit { background: #ccfbf1; color: #0f766e; }
     .timeline-type-installation_inquiry { background: #fff7ed; color: #c2410c; }
 
-    /* Visit Product Cards */
-    .visit-product-card {
-      display: flex;
-      align-items: flex-start;
-      gap: 1rem;
-      padding: 1rem;
-      border: 1px solid var(--stone-200);
-      border-radius: var(--radius-sm);
-      background: white;
-      margin-bottom: 0.5rem;
-    }
-    .visit-product-image {
-      width: 60px;
-      height: 60px;
-      object-fit: cover;
-      border: 1px solid var(--stone-200);
-      flex-shrink: 0;
-    }
-    .visit-product-info {
-      flex: 1;
-      min-width: 0;
-    }
-    .visit-product-info .vp-name {
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: var(--stone-800);
-    }
-    .visit-product-info .vp-collection {
-      font-size: 0.8125rem;
-      color: var(--stone-500);
-    }
-    .visit-product-info .vp-price {
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: var(--stone-800);
-      margin-top: 0.25rem;
-    }
-    .visit-url-box {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem 1rem;
-      background: var(--stone-50);
-      border: 1px solid var(--stone-200);
-      border-radius: var(--radius-sm);
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      font-size: 0.8125rem;
-      color: var(--stone-600);
-      word-break: break-all;
-    }
-    .visit-url-box button {
-      flex-shrink: 0;
-    }
     .badge-opened { background: #fef3c7; color: #d97706; }
     .badge-carted { background: var(--green-light); color: var(--green); }
 
@@ -3418,8 +3396,6 @@
       .form-group input, .form-group select, .form-group textarea { padding: 0.625rem 0.75rem; font-size: 1rem; }
       .timeline { padding-left: 1.5rem; }
       .filter-bar input, .filter-bar select { font-size: 1rem; padding: 0.625rem 0.75rem; }
-      .visit-product-card { flex-direction: column; }
-      .visit-product-image { width: 100%; height: auto; aspect-ratio: 16/9; border-radius: 4px; }
       .btn { font-size: 0.75rem; }
       .btn-sm { font-size: 0.6875rem; min-height: 36px; }
       .modal-box { padding: 1rem; max-height: 95vh; border-radius: 10px; }
@@ -3435,8 +3411,6 @@
     @supports not (aspect-ratio: 1) {
       .product-media-main { height: 0; padding-bottom: 100%; position: relative; }
       .product-media-main img { position: absolute; top: 0; left: 0; }
-      .visit-product-image { height: 0; padding-bottom: 56.25%; position: relative; }
-      .visit-product-image img { position: absolute; top: 0; left: 0; }
     }
 
     /* Google Places autocomplete dropdown */
@@ -16335,73 +16309,224 @@
     function RepVisitsListView({ navigate }) {
       const [visits, setVisits] = useState([]);
       const [loading, setLoading] = useState(true);
+      const [search, setSearch] = useState('');
       const [statusFilter, setStatusFilter] = useState('');
+      const [activeView, setActiveView] = useState('all');
+      const [selected, setSelected] = useState(new Set());
+      const [page, setPage] = useState(1);
+      const perPage = 50;
 
       const load = useCallback(() => {
         setLoading(true);
-        const params = statusFilter ? '?status=' + statusFilter : '';
-        repFetch('/api/rep/visits' + params)
+        repFetch('/api/rep/visits')
           .then(d => { setVisits(d.visits || []); setLoading(false); })
           .catch(() => setLoading(false));
-      }, [statusFilter]);
+      }, []);
 
       useEffect(load, [load]);
 
-      if (loading) return <div className="loading">Loading visits...</div>;
+      // Saved view filters
+      const viewFilters = {
+        'engaged': v => v.status === 'opened' || v.status === 'carted',
+        'awaiting': v => v.status === 'sent',
+        'drafts': v => v.status === 'draft',
+        'all': () => true,
+      };
+
+      const filteredVisits = useMemo(() => {
+        const fn = viewFilters[activeView] || (() => true);
+        const q = search.trim().toLowerCase();
+        return visits.filter(v => fn(v)
+          && (!statusFilter || v.status === statusFilter)
+          && (!q || (v.customer_name || '').toLowerCase().includes(q) || (v.customer_email || '').toLowerCase().includes(q)));
+      }, [visits, activeView, statusFilter, search]);
+
+      const viewCounts = useMemo(() => ({
+        'engaged': visits.filter(viewFilters['engaged']).length,
+        'awaiting': visits.filter(viewFilters['awaiting']).length,
+        'drafts': visits.filter(viewFilters['drafts']).length,
+        'all': visits.length,
+      }), [visits]);
+
+      const totalPages = Math.ceil(filteredVisits.length / perPage);
+      const pageVisits = filteredVisits.slice((page - 1) * perPage, page * perPage);
+
+      const toggleSelect = (id) => {
+        setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+      };
+      const toggleAll = () => {
+        if (selected.size === pageVisits.length) setSelected(new Set());
+        else setSelected(new Set(pageVisits.map(v => v.id)));
+      };
+
+      const getAge = (d) => {
+        if (!d) return '—';
+        const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+        if (days === 0) return 'today';
+        return days + 'd';
+      };
+
+      const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+
+      const getStage = (v) => {
+        if (v.status === 'carted') return { label: 'Carted', sub: 'Added items to cart', tone: '#3a7a4e' };
+        if (v.status === 'opened') return { label: 'Opened', sub: 'Customer viewed', tone: 'var(--gold, #c9a668)' };
+        if (v.status === 'sent') return { label: 'Sent', sub: 'Awaiting open', tone: '#5c6e94' };
+        return { label: 'Draft', sub: 'Not sent yet', tone: 'var(--brass-muted)' };
+      };
+
+      const VIEWS = [
+        { key: 'engaged', label: 'Engaged', tone: 'var(--gold, #c9a668)' },
+        { key: 'awaiting', label: 'Awaiting open' },
+        { key: 'drafts', label: 'Drafts' },
+        { key: 'all', label: 'All mine' },
+      ];
 
       return (
         <div>
-          <div className="content-header">
-            <h1>Showroom Visits</h1>
-            <button className="btn btn-primary" onClick={() => navigate('visit-create')}>+ New Visit</button>
+          {/* Header */}
+          <div className="ol-header">
+            <div>
+              <div className="ol-header-label">
+                {'●'} Showroom visits {'·'} {viewCounts['engaged']} engaged {'·'} {visits.length} total
+              </div>
+              <h1><em>Visits</em></h1>
+            </div>
+            <div className="ol-header-actions">
+              <button className="ol-header-btn primary" onClick={() => navigate('visit-create')}>+ New visit</button>
+            </div>
           </div>
 
-          <div className="filter-bar" style={{ marginBottom: '1rem' }}>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="">All Statuses</option>
-              <option value="draft">Draft</option>
-              <option value="sent">Sent</option>
-              <option value="opened">Opened</option>
-              <option value="carted">Carted</option>
-            </select>
-            <span className="filter-count">{visits.length} visits</span>
+          {/* Saved views */}
+          <div className="ol-saved-views">
+            {VIEWS.map(v => (
+              <button key={v.key} className={'ol-view-tab' + (activeView === v.key ? ' active' : '')}
+                onClick={() => { setActiveView(v.key); setPage(1); setSelected(new Set()); }}>
+                {v.label}
+                <span className="ol-tab-count" style={v.tone && viewCounts[v.key] > 0 ? { background: (v.tone.startsWith('var') ? '' : v.tone + '1a'), color: v.tone } : undefined}>
+                  {viewCounts[v.key]}
+                </span>
+              </button>
+            ))}
           </div>
 
-          <div className="form-card" style={{ padding: 0 }}>
-            <div className="table-scroll-wrapper"><table className="rep-table">
-              <thead>
-                <tr>
-                  <th>Customer</th>
-                  <th>Email</th>
-                  <th>Items</th>
-                  <th>Status</th>
-                  <th>Sent</th>
-                  <th>Opened</th>
-                  <th>Created</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visits.map(v => (
-                  <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => navigate('visit-detail', v.id)}>
-                    <td data-label="Customer" style={{ fontWeight: 500 }}>{v.customer_name}</td>
-                    <td data-label="Email" style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{v.customer_email || '—'}</td>
-                    <td data-label="Items">{v.item_count}</td>
-                    <td data-label="Status"><span className={'badge badge-' + v.status}>{v.status}</span></td>
-                    <td data-label="Sent" style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{v.sent_at ? new Date(v.sent_at).toLocaleDateString() : '—'}</td>
-                    <td data-label="Opened" style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{v.opened_at ? new Date(v.opened_at).toLocaleDateString() : '—'}</td>
-                    <td data-label="Created" style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(v.created_at).toLocaleDateString()}</td>
-                    <td data-label="" className="actions">
-                      <button className="btn btn-sm btn-secondary" onClick={e => { e.stopPropagation(); navigate('visit-detail', v.id); }}>View</button>
-                    </td>
-                  </tr>
-                ))}
-                {visits.length === 0 && (
-                  <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No visits found</td></tr>
-                )}
-              </tbody>
-            </table></div>
+          {/* Filter bar */}
+          <div className="ol-filter-bar">
+            <div className="ol-filter-chips">
+              <select className="ol-chip" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
+                style={{ appearance: 'auto', paddingRight: 24 }}>
+                <option value="">Status: Any</option>
+                <option value="draft">Draft</option>
+                <option value="sent">Sent</option>
+                <option value="opened">Opened</option>
+                <option value="carted">Carted</option>
+              </select>
+              {statusFilter && (
+                <span className="ol-chip active" onClick={() => setStatusFilter('')}>
+                  <span className="ol-chip-label">Status:</span> {statusFilter}
+                  <span className="ol-chip-remove">{'×'}</span>
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 10, top: 7, font: '400 14px/1 "Cormorant Garamond", serif', color: 'var(--brass-muted)' }}>{'⌕'}</span>
+                <input className="ol-search-inline" placeholder="Search visits, customers" aria-label="Search visits"
+                  value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+              </div>
+              <span className="ol-meta">{filteredVisits.length} rows</span>
+            </div>
           </div>
+
+          {/* Bulk bar */}
+          {selected.size > 0 && (
+            <div className="ol-bulk-bar">
+              <div className="ol-bulk-label">{'●'} {selected.size} visit{selected.size !== 1 ? 's' : ''} selected</div>
+              <div className="ol-bulk-actions">
+                <button className="ol-bulk-btn" onClick={() => setSelected(new Set())}>{'✕'} Clear</button>
+              </div>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="gs-loading" style={{ padding: '40px 22px', background: '#ece5d8', border: '0.5px solid rgba(28,25,23,0.14)' }}>Loading visits{'…'}</div>
+          ) : (
+            <div className="vl-table-wrap">
+              {/* Table header */}
+              <div className="vl-table-head">
+                <input type="checkbox" style={{ margin: 0 }} aria-label="Select all visits on page"
+                  checked={pageVisits.length > 0 && selected.size === pageVisits.length}
+                  onChange={toggleAll} />
+                <span>Customer</span>
+                <span>Items</span>
+                <span>Sent</span>
+                <span>Opened</span>
+                <span>Stage</span>
+                <span style={{ textAlign: 'right' }}>Age</span>
+                <span />
+              </div>
+
+              {/* Rows */}
+              {pageVisits.map(v => {
+                const stage = getStage(v);
+                const isSel = selected.has(v.id);
+                return (
+                  <div key={v.id} className={'vl-table-row' + (isSel ? ' selected' : '')}
+                    role="button" tabIndex={0}
+                    onClick={() => navigate('visit-detail', v.id)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('visit-detail', v.id); } }}>
+                    <input type="checkbox" style={{ margin: 0 }} checked={isSel} aria-label={'Select visit for ' + v.customer_name}
+                      onChange={() => toggleSelect(v.id)} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} />
+                    <div>
+                      <div className="vl-cust-name">{v.customer_name}</div>
+                      {v.customer_email && <div className="vl-cust-sub">{v.customer_email}</div>}
+                    </div>
+                    <span className="vl-items">{v.item_count} item{v.item_count !== 1 ? 's' : ''}</span>
+                    <span className="vl-date">{fmtDate(v.sent_at)}</span>
+                    <span className="vl-date">{fmtDate(v.opened_at)}</span>
+                    <div>
+                      <div className="vl-stage" style={{ color: stage.tone }}>{'●'} {stage.label}</div>
+                      <div className="vl-stage-sub">{stage.sub}</div>
+                    </div>
+                    <span className="vl-age">{getAge(v.created_at)}</span>
+                    <span style={{ font: '400 14px/1 "Cormorant Garamond", serif', color: 'var(--brass-muted)', textAlign: 'right' }}>{'→'}</span>
+                  </div>
+                );
+              })}
+
+              {pageVisits.length === 0 && (
+                <div style={{ padding: '40px 22px', textAlign: 'center' }}>
+                  <div style={{ color: 'var(--brass-muted)', font: '400 13px/1.4 Inter, sans-serif', marginBottom: 14 }}>
+                    No visits match this view.
+                  </div>
+                  <button className="ol-header-btn" onClick={() => navigate('visit-create')}>+ New visit</button>
+                </div>
+              )}
+
+              {/* Footer */}
+              {filteredVisits.length > 0 && (
+                <div className="ol-footer">
+                  <span>Showing {Math.min((page - 1) * perPage + 1, filteredVisits.length)}{'–'}{Math.min(page * perPage, filteredVisits.length)} of {filteredVisits.length}</span>
+                  <span>{filteredVisits.reduce((s, v) => s + (v.item_count || 0), 0)} items shared</span>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="ol-pagination">
+                  <span className="ol-meta">{perPage} per page</span>
+                  <div className="ol-page-btns">
+                    <button className="ol-page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{'←'}</button>
+                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
+                      <button key={p} className={'ol-page-btn' + (page === p ? ' active' : '')}
+                        onClick={() => setPage(p)}>{p}</button>
+                    ))}
+                    <button className="ol-page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{'→'}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       );
     }
@@ -16419,6 +16544,7 @@
       const skuSearchTimer = useRef(null);
       const skuSearchCounter = useRef(0);
       const [saving, setSaving] = useState(false);
+      const [catalogOpen, setCatalogOpen] = useState(false);
 
       const searchSku = (q) => {
         setSkuSearch(q);
@@ -16449,6 +16575,8 @@
           collection: r.collection,
           variant_name: r.variant_name,
           vendor_name: r.vendor_name,
+          internal_sku: r.internal_sku,
+          primary_image: r.primary_image || null,
           retail_price: r.retail_price ? parseFloat(r.retail_price) : null,
           price_basis: r.price_basis,
           rep_note: ''
@@ -16461,6 +16589,53 @@
 
       const updateNote = (key, note) => {
         setItems(prev => prev.map(i => i._key === key ? { ...i, rep_note: note } : i));
+      };
+
+      // Catalog popup drops its selection here — visits are a product list, so
+      // quantities are ignored and custom (off-catalog) lines can't be added.
+      const addFromCatalog = ({ lines, accessories, customs }) => {
+        setItems(prev => {
+          const next = [...prev];
+          const seen = new Set(next.map(i => i.sku_id));
+          let key = Date.now();
+          const push = (entry) => {
+            if (seen.has(entry.sku_id)) return;
+            seen.add(entry.sku_id);
+            next.push({ _key: key++, rep_note: '', ...entry });
+          };
+          for (const { item: p } of lines) {
+            push({
+              product_id: p.id || p.product_id || null,
+              sku_id: p.sku_id,
+              product_name: p.display_name || p.name || p.product_name || '',
+              collection: p.collection || '',
+              variant_name: p.variant_name || '',
+              vendor_name: p.brand_name || p.vendor_name || '',
+              internal_sku: p.vendor_sku || p.internal_sku || '',
+              primary_image: p.primary_image || null,
+              retail_price: p.price ? parseFloat(p.price) : null,
+              price_basis: p.price_basis || null,
+            });
+          }
+          for (const { acc, parent } of accessories) {
+            push({
+              product_id: acc.product_id || null,
+              sku_id: acc.sku_id,
+              product_name: acc.accessory_label || acc.variant_name || 'Accessory',
+              collection: '',
+              variant_name: acc.variant_name && acc.variant_name !== acc.accessory_label ? acc.variant_name : '',
+              vendor_name: parent ? (parent.brand_name || parent.vendor_name || '') : '',
+              internal_sku: acc.vendor_sku || '',
+              primary_image: acc.primary_image || null,
+              retail_price: acc.retail_price ? parseFloat(acc.retail_price) : null,
+              price_basis: null,
+            });
+          }
+          return next;
+        });
+        if (customs && customs.length) {
+          alert('Custom items were skipped — a visit recap can only link real catalog products.');
+        }
       };
 
       const saveVisit = async (andSend) => {
@@ -16495,104 +16670,228 @@
         setSaving(false);
       };
 
+      const canSave = !!customerName.trim() && items.length > 0;
+      const canSend = canSave && !!customerEmail.trim();
+      const initials = (customerName.trim() || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+      const checklist = [
+        { label: 'Customer name', done: !!customerName.trim(), meta: customerName.trim() ? '' : 'Required' },
+        { label: 'Email address', done: !!customerEmail.trim(), meta: customerEmail.trim() ? '' : 'Required to send' },
+        { label: 'Products added', done: items.length > 0, meta: items.length > 0 ? items.length + ' item' + (items.length !== 1 ? 's' : '') : 'Search or add below' },
+        { label: 'Personal message', done: !!message.trim(), meta: message.trim() ? '' : 'Optional' },
+      ];
+      const firstTodo = checklist.findIndex(c => !c.done);
+
+      const STEPS = [
+        { label: 'Draft', meta: 'Compose the recap' },
+        { label: 'Sent', meta: 'Emailed to the customer' },
+        { label: 'Opened', meta: 'Customer views it' },
+        { label: 'Carted', meta: 'Items added to cart' },
+      ];
+
       return (
-        <div>
-          <div className="content-header">
-            <h1>New Showroom Visit</h1>
-            <button className="btn btn-secondary" onClick={() => navigate('visits')}>Back to Visits</button>
-          </div>
-
-          <div className="form-card">
-            <h3>Customer Information</h3>
-            <div className="form-grid">
-              <div className="form-group">
-                <label>Customer Name *</label>
-                <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Full name" />
-              </div>
-              <div className="form-group">
-                <label>Email</label>
-                <input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="customer@email.com" />
-              </div>
-              <div className="form-group">
-                <label>Phone</label>
-                <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="(555) 123-4567" />
-              </div>
-              <div className="form-group full">
-                <label>Message (optional)</label>
-                <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Thanks for visiting! Here are the materials we discussed..." rows="3" />
-              </div>
+        <div style={{ paddingBottom: 40 }}>
+          {/* Breadcrumb */}
+          <div className="qw-breadcrumb">
+            <div className="qw-crumbs">
+              <a onClick={() => navigate('visits')}>Visits</a>
+              <span className="qw-crumb-sep" />
+              <span className="qw-crumb-current">New visit</span>
+            </div>
+            <div className="qw-meta-right">
+              <span style={{ color: 'var(--brass-muted)' }}>{'●'} Draft — not sent</span>
             </div>
           </div>
 
-          <div className="form-card">
-            <h3>Products</h3>
-            <div className="form-group" style={{ position: 'relative' }}>
-              <label>Search Products</label>
-              <input value={skuSearch} onBlur={() => setTimeout(() => { setSkuResults([]); setSkuSearching(false); }, 200)} onChange={e => searchSku(e.target.value)} placeholder="Search by product name, SKU, or collection..." />
-              {skuSearching && skuResults.length === 0 && skuSearch.length >= 2 && (
-                <div className="search-results"><div className="search-loading-indicator">Searching...</div></div>
-              )}
-              {!skuSearching && skuResults.length === 0 && skuSearch.length >= 2 && (
-                <div className="search-results"><div className="search-no-results">No results found</div></div>
-              )}
-              {skuResults.length > 0 && (
-                <div className="search-results">
-                  {skuResults.map(r => (
-                    <div key={r.sku_id} className="search-result-item" onClick={() => addProduct(r)}>
-                      {r.primary_image
-                        ? <img className="sku-thumb" src={optimizeImg(r.primary_image, 96)} alt="" loading="lazy" />
-                        : <div className="sku-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
-                      }
-                      <div className="sku-info">
-                        <div className="sku-name">{r.product_name}{r.variant_name ? ' — ' + r.variant_name : ''}</div>
-                        <div className="product-meta">
-                          {r.collection || ''}{r.vendor_name ? ' · ' + r.vendor_name : ''}{r.internal_sku ? ' · ' + r.internal_sku : ''}
-                        </div>
-                      </div>
-                      <div style={{ fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                        {r.retail_price ? '$' + parseFloat(r.retail_price).toFixed(2) : '—'}
-                        {r.price_basis === 'per_sqft' ? '/sqft' : ''}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {items.length === 0 && (
-              <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem', border: '1px dashed var(--stone-200)' }}>
-                Search and add products the customer viewed
-              </div>
-            )}
-
-            {items.map(item => (
-              <div key={item._key} className="visit-product-card">
-                <div className="visit-product-info">
-                  <div className="vp-name">{item.product_name}{item.variant_name ? ' — ' + item.variant_name : ''}</div>
-                  <div className="vp-collection">{item.collection || ''}{item.vendor_name ? ' · ' + item.vendor_name : ''}</div>
-                  <div className="vp-price">
-                    {item.retail_price ? '$' + item.retail_price.toFixed(2) : '—'}
-                    {item.price_basis === 'per_sqft' ? '/sqft' : ''}
+          {/* Header */}
+          <div className="qw-header">
+            <div>
+              <h1>New <em>visit</em></h1>
+              <div className="qw-identity">
+                <div className="qw-avatar">{initials}</div>
+                <div>
+                  <div className="qw-cust-line">{customerName.trim() || 'No customer yet'}</div>
+                  <div className="qw-cust-sub">
+                    {customerEmail.trim() || customerPhone.trim()
+                      ? [customerEmail.trim(), customerPhone.trim()].filter(Boolean).join(' · ')
+                      : 'Enter the customer’s details below'}
                   </div>
                 </div>
-                <div style={{ flex: '0 0 200px' }}>
-                  <input placeholder="Rep note..." value={item.rep_note} onChange={e => updateNote(item._key, e.target.value)}
-                    style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem' }} />
+              </div>
+            </div>
+            <div className="ol-header-actions">
+              <button className="ol-header-btn" disabled={saving || !canSave} onClick={() => saveVisit(false)}>
+                {saving ? 'Saving…' : 'Save draft'}
+              </button>
+              <button className="ol-header-btn primary" disabled={saving || !canSend} onClick={() => saveVisit(true)}>
+                {saving ? 'Saving…' : 'Save & send'}
+              </button>
+            </div>
+          </div>
+
+          {/* Lifecycle stepper */}
+          <div className="qw-stepper cols-4">
+            {STEPS.map((s, i) => (
+              <div key={s.label} className={'qw-step ' + (i === 0 ? 'now' : 'next')}>
+                <div className="qw-step-label">
+                  <span className="qw-step-mark">{i === 0 ? '●' : '○'}</span>
+                  <span>{s.label}</span>
                 </div>
-                <button className="btn btn-sm" onClick={() => removeItem(item._key)}
-                  style={{ color: 'var(--red)', background: 'var(--red-light)', border: 'none', padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem' }}>Remove</button>
+                <div className="qw-step-meta">{s.meta}</div>
               </div>
             ))}
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-            <button className="btn btn-secondary" disabled={saving} onClick={() => saveVisit(false)}>
-              {saving ? 'Saving...' : 'Save as Draft'}
-            </button>
-            <button className="btn btn-primary" disabled={saving} onClick={() => saveVisit(true)}>
-              {saving ? 'Saving...' : 'Save & Send'}
-            </button>
+          <div className="qw-grid">
+            {/* ── Working column ── */}
+            <div className="qw-main">
+
+              <WizRepCard title="Customer">
+                <div className="rof-field-row-3">
+                  <div className="rof-field">
+                    <label>Customer Name *</label>
+                    <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Full name" />
+                  </div>
+                  <div className="rof-field">
+                    <label>Email</label>
+                    <input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="customer@email.com" />
+                  </div>
+                  <div className="rof-field">
+                    <label>Phone</label>
+                    <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="(555) 123-4567" />
+                  </div>
+                </div>
+                <div className="rof-field" style={{ marginBottom: 0 }}>
+                  <label>Personal Message</label>
+                  <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Thanks for visiting! Here are the materials we discussed..." rows="3" />
+                </div>
+              </WizRepCard>
+
+              <WizRepCard title={'Products · ' + items.length}>
+                {/* Catalog launcher — same popup as the order flow */}
+                <button className="rof-cat-launch" onClick={() => setCatalogOpen(true)}>
+                  <span className="rof-cat-launch-icon">{'⊞'}</span>
+                  <span>
+                    <span className="rof-cat-launch-title">Browse the full catalog</span>
+                    <span className="rof-cat-launch-sub">Filter by vendor and add everything the customer viewed in one pass</span>
+                  </span>
+                  <span className="rof-cat-launch-cta">Open catalog {'→'}</span>
+                </button>
+
+                {/* Quick add search */}
+                <div className="rof-search-wrap" style={{ marginBottom: '0.75rem' }}>
+                  <input type="text" value={skuSearch} placeholder="Quick add — search by product name, SKU, or collection..."
+                    onBlur={() => setTimeout(() => { setSkuResults([]); setSkuSearching(false); }, 200)}
+                    onChange={e => searchSku(e.target.value)}
+                    style={{ width: '100%', padding: '0.5625rem 0.75rem', border: '0.5px solid rgba(28,25,23,0.18)', background: '#ece5d8', font: '400 0.8125rem/1.4 Inter, sans-serif', boxSizing: 'border-box' }} />
+                  {skuSearching && skuResults.length === 0 && skuSearch.length >= 2 && (
+                    <div className="rof-search-results" style={{ padding: '0.75rem', color: '#8a7e68', fontSize: '0.8125rem' }}>Searching...</div>
+                  )}
+                  {!skuSearching && skuResults.length === 0 && skuSearch.length >= 2 && (
+                    <div className="rof-search-results" style={{ padding: '0.75rem', color: '#8a7e68', fontSize: '0.8125rem' }}>No results found</div>
+                  )}
+                  {skuResults.length > 0 && (
+                    <div className="rof-search-results">
+                      {skuResults.map(r => (
+                        <div key={r.sku_id} className="rof-search-item" onMouseDown={e => { e.preventDefault(); addProduct(r); }}>
+                          {r.primary_image
+                            ? <img src={optimizeImg(r.primary_image, 96)} alt="" style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0 }} loading="lazy" />
+                            : <div style={{ width: 36, height: 36, ...materialFace(rofCatKind({ collection: r.collection }), 50), flexShrink: 0 }} />
+                          }
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="rof-search-item-name">{r.product_name}{r.variant_name ? ' — ' + r.variant_name : ''}</div>
+                            <div className="rof-search-item-sub">
+                              {r.collection || ''}{r.vendor_name ? ' · ' + r.vendor_name : ''}{r.internal_sku ? ' · ' + r.internal_sku : ''}
+                              {r.retail_price ? ' · $' + parseFloat(r.retail_price).toFixed(2) + (r.price_basis === 'per_sqft' ? '/sqft' : '') : ''}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {items.length === 0 ? (
+                  <div className="rof-items-empty">Search and add the products the customer viewed in the showroom</div>
+                ) : (
+                  <React.Fragment>
+                    <div className="rof-items-header" style={{ gridTemplateColumns: '36px 1fr 200px auto 24px' }}>
+                      <span />
+                      <span>Product</span>
+                      <span>Rep note</span>
+                      <span style={{ textAlign: 'right' }}>Price</span>
+                      <span />
+                    </div>
+                    {items.map(item => (
+                      <div key={item._key} className="rof-item-row" style={{ gridTemplateColumns: '36px 1fr 200px auto 24px' }}>
+                        <div className="rof-item-swatch">
+                          {item.primary_image
+                            ? <img src={optimizeImg(item.primary_image, 96)} alt="" style={{ width: 36, height: 36, objectFit: 'cover' }} loading="lazy" />
+                            : <div style={{ width: 36, height: 36, ...materialFace(rofCatKind({ collection: item.collection }), 50) }} />
+                          }
+                        </div>
+                        <div className="rof-item-info">
+                          <div className="rof-item-name">{item.product_name}{item.variant_name ? ' — ' + item.variant_name : ''}</div>
+                          <div className="rof-item-meta">{[item.collection, item.vendor_name, item.internal_sku].filter(Boolean).join(' · ')}</div>
+                        </div>
+                        <input value={item.rep_note} placeholder="Why they liked it, room, finish..."
+                          onChange={e => updateNote(item._key, e.target.value)}
+                          style={{ width: '100%', padding: '0.35rem 0.5rem', border: '0.5px solid rgba(28,25,23,0.18)', background: 'transparent', font: '400 0.75rem/1.3 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
+                        <div className="rof-item-price">
+                          {item.retail_price ? '$' + item.retail_price.toFixed(2) : '—'}
+                          {item.retail_price && item.price_basis === 'per_sqft' ? <span style={{ font: '400 0.625rem/1 Inter, sans-serif', color: '#8a7e68' }}>/sqft</span> : null}
+                        </div>
+                        <button className="rof-remove-btn" onClick={() => removeItem(item._key)} title="Remove">{'✕'}</button>
+                      </div>
+                    ))}
+                  </React.Fragment>
+                )}
+              </WizRepCard>
+            </div>
+
+            {/* ── Rail ── */}
+            <aside className="qw-rail">
+              <div className="qw-rail-card">
+                <h3>Draft checklist</h3>
+                {checklist.map((c, i) => {
+                  const state = c.done ? 'done' : i === firstTodo ? 'now' : 'next';
+                  return (
+                    <div key={c.label} className={'qw-check-row ' + state}>
+                      <span className="qw-check-mark">{c.done ? '✓' : state === 'now' ? '●' : '○'}</span>
+                      <span className="qw-check-label">{c.label}</span>
+                      <span className="qw-check-meta">{c.meta}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="qw-convert-card">
+                <div className="qw-convert-label">Ready to send</div>
+                <div className="qw-convert-copy">
+                  Sending emails the customer a personal recap with every product you added — notes included.
+                </div>
+                <button className="qw-convert-btn" onClick={() => saveVisit(true)} disabled={saving || !canSend}>
+                  Save &amp; send {'→'}
+                </button>
+                <div className="qw-convert-note">
+                  {canSend
+                    ? 'Goes to ' + customerEmail.trim()
+                    : 'Needs a name, an email, and at least one product'}
+                </div>
+              </div>
+            </aside>
           </div>
+
+          {/* Browse catalog popup — same as the order flow */}
+          {catalogOpen && (
+            <RofCatalogModal
+              data={{ customer: null, newCustomerName: customerName.trim() }}
+              showCost={false}
+              contextLabel={'Add to visit · ' + (customerName.trim() || 'New visit')}
+              onClose={() => setCatalogOpen(false)}
+              onAdd={addFromCatalog}
+            />
+          )}
         </div>
       );
     }
@@ -16651,85 +16950,215 @@
         return item.price_basis === 'per_sqft' ? p + '/sqft' : p;
       };
 
-      return (
+      const fmtDT = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null;
+
+      const st = visit.status === 'carted' ? { label: 'Carted', tone: '#3a7a4e' }
+        : visit.status === 'opened' ? { label: 'Opened', tone: 'var(--gold, #c9a668)' }
+        : visit.status === 'sent' ? { label: 'Sent', tone: '#5c6e94' }
+        : { label: 'Draft', tone: 'var(--brass-muted)' };
+
+      const stepRank = visit.status === 'carted' ? 3 : visit.status === 'opened' ? 2 : visit.status === 'sent' ? 1 : 0;
+      const steps = [
+        { label: 'Draft', meta: fmtDT(visit.created_at) || 'Compose the recap' },
+        { label: 'Sent', meta: fmtDT(visit.sent_at) || 'Emailed to the customer' },
+        { label: 'Opened', meta: fmtDT(visit.opened_at) || 'Customer views it' },
+        { label: 'Carted', meta: fmtDT(visit.items_carted_at) || 'Items added to cart' },
+      ];
+
+      const initials = (visit.customer_name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+      const canSend = visit.customer_email && (visit.status === 'draft' || visit.status === 'sent');
+      const visitUrl = window.location.origin + '/visit/' + visit.token;
+
+      const timeline = [
+        { label: 'Created', at: visit.created_at },
+        { label: 'Sent', at: visit.sent_at },
+        { label: 'Opened', at: visit.opened_at },
+        { label: 'Carted', at: visit.items_carted_at },
+      ];
+      const firstPending = timeline.findIndex(t => !t.at);
+
+      const mini = (label, value) => (
         <div>
-          <div className="content-header">
-            <h1>Visit Recap</h1>
-            <button className="btn btn-secondary" onClick={() => navigate('visits')}>Back to Visits</button>
-          </div>
+          <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>{label}</div>
+          <div style={{ font: '400 13px/1.3 Inter, sans-serif', color: '#1c1917', letterSpacing: '-0.005em', wordBreak: 'break-word' }}>{value}</div>
+        </div>
+      );
 
-          {/* Customer Info */}
-          <div className="form-card">
-            <h3>Customer Information</h3>
-            <div className="order-info-grid">
-              <div className="order-info-item"><label>Name</label><span>{visit.customer_name}</span></div>
-              <div className="order-info-item"><label>Email</label><span>{visit.customer_email || '—'}</span></div>
-              <div className="order-info-item"><label>Phone</label><span>{visit.customer_phone || '—'}</span></div>
-              <div className="order-info-item"><label>Status</label><span className={'badge badge-' + visit.status}>{visit.status}</span></div>
+      return (
+        <div style={{ paddingBottom: 40 }}>
+          {/* Breadcrumb */}
+          <div className="qw-breadcrumb">
+            <div className="qw-crumbs">
+              <a onClick={() => navigate('visits')}>Visits</a>
+              <span className="qw-crumb-sep" />
+              <span className="qw-crumb-current">{visit.customer_name}</span>
             </div>
-            {visit.message && (
-              <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--stone-50)', borderLeft: '3px solid var(--gold)' }}>
-                <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Message</div>
-                <div style={{ fontSize: '0.875rem', color: 'var(--stone-700)' }}>{visit.message}</div>
-              </div>
-            )}
-          </div>
-
-          {/* Timestamps */}
-          <div className="form-card">
-            <h3>Status Tracking</h3>
-            <div className="order-info-grid">
-              <div className="order-info-item"><label>Created</label><span>{new Date(visit.created_at).toLocaleString()}</span></div>
-              <div className="order-info-item"><label>Sent</label><span>{visit.sent_at ? new Date(visit.sent_at).toLocaleString() : '—'}</span></div>
-              <div className="order-info-item"><label>Opened</label><span>{visit.opened_at ? new Date(visit.opened_at).toLocaleString() : '—'}</span></div>
-              <div className="order-info-item"><label>Carted</label><span>{visit.items_carted_at ? new Date(visit.items_carted_at).toLocaleString() : '—'}</span></div>
+            <div className="qw-meta-right">
+              <span>Created {fmtDT(visit.created_at)}</span>
+              <span style={{ color: st.tone }}>{'●'} {st.label}</span>
             </div>
           </div>
 
-          {/* Shareable Link */}
-          <div className="form-card">
-            <h3>Shareable Link</h3>
-            <div className="visit-url-box">
-              <span style={{ flex: 1 }}>{window.location.origin}/visit/{visit.token}</span>
-              <button className="btn btn-sm btn-secondary" onClick={copyUrl}>
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
-              {visit.customer_email && (visit.status === 'draft' || visit.status === 'sent') && (
-                <button className="btn btn-primary" disabled={sending} onClick={sendRecap}>
-                  {sending ? 'Sending...' : visit.status === 'sent' ? 'Resend Email' : 'Send Email'}
-                </button>
-              )}
-              {visit.status === 'draft' && (
-                <button className="btn btn-secondary" style={{ color: 'var(--red)' }} onClick={deleteVisit}>Delete Visit</button>
-              )}
-            </div>
-          </div>
-
-          {/* Items */}
-          <div className="form-card">
-            <h3>Products ({items.length})</h3>
-            {items.map(item => (
-              <div key={item.id} className="visit-product-card">
-                {item.primary_image && (
-                  <img src={optimizeImg(item.primary_image, 400)} alt={item.product_name} className="visit-product-image" loading="lazy" />
-                )}
-                <div className="visit-product-info">
-                  <div className="vp-name">{item.product_name}{item.variant_name ? ' — ' + item.variant_name : ''}</div>
-                  <div className="vp-collection">{item.collection || ''}</div>
-                  <div className="vp-price">{priceLabel(item)}</div>
-                  {item.rep_note && (
-                    <div style={{ marginTop: '0.25rem', fontSize: '0.8125rem', fontStyle: 'italic', color: 'var(--stone-500)' }}>
-                      "{item.rep_note}"
-                    </div>
-                  )}
+          {/* Header */}
+          <div className="qw-header">
+            <div>
+              <h1>Visit <em>recap</em></h1>
+              <div className="qw-identity">
+                <div className="qw-avatar">{initials}</div>
+                <div>
+                  <div className="qw-cust-line">{visit.customer_name}</div>
+                  <div className="qw-cust-sub">
+                    {[visit.customer_email, visit.customer_phone].filter(Boolean).join(' · ') || 'No contact details on file'}
+                  </div>
                 </div>
               </div>
-            ))}
-            {items.length === 0 && (
-              <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No products in this visit</div>
-            )}
+            </div>
+            <div className="ol-header-actions">
+              {visit.status === 'draft' && (
+                <button className="ol-header-btn" style={{ color: '#c54731' }} onClick={deleteVisit}>Delete</button>
+              )}
+              <button className="ol-header-btn" onClick={copyUrl}>{copied ? 'Copied!' : 'Copy link'}</button>
+              {canSend && (
+                <button className="ol-header-btn primary" disabled={sending} onClick={sendRecap}>
+                  {sending ? 'Sending…' : visit.status === 'sent' ? 'Resend email' : 'Send email'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Lifecycle stepper */}
+          <div className="qw-stepper cols-4">
+            {steps.map((s, i) => {
+              const state = i < stepRank ? 'done' : i === stepRank ? 'now' : 'next';
+              return (
+                <div key={s.label} className={'qw-step ' + state}>
+                  <div className="qw-step-label">
+                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'now' ? '●' : '○'}</span>
+                    <span>{s.label}</span>
+                  </div>
+                  <div className="qw-step-meta">{s.meta}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="qw-grid">
+            {/* ── Working column ── */}
+            <div className="qw-main">
+
+              <WizRepCard title="Customer">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                  {mini('Name', visit.customer_name)}
+                  {mini('Email', visit.customer_email || '—')}
+                  {mini('Phone', visit.customer_phone || '—')}
+                </div>
+                {visit.message && (
+                  <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: 'rgba(28,25,23,0.03)', borderLeft: '2px solid var(--gold, #c9a668)' }}>
+                    <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 6 }}>Personal message</div>
+                    <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: '#1c1917' }}>{visit.message}</div>
+                  </div>
+                )}
+              </WizRepCard>
+
+              <WizRepCard title={'Products · ' + items.length}>
+                {items.length === 0 ? (
+                  <div className="rof-items-empty">No products in this visit</div>
+                ) : (
+                  <React.Fragment>
+                    <div className="rof-items-header" style={{ gridTemplateColumns: '36px 1fr auto' }}>
+                      <span />
+                      <span>Product</span>
+                      <span style={{ textAlign: 'right' }}>Price</span>
+                    </div>
+                    {items.map(item => (
+                      <div key={item.id} className="rof-item-row" style={{ gridTemplateColumns: '36px 1fr auto' }}>
+                        <div className="rof-item-swatch">
+                          {item.primary_image
+                            ? <img src={optimizeImg(item.primary_image, 96)} alt="" style={{ width: 36, height: 36, objectFit: 'cover' }} loading="lazy" />
+                            : <div style={{ width: 36, height: 36, ...materialFace(rofCatKind({ collection: item.collection }), 50) }} />
+                          }
+                        </div>
+                        <div className="rof-item-info">
+                          <div className="rof-item-name">{item.product_name}{item.variant_name ? ' — ' + item.variant_name : ''}</div>
+                          <div className="rof-item-meta">{[item.collection, item.vendor_name].filter(Boolean).join(' · ')}</div>
+                          {item.rep_note && (
+                            <div style={{ font: 'italic 400 12px/1.4 Inter, sans-serif', color: '#8a7e68', marginTop: 3, whiteSpace: 'normal' }}>
+                              “{item.rep_note}”
+                            </div>
+                          )}
+                        </div>
+                        <div className="rof-item-price">{priceLabel(item)}</div>
+                      </div>
+                    ))}
+                  </React.Fragment>
+                )}
+              </WizRepCard>
+            </div>
+
+            {/* ── Rail ── */}
+            <aside className="qw-rail">
+              <div className="qw-rail-card">
+                <h3>Activity</h3>
+                {timeline.map((t, i) => {
+                  const state = t.at ? 'done' : i === firstPending ? 'now' : 'next';
+                  return (
+                    <div key={t.label} className={'qw-check-row ' + state}>
+                      <span className="qw-check-mark">{t.at ? '✓' : state === 'now' ? '●' : '○'}</span>
+                      <span className="qw-check-label">{t.label}</span>
+                      <span className="qw-check-meta">{fmtDT(t.at) || 'Pending'}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="qw-rail-card">
+                <h3>Shareable link</h3>
+                <div style={{ font: '400 11px/1.5 ui-monospace, monospace', color: '#1c1917', wordBreak: 'break-all', marginBottom: 10 }}>
+                  {visitUrl}
+                </div>
+                <button className="ol-header-btn" style={{ width: '100%' }} onClick={copyUrl}>
+                  {copied ? 'Copied!' : 'Copy link'}
+                </button>
+              </div>
+
+              {canSend && (
+                <div className="qw-convert-card">
+                  <div className="qw-convert-label">{visit.status === 'sent' ? 'Sent — nudge again?' : 'Ready to send'}</div>
+                  <div className="qw-convert-copy">
+                    {visit.status === 'sent'
+                      ? 'The recap email went out ' + (fmtDT(visit.sent_at) || 'already') + ' but hasn’t been opened yet.'
+                      : 'Sending emails the customer this recap with every product and note.'}
+                  </div>
+                  <button className="qw-convert-btn" disabled={sending} onClick={sendRecap}>
+                    {sending ? 'Sending…' : (visit.status === 'sent' ? 'Resend email' : 'Send email') + ' →'}
+                  </button>
+                  <div className="qw-convert-note">Goes to {visit.customer_email}</div>
+                </div>
+              )}
+
+              {!visit.customer_email && (
+                <div className="qw-convert-card">
+                  <div className="qw-convert-label">No email on file</div>
+                  <div className="qw-convert-copy">
+                    Share the link directly — copy it above and text it to the customer.
+                  </div>
+                </div>
+              )}
+
+              {(visit.status === 'opened' || visit.status === 'carted') && (
+                <div className="qw-convert-card">
+                  <div className="qw-convert-label">{visit.status === 'carted' ? 'Customer carted items' : 'Customer is engaged'}</div>
+                  <div className="qw-convert-copy">
+                    {visit.status === 'carted'
+                      ? 'They added items from this recap to their cart — a great time to follow up with a quote.'
+                      : 'They opened the recap ' + (fmtDT(visit.opened_at) || '') + '. Consider following up while it’s fresh.'}
+                  </div>
+                  <button className="qw-convert-btn" onClick={() => navigate('quote-create')}>
+                    Start a quote {'→'}
+                  </button>
+                </div>
+              )}
+            </aside>
           </div>
         </div>
       );
