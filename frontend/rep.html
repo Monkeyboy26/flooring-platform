@@ -10789,7 +10789,7 @@
           // Create the order
           const orderItems = (data.items || []).map(i => {
             if (i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, sqft_needed: i.sqft_needed, unit_price: i.unit_price, sell_by: i.sell_by };
-            return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, num_boxes: i.num_boxes, description: i.description, sell_by: i.sell_by };
+            return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, custom_vendor: i.custom_vendor || undefined, custom_vendor_email: i.custom_vendor_email || undefined, cost: i.cost || undefined, num_boxes: i.num_boxes, description: i.description, sell_by: i.sell_by };
           });
 
           const body = {
@@ -11848,11 +11848,47 @@
       );
     }
 
+    // --- One-off vendor picker (shared by all custom item forms) ---
+    // Pick a stocked vendor (vendor_id) or choose "One-off vendor" and type a
+    // free-text name + email for a vendor we don't carry / a one-off deal.
+    // The email is required on orders so the vendor's PO can be sent to them.
+    function OneOffVendorPicker({ vendors, vendorId, customVendor, customVendorEmail, onChange, emailOptional, selectStyle, inputStyle, selectClassName, inputClassName }) {
+      const [oneOff, setOneOff] = useState(!vendorId && !!customVendor);
+      const selValue = vendorId ? String(vendorId) : (oneOff ? '__oneoff' : '');
+      return (
+        <div style={{ display: 'grid', gap: 6 }}>
+          <select className={selectClassName} value={selValue} style={selectStyle}
+            onChange={e => {
+              const val = e.target.value;
+              if (val === '__oneoff') { setOneOff(true); onChange('', customVendor || '', customVendorEmail || ''); }
+              else { setOneOff(false); onChange(val, '', ''); }
+            }}>
+            <option value="">Select vendor…</option>
+            {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            <option value="__oneoff">{'✎'} One-off vendor (not in system)…</option>
+          </select>
+          {oneOff && !vendorId && (
+            <React.Fragment>
+              <input className={inputClassName} type="text" maxLength={120} value={customVendor || ''} autoFocus
+                onChange={e => onChange('', e.target.value, customVendorEmail || '')}
+                placeholder={'Vendor name — e.g. Joe’s Stone Yard'}
+                style={inputStyle} />
+              <input className={inputClassName} type="email" maxLength={200} value={customVendorEmail || ''}
+                onChange={e => onChange('', customVendor || '', e.target.value)}
+                placeholder={emailOptional ? 'Vendor email (needed to send a PO)' : 'Vendor email * — their PO is sent here'}
+                style={inputStyle} />
+            </React.Fragment>
+          )}
+        </div>
+      );
+    }
+    const isValidVendorEmail = (e) => /^\S+@\S+\.\S+$/.test(String(e || '').trim());
+
     // --- Custom item form inside the catalog popup ---
     function RofCatCustomForm({ showCost, vendors, onAdd }) {
       const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
       const fmtMoney = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      const blank = { product_name: '', vendor_id: '', sell_by: 'unit', num_boxes: 1, unit_price: '', cost: '', description: '' };
+      const blank = { product_name: '', vendor_id: '', custom_vendor: '', custom_vendor_email: '', sell_by: 'unit', num_boxes: 1, unit_price: '', cost: '', description: '' };
       const [f, setF] = useState(blank);
       const set = (k, v) => setF(prev => ({ ...prev, [k]: v }));
 
@@ -11861,7 +11897,8 @@
       const qty = parseInt(f.num_boxes) || 0;
       const ext = f.sell_by === 'roll' ? price * (qty / 9) : price * qty;
       const margin = price > 0 && cost > 0 ? ((price - cost) / price) * 100 : null;
-      const valid = f.product_name.trim() && f.vendor_id && price > 0 && qty > 0;
+      const oneOffName = f.custom_vendor.trim();
+      const valid = f.product_name.trim() && (f.vendor_id || (oneOffName && isValidVendorEmail(f.custom_vendor_email))) && price > 0 && qty > 0;
 
       const submit = () => {
         if (!valid) return;
@@ -11869,8 +11906,10 @@
         onAdd({
           _cid: Date.now() + Math.random(),
           product_name: f.product_name.trim(),
-          vendor_id: f.vendor_id,
-          vendor_name: vendor ? vendor.name : '',
+          vendor_id: f.vendor_id || null,
+          custom_vendor: f.vendor_id ? null : oneOffName,
+          custom_vendor_email: f.vendor_id ? null : f.custom_vendor_email.trim(),
+          vendor_name: vendor ? vendor.name : oneOffName,
           sell_by: f.sell_by,
           num_boxes: qty,
           unit_price: price,
@@ -11891,7 +11930,7 @@
               Add a <em style={{ color: TH.accent }}>custom</em> line
             </div>
             <p style={{ font: '400 12.5px/1.5 var(--roma-sans)', color: TH.muted, margin: '0 0 22px' }}>
-              For anything off-catalog {'—'} special-order material, a freight or labor charge, a one-off cut. Priced manually; it flows onto the order like any other line. Custom items do not generate POs.
+              For anything off-catalog {'—'} special-order material from a vendor we stock or a one-off vendor, a freight or labor charge, a one-off cut. Priced manually; it flows onto the order like any other line and lands on the vendor{'’'}s PO. One-off vendors need an email {'—'} that{'’'}s where their PO is sent.
             </p>
 
             <div style={{ marginBottom: 16 }}>
@@ -11903,10 +11942,9 @@
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
               <div>
                 <label style={lbl}>Vendor / source *</label>
-                <select value={f.vendor_id} onChange={e => set('vendor_id', e.target.value)} style={{ ...field, cursor: 'pointer' }}>
-                  <option value="">Select vendor…</option>
-                  {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                </select>
+                <OneOffVendorPicker vendors={vendors} vendorId={f.vendor_id} customVendor={f.custom_vendor} customVendorEmail={f.custom_vendor_email}
+                  onChange={(vid, cv, cve) => setF(prev => ({ ...prev, vendor_id: vid, custom_vendor: cv, custom_vendor_email: cve }))}
+                  selectStyle={{ ...field, cursor: 'pointer' }} inputStyle={field} />
               </div>
               <div>
                 <label style={lbl}>Internal note</label>
@@ -12028,7 +12066,7 @@
                 <div style={{ width: 30, height: 30, border: '0.5px dashed rgba(28,25,23,0.27)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 13px/1 var(--roma-serif)', color: TH.muted }}>{'✎'}</div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ font: '400 12.5px/1.2 var(--roma-sans)', color: TH.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.product_name}</div>
-                  <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>{c.num_boxes} {c.sell_by === 'roll' ? 'sqft' : c.sell_by} {'×'} {fmtMoney(c.unit_price)}</div>
+                  <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>{c.vendor_name ? c.vendor_name + ' · ' : ''}{c.num_boxes} {c.sell_by === 'roll' ? 'sqft' : c.sell_by} {'×'} {fmtMoney(c.unit_price)}</div>
                 </div>
                 <span style={{ font: '400 13px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>{fmtMoney(c.subtotal)}</span>
                 <button onClick={() => onRemoveCustom(c._cid)} style={xBtn}>{'×'}</button>
@@ -12069,7 +12107,7 @@
       const skuSearchCounter = useRef(0);
       const [addBoxes, setAddBoxes] = useState(1);
       const [showCustom, setShowCustom] = useState(false);
-      const [customItem, setCustomItem] = useState({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box', vendor_id: '' });
+      const [customItem, setCustomItem] = useState({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
       const [customVendors, setCustomVendors] = useState([]);
       const [editingKey, setEditingKey] = useState(null);
       const [editField, setEditField] = useState(null);
@@ -12164,6 +12202,7 @@
         else if (sellBy === 'unit' || sellBy === 'piece') subtotal = unitPrice * numBoxes;
         else subtotal = unitPrice * numBoxes;
         const matchedVendor = customItem.vendor_id ? customVendors.find(v => String(v.id) === String(customItem.vendor_id)) : null;
+        const oneOffName = customItem.vendor_id ? '' : (customItem.custom_vendor || '').trim();
         const newItem = {
           _key: Date.now(),
           sku_id: null,
@@ -12171,9 +12210,11 @@
           product_name: customItem.product_name.trim(),
           color: '',
           variant_name: '',
-          vendor_name: matchedVendor ? matchedVendor.name : '',
+          vendor_name: matchedVendor ? matchedVendor.name : oneOffName,
           vendor_sku: '',
           vendor_id: customItem.vendor_id || null,
+          custom_vendor: oneOffName || null,
+          custom_vendor_email: oneOffName ? (customItem.custom_vendor_email || '').trim() : null,
           unit_price: unitPrice,
           num_boxes: numBoxes,
           subtotal,
@@ -12183,7 +12224,7 @@
           cost: 0
         };
         setData(d => ({ ...d, items: [...(d.items || []), newItem] }));
-        setCustomItem({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box', vendor_id: '' });
+        setCustomItem({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
         setShowCustom(false);
       };
 
@@ -12269,6 +12310,8 @@
               color: '',
               variant_name: '',
               vendor_id: c.vendor_id || null,
+              custom_vendor: c.custom_vendor || null,
+              custom_vendor_email: c.custom_vendor_email || null,
               vendor_name: c.vendor_name || '',
               vendor_sku: '',
               unit_price: c.unit_price,
@@ -12447,11 +12490,10 @@
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                     <div style={{ flex: 1, minWidth: '120px' }}>
                       <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>Vendor *</label>
-                      <select value={customItem.vendor_id} onChange={e => setCustomItem(c => ({ ...c, vendor_id: e.target.value }))}
-                        style={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }}>
-                        <option value="">Select vendor...</option>
-                        {customVendors.map(v => (<option key={v.id} value={v.id}>{v.name}</option>))}
-                      </select>
+                      <OneOffVendorPicker vendors={customVendors} vendorId={customItem.vendor_id} customVendor={customItem.custom_vendor} customVendorEmail={customItem.custom_vendor_email}
+                        onChange={(vid, cv, cve) => setCustomItem(c => ({ ...c, vendor_id: vid, custom_vendor: cv, custom_vendor_email: cve }))}
+                        selectStyle={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }}
+                        inputStyle={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
                     </div>
                     <div style={{ flex: 2, minWidth: '120px' }}>
                       <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>Product Name *</label>
@@ -12493,7 +12535,7 @@
                         style={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
                     </div>
                     <button style={{ padding: '7px 14px', background: '#1c1917', color: '#ece5d8', border: 'none', font: '500 12px/1 Inter, sans-serif', cursor: 'pointer' }}
-                      disabled={!customItem.vendor_id || !customItem.product_name.trim() || !customItem.unit_price}
+                      disabled={(!customItem.vendor_id && !((customItem.custom_vendor || '').trim() && isValidVendorEmail(customItem.custom_vendor_email))) || !customItem.product_name.trim() || !customItem.unit_price}
                       onClick={addCustom}>Add</button>
                   </div>
                 </div>
@@ -12528,7 +12570,7 @@
                     {item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
                   </div>
                   <div className="rof-item-meta">
-                    {item.is_custom ? 'Custom' : (item.vendor_name || '') + (item.vendor_sku ? ' \u00b7 ' + item.vendor_sku : '')}
+                    {item.is_custom ? 'Custom' + ((item.vendor_name || item.custom_vendor) ? ' \u00b7 ' + (item.vendor_name || item.custom_vendor) : '') : (item.vendor_name || '') + (item.vendor_sku ? ' \u00b7 ' + item.vendor_sku : '')}
                   </div>
                 </div>
                 <div>
@@ -13639,7 +13681,7 @@
 
           {poCount === 0 && (
             <WizRepCard title="Vendor purchase orders">
-              <div className="rof-items-empty">No catalog items in this order. Custom items do not generate POs.</div>
+              <div className="rof-items-empty">No PO-eligible items in this order.</div>
             </WizRepCard>
           )}
 
@@ -13933,7 +13975,7 @@
       const skuSearchCounter = useRef(0);
       const [addBoxes, setAddBoxes] = useState(1);
       const [showCustom, setShowCustom] = useState(false);
-      const [customItem, setCustomItem] = useState({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box' });
+      const [customItem, setCustomItem] = useState({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
       const [vendors, setVendors] = useState([]);
       const [customVendor, setCustomVendor] = useState('');
       const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'roll' ? 'sqft' : 'boxes';
@@ -14095,6 +14137,8 @@
         } else {
           subtotal = unitPrice * numBoxes; // for custom sqft items, user enters qty directly
         }
+        const matchedVendor = customItem.vendor_id ? vendors.find(v => String(v.id) === String(customItem.vendor_id)) : null;
+        const oneOffName = customItem.vendor_id ? '' : (customItem.custom_vendor || '').trim();
         setItems(prev => [...prev, {
           _key: Date.now(),
           sku_id: null,
@@ -14102,9 +14146,11 @@
           product_name: customItem.product_name.trim(),
           color: '',
           variant_name: '',
-          vendor_name: '',
+          vendor_name: matchedVendor ? matchedVendor.name : oneOffName,
           vendor_sku: '',
-          vendor_id: null,
+          vendor_id: customItem.vendor_id || null,
+          custom_vendor: oneOffName || null,
+          custom_vendor_email: oneOffName ? (customItem.custom_vendor_email || '').trim() : null,
           unit_price: unitPrice,
           num_boxes: numBoxes,
           subtotal,
@@ -14113,7 +14159,7 @@
           is_custom: true,
           cost: 0
         }]);
-        setCustomItem({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box' });
+        setCustomItem({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
         setCustomVendor('');
         setShowCustom(false);
       };
@@ -14191,7 +14237,7 @@
         try {
           const orderItems = items.map(i => {
             if (i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, sqft_needed: i.sqft_needed, unit_price: i.unit_price, sell_by: i.sell_by };
-            return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, num_boxes: i.num_boxes, description: i.description, sell_by: i.sell_by };
+            return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, custom_vendor: i.custom_vendor || undefined, custom_vendor_email: i.custom_vendor_email || undefined, cost: i.cost || undefined, num_boxes: i.num_boxes, description: i.description, sell_by: i.sell_by };
           });
           const body = {
             customer_name: form.customer_name,
@@ -14502,6 +14548,11 @@
                   <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-600)', marginBottom: '0.75rem' }}>Add Custom Item</div>
                   <div className="resp-grid-2" style={{ gap: '0.75rem' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label>Vendor *</label>
+                      <OneOffVendorPicker vendors={vendors} vendorId={customItem.vendor_id} customVendor={customItem.custom_vendor} customVendorEmail={customItem.custom_vendor_email}
+                        onChange={(vid, cv, cve) => setCustomItem(c => ({ ...c, vendor_id: vid, custom_vendor: cv, custom_vendor_email: cve }))} />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
                       <label>Item Name *</label>
                       <input type="text" maxLength={200} value={customItem.product_name} onChange={e => setCustomItem(c => ({ ...c, product_name: e.target.value }))} placeholder="e.g. Custom transition strip" />
                     </div>
@@ -14527,7 +14578,7 @@
                       <input type="number" step="0.01" min="0" value={customItem.unit_price} onChange={e => setCustomItem(c => ({ ...c, unit_price: e.target.value }))} placeholder="0.00" />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                      <button className="btn btn-primary" onClick={addCustom} disabled={!customItem.product_name.trim() || !customItem.unit_price} style={{ width: '100%' }}>
+                      <button className="btn btn-primary" onClick={addCustom} disabled={!customItem.product_name.trim() || !customItem.unit_price || (!customItem.vendor_id && !((customItem.custom_vendor || '').trim() && isValidVendorEmail(customItem.custom_vendor_email)))} style={{ width: '100%' }}>
                         Add to Order
                       </button>
                     </div>
@@ -14558,7 +14609,7 @@
                       </div>
                       <div style={{ fontSize: '0.6875rem', color: '#78716c' }}>
                         {!item.is_custom && <>{item.vendor_name || ''}{item.vendor_sku ? ' \u00b7 ' + item.vendor_sku : ''}</>}
-                        {item.is_custom && <span className="badge badge-draft" style={{ fontSize: '0.6rem' }}>Custom</span>}
+                        {item.is_custom && <><span className="badge badge-draft" style={{ fontSize: '0.6rem' }}>Custom</span>{(item.vendor_name || item.custom_vendor) ? ' ' + (item.vendor_name || item.custom_vendor) : ''}</>}
                       </div>
                     </td>
                     <td data-label="SqFt">{item.sell_by === 'unit' || item.sell_by === 'piece' ? <span style={{ color: 'var(--stone-400)' }}>{'\u2014'}</span> : item.sqft_needed ? parseFloat(item.sqft_needed).toFixed(1) : item.sqft_per_box ? (item.sqft_per_box * item.num_boxes).toFixed(1) : '\u2014'}</td>
@@ -18181,6 +18232,8 @@
       const [customItemName, setCustomItemName] = useState('');
       const [customItemPrice, setCustomItemPrice] = useState('');
       const [customItemVendor, setCustomItemVendor] = useState('');
+      const [customItemVendorName, setCustomItemVendorName] = useState(''); // one-off vendor free text
+      const [customItemVendorEmail, setCustomItemVendorEmail] = useState(''); // one-off vendor email (PO destination)
       const [customItemDesc, setCustomItemDesc] = useState('');
       const [customItemBoxes, setCustomItemBoxes] = useState(1);
       const [customItemSellBy, setCustomItemSellBy] = useState('box');
@@ -18283,7 +18336,10 @@
           }
           for (const c of customs) {
             last = await post({
-              product_name: c.product_name, unit_price: c.unit_price, vendor_id: c.vendor_id,
+              product_name: c.product_name, unit_price: c.unit_price, vendor_id: c.vendor_id || undefined,
+              custom_vendor: c.vendor_id ? undefined : (c.custom_vendor || undefined),
+              custom_vendor_email: c.vendor_id ? undefined : (c.custom_vendor_email || undefined),
+              cost: c.cost || undefined,
               description: c.description || null, sell_by: c.sell_by, num_boxes: c.num_boxes
             });
           }
@@ -18715,7 +18771,7 @@
                 setAddingItem(true); setAddItemMode('sku'); setAddItemSku('');
                 setSkuSearchResults([]); setSelectedSku(null); setCalcSqft(''); setCalcBoxes(''); setCalcUnitQty(1);
                 setCustomItemName(''); setCustomItemPrice('');
-                setCustomItemVendor(''); setCustomItemDesc(''); setCustomItemBoxes(1);
+                setCustomItemVendor(''); setCustomItemVendorName(''); setCustomItemVendorEmail(''); setCustomItemDesc(''); setCustomItemBoxes(1);
                 if (addItemVendors.length === 0) {
                   repFetch('/api/rep/vendors').then(d => setAddItemVendors(d.vendors || [])).catch(() => {});
                 }
@@ -18867,7 +18923,7 @@
                       {/* Mode toggle */}
                       <div className="mobile-stack" style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
                         <button className={'rod-mini-btn' + (addItemMode === 'sku' ? ' selected' : '')}
-                          onClick={() => { setAddItemMode('sku'); setSelectedSku(null); setCalcSqft(''); setCalcBoxes(''); setCalcUnitQty(1); setCustomItemName(''); setCustomItemPrice(''); setCustomItemVendor(''); setCustomItemDesc(''); setCustomItemBoxes(1); }}>
+                          onClick={() => { setAddItemMode('sku'); setSelectedSku(null); setCalcSqft(''); setCalcBoxes(''); setCalcUnitQty(1); setCustomItemName(''); setCustomItemPrice(''); setCustomItemVendor(''); setCustomItemVendorName(''); setCustomItemVendorEmail(''); setCustomItemDesc(''); setCustomItemBoxes(1); }}>
                           Search SKU
                         </button>
                         <button className={'rod-mini-btn' + (addItemMode === 'custom' ? ' selected' : '')}
@@ -19040,10 +19096,9 @@
                         <div className="mobile-stack" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                           <div style={{ minWidth: '160px', flex: 1 }}>
                             <label className="rod-field-label">Vendor *</label>
-                            <select value={customItemVendor} onChange={e => setCustomItemVendor(e.target.value)} className="rod-input">
-                              <option value="">Select vendor...</option>
-                              {addItemVendors.map(v => (<option key={v.id} value={v.id}>{v.name}</option>))}
-                            </select>
+                            <OneOffVendorPicker vendors={addItemVendors} vendorId={customItemVendor} customVendor={customItemVendorName} customVendorEmail={customItemVendorEmail}
+                              onChange={(vid, cv, cve) => { setCustomItemVendor(vid); setCustomItemVendorName(cv); setCustomItemVendorEmail(cve); }}
+                              selectClassName="rod-input" inputClassName="rod-input" />
                           </div>
                           <div style={{ minWidth: '160px', flex: 2 }}>
                             <label className="rod-field-label">Product Name *</label>
@@ -19067,11 +19122,11 @@
                             <label className="rod-field-label">Description</label>
                             <input type="text" maxLength={500} value={customItemDesc} onChange={e => setCustomItemDesc(e.target.value)} placeholder="Optional notes" className="rod-input" />
                           </div>
-                          <button className="rod-mini-btn primary" disabled={!customItemVendor || !customItemName.trim() || !customItemPrice}
+                          <button className="rod-mini-btn primary" disabled={(!customItemVendor && !(customItemVendorName.trim() && isValidVendorEmail(customItemVendorEmail))) || !customItemName.trim() || !customItemPrice}
                             onClick={async () => {
                               try {
                                 const data = await repFetch('/api/rep/orders/' + editId + '/add-item', {
-                                  method: 'POST', body: JSON.stringify({ product_name: customItemName.trim(), unit_price: parseFloat(customItemPrice), vendor_id: customItemVendor, num_boxes: customItemBoxes, sell_by: customItemSellBy, description: customItemDesc || undefined })
+                                  method: 'POST', body: JSON.stringify({ product_name: customItemName.trim(), unit_price: parseFloat(customItemPrice), vendor_id: customItemVendor || undefined, custom_vendor: customItemVendor ? undefined : customItemVendorName.trim(), custom_vendor_email: customItemVendor ? undefined : customItemVendorEmail.trim(), num_boxes: customItemBoxes, sell_by: customItemSellBy, description: customItemDesc || undefined })
                                 });
                                 if (data.order) setOrder(data.order);
                                 if (data.items) setItems(data.items);
@@ -20069,7 +20124,8 @@
 
       // Custom item form
       const [showCustomForm, setShowCustomForm] = useState(false);
-      const [customItem, setCustomItem] = useState({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'box' });
+      const [quoteVendors, setQuoteVendors] = useState([]); // for the custom item vendor picker
+      const [customItem, setCustomItem] = useState({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
 
       // Inline cell editing
       const [editingCell, setEditingCell] = useState(null); // { idx, field }
@@ -20330,6 +20386,8 @@
         let subtotal;
         if (sellBy === 'roll') subtotal = price * (qty / 9);
         else subtotal = price * qty;
+        const oneOffName = customItem.vendor_id ? '' : (customItem.custom_vendor || '').trim();
+        const matchedVendor = customItem.vendor_id ? (quoteVendors.find(v => String(v.id) === String(customItem.vendor_id)) || null) : null;
         const newItem = {
           product_id: null,
           sku_id: null,
@@ -20342,6 +20400,10 @@
           subtotal: subtotal.toFixed(2),
           sell_by: sellBy,
           is_sample: false,
+          vendor_id: customItem.vendor_id || null,
+          custom_vendor: oneOffName || null,
+          custom_vendor_email: oneOffName ? (customItem.custom_vendor_email || '').trim() : null,
+          vendor_name: matchedVendor ? matchedVendor.name : (oneOffName || null),
           _is_custom: true
         };
 
@@ -20351,8 +20413,7 @@
             body: JSON.stringify(newItem)
           });
           if (result.item) {
-            result.item._is_custom = true;
-            setQuoteItems(prev => [...prev, result.item]);
+            setQuoteItems(prev => [...prev, { ...result.item, _is_custom: true, vendor_name: result.item.vendor_name || newItem.vendor_name }]);
             const qData = await repFetch('/api/rep/quotes/' + editId);
             setQuote(qData.quote);
           }
@@ -20360,7 +20421,7 @@
           setQuoteItems(prev => [...prev, { ...newItem, _temp_id: Date.now() }]);
         }
 
-        setCustomItem({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'box' });
+        setCustomItem({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
         setShowCustomForm(false);
         } catch (err) { alert('Failed to add item: ' + (err.message || 'Unknown error')); }
       };
@@ -20695,9 +20756,13 @@
               sqft_needed: null, num_boxes: c.num_boxes,
               unit_price: parseFloat(c.unit_price || 0).toFixed(2),
               subtotal: parseFloat(c.subtotal || 0).toFixed(2),
-              is_sample: false, sell_by: c.sell_by || 'box'
+              is_sample: false, sell_by: c.sell_by || 'box',
+              vendor_id: c.vendor_id || null,
+              custom_vendor: c.custom_vendor || null,
+              custom_vendor_email: c.custom_vendor_email || null,
+              cost: c.cost || null
             },
-            extra: { _is_custom: true }
+            extra: { _is_custom: true, vendor_name: c.vendor_name || null, vendor_cost: c.cost || null }
           });
         }
         try {
@@ -21189,7 +21254,13 @@
                   <React.Fragment>
                     {showCost && <span style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a87935' }}>Cost + margin · rep only</span>}
                     {!isReadonly && (
-                      <button className="rof-card-action" onClick={() => setShowCustomForm(!showCustomForm)}>
+                      <button className="rof-card-action" onClick={() => {
+                        const opening = !showCustomForm;
+                        setShowCustomForm(opening);
+                        if (opening && quoteVendors.length === 0) {
+                          repFetch('/api/rep/vendors').then(d => setQuoteVendors(d.vendors || [])).catch(() => {});
+                        }
+                      }}>
                         {showCustomForm ? 'Cancel' : '+ Custom Item'}
                       </button>
                     )}
@@ -21266,6 +21337,14 @@
                           onChange={e => setCustomItem(c => ({ ...c, description: e.target.value }))} />
                       </div>
                     </div>
+                    <div className="rof-field-row">
+                      <div className="rof-field">
+                        <label>Vendor / source</label>
+                        <OneOffVendorPicker vendors={quoteVendors} vendorId={customItem.vendor_id} customVendor={customItem.custom_vendor} customVendorEmail={customItem.custom_vendor_email} emailOptional
+                          onChange={(vid, cv, cve) => setCustomItem(c => ({ ...c, vendor_id: vid, custom_vendor: cv, custom_vendor_email: cve }))} />
+                      </div>
+                      <div className="rof-field" />
+                    </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                       <div className="rof-field" style={{ width: 110, marginBottom: 0 }}>
                         <label>Sold By *</label>
@@ -21322,7 +21401,7 @@
                   const isEditingPrice = editingCell && editingCell.idx === idx && editingCell.field === 'price';
                   const metaBits = [
                     isCustom ? 'Custom' : null,
-                    item.vendor_name || null,
+                    item.vendor_name || item.custom_vendor || null,
                     item.vendor_sku || null,
                     (item.sell_by !== 'unit' && item.sell_by !== 'piece' && item.sqft_needed) ? parseFloat(item.sqft_needed).toFixed(1) + ' sqft' : null,
                   ].filter(Boolean).join(' · ');

@@ -4493,6 +4493,32 @@ async function getNextPONumber(vendorCode) {
 
 // ==================== Purchase Order Generation ====================
 
+// One-off vendor for a custom line: reuse an existing vendor by name
+// (case-insensitive) or create a minimal record. The email is what makes the
+// vendor's PO sendable — backfill it if the existing record has none.
+async function findOrCreateOneOffVendor(client, name, email) {
+  const trimmed = String(name).trim();
+  const existing = await client.query(
+    'SELECT id, email FROM vendors WHERE LOWER(name) = LOWER($1) LIMIT 1', [trimmed]);
+  if (existing.rows.length) {
+    const v = existing.rows[0];
+    if (email && !v.email) {
+      await client.query('UPDATE vendors SET email = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [email, v.id]);
+    }
+    return v.id;
+  }
+  let base = trimmed.toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8) || 'ONEOFF';
+  let code = base;
+  for (let n = 2; (await client.query('SELECT 1 FROM vendors WHERE code = $1', [code])).rows.length; n++) {
+    code = base + n;
+  }
+  const ins = await client.query(
+    `INSERT INTO vendors (name, code, email, is_active, is_one_off)
+     VALUES ($1, $2, $3, true, true) RETURNING id`,
+    [trimmed, code, email || null]);
+  return ins.rows[0].id;
+}
+
 async function generatePurchaseOrders(orderId, client) {
   // Get order items with vendor and cost info (exclude samples and custom items)
   const itemsResult = await client.query(`
@@ -4515,7 +4541,21 @@ async function generatePurchaseOrders(orderId, client) {
       AND oi.product_id IS NOT NULL
   `, [orderId]);
 
-  if (itemsResult.rows.length === 0) return [];
+  // Custom (off-catalog) lines tied to a known vendor also go on that vendor's
+  // PO. One-off vendor lines (custom_vendor text, no vendor_id) never do.
+  const customItemsResult = await client.query(`
+    SELECT oi.id as order_item_id, oi.product_name, oi.num_boxes as qty, oi.unit_price,
+           oi.sqft_needed, oi.sell_by, oi.description, oi.cost as custom_cost,
+           oi.vendor_id, v.code as vendor_code, v.name as vendor_name
+    FROM order_items oi
+    JOIN vendors v ON v.id = oi.vendor_id
+    WHERE oi.order_id = $1
+      AND oi.is_sample = false
+      AND oi.product_id IS NULL
+      AND oi.vendor_id IS NOT NULL
+  `, [orderId]);
+
+  if (itemsResult.rows.length === 0 && customItemsResult.rows.length === 0) return [];
 
   // Group items by vendor
   const vendorGroups = {};
@@ -4528,6 +4568,29 @@ async function generatePurchaseOrders(orderId, client) {
       };
     }
     vendorGroups[item.vendor_id].items.push(item);
+  }
+  for (const item of customItemsResult.rows) {
+    if (!vendorGroups[item.vendor_id]) {
+      vendorGroups[item.vendor_id] = {
+        vendor_id: item.vendor_id,
+        vendor_code: item.vendor_code,
+        items: []
+      };
+    }
+    // Cost basis: rep-entered cost if provided, else retail. 'roll' custom
+    // lines store sqft in sqft_needed with qty 1 and per-sqyd pricing.
+    vendorGroups[item.vendor_id].items.push({
+      ...item,
+      is_custom_line: true,
+      sku_id: null,
+      vendor_sku: null,
+      vendor_cost: item.custom_cost != null ? item.custom_cost : item.unit_price,
+      price_basis: item.sell_by === 'roll' ? 'per_sqyd' : 'per_box',
+      cut_cost: null,
+      roll_cost: null,
+      sqft_per_box: null,
+      price_tier: null
+    });
   }
 
   const createdPOs = [];
@@ -7230,12 +7293,13 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color, pr.cost as vendor_cost
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color, COALESCE(pr.cost, oi.cost) as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
@@ -7685,12 +7749,19 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
   try {
     const { id } = req.params;
     const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description, sell_by: customSellBy } = req.body;
+    const customVendorName = req.body.custom_vendor ? String(req.body.custom_vendor).trim().slice(0, 120) : '';
+    const customVendorEmail = req.body.custom_vendor_email ? String(req.body.custom_vendor_email).trim() : '';
+    const customCost = req.body.cost != null && !isNaN(parseFloat(req.body.cost)) && parseFloat(req.body.cost) > 0
+      ? parseFloat(req.body.cost) : null;
 
     const isCustom = !sku_id;
     if (isCustom) {
       if (!product_name || !product_name.trim()) return res.status(400).json({ error: 'product_name is required for custom items' });
       if (unit_price == null || parseFloat(unit_price) < 0) return res.status(400).json({ error: 'unit_price >= 0 is required for custom items' });
-      if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required for custom items' });
+      if (!vendor_id && !customVendorName) return res.status(400).json({ error: 'A vendor (or one-off vendor name) is required for custom items' });
+      if (!vendor_id && customVendorName && !/^\S+@\S+\.\S+$/.test(customVendorEmail)) {
+        return res.status(400).json({ error: 'A valid email for the one-off vendor is required so the PO can be sent.' });
+      }
       if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'num_boxes >= 1 is required' });
     } else {
       // For carpet (per_sqyd), sqft_needed is required instead of num_boxes
@@ -7753,11 +7824,16 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       } else {
         itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
       }
-      itemVendorId = vendor_id;
+      itemVendorId = vendor_id || null;
 
-      // Validate vendor exists
-      const vendorCheck = await client.query('SELECT id FROM vendors WHERE id = $1', [vendor_id]);
-      if (!vendorCheck.rows.length) return res.status(400).json({ error: 'Vendor not found' });
+      if (vendor_id) {
+        const vendorCheck = await client.query('SELECT id FROM vendors WHERE id = $1', [vendor_id]);
+        if (!vendorCheck.rows.length) return res.status(400).json({ error: 'Vendor not found' });
+      } else if (customVendorName) {
+        // One-off vendor: create/reuse a minimal vendor record (with the
+        // required email) so a PO can be generated and sent
+        itemVendorId = await findOrCreateOneOffVendor(client, customVendorName, customVendorEmail);
+      }
     }
 
     await client.query('BEGIN');
@@ -7789,12 +7865,15 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       const isCustomCarpet = customSellBy === 'roll';
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
-          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description)
-        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8)
+          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description,
+          vendor_id, custom_vendor, cost)
+        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8, $9, $10, $11)
         RETURNING id
       `, [id, product_name.trim(), isCustomCarpet ? num_boxes : (sqft_needed || null),
           isCustomCarpet ? 1 : num_boxes, unitPrice.toFixed(2),
-          itemSubtotal.toFixed(2), customSellBy || null, description || null]);
+          itemSubtotal.toFixed(2), customSellBy || null, description || null,
+          itemVendorId, customVendorName || null,
+          customCost != null ? customCost.toFixed(2) : null]);
       newItemId = insertResult.rows[0].id;
     }
 
@@ -7810,7 +7889,8 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
 
     // --- Auto-update Purchase Orders ---
-    {
+    // Skipped for one-off vendor custom lines (no vendor in the system to PO)
+    if (itemVendorId) {
       // Find existing draft PO for this vendor on this order
       const existingPO = await client.query(
         `SELECT id, subtotal FROM purchase_orders
@@ -7864,10 +7944,17 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
         poVendorSku = sku.vendor_sku;
         poProductName = storedProductName;
       } else {
-        poCost = unitPrice;
+        // Custom line: rep-entered cost when provided, else fall back to retail.
+        // 'roll' lines carry sqft in num_boxes with per-sqyd pricing.
+        poCost = customCost != null ? customCost : unitPrice;
         poRetail = unitPrice;
-        poQty = num_boxes;
-        poSubtotal = poCost * num_boxes;
+        if (customSellBy === 'roll') {
+          poQty = 1;
+          poSubtotal = poCost * (num_boxes / 9);
+        } else {
+          poQty = num_boxes;
+          poSubtotal = poCost * num_boxes;
+        }
         poVendorSku = null;
         poProductName = product_name.trim();
       }
@@ -7879,7 +7966,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
            qty, sell_by, cost, original_cost, retail_price, subtotal)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10, $11)
       `, [poId, newItemId, sku?.id || null, poProductName, poVendorSku,
-          description || null, poQty, sku?.sell_by || null,
+          description || null, poQty, sku ? (sku.sell_by || null) : (customSellBy || null),
           poCost.toFixed(2), poRetail ? poRetail.toFixed(2) : null,
           poSubtotal.toFixed(2)]);
 
@@ -7900,12 +7987,13 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color, pr.cost as vendor_cost
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color, COALESCE(pr.cost, oi.cost) as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
@@ -8000,12 +8088,13 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color, pr.cost as vendor_cost
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color, COALESCE(pr.cost, oi.cost) as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
@@ -11405,11 +11494,12 @@ app.get('/api/trade/quotes/:id', tradeAuth, async (req, res) => {
     const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
     const items = await pool.query(`
-      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = qi.vendor_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE qi.quote_id = $1 ORDER BY qi.id
@@ -13954,9 +14044,34 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
           is_sample: sku.is_sample || false
         });
       } else if (item.product_name && item.unit_price != null) {
-        // Custom item
+        // Custom item — sourced from a known vendor (vendor_id) or a one-off
+        // vendor not in the system (custom_vendor free text)
         const numBoxes = parseInt(item.num_boxes) || 1;
         const unitPrice = parseFloat(item.unit_price);
+        const sellBy = item.sell_by || null;
+        // For 'roll' custom lines num_boxes carries sqft and price is per sqyd
+        const isRoll = sellBy === 'roll';
+        let customVendorId = null;
+        const oneOffName = !item.vendor_id && item.custom_vendor ? String(item.custom_vendor).trim().slice(0, 120) : '';
+        if (item.vendor_id) {
+          const vendorCheck = await client.query('SELECT id FROM vendors WHERE id = $1', [item.vendor_id]);
+          if (!vendorCheck.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Vendor not found for custom item: ' + item.product_name });
+          }
+          customVendorId = item.vendor_id;
+        } else if (oneOffName) {
+          // One-off vendor: an email is required so the PO can be sent to them.
+          // Creates (or reuses) a minimal vendor record keyed by name.
+          const oneOffEmail = String(item.custom_vendor_email || '').trim();
+          if (!/^\S+@\S+\.\S+$/.test(oneOffEmail)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'A valid email for one-off vendor "' + oneOffName + '" is required so the PO can be sent.' });
+          }
+          customVendorId = await findOrCreateOneOffVendor(client, oneOffName, oneOffEmail);
+        }
+        const customCost = item.cost != null && !isNaN(parseFloat(item.cost)) && parseFloat(item.cost) > 0
+          ? parseFloat(item.cost) : null;
         resolvedItems.push({
           product_id: null,
           sku_id: null,
@@ -13964,12 +14079,15 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
           collection: null,
           category_id: null,
           description: item.description || null,
-          sqft_needed: null,
-          num_boxes: numBoxes,
+          sqft_needed: isRoll ? numBoxes : null,
+          num_boxes: isRoll ? 1 : numBoxes,
           unit_price: unitPrice,
-          subtotal: unitPrice * numBoxes,
-          sell_by: null,
-          is_sample: false
+          subtotal: isRoll ? unitPrice * (numBoxes / 9) : unitPrice * numBoxes,
+          sell_by: sellBy,
+          is_sample: false,
+          vendor_id: customVendorId,
+          custom_vendor: oneOffName || null,
+          cost: customCost
         });
       } else {
         await client.query('ROLLBACK');
@@ -14059,11 +14177,12 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     for (const item of resolvedItems) {
       await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
-          sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
           item.description || null, item.sqft_needed, item.num_boxes,
-          item.unit_price.toFixed(2), item.subtotal.toFixed(2), item.sell_by || null, item.is_sample]);
+          item.unit_price.toFixed(2), item.subtotal.toFixed(2), item.sell_by || null, item.is_sample,
+          item.vendor_id || null, item.custom_vendor || null, item.cost != null ? item.cost.toFixed(2) : null]);
     }
 
     // Link uploaded documents to the order
@@ -14164,14 +14283,15 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color, pr.cost as vendor_cost, s.variant_type,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
         cat.name as category_name,
         (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN categories cat ON cat.id = p.category_id
@@ -14601,12 +14721,13 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color, pr.cost as vendor_cost
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color, COALESCE(pr.cost, oi.cost) as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
@@ -14640,12 +14761,19 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description, sell_by: customSellBy } = req.body;
+    const customVendorName = req.body.custom_vendor ? String(req.body.custom_vendor).trim().slice(0, 120) : '';
+    const customVendorEmail = req.body.custom_vendor_email ? String(req.body.custom_vendor_email).trim() : '';
+    const customCost = req.body.cost != null && !isNaN(parseFloat(req.body.cost)) && parseFloat(req.body.cost) > 0
+      ? parseFloat(req.body.cost) : null;
 
     const isCustom = !sku_id;
     if (isCustom) {
       if (!product_name || !product_name.trim()) return res.status(400).json({ error: 'product_name is required for custom items' });
       if (unit_price == null || parseFloat(unit_price) < 0) return res.status(400).json({ error: 'unit_price >= 0 is required for custom items' });
-      if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required for custom items' });
+      if (!vendor_id && !customVendorName) return res.status(400).json({ error: 'A vendor (or one-off vendor name) is required for custom items' });
+      if (!vendor_id && customVendorName && !/^\S+@\S+\.\S+$/.test(customVendorEmail)) {
+        return res.status(400).json({ error: 'A valid email for the one-off vendor is required so the PO can be sent.' });
+      }
       if (!num_boxes || num_boxes < 1) return res.status(400).json({ error: 'num_boxes >= 1 is required' });
     } else {
       if ((!num_boxes || num_boxes < 1) && !sqft_needed) return res.status(400).json({ error: 'sku_id and num_boxes (>= 1) or sqft_needed are required' });
@@ -14705,10 +14833,16 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       } else {
         itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
       }
-      itemVendorId = vendor_id;
+      itemVendorId = vendor_id || null;
 
-      const vendorCheck = await client.query('SELECT id FROM vendors WHERE id = $1', [vendor_id]);
-      if (!vendorCheck.rows.length) return res.status(400).json({ error: 'Vendor not found' });
+      if (vendor_id) {
+        const vendorCheck = await client.query('SELECT id FROM vendors WHERE id = $1', [vendor_id]);
+        if (!vendorCheck.rows.length) return res.status(400).json({ error: 'Vendor not found' });
+      } else if (customVendorName) {
+        // One-off vendor: create/reuse a minimal vendor record (with the
+        // required email) so a PO can be generated and sent
+        itemVendorId = await findOrCreateOneOffVendor(client, customVendorName, customVendorEmail);
+      }
     }
 
     await client.query('BEGIN');
@@ -14739,12 +14873,15 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       const isCustomCarpet = customSellBy === 'roll';
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
-          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description)
-        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8)
+          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description,
+          vendor_id, custom_vendor, cost)
+        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8, $9, $10, $11)
         RETURNING id
       `, [id, product_name.trim(), isCustomCarpet ? num_boxes : (sqft_needed || null),
           isCustomCarpet ? 1 : num_boxes, unitPrice.toFixed(2),
-          itemSubtotal.toFixed(2), customSellBy || null, description || null]);
+          itemSubtotal.toFixed(2), customSellBy || null, description || null,
+          itemVendorId, customVendorName || null,
+          customCost != null ? customCost.toFixed(2) : null]);
       newItemId = insertResult.rows[0].id;
     }
 
@@ -14759,7 +14896,8 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
 
     // --- Auto-update Purchase Orders ---
-    {
+    // Skipped for one-off vendor custom lines (no vendor in the system to PO)
+    if (itemVendorId) {
       const existingPO = await client.query(
         `SELECT id, subtotal FROM purchase_orders
          WHERE order_id = $1 AND vendor_id = $2 AND status = 'draft'
@@ -14812,10 +14950,17 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
         poVendorSku = sku.vendor_sku;
         poProductName = storedProductName;
       } else {
-        poCost = unitPrice;
+        // Custom line: rep-entered cost when provided, else fall back to retail.
+        // 'roll' lines carry sqft in num_boxes with per-sqyd pricing.
+        poCost = customCost != null ? customCost : unitPrice;
         poRetail = unitPrice;
-        poQty = num_boxes;
-        poSubtotal = poCost * num_boxes;
+        if (customSellBy === 'roll') {
+          poQty = 1;
+          poSubtotal = poCost * (num_boxes / 9);
+        } else {
+          poQty = num_boxes;
+          poSubtotal = poCost * num_boxes;
+        }
         poVendorSku = null;
         poProductName = product_name.trim();
       }
@@ -14826,7 +14971,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
            qty, sell_by, cost, original_cost, retail_price, subtotal)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10, $11)
       `, [poId, newItemId, sku?.id || null, poProductName, poVendorSku,
-          description || null, poQty, sku?.sell_by || null,
+          description || null, poQty, sku ? (sku.sell_by || null) : (customSellBy || null),
           poCost.toFixed(2), poRetail ? poRetail.toFixed(2) : null,
           poSubtotal.toFixed(2)]);
 
@@ -14856,12 +15001,13 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color, pr.cost as vendor_cost
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color, COALESCE(pr.cost, oi.cost) as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
@@ -14963,12 +15109,13 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.variant_name,
-        sa_c.value as color, pr.cost as vendor_cost
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color, COALESCE(pr.cost, oi.cost) as vendor_cost
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
@@ -17127,9 +17274,17 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
     // Insert items if provided
     if (items && items.length > 0) {
       for (const item of items) {
+        const oneOffName = !item.sku_id && !item.vendor_id && item.custom_vendor
+          ? String(item.custom_vendor).trim().slice(0, 120) : '';
+        const oneOffEmail = item.custom_vendor_email ? String(item.custom_vendor_email).trim() : '';
+        // One-off vendor with an email → vendor record now, sendable PO later
+        let itemVendorId = (!item.sku_id && item.vendor_id) || null;
+        if (oneOffName && /^\S+@\S+\.\S+$/.test(oneOffEmail)) {
+          itemVendorId = await findOrCreateOneOffVendor(client, oneOffName, oneOffEmail);
+        }
         await client.query(`
-          INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         `, [quote.id, item.product_id || null, item.sku_id || null,
             item.product_name || null, item.collection || null,
             item.description || null,
@@ -17137,7 +17292,10 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
             parseFloat(item.unit_price || 0).toFixed(2),
             parseFloat(item.subtotal || 0).toFixed(2),
             item.sell_by || null,
-            item.is_sample || false]);
+            item.is_sample || false,
+            itemVendorId,
+            oneOffName || null,
+            !item.sku_id && item.cost != null && !isNaN(parseFloat(item.cost)) && parseFloat(item.cost) > 0 ? parseFloat(item.cost).toFixed(2) : null]);
       }
 
       // Recalculate totals
@@ -17192,14 +17350,15 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
     // Return full quote with items
     const fullQuote = await pool.query('SELECT * FROM quotes WHERE id = $1', [quote.id]);
     const quoteItems = await pool.query(`
-      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
-        pr.cost as vendor_cost,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
+        COALESCE(pr.cost, qi.cost) as vendor_cost,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = qi.vendor_id
       LEFT JOIN pricing pr ON pr.sku_id = qi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -17225,14 +17384,15 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
 
     const items = await pool.query(`
-      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
-        pr.cost as vendor_cost,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
+        COALESCE(pr.cost, qi.cost) as vendor_cost,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = qi.vendor_id
       LEFT JOIN pricing pr ON pr.sku_id = qi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -17341,9 +17501,19 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
+    const customVendorName = req.body.custom_vendor ? String(req.body.custom_vendor).trim().slice(0, 120) : '';
+    const customVendorEmail = req.body.custom_vendor_email ? String(req.body.custom_vendor_email).trim() : '';
+    const customCost = req.body.cost != null && !isNaN(parseFloat(req.body.cost)) && parseFloat(req.body.cost) > 0
+      ? parseFloat(req.body.cost) : null;
+    // One-off vendor with an email → create/reuse the vendor record now so the
+    // PO is sendable when the quote converts. Email optional at quote stage.
+    let quoteItemVendorId = (!sku_id && req.body.vendor_id) || null;
+    if (!sku_id && !quoteItemVendorId && customVendorName && /^\S+@\S+\.\S+$/.test(customVendorEmail)) {
+      quoteItemVendorId = await findOrCreateOneOffVendor(client, customVendorName, customVendorEmail);
+    }
     const itemResult = await client.query(`
-      INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `, [id, product_id || null, sku_id || null, product_name || null, collection || null,
         description || null,
@@ -17351,7 +17521,10 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
         parseFloat(unit_price || 0).toFixed(2),
         parseFloat(subtotal || 0).toFixed(2),
         sell_by || null,
-        is_sample || false]);
+        is_sample || false,
+        quoteItemVendorId,
+        !sku_id ? (customVendorName || null) : null,
+        !sku_id && customCost != null ? customCost.toFixed(2) : null]);
 
     // Recalculate quote totals
     const totals = await client.query(
@@ -17486,11 +17659,12 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
 
     // Fetch quote items for the email
     const quoteItems = await pool.query(`
-      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = qi.vendor_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE qi.quote_id = $1 ORDER BY qi.id
@@ -17555,11 +17729,12 @@ app.get('/api/rep/quotes/:id/preview', repAuth, async (req, res) => {
 
     const q = quote.rows[0];
     const quoteItems = await pool.query(`
-      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = qi.vendor_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE qi.quote_id = $1 ORDER BY qi.id
@@ -17684,13 +17859,14 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
 
     const order = orderResult.rows[0];
 
-    // Copy quote items to order items
+    // Copy quote items to order items (incl. custom-line vendor + cost)
     for (const item of itemsResult.rows) {
       await client.query(`
-        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
-          item.description, item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample]);
+          item.description, item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample,
+          item.vendor_id || null, item.custom_vendor || null, item.cost || null]);
     }
 
     // Link uploaded documents to the order
@@ -18650,11 +18826,12 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
     await client.query('COMMIT');
 
     const quoteItems = await pool.query(`
-      SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = qi.vendor_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE qi.quote_id = $1

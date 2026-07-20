@@ -7,7 +7,12 @@ CREATE TABLE vendors (
     name TEXT NOT NULL,
     code TEXT UNIQUE NOT NULL,
     website TEXT,
+    email TEXT,
+    has_public_inventory BOOLEAN DEFAULT false,
+    edi_config JSONB,
     is_active BOOLEAN DEFAULT true,
+    -- Auto-created from a rep's one-off custom line (name + email only, no catalog)
+    is_one_off BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -164,7 +169,12 @@ CREATE TABLE order_items (
     subtotal DECIMAL(10,2),
     sell_by VARCHAR(20),
     is_sample BOOLEAN DEFAULT false,
-    price_tier VARCHAR(10)
+    price_tier VARCHAR(10),
+    -- Custom (off-catalog) lines only: vendor_id for a vendor we stock,
+    -- custom_vendor free text for a one-off vendor not in the system
+    vendor_id UUID REFERENCES vendors(id),
+    custom_vendor TEXT,
+    cost DECIMAL(10,2)
 );
 
 CREATE TABLE cart_items (
@@ -354,7 +364,11 @@ CREATE TABLE quote_items (
     unit_price DECIMAL(10,2) NOT NULL,
     subtotal DECIMAL(10,2) NOT NULL,
     sell_by VARCHAR(20),
-    is_sample BOOLEAN DEFAULT false
+    is_sample BOOLEAN DEFAULT false,
+    -- Custom (off-catalog) lines only: known vendor or free-text one-off vendor
+    vendor_id UUID REFERENCES vendors(id),
+    custom_vendor TEXT,
+    cost DECIMAL(10,2)
 );
 
 -- Quote lifecycle + engagement events (sent, viewed via email pixel, replies, status changes)
