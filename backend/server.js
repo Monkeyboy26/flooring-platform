@@ -19571,6 +19571,13 @@ app.delete('/api/rep/notifications/read', repAuth, async (req, res) => {
 // GET /api/rep/tasks — List tasks with filters
 app.get('/api/rep/tasks', repAuth, async (req, res) => {
   try {
+    // Retention: completed tasks are kept for one week, then purged.
+    // Dismissed tasks are kept — they suppress re-creation of auto-tasks.
+    await pool.query(
+      "DELETE FROM rep_tasks WHERE rep_id = $1 AND status = 'completed' AND completed_at < NOW() - interval '7 days'",
+      [req.rep.id]
+    );
+
     const { status, priority, due_from, due_to, completed_from, linked_type, search, source, snoozed } = req.query;
     let where = 'WHERE t.rep_id = $1';
     const params = [req.rep.id];

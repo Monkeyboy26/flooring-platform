@@ -2609,6 +2609,22 @@
     }
     .tk-check:hover { border-color: var(--rod-green); }
     .tk-check.done { border-color: var(--rod-green); background: var(--rod-green); }
+    .tk-check.arming {
+      border-color: var(--rod-green);
+      background: rgba(58,122,78,0.16);
+      color: var(--rod-green);
+    }
+    .tk-check-hint {
+      position: absolute;
+      left: 28px; top: -1px;
+      z-index: 5;
+      padding: 4px 8px;
+      background: var(--rod-green);
+      color: #fff;
+      font: 500 9px/1.3 ui-monospace, monospace;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      white-space: nowrap;
+    }
     .tk-priority-bar { width: 4px; height: 20px; margin-top: 1px; }
     .tk-priority-bar.high { background: var(--rod-red); }
     .tk-priority-bar.medium { background: var(--rod-accent); }
@@ -2695,6 +2711,18 @@
       color: var(--rod-muted);
       white-space: nowrap;
     }
+    .tk-completed-toggle {
+      display: flex; justify-content: space-between; align-items: center;
+      width: 100%;
+      padding: 12px 22px;
+      background: rgba(28,25,23,0.03);
+      border: none;
+      cursor: pointer;
+      font: 500 10px/1 ui-monospace, monospace;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--rod-muted);
+    }
+    .tk-completed-toggle:hover { color: var(--rod-ink); background: rgba(28,25,23,0.05); }
     .tk-modal {
       width: 480px;
       max-width: calc(100vw - 32px);
@@ -23801,7 +23829,6 @@
       { key: 'today', label: 'Today' },
       { key: 'overdue', label: 'Overdue' },
       { key: 'snoozed', label: 'Snoozed' },
-      { key: 'done', label: 'Done' },
     ];
 
     function RepTasksListView({ navigate, onChanged }) {
@@ -23827,7 +23854,6 @@
           params.set('due_to', new Date(Date.now() - 86400000).toISOString().split('T')[0]);
         }
         else if (viewKey === 'snoozed') params.set('snoozed', 'true');
-        else if (viewKey === 'done') params.set('status', 'completed');
         if (priorityFilter) params.set('priority', priorityFilter);
         if (sourceFilter) params.set('source', sourceFilter);
         if (search) params.set('search', search);
@@ -23846,11 +23872,41 @@
         return () => document.removeEventListener('click', handler);
       }, [snoozeMenuId]);
 
-      const afterChange = () => { load(); if (onChanged) onChanged(); };
+      // Completed-this-week section (backend purges completed tasks after 7 days)
+      const [showCompleted, setShowCompleted] = useState(false);
+      const [completedTasks, setCompletedTasks] = useState([]);
+      const [completedLoading, setCompletedLoading] = useState(false);
+      const loadCompleted = useCallback(() => {
+        setCompletedLoading(true);
+        repFetch('/api/rep/tasks?status=completed')
+          .then(d => { setCompletedTasks(d.tasks || []); setCompletedLoading(false); })
+          .catch(() => setCompletedLoading(false));
+      }, []);
+      useEffect(() => { if (showCompleted) loadCompleted(); }, [showCompleted, loadCompleted]);
+
+      const afterChange = () => { load(); if (showCompleted) loadCompleted(); if (onChanged) onChanged(); };
+
+      // Completing is two-step: the first click arms the checkbox, a second
+      // click within 2.5s confirms. Reopening is one click — it costs nothing.
+      const [confirmingId, setConfirmingId] = useState(null);
+      const confirmTimerRef = useRef(null);
+      useEffect(() => () => { if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current); }, []);
 
       const toggleTask = async (t) => {
-        if (t.status === 'completed') await repFetch('/api/rep/tasks/' + t.id + '/reopen', { method: 'PUT' });
-        else await repFetch('/api/rep/tasks/' + t.id + '/complete', { method: 'PUT' });
+        if (t.status === 'completed') {
+          await repFetch('/api/rep/tasks/' + t.id + '/reopen', { method: 'PUT' });
+          afterChange();
+          return;
+        }
+        if (confirmingId !== t.id) {
+          if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+          setConfirmingId(t.id);
+          confirmTimerRef.current = setTimeout(() => setConfirmingId(null), 2500);
+          return;
+        }
+        clearTimeout(confirmTimerRef.current);
+        setConfirmingId(null);
+        await repFetch('/api/rep/tasks/' + t.id + '/complete', { method: 'PUT' });
         afterChange();
       };
       const deleteTask = async (id) => {
@@ -23902,7 +23958,7 @@
 
       const chipCount = (k) => {
         if (!counts) return null;
-        return { open: counts.open, today: counts.due_today, overdue: counts.overdue, snoozed: counts.snoozed, done: counts.completed }[k];
+        return { open: counts.open, today: counts.due_today, overdue: counts.overdue, snoozed: counts.snoozed }[k];
       };
 
       const emptyText = {
@@ -23910,7 +23966,6 @@
         today: 'Nothing due today.',
         overdue: 'Nothing overdue. Nice.',
         snoozed: 'No snoozed tasks.',
-        done: 'No completed tasks yet.',
       }[viewKey];
 
       const renderRow = (t) => {
@@ -23919,10 +23974,14 @@
         const due = dueMeta(t.due_date);
         return (
           <div className="tk-row" key={t.id}>
-            <button className={'tk-check' + (isDone ? ' done' : '')} onClick={() => toggleTask(t)}
-              title={isDone ? 'Reopen' : 'Mark complete'}>
-              {isDone ? '✓' : ''}
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button className={'tk-check' + (isDone ? ' done' : '') + (confirmingId === t.id ? ' arming' : '')}
+                onClick={() => toggleTask(t)}
+                title={isDone ? 'Reopen' : confirmingId === t.id ? 'Click again to complete' : 'Mark complete'}>
+                {isDone || confirmingId === t.id ? '✓' : ''}
+              </button>
+              {confirmingId === t.id && !isDone && <span className="tk-check-hint">Again to complete</span>}
+            </div>
             <div className={'tk-priority-bar ' + t.priority} title={t.priority + ' priority'} />
             <div>
               <div className={'tk-title' + (isDone ? ' done' : '') + (!isAuto && !isDone ? ' editable' : '')}
@@ -24040,6 +24099,22 @@
                   {g.items.map(renderRow)}
                 </div>
               ))}
+            </div>
+          )}
+          {viewKey === 'open' && counts && counts.completed > 0 && (
+            <div className="nin-list">
+              <button className="tk-completed-toggle" onClick={() => setShowCompleted(s => !s)}>
+                <span>
+                  <span style={{ display: 'inline-block', transform: showCompleted ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', marginRight: 8 }}>{'▸'}</span>
+                  Completed this week
+                </span>
+                <span className="nin-chip-count">{counts.completed}</span>
+              </button>
+              {showCompleted && (
+                completedLoading
+                  ? <div className="nin-empty">Loading…</div>
+                  : completedTasks.map(renderRow)
+              )}
             </div>
           )}
           {showModal && <TaskCreateEditModal task={editingTask} onClose={() => { setShowModal(false); setEditingTask(null); }} onSaved={afterChange} navigate={navigate} />}
