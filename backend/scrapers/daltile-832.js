@@ -687,6 +687,35 @@ function makeInternalSku(vendorSku, productName) {
   return `DAL-${slug}`;
 }
 
+// Decode descriptors that live ONLY in the Daltile vendor SKU (trim profile,
+// paver finish, mosaic dot color). Without these, trim pieces collapse onto the
+// field tile's name. Mappings follow the majority evidence from the American
+// Olean / Marazzi twin catalog, which labels the same codes explicitly.
+// Returns an ordered array of descriptor strings.
+function daltileSkuDescriptors(vsku) {
+  const out = [];
+  if (!vsku || vsku.length < 5) return out;
+  // Octagon & Dot mosaics: OD<B|G|W> = dot color
+  const dot = vsku.match(/OD([BGW])/);
+  if (dot) out.push({ B: 'Black Dot', G: 'Gray Dot', W: 'White Dot' }[dot[1]]);
+  // Porcelain pavers: char after the 4-char prefix is G (polished) or R (textured)
+  if (/^[A-Z]{2}\d{2}[GR]\d/.test(vsku)) {
+    out.push(vsku[4] === 'G' ? 'Polished' : 'Textured');
+  }
+  // Trim profile from the shape code after the 4-char color prefix
+  const tok = vsku.slice(4);
+  let trim = null;
+  if (/^SN/.test(tok)) trim = 'Bullnose Corner';
+  else if (/^SCL/.test(tok)) trim = 'Cove Base Corner Left';
+  else if (/^SCR/.test(tok)) trim = 'Cove Base Corner Right';
+  else if (/^SC/.test(tok)) trim = 'Cove Base';
+  else if (/^S\d/.test(tok)) trim = 'Bullnose';
+  else if (/^(A|C|CB)\d/.test(tok)) trim = 'Cove Base';
+  else if (/^Q/.test(tok)) trim = 'Quarter Round';
+  if (trim) out.push(trim);
+  return out;
+}
+
 
 // ---------------------------------------------------------------------------
 // Main run() — called by the scraper framework
@@ -888,15 +917,57 @@ export async function run(pool, job, source) {
         const internalSku = makeInternalSku(item.vendor_sku, item.product_name);
         const vendorSku = item.vendor_sku || internalSku;
         const sellBy = item.sell_by || 'box';
-        // Per-item accessory detection (Bn items) takes priority, then group-level
-        const variantType = item._isAccessory ? 'accessory'
+        // Per-item accessory detection (Bn items) takes priority, then group-level.
+        // Daltile distributes non-tile sundries/tools (grout, mortar, caulk,
+        // adhesive, trowels) under 9999-prefixed item numbers — classify these as
+        // accessories so they drop out of the tile browse grid instead of showing
+        // as blank, un-imaged product cards.
+        const isSundry = /^9999/.test(vendorSku);
+        const variantType = (item._isAccessory || isSundry) ? 'accessory'
           : (group.isAccessory ? 'accessory' : null);
-        let variantName = item.color || item.product_name || null;
-        if (item._shapeFromName && variantName) {
-          variantName = `${variantName}, ${item._shapeFromName}`;
-        } else if (item._shapeFromName) {
-          variantName = item._shapeFromName;
+        // Build a display variant name from color + size + shape so SKUs that
+        // share a product name (collection + color) stay distinguishable in lists.
+        // Size is otherwise only stored as a sku_attribute (see below), which
+        // never surfaces in flat name displays — hence the "duplicate name" look.
+        const wMea = item.measurements.find(m => m.qualifier === 'WD');
+        const lMea = item.measurements.find(m => m.qualifier === 'LN');
+        // Only use a real dimension — trim/accessory lines carry 0x0 placeholders.
+        // Omit the unit_of_measure (e.g. Daltile's "EZ" mosaic code) from the
+        // display label; real inch tiles carry no unit and "12x24" reads cleanest.
+        const sizeLabel = (wMea && lMea && parseFloat(wMea.value) > 0 && parseFloat(lMea.value) > 0)
+          ? `${wMea.value}x${lMea.value}`
+          : null;
+        const nameParts = [];
+        const baseVariant = item.color || item.product_name || null;
+        if (baseVariant) nameParts.push(baseVariant);
+        // Colorless lines fall back to a product_name that often already embeds
+        // the size/shape — don't repeat it. Compare case-insensitively.
+        const baseLower = (baseVariant || '').toLowerCase();
+        if (sizeLabel && !baseLower.replace(/\s+/g, '').includes(sizeLabel.toLowerCase())) {
+          nameParts.push(sizeLabel);
         }
+        // Beveled-edge trim is only encoded in the vendor SKU (e.g. 0135RCT36BVGL),
+        // never as an attribute — so a beveled tile collapses onto the flat tile's
+        // name. Surface it as a "Beveled" descriptor.
+        const isBeveled = /\dBV[A-Z]/.test(item.vendor_sku || '');
+        if (isBeveled && !baseLower.includes('bevel')) {
+          nameParts.push('Beveled');
+        }
+        if (item._shapeFromName && !baseLower.includes(item._shapeFromName.toLowerCase())) {
+          nameParts.push(item._shapeFromName);
+        }
+        // Trim profile / paver finish / mosaic dot color decoded from the vendor
+        // SKU — otherwise trim pieces collapse onto the field tile's name.
+        for (const d of daltileSkuDescriptors(vendorSku)) {
+          if (!nameParts.join(' ').toLowerCase().includes(d.toLowerCase())) nameParts.push(d);
+        }
+        // Accessory buckets lump every color together, so the color is what
+        // distinguishes them — append it when it isn't already in the name.
+        if ((group.isAccessory || item._isAccessory) && item.color
+            && !nameParts.join(' ').toLowerCase().includes(item.color.toLowerCase())) {
+          nameParts.push(titleCaseColor(item.color));
+        }
+        const variantName = nameParts.length ? nameParts.join(', ') : null;
 
         const skuRow = await upsertSku(pool, {
           product_id: productId,
