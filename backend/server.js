@@ -12723,23 +12723,26 @@ app.post('/api/rep/visits/:id/send', repAuth, async (req, res) => {
 
     const itemsRes = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [visit.id]);
 
-    const repRes = await pool.query('SELECT first_name, last_name, email FROM sales_reps WHERE id = $1', [req.rep.id]);
+    const repRes = await pool.query('SELECT first_name, last_name, email, phone FROM sales_reps WHERE id = $1', [req.rep.id]);
     const rep = repRes.rows[0];
 
     const storefrontUrl = process.env.STOREFRONT_URL || `http://localhost:3000`;
     const recapUrl = `${storefrontUrl}/visit/${visit.token}`;
+    const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
     await sendVisitRecap({
       customer_name: visit.customer_name,
       customer_email: visit.customer_email,
       rep_name: `${rep.first_name} ${rep.last_name}`,
       rep_email: rep.email,
+      rep_phone: rep.phone,
       message: visit.message,
       items: itemsRes.rows,
-      recap_url: recapUrl
+      recap_url: recapUrl,
+      visited_at: visit.created_at,
+      expires_at: expiresAt
     });
 
-    const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
     await pool.query(`UPDATE showroom_visits SET status = 'sent', sent_at = NOW(), expires_at = $2 WHERE id = $1`, [visit.id, expiresAt]);
 
     res.json({ success: true });
@@ -24192,10 +24195,15 @@ const EMAIL_PREVIEW_TEMPLATES = {
     customer_name: 'Jennifer Lee',
     message: 'It was wonderful meeting you today! Here are the products we discussed for your master bathroom renovation. The Calacatta Gold would pair beautifully with the warm oak accents you mentioned.',
     rep_name: 'Alex Rivera',
-    recap_url: 'https://romaflooringdesigns.com/recap/abc123',
+    rep_email: 'alex@romaflooringdesigns.com',
+    rep_phone: '(714) 999-0009',
+    recap_url: 'https://romaflooringdesigns.com/visit/abc123',
+    visited_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
     items: [
       { product_name: 'Calacatta Gold Marble', collection: 'Luxe Stone', variant_name: '24x24 Polished', retail_price: '18.50', price_basis: 'per_sqft', rep_note: 'Perfect for the shower accent wall', primary_image: '' },
-      { product_name: 'European White Oak', collection: 'Heritage Collection', variant_name: '7" Wide Plank Natural', retail_price: '8.75', price_basis: 'per_sqft', rep_note: '', primary_image: '' },
+      { product_name: 'European White Oak', collection: 'Heritage Collection', variant_name: '7" Wide Plank Natural', retail_price: '8.75', price_basis: 'per_sqft', rep_note: 'The lighter alternative you compared', primary_image: '' },
+      { product_name: 'Carrara Hex Mosaic', collection: 'Classic Marble', variant_name: '2" Hexagon Honed', retail_price: '32.00', price_basis: 'per_unit', rep_note: '', primary_image: '' },
     ]
   }),
 
